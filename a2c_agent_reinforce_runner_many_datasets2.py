@@ -23,8 +23,8 @@ from src.NetworkEnv import NetworkEnv
 from src.utils import print_flush, load_models_path, get_model_layers_str
 
 
-def init_conf_values(action_to_compression_rate, num_epoch=100, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=1, can_do_more_then_one_loop=False, prune=False):
+def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
+                     total_allowed_accuracy_reduction=1, increase_loops_from_1_to_4=False, prune=False):
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!!!!")
 
@@ -32,13 +32,13 @@ def init_conf_values(action_to_compression_rate, num_epoch=100, is_learn_new_lay
     print_flush(f"device is {device}")
     print_flush(f"device name is {torch.cuda.get_device_name(0)}")
 
-    num_actions = len(action_to_compression_rate)
+    num_actions = len(compression_rates_dict)
     MAX_TIME_TO_RUN = 60 * 60 * 24 * 1.5
-    cv = ConfigurationValues(device, action_to_compression_rate=action_to_compression_rate, num_actions=num_actions,
+    cv = ConfigurationValues(device, compression_rates_dict=compression_rates_dict, num_actions=num_actions,
                              num_epoch=num_epoch,
                              is_learn_new_layers_only=is_learn_new_layers_only,
                              total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                             can_do_more_then_one_loop=can_do_more_then_one_loop,
+                             increase_loops_from_1_to_4=increase_loops_from_1_to_4,
                              prune=prune,
                              MAX_TIME_TO_RUN=MAX_TIME_TO_RUN)
     StaticConf(cv)
@@ -50,8 +50,8 @@ np.random.seed(0)
 
 def evaluate_model(mode, base_path, agent):
     models_path = load_models_path(base_path, mode)
-    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.can_do_more_then_one_loop)
-    action_to_compression = {
+    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
+    compression_rates_dict = {
         0: 1,
         1: 0.9,
         2: 0.8,
@@ -79,7 +79,7 @@ def evaluate_model(mode, base_path, agent):
             dist = agent.actor_model(state)
 
             action = dist.sample()
-            compression_rate = action_to_compression[action.cpu().numpy()[0]]
+            compression_rate = compression_rates_dict[action.cpu().numpy()[0]]
             next_state, reward, done = env.step(compression_rate)
             state = next_state
 
@@ -107,7 +107,7 @@ def evaluate_model(mode, base_path, agent):
 
 
 def main(fold, is_learn_new_layers_only, test_name,
-         total_allowed_accuracy_reduction, is_to_split_cv=False, can_do_more_then_one_loop=False,
+         total_allowed_accuracy_reduction, is_to_split_cv=False, increase_loops_from_1_to_4=False,
          prune=False, dataset_split_seed=0):
     base_path = f"./OneDatasetLearning/Classification/"
     datasets = list(map(os.path.basename, glob.glob(join(base_path, "*"))))
@@ -139,7 +139,7 @@ def main(fold, is_learn_new_layers_only, test_name,
 
     init_conf_values(actions, is_learn_new_layers_only=is_learn_new_layers_only, num_epoch=num_epoch,
                      total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                     can_do_more_then_one_loop=can_do_more_then_one_loop, prune=prune)
+                     increase_loops_from_1_to_4=increase_loops_from_1_to_4, prune=prune)
 
     train_models_path = [load_models_path(join(base_path, dataset_name), 'train') for dataset_name in train_datasets]
     test_models_path = [load_models_path(join(base_path, dataset_name), 'train') for dataset_name in test_datasets]
@@ -182,7 +182,7 @@ def extract_args_from_cmd():
     parser.add_argument('--learn_new_layers_only', type=bool, const=True, default=False, nargs='?')
     parser.add_argument('--split', type=bool, const=True, default=False, nargs='?')
     parser.add_argument('--allowed_reduction_acc', type=int, nargs='?')
-    parser.add_argument('--can_do_more_then_one_loop', type=bool, const=True, default=False, nargs='?')
+    parser.add_argument('--increase_loops_from_1_to_4', type=bool, const=True, default=False, nargs='?')
     parser.add_argument('--prune', type=bool, const=True, default=False, nargs='?')
     parser.add_argument('--fold', type=int, nargs='?')
 
@@ -193,7 +193,7 @@ if __name__ == "__main__":
     print_flush("Starting scripttt")
     args = extract_args_from_cmd()
     print_flush(args)
-    with_loops = '_with_loop' if args.can_do_more_then_one_loop else ""
+    with_loops = '_with_loop' if args.increase_loops_from_1_to_4 else ""
     pruned = '_pruned' if args.prune else ""
     fold = f'_fold{args.fold}'
     test_name = f'All_Datasets_Agent_learn_new_layers_only_{args.learn_new_layers_only}_acc_reduction_{args.allowed_reduction_acc}{with_loops}{pruned}{fold}'
@@ -201,5 +201,5 @@ if __name__ == "__main__":
     main(fold=args.fold, is_learn_new_layers_only=args.learn_new_layers_only, test_name=test_name,
          is_to_split_cv=args.split,
          total_allowed_accuracy_reduction=args.allowed_reduction_acc,
-         can_do_more_then_one_loop=args.can_do_more_then_one_loop,
+         increase_loops_from_1_to_4=args.increase_loops_from_1_to_4,
          prune=args.prune)

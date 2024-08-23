@@ -2,7 +2,6 @@ import os
 from datetime import datetime
 from os.path import join
 import pandas as pd
-import torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from torch import nn
@@ -22,13 +21,12 @@ def load_models_path(main_path, mode='train'):
 
     for root, dirs, files in os.walk(main_path):
         if ('X_train.csv' not in files):
-            continue
+            raise FileNotFoundError(f"{root} should contain 'X_train.csv'.\nMake sure you have run "
+                                    f"`Train Base Networks.ipynb' over {root.split('/')[-2]} in advance")
         train_data_path = join(root, 'X_train.csv')
 
-        if mode == 'train':
-            model_names = pd.read_csv(join(root, 'train_models.csv'))['0'].to_numpy()
-        elif mode == 'test':
-            model_names = pd.read_csv(join(root, 'test_models.csv'))['0'].to_numpy()
+        if mode in ['train', 'test']:
+            model_names = pd.read_csv(join(root, f'{mode}_models.csv'))['0'].to_numpy()
         else:
             model_names = files
 

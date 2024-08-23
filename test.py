@@ -22,7 +22,7 @@ env = NetworkEnv(models_path)
 done = False
 state = env.reset()
 
-action_to_compression = {
+compression_rates_dict = {
     0: 0.9,
     1: 0.75,
     2: 0.6,
@@ -32,6 +32,6 @@ action_to_compression = {
 while not done:
     dist, value = actor_critic_model(state)
     action = dist.sample()
-    compression_rate = action_to_compression[action.cpu().numpy()[0]]
+    compression_rate = compression_rates_dict[action.cpu().numpy()[0]]
     next_state, reward, done = env.step(compression_rate)
     state = next_state

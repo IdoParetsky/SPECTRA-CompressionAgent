@@ -23,15 +23,15 @@ from src.utils import print_flush, load_models_path, dict2obj, get_model_layers,
 os.environ['MKL_THREADING_LAYER'] = 'GNU'
 
 
-def init_conf_values(action_to_compression_rate=[], num_epoch=10, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=1, can_do_more_then_one_loop=False):
+def init_conf_values(compression_rates_dict=[], num_epoch=10, is_learn_new_layers_only=False,
+                     total_allowed_accuracy_reduction=1, increase_loops_from_1_to_4=False):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    num_actions = len(action_to_compression_rate)
-    cv = ConfigurationValues(device, action_to_compression_rate=action_to_compression_rate, num_actions=num_actions,
+    num_actions = len(compression_rates_dict)
+    cv = ConfigurationValues(device, compression_rates_dict=compression_rates_dict, num_actions=num_actions,
                              num_epoch=num_epoch,
                              is_learn_new_layers_only=is_learn_new_layers_only,
                              total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                             can_do_more_then_one_loop=can_do_more_then_one_loop)
+                             increase_loops_from_1_to_4=increase_loops_from_1_to_4)
     StaticConf(cv)
 
 
@@ -54,7 +54,7 @@ def get_total_weights_of_layer(l):
 
 def evaluate_model(mode, base_path, iters):
     models_path = load_models_path(base_path, mode)
-    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.can_do_more_then_one_loop)
+    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
 
     results = DataFrame(columns=['model', 'new_acc', 'origin_acc', 'new_param',
                                  'origin_param', 'new_model_arch', 'origin_model_arch'])

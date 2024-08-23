@@ -11,13 +11,13 @@ from src.ModelHandlers.BasicHandler import BasicHandler
 class Dataset(torch.utils.data.Dataset):
     def int_to_onehot(self, indx):
         one_hot = torch.zeros(self.range_y).float()
-        one_hot[int(indx)] = 1.0
+        one_hot[int(indx) - int(self.min_y)] = 1.0  # Adjusting class labels to be zero-based
         return one_hot
 
     def __init__(self, x, y):
-        min_y = min(y)
-        max_y = max(y)
-        self.range_y = int(max_y - min_y + 1)
+        self.min_y = min(y)
+        self.max_y = max(y)
+        self.range_y = int(self.max_y - self.min_y + 1)
 
         self.x = x
         self.y = y
@@ -39,7 +39,8 @@ class ClassificationHandler(BasicHandler):
         device = StaticConf.getInstance().conf_values.device
         preds = self.model(torch.Tensor(x_cv).to(device).float()).detach().cpu()
         preds_classes = torch.argmax(preds, dim=1)
-        return accuracy_score(preds_classes, y_cv)
+        print(accuracy_score(preds_classes, y_cv - min(y_cv)))
+        return accuracy_score(preds_classes, y_cv - min(y_cv))  # Subtracting the minimal class in case the classes are not zero-based
 
     def train_model(self):
         dataSet = Dataset(self.cross_validation_obj.x_train, self.cross_validation_obj.y_train)

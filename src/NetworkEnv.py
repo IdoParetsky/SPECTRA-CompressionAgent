@@ -28,10 +28,10 @@ class NetworkEnv:
     actions_history: List[float]
     max_samples_for_fe: int
 
-    def __init__(self, networks_path, can_do_more_then_one_loop=False, max_samples_for_fe=3000):
+    def __init__(self, networks_path, increase_loops_from_1_to_4=False, max_samples_for_fe=3000):
         # self.networks_path = [networks_path[0]]
         self.all_networks = []
-        self.can_do_more_then_one_loop = can_do_more_then_one_loop
+        self.increase_loops_from_1_to_4 = increase_loops_from_1_to_4
         self.max_samples_for_fe = max_samples_for_fe
 
         self.networks_path = networks_path
@@ -46,6 +46,7 @@ class NetworkEnv:
         self.net_order = list(range(0, len(self.all_networks)))
         np.random.shuffle(self.net_order)
 
+        # A dictionary mapping MissionTypes to corresponding Handler classes
         self.handler_by_mission_type: Dict[MissionTypes, Type[BasicHandler]] = {
             MissionTypes.Regression: RegressionHandler,
             MissionTypes.Classification: ClassificationHandler
@@ -86,8 +87,9 @@ class NetworkEnv:
         y_test_path = str.replace(x_train_path, 'X_train', 'Y_val')
 
         device = StaticConf.getInstance().conf_values.device
-        self.loaded_model, self.X_train_data, self.Y_train_data = load_model_and_data(selected_net_path, x_train_path,
-                                                                                      y_train_path, device)
+        self.loaded_model, self.X_train_data, self.Y_train_data = load_model_and_data(selected_net_path,
+                                                                                            x_train_path, y_train_path,
+                                                                                            device)
         self.X_test_data, self.Y_test_data = pd.read_csv(x_test_path), pd.read_csv(y_test_path)
 
         self.current_model = self.loaded_model.model
@@ -101,7 +103,7 @@ class NetworkEnv:
 
         return fm
 
-    def create_fe(self, device):
+    def create_fe(self, device):  # Feature Extraction
         number_of_sampled = min(self.max_samples_for_fe, max(self.max_samples_for_fe, len(self.X_train_data) // 10))
         test_size = number_of_sampled / len(self.X_train_data)
         if test_size >= 1:
@@ -111,22 +113,28 @@ class NetworkEnv:
                                                               stratify=self.Y_train_data)
         self.feature_extractor = FeatureExtractor(self.loaded_model.model, data_for_feature_extraction, device)
 
-    def step(self, action, is_to_train=True):
+    def step(self, compression_rate, is_to_train=True):
+        """
+        Compress the network according to the action (compression rate) and advance to the next state.
+
+        Args:
+            compression_rate (float):   The chosen compression_rate
+            is_to_train (bool):         Whether to train the new model after compression.
+
+        Returns:
+            Tuple: A tuple containing the next state (feature maps), the reward, and a flag indicating if the episode is done.
+        """
+
         print_flush(f'step {self.layer_index}')
-        """
-        Compress the network according to the action
-        :param action: compression rate
-        :return: next_state, reward
-        """
         # Create new layer with smaller size & Create new model with the new layer
-        if action == 1:
+        if compression_rate == 1:
             new_model_with_rows = ModelWithRows(self.current_model)
             learning_handler_new_model = self.create_learning_handler(self.current_model)
         else:
             if StaticConf.getInstance().conf_values.prune:
-                new_model = self.create_new_model_pruned(action)
+                new_model = self.create_new_model_pruned(compression_rate)
             else:
-                new_model = self.create_new_model_with_new_weights(action)
+                new_model = self.create_new_model_with_new_weights(compression_rate)
 
             new_model_with_rows = ModelWithRows(new_model)
             learning_handler_new_model = self.create_learning_handler(new_model)
@@ -148,8 +156,7 @@ class NetworkEnv:
         new_acc = learning_handler_new_model.evaluate_model(validation=True)
 
         # compute reward
-        reward = self.compute_reward3(self.current_model, learning_handler_new_model.model, new_acc, self.original_acc,
-                                      self.loaded_model.mission_type, action)
+        reward = self.compute_reward3(new_acc, self.original_acc, compression_rate)
 
         self.layer_index += 1
         learning_handler_new_model.unfreeze_all_layers()
@@ -163,15 +170,15 @@ class NetworkEnv:
 
         # Compute done
         number_of_layers = len(self.feature_extractor.model_with_rows.all_rows) - 1
-        if not self.can_do_more_then_one_loop:
-            done = self.layer_index == number_of_layers
+        if not self.increase_loops_from_1_to_4:
+            done = self.layer_index >= number_of_layers
         else:
-            self.actions_history.append(action)
+            self.actions_history.append(compression_rate)
             self.layer_index = max(1, self.layer_index % (number_of_layers + 1))
-            done = self.is_done_more_them_one_loop(number_of_layers)
+            done = self.is_done_more_than_one_loop(number_of_layers)
         return fm, reward, done
 
-    def is_done_more_them_one_loop(self, number_of_layers, max_iters=4):
+    def is_done_more_than_one_loop(self, number_of_layers, max_iters=4):
         """
         Checks if all last updates are 0 OR if the agent went through the whole layers max_iterations times
         :param number_of_layers:
@@ -210,9 +217,9 @@ class NetworkEnv:
             reward *= 30 * prev_acc / new_acc
         return reward
 
-    def compute_reward3(self, curr_model, new_model, new_acc, prev_acc, mission_type, action):
+    def compute_reward3(self, new_acc, prev_acc, compression_rate):
         total_allowed_accuracy_reduction = StaticConf.getInstance().conf_values.total_allowed_accuracy_reduction
-        layer_reduction_size = (1 - action) * 100
+        layer_reduction_size = (1 - compression_rate) * 100
 
         delta_acc = (new_acc - prev_acc) * 100
 
@@ -257,17 +264,18 @@ class NetworkEnv:
             if type(l) is nn.BatchNorm1d:
                 return l
 
-    def create_new_model_with_new_weights(self, action):
+    def create_new_model_with_new_weights(self, compression_rate):
         model_with_rows = ModelWithRows(self.current_model)
 
         prev_layer_to_change = self.get_linear_layer(model_with_rows.all_rows[self.layer_index - 1])
-        bn_to_change = None if self.layer_index is 1 else \
-            self.get_batchnorm_layer(model_with_rows.all_rows[self.layer_index - 1])
+        # Commented  out as it is unused
+        # bn_to_change = None if self.layer_index is 1 else \
+        #     self.get_batchnorm_layer(model_with_rows.all_rows[self.layer_index - 1])
 
         layer_to_change = self.get_linear_layer(model_with_rows.all_rows[self.layer_index])
 
         new_model_layers = []
-        new_size = int(np.ceil(action * layer_to_change.in_features))
+        new_size = int(np.ceil(compression_rate * layer_to_change.in_features))
         last_linear_layer = None
 
         for l in model_with_rows.all_layers:
@@ -301,12 +309,12 @@ class NetworkEnv:
                last_linear_layer is not None and \
                curr_layer.num_features is not last_linear_layer.out_features
 
-    def create_new_model_pruned(self, action):
+    def create_new_model_pruned(self, compression_rate):
         # model_copy = self.deep_copy_model(self.current_model)  # get a new instance
         # model_copy.load_state_dict(self.current_model.state_dict())  # copy weights and stuff
 
         model_with_rows = ModelWithRows(self.current_model)
         layer_to_change = self.get_linear_layer(model_with_rows.all_rows[self.layer_index - 1])
 
-        prune.ln_structured(layer_to_change, 'weight', 1 - action, n=1, dim=0)
+        prune.ln_structured(layer_to_change, 'weight', 1 - compression_rate, n=1, dim=0)
         return self.current_model

@@ -26,7 +26,7 @@ class A2C_Combined_Agent_Reinforce():
         self.actor_critic_model = ActorCritic(self.device, self.num_actions).to(self.device)
         self.optimizer = optim.Adam(self.actor_critic_model.parameters(), self.lr)
 
-        self.env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.can_do_more_then_one_loop)
+        self.env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
 
     def compute_returns(self, next_value, rewards, masks, gamma=0.99):
         R = next_value
@@ -44,7 +44,7 @@ class A2C_Combined_Agent_Reinforce():
         max_reward_in_all_episodes = -np.inf
         reward_not_improving = False
         min_epochs = 100
-        action_to_compression = StaticConf.getInstance().conf_values.action_to_compression_rate
+        compression_rates_dict = StaticConf.getInstance().conf_values.compression_rates_dict
 
         while self.episode_idx < min_epochs or (not reward_not_improving):
             print("Episode {}/{}".format(self.episode_idx, self.num_episodes))
@@ -56,16 +56,16 @@ class A2C_Combined_Agent_Reinforce():
 
             # rollout trajectory
             for _ in range(self.num_steps):
-                dist, value = self.actor_critic_model(state)
+                action_dist, value_pred = self.actor_critic_model(state)
 
-                action = dist.sample()
-                compression_rate = action_to_compression[action.cpu().numpy()[0]]
+                action = action_dist.sample()
+                compression_rate = compression_rates_dict[action.cpu().numpy()[0]]
                 next_state, reward, done = self.env.step(compression_rate)
 
-                log_prob = dist.log_prob(action)
+                log_prob = action_dist.log_prob(action)
 
                 log_probs.append(log_prob)
-                values.append(value)
+                values.append(value_pred)
                 rewards.append(torch.FloatTensor([reward]).unsqueeze(1).to(self.device))
                 masks.append(torch.FloatTensor([1 - done]).unsqueeze(1).to(self.device))
 
@@ -104,8 +104,7 @@ class A2C_Combined_Agent_Reinforce():
             all_rewards_episodes.append(returns[-1])
             curr_reward = all_rewards_episodes[-1]
 
-            if max_reward_in_all_episodes < v(curr_reward):
-                max_reward_in_all_episodes = v(curr_reward)
+            max_reward_in_all_episodes = max(max_reward_in_all_episodes, v(curr_reward))
 
             if len(all_rewards_episodes) > min_epochs and max_reward_in_all_episodes >= max(all_rewards_episodes[-20:]):
                 reward_not_improving = True

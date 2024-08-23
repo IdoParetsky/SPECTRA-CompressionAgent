@@ -24,7 +24,7 @@ init_conf_values(num_epoch=num_epoch, is_learn_new_layers_only=True)
 models_path = load_models_path('./OneDatasetLearning/Classification/mfeat-karhunen/', 'all')
 
 x = models_path[0][0]
-y = models_path[0][0].replace('X_to_train', 'Y_to_train')
+y = models_path[0][0].replace('X_train', 'Y_train')
 
 from datetime import datetime
 

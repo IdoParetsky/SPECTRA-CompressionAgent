@@ -27,7 +27,7 @@ def load_models_path(main_path, mode='train'):
     for root, dirs, files in os.walk(main_path):
         if ('X_train.csv' not in files):
             continue
-        train_data_path = root + '/X_to_train.csv'
+        train_data_path = root + '/X_train.csv'
 
         if mode == 'train':
             model_names = pd.read_csv(root + '/train_models.csv')['0'].to_numpy()

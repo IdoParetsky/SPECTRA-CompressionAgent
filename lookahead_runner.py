@@ -34,15 +34,15 @@ from src.utils import load_models_path, print_flush, save_times_csv, add_weight_
     set_mask_to_each_layer
 
 
-def init_conf_values(action_to_compression_rate, num_epoch=100, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=1, can_do_more_then_one_loop=False):
+def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
+                     total_allowed_accuracy_reduction=1, increase_loops_from_1_to_4=False):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    num_actions = len(action_to_compression_rate)
-    cv = ConfigurationValues(device, action_to_compression_rate=action_to_compression_rate, num_actions=num_actions,
+    num_actions = len(compression_rates_dict)
+    cv = ConfigurationValues(device, compression_rates_dict=compression_rates_dict, num_actions=num_actions,
                              num_epoch=num_epoch,
                              is_learn_new_layers_only=is_learn_new_layers_only,
                              total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                             can_do_more_then_one_loop=can_do_more_then_one_loop)
+                             increase_loops_from_1_to_4=increase_loops_from_1_to_4)
     StaticConf(cv)
 
 
@@ -165,7 +165,7 @@ def calc_num_parameters(model):
 
 def evaluate_model(mode, base_path, iterations):
     models_path = load_models_path(base_path, mode)
-    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.can_do_more_then_one_loop)
+    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
 
     results = DataFrame(columns=['model', 'new_acc', 'origin_acc', 'new_param',
                                  'origin_param', 'new_model_arch', 'origin_model_arch'])
@@ -212,7 +212,7 @@ def extract_args_from_cmd():
     # parser.add_argument('--dataset_name', type=str)
     # parser.add_argument('--learn_new_layers_only', type=bool, const=True, default=False, nargs='?')
     # parser.add_argument('--split', type=bool, const=True, default=False, nargs='?')
-    # parser.add_argument('--can_do_more_then_one_loop', type=bool, const=True, default=False, nargs='?')
+    # parser.add_argument('--increase_loops_from_1_to_4', type=bool, const=True, default=False, nargs='?')
     parser.add_argument('--iters', type=int)
 
     args = parser.parse_args()

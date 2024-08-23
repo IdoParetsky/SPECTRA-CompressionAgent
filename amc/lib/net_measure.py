@@ -4,6 +4,7 @@
 
 import torch
 
+
 # [reference] https://github.com/ShichenLiu/CondenseNet/blob/master/utils.py
 
 
@@ -29,20 +30,30 @@ def get_layer_param(model):
 
 
 def measure_layer(layer, x):
+    """
+    Measure the computational operations and parameters of a given layer.
+
+    Args:
+        layer (nn.Module): The layer for which to measure operations and parameters.
+        x (torch.Tensor): A sample input tensor to the layer.
+
+    Returns:
+        None
+    """
+
     global count_ops, count_params
     delta_ops = 0
-    delta_params = 0
     multi_add = 1
     type_name = get_layer_info(layer)
 
-    # ops_conv
+    # Calculate operations and parameters for different layer types
     if type_name in ['Conv2d']:
         out_h = int((x.size()[2] + 2 * layer.padding[0] - layer.kernel_size[0]) /
                     layer.stride[0] + 1)
         out_w = int((x.size()[3] + 2 * layer.padding[1] - layer.kernel_size[1]) /
                     layer.stride[1] + 1)
-        delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] *  \
-                layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
+        delta_ops = layer.in_channels * layer.out_channels * layer.kernel_size[0] * \
+                    layer.kernel_size[1] * out_h * out_w / layer.groups * multi_add
         delta_params = get_layer_param(layer)
 
     # ops_nonlinearity
@@ -70,14 +81,15 @@ def measure_layer(layer, x):
         delta_ops = weight_ops + bias_ops
         delta_params = get_layer_param(layer)
 
-    # ops_nothing
+    # These layer types contribute no operations but have parameters
     elif type_name in ['BatchNorm2d', 'Dropout2d', 'DropChannel', 'Dropout']:
         delta_params = get_layer_param(layer)
 
-    # unknown layer type
+    # Unknown layer type
     else:
         delta_params = get_layer_param(layer)
 
+    # Accumulate the calculated operations and parameters
     count_ops += delta_ops
     count_params += delta_params
 
@@ -85,28 +97,41 @@ def measure_layer(layer, x):
 
 
 def measure_model(model, H, W):
+    """
+    Measure the computational operations and parameters of a given model.
+
+    Args:
+        model (nn.Module): The model for which to measure operations and parameters.
+        H (int): Height of the input data.
+        W (int): Width of the input data.
+
+    Returns:
+        tuple: A tuple containing the total operations and parameters count.
+    """
+
     global count_ops, count_params
     count_ops = 0
     count_params = 0
     data = torch.zeros(1, 3, H, W).cuda()
 
-    def should_measure(x):
-        return is_leaf(x)
-
     def modify_forward(model):
+        # Modify the forward method of layers to include measurement
         for child in model.children():
-            if should_measure(child):
+            if is_leaf(child):
                 def new_forward(m):
                     def lambda_forward(x):
                         measure_layer(m, x)
                         return m.old_forward(x)
+
                     return lambda_forward
+
                 child.old_forward = child.forward
                 child.forward = new_forward(child)
             else:
                 modify_forward(child)
 
     def restore_forward(model):
+        # Restore the original forward methods of layers
         for child in model.children():
             # leaf node
             if is_leaf(child) and hasattr(child, 'old_forward'):

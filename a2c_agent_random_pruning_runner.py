@@ -28,9 +28,9 @@ from src.utils import print_flush, load_models_path
 #     model_paths = []
 #
 #     for root, dirs, files in os.walk(main_path):
-#         if ('X_to_train.csv' not in files):
+#         if ('X_train.csv' not in files):
 #             continue
-#         train_data_path = root + '/X_to_train.csv'
+#         train_data_path = root + '/X_train.csv'
 #
 #         if mode == 'train':
 #             model_names = pd.read_csv(root + '/train_models.csv')['0'].to_numpy()
@@ -46,15 +46,15 @@ from src.utils import print_flush, load_models_path
 #     return model_paths
 
 
-def init_conf_values(action_to_compression_rate, num_epoch=100, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=1, can_do_more_then_one_loop=False):
+def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
+                     total_allowed_accuracy_reduction=1, increase_loops_from_1_to_4=False):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    num_actions = len(action_to_compression_rate)
-    cv = ConfigurationValues(device, action_to_compression_rate=action_to_compression_rate, num_actions=num_actions,
+    num_actions = len(compression_rates_dict)
+    cv = ConfigurationValues(device, compression_rates_dict=compression_rates_dict, num_actions=num_actions,
                              num_epoch=num_epoch,
                              is_learn_new_layers_only=is_learn_new_layers_only,
                              total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                             can_do_more_then_one_loop=can_do_more_then_one_loop)
+                             increase_loops_from_1_to_4=increase_loops_from_1_to_4)
     StaticConf(cv)
 
 
@@ -73,8 +73,8 @@ def get_model_layers(model):
 
 def evaluate_model(mode, base_path):
     models_path = load_models_path(base_path, mode)
-    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.can_do_more_then_one_loop)
-    action_to_compression = {
+    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
+    compression_rates_dict = {
         # 0: 1,
         1: 0.9,
         2: 0.8,
@@ -96,8 +96,8 @@ def evaluate_model(mode, base_path):
         for _ in range(4):
             for l in list(model.modules()):
                 if type(l) is torch.nn.Linear:
-                    action = np.random.choice(list(action_to_compression.keys()), 1)[0]
-                    compression_rate = action_to_compression[action]
+                    action = np.random.choice(list(compression_rates_dict.keys()), 1)[0]
+                    compression_rate = compression_rates_dict[action]
                     prune.l1_unstructured(l, name='weight', amount=1 - compression_rate)
 
         origin_params = calc_num_parameters(model)
@@ -124,7 +124,7 @@ def evaluate_model(mode, base_path):
 
 
 def main(dataset_name, is_learn_new_layers_only, test_name,
-         can_do_more_then_one_loop=False):
+         increase_loops_from_1_to_4=False):
     actions = {
         # 0: 1,
         1: 0.9,
@@ -135,7 +135,7 @@ def main(dataset_name, is_learn_new_layers_only, test_name,
 
     base_path = f"./OneDatasetLearning/Classification/{dataset_name}/"
     init_conf_values(actions, is_learn_new_layers_only=is_learn_new_layers_only, num_epoch=5,
-                     can_do_more_then_one_loop=can_do_more_then_one_loop)
+                     increase_loops_from_1_to_4=increase_loops_from_1_to_4)
 
     mode = 'all'
     results = evaluate_model(mode, base_path)
@@ -151,7 +151,7 @@ def extract_args_from_cmd():
     # parser.add_argument('--test_name', type=str)
     parser.add_argument('--learn_new_layers_only', type=bool, const=True, default=True, nargs='?')
     # parser.add_argument('--split', type=bool, const=True, default=False, nargs='?')
-    parser.add_argument('--can_do_more_then_one_loop', type=bool, const=True, default=True, nargs='?')
+    parser.add_argument('--increase_loops_from_1_to_4', type=bool, const=True, default=True, nargs='?')
 
     args = parser.parse_args()
     return args
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     for curr_dataset in all_datasets:
         args.dataset_name = os.path.basename(curr_dataset)
         print_flush(args.dataset_name)
-        with_loops = '_with_loop' if args.can_do_more_then_one_loop else ""
+        with_loops = '_with_loop' if args.increase_loops_from_1_to_4 else ""
         test_name = f'Agent_{args.dataset_name}_Random_pruning'
         main(dataset_name=args.dataset_name, is_learn_new_layers_only=args.learn_new_layers_only, test_name=test_name,
-             can_do_more_then_one_loop=args.can_do_more_then_one_loop)
+             increase_loops_from_1_to_4=args.increase_loops_from_1_to_4)

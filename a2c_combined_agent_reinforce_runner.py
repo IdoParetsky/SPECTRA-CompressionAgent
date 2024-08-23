@@ -23,9 +23,9 @@ def load_models_path(main_path, mode='train'):
     model_paths = []
 
     for root, dirs, files in os.walk(main_path):
-        if ('X_to_train.csv' not in files):
+        if ('X_train.csv' not in files):
             continue
-        train_data_path = root + '/X_to_train.csv'
+        train_data_path = root + '/X_train.csv'
 
         if mode == 'train':
             model_names = pd.read_csv(root + '/train_models.csv')['0'].to_numpy()
@@ -41,11 +41,11 @@ def load_models_path(main_path, mode='train'):
     return model_paths
 
 
-def init_conf_values(action_to_compression_rate, num_epoch=100, is_learn_new_layers_only=False,
+def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
                      total_allowed_accuracy_reduction=1):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    num_actions = len(action_to_compression_rate)
-    cv = ConfigurationValues(device, action_to_compression_rate=action_to_compression_rate, num_actions=num_actions,
+    num_actions = len(compression_rates_dict)
+    cv = ConfigurationValues(device, compression_rates_dict=compression_rates_dict, num_actions=num_actions,
                              num_epoch=num_epoch,
                              is_learn_new_layers_only=is_learn_new_layers_only,
                              total_allowed_accuracy_reduction=total_allowed_accuracy_reduction)
@@ -85,7 +85,7 @@ def get_model_layers(model):
 def evaluate_model(mode, base_path, agent):
     models_path = load_models_path(base_path, mode)
     env = NetworkEnv(models_path)
-    action_to_compression = {
+    compression_rates_dict = {
         0: 1,
         1: 0.9,
         2: 0.8,
@@ -107,7 +107,7 @@ def evaluate_model(mode, base_path, agent):
             #             dist = agent.actor_model(state)
 
             action = dist.sample()
-            compression_rate = action_to_compression[action.cpu().numpy()[0]]
+            compression_rate = compression_rates_dict[action.cpu().numpy()[0]]
             next_state, reward, done = env.step(compression_rate)
             state = next_state
 

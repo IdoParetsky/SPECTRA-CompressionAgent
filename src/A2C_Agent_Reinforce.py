@@ -1,10 +1,11 @@
 import os
 import time
-from os.path import basename, join
+from os.path import join
+
+import numpy as np
 import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-import numpy as np
 
 # def test_env(vis=False):
 #     state = env.reset()
@@ -18,11 +19,9 @@ import numpy as np
 #         total_reward += reward
 #     return total_reward
 from src.Configuration.StaticConf import StaticConf
-from src.Model.Critic import Critic
 from src.Model.Actor import Actor
-from src.Model.ActorCritic import ActorCritic
+from src.Model.Critic import Critic
 from src.NetworkEnv import NetworkEnv
-from src.PrioritizedReplay import PrioritizedReplayMemory
 from src.utils import print_flush
 
 
@@ -36,7 +35,6 @@ class A2C_Agent_Reinforce():
         self.num_steps = 10
         self.device = StaticConf.getInstance().conf_values.device
         self.num_actions = StaticConf.getInstance().conf_values.num_actions
-        self.num_episodes = 100
         self.episode_idx = 0
         # self.actor_critic_model = ActorCritic(self.device, self.num_actions).to(self.device)
         # self.optimizer = optim.Adam(self.actor_critic_model.parameters(), self.lr)
@@ -51,7 +49,7 @@ class A2C_Agent_Reinforce():
         self.actor_optimizer = optim.Adam(self.actor_model.parameters(), self.lr)
         self.critic_optimizer = optim.Adam(self.critic_model.parameters(), self.lr)
 
-        self.env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.can_do_more_then_one_loop)
+        self.env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
 
     def compute_returns(self, next_value, rewards, masks, gamma=0.99):
         R = next_value
@@ -68,7 +66,7 @@ class A2C_Agent_Reinforce():
         all_rewards_episodes = []
         max_reward_in_all_episodes = -np.inf
         reward_not_improving = False
-        action_to_compression = StaticConf.getInstance().conf_values.action_to_compression_rate
+        compression_rates_dict = StaticConf.getInstance().conf_values.compression_rates_dict
 
         warmup_len = min(len(self.env.all_networks) * 2, 500)
         min_episode_num = len(self.env.all_networks) * 10 + warmup_len
@@ -78,7 +76,7 @@ class A2C_Agent_Reinforce():
 
         while (self.episode_idx < min_episode_num or (not reward_not_improving)) and \
                 time.time() < start_time + MAX_TIME_TO_RUN:
-            print_flush("Episode {}/{}".format(self.episode_idx, self.num_episodes))
+            print_flush("Episode {}/{}".format(self.episode_idx, min_episode_num))
             state = self.env.reset()
             log_probs = []
             values = []
@@ -89,22 +87,22 @@ class A2C_Agent_Reinforce():
 
             # rollout trajectory
             while not done:
-                value = self.critic_model(state)
-                dist = self.actor_model(state)
+                value_pred = self.critic_model(state)
+                action_dist = self.actor_model(state)
 
                 if self.episode_idx < warmup_len:
                     action = torch.Tensor([np.random.randint(0, 5)]).cuda()
                 else:
-                    action = dist.sample()
+                    action = action_dist.sample()
 
-                compression_rate = action_to_compression[action.cpu().numpy()[0]]
+                compression_rate = compression_rates_dict[action.cpu().numpy()[0]]
                 next_state, reward, done = self.env.step(compression_rate)
 
-                log_prob = dist.log_prob(action)
-                entropy += dist.entropy().mean()
+                log_prob = action_dist.log_prob(action)
+                entropy += action_dist.entropy().mean()
 
                 log_probs.append(log_prob)
-                values.append(value)
+                values.append(value_pred)
                 rewards.append(torch.FloatTensor([reward]).unsqueeze(1).to(self.device))
                 masks.append(torch.FloatTensor([1 - done]).unsqueeze(1).to(self.device))
 
@@ -155,9 +153,9 @@ class A2C_Agent_Reinforce():
                 torch.save(self.critic_model, join(checkpoint_folder, self.test_name + '_critic.pt'))
                 torch.save(self.actor_model, join(checkpoint_folder, self.test_name + '_actor.pt'))
 
-            if max_reward_in_all_episodes < v(curr_reward):
-                max_reward_in_all_episodes = v(curr_reward)
+            max_reward_in_all_episodes = max(max_reward_in_all_episodes, v(curr_reward))
 
+            print(f"{max_reward_in_all_episodes=}, {max(all_rewards_episodes[-min_episode_num:])=}")
             if len(all_rewards_episodes) > min_episode_num and max_reward_in_all_episodes >= max(
                     all_rewards_episodes[-min_episode_num:]):
                 reward_not_improving = True

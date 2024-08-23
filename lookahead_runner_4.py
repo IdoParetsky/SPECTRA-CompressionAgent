@@ -33,9 +33,9 @@ def load_models_path(main_path, mode='train'):
     model_paths = []
 
     for root, dirs, files in os.walk(main_path):
-        if ('X_to_train.csv' not in files):
+        if ('X_train.csv' not in files):
             continue
-        train_data_path = root + '/X_to_train.csv'
+        train_data_path = root + '/X_train.csv'
 
         if mode == 'train':
             model_names = pd.read_csv(root + '/train_models.csv')['0'].to_numpy()
@@ -51,15 +51,15 @@ def load_models_path(main_path, mode='train'):
     return model_paths
 
 
-def init_conf_values(action_to_compression_rate, num_epoch=100, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=1, can_do_more_then_one_loop=False):
+def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
+                     total_allowed_accuracy_reduction=1, increase_loops_from_1_to_4=False):
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    num_actions = len(action_to_compression_rate)
-    cv = ConfigurationValues(device, action_to_compression_rate=action_to_compression_rate, num_actions=num_actions,
+    num_actions = len(compression_rates_dict)
+    cv = ConfigurationValues(device, compression_rates_dict=compression_rates_dict, num_actions=num_actions,
                              num_epoch=num_epoch,
                              is_learn_new_layers_only=is_learn_new_layers_only,
                              total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                             can_do_more_then_one_loop=can_do_more_then_one_loop)
+                             increase_loops_from_1_to_4=increase_loops_from_1_to_4)
     StaticConf(cv)
 
 
@@ -195,8 +195,8 @@ def calc_num_parameters(model):
 
 def evaluate_model(mode, base_path):
     models_path = load_models_path(base_path, mode)
-    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.can_do_more_then_one_loop)
-    action_to_compression = {
+    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
+    compression_rates_dict = {
         0: 1,
         1: 0.9,
         2: 0.8,
@@ -254,7 +254,7 @@ def extract_args_from_cmd():
     # parser.add_argument('--dataset_name', type=str)
     # parser.add_argument('--learn_new_layers_only', type=bool, const=True, default=False, nargs='?')
     # parser.add_argument('--split', type=bool, const=True, default=False, nargs='?')
-    # parser.add_argument('--can_do_more_then_one_loop', type=bool, const=True, default=False, nargs='?')
+    # parser.add_argument('--increase_loops_from_1_to_4', type=bool, const=True, default=False, nargs='?')
 
     args = parser.parse_args()
     return args
@@ -265,7 +265,7 @@ if __name__ == "__main__":
 
     all_datasets = glob.glob("./OneDatasetLearning/Classification/*")
 
-    dataset_sizes = list(map(lambda x: x.shape[0], map(lambda x: pd.read_csv(os.path.join(x, "X_to_train.csv")), all_datasets)))
+    dataset_sizes = list(map(lambda x: x.shape[0], map(lambda x: pd.read_csv(os.path.join(x, "X_train.csv")), all_datasets)))
     dataset_with_size = sorted(zip(all_datasets, dataset_sizes), key=lambda x:x[1])
 
     for idx, (curr_dataset, _) in enumerate(dataset_with_size):
