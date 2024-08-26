@@ -180,11 +180,11 @@ def extract_args_from_cmd():
     # parser.add_argument('--test_name', type=str)
     # parser.add_argument('--dataset_name', type=str)
     parser.add_argument('--learn_new_layers_only', type=bool, const=True, default=False, nargs='?')
-    parser.add_argument('--split', type=bool, const=True, default=False, nargs='?')
-    parser.add_argument('--allowed_reduction_acc', type=int, nargs='?')
-    parser.add_argument('--increase_loops_from_1_to_4', type=bool, const=True, default=False, nargs='?')
-    parser.add_argument('--prune', type=bool, const=True, default=False, nargs='?')
-    parser.add_argument('--fold', type=int, nargs='?')
+    parser.add_argument('--split', type=bool, const=True, default=True, nargs='?')
+    parser.add_argument('--allowed_reduction_acc', type=int, default=5, nargs='?')
+    parser.add_argument('--increase_loops_from_1_to_4', type=bool, const=True, default=True, nargs='?')
+    parser.add_argument('--prune', type=bool, const=True, default=True, nargs='?')
+    parser.add_argument('--fold', type=int,  default=5, nargs='?')
 
     args = parser.parse_args()
     return args

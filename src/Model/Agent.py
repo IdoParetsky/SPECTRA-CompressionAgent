@@ -128,6 +128,7 @@ class Agent(nn.Module):
 
         if self.is_actor and not self.is_critic:
             probs = self.actor(features_concat)
+            print(f"{probs=}")
             dist = Categorical(probs)
             return dist
         elif self.is_critic and not self.is_actor:

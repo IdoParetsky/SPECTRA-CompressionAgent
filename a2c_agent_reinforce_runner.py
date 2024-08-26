@@ -18,7 +18,7 @@ from src.utils import print_flush, load_models_path, get_model_layers_str
 
 
 def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=1, increase_loops_from_1_to_4=False, prune=False):
+                     total_allowed_accuracy_reduction=5, increase_loops_from_1_to_4=True, prune=False):
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!!!!")
 
@@ -37,7 +37,8 @@ def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_
     StaticConf(cv)
 
 
-def evaluate_model(mode, base_path, agent):
+def \
+        evaluate_model(mode, base_path, agent):
     models_path = load_models_path(base_path, mode)
     env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
     compression_rates_dict = {
@@ -54,6 +55,16 @@ def evaluate_model(mode, base_path, agent):
     for i in range(len(env.all_networks)):
         print_flush(i)
         state = env.reset()
+        total_values = sum(arr.size for tuple_arrays in state for arr in tuple_arrays)
+        nan_count = sum(np.isnan(arr).sum() for tuple_arrays in state for arr in tuple_arrays)
+
+        # Calculate the percentage of NaN values
+        nan_percentage = (nan_count / total_values) * 100
+
+        # Print the results
+        print(f"Number of NaN values in the list of tuples: {nan_count}")
+        print(f"Percentage of NaN values: {nan_percentage:.2f}%")
+        state = [tuple(np.nan_to_num(arr, nan=0.0) for arr in tuple_arrays) for tuple_arrays in state]  # TODO: Understarnd why there are NaNs!
         done = False
 
         while not done:
@@ -66,6 +77,16 @@ def evaluate_model(mode, base_path, agent):
             compression_rate = compression_rates_dict[action.cpu().numpy()[0]]
             next_state, reward, done = env.step(compression_rate)
             state = next_state
+            total_values = sum(arr.size for tuple_arrays in state for arr in tuple_arrays)
+            nan_count = sum(np.isnan(arr).sum() for tuple_arrays in state for arr in tuple_arrays)
+
+            # Calculate the percentage of NaN values
+            nan_percentage = (nan_count / total_values) * 100
+
+            # Print the results
+            print(f"Number of NaN values in the list of tuples: {nan_count}")
+            print(f"Percentage of NaN values: {nan_percentage:.2f}%")
+            state = [tuple(np.nan_to_num(arr, nan=0.0) for arr in tuple_arrays) for tuple_arrays in state]  # TODO: Understarnd why there are NaNs!
 
         # Evaluate performance and model size of the new and original models
         new_lh = env.create_learning_handler(env.current_model)
@@ -114,7 +135,9 @@ def main(dataset_name, is_learn_new_layers_only, test_name,
         3: 0.7,
         4: 0.6
     }
-    base_path = f"C:/Users/idopa/Documents/BGU/MSc/CNN-CompressionAgent/datasets/{dataset_name}/"
+    base_path = f"C:/Users/idopa/Documents/BGU/MSc/SPECTRA-CompressionAgent/datasets/SPECTRA-csv/{dataset_name}/"  # SPECTRA
+    #base_path = f"C:/Users/idopa/Documents/BGU/MSc/SPECTRA-CompressionAgent/datasets/NEON-csv/{dataset_name}/"  # NEON
+    #base_path = f"C:/Users/idopa/Documents/BGU/MSc/SPECTRA-CompressionAgent/datasets/{dataset_name}/"  # NEON orig structure
 
     if is_to_split_cv:
         split_dataset_to_train_test(base_path)
@@ -132,14 +155,14 @@ def main(dataset_name, is_learn_new_layers_only, test_name,
 
     print_flush("Evaluating train datasets")
 
-    mode = 'test'
+    mode = 'train'
     results = evaluate_model(mode, base_path, agent)
     results.to_csv(f"./models/Reinforce_One_Dataset/results_{test_name}_{mode}.csv")
 
     print_flush("DONE evaluating train datasets")
 
     print_flush("Evaluating test datasets")
-    mode = 'train'
+    mode = 'test'
     results = evaluate_model(mode, base_path, agent)
     results.to_csv(f"./models/Reinforce_One_Dataset/results_{test_name}_{mode}.csv")
     print_flush("DONE evaluating test datasets")
@@ -147,8 +170,8 @@ def main(dataset_name, is_learn_new_layers_only, test_name,
 
 def extract_args_from_cmd():
     parser = argparse.ArgumentParser(description='')
-    # parser.add_argument('--test_name', type=str)
-    parser.add_argument('--dataset_name', type=str, default="teachingAssistant")
+    parser.add_argument('--test_name', type=str, const=True, default='svhn', nargs='?')
+    parser.add_argument('--dataset_name', type=str, default="svhn")
     parser.add_argument('--learn_new_layers_only', type=bool, const=True, default=True, nargs='?')
     parser.add_argument('--split', type=bool, const=True, default=True, nargs='?')
     parser.add_argument('--allowed_reduction_acc', type=int, default=5, nargs='?')  # Another recommended default is 1 (in precents)

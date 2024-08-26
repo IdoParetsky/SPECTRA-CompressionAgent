@@ -78,6 +78,16 @@ class A2C_Agent_Reinforce():
                 time.time() < start_time + MAX_TIME_TO_RUN:
             print_flush("Episode {}/{}".format(self.episode_idx, min_episode_num))
             state = self.env.reset()
+            total_values = sum(arr.size for tuple_arrays in state for arr in tuple_arrays)
+            nan_count = sum(np.isnan(arr).sum() for tuple_arrays in state for arr in tuple_arrays)
+
+            # Calculate the percentage of NaN values
+            nan_percentage = (nan_count / total_values) * 100
+
+            # Print the results
+            print(f"Number of NaN values in the list of tuples: {nan_count}")
+            print(f"Percentage of NaN values: {nan_percentage:.2f}%")
+            state = [tuple(np.nan_to_num(arr, nan=0.0) for arr in tuple_arrays) for tuple_arrays in state]  # TODO: Understarnd why there are NaNs!
             log_probs = []
             values = []
             rewards = []
@@ -107,6 +117,16 @@ class A2C_Agent_Reinforce():
                 masks.append(torch.FloatTensor([1 - done]).unsqueeze(1).to(self.device))
 
                 state = next_state
+                total_values = sum(arr.size for tuple_arrays in state for arr in tuple_arrays)
+                nan_count = sum(np.isnan(arr).sum() for tuple_arrays in state for arr in tuple_arrays)
+
+                # Calculate the percentage of NaN values
+                nan_percentage = (nan_count / total_values) * 100
+
+                # Print the results
+                print(f"Number of NaN values in the list of tuples: {nan_count}")
+                print(f"Percentage of NaN values: {nan_percentage:.2f}%")
+                state = [tuple(np.nan_to_num(arr, nan=0.0) for arr in tuple_arrays) for tuple_arrays in state]  # TODO: Understarnd why there are NaNs!
                 # self.episode_idx += 1
 
                 if done:
@@ -147,7 +167,7 @@ class A2C_Agent_Reinforce():
             curr_reward = all_rewards_episodes[-1]
 
             checkpoint_folder = 'checkpoints'
-            if (self.episode_idx + 1) % 100 == 0:
+            if (self.episode_idx + 1) % 12 == 0:
                 if not os.path.exists(checkpoint_folder):
                     os.mkdir(checkpoint_folder)
                 torch.save(self.critic_model, join(checkpoint_folder, self.test_name + '_critic.pt'))
@@ -164,6 +184,12 @@ class A2C_Agent_Reinforce():
                 break
 
             print_flush(f"DONE Episode {self.episode_idx}")
+
+        trained_folder = 'trained_models'
+        if not os.path.exists(trained_folder):
+            os.mkdir(trained_folder)
+        torch.save(self.critic_model, join(trained_folder, self.test_name + '_critic.pt'))
+        torch.save(self.actor_model, join(trained_folder, self.test_name + '_actor.pt'))
 
         print_flush("DONE Training")
         return
