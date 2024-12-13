@@ -1,4 +1,4 @@
-# from NetworkFeatureExtration.src.ModelClasses.NetX.netX import NetX - must be import!!!!
+# from NetworkFeatureExtraction.src.ModelClasses.NetX.netX import NetX - must be imported
 import glob
 import os
 import time
@@ -13,18 +13,18 @@ import torch
 from pandas import DataFrame
 from sklearn.model_selection import train_test_split
 from torch import nn
-from NetworkFeatureExtration.src.ModelWithRows import ModelWithRows
-from src.A2C_Agent_Reinforce import A2C_Agent_Reinforce
+from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
+from src.A2C_Agent_Reinforce import A2CAgentReinforce
 
 from src.Configuration.ConfigurationValues import ConfigurationValues
 from src.Configuration.StaticConf import StaticConf
-from NetworkFeatureExtration.src.ModelClasses.NetX.netX import NetX
+from NetworkFeatureExtraction.src.ModelClasses.NetX.netX import NetX
 from src.NetworkEnv import NetworkEnv
 from src.utils import print_flush, load_models_path, get_model_layers_str
 
 
 def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=1, increase_loops_from_1_to_4=False, prune=False):
+                     total_allowed_accuracy_reduction=1, passes=1, prune=False):
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!!!!")
 
@@ -38,7 +38,7 @@ def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_
                              num_epoch=num_epoch,
                              is_learn_new_layers_only=is_learn_new_layers_only,
                              total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                             increase_loops_from_1_to_4=increase_loops_from_1_to_4,
+                             passes=passes,
                              prune=prune,
                              MAX_TIME_TO_RUN=MAX_TIME_TO_RUN)
     StaticConf(cv)
@@ -50,7 +50,7 @@ np.random.seed(0)
 
 def evaluate_model(mode, base_path, agent):
     models_path = load_models_path(base_path, mode)
-    env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
+    env = NetworkEnv(models_path, StaticConf.get_instance().conf_values.passes)
     compression_rates_dict = {
         0: 1,
         1: 0.9,
@@ -84,8 +84,8 @@ def evaluate_model(mode, base_path, agent):
         new_lh = env.create_learning_handler(env.current_model)
         origin_lh = env.create_learning_handler(env.loaded_model.model)
 
-        new_acc = new_lh.evaluate_model()
-        origin_acc = origin_lh.evaluate_model()
+        new_acc = new_lh.evaluate_model(env.test_loader)
+        origin_acc = origin_lh.evaluate_model(env.test_loader)
 
         new_params = env.calc_num_parameters(env.current_model)
         origin_params = env.calc_num_parameters(env.loaded_model.model)
@@ -107,7 +107,7 @@ def evaluate_model(mode, base_path, agent):
 
 
 def main(fold, is_learn_new_layers_only, test_name,
-         total_allowed_accuracy_reduction, increase_loops_from_1_to_4=False,
+         total_allowed_accuracy_reduction, passes=1,
          prune=False, dataset_split_seed=0):
     base_path = f"./OneDatasetLearning/Classification/"
     datasets = list(map(os.path.basename, glob.glob(join(base_path, "*"))))
@@ -139,7 +139,7 @@ def main(fold, is_learn_new_layers_only, test_name,
 
     init_conf_values(actions, is_learn_new_layers_only=is_learn_new_layers_only, num_epoch=num_epoch,
                      total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                     increase_loops_from_1_to_4=increase_loops_from_1_to_4, prune=prune)
+                     passes=passes, prune=prune)
 
     train_models_path = [load_models_path(join(base_path, dataset_name), 'train') for dataset_name in train_datasets]
     test_models_path = [load_models_path(join(base_path, dataset_name), 'train') for dataset_name in test_datasets]
@@ -158,7 +158,7 @@ def main(fold, is_learn_new_layers_only, test_name,
     actor_checkpoint = torch.load(actor_chkpt_path).state_dict()
     critic_checkpoint = torch.load(critic_chkpt_path).state_dict()
 
-    agent = A2C_Agent_Reinforce(train_models_path, test_name, actor_checkpoint=actor_checkpoint,
+    agent = A2CAgentReinforce(train_models_path, test_name, actor_checkpoint=actor_checkpoint,
                                 critic_checkpoint=critic_checkpoint)
 
     print_flush("Starting evaluate train datasets")
@@ -192,7 +192,7 @@ def extract_args_from_cmd():
     parser = argparse.ArgumentParser(description='')
     # parser.add_argument('--test_name', type=str)
     # parser.add_argument('--dataset_name', type=str)
-    parser.add_argument('--increase_loops_from_1_to_4', type=bool, const=True, default=False, nargs='?')
+    parser.add_argument('--passes', type=int, const=True, default=1, nargs='?')
     parser.add_argument('--allowed_reduction_acc', type=int, nargs='?')
     parser.add_argument('--fold', type=int, nargs='?')
     parser.add_argument('--prune', type=bool, const=True, default=False, nargs='?')
@@ -206,9 +206,9 @@ if __name__ == "__main__":
     args = extract_args_from_cmd()
     print_flush(args)
     pruned = '_pruned' if args.prune else ""
-    with_loops = '_with_loop' if args.increase_loops_from_1_to_4 else ""
+    with_loops = f'_{args.passes}_passes' if args.passes else ""
     fold = f'_fold{args.fold}'
     test_name = f'All_Datasets_Agent_learn_new_layers_only_{True}_acc_reduction_{args.allowed_reduction_acc}{with_loops}{pruned}{fold}'
     print_flush(test_name)
     main(fold=args.fold, test_name=test_name, total_allowed_accuracy_reduction=args.allowed_reduction_acc,
-         is_learn_new_layers_only=True, increase_loops_from_1_to_4=args.increase_loops_from_1_to_4, prune=args.prune)
+         is_learn_new_layers_only=True, passes=args.passes, prune=args.prune)

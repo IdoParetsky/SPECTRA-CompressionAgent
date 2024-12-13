@@ -7,17 +7,6 @@ import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 
-# def test_env(vis=False):
-#     state = env.reset()
-#     done = False
-#     total_reward = 0
-#     while not done:
-#         state = torch.FloatTensor(state).unsqueeze(0).to(device)
-#         dist, _ = actor_critic_model(state)
-#         next_state, reward, done, _ = env.step(dist.sample().cpu().numpy()[0])
-#         state = next_state
-#         total_reward += reward
-#     return total_reward
 from src.Configuration.StaticConf import StaticConf
 from src.Model.Actor import Actor
 from src.Model.Critic import Critic
@@ -25,16 +14,27 @@ from src.NetworkEnv import NetworkEnv
 from src.utils import print_flush
 
 
-class A2C_Agent_Reinforce():
+def compute_returns(next_value, rewards, masks, gamma=0.99):
+    R = next_value
+    returns = []
+    for step in reversed(range(len(rewards))):
+        R = rewards[step] + gamma * R * masks[step]
+        returns.insert(0, R)
+    return returns
+
+
+class A2CAgentReinforce:
     # , experience_replay_size, priority_alpha, priority_beta_start, priority_beta_frames
+
+    # TODO: propagate train_split, val_split and max_iter
     def __init__(self, models_path, test_name, actor_checkpoint=None, critic_checkpoint=None):
         # Hyper params:
         self.test_name = test_name
         self.discount_factor = 0.9
         self.lr = 1e-3
         self.num_steps = 10
-        self.device = StaticConf.getInstance().conf_values.device
-        self.num_actions = StaticConf.getInstance().conf_values.num_actions
+        self.device = StaticConf.get_instance().conf_values.device
+        self.num_actions = StaticConf.get_instance().conf_values.num_actions
         self.episode_idx = 0
         # self.actor_critic_model = ActorCritic(self.device, self.num_actions).to(self.device)
         # self.optimizer = optim.Adam(self.actor_critic_model.parameters(), self.lr)
@@ -49,15 +49,8 @@ class A2C_Agent_Reinforce():
         self.actor_optimizer = optim.Adam(self.actor_model.parameters(), self.lr)
         self.critic_optimizer = optim.Adam(self.critic_model.parameters(), self.lr)
 
-        self.env = NetworkEnv(models_path, StaticConf.getInstance().conf_values.increase_loops_from_1_to_4)
-
-    def compute_returns(self, next_value, rewards, masks, gamma=0.99):
-        R = next_value
-        returns = []
-        for step in reversed(range(len(rewards))):
-            R = rewards[step] + gamma * R * masks[step]
-            returns.insert(0, R)
-        return returns
+        # TODO: propagate train_split, val_split and max_iter
+        self.env = NetworkEnv(models_path, StaticConf.get_instance().conf_values.passes, train_split, val_split, max_iter)
 
     def train(self):
         writer = SummaryWriter(f"runs/{self.test_name}")
@@ -66,13 +59,13 @@ class A2C_Agent_Reinforce():
         all_rewards_episodes = []
         max_reward_in_all_episodes = -np.inf
         reward_not_improving = False
-        compression_rates_dict = StaticConf.getInstance().conf_values.compression_rates_dict
+        compression_rates_dict = StaticConf.get_instance().conf_values.compression_rates_dict
 
         warmup_len = min(len(self.env.all_networks) * 2, 500)
         min_episode_num = len(self.env.all_networks) * 10 + warmup_len
         start_time = time.time()
 
-        MAX_TIME_TO_RUN = StaticConf.getInstance().conf_values.MAX_TIME_TO_RUN
+        MAX_TIME_TO_RUN = StaticConf.get_instance().conf_values.MAX_TIME_TO_RUN
 
         while (self.episode_idx < min_episode_num or (not reward_not_improving)) and \
                 time.time() < start_time + MAX_TIME_TO_RUN:
@@ -137,7 +130,7 @@ class A2C_Agent_Reinforce():
             writer.add_scalar(f'Total Reward for network {curr_net_file}', sum(rewards), self.episode_idx)
             self.episode_idx += 1
             # next_state = torch.FloatTensor(next_state).to(self.device)
-            returns = self.compute_returns(0, rewards, masks)
+            returns = compute_returns(0, rewards, masks)
 
             log_probs = torch.cat(log_probs)
             returns = torch.cat(returns).detach()

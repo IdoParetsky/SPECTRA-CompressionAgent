@@ -9,9 +9,9 @@ from src.ModelHandlers.BasicHandler import BasicHandler
 
 
 class Dataset(torch.utils.data.Dataset):
-    def int_to_onehot(self, indx):
+    def int_to_onehot(self, idx):
         one_hot = torch.zeros(self.range_y).float()
-        one_hot[int(indx) - int(self.min_y)] = 1.0  # Adjusting class labels to be zero-based
+        one_hot[int(idx) - int(self.min_y)] = 1.0  # Adjusting class labels to be zero-based
         return one_hot
 
     def __init__(self, x, y):
@@ -30,54 +30,86 @@ class Dataset(torch.utils.data.Dataset):
 
 
 class ClassificationHandler(BasicHandler):
-    def evaluate_model(self, validation=False) -> float:
+
+    def evaluate_model(self, loader) -> float:
+        """
+        Evaluates the model's performance.
+
+        Args:
+            loader (DataLoader): The DataLoader for the validation or test set.
+
+        Returns:
+            float: The accuracy score of the model.
+        """
         self.model.eval()
-        cv_obj = self.cross_validation_obj
-        x_cv, y_cv = (cv_obj.x_val, cv_obj.y_val) if validation else (cv_obj.x_test, cv_obj.y_test)
-        self.model.cuda()
+        device = StaticConf.get_instance().conf_values.device
+        self.model.to(device)
 
-        device = StaticConf.getInstance().conf_values.device
-        preds = self.model(torch.Tensor(x_cv).to(device).float()).detach().cpu()
-        preds_classes = torch.argmax(preds, dim=1)
-        print(accuracy_score(preds_classes, y_cv - min(y_cv)))
-        return accuracy_score(preds_classes, y_cv - min(y_cv))  # Subtracting the minimal class in case the classes are not zero-based
+        all_preds = []
+        all_labels = []
 
-    def train_model(self):
-        dataSet = Dataset(self.cross_validation_obj.x_train, self.cross_validation_obj.y_train)
-        trainLoader = torch.utils.data.DataLoader(dataSet, batch_size=32, shuffle=True)
-        device = StaticConf.getInstance().conf_values.device
+        for x_batch, y_batch in loader:
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+            preds = self.model(x_batch).detach()
+            preds_classes = torch.argmax(preds, dim=1)
 
+            all_preds.extend(preds_classes.cpu().numpy())
+            all_labels.extend(y_batch.cpu().numpy())
+
+        # Calculate accuracy
+        accuracy = accuracy_score(all_labels, all_preds)
+        print(f"Accuracy: {accuracy:.4f}")
+        return accuracy
+
+    def train_model(self, train_loader):
+        """
+         Trains the model using the provided training data loader.
+
+         Args:
+             train_loader (DataLoader): The DataLoader for training
+         """
+        device = StaticConf.get_instance().conf_values.device
         self.model.float().to(device)
         self.model.train()
+
         best_loss = np.inf
         best_state_dict = None
         epochs_not_improved = 0
-        MAX_EPOCHS_PATIENCE = 10
+        MAX_EPOCHS_PATIENCE = 10  # TODO: Consider updating / dynamically changing
 
+        # Ensure optimizer is configured with current model parameters
         self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
 
-        for epoch in range(StaticConf.getInstance().conf_values.num_epoch):
+        for epoch in range(StaticConf.get_instance().conf_values.num_epoch):
             running_loss = 0.0
             epochs_not_improved += 1
-            for i, batch in enumerate(trainLoader, 0):
-                curr_x, curr_y = batch
 
-                if len(curr_x) > 1:
-                    self.optimizer.zero_grad()
-                    curr_x.requires_grad = True
-                    outputs = self.model(curr_x.float().to(device))
-                    curr_y = torch.max(curr_y, 1)[1]
-                    loss = self.loss_func(outputs, curr_y.to(device))
+            for i, (curr_x, curr_y) in enumerate(train_loader):
+                curr_x, curr_y = curr_x.to(device), curr_y.to(device)
 
-                    if loss < best_loss:
-                        epochs_not_improved = 0
-                        best_loss = loss
-                        best_state_dict = copy.deepcopy(self.model.state_dict())
+                self.optimizer.zero_grad()
+                outputs = self.model(curr_x.float())
 
-                    loss.backward()
-                    self.optimizer.step()
+                # Ensure curr_y is processed correctly for classification
+                if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:  # One-hot encoded labels
+                    curr_y = torch.argmax(curr_y, dim=1)
+
+                loss = self.loss_func(outputs, curr_y)
+
+                if loss < best_loss:
+                    epochs_not_improved = 0
+                    best_loss = loss
+                    best_state_dict = copy.deepcopy(self.model.state_dict())
+
+                loss.backward()
+                self.optimizer.step()
+
+            print(f"Epoch {epoch + 1}: Loss = {running_loss:.4f}")
 
             if epochs_not_improved == MAX_EPOCHS_PATIENCE:
+                print("Early stopping due to no improvement.")
                 break
 
-        self.model.load_state_dict(best_state_dict)
+        # Restore the best model state
+        if best_state_dict is not None:
+            self.model.load_state_dict(best_state_dict)

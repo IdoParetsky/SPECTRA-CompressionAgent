@@ -10,6 +10,7 @@ class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size()[0], -1)
 
+
 class Agent(nn.Module):
     def __init__(self, device, num_outputs):
         super(Agent, self).__init__()

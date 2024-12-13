@@ -5,11 +5,13 @@ from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
 
 
+def int_to_onehot(idx):
+    one_hot = torch.zeros(2).float()
+    one_hot[idx] = 1.0
+    return one_hot
+
+
 class Dataset(torch.utils.data.Dataset):
-    def int_to_onehot(self, indx):
-        one_hot = torch.zeros(2).float()
-        one_hot[indx] = 1.0
-        return one_hot
 
     def __init__(self, x, y):
         self.x = x
@@ -23,24 +25,57 @@ class Dataset(torch.utils.data.Dataset):
 
 
 class RegressionHandler(BasicHandler):
-    def evaluate_model(self) -> float:
-        device = StaticConf.getInstance().conf_values.device
-        validation_output = self.model(torch.Tensor(self.cross_validation_obj.x_test).to(device).float()).reshape(
-            -1).detach().cpu().numpy()
-        return mean_squared_error(validation_output, self.cross_validation_obj.y_test)
+    def evaluate_model(self, loader) -> float:
+        """
+        Evaluate the model on validation or test data.
 
-    def train_model(self):
-        dataSet = Dataset(self.cross_validation_obj.x_train, self.cross_validation_obj.y_train)
-        trainLoader = torch.utils.data.DataLoader(dataSet, batch_size=32, shuffle=True)
-        device = StaticConf.getInstance().conf_values.device
+        Args:
+            loader (DataLoader): DataLoader for validation or test set.
 
-        for epoch in range(StaticConf.getInstance().conf_values.num_epoch):
-            for i, batch in enumerate(trainLoader, 0):
-                curr_x, curr_y = batch
+        Returns:
+            float: Mean squared error of the model on the provided dataset.
+        """
+        self.model.eval()
+        device = StaticConf.get_instance().conf_values.device
+        self.model.to(device)
 
-                if len(curr_x) > 1:
-                    self.optimizer.zero_grad()
-                    outputs = self.model(curr_x.to(device).float())
-                    loss = self.loss_func(outputs, curr_y.to(device).float())
-                    loss.backward()
-                    self.optimizer.step()
+        all_preds = []
+        all_targets = []
+
+        for x_batch, y_batch in loader:
+            x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+            preds = self.model(x_batch).detach().cpu().numpy().reshape(-1)
+            all_preds.extend(preds)
+            all_targets.extend(y_batch.cpu().numpy())
+
+        mse = mean_squared_error(all_targets, all_preds)
+        print(f"Mean Squared Error: {mse:.4f}")
+        return mse
+
+    def train_model(self, train_loader):
+        """
+        Train the regression model using the provided training data loader.
+
+        Args:
+            train_loader (DataLoader): DataLoader for training.
+        """
+        device = StaticConf.get_instance().conf_values.device
+        self.model.to(device)
+        self.model.train()
+
+        for epoch in range(StaticConf.get_instance().conf_values.num_epoch):
+            running_loss = 0.0
+
+            for curr_x, curr_y in train_loader:
+                curr_x, curr_y = curr_x.to(device), curr_y.to(device)
+
+                self.optimizer.zero_grad()
+                outputs = self.model(curr_x.float())
+                loss = self.loss_func(outputs, curr_y.float())
+
+                loss.backward()
+                self.optimizer.step()
+
+                running_loss += loss
+
+            print(f"Epoch {epoch + 1}: Loss = {running_loss:.4f}")

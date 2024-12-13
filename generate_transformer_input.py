@@ -1,13 +1,15 @@
 import os
+import sys
 import importlib
 import re
 import torch
 import torch.nn as nn
 import pickle
 import bz2
-import sentencepiece as spm
 from transformers import BertTokenizer, BertModel
 
+
+sys.path.append(r"C:\Users\idopa\Documents\BGU\MSc\spectra_models_instantiation")
 
 WEIGHTS = 'weights'
 GRADIENTS = 'gradients'
@@ -234,16 +236,20 @@ def load_pretrained_model(file_path, file_info_dict):
             for name, param in model.named_parameters():
                 print(f"Weight for {name}: {param.data}")
 
-            # Compute gradientsץ TODO: Is a single arbitrary backprop meaningful in any way?
-            input_tensor = DATASET_INFO_DICT[file_info_dict[DATASET]][INPUT_TENSOR].to(device)
-            output = model(input_tensor)
-            target = torch.zeros_like(output)  # Example target
-            loss = torch.nn.CrossEntropyLoss()(output, target)
-            loss.backward()
+            # Compute gradients
 
-            for name, param in model.named_parameters():
-                if param.grad is not None:
-                    print(f"Gradient for {name}: {param.grad}")
+
+
+
+            # input_tensor = DATASET_INFO_DICT[file_info_dict[DATASET]][INPUT_TENSOR].to(device)
+            # output = model(input_tensor)
+            # target = torch.zeros_like(output)  # Example target
+            # loss = torch.nn.CrossEntropyLoss()(output, target)
+            # loss.backward()
+            #
+            # for name, param in model.named_parameters():
+            #     if param.grad is not None:
+            #         print(f"Gradient for {name}: {param.grad}")
 
             # Compute activations (register hooks)
             activations = {}
@@ -293,7 +299,7 @@ def infer_arch_args(arch, dataset):
 if __name__ == "__main__":
     # User-provided file path
     # file_path = input("Enter the path to the .pt/.pth/.th network file: ")
-    file_path = r"C:\Users\idopa\Documents\BGU\MSc\SPECTRA-CompressionAgent\pretrained networks\resnet20-width12_cifar10_thin-res-net_93.39_0.154_23.64.pt"
+    file_path = r"C:\Users\idopa\Documents\BGU\MSc\spectra_pretrained_networks\resnet20-width12_cifar10_thin-res-net_93.39_0.154_23.64.pt"
     # TODO: Call only if filename is in format (create a runtime flag), else demand info (arch, dataset, path to repo module) as parsed arguments
     file_info_dict = parse_filename(file_path)
 
@@ -303,7 +309,7 @@ if __name__ == "__main__":
         exit(1)
 
     # Save weights and gradients
-    save_params(model, network_info_path=fr"C:\Users\idopa\Documents\BGU\MSc\SPECTRA-CompressionAgent\info\{file_info_dict[FILENAME]}_pre.pbz2")
+    save_params(model, network_info_path=fr"C:\Users\idopa\Documents\BGU\MSc\spectra_models_info\{file_info_dict[FILENAME]}_pre.pbz2")
 
 
     # Tokenize the network

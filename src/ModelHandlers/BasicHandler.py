@@ -1,22 +1,19 @@
 from torch import nn
 from torch.nn.modules.loss import _Loss
 from torch.optim.optimizer import Optimizer
+from torch.utils.data import DataLoader
 
-from src.CrossValidationObject import CrossValidationObject
 
-
-class BasicHandler():
-    def __init__(self, model: nn.Module, loss_function: _Loss, optimizer: Optimizer,
-                 cross_validation_obj: CrossValidationObject):
+class BasicHandler:
+    def __init__(self, model: nn.Module, loss_function: _Loss, optimizer: Optimizer):
         self.model = model
-        self.cross_validation_obj = cross_validation_obj
         self.loss_func = loss_function
         self.optimizer = optimizer
 
-    def evaluate_model(self, validation=False) -> float:
+    def evaluate_model(self, loader: DataLoader) -> float:
         pass
 
-    def train_model(self):
+    def train_model(self, train_loader: DataLoader):
         pass
 
     def freeze_layers(self, layers_to_freeze):
