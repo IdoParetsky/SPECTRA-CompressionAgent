@@ -1,189 +1,135 @@
-from NetworkFeatureExtraction.src.ModelClasses.NetX.netX import NetX # Must be imported, called from torch.serialization line 1431
-
-import argparse
-import sys
-
-from sklearn.model_selection import train_test_split
-import os
 import numpy as np
 import torch
 from pandas import DataFrame
+from datetime import datetime
+from time import time
 
-from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
+from NetworkFeatureExtraction.src.ModelClasses.NetX.netX import NetX  # required for compatibility with `torch.load`
 from src.A2C_Agent_Reinforce import A2CAgentReinforce
-from src.Configuration.ConfigurationValues import ConfigurationValues
-from src.Configuration.StaticConf import StaticConf
 from src.NetworkEnv import NetworkEnv
-from src.utils import print_flush, load_models_path, get_model_layers_str
+import src.utils as utils
+from src.Configuration.StaticConf import StaticConf
 
 
-def init_conf_values(compression_rates_dict, num_epoch=100, is_learn_new_layers_only=False,
-                     total_allowed_accuracy_reduction=5, passes=4, prune=False):
-    if not torch.cuda.is_available():
-        sys.exit("GPU was not allocated!")
+def evaluate_model(mode, agent):
+    # TODO: Consider implementing CV of groups of arch-dataset pairs (NEON impl. below)
+    #  Iteratively run across all 'fold' options for comparison (alternatively - add 'fold' arg)
+    # np.random.shuffle(datasets)
+    # num_of_folds = 6
+    #
+    # flatten = lambda l: [item for sublist in l for item in sublist]
+    #
+    # all_datasets_splitted = [datasets[i:i + num_of_folds] for i in range(0, len(datasets), num_of_folds)]
+    # test_datasets = all_datasets_splitted[fold]
+    # train_datasets = flatten([*all_datasets_splitted[:fold], *all_datasets_splitted[fold + 1:]]
 
-    device = torch.device("cuda:0")
-    print_flush(f"device is {device}")
-    print_flush(f"device name is {torch.cuda.get_device_name(0)}")
+    env = NetworkEnv(mode)  # TODO: implement accordingly - utilize train / val / test / all datasets
+    conf = StaticConf.get_instance().conf_values
 
-    MAX_TIME_TO_RUN = 60 * 60 * 24 * 7  # A week, adjust as necessary
-    cv = ConfigurationValues(device, compression_rates_dict=compression_rates_dict,
-                             num_epoch=num_epoch,
-                             is_learn_new_layers_only=is_learn_new_layers_only,
-                             total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                             passes=passes,
-                             MAX_TIME_TO_RUN=MAX_TIME_TO_RUN,
-                             prune=prune)
-    StaticConf(cv)
-
-
-def evaluate_model(mode, base_path, agent, train_split, val_split, max_iter):
-    models_path = load_models_path(base_path, mode)
-    env = NetworkEnv(models_path, StaticConf.get_instance().conf_values.passes, train_split, val_split, max_iter)
-    compression_rates_dict = {
-        0: 1,
-        1: 0.9,
-        2: 0.8,
-        3: 0.7,
-        4: 0.6
-    }
-
-    results = DataFrame(columns=['model', 'new_acc', 'origin_acc', 'new_param',
-                                 'origin_param', 'new_model_arch', 'origin_model_arch'])
+    results = DataFrame(columns=['model', 'new_acc', 'origin_acc', 'new_param (M)',
+                                 'origin_param (M)', 'new_flops (M)', 'origin_flops (M)',
+                                 'new_model_arch', 'origin_model_arch', 'evaluation_time'])
 
     for i in range(len(env.all_networks)):
-        print_flush(i)
+        utils.print_flush(i)
         state = env.reset()
-
-        state = [tuple(np.nan_to_num(arr, nan=0.0) for arr in tuple_arrays) for tuple_arrays in state]  # TODO: Understarnd why there are NaNs!
         done = False
+        step_count = 0
+        t_start = time()
 
-        while not done:
-            # Get action distribution and value prediction from the agent
-            # alt. implementation - action_dist, value_pred = agent.actor_critic_model(state)
-            value_pred = agent.critic_model(state)
+        while not done and (conf.rollout_limit is None or step_count < conf.rollout_limit):
+            # Get action distribution from the agent
             action_dist = agent.actor_model(state)
 
             action = action_dist.sample()  # Compression Rate
-            compression_rate = compression_rates_dict[action.cpu().numpy()[0]]
+            compression_rate = conf.compression_rates_dict[action.cpu().numpy()[0]]
             next_state, reward, done = env.step(compression_rate)
             state = next_state
-            total_values = sum(arr.size for tuple_arrays in state for arr in tuple_arrays)
-            nan_count = sum(np.isnan(arr).sum() for tuple_arrays in state for arr in tuple_arrays)
 
-            # Calculate the percentage of NaN values
-            nan_percentage = (nan_count / total_values) * 100
+            step_count += 1
 
-            # Print the results
-            print(f"Number of NaN values in the list of tuples: {nan_count}")
-            print(f"Percentage of NaN values: {nan_percentage:.2f}%")
-            state = [tuple(np.nan_to_num(arr, nan=0.0) for arr in tuple_arrays) for tuple_arrays in state]  # TODO: Understarnd why there are NaNs!
+        t_end = time()
 
         # Evaluate performance and model size of the new and original models
         new_lh = env.create_learning_handler(env.current_model)
         origin_lh = env.create_learning_handler(env.loaded_model.model)
 
-        new_acc = new_lh.evaluate_model(env.test_loader)
-        origin_acc = origin_lh.evaluate_model(env.test_loader)
-
-        new_params = env.calc_num_parameters(env.current_model)
-        origin_params = env.calc_num_parameters(env.loaded_model.model)
-
         model_name = env.all_networks[env.net_order[env.curr_net_index - 1]][1]
 
-        new_model_with_rows = ModelWithRows(env.current_model)
-
-        results = results.append({'model': model_name,
-                                  'new_acc': new_acc,
-                                  'origin_acc': origin_acc,
-                                  'new_param': new_params,
-                                  'origin_param': origin_params,
-                                  'new_model_arch': get_model_layers_str(env.current_model),
-                                  'origin_model_arch': get_model_layers_str(env.loaded_model.model)}, ignore_index=True)
+        results = results.append(
+            {'model': model_name,
+             'new_acc': round(new_lh.evaluate_model(env.test_loader), 3),
+             'origin_acc': round(origin_lh.evaluate_model(env.test_loader), 3),
+             'new_param (M)': round(utils.calc_num_parameters(env.current_model) / 1e6, 3),
+             'origin_param (M)': round(utils.calc_num_parameters(env.loaded_model.model) / 1e6, 3),
+             'new_flops (M)': round(utils.calc_flops(env.current_model) / 1e6, 3),
+             'origin_flops (M)': round(utils.calc_flops(env.loaded_model.model) / 1e6, 3),
+             'new_model_arch': utils.get_model_layers_str(env.current_model),
+             'origin_model_arch': utils.get_model_layers_str(env.loaded_model.model),
+             'evaluation_time': t_end - t_start},
+            ignore_index=True)
 
     return results
 
 
-def split_dataset_to_train_test(path):
-    models_path = load_models_path(path, 'all')
-    all_models = models_path[0][1]
-    all_models = list(map(os.path.basename, all_models))
-    train_models, test_models = train_test_split(all_models, test_size=0.2)
-
-    df_train = DataFrame(data=train_models)
-    df_train.to_csv(os.path.join(path, "train_models.csv"))
-
-    df_test = DataFrame(data=test_models)
-    df_test.to_csv(os.path.join(path, "test_models.csv"))
-
-
-def main(dataset_name_or_path, is_learn_new_layers_only, test_name, total_allowed_accuracy_reduction,
-         is_to_split_cv, passes, prune, train_split, val_split):  # Default values in extract_args_from_cmd
-    compression_rates_dict = {
-        0: 1,
-        1: 0.9,
-        2: 0.8,
-        3: 0.7,
-        4: 0.6
-    }
-    base_path = f"C:/Users/idopa/Documents/BGU/MSc/SPECTRA-CompressionAgent/datasets/SPECTRA-csv/{dataset_name_or_path}/"  # SPECTRA
-    #base_path = f"C:/Users/idopa/Documents/BGU/MSc/SPECTRA-CompressionAgent/datasets/NEON-csv/{dataset_name_or_path}/"  # NEON
-    #base_path = f"C:/Users/idopa/Documents/BGU/MSc/SPECTRA-CompressionAgent/datasets/{dataset_name_or_path}/"  # NEON orig structure
-
-    if is_to_split_cv:
-        split_dataset_to_train_test(base_path)
-
-    init_conf_values(compression_rates_dict, is_learn_new_layers_only=is_learn_new_layers_only, num_epoch=100,
-                     total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
-                     passes=passes, prune=prune)
-    models_path = load_models_path(base_path, 'train')
-
-    agent = A2CAgentReinforce(models_path, test_name)
-    print_flush("Starting training")
+def main():
+    """ Main function for training and evaluating the A2C agent. """
+    conf = StaticConf.get_instance().conf_values
+    agent = A2CAgentReinforce()
+    utils.print_flush("Starting training")
     agent.train()
-    print_flush("Done training")
+    utils.print_flush("Done training")
 
-    print_flush("Evaluating train datasets")
+    utils.print_flush("Evaluating train datasets")
 
     mode = 'train'
-    results = evaluate_model(mode, base_path, agent, train_split, val_split)
-    results.to_csv(f"./models/Reinforce_One_Dataset/results_{test_name}_{mode}.csv")
+    results = evaluate_model(mode, agent)
+    results.to_csv(f"./models/Reinforce_One_Dataset/results_{conf.test_name}_{mode}.csv")
 
-    print_flush("DONE evaluating train datasets")
+    utils.print_flush("DONE evaluating train datasets")
 
-    print_flush("Evaluating test datasets")
+    utils.print_flush("Evaluating test datasets")
     mode = 'test'
-    results = evaluate_model(mode, base_path, agent, train_split, val_split)
-    results.to_csv(f"./models/Reinforce_One_Dataset/results_{test_name}_{mode}.csv")
-    print_flush("DONE evaluating test datasets")
-
-
-def extract_args_from_cmd():
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--test_name', type=str, const=True, default='svhn', nargs='?')
-    parser.add_argument('--dataset_name_or_path', type=str, default="svhn")
-    parser.add_argument('--learn_new_layers_only', type=bool, const=True, default=True, nargs='?')
-    parser.add_argument('--split', type=bool, const=True, default=True, nargs='?')
-    parser.add_argument('--allowed_reduction_acc', type=int, default=5, nargs='?')  # Another recommended default is 1 (in precents)
-    parser.add_argument('--passes', type=int, const=True, default=1, nargs='?')  # Another recommended default is 4
-    parser.add_argument('--prune', type=bool, const=True, default=False, nargs='?')
-    parser.add_argument('--seed', type=int, const=True, default=0, nargs='?')
-    parser.add_argument('--train_split', type=float, const=True, default=0.7, nargs='?')
-    parser.add_argument('--val_split', type=float, const=True, default=0.2, nargs='?')
-
-    args = parser.parse_args()
-    return args
+    results = evaluate_model(mode, agent)
+    results.to_csv(f"./models/Reinforce_One_Dataset/results_{conf.test_name}_{mode}.csv")
+    utils.print_flush("DONE evaluating test datasets")
 
 
 if __name__ == "__main__":
-    args = extract_args_from_cmd()
-    print_flush(args)
-    with_loop = f'_{args.passes}_passes' if args.passes else ""
-    test_name = f'Agent_warmup_{args.dataset_name_or_path}_learn_new_layers_only_{args.learn_new_layers_only}_acc_reduction_{args.allowed_reduction_acc}{with_loop}'
+    args = utils.extract_args_from_cmd()
+    utils.print_flush(args)
+
+    assert args.train_split + args.val_split < 1, f"{args.train_split=} + {args.val_split=} >= 1"
+
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
-    main(dataset_name_or_path=args.dataset_name_or_path, is_learn_new_layers_only=args.learn_new_layers_only, test_name=test_name,
-         is_to_split_cv=args.split,
-         total_allowed_accuracy_reduction=args.allowed_reduction_acc,
-         passes=args.passes,
-         prune=args.prune, train_split=args.train_split, val_split=args.val_split)
+
+    passes = f'_{args.passes}-passes' if args.passes else ""
+    train_compressed_layer_only = "_train_compressed-layer-only" if args.train_compressed_layer_only else ""
+    now = datetime.now()
+    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+
+    utils.init_conf_values(
+        # args.input_dict is left out due to file name's length limitation
+        test_name=f'SPECTRA{train_compressed_layer_only}_acc-red_{args.allowed_reduction_acc}_'
+                  f'gamma_{args.discount_factor}_lr_{args.learning_rate}_rollout-lim_{args.rollout_limit}_'
+                  f'num-epochs_{args.num_epochs}{passes}_comp-rates_{args.compression_rates}_'
+                  f'train_{args.train_split}_val_{args.val_split}_{dt_string}',
+        input_dict=utils.parse_input_argument(args.input, args.train_split, args.val_split),
+        compression_rates_dict=utils.parse_compression_rates(args.compression_rates),
+        is_train_compressed_layer_only=args.is_train_compressed_layer_only,
+        total_allowed_accuracy_reduction=args.total_allowed_accuracy_reduction,
+        discount_factor=args.discount_factor,
+        learning_rate=args.learning_rate,
+        rollout_limit=args.rollout_limit,
+        passes=args.passes,
+        prune=args.prune,
+        num_epochs=args.num_epochs,
+        runtime_limit=args.runtime_limit,
+        train_split=args.train_split,
+        val_split=args.val_split,
+        actor_checkpoint_path=args.actor_checkpoint_path,
+        critic_checkpoint_path=args.critic_checkpoint_path
+    )
+
+    main()

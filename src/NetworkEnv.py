@@ -1,9 +1,14 @@
 import copy
+import json
 from typing import Dict, Type, List
 import numpy as np
-from torch import nn
+import torch
+import importlib
+from torch import nn, no_grad
 from torch.nn.utils import prune
+from torch.utils.data import DataLoader
 
+from src.BERTInputModeler import BERTInputModeler, extract_topology_features, extract_activation_statistics, extract_weight_statistics
 from NetworkFeatureExtraction.src.FeatureExtractors.ModelFeatureExtractor import FeatureExtractor
 from NetworkFeatureExtraction.src.ModelClasses.LoadedModel import LoadedModel, MissionTypes
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
@@ -12,67 +17,55 @@ from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
 from src.ModelHandlers.ClassificationHandler import ClassificationHandler
 from src.ModelHandlers.RegressionHandler import RegressionHandler
-from src.utils import load_cnn_dataset, get_layer_by_type, compute_reward, is_to_change_bn_layer, print_flush
+import src.utils as utils
 
 
 class NetworkEnv:
-    loaded_model: LoadedModel
-    current_model: nn.Module
-    actions_history: List[float]
+    """
+    Reinforcement learning environment for pruning CNNs.
 
-    def __init__(self, networks_path, dataset_name_or_path, passes, train_split, val_split):
+    Features:
+    - Preloaded models & datasets from `self.conf.input_dict`
+    - Feature extraction for BERT-based state encoding
+    - Iterative pruning & evaluation
+    """
+
+    def __init__(self):
+        self.conf = StaticConf.get_instance().conf_values
         self.layer_index = None
         self.actions_history = []
         self.original_acc = None
         self.current_model = None
         self.feature_extractor = None
 
-        self.all_networks = []
-        self.dataset_name_or_path = dataset_name_or_path
-        self.passes = passes
-        self.train_split = train_split
-        self.val_split = val_split
-
-        # Initialize dataset loaders
-        self.train_loader, self.val_loader, self.test_loader = load_cnn_dataset(
-            self.dataset_name_or_path, train_split=self.train_split, val_split=self.val_split)
-
-        # Initialize network paths
-        self.networks_path = networks_path
-        for group in networks_path:
-            x_path = group[0]
-            nets = group[1]
-
-            for n in nets:
-                self.all_networks.append((x_path, n))
-
+        self.all_networks = list(self.conf.input_dict.keys())  # List of model paths
         self.curr_net_index = -1
-        self.net_order = list(range(len(self.all_networks)))
-        np.random.shuffle(self.net_order)
+        np.random.shuffle(self.all_networks)  # Randomize order
+
+        # Initialize BERT Input Modeler
+        self.bert_modeler = BERTInputModeler()
 
         # A dictionary mapping MissionTypes to corresponding Handler classes
         self.handler_by_mission_type: Dict[MissionTypes, Type[BasicHandler]] = {
             MissionTypes.Regression: RegressionHandler,
-            MissionTypes.Classification: ClassificationHandler,}
+            MissionTypes.Classification: ClassificationHandler
+        }
 
     def reset(self):
-        """ Reset environment with a random CNN and dataset """
+        """ Reset environment with a new CNN model & dataset """
         self.layer_index = 1
         self.actions_history = []
-        self.curr_net_index = (self.curr_net_index + 1) % len(self.net_order)
-        curr_group_index = self.net_order[self.curr_net_index]
-        _, selected_net_path = self.all_networks[curr_group_index]
+        self.curr_net_index = (self.curr_net_index + 1) % len(self.all_networks)
+        selected_net_path = self.all_networks[self.curr_net_index]
 
-        print_flush(selected_net_path)
-        device = StaticConf.get_instance().conf_values.device
+        utils.print_flush(f"Loading {selected_net_path}")
 
-        # Load model and CNN dataset
-        self.loaded_model, _, _ = load_model_and_data(selected_net_path, None, None, device)
-        self.current_model = self.loaded_model.model
+        # Load model & dataset from preloaded input_dict
+        self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.conf.input_dict[selected_net_path]
 
-        # Prepare feature extractor with train data
-        self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, device)
-        fm = self.feature_extractor.extract_features(self.layer_index - 1)
+        # Prepare feature extractor with training data
+        self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
+        fm = self.feature_extractor.encode_to_bert_input(self.layer_index - 1)
 
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
@@ -80,99 +73,63 @@ class NetworkEnv:
 
         return fm
 
-    # TODO: Edit step() onwards, then a2c_agent_reinforce_runner, then additional scripts and then go back to FE scripts
-    #  and implement BERT input pipeline
     def step(self, compression_rate, is_to_train=True):
         """
-        Compress the network by pruning filters (for CNNs) or reducing layer size,
-        then advance to the next state.
+        Compress the network, then move to the next state.
 
         Args:
-            compression_rate (float): The chosen compression_rate.
-            is_to_train (bool): Whether to train the model after compression.
+            compression_rate (float): Factor to reduce layer size.
+            is_to_train (bool): Whether to train after compression.
 
         Returns:
-            Tuple: A tuple containing the next state (feature maps), reward, and done flag.
+            Tuple: Next state, reward, and done flag.
         """
-        print_flush(f'step {self.layer_index}')
+        utils.print_flush(f"Step {self.layer_index} - Compression Rate: {compression_rate}")
 
-        # If no compression, proceed without modification
         if compression_rate == 1:
             learning_handler_new_model = self.create_learning_handler(self.current_model)
         else:
-            # Create new compressed model
-            if StaticConf.get_instance().conf_values.prune:
-                new_model = self.create_new_model_pruned(compression_rate)
-            else:
-                new_model = self.create_new_model_with_new_weights(compression_rate)
+            # Create a pruned or resized model
+            new_model = self.prune_current_model(compression_rate) if self.conf.prune \
+                else self.create_new_model_with_new_weights(compression_rate)
 
-            # Wrap the new model
+            # Prepare model handler
             new_model_with_rows = ModelWithRows(new_model)
             learning_handler_new_model = self.create_learning_handler(new_model)
 
-            # Freeze layers or unfreeze all layers based on configuration
-            if StaticConf.get_instance().conf_values.is_learn_new_layers_only:
+            # Freeze/unfreeze layers based on config
+            if self.conf.is_train_compressed_layer_only:
                 parameters_to_freeze_ids = self.build_parameters_to_freeze(new_model_with_rows)
                 learning_handler_new_model.freeze_layers(parameters_to_freeze_ids)
             else:
                 learning_handler_new_model.unfreeze_all_layers()
 
-            # Train the new model if specified
             if is_to_train:
                 learning_handler_new_model.train_model(self.train_loader)
 
-        # Evaluate the new model
+        # Evaluate the compressed model
         learning_handler_new_model.model.eval()
         new_acc = learning_handler_new_model.evaluate_model(self.val_loader)
 
-        # Compute the reward based on the new accuracy and compression rate
-        reward = compute_reward(new_acc, self.original_acc, compression_rate)
+        # Compute reward
+        reward = utils.compute_reward(new_acc, self.original_acc, compression_rate)
 
-        # Update environment state
+        # Move to next state
         self.layer_index += 1
         learning_handler_new_model.unfreeze_all_layers()
         self.current_model = learning_handler_new_model.model
 
-        # Extract features for the next state
-        device = StaticConf.get_instance().conf_values.device
-        self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, device)
-        fm = self.feature_extractor.extract_features(self.layer_index - 1)
+        # Extract features for BERT
+        self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
+        fm = self.feature_extractor.encode_to_bert_input(self.layer_index - 1)
 
-        # Determine if episode is done
-        number_of_layers = len(self.feature_extractor.model_with_rows.all_rows) - 1
+        # Check termination condition
+        num_layers = len(self.feature_extractor.model_with_rows.all_rows) - 1
         self.actions_history.append(compression_rate)
-        self.layer_index = max(1, self.layer_index % (number_of_layers + 1))
-        done = len(self.actions_history) >= number_of_layers * self.passes
+        self.layer_index = max(1, self.layer_index % (num_layers + 1))
+        done = len(self.actions_history) >= num_layers * self.conf.passes
 
         return fm, reward, done
-
-    def calc_num_parameters(self, model, is_pruned=False):
-        """
-        Calculate the total number of parameters in the model, considering pruned parameters if specified.
-
-        Args:
-            model (nn.Module): The model to analyze.
-            is_pruned (bool): Whether to account for pruned parameters.
-
-        Returns:
-            int: The total number of remaining parameters in the model.
-        """
-        if not is_pruned:
-            # Count all parameters in the model
-            return sum(p.numel() for p in model.parameters())
-
-        # Count pruned parameters (weights with a mask value of zero)
-        pruned_params = sum(
-            (module.weight_mask == 0).sum().item()
-            for module in model.modules()
-            if hasattr(module, 'weight_mask')
-        )
-
-        # Calculate original parameter count
-        orig_params = sum(p.numel() for p in model.parameters())
-
-        # Subtract pruned parameters
-        return orig_params - pruned_params
 
     def build_parameters_to_freeze(self, model_with_rows):
         """
@@ -193,25 +150,47 @@ class NetworkEnv:
         return parameters_to_freeze_ids
 
     def create_learning_handler(self, new_model) -> BasicHandler:
-        return self.handler_by_mission_type[self.loaded_model.mission_type](new_model,
-                                                                            self.loaded_model.loss,
-                                                                            self.loaded_model.optimizer)
+        """ Create appropriate learning handler based on mission type. """
+        return self.handler_by_mission_type[
+            self.conf.input_dict[self.all_networks[self.curr_net_index]][0].mission_type](
+            new_model,
+            self.conf.input_dict[self.all_networks[self.curr_net_index]][0].loss,
+            self.conf.input_dict[self.all_networks[self.curr_net_index]][0].optimizer
+        )
 
     def create_new_model_with_new_weights(self, compression_rate):
         """
-        Create a new model with reduced layer size, replacing weights as needed.
+        Replace layer with a reduced version.
 
         Args:
-            compression_rate (float): The desired compression rate for the current layer.
+            compression_rate (float): Compression factor.
 
         Returns:
-            nn.Sequential: The new model with updated layer sizes.
+            nn.Sequential: Modified model.
         """
+        model_with_rows = ModelWithRows(self.current_model)
+        layer_to_change = utils.get_layer_by_type(model_with_rows.all_rows[self.layer_index], (nn.Linear, nn.Conv2d))
+
+        new_size = int(np.ceil(compression_rate * (
+            layer_to_change.in_features if isinstance(layer_to_change, nn.Linear) else layer_to_change.out_channels)))
+
+        new_model_layers = [
+            nn.Linear(layer.in_features, new_size) if layer is layer_to_change and isinstance(layer, nn.Linear) else
+            nn.Conv2d(layer.in_channels, new_size, layer.kernel_size, layer.stride,
+                      layer.padding) if layer is layer_to_change and isinstance(layer, nn.Conv2d) else
+            copy.deepcopy(layer)
+            for layer in model_with_rows.all_layers
+        ]
+
+        return nn.Sequential(*new_model_layers)
+
         model_with_rows = ModelWithRows(self.current_model)
 
         # Support for both Fully-Connected and Convolutional layers
-        prev_layer_to_change = get_layer_by_type(model_with_rows.all_rows[self.layer_index - 1], (nn.Linear, nn.Conv2d))
-        layer_to_change = get_layer_by_type(model_with_rows.all_rows[self.layer_index], (nn.Linear, nn.Conv2d))
+        prev_layer_to_change = utils.get_layer_by_type(model_with_rows.all_rows[self.layer_index - 1],
+                                                       (nn.Linear, nn.Conv2d))
+        layer_to_change = utils.get_layer_by_type(model_with_rows.all_rows[self.layer_index],
+                                                  (nn.Linear, nn.Conv2d))
 
         new_model_layers = []
         new_size = int(np.ceil(compression_rate * (
@@ -230,7 +209,7 @@ class NetworkEnv:
                     new_model_layers.append(nn.Linear(new_size, l.out_features))
                 elif isinstance(l, nn.Conv2d):
                     new_model_layers.append(nn.Conv2d(new_size, l.out_channels, l.kernel_size, l.stride, l.padding))
-            elif is_to_change_bn_layer(l, last_layer):
+            elif utils.is_to_change_bn_layer(l, last_layer):
                 if isinstance(last_layer, nn.Linear):
                     new_model_layers.append(nn.BatchNorm1d(last_layer.out_features))
                 elif isinstance(last_layer, nn.Conv2d):
@@ -244,7 +223,7 @@ class NetworkEnv:
 
         return nn.Sequential(*new_model_layers)
 
-    def create_new_model_pruned(self, compression_rate):
+    def prune_current_model(self, compression_rate):
         """
         Create a new model by pruning filters or weights in the target layer.
 
@@ -255,9 +234,39 @@ class NetworkEnv:
             nn.Module: The pruned model.
         """
         model_with_rows = ModelWithRows(self.current_model)
-        layer_to_change = get_layer_by_type(model_with_rows.all_rows[self.layer_index - 1], (nn.Linear, nn.Conv2d))
+        layer_to_change = utils.get_layer_by_type(model_with_rows.all_rows[self.layer_index - 1],
+                                                  (nn.Linear, nn.Conv2d))
 
-        # Apply structured pruning to the weight of the layer
+        # Apply structured pruning to the weight of the layer (dim=0 corresponds to out_channels)
         prune.ln_structured(layer_to_change, name='weight', amount=(1 - compression_rate), n=1, dim=0)
+
+        if isinstance(layer_to_change, nn.Conv2d):
+            # Adjust subsequent layer to match the new number of filters
+            next_layer = utils.get_layer_by_type(model_with_rows.all_rows[self.layer_index],
+                                                 (nn.Conv2d, nn.Linear))
+
+            if isinstance(next_layer, nn.Conv2d):
+                # Create new Conv2D layer with adjusted in_channels but same hyperparameters
+                next_conv = nn.Conv2d(in_channels=layer_to_change.out_channels,  # Adjust in_channels
+                                     out_channels=next_layer.out_channels,
+                                     kernel_size=next_layer.kernel_size,
+                                     stride=next_layer.stride,
+                                     padding=next_layer.padding,
+                                     dilation=next_layer.dilation,
+                                     groups=next_layer.groups,
+                                     bias=next_layer.bias is not None)
+
+                # Copy weights & biases to preserve learned features
+                with no_grad():
+                    next_conv.weight[:next_layer.out_channels, :layer_to_change.out_channels] = next_layer.weight
+                    if next_layer.bias is not None:
+                        next_conv.bias[:next_layer.out_channels] = next_layer.bias
+
+                # Replace the layer in the model
+                model_with_rows.all_rows[self.layer_index] = next_conv
+
+            elif isinstance(next_layer, nn.BatchNorm2d):
+                # Adjust BatchNorm layer to match the pruned Conv2D output channels
+                next_layer.num_features = layer_to_change.out_channels
 
         return self.current_model

@@ -30,7 +30,7 @@ Moreover, you should create another folders structure that will contain the outp
 ### Train NEON agent
 You should use `a2c_agent_reinforce_runner.py` file to train NEON agent. when running this file, you should provide the following hyper-parameters:
 * `--dataset_name` - The name of the dataset to train - `string`
-* `--learn_new_layers_only` - Whether to train only the  new layer after the compression or the whole network. If you choose to train the entire network, the training time is much longer. We recommend to use this hyper-parameter with `True` value.
+* `--train_compressed_layer_only` - Whether to train only the new layer after the compression or the whole network. If you choose to train the entire network, the training time is much longer. We recommend to use this hyper-parameter with `True` value.
 * `--split` - Whether to split the networks to train and test sets. In the first time you train an agent on a new dataset folder you must use this hyper-parameter with `True` value. If you train another agent on the same dataset you can set this parameter to `False`. This process creates `train_models.csv` and `test_models.csv` files.
 * `--allowed_reduction_acc` - This hyper-parameters defines the “permissible” reduction in performance. We recommend to use this value with 1 or 5.
 * `--increase_loops_from_1_to_4` - This hyper-parameter controls whether the agent can compress each layer 4 times instead of 1.
@@ -50,20 +50,20 @@ Each result file includes the new architecture of each network, the original and
 ## Paper training Agent hyper-parameters:
 ### Agent with 4 iterations over each architecture:
 ```
-a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --learn_new_layers_only=True --increase_loops_from_1_to_4 --allowed_reduction_acc=1
+a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --train_compressed_layer_only=True --increase_loops_from_1_to_4 --allowed_reduction_acc=1
 
-a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --learn_new_layers_only=True --increase_loops_from_1_to_4 --allowed_reduction_acc=5
+a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --train_compressed_layer_only=True --increase_loops_from_1_to_4 --allowed_reduction_acc=5
 
-a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --learn_new_layers_only=True --increase_loops_from_1_to_4 --allowed_reduction_acc=50
+a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --train_compressed_layer_only=True --increase_loops_from_1_to_4 --allowed_reduction_acc=50
 ``` 
       
 ### Agent with 1 iteration over each architecture:
 ```
-a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --learn_new_layers_only=True --allowed_reduction_acc=1
+a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --train_compressed_layer_only=True --allowed_reduction_acc=1
 
-a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --learn_new_layers_only=True --allowed_reduction_acc=5
+a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --train_compressed_layer_only=True --allowed_reduction_acc=5
 
-a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --learn_new_layers_only=True --allowed_reduction_acc=50
+a2c_agent_reinforce_runner.py --dataset_name=[Insert here the dataset name] --train_compressed_layer_only=True --allowed_reduction_acc=50
 ``` 
 
 ## Citation

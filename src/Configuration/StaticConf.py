@@ -8,8 +8,6 @@ class StaticConf:
     @staticmethod
     def get_instance() -> 'StaticConf':
         """ Static access method. """
-        if StaticConf.__instance is None:
-            StaticConf()
         return StaticConf.__instance
 
     def __init__(self, conf_values: ConfigurationValues):
