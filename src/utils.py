@@ -7,8 +7,9 @@ from datetime import datetime
 import argparse
 import numpy as np
 import pandas as pd
-import torch
+from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
+import torch
 from torch import nn
 from torch.utils.data import random_split, DataLoader
 from torchvision import datasets, transforms
@@ -78,7 +79,8 @@ def extract_args_from_cmd():
     parser.add_argument('--passes', type=int, default=1,
                         help="How many per-layer compression iterations over the entire network. Default=1 4 is also recommended.")
 
-    parser.add_argument('--prune', type=bool, default=True, help="Whether to prune layers during compression.")
+    parser.add_argument('--prune', type=bool, default=True,
+                        help="Whether to prune layers via torch.nn.utils.prune.ln_structured during compression or resize them manually.")
 
     parser.add_argument('--num_epochs', type=int, default=100, help="Agent's training epochs amount. Default=100.")
 
@@ -86,7 +88,11 @@ def extract_args_from_cmd():
                         help="Max runtime. Default is a week in seconds")
 
     parser.add_argument('--seed', type=int, default=0,
-                        help="Seed to be used by pytorch and numpy libraries. Default=0.")
+                        help="Seed to be used by pytorch, numpy etc. libraries. Default=0.")
+
+    parser.add_argument('--n_splits', type=int, default=0,
+                        help="Inter-model evaluation - train/test splits for n-fold cross-validation. "
+                             "Default=0 (no CV), recommended value is 10.")
 
     parser.add_argument('--train_split', type=float, default=0.7, help="Training data split fraction.")
 
@@ -98,6 +104,9 @@ def extract_args_from_cmd():
 
     parser.add_argument('--critic_checkpoint', type=str, default=None,
                         help="Path to Critic Checkpoint (pre-trained agent)")
+
+    parser.add_argument('--save_pruned_checkpoints', type=bool, default=False,
+                        help="Whether to save a final checkpoint for each pruned network.")
 
     return parser.parse_args()
 
@@ -112,7 +121,8 @@ def parse_input_argument(input_arg, train_split, val_split):
         val_split (float):      Fraction of the dataset to use for validation.
 
     Returns:
-       dict: A dictionary mapping network paths to:
+        dict: {network_path: (nn.Module, (train_loader, val_loader, test_loader))}
+            A dictionary mapping network paths to:
               - Instantiated model (nn.Module).
               - Dataset loaders (train_loader, val_loader, test_loader).
 
@@ -134,7 +144,7 @@ def parse_input_argument(input_arg, train_split, val_split):
     except (FileNotFoundError, json.JSONDecodeError):
         raise ValueError("Invalid input: Provide a valid JSON string or JSON file path.")
 
-    return instantiate_networks_and_load_datasets(input_dict)
+    return instantiate_networks_and_load_datasets(input_dict, train_split, val_split)
 
 
 def instantiate_networks_and_load_datasets(input_dict, train_split, val_split):
@@ -208,6 +218,30 @@ def load_model_from_script(arch: str, script_path: str, checkpoint_path: str) ->
     return model
 
 
+def get_cross_validation_splits(input_dict, shuffle=True):
+    """
+    Generate train/test splits for 10-fold cross-validation.
+
+    Args:
+        input_dict (dict): {model_path: (model, (train_loader, val_loader, test_loader))}
+        shuffle (bool): Whether to shuffle models before splitting.
+
+    Returns:
+        List[Tuple[dict, dict]]: List of (train_dict, test_dict) pairs per fold.
+    """
+    model_paths = list(input_dict.keys())
+    kf = KFold(n_splits=StaticConf.get_instance().conf_values.n_splits, shuffle=shuffle,
+               random_state=StaticConf.get_instance().conf_values.seed)
+
+    folds = []
+    for train_indices, test_indices in kf.split(model_paths):
+        train_dict = {model_paths[i]: input_dict[model_paths[i]] for i in train_indices}
+        test_dict = {model_paths[i]: input_dict[model_paths[i]] for i in test_indices}
+        folds.append((train_dict, test_dict))
+
+    return folds
+
+
 def parse_compression_rates(compression_rates):
     """
     Parse the compression rates from a list of floats into a dictionary format.
@@ -223,7 +257,8 @@ def parse_compression_rates(compression_rates):
 
 def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_compressed_layer_only,
                      total_allowed_accuracy_reduction, discount_factor, learning_rate, rollout_limit, passes, prune,
-                     num_epochs, runtime_limit, train_split, val_split, actor_checkpoint_path, critic_checkpoint_path):
+                     seed, num_epochs, runtime_limit, n_splits, train_split, val_split, actor_checkpoint_path,
+                     critic_checkpoint_path, save_pruned_checkpoints):
     """
     Initialize configuration values for the A2C Agent.
 
@@ -234,16 +269,25 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_com
         is_train_compressed_layer_only (bool):    Whether to freeze existing layers and learn only new layers.
         total_allowed_accuracy_reduction (float): Maximum allowable accuracy drop (percentage).
         discount_factor (float):                  A.k.a Gamma, controls the weight of the agent's future rewards.
-        learning_rate (float):                    Learning rate for the agent's optimizer. Controls the step size in gradient descent.
-        rollout_limit (int / None):               Ensures that the agent's rollout trajectory does not exceed a predefined number of steps (optional).
+        learning_rate (float):                    Learning rate for the agent's optimizer. Controls the step size in
+                                                  gradient descent.
+        rollout_limit (int / None):               Ensures that the agent's rollout trajectory does not exceed a
+                                                  predefined number of steps (optional).
         passes (int):                             Number of iterations over the layers.
-        prune (bool):                             Whether to prune layers during compression.
+        prune (bool):                             Whether to prune layers during compression or resize them manually.
+        seed (int):                               Seed to be used by numpy, torch, etc. Defaults to 0.
         num_epochs (int):                         Number of training epochs per compression step.
         runtime_limit (int):                      Max runtime allowed by the user. Defaults to a week in seconds.
-        train_split (float):                      Fraction of the dataset to use for training. Defaults to 0.7.
-        val_split (float):                        Fraction of the dataset to use for validation. Defaults to 0.2.
-        actor_checkpoint_path (str):              Path to pre-trained Actor Checkpoint
-        critic_checkpoint_path (str):             Path to pre-trained Critic Checkpoint
+        n_splits (int):                           Inter-model evaluation - train/test splits for n-fold cross-validation.
+                                                  Defaults to 0 (no CV), recommended value is 10.
+        train_split (float):                      Intra-model evaluation - Fraction of the dataset to use for training.
+                                                  Defaults to 0.7.
+        val_split (float):                        Intra-model evaluation - Fraction of the dataset to use for validation.
+                                                  Defaults to 0.2.
+        actor_checkpoint_path (str):              Path to pre-trained Actor Checkpoint.
+        critic_checkpoint_path (str):             Path to pre-trained Critic Checkpoint.
+        save_pruned_checkpoints (bool):           Whether to save a final checkpoint for each pruned network.
+                                                  Defaults to False.
     """
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!")
@@ -264,12 +308,15 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_com
         rollout_limit=rollout_limit,
         passes=passes,
         prune=prune,
+        seed=seed,
         num_epochs=num_epochs,
         runtime_limit=runtime_limit,
+        n_splits=n_splits,
         train_split=train_split,
         val_split=val_split,
         actor_checkpoint_path=actor_checkpoint_path,
-        critic_checkpoint_path=critic_checkpoint_path
+        critic_checkpoint_path=critic_checkpoint_path,
+        save_pruned_checkpoints=save_pruned_checkpoints
     )
     StaticConf(cv)
 

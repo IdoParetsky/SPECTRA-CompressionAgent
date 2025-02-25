@@ -67,8 +67,8 @@ class A2CAgentReinforce:
         max_reward_in_all_episodes = -np.inf
         reward_not_improving = False
 
-        warmup_len = min(len(self.env.all_networks) * 2, 500)
-        min_episode_num = len(self.env.all_networks) * 10 + warmup_len
+        warmup_len = min(len(self.env.networks) * 2, 500)
+        min_episode_num = len(self.env.networks) * 10 + warmup_len
         start_time = time.time()
 
         while (self.episode_idx < min_episode_num or (not reward_not_improving)) and \
@@ -116,7 +116,7 @@ class A2CAgentReinforce:
                 step_count += 1
 
             writer.add_scalar('Total Reward in Episode', sum(rewards), self.episode_idx)
-            curr_net_file = self.env.all_networks[self.env.net_order[self.env.curr_net_index]][1].split("/")[-1]
+            curr_net_file = self.env.networks[self.env.net_order[self.env.curr_net_index]][1].split("/")[-1]
             writer.add_scalar(f'Total Reward for network {curr_net_file}', sum(rewards), self.episode_idx)
             self.episode_idx += 1
             returns = utils.compute_returns(0, rewards, masks, self.conf.discount_factor)

@@ -18,6 +18,7 @@ class BERTInputModeler:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.bert_model.to(self.device)
 
+    # TODO: Incorporate model_with_rows
     def encode_model_to_bert_input(self, model_with_rows, feature_maps: Dict[str, List[float]]) -> Dict[str, torch.Tensor]:
         """
         Converts the extracted model features into BERT-compatible input.
