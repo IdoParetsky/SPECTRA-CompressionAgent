@@ -30,23 +30,47 @@ def extract_args_from_cmd():
     parser = argparse.ArgumentParser(
         description="Script for training and evaluating SPECTRA A2C agent for CNN pruning.")
 
-    parser.add_argument(
-        '--input', type=str, required=True,
+    parser.add_argument('--input', type=str, required=True,
         help=(
-            "Path to a JSON file or a JSON-formatted (dict-like) string. "
+            "Path to a JSON file or a JSON-formatted (dict-like) string of model checkpoints for Agent Evaluation. "
             "The JSON should map network paths to configurations:\n"
             "{\n"
             "  \"network_path_1\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"],\n"
             "  \"network_path_2\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"]\n"
             "}\n\n"
             "- 'network_path': Path to the network checkpoint (.pt/.pth/.th) file.\n"
-            "- 'architecture': The architecture name of the model (e.g., resnet18).\n"
+            "- 'architecture': The architecture name of the model (e.g., 'resnet18').\n"
             "- 'instantiation_script_path': Path to the script from source repository where the architecture "
             "                               instantiation function resides.\n"
             "- 'dataset_name_or_path': Path to a custom dataset, or name of a standard dataset "
             "                          (supported in utils.load_cnn_dataset(), such as 'cifar-10')."
         )
     )
+
+    parser.add_argument('--database', type=str, default=None,
+        help=(
+            "Path to a JSON file or a JSON-formatted (dict-like) string for Agent Training. "
+            "Unused if the agent is pretrained (actor_checkpoint and critic_checkpoint are provided)."
+            "A full database syntax example is available in the README file."
+            "The JSON should map network paths to configurations:\n"
+            "{\n"
+            "  \"network_path_1\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"],\n"
+            "  \"network_path_2\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"]\n"
+            "}\n\n"
+            "- 'network_path': Path to the network checkpoint (.pt/.pth/.th) file.\n"
+            "- 'architecture': The architecture name of the model (e.g., 'resnet18').\n"
+            "- 'instantiation_script_path': Path to the script from source repository where the architecture "
+            "                               instantiation function resides.\n"
+            "- 'dataset_name_or_path': Path to a custom dataset, or name of a standard dataset "
+            "                          (supported in utils.load_cnn_dataset(), such as 'cifar-10')."
+        )
+    )
+
+    parser.add_argument('--actor_checkpoint', type=str, default=None,
+                        help="Path to Actor Checkpoint (pre-trained agent)")
+
+    parser.add_argument('--critic_checkpoint', type=str, default=None,
+                        help="Path to Critic Checkpoint (pre-trained agent)")
 
     parser.add_argument(
         '--compression_rates', type=float, nargs='+', default=[1.0, 0.9, 0.8, 0.7, 0.6],
@@ -99,12 +123,6 @@ def extract_args_from_cmd():
     parser.add_argument('--val_split', type=float, default=0.2,
                         help="Validation data split fraction. Test data split is 1 - train_split - val_split")
 
-    parser.add_argument('--actor_checkpoint', type=str, default=None,
-                        help="Path to Actor Checkpoint (pre-trained agent)")
-
-    parser.add_argument('--critic_checkpoint', type=str, default=None,
-                        help="Path to Critic Checkpoint (pre-trained agent)")
-
     parser.add_argument('--save_pruned_checkpoints', type=bool, default=False,
                         help="Whether to save a final checkpoint for each pruned network.")
 
@@ -113,10 +131,10 @@ def extract_args_from_cmd():
 
 def parse_input_argument(input_arg, train_split, val_split):
     """
-    Parse the --input argument as a JSON-formatted string or file.
+    Parse the --input or --database arguments as a JSON-formatted string or file.
 
     Args:
-        input_arg (str):        A JSON string or a path to a JSON file.
+        input_arg (str):        A JSON string or a path to a JSON file for Agent Training / Evaluation.
         train_split (float):    Fraction of the dataset to use for training.
         val_split (float):      Fraction of the dataset to use for validation.
 
@@ -129,6 +147,11 @@ def parse_input_argument(input_arg, train_split, val_split):
     Raises:
         ValueError: If input is invalid or instantiation fails.
     """
+    # --database could be None if both an actor checkpoint and a critic checkpoint are provided by the user
+    # (asserted in A2CAgentReinforce's initialization)
+    if input_arg is None:
+        return
+
     # Try parsing as JSON string
     try:
         input_dict = json.loads(input_arg)
@@ -257,14 +280,21 @@ def parse_compression_rates(compression_rates):
 
 def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_compressed_layer_only,
                      total_allowed_accuracy_reduction, discount_factor, learning_rate, rollout_limit, passes, prune,
-                     seed, num_epochs, runtime_limit, n_splits, train_split, val_split, actor_checkpoint_path,
-                     critic_checkpoint_path, save_pruned_checkpoints):
+                     seed, num_epochs, runtime_limit, n_splits, train_split, val_split, database_dict,
+                     actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts):
     """
     Initialize configuration values for the A2C Agent.
 
     Args:
         test_name (str):                          Indicative agent training instance name.
-        input_dict (dict):                        {network_path: [arch, instantiation_script_path, dataset_name_or_path], ...}
+        input_dict (dict):                        Agent Evaluation dict - {network_path:
+                                                          [arch, instantiation_script_path, dataset_name_or_path], ...}
+        database_dict (dict):                     Agent Training dict - {network_path:
+                                                          [arch, instantiation_script_path, dataset_name_or_path], ...}.
+                                                  Unused (training is skipped) if actor_checkpoint_path and
+                                                  critic_checkpoint_path are provided (agent is pre-trained)
+        actor_checkpoint_path (str):              Path to pre-trained Actor Checkpoint.
+        critic_checkpoint_path (str):             Path to pre-trained Critic Checkpoint.
         compression_rates_dict (dict):            Mapping of actions to compression rates.
         is_train_compressed_layer_only (bool):    Whether to freeze existing layers and learn only new layers.
         total_allowed_accuracy_reduction (float): Maximum allowable accuracy drop (percentage).
@@ -284,10 +314,9 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_com
                                                   Defaults to 0.7.
         val_split (float):                        Intra-model evaluation - Fraction of the dataset to use for validation.
                                                   Defaults to 0.2.
-        actor_checkpoint_path (str):              Path to pre-trained Actor Checkpoint.
-        critic_checkpoint_path (str):             Path to pre-trained Critic Checkpoint.
         save_pruned_checkpoints (bool):           Whether to save a final checkpoint for each pruned network.
                                                   Defaults to False.
+        test_ts (str):                            Test's timestamp
     """
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!")
@@ -314,9 +343,11 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_com
         n_splits=n_splits,
         train_split=train_split,
         val_split=val_split,
+        database_dict=database_dict,
         actor_checkpoint_path=actor_checkpoint_path,
         critic_checkpoint_path=critic_checkpoint_path,
-        save_pruned_checkpoints=save_pruned_checkpoints
+        save_pruned_checkpoints=save_pruned_checkpoints,
+        test_ts=test_ts
     )
     StaticConf(cv)
 
@@ -340,14 +371,18 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     dataset_loaders = {
         'cifar-10': lambda: (datasets.CIFAR10(root="data", train=True, download=True, transform=transform),
                              datasets.CIFAR10(root="data", train=False, download=True, transform=transform)),
+        'cifar10': lambda: dataset_loaders['cifar-10'](),  # Alias to allow both formats
         'cifar-100': lambda: (datasets.CIFAR100(root="data", train=True, download=True, transform=transform),
                               datasets.CIFAR100(root="data", train=False, download=True, transform=transform)),
+        'cifar100': lambda: dataset_loaders['cifar-100'](),  # Alias to allow both formats
         'mnist': lambda: (datasets.MNIST(root="data", train=True, download=True, transform=transform),
                           datasets.MNIST(root="data", train=False, download=True, transform=transform)),
         'svhn': lambda: (datasets.SVHN(root="data", split='train', download=True, transform=transform),
                          datasets.SVHN(root="data", split='test', download=True, transform=transform)),
         'imagenet1k': lambda: (datasets.ImageNet(root="data", split='train', download=False, transform=transform),
                                datasets.ImageNet(root="data", split='val', download=False, transform=transform)),
+        'imagenet-1k': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
+        'imagenet': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow all formats
     }
 
     if name_or_path in dataset_loaders:

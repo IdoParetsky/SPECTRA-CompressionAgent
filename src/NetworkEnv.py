@@ -2,14 +2,14 @@ import copy
 import itertools
 from typing import Dict, Type, List
 import numpy as np
+import pandas as pd
 import os
 import time
 import torch
 from torch import nn
 from torch.nn.utils import prune
 
-# TODO: Incorporate FMs extraction methods
-from src.BERTInputModeler import BERTInputModeler, extract_topology_features, extract_activation_statistics, extract_weight_statistics
+from src.BERTInputModeler import BERTInputModeler
 from NetworkFeatureExtraction.src.FeatureExtractors.ModelFeatureExtractor import FeatureExtractor
 from NetworkFeatureExtraction.src.ModelClasses.LoadedModel import LoadedModel, MissionTypes
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
@@ -20,17 +20,77 @@ from src.ModelHandlers.RegressionHandler import RegressionHandler
 import src.utils as utils
 
 
+AGENT_TRAIN = "agent_train"  # Mode when NetworkEnv is called from A2C_Agent_Reinforce.py
+EVAL_TRAIN = "eval_train"  # Mode when NetworkEnv is called from a2c_agent_reinforce_runner.py, evaluating the train dataset
+EVAL_TEST = "eval_test"  # Mode when NetworkEnv is called from a2c_agent_reinforce_runner.py, evaluating the test dataset
+
+
 class NetworkEnv:
     """
-    Reinforcement learning environment for pruning CNNs.
+    Implements a Reinforcement Learning Environment for structured CNN pruning.
 
-    Features:
-    - Preloaded models & datasets from `self.conf.input_dict`
-    - Feature extraction for BERT-based state encoding
-    - Iterative pruning & evaluation
+    This environment interacts with an RL agent (e.g., 'A2CAgentReinforce') to iteratively prune convolutional (Conv2D)
+    and fully connected (Linear) layers in deep neural networks. The pruning process is guided by reinforcement learning,
+    aiming to reduce model complexity while maintaining accuracy.
+
+    The environment is responsible for:
+    - Loading pre-trained CNN models and datasets from 'self.conf.input_dict'.
+    - Extracting model architecture features using a BERT-based state encoder.
+    - Applying pruning actions to individual layers and evaluating their impact.
+    - Computing rewards based on accuracy and model efficiency.
+    - Logging results and optionally saving pruned models.
+
+    Modes of Operation:
+    - 'AGENT_TRAIN': Used when training an RL agent, skipping logging and evaluation.
+    - 'EVAL_TRAIN': Used for evaluating pruning effectiveness on training datasets.
+    - 'EVAL_TEST': Used for evaluating pruning effectiveness on test datasets.
+
+    Attributes:
+        conf (StaticConf): Static configuration instance containing hyperparameters and settings.
+        layer_index (int): Index of the layer currently being pruned.
+        actions_history (List[float]): History of compression rates applied during pruning.
+        original_acc (float): Accuracy of the original, unpruned model (set at reset).
+        selected_net_path (str): Path of the current model being evaluated.
+        current_model (torch.nn.Module): The CNN model currently being pruned.
+        feature_extractor (FeatureExtractor): Extractor for generating model representations for BERT.
+        networks (List[str]): List of model paths from 'input_dict', used for selecting models.
+                              None (default) - all the networks in conf.input_dict are retrieved.
+        curr_net_index (int): Current index in 'networks', tracking which model is loaded.
+        bert_modeler (BERTInputModeler): Handles BERT-based feature extraction.
+        handler_by_mission_type (Dict[MissionTypes, Type[BasicHandler]]): Mapping of mission types to handlers.
+        mode (str): One of 'AGENT_TRAIN', 'EVAL_TRAIN', or 'EVAL_TEST', indicating the instance's context.
+        fold_idx (int or str): Fold index for cross-validation or '"N/A"' if not using cross-validation.
+        t_start (float): Start time of model evaluation, used for logging and tracking execution time.
+        
+    Methods:
+        reset(test_net_path=None, test_model=None, test_loaders=None):
+            Resets the environment by loading a new model and dataset. If test parameters are provided, 
+            uses them instead of selecting from 'input_dict' (utilized in cross-validation to evaluate the test dataset
+            over a train dataset environment).
+
+        step(compression_rate: float, is_to_train: bool = True) -> Tuple[np.ndarray, float, bool]:
+            Applies a pruning action, evaluates the compressed model, and moves to the next state.
+            Returns the updated state, computed reward, and termination flag.
+
+        compute_and_log_results(t_curr: float = time.perf_counter()):
+            Computes accuracy, model size, and FLOPs after pruning, logging them to a CSV file.
+
+        save_pruned_checkpoint():
+            Saves the final pruned model to a checkpoint file, ensuring the filename is uniquely formatted.
+
+        create_learning_handler(new_model: torch.nn.Module) -> BasicHandler:
+            Instantiates a learning handler appropriate for the current mission type, supporting both 
+            training and testing scenarios.
+
+    Workflow:
+        1. The environment is initialized with a set of models ('input_dict').
+        2. The RL agent selects pruning actions via 'step()', reducing model complexity.
+        3. After each pruning action, the model is evaluated and a reward is computed.
+        4. Once each pruning pass (over all the network's layers) is complete, results are logged.
+           Optionally, once the network's pruning process is terminated - a pruned model is saved.
     """
 
-    def __init__(self, networks=None):
+    def __init__(self, networks=None, mode=None, fold_idx="N/A"):
         self.conf = StaticConf.get_instance().conf_values
         self.layer_index = None  # This variable will hold the index of the layer after the one to be pruned
         self.actions_history = []
@@ -39,7 +99,14 @@ class NetworkEnv:
         self.current_model = None
         self.feature_extractor = None
 
-        self.networks = networks or list(self.conf.input_dict.keys())  # List of model paths
+        # EVAL_TRAIN / EVAL_TEST when called from a2c_agent_reinforce_runner.py's evaluate_model(),
+        # used for accuracy calculation in NetworkEnv's compute_and_log_results().
+        # AGENT_TRAIN when called from A2C_Agent_Reinforce.py, skipping compute_and_log_results()
+        self.mode = mode
+
+        # List of model paths - Full database if in agent training mode, else evaluation database (user input)
+        self.networks = networks or (list(self.conf.database_dict.keys()) if self.mode == AGENT_TRAIN else
+                                     list(self.conf.input_dict.keys()))
         self.curr_net_index = -1
         np.random.shuffle(self.networks)  # Randomize order
 
@@ -51,6 +118,16 @@ class NetworkEnv:
             MissionTypes.Regression: RegressionHandler,
             MissionTypes.Classification: ClassificationHandler
         }
+
+        # "N/A" / an integer representing the fold number within the amount of folds in cross-validation evaluation
+        # when called from a2c_agent_reinforce_runner.py's evaluate_model(),
+        # used for logging via NetworkEnv's compute_and_log_results().
+        # None (irrelevant) when called from A2C_Agent_Reinforce.py.
+        self.fold_idx = fold_idx
+
+        # t_start is assigned in a2c_agent_reinforce_runner.py's evaluate_model(),
+        # and utilized in NetworkEnv's compute_and_log_results()
+        self.t_start = None  # a Model's evaluation start time
 
     def reset(self, test_net_path=None, test_model=None, test_loaders=None):
         """ Reset environment with a new CNN model & dataset """
@@ -73,7 +150,8 @@ class NetworkEnv:
 
         # Prepare feature extractor with training data
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
-        fm = self.feature_extractor.encode_to_bert_input(self.layer_index - 1)
+        # Convert state to textual representation
+        fm = utils.convert_state_to_text(self.feature_extractor.encode_to_bert_input(self.layer_index - 1))
 
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
@@ -134,14 +212,20 @@ class NetworkEnv:
 
         # Extract features for BERT
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
-        fm = self.feature_extractor.encode_to_bert_input(self.layer_index - 1)
+        # Convert state to textual representation
+        fm = utils.convert_state_to_text(self.feature_extractor.encode_to_bert_input(self.layer_index - 1))
 
         # Check termination condition
-        num_layers = len(self.feature_extractor.model_with_rows.all_rows) - 1
+        num_rows = len(self.feature_extractor.model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
+        num_actions = len(self.actions_history)
         self.actions_history.append(compression_rate)
         # As self.layer_index - 1 is the current appraised layer, the index should not drop below 1
-        self.layer_index = max(1, self.layer_index % (num_layers + 1))
-        done = len(self.actions_history) >= num_layers * self.conf.passes
+        self.layer_index = max(1, self.layer_index % (num_rows + 1))
+        done = num_actions >= num_rows * self.conf.passes
+
+        # Log model evaluation metrics after each pass and flush to CSV.
+        if self.mode != AGENT_TRAIN and (done or num_actions % num_rows == 0):
+            self.compute_and_log_results()
 
         # Save the final pruned model to a checkpoint file,
         # if requested by the user via self.conf.save_pruned_checkpoints = True
@@ -149,6 +233,54 @@ class NetworkEnv:
             self.save_pruned_checkpoint()
 
         return fm, reward, done
+
+    def compute_and_log_results(self, t_curr=time.perf_counter()):
+        """
+        Compute accuracy according to eval mode (train / test datasets), number of params and FLOPs.
+        Log model evaluation metrics after each pass and flush to CSV.
+
+        Args:
+            t_curr (float):    Time of log, to calculate evaluation time
+        """
+        # Retrieve original & compressed models
+        original_model = self.conf.input_dict[self.selected_net_path][0]
+        compressed_model = self.current_model
+
+        # Create learning handlers
+        new_lh = self.create_learning_handler(compressed_model)
+        origin_lh = self.create_learning_handler(original_model)
+
+        dataset_loader = self.test_loader if self.mode == "test" else self.train_loader
+
+        fold_str = self.fold_idx if self.fold_idx == "N/A" else f"{self.fold_idx} / {self.conf.n_splits}"
+
+        # Store results
+        result_entry = {
+            'model': self.selected_net_path,
+            'pass': f'{len(self.actions_history) // (len(self.feature_extractor.model_with_rows.all_rows) - 1)}'
+                    f' / {self.conf.passes}',
+            'fold': fold_str,
+            'new_acc': round(new_lh.evaluate_model(dataset_loader), 3),
+            'origin_acc': round(origin_lh.evaluate_model(dataset_loader), 3),
+            'new_param (M)': round(utils.calc_num_parameters(compressed_model) / 1e6, 3),
+            'origin_param (M)': round(utils.calc_num_parameters(original_model) / 1e6, 3),
+            'new_flops (M)': round(utils.calc_flops(compressed_model) / 1e6, 3),
+            'origin_flops (M)': round(utils.calc_flops(original_model) / 1e6, 3),
+            'new_model_arch': utils.get_model_layers_str(compressed_model),
+            'origin_model_arch': utils.get_model_layers_str(original_model),
+            'evaluation_time': t_curr - self.t_start
+        }
+
+        file_path = f"./models/Reinforce_Evaluation/results_{self.conf.test_name}_{self.mode}_{self.conf.test_ts}.csv"
+
+        # Check if file exists to determine if headers should be written
+        file_exists = os.path.exists(file_path)
+
+        # Convert result dictionary into a DataFrame row
+        df_entry = pd.DataFrame([result_entry])
+
+        # Append row to CSV (creates file if it doesn't exist)
+        df_entry.to_csv(file_path, mode='a', header=not file_exists, index=False)
 
     def save_pruned_checkpoint(self):
         """
@@ -441,7 +573,7 @@ def prune_current_model(model_with_rows, compression_rate, layer_to_prune_idx):
 
     elif isinstance(layer_to_change, nn.Linear):
         if isinstance(next_layer, nn.Linear):
-            # Reduce `in_features` of next Linear layer
+            # Reduce 'in_features' of next Linear layer
             next_fc = nn.Linear(
                 in_features=pruned_layer.out_features,  # Adjusted after pruning
                 out_features=next_layer.out_features,
