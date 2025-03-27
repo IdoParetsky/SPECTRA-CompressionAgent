@@ -1,5 +1,6 @@
 import numpy as np
 from torch import nn
+from src.Configuration.StaticConf import StaticConf
 
 
 class ModelWithRows:
@@ -44,7 +45,8 @@ class ModelWithRows:
         Args:
             model (nn.Module): The neural network model to analyze.
         """
-        self.model = model
+
+        self.model = model.to(StaticConf.get_instance().conf_values.device)
         self.all_layers = []
         # Define which layer types should trigger a new row.
         self.main_layer_types = [nn.Conv2d, nn.Linear]

@@ -2,11 +2,13 @@ import os
 import json
 import sys
 import importlib.util
+import inspect
 from pathlib import Path
 from datetime import datetime
 import argparse
 import numpy as np
 import pandas as pd
+import re
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 import torch
@@ -17,6 +19,14 @@ from torchvision import datasets, transforms
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 from src.Configuration.ConfigurationValues import ConfigurationValues
 from src.Configuration.StaticConf import StaticConf
+
+# TODO: Change to dynamic assignment
+SPECTRA_DATASETS = "C:\\Users\\idopa\\Documents\\BGU\\MSc\\spectra_datasets"
+
+# Possible instantiation functions' parameters
+NUM_CLASSES = "num_classes"
+LARGE_INPUT = "large_input"
+WIDTH = "width"
 
 
 def print_flush(msg):
@@ -35,15 +45,19 @@ def extract_args_from_cmd():
             "Path to a JSON file or a JSON-formatted (dict-like) string of model checkpoints for Agent Evaluation. "
             "The JSON should map network paths to configurations:\n"
             "{\n"
-            "  \"network_path_1\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"],\n"
-            "  \"network_path_2\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"]\n"
+            "  \"network_path_1\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\", optional_kwargs],\n"
+            "  \"network_path_2\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\", optional_kwargs]\n"
             "}\n\n"
             "- 'network_path': Path to the network checkpoint (.pt/.pth/.th) file.\n"
             "- 'architecture': The architecture name of the model (e.g., 'resnet18').\n"
             "- 'instantiation_script_path': Path to the script from source repository where the architecture "
             "                               instantiation function resides.\n"
             "- 'dataset_name_or_path': Path to a custom dataset, or name of a standard dataset "
-            "                          (supported in utils.load_cnn_dataset(), such as 'cifar-10')."
+            "                          (supported in utils.load_cnn_dataset(), such as 'cifar-10').\n"
+            "- optional_kwargs: keyword dict for custom instantiation parameters (e.g., {num_classes=10, width=56}\n"
+            "                   By default, 'num_classes' is dynamically assigned via dataset_loaders's correspondent"
+            "                   train_data's 'classes' field,\n'large_input' is True is the dataset has 'imagenet' in "
+            "                   its name / path and 'width' is scraped from 'network_path' via regex (e.g., 'resnet18_width56')"
         )
     )
 
@@ -54,22 +68,16 @@ def extract_args_from_cmd():
             "A full database syntax example is available in the README file."
             "The JSON should map network paths to configurations:\n"
             "{\n"
-            "  \"network_path_1\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"],\n"
-            "  \"network_path_2\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\"]\n"
+            "  \"network_path_1\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\", optional_kwargs],\n"
+            "  \"network_path_2\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\", optional_kwargs]\n"
             "}\n\n"
-            "- 'network_path': Path to the network checkpoint (.pt/.pth/.th) file.\n"
-            "- 'architecture': The architecture name of the model (e.g., 'resnet18').\n"
-            "- 'instantiation_script_path': Path to the script from source repository where the architecture "
-            "                               instantiation function resides.\n"
-            "- 'dataset_name_or_path': Path to a custom dataset, or name of a standard dataset "
-            "                          (supported in utils.load_cnn_dataset(), such as 'cifar-10')."
         )
     )
 
-    parser.add_argument('--actor_checkpoint', type=str, default=None,
+    parser.add_argument('--actor_checkpoint_path', type=str, default=None,
                         help="Path to Actor Checkpoint (pre-trained agent)")
 
-    parser.add_argument('--critic_checkpoint', type=str, default=None,
+    parser.add_argument('--critic_checkpoint_path', type=str, default=None,
                         help="Path to Critic Checkpoint (pre-trained agent)")
 
     parser.add_argument(
@@ -88,7 +96,7 @@ def extract_args_from_cmd():
     parser.add_argument('--split', type=bool, default=True,
                         help="Whether to split the networks to train and test sets. Must be True in the first run.")
 
-    parser.add_argument('--allowed_reduction_acc', type=int, default=5,
+    parser.add_argument('--allowed_acc_reduction', type=int, default=5,
                         help="The permissible reduction in performance (in percents). Default value=5; 1 is also recommended.")
 
     parser.add_argument('--discount_factor', type=float, default=0.99,
@@ -187,13 +195,15 @@ def instantiate_networks_and_load_datasets(input_dict, train_split, val_split):
         ValueError: If model instantiation fails.
     """
     instantiated_networks = {}
+    for net_path, values in input_dict.items():
+        if len(values) == 3:
+            arch, script_path, dataset_path = values
+            optional_kwargs = {}  # Assign an empty dict if not assigned
+        else:
+            arch, script_path, dataset_path, optional_kwargs = values
 
-    for net_path, (arch, script_path, dataset_path) in input_dict.items():
         if not os.path.exists(net_path):
             raise ValueError(f"Network checkpoint not found: {net_path}")
-
-        # Load model architecture from script
-        model = load_model_from_script(arch, script_path, net_path)
 
         # Load dataset (avoiding redundant loads)
         dataset_key = dataset_path if os.path.exists(dataset_path) else dataset_path.lower()
@@ -202,19 +212,43 @@ def instantiate_networks_and_load_datasets(input_dict, train_split, val_split):
         else:
             train_loader, val_loader, test_loader = instantiated_networks[dataset_key][1]
 
+        # Load model architecture from script
+        model = load_model_from_script(arch, dataset_path, script_path, net_path, optional_kwargs)
+
         instantiated_networks[net_path] = (model, (train_loader, val_loader, test_loader))
 
     return instantiated_networks
 
 
-def load_model_from_script(arch: str, script_path: str, checkpoint_path: str) -> torch.nn.Module:
+def get_longest_matching_key(dataset_path: str) -> str:
+    """
+    Given a dataset path, return the longest matching key from the dataset_loaders dictionary.
+
+    Args:
+        dataset_path (str): The dataset path or name.
+
+    Returns:
+        str: The longest matching key from the dataset_loaders dictionary.
+    """
+    best_match = ""
+    for key in dataset_loaders.keys():
+        if key in dataset_path and len(key) > len(best_match):
+            best_match = key
+    return best_match
+
+
+def load_model_from_script(arch: str, dataset_path: str, script_path: str, checkpoint_path: str,
+                           optional_kwargs: dict) -> torch.nn.Module:
     """
     Dynamically loads a model architecture from a user-provided script and initializes it with a checkpoint.
 
     Args:
         arch (str): Model architecture (e.g., "resnet18").
+        dataset_path (str): Path to the dataset / name of the dataset (e.g., "cifar-10")
         script_path (str): Path to the Python script containing model definition.
         checkpoint_path (str): Path to the model checkpoint (.pt/.pth/.th).
+        optional_kwargs (dict):  Keyword dict for custom instantiation parameters (e.g., {num_classes=10, width=56}).
+                                 If not assigned by the user, {} is propagated from instantiate_networks_and_load_datasets().
 
     Returns:
         nn.Module: The instantiated model.
@@ -233,7 +267,26 @@ def load_model_from_script(arch: str, script_path: str, checkpoint_path: str) ->
     if not hasattr(module, arch):
         raise ValueError(f"Function '{arch}' not found in {script_path}")
 
-    model = getattr(module, arch)()  # Instantiate model
+    instantiation_func = getattr(module, arch)
+    params_list = list(inspect.signature(getattr(module, arch)).parameters)
+    params_dict = {}
+    if NUM_CLASSES in params_list:
+        # By default, 'num_classes' is dynamically assigned via dataset_loaders's correspondent train_data's 'classes' field
+        params_dict[NUM_CLASSES] = optional_kwargs.get(NUM_CLASSES, len(dataset_loaders[dataset_path]()[0].classes))
+    if LARGE_INPUT in params_list:
+        # By default, 'large_input' is True is the dataset has 'imagenet' in its name / path
+        large_input = optional_kwargs.get(LARGE_INPUT)
+        # Safeguarding 'False' cases
+        params_dict[LARGE_INPUT] = large_input if large_input is not None else "imagenet" in dataset_path
+    if WIDTH in params_list:
+        # By default, 'width' is scraped from 'network_path' via regex
+        match = re.search(r'width(\d+)', checkpoint_path)
+        params_dict[WIDTH] = optional_kwargs.get(WIDTH, int(match.group(1)) if match else None)
+
+    # Extend params_dict with other optional_kwargs, excluding handled keys
+    params_dict.update({k: v for k, v in optional_kwargs.items() if k not in [NUM_CLASSES, LARGE_INPUT, WIDTH]})
+
+    model = instantiation_func(**params_dict)  # Instantiate model
     model.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(
         "cuda" if torch.cuda.is_available() else "cpu")))
     model.eval()
@@ -278,8 +331,8 @@ def parse_compression_rates(compression_rates):
     return {i: rate for i, rate in enumerate(compression_rates)}
 
 
-def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_compressed_layer_only,
-                     total_allowed_accuracy_reduction, discount_factor, learning_rate, rollout_limit, passes, prune,
+def init_conf_values(test_name, input_dict, compression_rates_dict, train_compressed_layer_only,
+                     allowed_acc_reduction, discount_factor, learning_rate, rollout_limit, passes, prune,
                      seed, num_epochs, runtime_limit, n_splits, train_split, val_split, database_dict,
                      actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts):
     """
@@ -296,8 +349,8 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_com
         actor_checkpoint_path (str):              Path to pre-trained Actor Checkpoint.
         critic_checkpoint_path (str):             Path to pre-trained Critic Checkpoint.
         compression_rates_dict (dict):            Mapping of actions to compression rates.
-        is_train_compressed_layer_only (bool):    Whether to freeze existing layers and learn only new layers.
-        total_allowed_accuracy_reduction (float): Maximum allowable accuracy drop (percentage).
+        train_compressed_layer_only (bool):    Whether to freeze existing layers and learn only new layers.
+        allowed_acc_reduction (float): Maximum allowable accuracy drop (percentage).
         discount_factor (float):                  A.k.a Gamma, controls the weight of the agent's future rewards.
         learning_rate (float):                    Learning rate for the agent's optimizer. Controls the step size in
                                                   gradient descent.
@@ -330,8 +383,8 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_com
         test_name=test_name,
         input_dict=input_dict,
         compression_rates_dict=compression_rates_dict,
-        is_train_compressed_layer_only=is_train_compressed_layer_only,
-        total_allowed_accuracy_reduction=total_allowed_accuracy_reduction,
+        train_compressed_layer_only=train_compressed_layer_only,
+        allowed_acc_reduction=allowed_acc_reduction,
         discount_factor=discount_factor,
         learning_rate=learning_rate,
         rollout_limit=rollout_limit,
@@ -352,6 +405,27 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, is_train_com
     StaticConf(cv)
 
 
+# Define default transformations
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+
+dataset_loaders = {
+    'cifar-10': lambda: (datasets.CIFAR10(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
+                         datasets.CIFAR10(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
+    'cifar10': lambda: dataset_loaders['cifar-10'](),  # Alias to allow both formats
+    'cifar-100': lambda: (datasets.CIFAR100(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
+                          datasets.CIFAR100(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
+    'cifar100': lambda: dataset_loaders['cifar-100'](),  # Alias to allow both formats
+    'mnist': lambda: (datasets.MNIST(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
+                      datasets.MNIST(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
+    'svhn': lambda: (datasets.SVHN(root=SPECTRA_DATASETS, split='train', download=True, transform=transform),
+                     datasets.SVHN(root=SPECTRA_DATASETS, split='test', download=True, transform=transform)),
+    'imagenet1k': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', download=False, transform=transform),
+                           datasets.ImageNet(root=SPECTRA_DATASETS, split='val', download=False, transform=transform)),
+    'imagenet-1k': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
+    'imagenet': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow all formats
+}
+
+
 def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     """
     Loads a standard or custom dataset, splitting it into train, validation, and test sets.
@@ -365,31 +439,12 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader]: Dataloaders for train, validation, and test datasets.
     """
-    # Define default transformations
-    transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-
-    dataset_loaders = {
-        'cifar-10': lambda: (datasets.CIFAR10(root="data", train=True, download=True, transform=transform),
-                             datasets.CIFAR10(root="data", train=False, download=True, transform=transform)),
-        'cifar10': lambda: dataset_loaders['cifar-10'](),  # Alias to allow both formats
-        'cifar-100': lambda: (datasets.CIFAR100(root="data", train=True, download=True, transform=transform),
-                              datasets.CIFAR100(root="data", train=False, download=True, transform=transform)),
-        'cifar100': lambda: dataset_loaders['cifar-100'](),  # Alias to allow both formats
-        'mnist': lambda: (datasets.MNIST(root="data", train=True, download=True, transform=transform),
-                          datasets.MNIST(root="data", train=False, download=True, transform=transform)),
-        'svhn': lambda: (datasets.SVHN(root="data", split='train', download=True, transform=transform),
-                         datasets.SVHN(root="data", split='test', download=True, transform=transform)),
-        'imagenet1k': lambda: (datasets.ImageNet(root="data", split='train', download=False, transform=transform),
-                               datasets.ImageNet(root="data", split='val', download=False, transform=transform)),
-        'imagenet-1k': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
-        'imagenet': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow all formats
-    }
 
     if name_or_path in dataset_loaders:
         train_data, test_data = dataset_loaders[name_or_path]()
-        total_len = len(train_data)
-        train_len = int(total_len * train_split)
-        val_len = int(total_len * val_split)
+
+        train_len = int(len(train_data) * train_split / (train_split + val_split))
+        val_len = len(train_data) - train_len
         train_data, val_data = random_split(train_data, [train_len, val_len])
     elif os.path.exists(name_or_path):  # Custom dataset path
         dataset = datasets.ImageFolder(Path(name_or_path), transform=transform)
@@ -397,6 +452,8 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
         val_len = int(len(dataset) * val_split)
         test_len = len(dataset) - train_len - val_len
         train_data, val_data, test_data = random_split(dataset, [train_len, val_len, test_len])
+        # Avoids repetitive loads and ensures data is accessible from within load_model_from_script()
+        dataset_loaders[name_or_path] = lambda: (train_data, test_data)
     else:
         raise ValueError("Invalid dataset name or path. Provide a known dataset name or a valid directory.")
 
@@ -413,7 +470,7 @@ def compute_reward(new_acc, prev_acc, compression_rate):
 
     delta_acc = (new_acc - prev_acc) * 100
 
-    if delta_acc < -StaticConf.get_instance().conf_values.total_allowed_accuracy_reduction:
+    if delta_acc < -StaticConf.get_instance().conf_values.allowed_acc_reduction:
         reward = -layer_reduction_size ** 3
     elif delta_acc > 0:
         reward = layer_reduction_size ** 3
@@ -656,20 +713,3 @@ def normalize_2d_data(data):
 
 def normalize_3d_data(data):
     return np.array(list(map(normalize_2d_data, data)))
-
-
-def convert_state_to_text(state):
-    """
-    Converts the feature map state into a list of textual descriptions.
-
-    Args:
-        state (list of tuples): Feature maps and their properties.
-
-    Returns:
-        list of str: Textual representations of the state.
-    """
-    # TODO: Implementation TBD
-    state_text = []
-    for layer_properties in state:
-        state_text.append(f"Layer type: {layer_properties[0]}, size: {layer_properties[1]}")
-    return state_text

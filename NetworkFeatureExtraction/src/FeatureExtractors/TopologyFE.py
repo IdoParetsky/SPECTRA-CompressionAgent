@@ -1,117 +1,75 @@
-from enum import Enum
-
-import numpy as np
-import torch
-import pandas as pd
 from ..FeatureExtractors.BaseFE import BaseFE
-
-
-class Activations(Enum):
-    ReLU = 1  # Results in NaN values in some datasets
-    ELU = 1
-    SiLU = 1
-    Softmax = 2
-    Tanh = 3
-    Sigmoid = 4
-
-
-class BatchNorm(Enum):
-    BatchNorm1d = 1
-    BatchNorm2d = 2
+from torch import nn
+from typing import List
 
 
 class TopologyFE(BaseFE):
-    BatchNorm = 0
-    Activation = 1
-    Dropout = 2
-    InFeatures = 3
-    OutFeatures = 4
-    KernelSize = 5
-    Stride = 6
-    Padding = 7
-
-    num_features = 8
-
     def __init__(self, model_with_rows):
+        """
+        Extracts the architecture of a CNN as a sequence for BERT tokenization.
+
+        Args:
+            model_with_rows: ModelWithRows instance containing structured layer representation.
+        """
         super(TopologyFE, self).__init__(model_with_rows)
-        self.all_layers = []
-        self.MAX_LAYERS = 10  # TODO: To be overridden via BERT mechanism
 
+        # Dictionary to map layer types to feature extractors
         self.layer_type_to_function = {
-            torch.nn.modules.linear.Linear: self.handle_linear,
-
-            torch.nn.modules.conv.Conv2d: self.handle_conv2d,
-
-            torch.nn.modules.batchnorm.BatchNorm1d: self.handle_batchnorm(BatchNorm.BatchNorm1d),
-            torch.nn.modules.batchnorm.BatchNorm2d: self.handle_batchnorm(BatchNorm.BatchNorm2d),
-
-            torch.nn.modules.activation.ReLU: self.handle_activation(Activations.ReLU),  # NEON - Results in NaN values in some datasets
-            torch.nn.modules.activation.ELU: self.handle_activation(Activations.ELU),  # NEON - Works fine
-            torch.nn.modules.activation.SiLU: self.handle_activation(Activations.SiLU),  # NEON - Yet to be verified
-            torch.nn.modules.activation.Softmax: self.handle_activation(Activations.Softmax),
-            torch.nn.modules.activation.Tanh: self.handle_activation(Activations.Tanh),
-            torch.nn.modules.activation.Sigmoid: self.handle_activation(Activations.Sigmoid),
-
-            torch.nn.modules.dropout.Dropout: self.handle_dropout,
+            nn.Linear: self.handle_linear,
+            nn.Conv2d: self.handle_conv2d,
+            nn.BatchNorm1d: self.handle_batchnorm,
+            nn.BatchNorm2d: self.handle_batchnorm,
+            nn.ReLU: self.handle_activation,
+            nn.ELU: self.handle_activation,
+            nn.SiLU: self.handle_activation,
+            nn.Softmax: self.handle_activation,
+            nn.Tanh: self.handle_activation,
+            nn.Sigmoid: self.handle_activation,
+            nn.Dropout: self.handle_dropout
         }
 
-    def extract_feature_map(self, layer_index):
-        topology_map = np.zeros((self.MAX_LAYERS, self.num_features))  # TODO: To be overridden via BERT mechanism
+    def extract_feature_map(self) -> List[List[float]]:
+        """
+        Extracts a sequence representation of the CNN topology for BERT tokenization.
 
-        all_category_columns = ['activation_0.0', 'activation_1.0', 'activation_2.0', 'activation_3.0',
-                                'activation_4.0']
+        Returns:
+            topology_sequence (List[List[float]]): A tokenized representation of the CNN topology.
+        """
+        topology_sequence = []
 
-        for i, curr_row in enumerate(self.model_with_rows.all_rows):
-            for curr_layer in curr_row:
-                # Use the layer type to determine which handler to call
-                handler = self.layer_type_to_function.get(type(curr_layer), None)
-                if handler is not None:
-                    handler(curr_layer, topology_map[i])
+        for row in self.model_with_rows.all_rows:
+            row_features = []
+            for layer in row:
+                handler = self.layer_type_to_function.get(type(layer), None)
+                if handler:
+                    row_features.extend(handler(layer))  # Append extracted features
+            if row_features:  # Avoid empty rows
+                topology_sequence.append(row_features)
 
-        df = pd.DataFrame(topology_map, columns=['batchnorm', 'activation', 'dropout', 'in_features', 'out_features',
-                                                 'kernel_size', 'stride', 'padding'])
-        df_activations = pd.DataFrame({'activation': df['activation'].astype('category')})
-        df_activations = pd.get_dummies(df_activations)
-        df_activations['activation_0.0'] = 0
-
-        df_activations = df_activations.T.reindex(all_category_columns).T.fillna(0)
-        df = pd.concat([df, df_activations], axis=1)
-        df = df.drop(columns=['activation', all_category_columns[0]])
-
-        topology_map = df.to_numpy()
-
-        return topology_map, topology_map[layer_index]
+        return topology_sequence
 
     @staticmethod
-    def handle_linear(curr_layer, row_to_fill):
-        """Handles Linear (Fully-Connected) layers."""
-        row_to_fill[TopologyFE.InFeatures] = curr_layer.in_features
-        row_to_fill[TopologyFE.OutFeatures] = curr_layer.out_features
+    def handle_linear(layer) -> List[float]:
+        """Handles Linear (Fully Connected) layers."""
+        return [1, 0, 0, 0, 0, layer.in_features, layer.out_features]  # 1 indicates Linear Layer
 
     @staticmethod
-    def handle_conv2d(curr_layer, row_to_fill):
-        """Handles Conv2D layers and extracts kernel size, stride, and padding."""
-        row_to_fill[TopologyFE.InFeatures] = curr_layer.in_channels
-        row_to_fill[TopologyFE.OutFeatures] = curr_layer.out_channels
-        row_to_fill[TopologyFE.KernelSize] = curr_layer.kernel_size[0] if isinstance(curr_layer.kernel_size, tuple) else curr_layer.kernel_size
-        row_to_fill[TopologyFE.Stride] = curr_layer.stride[0] if isinstance(curr_layer.stride, tuple) else curr_layer.stride
-        row_to_fill[TopologyFE.Padding] = curr_layer.padding[0] if isinstance(curr_layer.padding, tuple) else curr_layer.padding
+    def handle_conv2d(layer) -> List[float]:
+        """Handles Conv2D layers and extracts key attributes."""
+        return [2, layer.in_channels, layer.out_channels, layer.kernel_size[0],
+                layer.stride[0], layer.padding[0], 0]  # 2 indicates Conv Layer
 
     @staticmethod
-    def handle_dropout(curr_layer, row_to_fill):
-        """Handles Dropout layers."""
-        row_to_fill[TopologyFE.Dropout] = 1
+    def handle_batchnorm(layer) -> List[float]:
+        """Handles BatchNorm layers."""
+        return [3, 0, 0, 0, 0, 0, 0]  # 3 indicates BatchNorm
 
     @staticmethod
-    def handle_batchnorm(batchnorm_type):
-        """Handles BatchNorm layers (both 1D and 2D)."""
-        def handler(curr_layer, row_to_fill):
-            row_to_fill[TopologyFE.BatchNorm] = batchnorm_type.value
-        return handler
-
-    @staticmethod
-    def handle_activation(activation_type):
+    def handle_activation(layer) -> List[float]:
         """Handles Activation layers."""
-        def handler(curr_layer, row_to_fill):
-            row_to_fill[TopologyFE.Activation] = activation_type.value
-        return handler
+        return [4, 0, 0, 0, 0, 0, 0]  # 4 indicates Activation
+
+    @staticmethod
+    def handle_dropout(layer) -> List[float]:
+        """Handles Dropout layers."""
+        return [5, 0, 0, 0, 0, 0, 0]  # 5 indicates Dropout

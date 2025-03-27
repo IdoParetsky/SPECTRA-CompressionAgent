@@ -1,5 +1,4 @@
-from typing import List
-
+from typing import List, Dict
 from ..FeatureExtractors import BaseFE
 from ..FeatureExtractors.ActivationsStatisticsFE import ActivationsStatisticsFE
 from ..FeatureExtractors.TopologyFE import TopologyFE
@@ -11,47 +10,50 @@ from src.BERTInputModeler import BERTInputModeler
 class FeatureExtractor:
     def __init__(self, model, X, device):
         """
-        Initializes the FeatureExtractor class for a given model and input data.
+        Initializes the FeatureExtractor class for CNN model analysis.
+
         Args:
             model: The neural network model to extract features from.
-            X: Input data for activation-based feature extraction.
+            X: DataLoader for activation-based feature extraction.
             device: The device (CPU/GPU) to run computations on.
         """
         self.device = device
         self.model_with_rows = ModelWithRows(model)
         self.X = X
 
+        # Initialize feature extractors
         self.all_feature_extractors: List[BaseFE] = [
             TopologyFE(self.model_with_rows),
-            ActivationsStatisticsFE(self.model_with_rows, X, self.device),
+            ActivationsStatisticsFE(self.model_with_rows, X, device),
             WeightStatisticsFE(self.model_with_rows)
         ]
 
         # Initialize BERT modeler
         self.bert_input_modeler = BERTInputModeler()
 
-    def extract_features(self, layer_index):
+    def extract_features(self) -> Dict[str, List[List[float]]]:
         """
-        Extracts features for a specific layer in the model.
-        Args:
-            layer_index: Index of the layer to extract features from.
+        Extracts CNN architecture features for BERT encoding.
+
         Returns:
-            A dictionary of feature maps for BERT encoding.
+            Dict[str, List[List[float]]]: CNN feature representations categorized by:
+                - "Topology": Structural representation.
+                - "Activations": Layer-wise activation statistics.
+                - "Weights": Weight distribution across layers.
         """
         feature_maps = {
-            "Topology": self.all_feature_extractors[0].extract_feature_map(layer_index),
-            "Activations": self.all_feature_extractors[1].extract_feature_map(layer_index),
-            "Weights": self.all_feature_extractors[2].extract_feature_map(layer_index)
+            "Topology": self.all_feature_extractors[0].extract_feature_map(),
+            "Activations": self.all_feature_extractors[1].extract_feature_map(),
+            "Weights": self.all_feature_extractors[2].extract_feature_map()
         }
         return feature_maps
 
-    def encode_to_bert_input(self, layer_index):
+    def encode_to_bert_input(self):
         """
-        Converts the extracted features for a specific layer into BERT input.
-        Args:
-            layer_index: Index of the layer to encode.
+        Converts the extracted CNN features into BERT-compatible input format.
+
         Returns:
-            BERT-compatible inputs.
+            Dict[str, torch.Tensor]: Tokenized CNN architecture representation for BERT.
         """
-        feature_maps = self.extract_features(layer_index)
+        feature_maps = self.extract_features()
         return self.bert_input_modeler.encode_model_to_bert_input(self.model_with_rows, feature_maps)

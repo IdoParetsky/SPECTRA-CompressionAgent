@@ -97,13 +97,13 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
 
     passes = f'_passes_{args.passes}' if args.passes else ""
-    n_splits = f'_n_splits_{args.n_splits}' if args.n_splits else ""
+    n_splits = f'n_splits_{args.n_splits}_' if args.n_splits else ""
     train_compressed_layer_only = "_train_compressed-layer-only" if args.train_compressed_layer_only else ""
-    dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+    dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S").replace("/", "-").replace(":", "-")
 
     utils.init_conf_values(
         # args.input_dict is left out due to file name's length limitation
-        test_name=f'SPECTRA{train_compressed_layer_only}_acc-red_{args.allowed_reduction_acc}_'
+        test_name=f'SPECTRA{train_compressed_layer_only}_acc-red_{args.allowed_acc_reduction}_'
                   f'gamma_{args.discount_factor}_lr_{args.learning_rate}_rollout-lim_{args.rollout_limit}_'
                   f'num-epochs_{args.num_epochs}{passes}_comp-rates_{args.compression_rates}_{n_splits}'
                   f'train_{args.train_split}_val_{args.val_split}_seed_{args.seed}_{dt_string}',
@@ -112,8 +112,8 @@ if __name__ == "__main__":
         actor_checkpoint_path=args.actor_checkpoint_path,
         critic_checkpoint_path=args.critic_checkpoint_path,
         compression_rates_dict=utils.parse_compression_rates(args.compression_rates),
-        is_train_compressed_layer_only=args.is_train_compressed_layer_only,
-        total_allowed_accuracy_reduction=args.total_allowed_accuracy_reduction,
+        train_compressed_layer_only=args.train_compressed_layer_only,
+        allowed_acc_reduction=args.allowed_acc_reduction,
         discount_factor=args.discount_factor,
         learning_rate=args.learning_rate,
         rollout_limit=args.rollout_limit,

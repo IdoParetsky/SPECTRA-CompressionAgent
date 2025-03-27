@@ -104,9 +104,9 @@ class NetworkEnv:
         # AGENT_TRAIN when called from A2C_Agent_Reinforce.py, skipping compute_and_log_results()
         self.mode = mode
 
-        # List of model paths - Full database if in agent training mode, else evaluation database (user input)
-        self.networks = networks or (list(self.conf.database_dict.keys()) if self.mode == AGENT_TRAIN else
-                                     list(self.conf.input_dict.keys()))
+        # Full database if in agent training mode, else evaluation database (user input)
+        self.data_dict = self.conf.database_dict if self.mode == AGENT_TRAIN else self.conf.input_dict
+        self.networks = networks or list(self.data_dict.keys())
         self.curr_net_index = -1
         np.random.shuffle(self.networks)  # Randomize order
 
@@ -143,17 +143,17 @@ class NetworkEnv:
             self.selected_net_path = self.networks[self.curr_net_index]
 
             # Load model & dataset from preloaded input_dict
-            self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.conf.input_dict[
+            self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.data_dict[
                 self.selected_net_path]
 
         utils.print_flush(f"Loading {self.selected_net_path}")
 
         # Prepare feature extractor with training data
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
-        # Convert state to textual representation
-        fm = utils.convert_state_to_text(self.feature_extractor.encode_to_bert_input(self.layer_index - 1))
+        fm = self.feature_extractor.encode_to_bert_input()
 
         # Evaluate original model accuracy
+        # TODO: Incorporate mission_type missing logic one way or another
         learning_handler_original_model = self.create_learning_handler(self.current_model)
         self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
 
@@ -189,7 +189,7 @@ class NetworkEnv:
             learning_handler_new_model = self.create_learning_handler(self.current_model)
 
             # Freeze/unfreeze layers based on config
-            if self.conf.is_train_compressed_layer_only:
+            if self.conf.train_compressed_layer_only:
                 parameters_to_freeze_ids = build_parameters_to_freeze(modified_model_with_rows, self.layer_index - 1)
                 learning_handler_new_model.freeze_layers(parameters_to_freeze_ids)
             else:
@@ -212,8 +212,7 @@ class NetworkEnv:
 
         # Extract features for BERT
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
-        # Convert state to textual representation
-        fm = utils.convert_state_to_text(self.feature_extractor.encode_to_bert_input(self.layer_index - 1))
+        fm = self.feature_extractor.encode_to_bert_input()
 
         # Check termination condition
         num_rows = len(self.feature_extractor.model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
@@ -243,7 +242,7 @@ class NetworkEnv:
             t_curr (float):    Time of log, to calculate evaluation time
         """
         # Retrieve original & compressed models
-        original_model = self.conf.input_dict[self.selected_net_path][0]
+        original_model = self.data_dict[self.selected_net_path][0]
         compressed_model = self.current_model
 
         # Create learning handlers
