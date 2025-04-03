@@ -21,7 +21,7 @@ from src.Configuration.ConfigurationValues import ConfigurationValues
 from src.Configuration.StaticConf import StaticConf
 
 # TODO: Change to dynamic assignment
-SPECTRA_DATASETS = "C:\\Users\\idopa\\Documents\\BGU\\MSc\\spectra_datasets"
+SPECTRA_DATASETS = "/sise/home/paretsky/spectra_datasets"
 
 # Possible instantiation functions' parameters
 NUM_CLASSES = "num_classes"

@@ -20,41 +20,48 @@ class BERTInputModeler:
         self.bert_model.to(self.device)
 
     # TODO: Propagate env's layer_index-1 to properly SEP between layer to prune and net's global repr
-    def encode_model_to_bert_input(self, model_with_rows, feature_maps) -> Dict[str, torch.Tensor]:
+    def encode_model_to_bert_input(self, model_with_rows, feature_maps, curr_layer_idx) -> Dict[str, torch.Tensor]:
         """
         Extracts features from the CNN model and converts them into a BERT-compatible format.
 
         Args:
-            model_with_rows: ModelWithRows instance representing the CNN structure.
-            feature_maps: Dict[str, List[List[float]]]: CNN feature representations categorized by:
-                - "Topology": Structural representation.
-                - "Activations": Layer-wise activation statistics.
-                - "Weights": Weight distribution across layers.
+            model_with_rows:        ModelWithRows instance representing the CNN structure.
+            feature_maps:           Dict[str, List[List[float]]]: CNN feature representations categorized by:
+                                        - "Topology": Structural representation.
+                                        - "Activations": Layer-wise activation statistics.
+                                        - "Weights": Weight distribution across layers.
+            curr_layer_idx (int):   Index of layer to prune, so BERTInputModeler is able to distinguish between local
+                                    (current layer to be pruned) and global context (entire network) via a [SEP] token.
 
         Returns:
             Dict[str, torch.Tensor]: Tokenized BERT input.
         """
-        # Flatten and concatenate feature sequences
-        feature_sequence = []
-        for key, features in feature_maps.items():
-            feature_sequence.extend([item for sublist in features for item in sublist])  # Flatten nested lists
+        # Flatten helper
+        flatten = lambda nested: [item for sublist in nested for item in sublist]
 
-        # Convert to Tensor and normalize
-        feature_tensor = torch.tensor(feature_sequence, dtype=torch.float32)
-        feature_tensor = (feature_tensor - feature_tensor.mean()) / (feature_tensor.std() + 1e-5)
+        # Separate local (layer-specific) and global (full) features
+        layer_features = []
+        full_features = []
 
-        # Convert tensor to string representation for BERT tokenization
-        feature_str = " ".join(map(str, feature_tensor.tolist()))
+        for feature_type, all_layers in feature_maps.items():
+            layer_features.extend(all_layers[curr_layer_idx])
+            full_features.extend(flatten(all_layers))
+
+        # Convert to string with true [SEP] token
+        layer_str = " ".join(map(str, layer_features))
+        full_str = " ".join(map(str, full_features))
+        combined_input = f"{layer_str} [SEP] {full_str}"
+
+        # Tokenize with BERT tokenizer
         encoded_input = self.tokenizer(
-            feature_str,
+            combined_input,
             max_length=512,
             truncation=True,
             padding="max_length",
             return_tensors="pt"
         )
 
-        # Move tokenized data to the appropriate device
-        return {key: value.to(self.device) for key, value in encoded_input.items()}
+        return {k: v.to(self.device) for k, v in encoded_input.items()}
 
     def forward(self, tokens: Dict[str, torch.Tensor]) -> torch.Tensor:
         """

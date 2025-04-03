@@ -53,7 +53,7 @@ class ModelWithRows:
 
         # Extract all layers and organize them into rows
         self.extract_layers_from_model(self.model)
-        self.all_rows = self.split_layers_to_rows()
+        self.all_rows, self.row_to_main_layer = self.split_and_map_layers_to_rows()
 
     def extract_layers_from_model(self, layer: nn.Module):
         """
@@ -76,10 +76,8 @@ class ModelWithRows:
         """
         Determines whether the current layer should start a new row.
 
-        A new row is started if:
-        - The current layer belongs to 'main_layer_types' (e.g., Conv2D, Linear).
-        - The current row is not empty.
-        - The current row contains a different type from 'main_layer_types'.
+        A new row is started if the current layer is of a 'main_layer_type' (e.g., Conv2D, Linear) and the current row
+        already has content (i.e., not the first layer of a new row).
 
         Args:
             curr_layer (nn.Module): The layer being evaluated.
@@ -88,27 +86,32 @@ class ModelWithRows:
         Returns:
             bool: True if the current layer should start a new row, otherwise False.
         """
-        return isinstance(curr_layer, tuple(self.main_layer_types)) and \
-            len(curr_row) > 0 and \
-            any(isinstance(l, tuple(self.main_layer_types)) for l in curr_row)
+        return isinstance(curr_layer, tuple(self.main_layer_types)) and len(curr_row) > 0
 
-    def split_layers_to_rows(self) -> np.ndarray:
+    def split_and_map_layers_to_rows(self) -> (np.ndarray, dict):
         """
         Groups extracted layers into rows, maintaining logical layer groupings.
 
         Returns:
-            np.ndarray: A structured representation of the model, where each row contains contiguous layers.
+            np.ndarray:                 A structured representation of the model, where each row contains contiguous layers.
+            row_to_main_layer (dict):   Mapping row index to the main layer at the beginning of the row
 
         Notes:
             - Conv2D layers are currently grouped with BatchNorm and Pooling layers.
             - If BatchNorm and Pooling layers should be separate, update 'main_layer_types' accordingly.
         """
-        all_rows = []
-        curr_row = []
 
-        for curr_layer in self.all_layers:
+        row_idx = 0
+        # The first layer is necessarily Conv2D or Linear, so it ought to start a row
+        curr_row = [self.all_layers[0]]
+        row_to_main_layer = {row_idx: 0}
+        all_rows = []
+
+        for layer_idx, curr_layer in enumerate(self.all_layers[1:]):
             if self.is_to_split_row(curr_layer, curr_row):
                 all_rows.append(np.array(curr_row))  # Save completed row
+                row_idx += 1
+                row_to_main_layer[row_idx] = layer_idx + 1  # As the iteration begins with the second layer
                 curr_row = []
 
             curr_row.append(curr_layer)
@@ -116,4 +119,4 @@ class ModelWithRows:
         if len(curr_row) > 0:
             all_rows.append(np.array(curr_row))  # Append the last row
 
-        return np.array(all_rows, dtype=object)
+        return np.array(all_rows, dtype=object), row_to_main_layer

@@ -98,6 +98,7 @@ class ClassificationHandler(BasicHandler):
                     continue
 
                 self.optimizer.zero_grad()
+                # TODO: RuntimeError: running_mean should contain 6 elements not 10
                 outputs = self.model(curr_x.float())
 
                 # Ensure curr_y is processed correctly for classification

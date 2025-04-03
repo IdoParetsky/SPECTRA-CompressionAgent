@@ -48,12 +48,16 @@ class FeatureExtractor:
         }
         return feature_maps
 
-    def encode_to_bert_input(self):
+    def encode_to_bert_input(self, curr_layer_idx):
         """
         Converts the extracted CNN features into BERT-compatible input format.
+
+        Args:
+            curr_layer_idx (int):   Index of layer to prune, so BERTInputModeler is able to distinguish between local
+                                    (current layer to be pruned) and global context (entire network) via a [SEP] token.
 
         Returns:
             Dict[str, torch.Tensor]: Tokenized CNN architecture representation for BERT.
         """
         feature_maps = self.extract_features()
-        return self.bert_input_modeler.encode_model_to_bert_input(self.model_with_rows, feature_maps)
+        return self.bert_input_modeler.encode_model_to_bert_input(self.model_with_rows, feature_maps, curr_layer_idx)
