@@ -1,6 +1,7 @@
-from ..FeatureExtractors.BaseFE import BaseFE
-from torch import nn
+import torch.nn as nn
 from typing import List
+from .BaseFE import BaseFE
+import src.utils as utils
 
 
 class TopologyFE(BaseFE):
@@ -11,9 +12,9 @@ class TopologyFE(BaseFE):
         Args:
             model_with_rows: ModelWithRows instance containing structured layer representation.
         """
-        super(TopologyFE, self).__init__(model_with_rows)
+        super().__init__(model_with_rows)
 
-        # Dictionary to map layer types to feature extractors
+        # Map layer types to handler functions
         self.layer_type_to_function = {
             nn.Linear: self.handle_linear,
             nn.Conv2d: self.handle_conv2d,
@@ -25,51 +26,58 @@ class TopologyFE(BaseFE):
             nn.Softmax: self.handle_activation,
             nn.Tanh: self.handle_activation,
             nn.Sigmoid: self.handle_activation,
-            nn.Dropout: self.handle_dropout
+            nn.Dropout: self.handle_dropout,
+            nn.Flatten: self.handle_flatten,
+            nn.MaxPool2d: self.handle_pooling,
+            nn.AvgPool2d: self.handle_pooling
         }
 
     def extract_feature_map(self) -> List[List[float]]:
         """
-        Extracts a sequence representation of the CNN topology for BERT tokenization.
+        Extracts a per-layer representation of the CNN topology for BERT tokenization.
 
         Returns:
-            topology_sequence (List[List[float]]): A tokenized representation of the CNN topology.
+            List[List[float]]: A sequence of feature vectors, one per layer.
         """
+        utils.print_flush("Starting Topology FE")
         topology_sequence = []
 
-        for row in self.model_with_rows.all_rows:
-            row_features = []
-            for layer in row:
-                handler = self.layer_type_to_function.get(type(layer), None)
-                if handler:
-                    row_features.extend(handler(layer))  # Append extracted features
-            if row_features:  # Avoid empty rows
-                topology_sequence.append(row_features)
-
+        for layer in self.model_with_rows.all_layers:
+            handler = self.layer_type_to_function.get(type(layer), None)
+            if handler:
+                topology_sequence.append(handler(layer))
+            else:
+                topology_sequence.append([0.0] * 7)  # Default for unrecognized layers
+        utils.print_flush("Finished Topology FE")
         return topology_sequence
 
     @staticmethod
     def handle_linear(layer) -> List[float]:
-        """Handles Linear (Fully Connected) layers."""
-        return [1, 0, 0, 0, 0, layer.in_features, layer.out_features]  # 1 indicates Linear Layer
+        return [1, 0, 0, 0, 0, layer.in_features, layer.out_features]
 
     @staticmethod
     def handle_conv2d(layer) -> List[float]:
-        """Handles Conv2D layers and extracts key attributes."""
         return [2, layer.in_channels, layer.out_channels, layer.kernel_size[0],
-                layer.stride[0], layer.padding[0], 0]  # 2 indicates Conv Layer
+                layer.stride[0], layer.padding[0], 0]
 
     @staticmethod
     def handle_batchnorm(layer) -> List[float]:
-        """Handles BatchNorm layers."""
-        return [3, 0, 0, 0, 0, 0, 0]  # 3 indicates BatchNorm
+        return [3, layer.num_features, 0, 0, 0, 0, 0]
 
     @staticmethod
     def handle_activation(layer) -> List[float]:
-        """Handles Activation layers."""
-        return [4, 0, 0, 0, 0, 0, 0]  # 4 indicates Activation
+        return [4, 0, 0, 0, 0, 0, 0]
 
     @staticmethod
     def handle_dropout(layer) -> List[float]:
-        """Handles Dropout layers."""
-        return [5, 0, 0, 0, 0, 0, 0]  # 5 indicates Dropout
+        return [5, layer.p if hasattr(layer, 'p') else 0, 0, 0, 0, 0, 0]
+
+    @staticmethod
+    def handle_flatten(layer) -> List[float]:
+        return [6, 0, 0, 0, 0, 0, 0]
+
+    @staticmethod
+    def handle_pooling(layer) -> List[float]:
+        return [7, layer.kernel_size if isinstance(layer.kernel_size, int) else layer.kernel_size[0],
+                layer.stride if isinstance(layer.stride, int) else layer.stride[0],
+                layer.padding if isinstance(layer.padding, int) else layer.padding[0], 0, 0, 0]

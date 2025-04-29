@@ -1,8 +1,10 @@
-import numpy as np
 import torch
-from scipy.stats import skew, kurtosis
+from torch import nn
+from typing import List
 from .BaseFE import BaseFE
-from ..utils import get_scaler_exponent
+import src.utils as utils
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 class ActivationsStatisticsFE(BaseFE):
@@ -13,100 +15,60 @@ class ActivationsStatisticsFE(BaseFE):
         Args:
             model_with_rows: ModelWithRows instance containing structured layer representation.
             train_dataloader: DataLoader providing input samples for activation extraction.
-            device: Device (CPU/GPU) for computation.
+            device: Device GPU(s) for computation.
         """
-        super(ActivationsStatisticsFE, self).__init__(model_with_rows)
+        super().__init__(model_with_rows)
         self.train_dataloader = train_dataloader
         self.device = device
 
-    def extract_feature_map(self):
-        """
-        Extracts activation statistics (moments, min/max, norms) across all layers.
+        # DDP Wrapping
+        self.model_with_rows.model = self.model_with_rows.model.to(self.device)
+        if torch.cuda.device_count() > 1 and dist.is_initialized():
+            self.model_with_rows.model = DDP(self.model_with_rows.model, device_ids=[self.device.index],
+                                             output_device=self.device.index, find_unused_parameters=True)
+        self.model_with_rows.model.eval()
 
-        Returns:
-            activations_sequence (List[List[float]]): A sequential representation of activation statistics.
-        """
-        activations_sequence = []
+    def extract_feature_map(self) -> List[List[float]]:
+        utils.print_flush("Starting Activations FE")
 
-        # Register hooks to collect activations
-        unregister_hooks = self.register_hooks()
-        all_activations.clear()
+        activation_maps_collector = [[] for _ in self.model_with_rows.all_layers]
+        hooks = []
 
-        # Forward pass to collect activations from the dataset
+        def is_activation_layer(layer: nn.Module) -> bool:
+            return "activation" in layer.__class__.__name__.lower() or isinstance(layer, (
+                nn.ReLU, nn.ELU, nn.SiLU, nn.Softmax, nn.Tanh, nn.Sigmoid,
+                nn.LeakyReLU, nn.GELU, nn.Hardtanh, nn.Softplus, nn.Softsign,
+                nn.PReLU, nn.LogSigmoid, nn.SELU, nn.CELU, nn.GLU
+            ))
+
+        for idx, layer in enumerate(self.model_with_rows.all_layers):
+            if is_activation_layer(layer):
+                def get_activation_hook(index):
+                    def hook(module, input, output):
+                        stats = self.compute_moments(output.detach())
+                        activation_maps_collector[index].append(torch.tensor(list(stats.values()), device=self.device))
+
+                    return hook
+
+                hooks.append(layer.register_forward_hook(get_activation_hook(idx)))
+
         with torch.no_grad():
-            for batch_x, _ in self.train_dataloader:
-                self.model_with_rows.model(batch_x.to(self.device))
+            utils.print_flush("Running full forward pass...")
+            for i, (batch_x, _) in enumerate(self.train_dataloader):
+                self.model_with_rows.model(batch_x.to(self.device, non_blocking=True))
+            utils.print_flush("Full forward pass completed")
 
-        # Remove hooks after forward pass
-        [hook.remove() for hook in unregister_hooks]
+        for hook in hooks:
+            hook.remove()
 
-        # Compute activation statistics per layer
-        for layer_activations in all_activations:
-            activations_sequence.append(self.compute_statistics(layer_activations))
+        # Average statistics across batches for each layer
+        activation_maps = []
+        for stats_list in activation_maps_collector:
+            if stats_list:
+                mean_stats = torch.stack(stats_list).mean(dim=0)
+                activation_maps.append(mean_stats.tolist())
+            else:
+                activation_maps.append([0.0] * len(self.compute_moments(torch.zeros(1, device=self.device))))
 
-        return activations_sequence
-
-    def register_hooks(self):
-        """
-        Registers forward hooks to capture activations from key layers.
-
-        Returns:
-            List: Unregistration handles for hooks.
-        """
-        unregister_hooks = []
-        for row in self.model_with_rows.all_rows[:-1]:  # Exclude output layer
-            important_layer = row[0]
-
-            for layer in row[1:]:
-                if 'activation' in str(type(layer)):
-                    important_layer = layer
-
-            unregister_hooks.append(important_layer.register_forward_hook(save_activations))
-
-        return unregister_hooks
-
-    @staticmethod
-    def compute_statistics(layer_activations):
-        if len(layer_activations.shape) == 4:  # (batch, channels, height, width)
-            flattened = layer_activations.reshape(layer_activations.shape[0], layer_activations.shape[1], -1)
-            layer_activations = np.mean(flattened, axis=0)  # Shape: (channels, features)
-
-        scaler_exp = get_scaler_exponent(layer_activations)
-        layer_activations_scaled = layer_activations * (10 ** -scaler_exp)
-
-        # Compute raw statistics
-        mean = np.mean(layer_activations, axis=1)
-        std = np.std(layer_activations, axis=1)
-        skewness = skew(layer_activations_scaled, axis=1)
-        kurt = kurtosis(layer_activations_scaled, axis=1)
-        min_val = np.min(layer_activations, axis=1)
-        max_val = np.max(layer_activations, axis=1)
-        l1_norm = np.linalg.norm(layer_activations, axis=1, ord=1)
-        l2_norm = np.linalg.norm(layer_activations, axis=1, ord=2)
-
-        # Combine all features
-        all_features = np.concatenate([
-            mean, std, skewness, kurt, min_val, max_val, l1_norm, l2_norm
-        ])
-
-        # TODO: Delve deeper if more issues / inaccuracies arise
-        # Sanitize NaNs (noticed 1,216 NaNs out of a 2387668 feature vector
-        all_features = np.nan_to_num(all_features, nan=0.0)
-
-        return all_features.tolist()
-
-
-# Global storage for activation outputs
-all_activations = []
-
-
-def save_activations(self, input, output):
-    """
-    Hook function to save activations during forward pass.
-
-    Args:
-        input (Tensor): Input tensor to the layer.
-        output (Tensor): Output tensor from the layer.
-    """
-    global all_activations
-    all_activations.append(output.detach().cpu().numpy())
+        utils.print_flush("Finished Activations FE")
+        return activation_maps

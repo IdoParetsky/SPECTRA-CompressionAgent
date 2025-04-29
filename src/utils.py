@@ -15,6 +15,8 @@ import torch
 from torch import nn
 from torch.utils.data import random_split, DataLoader
 from torchvision import datasets, transforms
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 from src.Configuration.ConfigurationValues import ConfigurationValues
@@ -30,9 +32,10 @@ WIDTH = "width"
 
 
 def print_flush(msg):
-    now = datetime.now()
-    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    print(f"{dt_string} -- {msg}", flush=True)
+    if dist.get_rank() == 0:  # Prevent print_flush per rank
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+        print(f"{dt_string} -- {msg}", flush=True)
 
 
 def extract_args_from_cmd():
@@ -270,14 +273,17 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     instantiation_func = getattr(module, arch)
     params_list = list(inspect.signature(getattr(module, arch)).parameters)
     params_dict = {}
+
     if NUM_CLASSES in params_list:
         # By default, 'num_classes' is dynamically assigned via dataset_loaders's correspondent train_data's 'classes' field
         params_dict[NUM_CLASSES] = optional_kwargs.get(NUM_CLASSES, len(dataset_loaders[dataset_path]()[0].classes))
+
     if LARGE_INPUT in params_list:
         # By default, 'large_input' is True is the dataset has 'imagenet' in its name / path
         large_input = optional_kwargs.get(LARGE_INPUT)
         # Safeguarding 'False' cases
         params_dict[LARGE_INPUT] = large_input if large_input is not None else "imagenet" in dataset_path
+
     if WIDTH in params_list:
         # By default, 'width' is scraped from 'network_path' via regex
         match = re.search(r'width(\d+)', checkpoint_path)
@@ -286,9 +292,34 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     # Extend params_dict with other optional_kwargs, excluding handled keys
     params_dict.update({k: v for k, v in optional_kwargs.items() if k not in [NUM_CLASSES, LARGE_INPUT, WIDTH]})
 
-    model = instantiation_func(**params_dict)  # Instantiate model
-    model.load_state_dict(torch.load(checkpoint_path, map_location=torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu")))
+    if dist.is_available() and dist.is_initialized():
+        local_rank = dist.get_rank()
+    else:
+        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+
+    device = torch.device(f"cuda:{local_rank}")
+    torch.cuda.set_device(device)
+
+    model = instantiation_func(**params_dict).to(device)
+
+    if dist.is_initialized():
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
+
+    # Detect mismatch: model expects 'module.' but checkpoint doesn't have it
+    model_keys = list(model.state_dict().keys())
+    ckpt_keys = list(state_dict.keys())
+
+    if model_keys[0].startswith("module.") and not ckpt_keys[0].startswith("module."):
+        # Wrap keys with 'module.' to match DistributedDataParallel
+        state_dict = {f"module.{k}": v for k, v in state_dict.items()}
+    elif not model_keys[0].startswith("module.") and ckpt_keys[0].startswith("module."):
+        # Unwrap if model is not wrapped but checkpoint is
+        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+
+    model.load_state_dict(state_dict)
     model.eval()
 
     return model
@@ -374,9 +405,12 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!")
 
-    device = torch.device("cuda:0")
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))  # fallback to 0 for single GPU
+    torch.cuda.set_device(local_rank)
+    device = torch.device(f"cuda:{local_rank}")
+
     print_flush(f"Device: {device}")
-    print_flush(f"Device Name: {torch.cuda.get_device_name(0)}")
+    print_flush(f"Device Name: {torch.cuda.get_device_name(local_rank)}")
 
     cv = ConfigurationValues(
         device=device,
@@ -457,10 +491,10 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     else:
         raise ValueError("Invalid dataset name or path. Provide a known dataset name or a valid directory.")
 
-    # Create DataLoaders
-    train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
-    val_loader = DataLoader(val_data, batch_size=64, shuffle=False)
-    test_loader = DataLoader(test_data, batch_size=64, shuffle=False)
+    # Create DataLoaders with optimizations
+    train_loader = DataLoader(train_data, batch_size=64, shuffle=True, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_data, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
+    test_loader = DataLoader(test_data, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
 
     return train_loader, val_loader, test_loader
 

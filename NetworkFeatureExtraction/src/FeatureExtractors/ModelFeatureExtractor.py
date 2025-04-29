@@ -25,7 +25,7 @@ class FeatureExtractor:
         self.all_feature_extractors: List[BaseFE] = [
             TopologyFE(self.model_with_rows),
             ActivationsStatisticsFE(self.model_with_rows, X, device),
-            WeightStatisticsFE(self.model_with_rows)
+            WeightStatisticsFE(self.model_with_rows, device)
         ]
 
         # Initialize BERT modeler

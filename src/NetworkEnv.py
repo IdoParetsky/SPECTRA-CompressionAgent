@@ -7,6 +7,8 @@ import time
 import torch
 from torch import nn
 from torch.nn.utils import prune
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from src.BERTInputModeler import BERTInputModeler
 from NetworkFeatureExtraction.src.FeatureExtractors.ModelFeatureExtractor import FeatureExtractor
@@ -15,7 +17,6 @@ from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
 from src.ModelHandlers.ClassificationHandler import ClassificationHandler
 import src.utils as utils
-
 
 AGENT_TRAIN = "agent_train"  # Mode when NetworkEnv is called from A2C_Agent_Reinforce.py
 EVAL_TRAIN = "eval_train"  # Mode when NetworkEnv is called from a2c_agent_reinforce_runner.py, evaluating the train dataset
@@ -57,10 +58,10 @@ class NetworkEnv:
         mode (str): One of 'AGENT_TRAIN', 'EVAL_TRAIN', or 'EVAL_TEST', indicating the instance's context.
         fold_idx (int or str): Fold index for cross-validation or '"N/A"' if not using cross-validation.
         t_start (float): Start time of model evaluation, used for logging and tracking execution time.
-        
+
     Methods:
         reset(test_net_path=None, test_model=None, test_loaders=None):
-            Resets the environment by loading a new model and dataset. If test parameters are provided, 
+            Resets the environment by loading a new model and dataset. If test parameters are provided,
             uses them instead of selecting from 'input_dict' (utilized in cross-validation to evaluate the test dataset
             over a train dataset environment).
 
@@ -136,13 +137,16 @@ class NetworkEnv:
             self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.data_dict[
                 self.selected_net_path]
 
-        #TODO: Pinpoint which call affects runtime the most (every reset takes ~7 minutes).
+        # TODO: Pinpoint which call affects runtime the most (every reset takes ~7 minutes).
         utils.print_flush(f"Loading {self.selected_net_path}")
 
         # Prepare feature extractor with training data
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
         # TODO: Consider caching FM, as there is only 0/1 change (prev layer) between iter.
-        fm = self.feature_extractor.encode_to_bert_input(self.row_idx - 1)
+        utils.print_flush("env.reset - Starting FM Extraction")
+        fm = self.feature_extractor.encode_to_bert_input(
+            ModelWithRows(self.current_model).row_to_main_layer[self.row_idx - 1])
+        utils.print_flush("env.reset - Finished FM Extraction")
 
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
@@ -162,21 +166,18 @@ class NetworkEnv:
             Tuple: Next state, reward, and done flag.
         """
         utils.print_flush(f"Step {self.row_idx - 1} - Compression Rate: {compression_rate}")
+        model_with_rows = ModelWithRows(self.current_model)
 
         if compression_rate == 1:
             learning_handler_new_model = self.create_learning_handler(self.current_model)
         else:
-            model_with_rows = ModelWithRows(self.current_model)
             # Create a pruned or resized model
             modified_model_with_rows = prune_current_model(
                 model_with_rows, compression_rate, self.row_idx - 1) if self.conf.prune \
                 else create_new_model_with_new_weights(model_with_rows, compression_rate, self.row_idx - 1)
 
-            # Rebuild the model with the modified structure
-            self.current_model = nn.Sequential(*modified_model_with_rows.all_layers)
-            
             # Prepare model handler
-            learning_handler_new_model = self.create_learning_handler(self.current_model)
+            learning_handler_new_model = self.create_learning_handler(modified_model_with_rows.model)
 
             # Freeze/unfreeze layers based on config
             if self.conf.train_compressed_layer_only:
@@ -203,7 +204,9 @@ class NetworkEnv:
         # Extract features for BERT
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
         # TODO: Consider caching FM, as there is only 0/1 change (prev layer) between iter.
-        fm = self.feature_extractor.encode_to_bert_input(self.row_idx - 1)
+        utils.print_flush("env.step - Starting FM Extraction")
+        fm = self.feature_extractor.encode_to_bert_input(model_with_rows.row_to_main_layer[self.row_idx - 1])
+        utils.print_flush("env.step - Finished FM Extraction")
 
         # Check termination condition
         num_rows = len(self.feature_extractor.model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
@@ -310,6 +313,7 @@ class NetworkEnv:
             torch.optim.Adam(new_model.parameters(), lr=self.conf.learning_rate)
         )
 
+
 def build_parameters_to_freeze(model_with_rows, row_to_modify_idx):
     """
     Builds a list of parameter IDs for layers to freeze.
@@ -332,6 +336,7 @@ def build_parameters_to_freeze(model_with_rows, row_to_modify_idx):
     return parameters_to_freeze_ids
 
 
+# TODO: Apply here all relevant fixes from prune_current_model()
 def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_resize_idx):
     """
     Replace a layer with a reduced version, adjusting the subsequent layer accordingly.
@@ -362,9 +367,9 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
         )
 
         with torch.no_grad():
-            resized_layer.weight[:new_size, :] = layer_to_resize.weight[:new_size, :]
+            resized_layer.weight.copy_(layer_to_resize.weight[:new_size, :resized_layer.in_features])
             if layer_to_resize.bias is not None:
-                resized_layer.bias[:new_size] = layer_to_resize.bias[:new_size]
+                resized_layer.bias.copy_(layer_to_resize.bias[:new_size])
 
     elif isinstance(layer_to_resize, nn.Conv2d):
         resized_layer = nn.Conv2d(
@@ -379,9 +384,9 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
         )
 
         with torch.no_grad():
-            resized_layer.weight[:new_size, :, :, :] = layer_to_resize.weight[:new_size, :, :, :]
+            resized_layer.weight.copy_(layer_to_resize.weight[:new_size, :, :, :])
             if layer_to_resize.bias is not None:
-                resized_layer.bias[:new_size] = layer_to_resize.bias[:new_size]
+                resized_layer.bias.copy_(layer_to_resize.bias[:new_size])
 
     # Replace resized layer in model
     resized_model_with_rows.all_layers[layer_to_resize_idx] = resized_layer
@@ -393,24 +398,44 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
     if isinstance(next_layer, nn.Linear):
         updated_next_layer = nn.Linear(new_size, next_layer.out_features, bias=next_layer.bias is not None)
         with torch.no_grad():
-            updated_next_layer.weight[:, :new_size] = next_layer.weight[:, :new_size]
+            updated_next_layer.weight.copy_(
+                next_layer.weight[:updated_next_layer.out_features, :updated_next_layer.in_features])
+            if next_layer.bias is not None:
+                updated_next_layer.bias.copy_(next_layer.bias[:updated_next_layer.out_features])
+
         resized_model_with_rows.all_layers[next_layer_idx] = updated_next_layer
 
     elif isinstance(next_layer, nn.Conv2d):
-        updated_next_layer = nn.Conv2d(new_size, next_layer.out_channels, next_layer.kernel_size,
-                                       next_layer.stride, next_layer.padding, bias=next_layer.bias is not None)
+        updated_next_layer = nn.Conv2d(
+            in_channels=new_size,
+            out_channels=next_layer.out_channels,
+            kernel_size=next_layer.kernel_size,
+            stride=next_layer.stride,
+            padding=next_layer.padding,
+            dilation=next_layer.dilation,
+            groups=next_layer.groups,
+            bias=next_layer.bias is not None
+        )
 
         # Copy weights and biases
         with torch.no_grad():
-            updated_next_layer.weight[:, :new_size, :, :] = next_layer.weight[:, :new_size, :, :]
+            updated_next_layer.weight.copy_(next_layer.weight[:, :new_size, :, :]
+                                            )
             if next_layer.bias is not None:
-                updated_next_layer.bias[:] = next_layer.bias[:]
+                updated_next_layer.bias.copy_(next_layer.bias[:updated_next_layer.out_channels])
 
         resized_model_with_rows.all_layers[next_layer_idx] = updated_next_layer
 
     elif isinstance(next_layer, (nn.BatchNorm2d, nn.BatchNorm1d)):
-        updated_next_layer = type(next_layer)(num_features=new_size)
-        resized_model_with_rows.all_layers[next_layer_idx] = updated_next_layer
+        next_bn = type(next_layer)(num_features=new_size)
+        with torch.no_grad():
+            next_bn.weight.copy_(next_layer.weight[:new_size])
+            next_bn.bias.copy_(next_layer.bias[:new_size])
+            next_bn.running_mean.copy_(next_layer.running_mean[:new_size])
+            next_bn.running_var.copy_(next_layer.running_var[:new_size])
+            next_bn.num_batches_tracked.copy_(next_layer.num_batches_tracked)
+
+        resized_model_with_rows.all_layers[next_layer_idx] = next_bn
 
     elif isinstance(next_layer, nn.Flatten):
         # If Flatten exists, get the subsequent Linear layer from the next row and update its in_features
@@ -428,9 +453,9 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
         )
 
         with torch.no_grad():
-            updated_linear.weight[:, :new_input_size] = next_linear.weight[:, :new_input_size]
+            updated_linear.weight.copy_(next_linear.weight[:updated_linear.out_features, :updated_linear.in_features])
             if next_linear.bias is not None:
-                updated_linear.bias[:] = next_linear.bias[:]
+                updated_linear.bias.copy_(next_linear.bias[:updated_linear.out_features])
 
         resized_model_with_rows.all_layers[next_linear_idx] = updated_linear
 
@@ -454,22 +479,25 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
         pruned_model_with_rows (ModelWithRows): The pruned model
 
     """
+    model_with_rows.unwrap_model()
     pruned_model_with_rows = copy.deepcopy(model_with_rows)
     layer_to_prune_idx = pruned_model_with_rows.row_to_main_layer[row_to_prune_idx]
     layer_to_prune = pruned_model_with_rows.all_layers[layer_to_prune_idx]
 
-    # Apply structured pruning to the weight of the layer (dim=0 corresponds to out_channels)
+    # Apply structured pruning to the weight of the layer (dim=0 corresponds to out_channels / out_features)
     prune.ln_structured(layer_to_prune, name='weight', amount=(1 - compression_rate), n=1, dim=0)
 
     # Identify the surviving indices (un-pruned)
     if isinstance(layer_to_prune, nn.Conv2d):
         mask = layer_to_prune.weight_mask.sum(dim=(1, 2, 3)) > 0  # Identify un-pruned filters
-        new_out_channels = mask.sum().item()
+        new_out_size = mask.sum().item()
+        # TODO: Explain
+        prune.remove(layer_to_prune, 'weight')
 
         # Create a new layer with updated dimensions
         pruned_layer = nn.Conv2d(
             in_channels=layer_to_prune.in_channels,
-            out_channels=new_out_channels,
+            out_channels=new_out_size,
             kernel_size=layer_to_prune.kernel_size,
             stride=layer_to_prune.stride,
             padding=layer_to_prune.padding,
@@ -483,115 +511,97 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
             pruned_layer.weight.copy_(layer_to_prune.weight[mask, :, :, :])
             if layer_to_prune.bias is not None:
                 pruned_layer.bias.copy_(layer_to_prune.bias[mask])
-
-    elif isinstance(layer_to_prune, nn.Linear):
+    else:  # elif isinstance(layer_to_prune, nn.Linear)
         mask = layer_to_prune.weight_mask.sum(dim=1) > 0  # Identify un-pruned neurons
-        new_out_features = mask.sum().item()
+        new_out_size = mask.sum().item()
+        # TODO: Explain
+        prune.remove(layer_to_prune, 'weight')
 
         pruned_layer = nn.Linear(
             in_features=layer_to_prune.in_features,
-            out_features=new_out_features,
+            out_features=new_out_size,
             bias=layer_to_prune.bias is not None
         )
 
         # Copy un-pruned weights
         with torch.no_grad():
-            pruned_layer.weight[:] = layer_to_prune.weight[mask, :]
+            pruned_layer.weight.copy_(layer_to_prune.weight[mask, :])
             if layer_to_prune.bias is not None:
-                pruned_layer.bias[:] = layer_to_prune.bias[mask]
+                pruned_layer.bias.copy_(layer_to_prune.bias[mask])
 
     # Assign pruned layer in model's all_layers
     pruned_model_with_rows.all_layers[layer_to_prune_idx] = pruned_layer
 
-    # Post-pruning, the subsequent layer requires an adjustment according to the pruned out_features / out_channels
-    next_layer_idx = layer_to_prune_idx + 1
-    next_layer = pruned_model_with_rows.all_layers[next_layer_idx]
+    # Post-pruning, the subsequent layers requires an adjustment according to the pruned out_features / out_channels,
+    # up until the next weight-consuming layer (inclusive) which begins the next row
+    next_weight_consuming_layer_idx = pruned_model_with_rows.row_to_main_layer[row_to_prune_idx + 1]
 
-    if isinstance(layer_to_prune, nn.Conv2d):
+    for idx in range(layer_to_prune_idx + 1, next_weight_consuming_layer_idx):
+        layer = pruned_model_with_rows.all_layers[idx]
+
+        if isinstance(layer, (nn.BatchNorm1d, nn.BatchNorm2d)):
+            adjusted_bn = type(layer)(num_features=new_out_size)
+            with torch.no_grad():
+                adjusted_bn.weight.copy_(layer.weight[:new_out_size])
+                adjusted_bn.bias.copy_(layer.bias[:new_out_size])
+                adjusted_bn.running_mean.copy_(layer.running_mean[:new_out_size])
+                adjusted_bn.running_var.copy_(layer.running_var[:new_out_size])
+                adjusted_bn.num_batches_tracked.copy_(layer.num_batches_tracked)
+            pruned_model_with_rows.all_layers[idx] = adjusted_bn
+        # else: leave things like ReLU, Dropout, etc. as they are.
+
+    # Now adjust the first layer of the next row (next_weight_consuming_layer_idx)
+    next_layer = pruned_model_with_rows.all_layers[next_weight_consuming_layer_idx]
+
+    if isinstance(pruned_layer, nn.Conv2d):
         if isinstance(next_layer, nn.Conv2d):
-            # Create new Conv2D layer with adjusted in_channels but same hyperparameters
-            next_conv = nn.Conv2d(in_channels=layer_to_prune.out_channels,  # Adjust in_channels
-                                  out_channels=next_layer.out_channels,
-                                  kernel_size=next_layer.kernel_size,
-                                  stride=next_layer.stride,
-                                  padding=next_layer.padding,
-                                  dilation=next_layer.dilation,
-                                  groups=next_layer.groups,
-                                  bias=next_layer.bias is not None)
-
-            # Copy weights & biases to preserve learned features
+            adjusted_next_layer = nn.Conv2d(
+                in_channels=new_out_size,
+                out_channels=next_layer.out_channels,
+                kernel_size=next_layer.kernel_size,
+                stride=next_layer.stride,
+                padding=next_layer.padding,
+                dilation=next_layer.dilation,
+                groups=next_layer.groups,
+                bias=next_layer.bias is not None
+            )
             with torch.no_grad():
-                next_conv.weight[:, :pruned_layer.out_channels, :, :] = next_layer.weight[
-                                                                        :, :pruned_layer.out_channels, :, :]
+                adjusted_next_layer.weight.copy_(next_layer.weight[:, :new_out_size, :, :])
                 if next_layer.bias is not None:
-                    next_conv.bias[:] = next_layer.bias[:]
+                    adjusted_next_layer.bias.copy_(next_layer.bias)
 
-            pruned_model_with_rows.all_layers[next_layer_idx] = next_conv
+        elif isinstance(next_layer, nn.Linear):
+            # Handle Conv2d → Flatten → Linear case
+            _, _, h, w = pruned_layer.weight.shape
+            in_features = new_out_size * h * w
 
-        elif isinstance(next_layer, nn.BatchNorm2d):
-            # Adjust BatchNorm2D layer to match the pruned Conv2D output channels
-            next_layer.num_features = layer_to_prune.out_channels
-            pruned_model_with_rows.all_layers[next_layer_idx] = next_layer
-
-        elif isinstance(next_layer, (nn.Linear, nn.Flatten)):
-            # Handle both:
-            # 1. Conv2D → Linear (No Flatten in Between)
-            # 2. Conv2D → Flatten → Linear
-
-            # If Flatten is present, get the subsequent Linear layer (first layer of the next row)
-            if isinstance(next_layer, nn.Flatten):
-                next_layer_idx = pruned_model_with_rows.row_to_main_layer[row_to_prune_idx + 1]
-                next_layer = pruned_model_with_rows.all_layers[next_layer_idx]
-
-            # Compute new input size after pruning
-            _, _, h, w = layer_to_prune.weight.shape
-            new_input_size = layer_to_prune.out_channels * h * w
-
-            # Create adjusted Linear layer
-            next_fc = nn.Linear(
-                in_features=new_input_size,
+            adjusted_next_layer = nn.Linear(
+                in_features=in_features,
                 out_features=next_layer.out_features,
                 bias=next_layer.bias is not None
             )
-
-            # Copy existing weights if shape allows
             with torch.no_grad():
-                next_fc.weight[:, :new_input_size] = next_layer.weight[:, :new_input_size]
+                adjusted_next_layer.weight.copy_(next_layer.weight[:, :in_features])
                 if next_layer.bias is not None:
-                    next_fc.bias[:] = next_layer.bias[:]
+                    adjusted_next_layer.bias.copy_(next_layer.bias)
 
-            # Update the model with the adjusted Linear layer
-            pruned_model_with_rows.all_layers[next_layer_idx] = next_fc
-
-    elif isinstance(layer_to_prune, nn.Linear):
+    elif isinstance(pruned_layer, nn.Linear):
         if isinstance(next_layer, nn.Linear):
-            # Reduce 'in_features' of next Linear layer
-            next_fc = nn.Linear(
-                in_features=pruned_layer.out_features,  # Adjusted after pruning
+            adjusted_next_layer = nn.Linear(
+                in_features=new_out_size,
                 out_features=next_layer.out_features,
                 bias=next_layer.bias is not None
             )
-
-            # Preserve Weights & Biases
             with torch.no_grad():
-                next_fc.weight[:, :layer_to_prune.out_features] = next_layer.weight[
-                                                                   :, :layer_to_prune.out_features]
+                adjusted_next_layer.weight.copy_(next_layer.weight[:, :new_out_size])
                 if next_layer.bias is not None:
-                    next_fc.bias[:] = next_layer.bias[:]
+                    adjusted_next_layer.bias.copy_(next_layer.bias)
 
-            pruned_model_with_rows.all_layers[next_layer_idx] = next_fc
+    pruned_model_with_rows.all_layers[next_weight_consuming_layer_idx] = adjusted_next_layer
 
-        elif isinstance(next_layer, nn.BatchNorm1d):
-            # Adjust BatchNorm1d to match pruned Linear layer's out_features
-            next_layer.num_features = layer_to_prune.out_features
-
-            pruned_model_with_rows.all_layers[next_layer_idx] = next_layer
-
-        elif isinstance(next_layer, nn.Conv2d):
-            # Uncommon: Linear → Conv2D
-            # Ensure the reshaped input still makes sense
-            print("Warning: Pruning a Linear layer before a Conv2D may break shape compatibility.")
-
+    # Finally rebuild rows
     pruned_model_with_rows.all_rows, pruned_model_with_rows.row_to_main_layer = pruned_model_with_rows.split_and_map_layers_to_rows()
 
+    pruned_model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
     return pruned_model_with_rows
+

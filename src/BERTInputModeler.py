@@ -1,25 +1,37 @@
-from typing import List, Dict
+from typing import Dict
 import torch
 from transformers import BertTokenizer, BertModel
-from NetworkFeatureExtraction.src.FeatureExtractors.TopologyFE import TopologyFE
-from NetworkFeatureExtraction.src.FeatureExtractors.ActivationsStatisticsFE import ActivationsStatisticsFE
-from NetworkFeatureExtraction.src.FeatureExtractors.WeightStatisticsFE import WeightStatisticsFE
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
+import os
+
+import src.utils as utils
 
 
+# A Singleton
 class BERTInputModeler:
-    def __init__(self, bert_model_name: str = "bert-base-uncased"):
-        """
-        Initializes BERTInputModeler for encoding CNN features into BERT-compatible format.
+    _instance = None
 
-        Args:
-            bert_model_name (str): Pretrained BERT model name.
-        """
+    def __new__(cls, bert_model_name: str = "bert-base-uncased"):
+        if cls._instance is None:
+            cls._instance = super(BERTInputModeler, cls).__new__(cls)
+            cls._instance._initialize(bert_model_name)
+        return cls._instance
+
+    def _initialize(self, bert_model_name):
         self.tokenizer = BertTokenizer.from_pretrained(bert_model_name)
-        self.bert_model = BertModel.from_pretrained(bert_model_name)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.bert_model.to(self.device)
+        if dist.is_available() and dist.is_initialized():
+            local_rank = dist.get_rank()
+        else:
+            local_rank = int(os.environ.get("LOCAL_RANK", 0))  # fallback to 0 for single GPU
+        self.device = torch.device(f"cuda:{local_rank}")
+        torch.cuda.set_device(self.device)
 
-    # TODO: Propagate env's layer_index-1 to properly SEP between layer to prune and net's global repr
+        self.bert_model = BertModel.from_pretrained(bert_model_name).to(self.device)
+
+        if dist.is_initialized():
+            self.bert_model = DDP(self.bert_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+
     def encode_model_to_bert_input(self, model_with_rows, feature_maps, curr_layer_idx) -> Dict[str, torch.Tensor]:
         """
         Extracts features from the CNN model and converts them into a BERT-compatible format.
@@ -36,6 +48,7 @@ class BERTInputModeler:
         Returns:
             Dict[str, torch.Tensor]: Tokenized BERT input.
         """
+        utils.print_flush("Started encoding model to BERT input")
         # Flatten helper
         flatten = lambda nested: [item for sublist in nested for item in sublist]
 
@@ -48,9 +61,7 @@ class BERTInputModeler:
             full_features.extend(flatten(all_layers))
 
         # Convert to string with true [SEP] token
-        layer_str = " ".join(map(str, layer_features))
-        full_str = " ".join(map(str, full_features))
-        combined_input = f"{layer_str} [SEP] {full_str}"
+        combined_input = f"{' '.join(map(str, layer_features))} [SEP] {' '.join(map(str, full_features))}"
 
         # Tokenize with BERT tokenizer
         encoded_input = self.tokenizer(
@@ -60,7 +71,7 @@ class BERTInputModeler:
             padding="max_length",
             return_tensors="pt"
         )
-
+        utils.print_flush("Finished encoding model to BERT input")
         return {k: v.to(self.device) for k, v in encoded_input.items()}
 
     def forward(self, tokens: Dict[str, torch.Tensor]) -> torch.Tensor:

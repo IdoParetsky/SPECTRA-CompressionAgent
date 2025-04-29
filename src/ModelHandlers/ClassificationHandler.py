@@ -6,6 +6,7 @@ import numpy as np
 
 from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
+import src.utils as utils
 
 
 # TODO: Consider data normalization and augmentation via torchvision.transforms
@@ -54,13 +55,13 @@ class ClassificationHandler(BasicHandler):
                 total_loss += loss_func(preds, y_batch).item()
                 preds_classes = torch.argmax(preds, dim=1)
 
-                all_preds.extend(preds_classes.cpu().numpy())
-                all_labels.extend(y_batch.cpu().numpy())
+                all_preds.extend(preds_classes.detach().tolist())
+                all_labels.extend(y_batch.detach().tolist())
 
         # Calculate accuracy
         accuracy = accuracy_score(all_labels, all_preds)
-        print(f"Accuracy: {accuracy:.3f}")
-        print(f"Average Loss: {total_loss / len(loader):.3f}")
+        utils.print_flush(f"Accuracy: {accuracy:.3f}")
+        utils.print_flush(f"Average Loss: {total_loss / len(loader):.3f}")
         return accuracy
 
     def train_model(self, train_loader):
@@ -91,15 +92,15 @@ class ClassificationHandler(BasicHandler):
             epochs_not_improved += 1
 
             for i, (curr_x, curr_y) in enumerate(train_loader):
-                curr_x, curr_y = curr_x.to(device), curr_y.to(device)
+                curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)
 
                 # Skip batches with less than 2 samples to avoid issues in loss calculation
                 if curr_x.size(0) < 2:
                     continue
 
                 self.optimizer.zero_grad()
-                # TODO: RuntimeError: running_mean should contain 6 elements not 10
-                outputs = self.model(curr_x.float())
+                curr_x.requires_grad_(True)
+                outputs = self.model(curr_x)
 
                 # Ensure curr_y is processed correctly for classification
                 if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:  # One-hot encoded labels
@@ -120,16 +121,16 @@ class ClassificationHandler(BasicHandler):
             # Step the scheduler after every epoch based on validation loss
             scheduler.step(running_loss / len(train_loader))
 
-            print(f"Epoch {epoch + 1}: Loss = {running_loss / len(train_loader):.3f}, "
+            utils.print_flush(f"Epoch {epoch + 1}: Loss = {running_loss / len(train_loader):.3f}, "
                   f"Learning Rate = {self.optimizer.param_groups[0]['lr']:.3f}")
 
             if epochs_not_improved == MAX_EPOCHS_PATIENCE:
-                print("Early stopping due to no improvement.")
+                utils.print_flush("Early stopping due to no improvement.")
                 break
 
         # If training fails to converge - reinitializing weights and retraining
         if best_loss == np.inf:
-            print("Model failed to converge. Reinitializing weights.")
+            utils.print_flush("Model failed to converge. Reinitializing weights.")
             self.reinitialize_weights()
             return self.train_model(train_loader)  # Retry training
 

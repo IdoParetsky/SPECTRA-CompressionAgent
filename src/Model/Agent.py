@@ -22,7 +22,11 @@ class Agent(nn.Module):
         # BERT mechanism
         self.bert_enabled = True
         self.bert_input_modeler = BERTInputModeler()
-        self.embedding_dim = self.bert_input_modeler.bert_model.config.hidden_size
+        self.embedding_dim = (
+            self.bert_input_modeler.bert_model.module.config.hidden_size
+            if isinstance(self.bert_input_modeler.bert_model, torch.nn.parallel.DistributedDataParallel)
+            else self.bert_input_modeler.bert_model.config.hidden_size
+        )
 
         # DRL Head
         self.actor = nn.Sequential(

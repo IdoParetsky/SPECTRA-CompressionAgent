@@ -1,5 +1,8 @@
 import numpy as np
-from torch import nn
+import torch
+import torch.nn as nn
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 from src.Configuration.StaticConf import StaticConf
 
 
@@ -14,15 +17,15 @@ class ModelWithRows:
     - Provides a structured representation of the model to facilitate layer-wise pruning and resizing.
 
     Attributes:
-        model (nn.Module): The input PyTorch model.
-        all_layers (List[nn.Module]): A flat list of all layers extracted from the model.
+        model (torch.nn.Module): The input PyTorch model.
+        all_layers (List[torch.nn.Module]): A flat list of all layers extracted from the model.
         all_rows (np.ndarray): A structured representation of the model, grouping layers into rows.
-        main_layer_types (List[Type[nn.Module]]): The primary types of layers that define new rows. Currently includes:
-            - nn.Conv2d: Convolutional layers.
-            - nn.Linear: Fully-connected layers.
+        main_layer_types (List[Type[torch.nn.Module]]): The primary types of layers that define new rows. Currently includes:
+            - torch.nn.Conv2d: Convolutional layers.
+            - torch.nn.Linear: Fully-connected layers.
 
     TODO:
-        - Consider adding 'nn.BatchNorm2d', 'nn.MaxPool2d', and 'nn.AvgPool2d' to 'main_layer_types'.
+        - Consider adding 'torch.nn.BatchNorm2d', 'torch.nn.MaxPool2d', and 'torch.nn.AvgPool2d' to 'main_layer_types'.
           - Reason: BatchNorm and Pooling layers are typically linked to their corresponding Conv2D layers.
           - Decision: Should they be treated as independent layers or remain associated with Conv2D layers?
         - If BatchNorm and Pooling layers should remain in the same row as Conv2D, no modifications are needed.
@@ -36,31 +39,42 @@ class ModelWithRows:
         split_layers_to_rows(): Groups layers into rows based on 'main_layer_types'.
     """
 
-    model: nn.Module
+    model: torch.nn.Module
 
-    def __init__(self, model: nn.Module):
+    def __init__(self, model: torch.nn.Module):
         """
         Initializes the ModelWithRows instance by extracting and structuring the model layers.
 
         Args:
-            model (nn.Module): The neural network model to analyze.
+            model (torch.nn.Module): The neural network model to analyze.
         """
 
-        self.model = model.to(StaticConf.get_instance().conf_values.device)
+        self.model = model
+        # Initialize DDP (only if distributed environment is available)
+        if dist.is_available() and dist.is_initialized():
+            local_rank = dist.get_rank()
+            torch.cuda.set_device(local_rank)
+            device = torch.device(f"cuda:{local_rank}")
+            self.model.to(device)
+            self.model = DDP(self.model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+        else:
+            device = StaticConf.get_instance().conf_values.device
+            self.model.to(device)
+
         self.all_layers = []
         # Define which layer types should trigger a new row.
-        self.main_layer_types = [nn.Conv2d, nn.Linear]
+        self.main_layer_types = [torch.nn.Conv2d, torch.nn.Linear]
 
         # Extract all layers and organize them into rows
         self.extract_layers_from_model(self.model)
         self.all_rows, self.row_to_main_layer = self.split_and_map_layers_to_rows()
 
-    def extract_layers_from_model(self, layer: nn.Module):
+    def extract_layers_from_model(self, layer: torch.nn.Module):
         """
         Recursively extracts all layers from a given PyTorch model.
 
         Args:
-            layer (nn.Module): A PyTorch module (could be the entire model or a submodule).
+            layer (torch.nn.Module): A PyTorch module (could be the entire model or a submodule).
 
         Notes:
             - If a module has children (submodules), it will recursively explore them.
@@ -72,7 +86,7 @@ class ModelWithRows:
             else:
                 self.all_layers.append(sub_layer)
 
-    def is_to_split_row(self, curr_layer: nn.Module, curr_row: list) -> bool:
+    def is_to_split_row(self, curr_layer: torch.nn.Module, curr_row: list) -> bool:
         """
         Determines whether the current layer should start a new row.
 
@@ -80,7 +94,7 @@ class ModelWithRows:
         already has content (i.e., not the first layer of a new row).
 
         Args:
-            curr_layer (nn.Module): The layer being evaluated.
+            curr_layer (torch.nn.Module): The layer being evaluated.
             curr_row (list): The current row of layers.
 
         Returns:
@@ -120,3 +134,13 @@ class ModelWithRows:
             all_rows.append(np.array(curr_row))  # Append the last row
 
         return np.array(all_rows, dtype=object), row_to_main_layer
+
+    def unwrap_model(self):
+        if isinstance(self.model, (torch.nn.DataParallel, torch.nn.parallel.DistributedDataParallel)):
+            self.model = self.model.module
+
+    def rewrap_model(self, device):
+        if torch.cuda.device_count() > 1 and dist.is_initialized():
+            self.model = DDP(self.model.to(device), device_ids=[device.index], output_device=device.index,
+                             find_unused_parameters=True)
+

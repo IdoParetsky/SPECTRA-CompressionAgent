@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.distributed as dist
 from datetime import datetime
 import time
 
@@ -49,7 +50,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
             action_dist = agent.actor_model(state)
 
             action = action_dist.sample()  # Compression Rate
-            compression_rate = conf.compression_rates_dict[action.cpu().numpy()[0]]
+            compression_rate = conf.compression_rates_dict[action.item()]
             next_state, reward, done = env.step(compression_rate)
             state = next_state
 
@@ -88,6 +89,10 @@ def main():
 
 
 if __name__ == "__main__":
+    # Initialize the distributed process group if not already done
+    if torch.distributed.is_available() and not torch.distributed.is_initialized():
+        dist.init_process_group(backend='nccl', init_method='env://')
+
     args = utils.extract_args_from_cmd()
     utils.print_flush(args)
 

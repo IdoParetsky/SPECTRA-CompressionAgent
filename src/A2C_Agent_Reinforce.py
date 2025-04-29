@@ -5,6 +5,8 @@ from os.path import join
 import numpy as np
 import torch
 import torch.optim as optim
+import torch.distributed as dist
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 
 from src.Configuration.StaticConf import StaticConf
@@ -45,8 +47,20 @@ class A2CAgentReinforce:
         self.conf = StaticConf.get_instance().conf_values
         self.episode_idx = 0
 
-        self.actor_model = Actor(self.conf.device, self.conf.num_actions).to(self.conf.device)
-        self.critic_model = Critic(self.conf.device, self.conf.num_actions).to(self.conf.device)
+        if dist.is_available() and dist.is_initialized():
+            local_rank = dist.get_rank()
+        else:
+            local_rank = int(os.environ.get("LOCAL_RANK", 0))
+
+        self.device = torch.device(f"cuda:{local_rank}")
+        torch.cuda.set_device(self.device)
+
+        self.actor_model = Actor(self.device, self.conf.num_actions).to(self.device)
+        self.critic_model = Critic(self.device, self.conf.num_actions).to(self.device)
+
+        if dist.is_initialized():
+            self.actor_model = DDP(self.actor_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+            self.critic_model = DDP(self.critic_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
         # TODO: Provide the database dict in the README, once the DB's instantiation files are complete
         assert all([self.conf.actor_checkpoint_path, self.conf.critic_checkpoint_path]) or self.conf.database_dict, \
@@ -55,11 +69,12 @@ class A2CAgentReinforce:
              " utils.py's extract_args_from_cmd(), the full database's syntax is provided in the README file.")
 
         if self.conf.actor_checkpoint_path is not None:
-            actor_checkpoint = torch.load(self.conf.actor_checkpoint_path).state_dict()
-            self.actor_model.load_state_dict(actor_checkpoint)
+            actor_checkpoint = torch.load(self.conf.actor_checkpoint_path, map_location=self.device)
+            self.actor_model.load_state_dict(actor_checkpoint["state_dict"] if "state_dict" in actor_checkpoint else actor_checkpoint)
+
         if self.conf.critic_checkpoint_path is not None:
-            critic_checkpoint = torch.load(self.conf.critic_checkpoint_path).state_dict()
-            self.critic_model.load_state_dict(critic_checkpoint)
+            critic_checkpoint = torch.load(self.conf.critic_checkpoint_path, map_location=self.device)
+            self.critic_model.load_state_dict(critic_checkpoint["state_dict"] if "state_dict" in critic_checkpoint else critic_checkpoint)
 
         self.actor_optimizer = optim.Adam(self.actor_model.parameters(), self.conf.learning_rate)
         self.critic_optimizer = optim.Adam(self.critic_model.parameters(), self.conf.learning_rate)
@@ -102,7 +117,7 @@ class A2CAgentReinforce:
                 else:
                     action = action_dist.sample()
 
-                compression_rate = self.conf.compression_rates_dict[action.cpu().numpy()[0]]
+                compression_rate = self.conf.compression_rates_dict[action.item()]
                 next_state, reward, done = self.env.step(compression_rate)
 
                 log_prob = action_dist.log_prob(action)
@@ -174,4 +189,4 @@ class A2CAgentReinforce:
 
 
 def v(a):
-    return a.data.detach().cpu().numpy().min()
+    return a.detach().min().item()

@@ -43,9 +43,9 @@ class RegressionHandler(BasicHandler):
         with torch.no_grad():
             for x_batch, y_batch in loader:
                 x_batch, y_batch = x_batch.to(device), y_batch.to(device)
-                preds = self.model(x_batch).cpu().numpy().reshape(-1)
+                preds = self.model(x_batch).detach().view(-1).tolist()
                 all_preds.extend(preds)
-                all_targets.extend(y_batch.cpu().numpy())
+                all_targets.extend(y_batch.detach().view(-1).tolist())
 
         mse = mean_squared_error(all_targets, all_preds)
         print(f"Mean Squared Error: {mse:.3f}")
