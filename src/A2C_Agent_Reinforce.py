@@ -59,8 +59,8 @@ class A2CAgentReinforce:
         self.critic_model = Critic(self.device, self.conf.num_actions).to(self.device)
 
         if dist.is_initialized():
-            self.actor_model = DDP(self.actor_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-            self.critic_model = DDP(self.critic_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+            self.actor_model = DDP(self.actor_model, device_ids=[local_rank], output_device=local_rank)
+            self.critic_model = DDP(self.critic_model, device_ids=[local_rank], output_device=local_rank)
 
         # TODO: Provide the database dict in the README, once the DB's instantiation files are complete
         assert all([self.conf.actor_checkpoint_path, self.conf.critic_checkpoint_path]) or self.conf.database_dict, \

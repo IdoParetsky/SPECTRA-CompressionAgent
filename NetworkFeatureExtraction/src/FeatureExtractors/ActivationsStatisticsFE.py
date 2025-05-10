@@ -25,7 +25,7 @@ class ActivationsStatisticsFE(BaseFE):
         self.model_with_rows.model = self.model_with_rows.model.to(self.device)
         if torch.cuda.device_count() > 1 and dist.is_initialized():
             self.model_with_rows.model = DDP(self.model_with_rows.model, device_ids=[self.device.index],
-                                             output_device=self.device.index, find_unused_parameters=True)
+                                             output_device=self.device.index)
         self.model_with_rows.model.eval()
 
     def extract_feature_map(self) -> List[List[float]]:

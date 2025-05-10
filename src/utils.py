@@ -303,7 +303,7 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     model = instantiation_func(**params_dict).to(device)
 
     if dist.is_initialized():
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank)
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
     state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint

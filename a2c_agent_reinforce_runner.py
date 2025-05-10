@@ -10,6 +10,14 @@ from src.NetworkEnv import *
 import src.utils as utils
 from src.Configuration.StaticConf import StaticConf
 
+if torch.distributed.is_available() and not torch.distributed.is_initialized():
+    dist.init_process_group(backend='nccl', init_method='env://')
+rank = int(os.environ.get("RANK", 0))
+port = 12345 + rank  # each rank gets its own port, initial value chosen arbitrarily
+utils.print_flush(f"[Rank {rank}] Connecting debugger on port {port}")
+import pydevd_pycharm
+pydevd_pycharm.settrace('localhost', port=port, stdoutToServer=True, stderrToServer=True, suspend=False)
+
 
 def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A"):
     """
@@ -89,10 +97,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # Initialize the distributed process group if not already done
-    if torch.distributed.is_available() and not torch.distributed.is_initialized():
-        dist.init_process_group(backend='nccl', init_method='env://')
-
     args = utils.extract_args_from_cmd()
     utils.print_flush(args)
 

@@ -121,8 +121,8 @@ class ClassificationHandler(BasicHandler):
             # Step the scheduler after every epoch based on validation loss
             scheduler.step(running_loss / len(train_loader))
 
-            utils.print_flush(f"Epoch {epoch + 1}: Loss = {running_loss / len(train_loader):.3f}, "
-                  f"Learning Rate = {self.optimizer.param_groups[0]['lr']:.3f}")
+            utils.print_flush(f"Epoch {epoch + 1}: Loss = {running_loss / len(train_loader):.5f}, "
+                  f"Learning Rate = {self.optimizer.param_groups[0]['lr']:.5f}")
 
             if epochs_not_improved == MAX_EPOCHS_PATIENCE:
                 utils.print_flush("Early stopping due to no improvement.")

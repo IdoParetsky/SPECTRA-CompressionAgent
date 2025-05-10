@@ -30,7 +30,7 @@ class BERTInputModeler:
         self.bert_model = BertModel.from_pretrained(bert_model_name).to(self.device)
 
         if dist.is_initialized():
-            self.bert_model = DDP(self.bert_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+            self.bert_model = DDP(self.bert_model, device_ids=[local_rank], output_device=local_rank)
 
     def encode_model_to_bert_input(self, model_with_rows, feature_maps, curr_layer_idx) -> Dict[str, torch.Tensor]:
         """

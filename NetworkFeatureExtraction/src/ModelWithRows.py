@@ -56,7 +56,7 @@ class ModelWithRows:
             torch.cuda.set_device(local_rank)
             device = torch.device(f"cuda:{local_rank}")
             self.model.to(device)
-            self.model = DDP(self.model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+            self.model = DDP(self.model, device_ids=[local_rank], output_device=local_rank)
         else:
             device = StaticConf.get_instance().conf_values.device
             self.model.to(device)
