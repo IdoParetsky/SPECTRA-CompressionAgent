@@ -336,7 +336,6 @@ def build_parameters_to_freeze(model_with_rows, row_to_modify_idx):
     return parameters_to_freeze_ids
 
 
-# TODO: Apply here all relevant fixes from prune_current_model()
 def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_resize_idx):
     """
     Replace a layer with a reduced version, adjusting the subsequent layer accordingly.
@@ -349,6 +348,7 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
     Returns:
          resized_model_with_rows (ModelWithRows): The resized model.
     """
+    model_with_rows.unwrap_model()
     resized_model_with_rows = copy.deepcopy(model_with_rows)
 
     layer_to_resize_idx = resized_model_with_rows.row_to_main_layer[row_to_resize_idx]
@@ -358,19 +358,13 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
     old_size = layer_to_resize.out_features if isinstance(layer_to_resize, nn.Linear) else layer_to_resize.out_channels
     new_size = int(np.ceil(compression_rate * old_size))
 
-    # Build the resized version of the current layer
+    # Replace the layer with a resized fresh version (no weight copying)
     if isinstance(layer_to_resize, nn.Linear):
         resized_layer = nn.Linear(
             in_features=layer_to_resize.in_features,
             out_features=new_size,
             bias=layer_to_resize.bias is not None
         )
-
-        with torch.no_grad():
-            resized_layer.weight.copy_(layer_to_resize.weight[:new_size, :resized_layer.in_features])
-            if layer_to_resize.bias is not None:
-                resized_layer.bias.copy_(layer_to_resize.bias[:new_size])
-
     elif isinstance(layer_to_resize, nn.Conv2d):
         resized_layer = nn.Conv2d(
             in_channels=layer_to_resize.in_channels,
@@ -382,87 +376,13 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
             groups=layer_to_resize.groups,
             bias=layer_to_resize.bias is not None
         )
+    else:
+        raise NotImplementedError("Resizing not implemented for this layer type.")
 
-        with torch.no_grad():
-            resized_layer.weight.copy_(layer_to_resize.weight[:new_size, :, :, :])
-            if layer_to_resize.bias is not None:
-                resized_layer.bias.copy_(layer_to_resize.bias[:new_size])
-
-    # Replace resized layer in model
     resized_model_with_rows.all_layers[layer_to_resize_idx] = resized_layer
 
-    # Adjust the next layer if necessary
-    next_layer_idx = layer_to_resize_idx + 1
-    next_layer = resized_model_with_rows.all_layers[next_layer_idx]
-
-    if isinstance(next_layer, nn.Linear):
-        updated_next_layer = nn.Linear(new_size, next_layer.out_features, bias=next_layer.bias is not None)
-        with torch.no_grad():
-            updated_next_layer.weight.copy_(
-                next_layer.weight[:updated_next_layer.out_features, :updated_next_layer.in_features])
-            if next_layer.bias is not None:
-                updated_next_layer.bias.copy_(next_layer.bias[:updated_next_layer.out_features])
-
-        resized_model_with_rows.all_layers[next_layer_idx] = updated_next_layer
-
-    elif isinstance(next_layer, nn.Conv2d):
-        updated_next_layer = nn.Conv2d(
-            in_channels=new_size,
-            out_channels=next_layer.out_channels,
-            kernel_size=next_layer.kernel_size,
-            stride=next_layer.stride,
-            padding=next_layer.padding,
-            dilation=next_layer.dilation,
-            groups=next_layer.groups,
-            bias=next_layer.bias is not None
-        )
-
-        # Copy weights and biases
-        with torch.no_grad():
-            updated_next_layer.weight.copy_(next_layer.weight[:, :new_size, :, :]
-                                            )
-            if next_layer.bias is not None:
-                updated_next_layer.bias.copy_(next_layer.bias[:updated_next_layer.out_channels])
-
-        resized_model_with_rows.all_layers[next_layer_idx] = updated_next_layer
-
-    elif isinstance(next_layer, (nn.BatchNorm2d, nn.BatchNorm1d)):
-        next_bn = type(next_layer)(num_features=new_size)
-        with torch.no_grad():
-            next_bn.weight.copy_(next_layer.weight[:new_size])
-            next_bn.bias.copy_(next_layer.bias[:new_size])
-            next_bn.running_mean.copy_(next_layer.running_mean[:new_size])
-            next_bn.running_var.copy_(next_layer.running_var[:new_size])
-            next_bn.num_batches_tracked.copy_(next_layer.num_batches_tracked)
-
-        resized_model_with_rows.all_layers[next_layer_idx] = next_bn
-
-    elif isinstance(next_layer, nn.Flatten):
-        # If Flatten exists, get the subsequent Linear layer from the next row and update its in_features
-        next_linear_idx = resized_model_with_rows.row_to_main_layer[row_to_resize_idx + 1]
-        next_linear = resized_model_with_rows.all_layers[next_linear_idx]
-
-        # Compute new in_features after Conv2D resizing
-        _, _, h, w = layer_to_resize.weight.shape  # Get kernel size
-        new_input_size = new_size * h * w
-
-        updated_linear = nn.Linear(
-            in_features=new_input_size,
-            out_features=next_linear.out_features,
-            bias=next_linear.bias is not None
-        )
-
-        with torch.no_grad():
-            updated_linear.weight.copy_(next_linear.weight[:updated_linear.out_features, :updated_linear.in_features])
-            if next_linear.bias is not None:
-                updated_linear.bias.copy_(next_linear.bias[:updated_linear.out_features])
-
-        resized_model_with_rows.all_layers[next_linear_idx] = updated_linear
-
-    # Rebuild rows
-    resized_model_with_rows.all_rows, resized_model_with_rows.row_to_main_layer = \
-        resized_model_with_rows.split_and_map_layers_to_rows()
-
+    # Rewrap for DDP compatibility
+    resized_model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
     return resized_model_with_rows
 
 
@@ -481,127 +401,21 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     """
     model_with_rows.unwrap_model()
     pruned_model_with_rows = copy.deepcopy(model_with_rows)
+
     layer_to_prune_idx = pruned_model_with_rows.row_to_main_layer[row_to_prune_idx]
     layer_to_prune = pruned_model_with_rows.all_layers[layer_to_prune_idx]
 
-    # Apply structured pruning to the weight of the layer (dim=0 corresponds to out_channels / out_features)
+    # Apply structured pruning (masking only)
     prune.ln_structured(layer_to_prune, name='weight', amount=(1 - compression_rate), n=1, dim=0)
 
-    # Identify the surviving indices (un-pruned)
-    if isinstance(layer_to_prune, nn.Conv2d):
-        mask = layer_to_prune.weight_mask.sum(dim=(1, 2, 3)) > 0  # Identify un-pruned filters
-        new_out_size = mask.sum().item()
-        # TODO: Explain
-        prune.remove(layer_to_prune, 'weight')
-
-        # Create a new layer with updated dimensions
-        pruned_layer = nn.Conv2d(
-            in_channels=layer_to_prune.in_channels,
-            out_channels=new_out_size,
-            kernel_size=layer_to_prune.kernel_size,
-            stride=layer_to_prune.stride,
-            padding=layer_to_prune.padding,
-            dilation=layer_to_prune.dilation,
-            groups=layer_to_prune.groups,
-            bias=layer_to_prune.bias is not None
-        )
-
-        # Copy un-pruned weights
-        with torch.no_grad():
-            pruned_layer.weight.copy_(layer_to_prune.weight[mask, :, :, :])
-            if layer_to_prune.bias is not None:
-                pruned_layer.bias.copy_(layer_to_prune.bias[mask])
-    else:  # elif isinstance(layer_to_prune, nn.Linear)
-        mask = layer_to_prune.weight_mask.sum(dim=1) > 0  # Identify un-pruned neurons
-        new_out_size = mask.sum().item()
-        # TODO: Explain
-        prune.remove(layer_to_prune, 'weight')
-
-        pruned_layer = nn.Linear(
-            in_features=layer_to_prune.in_features,
-            out_features=new_out_size,
-            bias=layer_to_prune.bias is not None
-        )
-
-        # Copy un-pruned weights
-        with torch.no_grad():
-            pruned_layer.weight.copy_(layer_to_prune.weight[mask, :])
-            if layer_to_prune.bias is not None:
-                pruned_layer.bias.copy_(layer_to_prune.bias[mask])
-
-    # Assign pruned layer in model's all_layers
-    pruned_model_with_rows.all_layers[layer_to_prune_idx] = pruned_layer
-
-    # Post-pruning, the subsequent layers requires an adjustment according to the pruned out_features / out_channels,
-    # up until the next weight-consuming layer (inclusive) which begins the next row
-    next_weight_consuming_layer_idx = pruned_model_with_rows.row_to_main_layer[row_to_prune_idx + 1]
-
-    for idx in range(layer_to_prune_idx + 1, next_weight_consuming_layer_idx):
-        layer = pruned_model_with_rows.all_layers[idx]
-
-        if isinstance(layer, (nn.BatchNorm1d, nn.BatchNorm2d)):
-            adjusted_bn = type(layer)(num_features=new_out_size)
-            with torch.no_grad():
-                adjusted_bn.weight.copy_(layer.weight[:new_out_size])
-                adjusted_bn.bias.copy_(layer.bias[:new_out_size])
-                adjusted_bn.running_mean.copy_(layer.running_mean[:new_out_size])
-                adjusted_bn.running_var.copy_(layer.running_var[:new_out_size])
-                adjusted_bn.num_batches_tracked.copy_(layer.num_batches_tracked)
-            pruned_model_with_rows.all_layers[idx] = adjusted_bn
-        # else: leave things like ReLU, Dropout, etc. as they are.
-
-    # Now adjust the first layer of the next row (next_weight_consuming_layer_idx)
-    next_layer = pruned_model_with_rows.all_layers[next_weight_consuming_layer_idx]
-
-    if isinstance(pruned_layer, nn.Conv2d):
-        if isinstance(next_layer, nn.Conv2d):
-            adjusted_next_layer = nn.Conv2d(
-                in_channels=new_out_size,
-                out_channels=next_layer.out_channels,
-                kernel_size=next_layer.kernel_size,
-                stride=next_layer.stride,
-                padding=next_layer.padding,
-                dilation=next_layer.dilation,
-                groups=next_layer.groups,
-                bias=next_layer.bias is not None
-            )
-            with torch.no_grad():
-                adjusted_next_layer.weight.copy_(next_layer.weight[:, :new_out_size, :, :])
-                if next_layer.bias is not None:
-                    adjusted_next_layer.bias.copy_(next_layer.bias)
-
-        elif isinstance(next_layer, nn.Linear):
-            # Handle Conv2d → Flatten → Linear case
-            _, _, h, w = pruned_layer.weight.shape
-            in_features = new_out_size * h * w
-
-            adjusted_next_layer = nn.Linear(
-                in_features=in_features,
-                out_features=next_layer.out_features,
-                bias=next_layer.bias is not None
-            )
-            with torch.no_grad():
-                adjusted_next_layer.weight.copy_(next_layer.weight[:, :in_features])
-                if next_layer.bias is not None:
-                    adjusted_next_layer.bias.copy_(next_layer.bias)
-
-    elif isinstance(pruned_layer, nn.Linear):
-        if isinstance(next_layer, nn.Linear):
-            adjusted_next_layer = nn.Linear(
-                in_features=new_out_size,
-                out_features=next_layer.out_features,
-                bias=next_layer.bias is not None
-            )
-            with torch.no_grad():
-                adjusted_next_layer.weight.copy_(next_layer.weight[:, :new_out_size])
-                if next_layer.bias is not None:
-                    adjusted_next_layer.bias.copy_(next_layer.bias)
-
-    pruned_model_with_rows.all_layers[next_weight_consuming_layer_idx] = adjusted_next_layer
-
-    # Finally rebuild rows
-    pruned_model_with_rows.all_rows, pruned_model_with_rows.row_to_main_layer = pruned_model_with_rows.split_and_map_layers_to_rows()
+    # Optionally verify pruning
+    mask = getattr(layer_to_prune, 'weight_mask', None)
+    if mask is not None:
+        pruned_count = torch.sum(mask == 0).item()
+        total_count = mask.numel()
+        utils.print_flush(f"Pruned {pruned_count}/{total_count} weights in layer {layer_to_prune_idx}")
+    else:
+        utils.print_flush(f"Warning: No weight_mask found after pruning at layer {layer_to_prune_idx}")
 
     pruned_model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
     return pruned_model_with_rows
-

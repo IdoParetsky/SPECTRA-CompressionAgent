@@ -79,6 +79,7 @@ class ClassificationHandler(BasicHandler):
         best_state_dict = None
         epochs_not_improved = 0
         MAX_EPOCHS_PATIENCE = 10  # TODO: Consider updating / dynamically changing
+        EPSILON = 1e-4
 
         # Ensure optimizer is configured with current model parameters
         self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
@@ -87,11 +88,12 @@ class ClassificationHandler(BasicHandler):
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.5, patience=3, verbose=True)
 
+        scaler = torch.cuda.amp.GradScaler()
+
         for epoch in range(StaticConf.get_instance().conf_values.num_epochs):
             running_loss = 0.0
-            epochs_not_improved += 1
 
-            for i, (curr_x, curr_y) in enumerate(train_loader):
+            for curr_x, curr_y in train_loader:
                 curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)
 
                 # Skip batches with less than 2 samples to avoid issues in loss calculation
@@ -99,30 +101,31 @@ class ClassificationHandler(BasicHandler):
                     continue
 
                 self.optimizer.zero_grad()
-                curr_x.requires_grad_(True)
-                outputs = self.model(curr_x)
 
-                # Ensure curr_y is processed correctly for classification
-                if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:  # One-hot encoded labels
-                    curr_y = torch.argmax(curr_y, dim=1)
+                with torch.cuda.amp.autocast():
+                    outputs = self.model(curr_x)
+                    if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
+                        curr_y = torch.argmax(curr_y, dim=1)
+                    loss = self.loss_func(outputs, curr_y)
 
-                loss = self.loss_func(outputs, curr_y)
-
-                if loss < best_loss:
-                    epochs_not_improved = 0
-                    best_loss = loss
-                    best_state_dict = copy.deepcopy(self.model.state_dict())
-
-                loss.backward()
-                self.optimizer.step()
+                scaler.scale(loss).backward()
+                scaler.step(self.optimizer)
+                scaler.update()
 
                 running_loss += loss.item()
 
-            # Step the scheduler after every epoch based on validation loss
-            scheduler.step(running_loss / len(train_loader))
+            avg_loss = running_loss / len(train_loader)
+            scheduler.step(avg_loss)
+
+            if avg_loss < best_loss - EPSILON:
+                best_loss = avg_loss
+                best_state_dict = copy.deepcopy(self.model.state_dict())
+                epochs_not_improved = 0
+            else:
+                epochs_not_improved += 1
 
             utils.print_flush(f"Epoch {epoch + 1}: Loss = {running_loss / len(train_loader):.5f}, "
-                  f"Learning Rate = {self.optimizer.param_groups[0]['lr']:.5f}")
+                              f"Learning Rate = {self.optimizer.param_groups[0]['lr']:.5f}")
 
             if epochs_not_improved == MAX_EPOCHS_PATIENCE:
                 utils.print_flush("Early stopping due to no improvement.")

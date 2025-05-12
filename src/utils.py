@@ -112,7 +112,7 @@ def extract_args_from_cmd():
                         help="Ensures that the agent's rollout trajectory does not exceed a predefined number of steps (optional).")
 
     parser.add_argument('--passes', type=int, default=1,
-                        help="How many per-layer compression iterations over the entire network. Default=1 4 is also recommended.")
+                        help="How many per-layer compression iterations over the entire network. Default=1, 4 is also recommended.")
 
     parser.add_argument('--prune', type=bool, default=True,
                         help="Whether to prune layers via torch.nn.utils.prune.ln_structured during compression or resize them manually.")
@@ -303,7 +303,7 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     model = instantiation_func(**params_dict).to(device)
 
     if dist.is_initialized():
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
     state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
@@ -492,9 +492,9 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
         raise ValueError("Invalid dataset name or path. Provide a known dataset name or a valid directory.")
 
     # Create DataLoaders with optimizations
-    train_loader = DataLoader(train_data, batch_size=64, shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_data, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
-    test_loader = DataLoader(test_data, batch_size=64, shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_data, batch_size=get_adaptive_batch_size(), shuffle=True, num_workers=4, pin_memory=True)
+    val_loader = DataLoader(val_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True)
+    test_loader = DataLoader(test_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True)
 
     return train_loader, val_loader, test_loader
 
@@ -747,3 +747,30 @@ def normalize_2d_data(data):
 
 def normalize_3d_data(data):
     return np.array(list(map(normalize_2d_data, data)))
+
+def get_adaptive_batch_size(base=64):
+    """
+    Returns an adaptive batch size based on the GPU type and memory size.
+    """
+    if not torch.cuda.is_available():
+        return base
+
+    total_memory_gb = torch.cuda.get_device_properties(0).total_memory / 1e9
+    name = torch.cuda.get_device_name(0).lower()
+
+    # Conservative default scale
+    multiplier = 1
+
+    if "1080" in name:
+        multiplier = 1
+    elif "2080" in name:
+        multiplier = 2
+    elif "3090" in name or "titan" in name:
+        multiplier = 4
+    elif "a100" in name or "6000" in name:
+        multiplier = 6
+    elif total_memory_gb > 40:
+        multiplier = 8  # e.g., A6000 48GB
+
+    # Final batch size capped to safe upper bound
+    return min(base * multiplier, 1024)
