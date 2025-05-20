@@ -117,7 +117,7 @@ def extract_args_from_cmd():
     parser.add_argument('--prune', type=bool, default=True,
                         help="Whether to prune layers via torch.nn.utils.prune.ln_structured during compression or resize them manually.")
 
-    parser.add_argument('--num_epochs', type=int, default=100, help="Agent's training epochs amount. Default=100.")
+    parser.add_argument('--num_epochs', type=int, default=40, help="Agent's training epochs amount. Default=40.")
 
     parser.add_argument('--runtime_limit', type=int, default=60 * 60 * 24 * 7,
                         help="Max runtime. Default is a week in seconds")
@@ -305,7 +305,7 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     if dist.is_initialized():
         model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
 
     # Detect mismatch: model expects 'module.' but checkpoint doesn't have it
@@ -492,9 +492,9 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
         raise ValueError("Invalid dataset name or path. Provide a known dataset name or a valid directory.")
 
     # Create DataLoaders with optimizations
-    train_loader = DataLoader(train_data, batch_size=get_adaptive_batch_size(), shuffle=True, num_workers=4, pin_memory=True)
-    val_loader = DataLoader(val_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True)
-    test_loader = DataLoader(test_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_data, batch_size=get_adaptive_batch_size(), shuffle=True, num_workers=4, pin_memory=True, prefetch_factor=2)
+    val_loader = DataLoader(val_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True, prefetch_factor=2)
+    test_loader = DataLoader(test_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True, prefetch_factor=2)
 
     return train_loader, val_loader, test_loader
 

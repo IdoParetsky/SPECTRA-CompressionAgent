@@ -131,7 +131,8 @@ class Agent(nn.Module):
                 - Value prediction (Critic)
         """
         if self.bert_enabled:
-            embeddings = self.bert_input_modeler.forward(state_tokens_or_fm)
+            with torch.no_grad():
+                embeddings = self.bert_input_modeler.forward(state_tokens_or_fm)
             embeddings = embeddings.mean(dim=1)  # shape: (batch_size, embedding_dim)
         else:
             embeddings = self.extract_legacy_features(state_tokens_or_fm)

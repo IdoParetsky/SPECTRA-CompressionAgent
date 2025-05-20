@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import os
 import time
+import gc
 import torch
 from torch import nn
 from torch.nn.utils import prune
@@ -122,6 +123,14 @@ class NetworkEnv:
 
     def reset(self, test_net_path=None, test_model=None, test_loaders=None):
         """ Reset environment with a new CNN model & dataset """
+        # Ensure prior memory is cleaned
+        if hasattr(self, "feature_extractor"):
+            del self.feature_extractor
+        if hasattr(self, "current_model"):
+            del self.current_model
+        torch.cuda.empty_cache()
+        gc.collect()
+
         self.row_idx = 1  # The first row to be a candidate for pruning is self.row_idx - 1 -> index 0
         self.actions_history = []
 
@@ -137,12 +146,9 @@ class NetworkEnv:
             self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.data_dict[
                 self.selected_net_path]
 
-        # TODO: Pinpoint which call affects runtime the most (every reset takes ~7 minutes).
         utils.print_flush(f"Loading {self.selected_net_path}")
-
         # Prepare feature extractor with training data
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
-        # TODO: Consider caching FM, as there is only 0/1 change (prev layer) between iter.
         utils.print_flush("env.reset - Starting FM Extraction")
         fm = self.feature_extractor.encode_to_bert_input(
             ModelWithRows(self.current_model).row_to_main_layer[self.row_idx - 1])
@@ -151,6 +157,10 @@ class NetworkEnv:
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
         self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
+
+        # After feature extraction and setup
+        torch.cuda.empty_cache()
+        gc.collect()
 
         return fm
 
@@ -165,8 +175,18 @@ class NetworkEnv:
         Returns:
             Tuple: Next state, reward, and done flag.
         """
-        utils.print_flush(f"Step {self.row_idx - 1} - Compression Rate: {compression_rate}")
         model_with_rows = ModelWithRows(self.current_model)
+        # Determine affected layers (from current row up to start of next row)
+        current_layer_idx = model_with_rows.row_to_main_layer[self.row_idx - 1]
+        next_layer_idx = model_with_rows.row_to_main_layer[self.row_idx] \
+            if self.row_idx < len(model_with_rows.row_to_main_layer) else len(model_with_rows.all_layers)
+        update_indices = list(range(current_layer_idx, next_layer_idx))
+        utils.print_flush(f"Step {self.row_idx - 1} - Layer {current_layer_idx}, Compression Rate: {compression_rate}")
+
+        if hasattr(self, "feature_extractor"):
+            del self.feature_extractor
+        torch.cuda.empty_cache()
+        gc.collect()
 
         if compression_rate == 1:
             learning_handler_new_model = self.create_learning_handler(self.current_model)
@@ -181,8 +201,8 @@ class NetworkEnv:
 
             # Freeze/unfreeze layers based on config
             if self.conf.train_compressed_layer_only:
-                parameters_to_freeze_ids = build_parameters_to_freeze(modified_model_with_rows, self.row_idx - 1)
-                learning_handler_new_model.freeze_layers(parameters_to_freeze_ids)
+                params_to_keep_trainable = build_param_names_to_keep_trainable(modified_model_with_rows, self.row_idx - 1)
+                learning_handler_new_model.freeze_all_layers_but_pruned(params_to_keep_trainable)
             else:
                 learning_handler_new_model.unfreeze_all_layers()
 
@@ -199,13 +219,15 @@ class NetworkEnv:
         # Move to next state
         self.row_idx += 1
         learning_handler_new_model.unfreeze_all_layers()
+        old_model = self.current_model
         self.current_model = learning_handler_new_model.model
+        del old_model
 
         # Extract features for BERT
         self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
         # TODO: Consider caching FM, as there is only 0/1 change (prev layer) between iter.
         utils.print_flush("env.step - Starting FM Extraction")
-        fm = self.feature_extractor.encode_to_bert_input(model_with_rows.row_to_main_layer[self.row_idx - 1])
+        fm = self.feature_extractor.encode_to_bert_input(current_layer_idx, update_indices)
         utils.print_flush("env.step - Finished FM Extraction")
 
         # Check termination condition
@@ -224,6 +246,9 @@ class NetworkEnv:
         # if requested by the user via self.conf.save_pruned_checkpoints = True
         if done and self.conf.save_pruned_checkpoints:
             self.save_pruned_checkpoint()
+
+        torch.cuda.empty_cache()
+        gc.collect()
 
         return fm, reward, done
 
@@ -283,23 +308,28 @@ class NetworkEnv:
         # Extract filename and replace only the last dot (as the filename might contain decimal points)
         filename = os.path.basename(self.selected_net_path)  # Get the file name from the path
         name_parts = filename.rsplit('.', 1)  # Split at the last dot
-
-        if len(name_parts) == 2:  # Ensure the file has an extension
-            model_name = f"{name_parts[0]}_pruned.{name_parts[1]}"
-        else:
-            model_name = f"{filename}_pruned"  # Handle cases with no extension (unlikely)
-
+        model_name = f"{name_parts[0]}_pruned.{name_parts[1]}" if len(name_parts) == 2 else f"{filename}_pruned"
         # Create timestamped save path
         timestamp = time.strftime("%Y%m%d-%H%M%S")  # Prevent overwriting
         save_path = f"./pruned_models/{model_name}_{timestamp}"
-
         # Ensure directory exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-        # Save model checkpoint
-        torch.save(self.current_model.state_dict(), save_path)
+        model_to_save = self.current_model
+        # If it's wrapped in DDP, unwrap before saving state_dict
+        if isinstance(model_to_save, DDP):
+            model_to_save = model_to_save.module
 
-        utils.print_flush(f"Pruned model saved at {save_path}")
+        # Save state dict safely (on rank 0 only)
+        if not dist.is_initialized() or dist.get_rank() == 0:
+            torch.save(model_to_save.state_dict(), save_path)
+            utils.print_flush(f"Pruned model saved at {save_path}")
+
+        # Sync all processes if in DDP
+        if dist.is_initialized():
+            dist.barrier()
+        torch.cuda.empty_cache()
+        gc.collect()
 
     def create_learning_handler(self, new_model) -> BasicHandler:
         """
@@ -309,14 +339,13 @@ class NetworkEnv:
         """
         return ClassificationHandler(
             new_model,
-            torch.nn.CrossEntropyLoss(),
-            torch.optim.Adam(new_model.parameters(), lr=self.conf.learning_rate)
+            torch.nn.CrossEntropyLoss()
         )
 
 
-def build_parameters_to_freeze(model_with_rows, row_to_modify_idx):
+def build_param_names_to_keep_trainable(model_with_rows, row_to_modify_idx):
     """
-    Builds a list of parameter IDs for layers to freeze.
+    Builds a list of the pruned layer and its subsequent's parameter IDs to keep trainable (all other layers' parameters are freezed).
 
     Args:
         model_with_rows (ModelWithRows):   The model wrapped with rows of layers.
@@ -325,15 +354,11 @@ def build_parameters_to_freeze(model_with_rows, row_to_modify_idx):
     Returns:
         List[int]: A list of parameter IDs to freeze.
     """
-    # TODO: In NEON, the pruned and subsequent rows were frozen instead of the layers. Was it on purpose or an overkill?
-    # Extract the layers to freeze (the pruned layer and the subsequent layer)
     layer_to_modify_idx = model_with_rows.row_to_main_layer[row_to_modify_idx]
-    layers_to_freeze = model_with_rows.all_layers[layer_to_modify_idx:layer_to_modify_idx + 2]
+    layers_to_keep_trainable = model_with_rows.all_layers[layer_to_modify_idx:layer_to_modify_idx + 2]
 
     # Flatten and collect parameter IDs
-    parameters_to_freeze_ids = [id(param) for layer in layers_to_freeze for param in layer.parameters()]
-
-    return parameters_to_freeze_ids
+    return [id(param) for layer in layers_to_keep_trainable for param in layer.parameters()]
 
 
 def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_resize_idx):
@@ -405,17 +430,21 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     layer_to_prune_idx = pruned_model_with_rows.row_to_main_layer[row_to_prune_idx]
     layer_to_prune = pruned_model_with_rows.all_layers[layer_to_prune_idx]
 
-    # Apply structured pruning (masking only)
+    utils.print_flush(
+        f"Applying structured pruning to layer {layer_to_prune_idx} with compression rate {compression_rate}")
     prune.ln_structured(layer_to_prune, name='weight', amount=(1 - compression_rate), n=1, dim=0)
 
-    # Optionally verify pruning
+    # Check and report mask before removing it
     mask = getattr(layer_to_prune, 'weight_mask', None)
     if mask is not None:
         pruned_count = torch.sum(mask == 0).item()
         total_count = mask.numel()
-        utils.print_flush(f"Pruned {pruned_count}/{total_count} weights in layer {layer_to_prune_idx}")
+        utils.print_flush(f"Pruned and removed {pruned_count}/{total_count} filters in layer {layer_to_prune_idx}")
     else:
-        utils.print_flush(f"Warning: No weight_mask found after pruning at layer {layer_to_prune_idx}")
+        utils.print_flush(f"Warning: Pruning mask not found for layer {layer_to_prune_idx} before removal")
+
+    # Permanently apply pruning by removing the mask
+    prune.remove(layer_to_prune, name='weight')
 
     pruned_model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
     return pruned_model_with_rows

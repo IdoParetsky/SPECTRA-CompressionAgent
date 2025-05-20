@@ -27,8 +27,13 @@ class ActivationsStatisticsFE(BaseFE):
             self.model_with_rows.model = DDP(self.model_with_rows.model, device_ids=[self.device.index],
                                              output_device=self.device.index, find_unused_parameters=True)
         self.model_with_rows.model.eval()
+        self.cached_activation_maps = [None] * len(self.model_with_rows.all_layers)
 
-    def extract_feature_map(self) -> List[List[float]]:
+
+    def extract_feature_map(self, update_indices=None) -> List[List[float]]:
+        if update_indices is None:
+            update_indices = list(range(len(self.model_with_rows.all_layers)))
+
         utils.print_flush("Starting Activations FE")
 
         activation_maps_collector = [[] for _ in self.model_with_rows.all_layers]
@@ -42,7 +47,7 @@ class ActivationsStatisticsFE(BaseFE):
             ))
 
         for idx, layer in enumerate(self.model_with_rows.all_layers):
-            if is_activation_layer(layer):
+            if idx in update_indices and is_activation_layer(layer):
                 def get_activation_hook(index):
                     def hook(module, input, output):
                         stats = self.compute_moments(output.detach())
@@ -52,23 +57,41 @@ class ActivationsStatisticsFE(BaseFE):
 
                 hooks.append(layer.register_forward_hook(get_activation_hook(idx)))
 
+        # TODO: Experiment with 2 batches only and later compare against a full forward pass (2-3 sec per step)
+        #  Add to args so this becomes configurable (maybe even dynamic according to architecture and dataset?)
+
+        # with torch.no_grad():
+        #     utils.print_flush("Running full forward pass...")
+        #     for i, (batch_x, _) in enumerate(self.train_dataloader):
+        #         self.model_with_rows.model(batch_x.to(self.device, non_blocking=True))
+        #     utils.print_flush("Full forward pass completed")
+
         with torch.no_grad():
-            utils.print_flush("Running full forward pass...")
+            utils.print_flush("Running a 2-batches forward pass...")
             for i, (batch_x, _) in enumerate(self.train_dataloader):
+                # Limit to 2 batches due to runtime considerations,
+                # assuming stable mean and std can be extracted after only 2 batches
+                if i > 1:
+                    break
                 self.model_with_rows.model(batch_x.to(self.device, non_blocking=True))
-            utils.print_flush("Full forward pass completed")
+            utils.print_flush("2-batches forward pass completed")
 
         for hook in hooks:
             hook.remove()
 
         # Average statistics across batches for each layer
-        activation_maps = []
-        for stats_list in activation_maps_collector:
-            if stats_list:
-                mean_stats = torch.stack(stats_list).mean(dim=0)
-                activation_maps.append(mean_stats.tolist())
-            else:
-                activation_maps.append([0.0] * len(self.compute_moments(torch.zeros(1, device=self.device))))
+        for idx in update_indices:
+            if activation_maps_collector[idx]:
+                mean_stats = torch.stack(activation_maps_collector[idx]).mean(dim=0)
+                self.cached_activation_maps[idx] = mean_stats.tolist()
+            elif self.cached_activation_maps[idx] is None:
+                # Ensure it’s not left as None
+                self.cached_activation_maps[idx] = [0.0] * len(self.compute_moments(torch.zeros(1, device=self.device)))
+
+        # Ensure all entries are valid (not just updated ones)
+        for idx in range(len(self.cached_activation_maps)):
+            if self.cached_activation_maps[idx] is None:
+                self.cached_activation_maps[idx] = [0.0] * len(self.compute_moments(torch.zeros(1, device=self.device)))
 
         utils.print_flush("Finished Activations FE")
-        return activation_maps
+        return self.cached_activation_maps

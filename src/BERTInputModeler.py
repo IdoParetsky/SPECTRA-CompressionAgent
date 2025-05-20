@@ -1,8 +1,6 @@
 from typing import Dict
 import torch
 from transformers import BertTokenizer, BertModel
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
 import os
 
 import src.utils as utils
@@ -19,18 +17,13 @@ class BERTInputModeler:
         return cls._instance
 
     def _initialize(self, bert_model_name):
-        self.tokenizer = BertTokenizer.from_pretrained(bert_model_name)
-        if dist.is_available() and dist.is_initialized():
-            local_rank = dist.get_rank()
-        else:
-            local_rank = int(os.environ.get("LOCAL_RANK", 0))  # fallback to 0 for single GPU
-        self.device = torch.device(f"cuda:{local_rank}")
+        self.device = torch.device(f"cuda:{int(os.environ.get('LOCAL_RANK', 0))}")
         torch.cuda.set_device(self.device)
-
+        self.tokenizer = BertTokenizer.from_pretrained(bert_model_name)
         self.bert_model = BertModel.from_pretrained(bert_model_name).to(self.device)
-
-        if dist.is_initialized():
-            self.bert_model = DDP(self.bert_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+        # Freeze BERT parameters, as BERT is used solely for feature extraction (static embeddings of the CNN structure and statistics)
+        for param in self.bert_model.parameters():
+            param.requires_grad = False
 
     def encode_model_to_bert_input(self, model_with_rows, feature_maps, curr_layer_idx) -> Dict[str, torch.Tensor]:
         """
@@ -64,15 +57,17 @@ class BERTInputModeler:
         combined_input = f"{' '.join(map(str, layer_features))} [SEP] {' '.join(map(str, full_features))}"
 
         # Tokenize with BERT tokenizer
-        encoded_input = self.tokenizer(
-            combined_input,
-            max_length=512,
-            truncation=True,
-            padding="max_length",
-            return_tensors="pt"
-        )
+        with torch.no_grad():
+            encoded_input = self.tokenizer(
+                combined_input,
+                max_length=512,
+                truncation=True,
+                padding="max_length",
+                return_tensors="pt"
+            )
         utils.print_flush("Finished encoding model to BERT input")
         return {k: v.to(self.device) for k, v in encoded_input.items()}
+
 
     def forward(self, tokens: Dict[str, torch.Tensor]) -> torch.Tensor:
         """
@@ -84,6 +79,7 @@ class BERTInputModeler:
         Returns:
             torch.Tensor: Embeddings from the BERT model (last_hidden_state).
         """
-        tokens = {k: v.to(self.device) for k, v in tokens.items()}
-        outputs = self.bert_model(**tokens)
+        tokens = {k: v.to(self.device).clone() for k, v in tokens.items()}
+        with torch.no_grad():  # BERT is used solely for feature extraction (static embeddings of the CNN structure and statistics)
+            outputs = self.bert_model(**tokens)
         return outputs.last_hidden_state  # shape: (batch_size, seq_len, hidden_size)

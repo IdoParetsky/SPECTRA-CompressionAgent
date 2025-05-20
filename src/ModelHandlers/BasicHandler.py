@@ -5,10 +5,9 @@ from torch.utils.data import DataLoader
 
 
 class BasicHandler:
-    def __init__(self, model: nn.Module, loss_function: _Loss, optimizer: Optimizer):
+    def __init__(self, model: nn.Module, loss_function: _Loss):
         self.model = model
         self.loss_func = loss_function
-        self.optimizer = optimizer
 
     def evaluate_model(self, loader: DataLoader) -> float:
         pass
@@ -16,9 +15,9 @@ class BasicHandler:
     def train_model(self, train_loader: DataLoader):
         pass
 
-    def freeze_layers(self, layers_to_freeze):
+    def freeze_all_layers_but_pruned(self, params_to_keep_trainable):
         for curr_l in self.model.parameters():
-            if id(curr_l) in layers_to_freeze:
+            if id(curr_l) in params_to_keep_trainable:
                 curr_l.requires_grad = True
             else:
                 curr_l.requires_grad = False

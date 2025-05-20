@@ -59,8 +59,8 @@ class A2CAgentReinforce:
         self.critic_model = Critic(self.device, self.conf.num_actions).to(self.device)
 
         if dist.is_initialized():
-            self.actor_model = DDP(self.actor_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-            self.critic_model = DDP(self.critic_model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+            self.actor_model = DDP(self.actor_model, device_ids=[local_rank], output_device=local_rank, static_graph=True)
+            self.critic_model = DDP(self.critic_model, device_ids=[local_rank], output_device=local_rank, static_graph=True)
 
         # TODO: Provide the database dict in the README, once the DB's instantiation files are complete
         assert all([self.conf.actor_checkpoint_path, self.conf.critic_checkpoint_path]) or self.conf.database_dict, \
@@ -131,21 +131,29 @@ class A2CAgentReinforce:
                 state = next_state
                 step_count += 1
 
+            utils.print_flush(
+                f'Total Reward for Network {self.env.selected_net_path}, Episode {self.episode_idx}: {sum(rewards)}')
             writer.add_scalar('Total Reward in Episode', sum(rewards), self.episode_idx)
-            writer.add_scalar(f'Total Reward for network {self.env.selected_net_path}', sum(rewards), self.episode_idx)
-            self.episode_idx += 1
-            returns = utils.compute_returns(0, rewards, masks, self.conf.discount_factor)
+            writer.add_scalar(f'Total Reward for Network {self.env.selected_net_path}', sum(rewards), self.episode_idx)
 
-            log_probs = torch.cat(log_probs)
-            returns = torch.cat(returns).detach()
+            self.episode_idx += 1
+            # Combine rewards into returns and compute advantages
+            returns = utils.compute_returns(0, rewards, masks, self.conf.discount_factor)
+            returns = torch.cat(returns)
             values = torch.cat(values)
 
-            advantage = returns - values
+            advantage = returns.detach() - values
 
+            # Compute loss (detach log_probs * advantage to avoid in-place ops)
+            log_probs = torch.cat(log_probs)
             actor_loss = -(log_probs * advantage.detach()).mean()
-            critic_loss = advantage.pow(2).mean()
 
+            # Detach advantage to ensure stable backward
+            critic_loss = (returns.detach() - values).pow(2).mean()
+
+            utils.print_flush(f'Actor Loss, Episode {self.episode_idx}: {v(actor_loss)}')
             writer.add_scalar('Actor Loss', v(actor_loss), self.episode_idx)
+            utils.print_flush(f'Critic Loss, Episode {self.episode_idx}: {v(critic_loss)}')
             writer.add_scalar('Critic Loss', v(critic_loss), self.episode_idx)
 
             self.actor_optimizer.zero_grad()
@@ -163,12 +171,19 @@ class A2CAgentReinforce:
             if (self.episode_idx + 1) % 100 == 0:
                 if not os.path.exists(checkpoint_folder):
                     os.mkdir(checkpoint_folder)
-                torch.save(self.critic_model, join(checkpoint_folder, self.conf.test_name + '_critic.pt'))
-                torch.save(self.actor_model, join(checkpoint_folder, self.conf.test_name + '_actor.pt'))
+                utils.print_flush(f'Saving Actor and Critic Checkpoints in {checkpoint_folder}:\n'
+                                  f'{self.conf.test_name} + _actor.pt and _critic.pt respectively')
+                if not dist.is_initialized() or dist.get_rank() == 0:
+                    torch.save(self.critic_model, join(checkpoint_folder, self.conf.test_name + '_critic.pt'))
+                    torch.save(self.actor_model, join(checkpoint_folder, self.conf.test_name + '_actor.pt'))
+
+                # Sync all processes if in DDP
+                if dist.is_initialized():
+                    dist.barrier()
 
             max_reward_in_all_episodes = max(max_reward_in_all_episodes, v(curr_reward))
 
-            print(f"{max_reward_in_all_episodes=}, {max(all_rewards_episodes[-min_episode_num:])=}")
+            utils.print_flush(f"{max_reward_in_all_episodes=}, {max(all_rewards_episodes[-min_episode_num:])=}")
             if len(all_rewards_episodes) > min_episode_num and max_reward_in_all_episodes >= max(
                     all_rewards_episodes[-min_episode_num:]):
                 reward_not_improving = True
@@ -181,12 +196,18 @@ class A2CAgentReinforce:
         trained_folder = 'trained_models'
         if not os.path.exists(trained_folder):
             os.mkdir(trained_folder)
-        torch.save(self.critic_model, join(trained_folder, self.conf.test_name + '_critic.pt'))
-        torch.save(self.actor_model, join(trained_folder, self.conf.test_name + '_actor.pt'))
+            utils.print_flush(f'Saving trained Actor and Critic in {trained_folder}:\n'
+                              f'{self.conf.test_name} + _actor.pt and _critic.pt respectively')
+        if not dist.is_initialized() or dist.get_rank() == 0:
+            torch.save(self.critic_model, join(trained_folder, self.conf.test_name + '_critic.pt'))
+            torch.save(self.actor_model, join(trained_folder, self.conf.test_name + '_actor.pt'))
+
+        # Sync all processes if in DDP
+        if dist.is_initialized():
+            dist.barrier()
 
         utils.print_flush("DONE Training")
-        return
 
 
 def v(a):
-    return a.detach().min().item()
+    return a.item() if a.numel() == 1 else a.detach().min().item()

@@ -97,6 +97,8 @@ def main():
 
 
 if __name__ == "__main__":
+    torch.autograd.set_detect_anomaly(True)  # Enables to track and interrupt execution due to important RunTimeErrors
+
     args = utils.extract_args_from_cmd()
     utils.print_flush(args)
 

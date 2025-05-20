@@ -1,8 +1,9 @@
-import copy
-
+import io
+import gc
 import torch
 from sklearn.metrics import accuracy_score
 import numpy as np
+import torch.distributed as dist
 
 from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
@@ -76,23 +77,31 @@ class ClassificationHandler(BasicHandler):
         self.model.train()
 
         best_loss = np.inf
-        best_state_dict = None
+        best_state_buffer = None
         epochs_not_improved = 0
-        MAX_EPOCHS_PATIENCE = 10  # TODO: Consider updating / dynamically changing
+        MAX_EPOCHS_PATIENCE = 5  # Changed from 10 in NEON. TODO: Consider updating / dynamically changing
         EPSILON = 1e-4
 
-        # Ensure optimizer is configured with current model parameters
-        self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
+        # Recreate optimizer with current model parameters
+        self.optimizer = torch.optim.Adam(self.model.parameters(),
+                                          lr=StaticConf.get_instance().conf_values.learning_rate)
+
+        # # Ensure optimizer is configured with current model parameters
+        # if not self.optimizer.param_groups[0]['params']:
+        #     self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
 
         # Dynamic Learning Rate Scheduling  # TODO: New addition, assess with and without
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.5, patience=3, verbose=True)
+            self.optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 
-        scaler = torch.cuda.amp.GradScaler()
+        scaler = torch.amp.GradScaler(device='cuda')
 
-        for epoch in range(StaticConf.get_instance().conf_values.num_epochs):
-            running_loss = 0.0
+        # For debugging purposes only - print the stack trace of the operation that broke autograd
+        # torch.autograd.set_detect_anomaly(True)
 
+        for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
+        # for epoch in range(1):  #TODO: Shortening loop to verify code progression
+            epoch_losses = []
             for curr_x, curr_y in train_loader:
                 curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)
 
@@ -100,31 +109,39 @@ class ClassificationHandler(BasicHandler):
                 if curr_x.size(0) < 2:
                     continue
 
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad(set_to_none=True)
 
-                with torch.cuda.amp.autocast():
+                with torch.amp.autocast(device_type='cuda'):
                     outputs = self.model(curr_x)
                     if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
                         curr_y = torch.argmax(curr_y, dim=1)
                     loss = self.loss_func(outputs, curr_y)
 
+                # For debugging purposes only
+                # if torch.isnan(loss):
+                #     utils.print_flush("NaN detected in loss!")
+
                 scaler.scale(loss).backward()
                 scaler.step(self.optimizer)
                 scaler.update()
 
-                running_loss += loss.item()
+                epoch_losses.append(loss.detach())
 
-            avg_loss = running_loss / len(train_loader)
+            avg_loss = torch.stack(epoch_losses).mean().item()
             scheduler.step(avg_loss)
 
             if avg_loss < best_loss - EPSILON:
                 best_loss = avg_loss
-                best_state_dict = copy.deepcopy(self.model.state_dict())
+                if not dist.is_initialized() or dist.get_rank() == 0:
+                    best_state_buffer = io.BytesIO()
+                    torch.save(self.model.state_dict(), best_state_buffer)
+                if dist.is_initialized():  # # Sync all processes if in DDP
+                    dist.barrier()
                 epochs_not_improved = 0
             else:
                 epochs_not_improved += 1
 
-            utils.print_flush(f"Epoch {epoch + 1}: Loss = {running_loss / len(train_loader):.5f}, "
+            utils.print_flush(f"Epoch {epoch + 1}: Loss = {avg_loss:.5f}, "
                               f"Learning Rate = {self.optimizer.param_groups[0]['lr']:.5f}")
 
             if epochs_not_improved == MAX_EPOCHS_PATIENCE:
@@ -138,8 +155,14 @@ class ClassificationHandler(BasicHandler):
             return self.train_model(train_loader)  # Retry training
 
         # Restore the best model state
-        if best_state_dict is not None:
-            self.model.load_state_dict(best_state_dict)
+        if best_state_buffer is not None:
+            best_state_buffer.seek(0)
+            self.model.load_state_dict(torch.load(best_state_buffer, weights_only=True, map_location=device))
+
+        # Free up cache and memory after training
+        del self.optimizer
+        torch.cuda.empty_cache()
+        gc.collect()
 
     def reinitialize_weights(self):
         """

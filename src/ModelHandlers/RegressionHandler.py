@@ -1,4 +1,4 @@
-import copy
+import io
 
 import torch
 from sklearn.metrics import mean_squared_error
@@ -63,7 +63,7 @@ class RegressionHandler(BasicHandler):
         self.model.train()
 
         best_loss = np.inf
-        best_state_dict = None
+        best_state_buffer = None
         epochs_not_improved = 0
         MAX_EPOCHS_PATIENCE = 10  # TODO: Consider updating / dynamically changing
 
@@ -93,7 +93,8 @@ class RegressionHandler(BasicHandler):
 
             if running_loss < best_loss:
                 best_loss = running_loss
-                best_state_dict = copy.deepcopy(self.model.state_dict())
+                best_state_buffer = io.BytesIO()
+                torch.save(self.model.state_dict(), best_state_buffer)
                 epochs_not_improved = 0
 
             # Early stopping condition
@@ -102,5 +103,6 @@ class RegressionHandler(BasicHandler):
                 break
 
         # Restore the best model state
-        if best_state_dict is not None:
-            self.model.load_state_dict(best_state_dict)
+        if best_state_buffer is not None:
+            best_state_buffer.seek(0)
+            self.model.load_state_dict(torch.load(best_state_buffer))
