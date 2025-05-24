@@ -18,6 +18,9 @@ utils.print_flush(f"[Rank {rank}] Connecting debugger on port {port}")
 import pydevd_pycharm
 pydevd_pycharm.settrace('localhost', port=port, stdoutToServer=True, stderrToServer=True, suspend=False)
 
+import logging
+logging.getLogger("torch.distributed.distributed_c10d").setLevel(logging.ERROR)
+
 
 def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A"):
     """

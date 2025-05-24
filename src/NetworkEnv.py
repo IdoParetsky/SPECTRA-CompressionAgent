@@ -70,7 +70,7 @@ class NetworkEnv:
             Applies a pruning action, evaluates the compressed model, and moves to the next state.
             Returns the updated state, computed reward, and termination flag.
 
-        compute_and_log_results(t_curr: float = time.perf_counter()):
+        compute_and_log_results(model_with_rows, t_curr: float = time.perf_counter()):
             Computes accuracy, model size, and FLOPs after pruning, logging them to a CSV file.
 
         save_pruned_checkpoint():
@@ -146,12 +146,13 @@ class NetworkEnv:
             self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.data_dict[
                 self.selected_net_path]
 
+        model_with_rows = ModelWithRows(self.current_model)
         utils.print_flush(f"Loading {self.selected_net_path}")
         # Prepare feature extractor with training data
-        self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
+        self.feature_extractor = FeatureExtractor(self.train_loader, self.conf.device)
         utils.print_flush("env.reset - Starting FM Extraction")
-        fm = self.feature_extractor.encode_to_bert_input(
-            ModelWithRows(self.current_model).row_to_main_layer[self.row_idx - 1])
+        fm = self.feature_extractor.encode_to_bert_input(model_with_rows,
+            model_with_rows.row_to_main_layer[self.row_idx - 1])
         utils.print_flush("env.reset - Finished FM Extraction")
 
         # Evaluate original model accuracy
@@ -176,6 +177,7 @@ class NetworkEnv:
             Tuple: Next state, reward, and done flag.
         """
         model_with_rows = ModelWithRows(self.current_model)
+
         # Determine affected layers (from current row up to start of next row)
         current_layer_idx = model_with_rows.row_to_main_layer[self.row_idx - 1]
         next_layer_idx = model_with_rows.row_to_main_layer[self.row_idx] \
@@ -183,25 +185,21 @@ class NetworkEnv:
         update_indices = list(range(current_layer_idx, next_layer_idx))
         utils.print_flush(f"Step {self.row_idx - 1} - Layer {current_layer_idx}, Compression Rate: {compression_rate}")
 
-        if hasattr(self, "feature_extractor"):
-            del self.feature_extractor
-        torch.cuda.empty_cache()
-        gc.collect()
-
         if compression_rate == 1:
             learning_handler_new_model = self.create_learning_handler(self.current_model)
         else:
-            # Create a pruned or resized model
-            modified_model_with_rows = prune_current_model(
-                model_with_rows, compression_rate, self.row_idx - 1) if self.conf.prune \
-                else create_new_model_with_new_weights(model_with_rows, compression_rate, self.row_idx - 1)
+            # Modify the model in-place
+            if self.conf.prune:
+                model_with_rows = prune_current_model(model_with_rows, compression_rate, self.row_idx - 1)
+            else:
+                model_with_rows = create_new_model_with_new_weights(model_with_rows, compression_rate, self.row_idx - 1)
 
             # Prepare model handler
-            learning_handler_new_model = self.create_learning_handler(modified_model_with_rows.model)
+            learning_handler_new_model = self.create_learning_handler(model_with_rows.model)
 
             # Freeze/unfreeze layers based on config
             if self.conf.train_compressed_layer_only:
-                params_to_keep_trainable = build_param_names_to_keep_trainable(modified_model_with_rows, self.row_idx - 1)
+                params_to_keep_trainable = build_param_names_to_keep_trainable(model_with_rows, self.row_idx - 1)
                 learning_handler_new_model.freeze_all_layers_but_pruned(params_to_keep_trainable)
             else:
                 learning_handler_new_model.unfreeze_all_layers()
@@ -224,14 +222,12 @@ class NetworkEnv:
         del old_model
 
         # Extract features for BERT
-        self.feature_extractor = FeatureExtractor(self.current_model, self.train_loader, self.conf.device)
-        # TODO: Consider caching FM, as there is only 0/1 change (prev layer) between iter.
         utils.print_flush("env.step - Starting FM Extraction")
-        fm = self.feature_extractor.encode_to_bert_input(current_layer_idx, update_indices)
+        fm = self.feature_extractor.encode_to_bert_input(model_with_rows, current_layer_idx, update_indices)
         utils.print_flush("env.step - Finished FM Extraction")
 
         # Check termination condition
-        num_rows = len(self.feature_extractor.model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
+        num_rows = len(model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
         num_actions = len(self.actions_history)
         self.actions_history.append(compression_rate)
         # As self.row_idx - 1 is the current appraised row, the index should not drop below 1
@@ -240,7 +236,7 @@ class NetworkEnv:
 
         # Log model evaluation metrics after each pass and flush to CSV.
         if self.mode != AGENT_TRAIN and (done or num_actions % num_rows == 0):
-            self.compute_and_log_results()
+            self.compute_and_log_results(model_with_rows)
 
         # Save the final pruned model to a checkpoint file,
         # if requested by the user via self.conf.save_pruned_checkpoints = True
@@ -252,12 +248,13 @@ class NetworkEnv:
 
         return fm, reward, done
 
-    def compute_and_log_results(self, t_curr=time.perf_counter()):
+    def compute_and_log_results(self, model_with_rows, t_curr=time.perf_counter()):
         """
         Compute accuracy according to eval mode (train / test datasets), number of params and FLOPs.
         Log model evaluation metrics after each pass and flush to CSV.
 
         Args:
+            model_with_rows: ModelWithRows instance containing structured layer representation.
             t_curr (float):    Time of log, to calculate evaluation time
         """
         # Retrieve original & compressed models
@@ -275,7 +272,7 @@ class NetworkEnv:
         # Store results
         result_entry = {
             'model': self.selected_net_path,
-            'pass': f'{len(self.actions_history) // (len(self.feature_extractor.model_with_rows.all_rows) - 1)}'
+            'pass': f'{len(self.actions_history) // (len(model_with_rows.all_rows) - 1)}'
                     f' / {self.conf.passes}',
             'fold': fold_str,
             'new_acc': round(new_lh.evaluate_model(dataset_loader), 3),

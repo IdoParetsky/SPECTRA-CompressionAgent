@@ -5,14 +5,10 @@ import src.utils as utils
 
 
 class TopologyFE(BaseFE):
-    def __init__(self, model_with_rows):
+    def __init__(self):
         """
         Extracts the architecture of a CNN as a sequence for BERT tokenization.
-
-        Args:
-            model_with_rows: ModelWithRows instance containing structured layer representation.
         """
-        super().__init__(model_with_rows)
 
         # Map layer types to handler functions
         self.layer_type_to_function = {
@@ -32,23 +28,26 @@ class TopologyFE(BaseFE):
             nn.AvgPool2d: self.handle_pooling
         }
 
-    def extract_feature_map(self) -> List[List[float]]:
+    def extract_feature_map(self, model_with_rows) -> List[List[float]]:
         """
         Extracts a per-layer representation of the CNN topology for BERT tokenization.
+
+        Args:
+            model_with_rows: ModelWithRows instance containing structured layer representation.
 
         Returns:
             List[List[float]]: A sequence of feature vectors, one per layer.
         """
-        utils.print_flush("Starting Topology FE")
+        # utils.print_flush("Starting Topology FE")
         topology_sequence = []
 
-        for layer in self.model_with_rows.all_layers:
+        for layer in model_with_rows.all_layers:
             handler = self.layer_type_to_function.get(type(layer), None)
             if handler:
                 topology_sequence.append(handler(layer))
             else:
                 topology_sequence.append([0.0] * 7)  # Default for unrecognized layers
-        utils.print_flush("Finished Topology FE")
+        # utils.print_flush("Finished Topology FE")
         return topology_sequence
 
     @staticmethod

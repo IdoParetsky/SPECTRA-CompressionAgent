@@ -8,35 +8,28 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 class ActivationsStatisticsFE(BaseFE):
-    def __init__(self, model_with_rows, train_dataloader, device):
+    def __init__(self, train_dataloader, device):
         """
         Extracts statistical features from activations across all layers of a CNN.
 
         Args:
-            model_with_rows: ModelWithRows instance containing structured layer representation.
             train_dataloader: DataLoader providing input samples for activation extraction.
             device: Device GPU(s) for computation.
         """
-        super().__init__(model_with_rows)
         self.train_dataloader = train_dataloader
         self.device = device
+        self.cached_activation_maps = None
 
-        # DDP Wrapping
-        self.model_with_rows.model = self.model_with_rows.model.to(self.device)
-        if torch.cuda.device_count() > 1 and dist.is_initialized():
-            self.model_with_rows.model = DDP(self.model_with_rows.model, device_ids=[self.device.index],
-                                             output_device=self.device.index, find_unused_parameters=True)
-        self.model_with_rows.model.eval()
-        self.cached_activation_maps = [None] * len(self.model_with_rows.all_layers)
-
-
-    def extract_feature_map(self, update_indices=None) -> List[List[float]]:
+    def extract_feature_map(self, model_with_rows, update_indices=None) -> List[List[float]]:
         if update_indices is None:
-            update_indices = list(range(len(self.model_with_rows.all_layers)))
+            update_indices = list(range(len(model_with_rows.all_layers)))
 
-        utils.print_flush("Starting Activations FE")
+        if self.cached_activation_maps == None:
+            self.cached_activation_maps = [None] * len(model_with_rows.all_layers)
 
-        activation_maps_collector = [[] for _ in self.model_with_rows.all_layers]
+        # utils.print_flush("Starting Activations FE")
+
+        activation_maps_collector = [[] for _ in model_with_rows.all_layers]
         hooks = []
 
         def is_activation_layer(layer: nn.Module) -> bool:
@@ -46,7 +39,7 @@ class ActivationsStatisticsFE(BaseFE):
                 nn.PReLU, nn.LogSigmoid, nn.SELU, nn.CELU, nn.GLU
             ))
 
-        for idx, layer in enumerate(self.model_with_rows.all_layers):
+        for idx, layer in enumerate(model_with_rows.all_layers):
             if idx in update_indices and is_activation_layer(layer):
                 def get_activation_hook(index):
                     def hook(module, input, output):
@@ -63,18 +56,18 @@ class ActivationsStatisticsFE(BaseFE):
         # with torch.no_grad():
         #     utils.print_flush("Running full forward pass...")
         #     for i, (batch_x, _) in enumerate(self.train_dataloader):
-        #         self.model_with_rows.model(batch_x.to(self.device, non_blocking=True))
+        #         model_with_rows.model(batch_x.to(self.device, non_blocking=True))
         #     utils.print_flush("Full forward pass completed")
 
         with torch.no_grad():
-            utils.print_flush("Running a 2-batches forward pass...")
+            # utils.print_flush("Running a 2-batches forward pass...")
             for i, (batch_x, _) in enumerate(self.train_dataloader):
                 # Limit to 2 batches due to runtime considerations,
                 # assuming stable mean and std can be extracted after only 2 batches
                 if i > 1:
                     break
-                self.model_with_rows.model(batch_x.to(self.device, non_blocking=True))
-            utils.print_flush("2-batches forward pass completed")
+                model_with_rows.model(batch_x.to(self.device, non_blocking=True))
+            # utils.print_flush("2-batches forward pass completed")
 
         for hook in hooks:
             hook.remove()
@@ -93,5 +86,5 @@ class ActivationsStatisticsFE(BaseFE):
             if self.cached_activation_maps[idx] is None:
                 self.cached_activation_maps[idx] = [0.0] * len(self.compute_moments(torch.zeros(1, device=self.device)))
 
-        utils.print_flush("Finished Activations FE")
+        # utils.print_flush("Finished Activations FE")
         return self.cached_activation_maps

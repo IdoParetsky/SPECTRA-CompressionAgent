@@ -41,7 +41,7 @@ class BERTInputModeler:
         Returns:
             Dict[str, torch.Tensor]: Tokenized BERT input.
         """
-        utils.print_flush("Started encoding model to BERT input")
+        # utils.print_flush("Started encoding model to BERT input")
         # Flatten helper
         flatten = lambda nested: [item for sublist in nested for item in sublist]
 
@@ -65,7 +65,7 @@ class BERTInputModeler:
                 padding="max_length",
                 return_tensors="pt"
             )
-        utils.print_flush("Finished encoding model to BERT input")
+        # utils.print_flush("Finished encoding model to BERT input")
         return {k: v.to(self.device) for k, v in encoded_input.items()}
 
 

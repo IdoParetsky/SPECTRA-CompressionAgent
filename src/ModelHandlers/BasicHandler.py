@@ -1,6 +1,5 @@
 from torch import nn
 from torch.nn.modules.loss import _Loss
-from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
 

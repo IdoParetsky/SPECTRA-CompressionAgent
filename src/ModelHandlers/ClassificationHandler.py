@@ -83,21 +83,16 @@ class ClassificationHandler(BasicHandler):
         EPSILON = 1e-4
 
         # Recreate optimizer with current model parameters
-        self.optimizer = torch.optim.Adam(self.model.parameters(),
+        # Filter only trainable parameters to avoid non-grad tensors
+        trainable_params = [p for p in self.model.parameters() if p.requires_grad]
+        self.optimizer = torch.optim.Adam(trainable_params,
                                           lr=StaticConf.get_instance().conf_values.learning_rate)
-
-        # # Ensure optimizer is configured with current model parameters
-        # if not self.optimizer.param_groups[0]['params']:
-        #     self.optimizer.param_groups[0]['params'] = list(self.model.parameters())
 
         # Dynamic Learning Rate Scheduling  # TODO: New addition, assess with and without
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 
         scaler = torch.amp.GradScaler(device='cuda')
-
-        # For debugging purposes only - print the stack trace of the operation that broke autograd
-        # torch.autograd.set_detect_anomaly(True)
 
         for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
         # for epoch in range(1):  #TODO: Shortening loop to verify code progression
@@ -111,17 +106,14 @@ class ClassificationHandler(BasicHandler):
 
                 self.optimizer.zero_grad(set_to_none=True)
 
-                with torch.amp.autocast(device_type='cuda'):
-                    outputs = self.model(curr_x)
-                    if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
-                        curr_y = torch.argmax(curr_y, dim=1)
-                    loss = self.loss_func(outputs, curr_y)
-
-                # For debugging purposes only
-                # if torch.isnan(loss):
-                #     utils.print_flush("NaN detected in loss!")
+                outputs = self.model(curr_x)
+                if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
+                    curr_y = torch.argmax(curr_y, dim=1)
+                loss = self.loss_func(outputs, curr_y)
 
                 scaler.scale(loss).backward()
+                scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
                 scaler.step(self.optimizer)
                 scaler.update()
 

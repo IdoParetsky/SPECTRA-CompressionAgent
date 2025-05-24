@@ -136,7 +136,6 @@ class A2CAgentReinforce:
             writer.add_scalar('Total Reward in Episode', sum(rewards), self.episode_idx)
             writer.add_scalar(f'Total Reward for Network {self.env.selected_net_path}', sum(rewards), self.episode_idx)
 
-            self.episode_idx += 1
             # Combine rewards into returns and compute advantages
             returns = utils.compute_returns(0, rewards, masks, self.conf.discount_factor)
             returns = torch.cat(returns)
@@ -192,6 +191,7 @@ class A2CAgentReinforce:
                 break
 
             utils.print_flush(f"DONE Episode {self.episode_idx}")
+            self.episode_idx += 1
 
         trained_folder = 'trained_models'
         if not os.path.exists(trained_folder):

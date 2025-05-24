@@ -492,9 +492,12 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
         raise ValueError("Invalid dataset name or path. Provide a known dataset name or a valid directory.")
 
     # Create DataLoaders with optimizations
-    train_loader = DataLoader(train_data, batch_size=get_adaptive_batch_size(), shuffle=True, num_workers=4, pin_memory=True, prefetch_factor=2)
-    val_loader = DataLoader(val_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True, prefetch_factor=2)
-    test_loader = DataLoader(test_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=4, pin_memory=True, prefetch_factor=2)
+    train_loader = DataLoader(train_data, batch_size=get_adaptive_batch_size(), shuffle=True, num_workers=8,
+                              pin_memory=True, persistent_workers=True, prefetch_factor=4)
+    val_loader = DataLoader(val_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=8,
+                            pin_memory=True, persistent_workers=True, prefetch_factor=4)
+    test_loader = DataLoader(test_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=8,
+                             pin_memory=True, persistent_workers=True, prefetch_factor=4)
 
     return train_loader, val_loader, test_loader
 

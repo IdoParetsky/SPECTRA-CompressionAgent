@@ -6,27 +6,26 @@ import src.utils as utils
 
 
 class WeightStatisticsFE(BaseFE):
-    def __init__(self, model_with_rows, device):
+    def __init__(self, device):
         """
         Extracts statistical features from model weights.
-
-        Args:
-            model_with_rows: ModelWithRows instance containing structured layer representation.
         """
-        super().__init__(model_with_rows)
         self.device = device
 
-    def extract_feature_map(self) -> List[List[float]]:
+    def extract_feature_map(self, model_with_rows) -> List[List[float]]:
         """
         Extracts statistical features from weights of Linear and Conv2d layers.
 
+        Args:
+            model_with_rows: ModelWithRows instance containing structured layer representation.
+        
         Returns:
             List[List[float]]: Per-layer statistical vectors.
         """
-        utils.print_flush("Starting Weights FE")
+        # utils.print_flush("Starting Weights FE")
         features = []
 
-        for layer in self.model_with_rows.all_layers:
+        for layer in model_with_rows.all_layers:
             if hasattr(layer, 'weight') and layer.weight is not None:
                 weights = layer.weight.data.to(self.device)
 
@@ -46,5 +45,5 @@ class WeightStatisticsFE(BaseFE):
                 features.append([val for stat in layer_stats for val in stat])
             else:
                 features.append([0.0] * len(self.compute_moments(torch.zeros(1))))
-        utils.print_flush("Finished Weights FE")
+        # utils.print_flush("Finished Weights FE")
         return features

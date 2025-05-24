@@ -4,15 +4,14 @@ from typing import List, Dict
 
 
 class BaseFE:
-    model_with_rows: ModelWithRows
 
-    def __init__(self, model_with_rows: ModelWithRows):
-        self.model_with_rows: ModelWithRows = model_with_rows
-
-    def extract_feature_map(self) -> List[List[float]]:
+    def extract_feature_map(self, model_with_rows) -> List[List[float]]:
         """
         Placeholder method to extract features for a specific layer.
         Should be overridden by child classes.
+
+        Args:
+            model_with_rows: ModelWithRows instance containing structured layer representation.
         """
         raise NotImplementedError("Child class must implement extract_feature_map.")
 
