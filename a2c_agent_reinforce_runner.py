@@ -29,9 +29,9 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
     Args:
         mode (str):                 'train' or 'test' (used for intra-model evaluation).
         agent (A2CAgentReinforce):  Trained RL agent.
-        train_dict (dict):          {network_path: (model, (train_loader, val_loader, test_loader))} for training
+        train_dict (dict):          {network_path: (model, dataset_name)} for training
                                     (Used for inter-model evaluation via cross-validation).
-        test_dict (dict):           {network_path: (model, (train_loader, val_loader, test_loader))} for testing
+        test_dict (dict):           {network_path: (model, dataset_name)} for testing
                                     (Used for inter-model evaluation via cross-validation).
         fold_idx (int, optional):   The index of the cross-validation fold.
 
@@ -47,7 +47,10 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
 
     env = NetworkEnv(train_dict, mode, fold_idx)
 
-    for model_idx, (net_path, (model, (train_loader, val_loader, test_loader))) in enumerate(test_dict.items()):
+    for model_idx, (net_path, (model, dataset_name)) in enumerate(test_dict.items()):
+
+        train_loader, val_loader, test_loader = conf.dataloaders_dict[utils.DATASET_ALIASES[dataset_name]][0]
+
         utils.print_flush(f"Evaluating model: {net_path}, {model_idx=}/{len(env.networks)}")
 
         # Reset environment with test model instead of selecting from train_dict
@@ -115,14 +118,17 @@ if __name__ == "__main__":
     train_compressed_layer_only = "_train_compressed-layer-only" if args.train_compressed_layer_only else ""
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S").replace("/", "-").replace(":", "-")
 
+    preloaded_dataloaders_dict = utils.preload_datasets(args.datasets, args.train_split, args.val_split)
+
     utils.init_conf_values(
         # args.input_dict and args.database are left out due to file name's length limitation
         test_name=f'SPECTRA{train_compressed_layer_only}_acc-red_{args.allowed_acc_reduction}_'
                   f'gamma_{args.discount_factor}_lr_{args.learning_rate}_rollout-lim_{args.rollout_limit}_'
                   f'num-epochs_{args.num_epochs}{passes}_comp-rates_{args.compression_rates}_{n_splits}'
                   f'train_{args.train_split}_val_{args.val_split}_seed_{args.seed}_{dt_string}',
-        input_dict=utils.parse_input_argument(args.input, args.train_split, args.val_split),
-        database_dict=utils.parse_input_argument(args.database, args.train_split, args.val_split),
+        dataloaders_dict=preloaded_dataloaders_dict,
+        input_dict=utils.parse_input_argument(args.input, preloaded_dataloaders_dict),
+        database_dict=utils.parse_input_argument(args.database, preloaded_dataloaders_dict),
         actor_checkpoint_path=args.actor_checkpoint_path,
         critic_checkpoint_path=args.critic_checkpoint_path,
         compression_rates_dict=utils.parse_compression_rates(args.compression_rates),

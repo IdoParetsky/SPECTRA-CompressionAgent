@@ -9,6 +9,7 @@ from datetime import datetime
 import argparse
 import numpy as np
 import pandas as pd
+import pickle
 import re
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
@@ -21,17 +22,47 @@ import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 from typing import Tuple
 
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True  # Prevent crashing due to a truncated .jpg in ImageNet
+
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 from src.Configuration.ConfigurationValues import ConfigurationValues
 from src.Configuration.StaticConf import StaticConf
 
-# TODO: Change to dynamic assignment
+# TODO: Change to dynamic assignment before publication
+# Auto-import all model instantiation scripts to support pickling/unpickling
+MODEL_INSTANTIATION_SCRIPTS_DIR = "/sise/home/paretsky/spectra_models_instantiation/"
+
+for fname in os.listdir(MODEL_INSTANTIATION_SCRIPTS_DIR):
+    if fname.endswith(".py"):
+        module_name = os.path.splitext(fname)[0]
+        module_path = os.path.join(MODEL_INSTANTIATION_SCRIPTS_DIR, fname)
+
+        if module_name in sys.modules:
+            continue  # Already imported
+
+        try:
+            spec = importlib.util.spec_from_file_location(module_name, module_path)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+        except Exception as e:
+            print(f"[WARN] Failed to preload model instantiation script '{fname}': {type(e).__name__}: {e}")
+
 SPECTRA_DATASETS = "/sise/home/paretsky/spectra_datasets"
+
+DATASETS_CACHE_DIR = "/sise/home/paretsky/spectra_datasets/.spectra_datasets_cache"
+os.makedirs(DATASETS_CACHE_DIR, exist_ok=True)
+
+MODELS_CACHE_DIR = "/sise/home/paretsky/spectra_pretrained_networks/.spectra_models_cache"
+os.makedirs(MODELS_CACHE_DIR, exist_ok=True)
 
 # Possible instantiation functions' parameters
 NUM_CLASSES = "num_classes"
 LARGE_INPUT = "large_input"
 WIDTH = "width"
+
+
 
 
 def print_flush(msg):
@@ -140,23 +171,44 @@ def extract_args_from_cmd():
     parser.add_argument('--save_pruned_checkpoints', type=bool, default=False,
                         help="Whether to save a final checkpoint for each pruned network.")
 
+    parser.add_argument('--datasets', type=list, default=['cifar-10', 'cifar-100', 'mnist', 'imagenet1kv1', 'imagenet1kv2'],
+                        help="List of all utilized CNN datasets")
+
     return parser.parse_args()
 
 
-def parse_input_argument(input_arg, train_split, val_split):
+def get_model_cache_path(network_path: str):
+    network_hash = hashlib.md5(network_path.encode()).hexdigest()
+    return os.path.join(MODELS_CACHE_DIR, f"{network_hash}_model.pkl")
+
+
+def load_model_from_cache(network_path: str):
+    path = get_model_cache_path(network_path)
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    return None
+
+
+def save_model_to_cache(network_path: str, model, dataset_name):
+    path = get_model_cache_path(network_path)
+    with open(path, "wb") as f:
+        pickle.dump((model, dataset_name), f)
+
+def parse_input_argument(input_arg, dataloaders_dict):
     """
     Parse the --input or --database arguments as a JSON-formatted string or file.
 
     Args:
-        input_arg (str):        A JSON string or a path to a JSON file for Agent Training / Evaluation.
-        train_split (float):    Fraction of the dataset to use for training.
-        val_split (float):      Fraction of the dataset to use for validation.
+        input_arg (str):          A JSON string or a path to a JSON file for Agent Training / Evaluation.
+        dataloaders_dict (dict):  {dataset_name: ((train_dataloader, val_dataloader, test_dataloader), num_classes), ...}
 
     Returns:
-        dict: {network_path: (nn.Module, (train_loader, val_loader, test_loader))}
+        dict: {network_path: (nn.Module, dataset_name)}
             A dictionary mapping network paths to:
               - Instantiated model (nn.Module).
-              - Dataset loaders (train_loader, val_loader, test_loader).
+              - Dataset name, which in turn is mapped to its dataloaders 
+                (train_loader, val_loader, test_loader) via conf_values.data_loaders_dict
 
     Raises:
         ValueError: If input is invalid or instantiation fails.
@@ -172,7 +224,7 @@ def parse_input_argument(input_arg, train_split, val_split):
     except json.JSONDecodeError:
         pass
     else:
-        return instantiate_networks_and_load_datasets(input_dict, train_split, val_split)
+        return instantiate_networks(input_dict, dataloaders_dict)
 
     # Try reading JSON file
     try:
@@ -181,80 +233,90 @@ def parse_input_argument(input_arg, train_split, val_split):
     except (FileNotFoundError, json.JSONDecodeError):
         raise ValueError("Invalid input: Provide a valid JSON string or JSON file path.")
 
-    return instantiate_networks_and_load_datasets(input_dict, train_split, val_split)
+    return instantiate_networks(input_dict, dataloaders_dict)
 
 
-def instantiate_networks_and_load_datasets(input_dict, train_split, val_split):
+def instantiate_networks(input_dict, dataloaders_dict):
     """
-    Instantiates networks from their given architecture checkpoint and instantiation script,
-    then loads the corresponding standard / custom datasets.
+    Instantiates networks from their checkpoint + script if not cached.
+    Caches instantiated (model, dataset_name) pairs individually.
+    Continues execution even if some checkpoints fail.
 
     Args:
-        input_dict (dict):      {network_path: (architecture, instantiation_script, dataset_name_or_path)}
-        train_split (float):    Fraction of the dataset to use for training.
-        val_split (float):      Fraction of the dataset to use for validation.
+        input_dict (dict):        {network_path: (architecture, instantiation_script, dataset_name_or_path)}
+        dataloaders_dict (dict):  {dataset_name: ((train_dataloader, val_dataloader, test_dataloader), num_classes), ...}
 
     Returns:
-        dict: {network_path: (nn.Module, (train_loader, val_loader, test_loader))}
+        dict: {network_path: (nn.Module, dataset_name)}
 
     Raises:
         ValueError: If model instantiation fails.
     """
     instantiated_networks = {}
+
     for net_path, values in input_dict.items():
-        if len(values) == 3:
-            arch, script_path, dataset_path = values
-            optional_kwargs = {}  # Assign an empty dict if not assigned
-        else:
-            arch, script_path, dataset_path, optional_kwargs = values
+        try:
+            if len(values) == 3:
+                arch, script_path, dataset_name = values
+                optional_kwargs = {}
+            else:
+                arch, script_path, dataset_name, optional_kwargs = values
 
-        if not os.path.exists(net_path):
-            raise ValueError(f"Network checkpoint not found: {net_path}")
+            if not os.path.exists(net_path):
+                raise ValueError(f"Network checkpoint not found: {net_path}")
 
-        # Load dataset (avoiding redundant loads)
-        dataset_key = dataset_path if os.path.exists(dataset_path) else dataset_path.lower()
-        if dataset_key not in instantiated_networks:
-            train_loader, val_loader, test_loader = load_cnn_dataset(dataset_path, train_split, val_split)
-        else:
-            train_loader, val_loader, test_loader = instantiated_networks[dataset_key][1]
+            cached = load_model_from_cache(net_path)
+            if cached is not None:
+                model, dataset_name = cached
+                if dist.is_available() and dist.is_initialized():
+                    local_rank = dist.get_rank()
+                else:
+                    local_rank = int(os.environ.get("LOCAL_RANK", 0))
 
-        # Load model architecture from script
-        model = load_model_from_script(arch, dataset_path, script_path, net_path, optional_kwargs)
+                # If loaded model is wrapped in DDP, unwrap it first
+                if isinstance(model, torch.nn.parallel.DistributedDataParallel):
+                    model = model.module
 
-        instantiated_networks[net_path] = (model, (train_loader, val_loader, test_loader))
+                device = torch.device(f"cuda:{local_rank}")
+                torch.cuda.set_device(device)
+                model.to(device)
+
+                if dist.is_initialized():
+                    model = DDP(model.to(device), device_ids=[local_rank], output_device=local_rank,
+                                find_unused_parameters=True)
+                model.eval()
+
+                instantiated_networks[net_path] = (model, dataset_name)
+                print_flush(f"Loaded {net_path}'s cached instantiated model")
+                continue
+
+            # Load model (calls load_model_from_script)
+            model = load_model_from_script(arch, dataset_name, dataloaders_dict, script_path, net_path, optional_kwargs)
+            instantiated_networks[net_path] = (model, dataset_name)
+
+            save_model_to_cache(net_path, model, dataset_name)
+            print_flush(f"Cached {net_path}'s instantiated model")
+
+        except Exception as e:
+            print_flush(f"[ERROR] Failed to instantiate model: {net_path}")
+            print_flush(f"        Reason: {type(e).__name__}: {e}")
+            continue
 
     return instantiated_networks
 
-
-def get_longest_matching_key(dataset_path: str) -> str:
-    """
-    Given a dataset path, return the longest matching key from the dataset_loaders dictionary.
-
-    Args:
-        dataset_path (str): The dataset path or name.
-
-    Returns:
-        str: The longest matching key from the dataset_loaders dictionary.
-    """
-    best_match = ""
-    for key in dataset_loaders.keys():
-        if key in dataset_path and len(key) > len(best_match):
-            best_match = key
-    return best_match
-
-
-def load_model_from_script(arch: str, dataset_path: str, script_path: str, checkpoint_path: str,
+def load_model_from_script(arch: str, dataset_name: str, dataloaders_dict: dict, script_path: str, checkpoint_path: str,
                            optional_kwargs: dict) -> torch.nn.Module:
     """
     Dynamically loads a model architecture from a user-provided script and initializes it with a checkpoint.
 
     Args:
         arch (str): Model architecture (e.g., "resnet18").
-        dataset_path (str): Path to the dataset / name of the dataset (e.g., "cifar-10")
+        dataset_name (str): Name of the dataset (e.g., "cifar-10")
+        dataloaders_dict (dict):  {dataset_name: ((train_dataloader, val_dataloader, test_dataloader), num_classes), ...}
         script_path (str): Path to the Python script containing model definition.
         checkpoint_path (str): Path to the model checkpoint (.pt/.pth/.th).
         optional_kwargs (dict):  Keyword dict for custom instantiation parameters (e.g., {num_classes=10, width=56}).
-                                 If not assigned by the user, {} is propagated from instantiate_networks_and_load_datasets().
+                                 If not assigned by the user, {} is propagated from instantiate_networks().
 
     Returns:
         nn.Module: The instantiated model.
@@ -266,14 +328,13 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
         raise ValueError(f"Instantiation script not found: {script_path}")
 
     module_name = Path(script_path).stem  # Extract script name
-    spec = importlib.util.spec_from_file_location(module_name, script_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # Load module
+    if module_name in sys.modules:
+        module = sys.modules[module_name]
+    else:
+        raise ImportError(f"Module '{module_name}' not preloaded. Check model scripts preload logic.")
 
     if not hasattr(module, arch):
         raise ValueError(f"Function '{arch}' not found in {script_path}")
-
-    print_flush(f"{checkpoint_path=}, {script_path=}, {optional_kwargs=}")
 
     instantiation_func = getattr(module, arch)
     params_list = list(inspect.signature(getattr(module, arch)).parameters)
@@ -281,13 +342,13 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
 
     if NUM_CLASSES in params_list:
         # By default, 'num_classes' is dynamically assigned via dataset_loaders's correspondent train_data's 'classes' field
-        params_dict[NUM_CLASSES] = optional_kwargs.get(NUM_CLASSES, len(dataset_loaders[dataset_path]()[0].classes))
+        params_dict[NUM_CLASSES] = optional_kwargs.get(NUM_CLASSES, dataloaders_dict[DATASET_ALIASES[dataset_name]][1])
 
     if LARGE_INPUT in params_list:
         # By default, 'large_input' is True is the dataset has 'imagenet' in its name / path
         large_input = optional_kwargs.get(LARGE_INPUT)
         # Safeguarding 'False' cases
-        params_dict[LARGE_INPUT] = large_input if large_input is not None else "imagenet" in dataset_path
+        params_dict[LARGE_INPUT] = large_input if large_input is not None else "imagenet" in dataset_name
 
     if WIDTH in params_list:
         # By default, 'width' is scraped from 'network_path' via regex
@@ -343,8 +404,9 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     else:
         model.load_state_dict(state_dict, strict=False)
 
+    model.to(device)
     if dist.is_initialized():
-        model = DDP(model.to(device), device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
     model.eval()
 
@@ -390,7 +452,7 @@ def parse_compression_rates(compression_rates):
 
 def init_conf_values(test_name, input_dict, compression_rates_dict, train_compressed_layer_only,
                      allowed_acc_reduction, discount_factor, learning_rate, rollout_limit, passes, prune,
-                     seed, num_epochs, runtime_limit, n_splits, train_split, val_split, database_dict,
+                     seed, num_epochs, runtime_limit, n_splits, train_split, val_split, database_dict, dataloaders_dict,
                      actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts):
     """
     Initialize configuration values for the A2C Agent.
@@ -427,6 +489,7 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
         save_pruned_checkpoints (bool):           Whether to save a final checkpoint for each pruned network.
                                                   Defaults to False.
         test_ts (str):                            Test's timestamp
+        dataloaders_dict (dict):                  {dataset_name: (train_dataloader, val_dataloader, test_dataloader, ...}
     """
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!")
@@ -460,13 +523,23 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
         actor_checkpoint_path=actor_checkpoint_path,
         critic_checkpoint_path=critic_checkpoint_path,
         save_pruned_checkpoints=save_pruned_checkpoints,
-        test_ts=test_ts
+        test_ts=test_ts,
+        dataloaders_dict=dataloaders_dict
     )
     StaticConf(cv)
 
 
 # Define default transformations
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+transform_imagenet = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406],  # ImageNet mean
+        std=[0.229, 0.224, 0.225]    # ImageNet std
+    )
+])
 
 # Assign download=True on first run, then it is recommended to assign False to omit the availability check
 dataset_loaders = {
@@ -480,16 +553,16 @@ dataset_loaders = {
                       datasets.MNIST(root=SPECTRA_DATASETS, train=False, download=False, transform=transform)),
     'svhn': lambda: (datasets.SVHN(root=SPECTRA_DATASETS, split='train', download=False, transform=transform),
                      datasets.SVHN(root=SPECTRA_DATASETS, split='test', download=False, transform=transform)),
-    'imagenet1k': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
-                           datasets.ImageNet(root=SPECTRA_DATASETS, split='val', transform=transform)),
+    'imagenet1k': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform_imagenet),
+                           datasets.ImageNet(root=SPECTRA_DATASETS, split='val', transform=transform_imagenet)),
     'imagenet-1k': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
     'imagenet1kv1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
     'imagenet1k-v1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
     'imagenet-1k-v1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
     'imagenet-1kv1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
     'imagenet': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow all formats
-    'imagenet1kv2': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
-                             datasets.ImageFolder(root=f'{SPECTRA_DATASETS}/imagenetv2-matched-frequency', transform=transform)),
+    'imagenet1kv2': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform_imagenet),
+                             datasets.ImageFolder(root=f'{SPECTRA_DATASETS}/imagenetv2-matched-frequency', transform=transform_imagenet)),
     'imagenet1k-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
     'imagenet-1k-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
     'imagenet-1kv2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
@@ -497,45 +570,72 @@ dataset_loaders = {
     'imagenet-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
 }
 
-# Reuse already loaded datasets
-cached_dataset_loaders = {}
+DATASET_ALIASES = {
+    'cifar-10': 'cifar-10',
+    'cifar10': 'cifar-10',
+    'cifar-100': 'cifar-100',
+    'cifar100': 'cifar-100',
+    'mnist': 'mnist',
+    'imagenet1kv1': 'imagenet1kv1',
+    'imagenet': 'imagenet1kv1',
+    'imagenet-1k': 'imagenet1kv1',
+    'imagenet1k': 'imagenet1kv1',
+    'imagenet1k-v1': 'imagenet1kv1',
+    'imagenet-1k-v1': 'imagenet1kv1',
+    'imagenet-1kv1': 'imagenet1kv1',
+    'imagenet1kv2': 'imagenet1kv2',
+    'imagenetv2': 'imagenet1kv2',
+    'imagenet-v2': 'imagenet1kv2',
+    'imagenet1k-v2': 'imagenet1kv2',
+    'imagenet-1k-v2': 'imagenet1kv2',
+    'imagenet-1kv2': 'imagenet1kv2',
+}
 
-transform = transforms.ToTensor()
 
-class LazyImageFolder(datasets.ImageFolder):
-    def __getitem__(self, index):
-        path, target = self.samples[index]
-        with open(path, 'rb') as f:
-            sample = self.loader(f)
-        if self.transform is not None:
-            sample = self.transform(sample)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-        return sample, target
+def get_dataset_cache_path(dataset_name: str):
+    dataset_name = dataset_name.replace('/', '_')
+    return os.path.join(DATASETS_CACHE_DIR, f"{dataset_name}_dataloaders.pkl")
 
-def get_split_indices(dataset, split_ratios, seed=42):
-    total_len = len(dataset)
-    train_ratio, val_ratio = split_ratios
-    split_key = hashlib.md5(f"{total_len}_{train_ratio}_{val_ratio}_{seed}".encode()).hexdigest()
-    split_file = f"/tmp/dataset_split_{split_key}.json"
+def save_dataloaders_to_disk(dataset_name: str, dataloaders: Tuple[DataLoader, DataLoader, DataLoader], num_classes: int):
+    path = get_dataset_cache_path(dataset_name)
+    with open(path, "wb") as f:
+        pickle.dump((dataloaders, num_classes), f)
 
-    if os.path.exists(split_file):
-        with open(split_file, 'r') as f:
-            idxs = json.load(f)
-    else:
-        torch.manual_seed(seed)
-        indices = torch.randperm(total_len).tolist()
-        train_len = int(total_len * train_ratio)
-        val_len = int(total_len * val_ratio)
-        idxs = {
-            "train": indices[:train_len],
-            "val": indices[train_len:train_len + val_len],
-            "test": indices[train_len + val_len:]
-        }
-        with open(split_file, 'w') as f:
-            json.dump(idxs, f)
-    return idxs
+def load_dataloaders_from_disk(dataset_name: str):
+    path = get_dataset_cache_path(dataset_name)
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return pickle.load(f)
+    return None
 
+def preload_datasets(datasets, train_split, val_split):
+    """
+    Loads from cache / prepares train, val & test dataloaders for each utilized dataset.
+
+    Args:
+        datasets (list):        Dataset names
+        train_split (float):    Fraction of the dataset to use for training.
+        val_split (float):      Fraction of the dataset to use for validation.
+
+    Returns:
+        dataloaders_dict (dict):    {dataset_name: (train_dataloader, val_dataloader, test_dataloader, ...}
+    """
+    dataloaders_dict = {}
+    for dataset_name in datasets:
+        cached = load_dataloaders_from_disk(dataset_name)
+
+        if cached is not None:
+            dataloaders, num_classes = cached
+            print_flush(f"Loaded {dataset_name}'s cached dataloaders")
+        else:
+            dataloaders = load_cnn_dataset(dataset_name, train_split, val_split)
+            num_classes = len(dataset_loaders[dataset_name]()[0].classes)
+            save_dataloaders_to_disk(dataset_name, dataloaders, num_classes)
+            print_flush(f"Cached {dataset_name}'s dataloaders")
+
+        dataloaders_dict[DATASET_ALIASES[dataset_name]] = (dataloaders, num_classes)
+
+    return dataloaders_dict
 
 def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     """
@@ -550,29 +650,13 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader]: Dataloaders for train, validation, and test datasets.
     """
-    if cached_dataset_loaders.get(name_or_path):
-        return cached_dataset_loaders[name_or_path]
-    
+
     if name_or_path in dataset_loaders:
         train_data, test_data = dataset_loaders[name_or_path]()
 
         train_len = int(len(train_data) * train_split / (train_split + val_split))
         val_len = len(train_data) - train_len
         train_data, val_data = random_split(train_data, [train_len, val_len])
-    elif os.path.exists(name_or_path):
-        if name_or_path not in dataset_loaders:
-            dataset = LazyImageFolder(Path(name_or_path), transform=transform)
-            dataset_loaders[name_or_path] = dataset
-        else:
-            dataset = dataset_loaders[name_or_path]
-
-        idxs = get_split_indices(dataset, (train_split, val_split), StaticConf.get_instance().conf_values.seed)
-        train_data = Subset(dataset, idxs['train'])
-        val_data = Subset(dataset, idxs['val'])
-        test_data = Subset(dataset, idxs['test'])
-
-        # Cache the loaders for reuse
-        dataset_loaders[name_or_path] = lambda: (train_data, test_data)
     else:
         raise ValueError(f"Invalid dataset name or path: {name_or_path}")
 
@@ -583,8 +667,6 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     train_loader = DataLoader(train_data, shuffle=True, **loader_args)
     val_loader = DataLoader(val_data, shuffle=False, **loader_args)
     test_loader = DataLoader(test_data, shuffle=False, **loader_args)
-
-    cached_dataset_loaders[name_or_path] = (train_loader, val_loader, test_loader)
 
     return train_loader, val_loader, test_loader
 

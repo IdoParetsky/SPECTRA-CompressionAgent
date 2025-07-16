@@ -141,8 +141,8 @@ class NetworkEnv:
             self.selected_net_path = self.networks[self.curr_net_index]
 
             # Load model & dataset from preloaded input_dict
-            self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.data_dict[
-                self.selected_net_path]
+            self.current_model, dataset_name = self.data_dict[self.selected_net_path]
+            self.train_loader, self.val_loader, self.test_loader = self.conf.dataloaders_dict[utils.DATASET_ALIASES[dataset_name]][0]
 
         model_with_rows = ModelWithRows(self.current_model)
         utils.print_flush(f"Loading {self.selected_net_path}")
