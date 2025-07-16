@@ -62,23 +62,23 @@ class A2CAgentReinforce:
             self.actor_model = DDP(self.actor_model, device_ids=[local_rank], output_device=local_rank, static_graph=True)
             self.critic_model = DDP(self.critic_model, device_ids=[local_rank], output_device=local_rank, static_graph=True)
 
-        # TODO: Provide the database dict in the README, once the DB's instantiation files are complete
         assert all([self.conf.actor_checkpoint_path, self.conf.critic_checkpoint_path]) or self.conf.database_dict, \
             ("If the Agent is not pre-trained (either actor_checkpoint_path or critic_checkpoint_path is not provided),"
              " please assign a database JSON file or a JSON-formatted (dict-like) string.\n Please see format in"
-             " utils.py's extract_args_from_cmd(), the full database's syntax is provided in the README file.")
+             " utils.py's extract_args_from_cmd(), the full database's syntax is provided adjacent to the README file.")
 
         if self.conf.actor_checkpoint_path is not None:
-            actor_checkpoint = torch.load(self.conf.actor_checkpoint_path, map_location=self.device)
+            actor_checkpoint = torch.load(self.conf.actor_checkpoint_path, map_location=self.device, weights_only=False)
             self.actor_model.load_state_dict(actor_checkpoint["state_dict"] if "state_dict" in actor_checkpoint else actor_checkpoint)
 
         if self.conf.critic_checkpoint_path is not None:
-            critic_checkpoint = torch.load(self.conf.critic_checkpoint_path, map_location=self.device)
+            critic_checkpoint = torch.load(self.conf.critic_checkpoint_path, map_location=self.device, weights_only=False)
             self.critic_model.load_state_dict(critic_checkpoint["state_dict"] if "state_dict" in critic_checkpoint else critic_checkpoint)
 
         self.actor_optimizer = optim.Adam(self.actor_model.parameters(), self.conf.learning_rate)
         self.critic_optimizer = optim.Adam(self.critic_model.parameters(), self.conf.learning_rate)
 
+        # This environment's execution is triggered only when at least one checkpoint (Actor or Critic) is not provided
         self.env = NetworkEnv(mode=AGENT_TRAIN)
 
     def train(self):
@@ -118,6 +118,8 @@ class A2CAgentReinforce:
                     action = action_dist.sample()
 
                 compression_rate = self.conf.compression_rates_dict[action.item()]
+                # TODO: Epoch time increases across step in the same episode from 7s to 21s, and resets back to 7s at
+                #  step 0 of the subsequent episode!
                 next_state, reward, done = self.env.step(compression_rate)
 
                 log_prob = action_dist.log_prob(action)

@@ -1,5 +1,6 @@
 import os
 import json
+import hashlib
 import sys
 import importlib.util
 import inspect
@@ -11,12 +12,14 @@ import pandas as pd
 import re
 from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
+import timm
 import torch
 from torch import nn
-from torch.utils.data import random_split, DataLoader
-from torchvision import datasets, transforms
+from torch.utils.data import random_split, DataLoader, Subset
+from torchvision import datasets, transforms, models
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
+from typing import Tuple
 
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 from src.Configuration.ConfigurationValues import ConfigurationValues
@@ -270,6 +273,8 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     if not hasattr(module, arch):
         raise ValueError(f"Function '{arch}' not found in {script_path}")
 
+    print_flush(f"{checkpoint_path=}, {script_path=}, {optional_kwargs=}")
+
     instantiation_func = getattr(module, arch)
     params_list = list(inspect.signature(getattr(module, arch)).parameters)
     params_dict = {}
@@ -300,13 +305,18 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     device = torch.device(f"cuda:{local_rank}")
     torch.cuda.set_device(device)
 
-    model = instantiation_func(**params_dict).to(device)
+    model = instantiation_func(**params_dict)
 
-    if dist.is_initialized():
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+    checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
 
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
-    state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
+    state_dict = checkpoint.get("state_dict", checkpoint)
+    # WA for timm.models.convnext.ConvNeXt
+    if isinstance(state_dict, timm.models.convnext.ConvNeXt):
+        state_dict = state_dict.state_dict()
+
+    # Handle case where state_dict is a list containing a single OrderedDict
+    if isinstance(state_dict, list) and len(state_dict) == 1 and isinstance(state_dict[0], dict):
+        state_dict = state_dict[0]
 
     # Detect mismatch: model expects 'module.' but checkpoint doesn't have it
     model_keys = list(model.state_dict().keys())
@@ -319,7 +329,23 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
         # Unwrap if model is not wrapped but checkpoint is
         state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 
-    model.load_state_dict(state_dict)
+    # MNASNet version injection
+    if isinstance(model.module if isinstance(model, torch.nn.parallel.DistributedDataParallel) else model, models.MNASNet):
+        model._load_from_state_dict(
+            state_dict=state_dict,
+            prefix="module" if isinstance(model, torch.nn.parallel.DistributedDataParallel) else "",
+            local_metadata={"version": 2},
+            strict=False,
+            missing_keys=[],
+            unexpected_keys=[],
+            error_msgs=[],
+        )
+    else:
+        model.load_state_dict(state_dict, strict=False)
+
+    if dist.is_initialized():
+        model = DDP(model.to(device), device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+
     model.eval()
 
     return model
@@ -442,22 +468,73 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
 # Define default transformations
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
 
+# Assign download=True on first run, then it is recommended to assign False to omit the availability check
 dataset_loaders = {
-    'cifar-10': lambda: (datasets.CIFAR10(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
-                         datasets.CIFAR10(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
+    'cifar-10': lambda: (datasets.CIFAR10(root=SPECTRA_DATASETS, train=True, download=False, transform=transform),
+                         datasets.CIFAR10(root=SPECTRA_DATASETS, train=False, download=False, transform=transform)),
     'cifar10': lambda: dataset_loaders['cifar-10'](),  # Alias to allow both formats
-    'cifar-100': lambda: (datasets.CIFAR100(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
-                          datasets.CIFAR100(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
+    'cifar-100': lambda: (datasets.CIFAR100(root=SPECTRA_DATASETS, train=True, download=False, transform=transform),
+                          datasets.CIFAR100(root=SPECTRA_DATASETS, train=False, download=False, transform=transform)),
     'cifar100': lambda: dataset_loaders['cifar-100'](),  # Alias to allow both formats
-    'mnist': lambda: (datasets.MNIST(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
-                      datasets.MNIST(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
-    'svhn': lambda: (datasets.SVHN(root=SPECTRA_DATASETS, split='train', download=True, transform=transform),
-                     datasets.SVHN(root=SPECTRA_DATASETS, split='test', download=True, transform=transform)),
-    'imagenet1k': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', download=False, transform=transform),
-                           datasets.ImageNet(root=SPECTRA_DATASETS, split='val', download=False, transform=transform)),
+    'mnist': lambda: (datasets.MNIST(root=SPECTRA_DATASETS, train=True, download=False, transform=transform),
+                      datasets.MNIST(root=SPECTRA_DATASETS, train=False, download=False, transform=transform)),
+    'svhn': lambda: (datasets.SVHN(root=SPECTRA_DATASETS, split='train', download=False, transform=transform),
+                     datasets.SVHN(root=SPECTRA_DATASETS, split='test', download=False, transform=transform)),
+    'imagenet1k': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
+                           datasets.ImageNet(root=SPECTRA_DATASETS, split='val', transform=transform)),
     'imagenet-1k': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
+    'imagenet1kv1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
+    'imagenet1k-v1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
+    'imagenet-1k-v1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
+    'imagenet-1kv1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
     'imagenet': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow all formats
+    'imagenet1kv2': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
+                             datasets.ImageFolder(root=f'{SPECTRA_DATASETS}/imagenetv2-matched-frequency', transform=transform)),
+    'imagenet1k-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
+    'imagenet-1k-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
+    'imagenet-1kv2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
+    'imagenetv2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
+    'imagenet-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
 }
+
+# Reuse already loaded datasets
+cached_dataset_loaders = {}
+
+transform = transforms.ToTensor()
+
+class LazyImageFolder(datasets.ImageFolder):
+    def __getitem__(self, index):
+        path, target = self.samples[index]
+        with open(path, 'rb') as f:
+            sample = self.loader(f)
+        if self.transform is not None:
+            sample = self.transform(sample)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        return sample, target
+
+def get_split_indices(dataset, split_ratios, seed=42):
+    total_len = len(dataset)
+    train_ratio, val_ratio = split_ratios
+    split_key = hashlib.md5(f"{total_len}_{train_ratio}_{val_ratio}_{seed}".encode()).hexdigest()
+    split_file = f"/tmp/dataset_split_{split_key}.json"
+
+    if os.path.exists(split_file):
+        with open(split_file, 'r') as f:
+            idxs = json.load(f)
+    else:
+        torch.manual_seed(seed)
+        indices = torch.randperm(total_len).tolist()
+        train_len = int(total_len * train_ratio)
+        val_len = int(total_len * val_ratio)
+        idxs = {
+            "train": indices[:train_len],
+            "val": indices[train_len:train_len + val_len],
+            "test": indices[train_len + val_len:]
+        }
+        with open(split_file, 'w') as f:
+            json.dump(idxs, f)
+    return idxs
 
 
 def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
@@ -473,31 +550,41 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader]: Dataloaders for train, validation, and test datasets.
     """
-
+    if cached_dataset_loaders.get(name_or_path):
+        return cached_dataset_loaders[name_or_path]
+    
     if name_or_path in dataset_loaders:
         train_data, test_data = dataset_loaders[name_or_path]()
 
         train_len = int(len(train_data) * train_split / (train_split + val_split))
         val_len = len(train_data) - train_len
         train_data, val_data = random_split(train_data, [train_len, val_len])
-    elif os.path.exists(name_or_path):  # Custom dataset path
-        dataset = datasets.ImageFolder(Path(name_or_path), transform=transform)
-        train_len = int(len(dataset) * train_split)
-        val_len = int(len(dataset) * val_split)
-        test_len = len(dataset) - train_len - val_len
-        train_data, val_data, test_data = random_split(dataset, [train_len, val_len, test_len])
-        # Avoids repetitive loads and ensures data is accessible from within load_model_from_script()
+    elif os.path.exists(name_or_path):
+        if name_or_path not in dataset_loaders:
+            dataset = LazyImageFolder(Path(name_or_path), transform=transform)
+            dataset_loaders[name_or_path] = dataset
+        else:
+            dataset = dataset_loaders[name_or_path]
+
+        idxs = get_split_indices(dataset, (train_split, val_split), StaticConf.get_instance().conf_values.seed)
+        train_data = Subset(dataset, idxs['train'])
+        val_data = Subset(dataset, idxs['val'])
+        test_data = Subset(dataset, idxs['test'])
+
+        # Cache the loaders for reuse
         dataset_loaders[name_or_path] = lambda: (train_data, test_data)
     else:
-        raise ValueError("Invalid dataset name or path. Provide a known dataset name or a valid directory.")
+        raise ValueError(f"Invalid dataset name or path: {name_or_path}")
 
-    # Create DataLoaders with optimizations
-    train_loader = DataLoader(train_data, batch_size=get_adaptive_batch_size(), shuffle=True, num_workers=8,
-                              pin_memory=True, persistent_workers=True, prefetch_factor=4)
-    val_loader = DataLoader(val_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=8,
-                            pin_memory=True, persistent_workers=True, prefetch_factor=4)
-    test_loader = DataLoader(test_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=8,
-                             pin_memory=True, persistent_workers=True, prefetch_factor=4)
+    batch_size = 64  # or use get_adaptive_batch_size()
+    loader_args = dict(batch_size=batch_size, num_workers=4, pin_memory=True,
+                       persistent_workers=True, prefetch_factor=4)
+
+    train_loader = DataLoader(train_data, shuffle=True, **loader_args)
+    val_loader = DataLoader(val_data, shuffle=False, **loader_args)
+    test_loader = DataLoader(test_data, shuffle=False, **loader_args)
+
+    cached_dataset_loaders[name_or_path] = (train_loader, val_loader, test_loader)
 
     return train_loader, val_loader, test_loader
 

@@ -1,5 +1,3 @@
-import copy
-from typing import List
 import numpy as np
 import pandas as pd
 import os
@@ -220,6 +218,9 @@ class NetworkEnv:
         old_model = self.current_model
         self.current_model = learning_handler_new_model.model
         del old_model
+        del learning_handler_new_model
+        torch.cuda.empty_cache()
+        gc.collect()
 
         # Extract features for BERT
         utils.print_flush("env.step - Starting FM Extraction")
@@ -228,8 +229,8 @@ class NetworkEnv:
 
         # Check termination condition
         num_rows = len(model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
-        num_actions = len(self.actions_history)
         self.actions_history.append(compression_rate)
+        num_actions = len(self.actions_history)
         # As self.row_idx - 1 is the current appraised row, the index should not drop below 1
         self.row_idx = max(1, self.row_idx % (num_rows + 1))
         done = num_actions >= num_rows * self.conf.passes
@@ -242,9 +243,6 @@ class NetworkEnv:
         # if requested by the user via self.conf.save_pruned_checkpoints = True
         if done and self.conf.save_pruned_checkpoints:
             self.save_pruned_checkpoint()
-
-        torch.cuda.empty_cache()
-        gc.collect()
 
         return fm, reward, done
 
@@ -368,13 +366,12 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
         row_to_resize_idx (int):          Index of the row whose first layer is to be resized
 
     Returns:
-         resized_model_with_rows (ModelWithRows): The resized model.
+         model_with_rows (ModelWithRows): The resized model.
     """
     model_with_rows.unwrap_model()
-    resized_model_with_rows = copy.deepcopy(model_with_rows)
 
-    layer_to_resize_idx = resized_model_with_rows.row_to_main_layer[row_to_resize_idx]
-    layer_to_resize = resized_model_with_rows.all_layers[layer_to_resize_idx]
+    layer_to_resize_idx = model_with_rows.row_to_main_layer[row_to_resize_idx]
+    layer_to_resize = model_with_rows.all_layers[layer_to_resize_idx]
 
     # Determine new size
     old_size = layer_to_resize.out_features if isinstance(layer_to_resize, nn.Linear) else layer_to_resize.out_channels
@@ -401,13 +398,14 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
     else:
         raise NotImplementedError("Resizing not implemented for this layer type.")
 
-    resized_model_with_rows.all_layers[layer_to_resize_idx] = resized_layer
+    model_with_rows.all_layers[layer_to_resize_idx] = resized_layer
 
     # Rewrap for DDP compatibility
-    resized_model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
-    return resized_model_with_rows
+    model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
+    return model_with_rows
 
 
+# TODO: 2nd arch onwards the amount of filters pruned does not match the intended percentage!
 def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     """
     Create a new model by pruning filters in the target layer.
@@ -422,26 +420,23 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
 
     """
     model_with_rows.unwrap_model()
-    pruned_model_with_rows = copy.deepcopy(model_with_rows)
 
-    layer_to_prune_idx = pruned_model_with_rows.row_to_main_layer[row_to_prune_idx]
-    layer_to_prune = pruned_model_with_rows.all_layers[layer_to_prune_idx]
+    layer_to_prune_idx = model_with_rows.row_to_main_layer[row_to_prune_idx]
+    layer_to_prune = model_with_rows.all_layers[layer_to_prune_idx]
 
-    utils.print_flush(
-        f"Applying structured pruning to layer {layer_to_prune_idx} with compression rate {compression_rate}")
     prune.ln_structured(layer_to_prune, name='weight', amount=(1 - compression_rate), n=1, dim=0)
 
-    # Check and report mask before removing it
+    # Optional debug print
     mask = getattr(layer_to_prune, 'weight_mask', None)
     if mask is not None:
         pruned_count = torch.sum(mask == 0).item()
         total_count = mask.numel()
-        utils.print_flush(f"Pruned and removed {pruned_count}/{total_count} filters in layer {layer_to_prune_idx}")
+        utils.print_flush(f"Pruned and removed {pruned_count}/{total_count} "
+            f"({round(100 * pruned_count / total_count)}%) filters in layer {layer_to_prune_idx}")
     else:
-        utils.print_flush(f"Warning: Pruning mask not found for layer {layer_to_prune_idx} before removal")
+        utils.print_flush(f"Warning: No pruning mask found for layer {layer_to_prune_idx}")
 
-    # Permanently apply pruning by removing the mask
-    prune.remove(layer_to_prune, name='weight')
+    prune.remove(layer_to_prune, name='weight')  # Apply mask permanently
+    model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
 
-    pruned_model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
-    return pruned_model_with_rows
+    return model_with_rows

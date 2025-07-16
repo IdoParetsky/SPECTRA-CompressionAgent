@@ -116,7 +116,7 @@ if __name__ == "__main__":
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S").replace("/", "-").replace(":", "-")
 
     utils.init_conf_values(
-        # args.input_dict is left out due to file name's length limitation
+        # args.input_dict and args.database are left out due to file name's length limitation
         test_name=f'SPECTRA{train_compressed_layer_only}_acc-red_{args.allowed_acc_reduction}_'
                   f'gamma_{args.discount_factor}_lr_{args.learning_rate}_rollout-lim_{args.rollout_limit}_'
                   f'num-epochs_{args.num_epochs}{passes}_comp-rates_{args.compression_rates}_{n_splits}'

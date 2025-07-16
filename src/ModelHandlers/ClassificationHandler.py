@@ -87,15 +87,15 @@ class ClassificationHandler(BasicHandler):
         trainable_params = [p for p in self.model.parameters() if p.requires_grad]
         self.optimizer = torch.optim.Adam(trainable_params,
                                           lr=StaticConf.get_instance().conf_values.learning_rate)
+        # Clear any leftover optimizer state to ensure fresh start
+        self.optimizer.state.clear()
 
         # Dynamic Learning Rate Scheduling  # TODO: New addition, assess with and without
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 
-        scaler = torch.amp.GradScaler(device='cuda')
-
-        for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
-        # for epoch in range(1):  #TODO: Shortening loop to verify code progression
+        # for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
+        for epoch in range(1):  #TODO: Shortening loop to verify code progression
             epoch_losses = []
             for curr_x, curr_y in train_loader:
                 curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)
@@ -111,11 +111,9 @@ class ClassificationHandler(BasicHandler):
                     curr_y = torch.argmax(curr_y, dim=1)
                 loss = self.loss_func(outputs, curr_y)
 
-                scaler.scale(loss).backward()
-                scaler.unscale_(self.optimizer)
+                loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-                scaler.step(self.optimizer)
-                scaler.update()
+                self.optimizer.step()
 
                 epoch_losses.append(loss.detach())
 
@@ -149,7 +147,7 @@ class ClassificationHandler(BasicHandler):
         # Restore the best model state
         if best_state_buffer is not None:
             best_state_buffer.seek(0)
-            self.model.load_state_dict(torch.load(best_state_buffer, weights_only=True, map_location=device))
+            self.model.load_state_dict(torch.load(best_state_buffer, weights_only=False, map_location=device))
 
         # Free up cache and memory after training
         del self.optimizer
