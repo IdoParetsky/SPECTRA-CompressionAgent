@@ -123,7 +123,7 @@ class ModelWithRows:
 
         for layer_idx, curr_layer in enumerate(self.all_layers[1:]):
             if self.is_to_split_row(curr_layer, curr_row):
-                all_rows.append(np.array(curr_row))  # Save completed row
+                all_rows.append(np.array(curr_row, dtype=object))  # Save completed row
                 row_idx += 1
                 row_to_main_layer[row_idx] = layer_idx + 1  # As the iteration begins with the second layer
                 curr_row = []

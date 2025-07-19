@@ -94,8 +94,8 @@ class ClassificationHandler(BasicHandler):
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 
-        # for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
-        for epoch in range(1):  #TODO: Shortening loop to verify code progression
+        for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
+        # for epoch in range(1):  #TODO: Shortening loop to verify code progression
             epoch_losses = []
             for curr_x, curr_y in train_loader:
                 curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)

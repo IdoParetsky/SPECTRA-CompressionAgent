@@ -15,6 +15,9 @@ from src.Model.Critic import Critic
 from src.NetworkEnv import *
 import src.utils as utils
 
+# TODO: Change to dynamic assignment before publication
+TRAINED_AGENTS_DIR = "/sise/home/paretsky/.trained_agents"
+
 
 class A2CAgentReinforce:
     """
@@ -24,7 +27,7 @@ class A2CAgentReinforce:
     - An Actor network that outputs a probability distribution over possible actions (compression rates).
     - A Critic network that evaluates the expected return of a given state.
 
-    The agent interacts with a `NetworkEnv` environment, learning to prune fully-connectd and convolutional layers while
+    The agent interacts with a `NetworkEnv` environment, learning to prune fully-connected and convolutional layers while
     maintaining performance. The training process involves generating rollouts, computing advantages, and updating
     both networks to improve policy and value predictions.
 
@@ -195,14 +198,13 @@ class A2CAgentReinforce:
             utils.print_flush(f"DONE Episode {self.episode_idx}")
             self.episode_idx += 1
 
-        trained_folder = 'trained_models'
-        if not os.path.exists(trained_folder):
-            os.mkdir(trained_folder)
-            utils.print_flush(f'Saving trained Actor and Critic in {trained_folder}:\n'
+        if not os.path.exists(TRAINED_AGENTS_DIR):
+            os.mkdir(TRAINED_AGENTS_DIR)
+            utils.print_flush(f'Saving trained Actor and Critic in {TRAINED_AGENTS_DIR}:\n'
                               f'{self.conf.test_name} + _actor.pt and _critic.pt respectively')
         if not dist.is_initialized() or dist.get_rank() == 0:
-            torch.save(self.critic_model, join(trained_folder, self.conf.test_name + '_critic.pt'))
-            torch.save(self.actor_model, join(trained_folder, self.conf.test_name + '_actor.pt'))
+            torch.save(self.critic_model, join(TRAINED_AGENTS_DIR, self.conf.test_name + '_critic.pt'))
+            torch.save(self.actor_model, join(TRAINED_AGENTS_DIR, self.conf.test_name + '_actor.pt'))
 
         # Sync all processes if in DDP
         if dist.is_initialized():

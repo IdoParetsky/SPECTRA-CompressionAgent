@@ -47,15 +47,11 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
 
     env = NetworkEnv(train_dict, mode, fold_idx)
 
-    for model_idx, (net_path, (model, dataset_name)) in enumerate(test_dict.items()):
-
-        train_loader, val_loader, test_loader = conf.dataloaders_dict[utils.DATASET_ALIASES[dataset_name]][0]
-
+    for model_idx, (net_path, _) in enumerate(test_dict.items()):
         utils.print_flush(f"Evaluating model: {net_path}, {model_idx=}/{len(env.networks)}")
 
         # Reset environment with test model instead of selecting from train_dict
-        state = env.reset(test_net_path=net_path, test_model=model,
-                          test_loaders=(train_loader, val_loader, test_loader))
+        state = env.reset(test_net_path=net_path)
         done = False
         env.t_start = time.perf_counter()
 
@@ -87,9 +83,9 @@ def main():
 
     # Perform standard intra-model evaluation
     for mode in [EVAL_TRAIN, EVAL_TEST]:
-        utils.print_flush(f"Evaluating {mode.split('_')[1]} DataLoader")
+        utils.print_flush(f"Evaluating {mode.split('_')[1]} models")
         evaluate_model(mode, agent)
-        utils.print_flush(f"DONE evaluating {mode.split('_')[1]} datasets")
+        utils.print_flush(f"DONE evaluating {mode.split('_')[1]} models")
 
     # Optionally, perform inter-model evaluation via cross-validation
     if conf.n_splits:  # Default is 0 (no CV), recommended value is 10

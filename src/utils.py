@@ -2,6 +2,7 @@ import os
 import json
 import hashlib
 import sys
+import gc
 import importlib.util
 import inspect
 from pathlib import Path
@@ -177,21 +178,35 @@ def extract_args_from_cmd():
     return parser.parse_args()
 
 
-def get_model_cache_path(network_path: str):
-    network_hash = hashlib.md5(network_path.encode()).hexdigest()
-    return os.path.join(MODELS_CACHE_DIR, f"{network_hash}_model.pkl")
-
-
 def load_model_from_cache(network_path: str):
-    path = get_model_cache_path(network_path)
+    path = os.path.join(MODELS_CACHE_DIR, os.path.basename(network_path).rsplit(".", 1)[0] + ".pkl")
     if os.path.exists(path):
         with open(path, "rb") as f:
-            return pickle.load(f)
-    return None
+            model, dataset_name = pickle.load(f)
+
+        if dist.is_available() and dist.is_initialized():
+            local_rank = dist.get_rank()
+        else:
+            local_rank = int(os.environ.get("LOCAL_RANK", 0))
+
+        device = torch.device(f"cuda:{local_rank}")
+        torch.cuda.set_device(device)
+        model.to(device)
+        if dist.is_initialized():
+            model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
+
+        model.eval()
+        return model, dataset_name
+
+    raise FileNotFoundError(f"{path} cached instantiated model was not found in {MODELS_CACHE_DIR}")
 
 
-def save_model_to_cache(network_path: str, model, dataset_name):
-    path = get_model_cache_path(network_path)
+def save_model_to_cache(network_path: str, model, dataset_name, pruning_iter=None):
+    path = os.path.join(MODELS_CACHE_DIR, os.path.basename(network_path))
+    if pruning_iter is not None:
+        path += f"_pruned_{pruning_iter}"
+    path = path.rsplit(".", 1)[0] + ".pkl"
+
     with open(path, "wb") as f:
         pickle.dump((model, dataset_name), f)
 
@@ -265,37 +280,21 @@ def instantiate_networks(input_dict, dataloaders_dict):
             if not os.path.exists(net_path):
                 raise ValueError(f"Network checkpoint not found: {net_path}")
 
-            cached = load_model_from_cache(net_path)
-            if cached is not None:
-                model, dataset_name = cached
-                if dist.is_available() and dist.is_initialized():
-                    local_rank = dist.get_rank()
-                else:
-                    local_rank = int(os.environ.get("LOCAL_RANK", 0))
-
-                # If loaded model is wrapped in DDP, unwrap it first
-                if isinstance(model, torch.nn.parallel.DistributedDataParallel):
-                    model = model.module
-
-                device = torch.device(f"cuda:{local_rank}")
-                torch.cuda.set_device(device)
-                model.to(device)
-
-                if dist.is_initialized():
-                    model = DDP(model.to(device), device_ids=[local_rank], output_device=local_rank,
-                                find_unused_parameters=True)
-                model.eval()
-
-                instantiated_networks[net_path] = (model, dataset_name)
-                print_flush(f"Loaded {net_path}'s cached instantiated model")
+            cached_path = os.path.join(MODELS_CACHE_DIR, f"{os.path.basename(net_path).rsplit('.', 1)[0]}.pkl")
+            if os.path.exists(cached_path):
+                instantiated_networks[net_path] = (cached_path, dataset_name)
+                # print_flush(f"Located a cache of {net_path}'s instantiated model in {MODELS_CACHE_DIR}")
                 continue
 
-            # Load model (calls load_model_from_script)
-            model = load_model_from_script(arch, dataset_name, dataloaders_dict, script_path, net_path, optional_kwargs)
-            instantiated_networks[net_path] = (model, dataset_name)
-
+            # Load model (calls instantiate_model_from_script)
+            model = instantiate_model_from_script(arch, dataset_name, dataloaders_dict, script_path, net_path, optional_kwargs)
             save_model_to_cache(net_path, model, dataset_name)
-            print_flush(f"Cached {net_path}'s instantiated model")
+            print_flush(f"Cached {net_path}'s instantiated model in {MODELS_CACHE_DIR}")
+            instantiated_networks[net_path] = (cached_path, dataset_name)
+
+            del model
+            torch.cuda.empty_cache()
+            gc.collect()
 
         except Exception as e:
             print_flush(f"[ERROR] Failed to instantiate model: {net_path}")
@@ -304,10 +303,11 @@ def instantiate_networks(input_dict, dataloaders_dict):
 
     return instantiated_networks
 
-def load_model_from_script(arch: str, dataset_name: str, dataloaders_dict: dict, script_path: str, checkpoint_path: str,
+def instantiate_model_from_script(arch: str, dataset_name: str, dataloaders_dict: dict, script_path: str, checkpoint_path: str,
                            optional_kwargs: dict) -> torch.nn.Module:
     """
-    Dynamically loads a model architecture from a user-provided script and initializes it with a checkpoint.
+    Instantiates a model architecture from a user-provided script and initializes it with a checkpoint, then saves it as
+    a pickle file for future utilization.
 
     Args:
         arch (str): Model architecture (e.g., "resnet18").
@@ -358,14 +358,6 @@ def load_model_from_script(arch: str, dataset_name: str, dataloaders_dict: dict,
     # Extend params_dict with other optional_kwargs, excluding handled keys
     params_dict.update({k: v for k, v in optional_kwargs.items() if k not in [NUM_CLASSES, LARGE_INPUT, WIDTH]})
 
-    if dist.is_available() and dist.is_initialized():
-        local_rank = dist.get_rank()
-    else:
-        local_rank = int(os.environ.get("LOCAL_RANK", 0))
-
-    device = torch.device(f"cuda:{local_rank}")
-    torch.cuda.set_device(device)
-
     model = instantiation_func(**params_dict)
 
     checkpoint = torch.load(checkpoint_path, map_location='cpu', weights_only=False)
@@ -403,12 +395,6 @@ def load_model_from_script(arch: str, dataset_name: str, dataloaders_dict: dict,
         )
     else:
         model.load_state_dict(state_dict, strict=False)
-
-    model.to(device)
-    if dist.is_initialized():
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-
-    model.eval()
 
     return model
 
