@@ -3,6 +3,8 @@ import torch
 import torch.distributed as dist
 from datetime import datetime
 import time
+import warnings
+
 
 from NetworkFeatureExtraction.src.ModelClasses.NetX.netX import NetX  # required for compatibility with `torch.load`
 from src.A2C_Agent_Reinforce import A2CAgentReinforce
@@ -100,6 +102,19 @@ def main():
 
 if __name__ == "__main__":
     torch.autograd.set_detect_anomaly(True)  # Enables to track and interrupt execution due to important RunTimeErrors
+
+    # GPUs have Tensor Cores capable of speeding up float32 matmul ops (used in conv/linear layers),
+    # but PyTorch doesn't enable them by default. This increases performance without needing AMP
+    torch.set_float32_matmul_precision('high')
+
+    # Stabilizing torch.compile() in practice
+    torch._dynamo.config.suppress_errors = True
+
+    # Helps Conv2D tune performance across batch shapes
+    torch.backends.cudnn.benchmark = True
+
+    #Filtering out a harmless warning
+    warnings.filterwarnings("ignore", message="xindex is not in var_ranges")
 
     args = utils.extract_args_from_cmd()
     utils.print_flush(args)

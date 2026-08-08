@@ -59,10 +59,10 @@ class NetworkEnv:
         t_start (float): Start time of model evaluation, used for logging and tracking execution time.
 
     Methods:
-        reset(test_net_path=None, test_model_pkl=None, test_loaders=None):
-            Resets the environment by loading a new model from a pickle file and dataset dataloaders.
-            If test parameters are provided, uses them instead of selecting from 'input_dict'
-            (utilized in cross-validation to evaluate the test dataset over a train dataset environment).
+        reset(test_net_path=None, test_model=None, test_loaders=None):
+            Resets the environment by loading a new model and dataset. If test parameters are provided,
+            uses them instead of selecting from 'input_dict' (utilized in cross-validation to evaluate the test dataset
+            over a train dataset environment).
 
         step(compression_rate: float, is_to_train: bool = True) -> Tuple[np.ndarray, float, bool]:
             Applies a pruning action, evaluates the compressed model, and moves to the next state.
@@ -119,7 +119,7 @@ class NetworkEnv:
         # and utilized in NetworkEnv's compute_and_log_results()
         self.t_start = None  # a Model's evaluation start time
 
-    def reset(self, test_net_path=None):
+    def reset(self, test_net_path=None, test_model=None, test_loaders=None):
         """ Reset environment with a new CNN model & dataset """
         # Ensure prior memory is cleaned
         if hasattr(self, "feature_extractor"):
@@ -132,16 +132,17 @@ class NetworkEnv:
         self.row_idx = 1  # The first row to be a candidate for pruning is self.row_idx - 1 -> index 0
         self.actions_history = []
 
-        # If test model path is provided, use it directly (for cross-validation)
-        if test_net_path is None:
+        # If test model is provided, use it directly (for cross-validation)
+        if test_net_path and test_model and test_loaders:
+            self.current_model, (self.train_loader, self.val_loader, self.test_loader) = test_model, test_loaders
+            self.selected_net_path = test_net_path
+        else:
             self.curr_net_index = (self.curr_net_index + 1) % len(self.networks)
             self.selected_net_path = self.networks[self.curr_net_index]
-        else:
-            self.selected_net_path = test_net_path
 
-        self.current_model, dataset_name = utils.load_model_from_cache(self.selected_net_path)
-        self.train_loader, self.val_loader, self.test_loader = self.conf.dataloaders_dict[utils.DATASET_ALIASES[dataset_name]][0]
-
+            # Load model & dataset from preloaded input_dict
+            self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.data_dict[
+                self.selected_net_path]
 
         model_with_rows = ModelWithRows(self.current_model)
         utils.print_flush(f"Loading {self.selected_net_path}")
@@ -302,10 +303,9 @@ class NetworkEnv:
         # Extract filename and replace only the last dot (as the filename might contain decimal points)
         filename = os.path.basename(self.selected_net_path)  # Get the file name from the path
         name_parts = filename.rsplit('.', 1)  # Split at the last dot
-        model_name = f"{name_parts[0]}_pruned.{name_parts[1]}" if len(name_parts) == 2 else f"{filename}_pruned"
-        # Create timestamped save path
         timestamp = time.strftime("%Y%m%d-%H%M%S")  # Prevent overwriting
-        save_path = f"./pruned_models/{model_name}_{timestamp}"
+        model_name = f"{name_parts[0]}_pruned_{timestamp}.{name_parts[1]}"
+        save_path = f"./pruned_models/{model_name}"
         # Ensure directory exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 

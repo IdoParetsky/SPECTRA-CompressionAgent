@@ -94,8 +94,8 @@ class ClassificationHandler(BasicHandler):
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, mode='min', factor=0.5, patience=2, verbose=True)
 
-        for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
-        # for epoch in range(1):  #TODO: Shortening loop to verify code progression
+        # for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
+        for epoch in range(0):  #TODO: Skipping loop to verify code progression. Experiment with 2 epochs as a sandard
             epoch_losses = []
             for curr_x, curr_y in train_loader:
                 curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)
@@ -147,7 +147,7 @@ class ClassificationHandler(BasicHandler):
         # Restore the best model state
         if best_state_buffer is not None:
             best_state_buffer.seek(0)
-            self.model.load_state_dict(torch.load(best_state_buffer, weights_only=False, map_location=device))
+            self.model.load_state_dict(torch.load(best_state_buffer, weights_only=True, map_location=device))
 
         # Free up cache and memory after training
         del self.optimizer

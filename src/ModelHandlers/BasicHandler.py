@@ -11,7 +11,7 @@ class BasicHandler:
     def evaluate_model(self, loader: DataLoader) -> float:
         pass
 
-    def train_model(self, train_loader: DataLoader):
+    def train_model(self, train_loader: DataLoader, val_loader: DataLoader, orig_acc: float):
         pass
 
     def freeze_all_layers_but_pruned(self, params_to_keep_trainable):
