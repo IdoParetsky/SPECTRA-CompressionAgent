@@ -53,8 +53,11 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=14400 ;;
   recover_pref10)
     GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=14400 ;;
+  recover_king)
+    # Compose today's winners: mild rates + -10 pp preference + full FT + 40 epochs.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
   *)
-    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10} [gpu_count]" >&2
+    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king} [gpu_count]" >&2
     exit 1
     ;;
 esac
@@ -85,17 +88,22 @@ fi
 cd "$REPO_DIR"
 mkdir -p runs/slurm_logs
 
+# Prefer non-preemptible rtx_6000-class nodes. ee-l40s-* preempted recover_pref10/wide
+# mid-run and wiped progress (no mid-train resume yet).
+EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-[01-99]}"
+
 JOB_ID=$(sbatch --parsable \
   --gpus="rtx_6000:${GPUS}" \
   --mem="${MEM}" \
   --cpus-per-task="${CPUS}" \
   --time="${TIME}" \
+  --exclude="${EXCLUDE_NODES}" \
   --job-name="spectra-${PROFILE}" \
   --export=ALL,SPECTRA_PROFILE="${PROFILE}" \
   scripts/spectra.sbatch)
 
 LOG="${REPO_DIR}/runs/slurm_logs/spectra_${JOB_ID}.out"
-echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s)"
+echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, exclude=${EXCLUDE_NODES})"
 echo "log     : ${LOG}"
 echo "run dir : ${REPO_DIR}/runs/job${JOB_ID}"
 # Confirm the scheduler accepted the Timelimit we asked for (qos/partition can silently clamp).
