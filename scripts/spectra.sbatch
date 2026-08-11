@@ -7,10 +7,11 @@
 #
 # Submit with the wrapper, which sets the profile and resources:
 #     bash scripts/submit.sh smoke      # minutes: one network, few steps, correctness only
+#     bash scripts/submit.sh medium     # hours: realistic fine-tune + exploration, small DB
 #     bash scripts/submit.sh full       # the real experiment
 #
 # Or directly:
-#     sbatch --gpus=rtx_6000:1 --mem=120G --time=0-04:00:00 scripts/spectra.sbatch
+#     sbatch --gpus=rtx_6000:1 --mem=120G --time=0-08:00:00 scripts/spectra.sbatch
 #
 #SBATCH --job-name=spectra
 #SBATCH --partition=main
@@ -19,7 +20,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus=rtx_6000:1
 #SBATCH --mem=120G
-#SBATCH --time=0-04:00:00
+#SBATCH --time=0-08:00:00
 #SBATCH --output=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_%j.out
 #SBATCH --error=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_%j.out
 
@@ -56,9 +57,9 @@ if ! "$PYTHON" -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() els
 fi
 
 # ---------------------------------------------------------------- profiles
-# smoke: prove the pipeline end to end in minutes. Deliberately tiny so that a syntax or
-#        logic bug surfaces immediately instead of after an hour of dataset preloading.
-# full:  the actual experiment; every knob widened.
+# smoke:  prove the pipeline end to end in minutes. Tiny fine-tune / short warmup on purpose.
+# medium: realistic fine-tune + exploration on the small initial DB (progress, not correctness).
+# full:   the actual experiment; every knob at thesis-scale defaults.
 case "$PROFILE" in
   smoke)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/single_input.json}"
@@ -70,31 +71,43 @@ case "$PROFILE" in
     export SPECTRA_NUM_EPOCHS=1
     export SPECTRA_SAVE_PRUNED=False
     export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-2}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-4}"
     EXTRA_ARGS=(--runtime_limit 900 --allowed_acc_reduction 5)
     ;;
   medium)
+    # 20 fine-tune epochs (early-stop patience 10) + 20x network-count warmup. Enough for the
+    # agent to see recoverable compressions, without the full 40-epoch / 2-pass budget.
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
     export SPECTRA_PASSES=1
-    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_ROLLOUT_LIMIT=10
     export SPECTRA_N_SPLITS=0
-    export SPECTRA_NUM_EPOCHS=1
+    export SPECTRA_NUM_EPOCHS=20
     export SPECTRA_SAVE_PRUNED=False
-    EXTRA_ARGS=(--runtime_limit 5400)
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    EXTRA_ARGS=(--runtime_limit 28800)
     ;;
   full)
+    # NEON used 100 fine-tune epochs; SPECTRA's documented default is 40 (see argparse /
+    # ClassificationHandler). Warmup and entropy match the medium profile's exploration fix.
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
     export SPECTRA_PASSES="${SPECTRA_PASSES:-2}"
     export SPECTRA_ROLLOUT_LIMIT="${SPECTRA_ROLLOUT_LIMIT:-10}"
     export SPECTRA_N_SPLITS="${SPECTRA_N_SPLITS:-3}"
-    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-2}"
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
     export SPECTRA_SAVE_PRUNED="${SPECTRA_SAVE_PRUNED:-True}"
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
     # Cache the database-wide feature statistics so later runs skip the fitting pass
     export SPECTRA_STANDARDIZER_PATH="${SPECTRA_STANDARDIZER_PATH:-${REPO_DIR}/runs/standardizer.pt}"
-    EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-36000}")
+    EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-54000}")
     ;;
   *)
     echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full)" >&2
@@ -104,6 +117,7 @@ esac
 
 echo "profile ${PROFILE}: input=${SPECTRA_INPUT} database=${SPECTRA_DATABASE}"
 echo "datasets=${SPECTRA_DATASET_NAMES} passes=${SPECTRA_PASSES} rollout=${SPECTRA_ROLLOUT_LIMIT}"
+echo "num_epochs=${SPECTRA_NUM_EPOCHS} entropy_coef=${SPECTRA_ENTROPY_COEF:-default} warmup_mult=${SPECTRA_WARMUP_MULTIPLIER:-default}"
 env | grep '^SPECTRA_' | sort
 
 bash scripts/run_agent.sh "${EXTRA_ARGS[@]}" ${SPECTRA_EXTRA_ARGS:-}

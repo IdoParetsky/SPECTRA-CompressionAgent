@@ -17,7 +17,7 @@ REPO_DIR="${SPECTRA_REPO_DIR:-/home/paretsky/SPECTRA-CompressionAgent}"
 
 case "$PROFILE" in
   smoke)  GPUS="${GPU_COUNT:-1}"; TIME="0-01:00:00"; MEM="64G"  ;;
-  medium) GPUS="${GPU_COUNT:-1}"; TIME="0-04:00:00"; MEM="120G" ;;
+  medium) GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="120G" ;;
   full)   GPUS="${GPU_COUNT:-2}"; TIME="0-15:00:00"; MEM="120G" ;;
   *) echo "usage: $0 {smoke|medium|full} [gpu_count]" >&2; exit 1 ;;
 esac

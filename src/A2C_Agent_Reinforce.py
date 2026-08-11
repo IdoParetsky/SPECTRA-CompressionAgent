@@ -1,4 +1,3 @@
-import logging
 import os
 import time
 from os.path import join
@@ -23,10 +22,19 @@ import src.run_recorder as recorder
 TRAINED_AGENTS_DIR = os.environ.get("SPECTRA_TRAINED_AGENTS_DIR",
                                     os.path.expanduser("~/.trained_agents"))
 
-# Weight of the policy-entropy bonus; discourages premature collapse onto one compression rate
-ENTROPY_COEF = 0.01
+# Weight of the policy-entropy bonus. The previous default of 0.01 was drowned by the
+# percentage-cubed reward magnitude (advantages of 1e4-1e5), so the policy collapsed onto
+# rate 1.0 within a few dozen episodes. Override with SPECTRA_ENTROPY_COEF.
+ENTROPY_COEF = float(os.environ.get("SPECTRA_ENTROPY_COEF", "0.05"))
 # Max global gradient norm for the actor/critic updates
 MAX_GRAD_NORM = 1.0
+
+# Uniform-random exploration before the learned policy is trusted. Multiplier of 2 gave only
+# ~12 warm-up episodes on the 6-network initial database, after which "never compress" locked
+# in. Override with SPECTRA_WARMUP_MULTIPLIER / SPECTRA_WARMUP_CAP.
+WARMUP_MULTIPLIER = int(os.environ.get("SPECTRA_WARMUP_MULTIPLIER", "20"))
+WARMUP_CAP = int(os.environ.get("SPECTRA_WARMUP_CAP", "1000"))
+WARMUP_FLOOR = int(os.environ.get("SPECTRA_WARMUP_FLOOR", "50"))
 
 
 def load_agent_checkpoint(model, checkpoint_path, device):
@@ -139,13 +147,28 @@ class A2CAgentReinforce:
         episodes_since_improvement = 0
         reward_not_improving = False
 
-        warmup_len = min(len(self.env.networks) * 2, 500)
+        warmup_len = min(max(len(self.env.networks) * WARMUP_MULTIPLIER, WARMUP_FLOOR), WARMUP_CAP)
         min_episode_num = len(self.env.networks) * 10 + warmup_len
         # Declare convergence only after a full sweep over the database yields no new best
         reward_patience = max(len(self.env.networks), 100)
         start_time = time.perf_counter()
 
-        utils.print_flush(f"Agent training topology: {ddp.summary()}")
+        utils.print_flush(
+            f"Agent training topology: {ddp.summary()} | "
+            f"networks={len(self.env.networks)} warmup={warmup_len} "
+            f"min_episodes={min_episode_num} patience={reward_patience} "
+            f"entropy_coef={ENTROPY_COEF} finetune_epochs={self.conf.num_epochs}")
+        recorder.record(
+            "train_config",
+            num_networks=len(self.env.networks),
+            warmup_len=warmup_len,
+            min_episode_num=min_episode_num,
+            reward_patience=reward_patience,
+            entropy_coef=ENTROPY_COEF,
+            finetune_epochs=self.conf.num_epochs,
+            rollout_limit=self.conf.rollout_limit,
+            passes=self.conf.passes,
+        )
 
         while True:
             # Rank 0's verdict governs, so no process can leave the loop while another waits
@@ -168,7 +191,7 @@ class A2CAgentReinforce:
             utils.print_flush("Episode {}/{}".format(self.episode_idx, min_episode_num))
             episode_timer = logging_utils.Timer().__enter__()
 
-            with logging_utils.stage("episode.reset", level=logging.DEBUG):
+            with logging_utils.stage("episode.reset", level=10):  # logging.DEBUG
                 state = self.env.reset()
 
             log_probs = []
@@ -233,14 +256,21 @@ class A2CAgentReinforce:
 
             advantage = returns.detach() - values
 
-            # Compute loss (detach log_probs * advantage to avoid in-place ops)
-            log_probs = torch.cat(log_probs)
-            # The entropy bonus was accumulated but never applied, leaving nothing to counteract
-            # the policy collapsing onto a single compression rate
-            mean_entropy = entropy / step_count
-            actor_loss = -(log_probs * advantage.detach()).mean() - ENTROPY_COEF * mean_entropy
+            # Standardise advantages so the entropy bonus is not drowned by the
+            # percentage-cubed reward magnitude (advantages of 1e4-1e5). The reward
+            # *function* itself is unchanged (NEON's); only the scale of the policy
+            # gradient is made comparable to ENTROPY_COEF, which is standard A2C practice.
+            adv = advantage.detach()
+            if adv.numel() > 1:
+                adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
 
-            # Detach advantage to ensure stable backward
+            log_probs = torch.cat(log_probs)
+            mean_entropy = entropy / step_count
+            actor_loss = -(log_probs * adv).mean() - ENTROPY_COEF * mean_entropy
+
+            # Critic keeps the raw return scale: its job is to predict the actual return, and
+            # the NEON reward's magnitude is intentional. Gradient clipping below keeps updates
+            # numerically stable without rewriting the targets.
             critic_loss = (returns.detach() - values).pow(2).mean()
 
             utils.print_flush(f'Actor Loss, Episode {self.episode_idx}: {v(actor_loss)}')

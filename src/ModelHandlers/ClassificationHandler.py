@@ -1,5 +1,6 @@
 import io
 import gc
+import os
 import torch
 from sklearn.metrics import accuracy_score
 import numpy as np
@@ -8,6 +9,7 @@ import torch.distributed as dist
 from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
 import src.utils as utils
+import src.logging_utils as logging_utils
 
 
 # TODO: Consider data normalization and augmentation via torchvision.transforms
@@ -93,7 +95,11 @@ class ClassificationHandler(BasicHandler):
         best_loss = np.inf
         best_state_buffer = None
         epochs_not_improved = 0
-        MAX_EPOCHS_PATIENCE = 5  # Changed from 10 in NEON. TODO: Consider updating / dynamically changing
+        # Early-stop patience for post-compression fine-tuning. NEON used 10; it was reduced
+        # to 5 for short correctness runs and then starved recovery under a 1-epoch budget.
+        # Override with SPECTRA_FINETUNE_PATIENCE. The epoch *budget* is conf.num_epochs
+        # (40 by default, matching the SPECTRA argparse / NEON→40 comment).
+        MAX_EPOCHS_PATIENCE = int(os.environ.get("SPECTRA_FINETUNE_PATIENCE", "10"))
         EPSILON = 1e-4
 
         # Recreate optimizer with current model parameters
@@ -148,12 +154,44 @@ class ClassificationHandler(BasicHandler):
             else:
                 epochs_not_improved += 1
 
-            utils.print_flush(f"Epoch {epoch + 1}: Loss = {avg_loss:.5f}, "
-                              f"Learning Rate = {self.optimizer.param_groups[0]['lr']:.5f}")
+            # Full epoch traces at DEBUG; a short progress line every few epochs at INFO so a
+            # 40-epoch fine-tune does not drown the run log in identical lines.
+            if epoch == 0 or (epoch + 1) % 5 == 0 or epochs_not_improved == MAX_EPOCHS_PATIENCE:
+                utils.print_flush(
+                    f"Epoch {epoch + 1}/{num_epochs}: Loss = {avg_loss:.5f}, "
+                    f"LR = {self.optimizer.param_groups[0]['lr']:.5f}")
+            else:
+                logging_utils.debug(
+                    f"Epoch {epoch + 1}/{num_epochs}: Loss = {avg_loss:.5f}, "
+                    f"LR = {self.optimizer.param_groups[0]['lr']:.5f}")
 
             if epochs_not_improved == MAX_EPOCHS_PATIENCE:
-                utils.print_flush("Early stopping due to no improvement.")
+                utils.print_flush(
+                    f"Early stopping at epoch {epoch + 1}/{num_epochs} "
+                    f"(no improvement for {MAX_EPOCHS_PATIENCE} epochs; best_loss={best_loss:.5f})")
                 break
+
+        # `epoch` is defined after any non-empty training loop; empty-loader break leaves it unset
+        try:
+            epochs_ran = epoch + 1
+        except NameError:
+            epochs_ran = 0
+
+        if best_state_buffer is not None and epochs_ran > 0 and epochs_not_improved < MAX_EPOCHS_PATIENCE:
+            utils.print_flush(f"Fine-tune finished all {epochs_ran} epochs; best_loss={best_loss:.5f}")
+
+        try:
+            import src.run_recorder as _recorder
+            _recorder.record(
+                "finetune",
+                epochs_budget=num_epochs,
+                epochs_ran=epochs_ran,
+                early_stopped=epochs_not_improved >= MAX_EPOCHS_PATIENCE,
+                best_loss=None if best_loss == np.inf else round(float(best_loss), 6),
+                patience=MAX_EPOCHS_PATIENCE,
+            )
+        except Exception:
+            pass
 
         # If training fails to converge - reinitializing weights and retraining (at most once)
         if best_loss == np.inf:

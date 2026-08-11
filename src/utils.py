@@ -159,7 +159,10 @@ def extract_args_from_cmd():
     parser.add_argument('--prune', type=str2bool, default=True,
                         help="Whether to prune layers via torch.nn.utils.prune.ln_structured during compression or resize them manually.")
 
-    parser.add_argument('--num_epochs', type=int, default=40, help="Agent's training epochs amount. Default=40.")
+    parser.add_argument('--num_epochs', type=int, default=40,
+                        help="Post-compression fine-tune epochs per pruning step. "
+                             "NEON used 100; SPECTRA default is 40. Early-stop patience is "
+                             "SPECTRA_FINETUNE_PATIENCE (default 10).")
 
     parser.add_argument('--runtime_limit', type=int, default=60 * 60 * 24 * 7,
                         help="Max runtime. Default is a week in seconds")
