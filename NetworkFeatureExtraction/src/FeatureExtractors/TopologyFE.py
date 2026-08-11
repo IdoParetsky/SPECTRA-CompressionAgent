@@ -10,23 +10,37 @@ class TopologyFE(BaseFE):
         Extracts the architecture of a CNN as a sequence for BERT tokenization.
         """
 
-        # Map layer types to handler functions
+        # Map layer types to handler functions. Coverage matters for a generic agent: an
+        # unrecognised module contributes an all-zero token, so a network built from
+        # activations or pooling variants outside this map would be partly invisible.
         self.layer_type_to_function = {
             nn.Linear: self.handle_linear,
-            nn.Conv2d: self.handle_conv2d,
+            nn.Conv1d: self.handle_conv,
+            nn.Conv2d: self.handle_conv,
+            nn.Conv3d: self.handle_conv,
+            nn.ConvTranspose2d: self.handle_conv,
             nn.BatchNorm1d: self.handle_batchnorm,
             nn.BatchNorm2d: self.handle_batchnorm,
-            nn.ReLU: self.handle_activation,
-            nn.ELU: self.handle_activation,
-            nn.SiLU: self.handle_activation,
-            nn.Softmax: self.handle_activation,
-            nn.Tanh: self.handle_activation,
-            nn.Sigmoid: self.handle_activation,
+            nn.BatchNorm3d: self.handle_batchnorm,
+            nn.GroupNorm: self.handle_groupnorm,
+            nn.LayerNorm: self.handle_layernorm,
+            nn.InstanceNorm2d: self.handle_batchnorm,
             nn.Dropout: self.handle_dropout,
+            nn.Dropout2d: self.handle_dropout,
             nn.Flatten: self.handle_flatten,
-            nn.MaxPool2d: self.handle_pooling,
-            nn.AvgPool2d: self.handle_pooling
+            nn.Identity: self.handle_activation,
         }
+
+        for activation in (nn.ReLU, nn.ReLU6, nn.ELU, nn.SiLU, nn.Softmax, nn.Tanh, nn.Sigmoid,
+                           nn.LeakyReLU, nn.GELU, nn.Hardtanh, nn.Hardswish, nn.Hardsigmoid,
+                           nn.Softplus, nn.Softsign, nn.PReLU, nn.LogSigmoid, nn.SELU, nn.CELU,
+                           nn.Mish, nn.GLU, nn.LogSoftmax):
+            self.layer_type_to_function[activation] = self.handle_activation
+
+        for pooling in (nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d, nn.AvgPool1d, nn.AvgPool2d,
+                        nn.AvgPool3d, nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d,
+                        nn.AdaptiveMaxPool2d):
+            self.layer_type_to_function[pooling] = self.handle_pooling
 
     def extract_feature_map(self, model_with_rows) -> List[List[float]]:
         """
@@ -55,13 +69,23 @@ class TopologyFE(BaseFE):
         return [1, 0, 0, 0, 0, layer.in_features, layer.out_features]
 
     @staticmethod
-    def handle_conv2d(layer) -> List[float]:
-        return [2, layer.in_channels, layer.out_channels, layer.kernel_size[0],
-                layer.stride[0], layer.padding[0], 0]
+    def handle_conv(layer) -> List[float]:
+        as_scalar = lambda value: value[0] if isinstance(value, (tuple, list)) else value
+        return [2, layer.in_channels, layer.out_channels, as_scalar(layer.kernel_size),
+                as_scalar(layer.stride), as_scalar(layer.padding), layer.groups]
 
     @staticmethod
     def handle_batchnorm(layer) -> List[float]:
         return [3, layer.num_features, 0, 0, 0, 0, 0]
+
+    @staticmethod
+    def handle_groupnorm(layer) -> List[float]:
+        return [3, layer.num_channels, layer.num_groups, 0, 0, 0, 0]
+
+    @staticmethod
+    def handle_layernorm(layer) -> List[float]:
+        size = layer.normalized_shape[-1] if layer.normalized_shape else 0
+        return [3, size, 0, 0, 0, 0, 0]
 
     @staticmethod
     def handle_activation(layer) -> List[float]:
@@ -77,6 +101,12 @@ class TopologyFE(BaseFE):
 
     @staticmethod
     def handle_pooling(layer) -> List[float]:
-        return [7, layer.kernel_size if isinstance(layer.kernel_size, int) else layer.kernel_size[0],
-                layer.stride if isinstance(layer.stride, int) else layer.stride[0],
-                layer.padding if isinstance(layer.padding, int) else layer.padding[0], 0, 0, 0]
+        # Adaptive pooling has an output_size instead of a kernel/stride/padding triple
+        def scalar(attribute):
+            value = getattr(layer, attribute, 0)
+            if isinstance(value, (tuple, list)):
+                return value[0] if value and value[0] is not None else 0
+            return value if value is not None else 0
+
+        return [7, scalar('kernel_size'), scalar('stride'), scalar('padding'),
+                scalar('output_size'), 0, 0]

@@ -131,3 +131,18 @@ dmypy.json
 # Pyre type checker
 .pyre/
 /models/
+
+# Local Slurm run logs (keep folder, ignore contents)
+runs/slurm_logs/*.log
+runs/slurm_logs/*.txt
+runs/slurm_logs/*.out
+
+# Per-run artefacts: logs, JSONL events, TensorBoard scalars, result CSVs and the
+# fitted feature standardiser. Reports (summary.md) are pulled to the laptop on demand
+# rather than committed.
+runs/job*/
+runs/local_*/
+runs/standardizer.pt
+pruned_models/
+checkpoints/
+

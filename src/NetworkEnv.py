@@ -1,14 +1,18 @@
 import numpy as np
 import pandas as pd
+import copy
+import logging
 import os
 import time
 import gc
 import torch
 from torch import nn
-from torch.nn.utils import prune
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
 
+import src.channel_groups as channel_groups
+import src.distributed as ddp
+import src.logging_utils as logging_utils
+import src.pruning as pruning
+import src.run_recorder as recorder
 from src.BERTInputModeler import BERTInputModeler
 from NetworkFeatureExtraction.src.FeatureExtractors.ModelFeatureExtractor import FeatureExtractor
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
@@ -102,11 +106,20 @@ class NetworkEnv:
 
         # Full database if in agent training mode, else evaluation database (user input)
         self.data_dict = self.conf.database_dict if self.mode == AGENT_TRAIN else self.conf.input_dict
-        self.networks = networks or list(self.data_dict.keys())
+        # Callers pass either an explicit list of paths or a {path: (model, loaders)} dict
+        # (evaluate_model hands over a fold's train_dict). np.random.shuffle cannot operate
+        # on a dict, so normalise to a list of paths first.
+        if isinstance(networks, dict):
+            networks = list(networks.keys())
+        self.networks = list(networks) if networks else list(self.data_dict.keys())
         self.curr_net_index = -1
-        np.random.shuffle(self.networks)  # Randomize order
+        # Offsetting the seed by the rank makes each process explore a different network, so
+        # a two-GPU run gathers two independent trajectories per update instead of duplicating
+        # the same one. Runs stay reproducible for a given (seed, world size).
+        np.random.default_rng(self.conf.seed + ddp.get_rank()).shuffle(self.networks)
 
-        # Initialize BERT Input Modeler
+        # Shared state-builder singleton (does not load frozen BERT unless
+        # SPECTRA_STATE_ENCODER=bert). FeatureExtractor holds the same instance.
         self.bert_modeler = BERTInputModeler()
 
         # "N/A" / an integer representing the fold number within the amount of folds in cross-validation evaluation
@@ -132,10 +145,17 @@ class NetworkEnv:
         self.row_idx = 1  # The first row to be a candidate for pruning is self.row_idx - 1 -> index 0
         self.actions_history = []
 
-        # If test model is provided, use it directly (for cross-validation)
-        if test_net_path and test_model and test_loaders:
-            self.current_model, (self.train_loader, self.val_loader, self.test_loader) = test_model, test_loaders
+        # If a specific network is requested, use it directly (evaluation / cross-validation).
+        # Previously all three arguments had to be supplied for this branch to be taken, so a
+        # caller passing only test_net_path silently evaluated whatever network happened to be
+        # next in this environment's own rotation.
+        if test_net_path:
             self.selected_net_path = test_net_path
+            if test_model is not None and test_loaders is not None:
+                model, loaders = test_model, test_loaders
+            else:
+                model, loaders = self.data_dict[test_net_path]
+            self.current_model, (self.train_loader, self.val_loader, self.test_loader) = model, loaders
         else:
             self.curr_net_index = (self.curr_net_index + 1) % len(self.networks)
             self.selected_net_path = self.networks[self.curr_net_index]
@@ -144,24 +164,64 @@ class NetworkEnv:
             self.current_model, (self.train_loader, self.val_loader, self.test_loader) = self.data_dict[
                 self.selected_net_path]
 
+        # Each episode restarts from the pristine checkpoint, so the compression applied by the
+        # previous episode does not leak into this one
+        self.current_model = copy.deepcopy(self.current_model)
+
         model_with_rows = ModelWithRows(self.current_model)
+
+        # Every log line and event emitted for this episode is tagged with the network under
+        # compression, so a failure can be attributed without reading back through the file
+        logging_utils.set_context(net=os.path.basename(self.selected_net_path), mode=self.mode)
         utils.print_flush(f"Loading {self.selected_net_path}")
+
         # Prepare feature extractor with training data
         self.feature_extractor = FeatureExtractor(self.train_loader, self.conf.device)
-        utils.print_flush("env.reset - Starting FM Extraction")
-        fm = self.feature_extractor.encode_to_bert_input(model_with_rows,
-            model_with_rows.row_to_main_layer[self.row_idx - 1])
-        utils.print_flush("env.reset - Finished FM Extraction")
+        with logging_utils.stage("reset.feature_extraction"):
+            fm = self.feature_extractor.encode_to_bert_input(
+                model_with_rows, model_with_rows.row_to_main_layer[self.row_idx - 1],
+                dependency_groups=self._dependency_groups(model_with_rows))
 
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
-        self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
+        with logging_utils.stage("reset.baseline_accuracy"):
+            self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
+
+        num_rows = max(len(model_with_rows.all_rows) - 1, 0)
+        recorder.record(
+            "episode_reset",
+            network=self.selected_net_path,
+            baseline_acc=round(float(self.original_acc), 5),
+            num_layers=len(model_with_rows.all_layers),
+            num_prunable_rows=num_rows,
+            params_m=round(utils.calc_num_parameters(self.current_model) / 1e6, 4),
+        )
 
         # After feature extraction and setup
         torch.cuda.empty_cache()
         gc.collect()
 
         return fm
+
+    def _dependency_groups(self, model_with_rows):
+        """
+        Channel-dependency groups for the current model, with failures made visible.
+
+        A model that cannot be traced silently loses structured pruning *and* the exact
+        coupling bias in the state encoder, so it is counted as an issue rather than being
+        absorbed by a `None` return value.
+        """
+        try:
+            groups = channel_groups.build_channel_groups(model_with_rows.model)
+        except Exception as error:
+            recorder.issue("fx_trace_error", f"{type(error).__name__}: {error}",
+                           network=self.selected_net_path)
+            return None
+
+        if groups is None:
+            recorder.issue("fx_trace_failed", "model is not symbolically traceable",
+                           network=self.selected_net_path)
+        return groups
 
     def step(self, compression_rate, is_to_train=True):
         """
@@ -174,6 +234,7 @@ class NetworkEnv:
         Returns:
             Tuple: Next state, reward, and done flag.
         """
+        step_timer = logging_utils.Timer().__enter__()
         model_with_rows = ModelWithRows(self.current_model)
 
         # Determine affected layers (from current row up to start of next row)
@@ -181,16 +242,27 @@ class NetworkEnv:
         next_layer_idx = model_with_rows.row_to_main_layer[self.row_idx] \
             if self.row_idx < len(model_with_rows.row_to_main_layer) else len(model_with_rows.all_layers)
         update_indices = list(range(current_layer_idx, next_layer_idx))
-        utils.print_flush(f"Step {self.row_idx - 1} - Layer {current_layer_idx}, Compression Rate: {compression_rate}")
+
+        step_index = len(self.actions_history)
+        target_layer = model_with_rows.all_layers[current_layer_idx]
+        logging_utils.set_context(step=step_index, layer=current_layer_idx)
+        utils.print_flush(f"Step {self.row_idx - 1} - Layer {current_layer_idx} "
+                          f"({type(target_layer).__name__}), Compression Rate: {compression_rate}")
+
+        params_before = utils.calc_num_parameters(self.current_model)
+        prune_outcome = {"mode": "identity"}
 
         if compression_rate == 1:
             learning_handler_new_model = self.create_learning_handler(self.current_model)
         else:
             # Modify the model in-place
-            if self.conf.prune:
-                model_with_rows = prune_current_model(model_with_rows, compression_rate, self.row_idx - 1)
-            else:
-                model_with_rows = create_new_model_with_new_weights(model_with_rows, compression_rate, self.row_idx - 1)
+            with logging_utils.stage("step.prune", level=logging.DEBUG):
+                if self.conf.prune:
+                    model_with_rows = prune_current_model(model_with_rows, compression_rate, self.row_idx - 1)
+                else:
+                    model_with_rows = create_new_model_with_new_weights(model_with_rows, compression_rate,
+                                                                        self.row_idx - 1)
+            prune_outcome = dict(getattr(model_with_rows, "last_prune_outcome", {}) or {})
 
             # Prepare model handler
             learning_handler_new_model = self.create_learning_handler(model_with_rows.model)
@@ -203,11 +275,13 @@ class NetworkEnv:
                 learning_handler_new_model.unfreeze_all_layers()
 
             if is_to_train:
-                learning_handler_new_model.train_model(self.train_loader)
+                with logging_utils.stage("step.finetune", level=logging.DEBUG):
+                    learning_handler_new_model.train_model(self.train_loader)
 
         # Evaluate the compressed model
         learning_handler_new_model.model.eval()
-        new_acc = learning_handler_new_model.evaluate_model(self.val_loader)
+        with logging_utils.stage("step.evaluate", level=logging.DEBUG):
+            new_acc = learning_handler_new_model.evaluate_model(self.val_loader)
 
         # Compute reward
         reward = utils.compute_reward(new_acc, self.original_acc, compression_rate)
@@ -217,15 +291,18 @@ class NetworkEnv:
         learning_handler_new_model.unfreeze_all_layers()
         old_model = self.current_model
         self.current_model = learning_handler_new_model.model
+        params_after = utils.calc_num_parameters(self.current_model)
         del old_model
         del learning_handler_new_model
         torch.cuda.empty_cache()
         gc.collect()
 
-        # Extract features for BERT
-        utils.print_flush("env.step - Starting FM Extraction")
-        fm = self.feature_extractor.encode_to_bert_input(model_with_rows, current_layer_idx, update_indices)
-        utils.print_flush("env.step - Finished FM Extraction")
+        # Extract features for the next state. The dependency analysis is redone here because
+        # the compression just applied changed the graph.
+        with logging_utils.stage("step.feature_extraction", level=logging.DEBUG):
+            fm = self.feature_extractor.encode_to_bert_input(
+                model_with_rows, current_layer_idx, update_indices,
+                dependency_groups=self._dependency_groups(model_with_rows))
 
         # Check termination condition
         num_rows = len(model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
@@ -235,9 +312,37 @@ class NetworkEnv:
         self.row_idx = max(1, self.row_idx % (num_rows + 1))
         done = num_actions >= num_rows * self.conf.passes
 
+        step_timer.__exit__(None, None, None)
+        # One record per transition: enough to reconstruct the trajectory, the policy's
+        # behaviour and the library's pruning coverage without re-running anything
+        recorder.record(
+            "step",
+            network=self.selected_net_path,
+            step_index=step_index,
+            layer_index=current_layer_idx,
+            layer_type=type(target_layer).__name__,
+            compression_rate=compression_rate,
+            reward=round(float(reward), 4),
+            baseline_acc=round(float(self.original_acc), 5),
+            new_acc=round(float(new_acc), 5),
+            delta_acc=round(float(new_acc - self.original_acc), 5),
+            params_before_m=round(params_before / 1e6, 4),
+            params_after_m=round(params_after / 1e6, 4),
+            param_reduction=round(1 - params_after / max(params_before, 1), 5),
+            prune_mode=prune_outcome.get("mode"),
+            prune_reason=prune_outcome.get("reason"),
+            seconds=round(step_timer.seconds, 3),
+            done=bool(done),
+        )
+        utils.print_flush(
+            f"Step {step_index} done in {step_timer.seconds:.1f}s | rate={compression_rate} "
+            f"acc {self.original_acc:.4f} -> {new_acc:.4f} | reward={reward:.2f} "
+            f"| prune={prune_outcome.get('mode')}")
+
         # Log model evaluation metrics after each pass and flush to CSV.
         if self.mode != AGENT_TRAIN and (done or num_actions % num_rows == 0):
-            self.compute_and_log_results(model_with_rows)
+            with logging_utils.stage("step.compute_results", level=logging.DEBUG):
+                self.compute_and_log_results(model_with_rows)
 
         # Save the final pruned model to a checkpoint file,
         # if requested by the user via self.conf.save_pruned_checkpoints = True
@@ -246,15 +351,20 @@ class NetworkEnv:
 
         return fm, reward, done
 
-    def compute_and_log_results(self, model_with_rows, t_curr=time.perf_counter()):
+    def compute_and_log_results(self, model_with_rows, t_curr=None):
         """
         Compute accuracy according to eval mode (train / test datasets), number of params and FLOPs.
         Log model evaluation metrics after each pass and flush to CSV.
 
         Args:
             model_with_rows: ModelWithRows instance containing structured layer representation.
-            t_curr (float):    Time of log, to calculate evaluation time
+            t_curr (float):    Time of log, to calculate evaluation time. Defaults to now.
         """
+        # A default of time.perf_counter() would be evaluated once, at import time, making
+        # every logged evaluation_time a constant offset rather than an elapsed duration.
+        if t_curr is None:
+            t_curr = time.perf_counter()
+
         # Retrieve original & compressed models
         original_model = self.data_dict[self.selected_net_path][0]
         compressed_model = self.current_model
@@ -263,9 +373,13 @@ class NetworkEnv:
         new_lh = self.create_learning_handler(compressed_model)
         origin_lh = self.create_learning_handler(original_model)
 
-        dataset_loader = self.test_loader if self.mode == "test" else self.train_loader
+        # self.mode holds EVAL_TRAIN / EVAL_TEST; comparing against the bare string "test"
+        # never matched, so test-mode results were reported on the training split
+        dataset_loader = self.test_loader if self.mode == EVAL_TEST else self.train_loader
 
         fold_str = self.fold_idx if self.fold_idx == "N/A" else f"{self.fold_idx} / {self.conf.n_splits}"
+
+        input_shape = utils.get_input_shape(dataset_loader)
 
         # Store results
         result_entry = {
@@ -277,23 +391,60 @@ class NetworkEnv:
             'origin_acc': round(origin_lh.evaluate_model(dataset_loader), 3),
             'new_param (M)': round(utils.calc_num_parameters(compressed_model) / 1e6, 3),
             'origin_param (M)': round(utils.calc_num_parameters(original_model) / 1e6, 3),
-            'new_flops (M)': round(utils.calc_flops(compressed_model) / 1e6, 3),
-            'origin_flops (M)': round(utils.calc_flops(original_model) / 1e6, 3),
+            'new_effective_param (M)': round(pruning.count_effective_parameters(compressed_model) / 1e6, 3),
+            'new_flops (M)': round(utils.calc_flops(compressed_model, input_shape) / 1e6, 3),
+            'origin_flops (M)': round(utils.calc_flops(original_model, input_shape) / 1e6, 3),
             'new_model_arch': utils.get_model_layers_str(compressed_model),
             'origin_model_arch': utils.get_model_layers_str(original_model),
-            'evaluation_time': t_curr - self.t_start
+            'evaluation_time': t_curr - self.t_start if self.t_start else None
         }
 
-        file_path = f"./models/Reinforce_Evaluation/results_{self.conf.test_name}_{self.mode}_{self.conf.test_ts}.csv"
+        # Results live alongside the run's logs and events so a run is one self-contained
+        # directory; the historical ./models/Reinforce_Evaluation location is still written
+        # for compatibility with existing analysis notebooks.
+        results_dir = os.path.join(logging_utils.run_dir(), "results")
+        os.makedirs(results_dir, exist_ok=True)
+        legacy_dir = "./models/Reinforce_Evaluation"
+        os.makedirs(legacy_dir, exist_ok=True)  # the directory was never created
 
-        # Check if file exists to determine if headers should be written
-        file_exists = os.path.exists(file_path)
+        # Ranks evaluate disjoint shards; separate files avoid interleaved concurrent appends
+        rank_suffix = f"_rank{ddp.get_rank()}" if ddp.get_world_size() > 1 else ""
+        file_name = f"results_{self.mode}{rank_suffix}.csv"
+        legacy_name = (f"results_{self.conf.test_name}_{self.mode}"
+                       f"_{self.conf.test_ts}{rank_suffix}.csv")
 
-        # Convert result dictionary into a DataFrame row
         df_entry = pd.DataFrame([result_entry])
+        for path in (os.path.join(results_dir, file_name), os.path.join(legacy_dir, legacy_name)):
+            df_entry.to_csv(path, mode='a', header=not os.path.exists(path), index=False)
 
-        # Append row to CSV (creates file if it doesn't exist)
-        df_entry.to_csv(file_path, mode='a', header=not file_exists, index=False)
+        # The same record as a structured event, so summaries do not have to parse CSVs whose
+        # columns include multi-line architecture strings
+        acc_delta = result_entry['new_acc'] - result_entry['origin_acc']
+        param_ratio = result_entry['new_param (M)'] / max(result_entry['origin_param (M)'], 1e-9)
+        flops_ratio = result_entry['new_flops (M)'] / max(result_entry['origin_flops (M)'], 1e-9)
+        recorder.record(
+            "eval",
+            network=self.selected_net_path,
+            eval_mode=self.mode,
+            fold=fold_str,
+            pass_index=result_entry['pass'],
+            new_acc=result_entry['new_acc'],
+            origin_acc=result_entry['origin_acc'],
+            delta_acc=round(acc_delta, 5),
+            new_param_m=result_entry['new_param (M)'],
+            origin_param_m=result_entry['origin_param (M)'],
+            new_effective_param_m=result_entry['new_effective_param (M)'],
+            param_ratio=round(param_ratio, 5),
+            new_flops_m=result_entry['new_flops (M)'],
+            origin_flops_m=result_entry['origin_flops (M)'],
+            flops_ratio=round(flops_ratio, 5),
+            actions=list(self.actions_history),
+            evaluation_time=result_entry['evaluation_time'],
+        )
+        utils.print_flush(
+            f"[eval] {os.path.basename(self.selected_net_path)} pass {result_entry['pass']} | "
+            f"acc {result_entry['origin_acc']:.3f} -> {result_entry['new_acc']:.3f} "
+            f"({acc_delta:+.3f}) | params x{param_ratio:.3f} | FLOPs x{flops_ratio:.3f}")
 
     def save_pruned_checkpoint(self):
         """
@@ -309,19 +460,21 @@ class NetworkEnv:
         # Ensure directory exists
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-        model_to_save = self.current_model
-        # If it's wrapped in DDP, unwrap before saving state_dict
-        if isinstance(model_to_save, DDP):
-            model_to_save = model_to_save.module
+        model_to_save = ddp.unwrap(self.current_model)
 
-        # Save state dict safely (on rank 0 only)
-        if not dist.is_initialized() or dist.get_rank() == 0:
-            torch.save(model_to_save.state_dict(), save_path)
+        # Save state dict safely (on rank 0 only). The architecture is recorded alongside the
+        # weights because structured pruning changes layer widths, so the checkpoint can no
+        # longer be loaded into a stock instantiation of the original architecture.
+        if ddp.is_main_process():
+            torch.save({
+                "state_dict": model_to_save.state_dict(),
+                "source_checkpoint": self.selected_net_path,
+                "architecture": utils.get_model_layers_str(model_to_save),
+                "actions_history": self.actions_history,
+            }, save_path)
             utils.print_flush(f"Pruned model saved at {save_path}")
 
-        # Sync all processes if in DDP
-        if dist.is_initialized():
-            dist.barrier()
+        ddp.barrier()  # Sync all processes if in DDP
         torch.cuda.empty_cache()
         gc.collect()
 
@@ -372,42 +525,23 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
     layer_to_resize_idx = model_with_rows.row_to_main_layer[row_to_resize_idx]
     layer_to_resize = model_with_rows.all_layers[layer_to_resize_idx]
 
-    # Determine new size
-    old_size = layer_to_resize.out_features if isinstance(layer_to_resize, nn.Linear) else layer_to_resize.out_channels
-    new_size = int(np.ceil(compression_rate * old_size))
-
-    # Replace the layer with a resized fresh version (no weight copying)
-    if isinstance(layer_to_resize, nn.Linear):
-        resized_layer = nn.Linear(
-            in_features=layer_to_resize.in_features,
-            out_features=new_size,
-            bias=layer_to_resize.bias is not None
-        )
-    elif isinstance(layer_to_resize, nn.Conv2d):
-        resized_layer = nn.Conv2d(
-            in_channels=layer_to_resize.in_channels,
-            out_channels=new_size,
-            kernel_size=layer_to_resize.kernel_size,
-            stride=layer_to_resize.stride,
-            padding=layer_to_resize.padding,
-            dilation=layer_to_resize.dilation,
-            groups=layer_to_resize.groups,
-            bias=layer_to_resize.bias is not None
-        )
-    else:
+    if not isinstance(layer_to_resize, (nn.Linear, nn.Conv2d)):
         raise NotImplementedError("Resizing not implemented for this layer type.")
 
-    model_with_rows.all_layers[layer_to_resize_idx] = resized_layer
+    # Keep the highest-magnitude filters instead of discarding all learned weights: this
+    # path used to install a freshly initialised layer, throwing away the pretrained
+    # network that the reward is measured against. It also only rebound a list entry, so
+    # the model itself was never modified, and the consumer layers were left expecting the
+    # original width.
+    return prune_current_model(model_with_rows, compression_rate, row_to_resize_idx)
 
-    # Rewrap for DDP compatibility
-    model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
-    return model_with_rows
 
-
-# TODO: 2nd arch onwards the amount of filters pruned does not match the intended percentage!
 def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     """
-    Create a new model by pruning filters in the target layer.
+    Compress the target layer by removing its least important output filters.
+
+    The layer is physically shrunk (and its consumers resized) whenever the dependency
+    chain permits; otherwise the filters are masked in place. See src/pruning.py.
 
     Args:
         model_with_rows (ModelWithRows):  The model whose layer is to be pruned
@@ -416,26 +550,59 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
 
     Returns:
         pruned_model_with_rows (ModelWithRows): The pruned model
-
     """
     model_with_rows.unwrap_model()
 
     layer_to_prune_idx = model_with_rows.row_to_main_layer[row_to_prune_idx]
     layer_to_prune = model_with_rows.all_layers[layer_to_prune_idx]
+    old_width = pruning.layer_width(layer_to_prune)
 
-    prune.ln_structured(layer_to_prune, name='weight', amount=(1 - compression_rate), n=1, dim=0)
+    # Layers whose widths are tied together (a residual block's conv2 and whatever feeds its
+    # shortcut) are compressed as one unit, so coupled convolutions shrink instead of merely
+    # being masked
+    groups = channel_groups.build_channel_groups(model_with_rows.model)
+    group = channel_groups.group_of(groups, layer_to_prune) if groups else None
 
-    # Optional debug print
-    mask = getattr(layer_to_prune, 'weight_mask', None)
-    if mask is not None:
-        pruned_count = torch.sum(mask == 0).item()
-        total_count = mask.numel()
-        utils.print_flush(f"Pruned and removed {pruned_count}/{total_count} "
-            f"({round(100 * pruned_count / total_count)}%) filters in layer {layer_to_prune_idx}")
-    else:
-        utils.print_flush(f"Warning: No pruning mask found for layer {layer_to_prune_idx}")
+    if group is not None and group.prunable:
+        keep_idx = pruning.select_group_survivors(group, compression_rate)
+        if keep_idx is not None and pruning.prune_group_structurally(model_with_rows, group, keep_idx):
+            coupled = len(group.producers) + len(group.depthwise)
+            utils.print_flush(
+                f"Layer {layer_to_prune_idx}: width {old_width} -> {keep_idx.numel()} "
+                f"across {coupled} coupled layer(s), {len(group.consumers)} consumer(s) resized")
+            # Recorded on the ModelWithRows so NetworkEnv.step can fold the outcome into its
+            # own step record; the caller owns the episode/network context.
+            model_with_rows.last_prune_outcome = {
+                "mode": "structural", "reason": None, "old_width": old_width,
+                "new_width": int(keep_idx.numel()), "coupled_layers": coupled,
+                "consumers_resized": len(group.consumers),
+            }
+            recorder.record("prune", mode="structural", layer_index=layer_to_prune_idx,
+                            layer_type=type(layer_to_prune).__name__, rate=compression_rate,
+                            old_width=old_width, new_width=int(keep_idx.numel()),
+                            coupled_layers=coupled, consumers_resized=len(group.consumers))
+            model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
+            return model_with_rows
 
-    prune.remove(layer_to_prune, name='weight')  # Apply mask permanently
+    reason = group.reason if group is not None and not group.prunable else "no dependency group resolved"
+    keep_idx = pruning.select_surviving_filters(layer_to_prune, compression_rate)
+    pruning.mask_layer_filters(layer_to_prune, keep_idx)
+    utils.print_flush(f"Layer {layer_to_prune_idx}: masked {old_width - keep_idx.numel()}/{old_width} "
+                      f"filters, shape preserved ({reason})")
+
+    # Masking is a correctness-preserving fallback, not a success: it removes parameters from
+    # the reward's point of view but no FLOPs. Counting the reasons is how we learn which
+    # dependency patterns the library still cannot resize.
+    model_with_rows.last_prune_outcome = {
+        "mode": "masked", "reason": reason, "old_width": old_width,
+        "new_width": int(keep_idx.numel()), "coupled_layers": 0, "consumers_resized": 0,
+    }
+    recorder.issue("prune_fallback_masked", reason, layer_index=layer_to_prune_idx,
+                   layer_type=type(layer_to_prune).__name__, rate=compression_rate)
+    recorder.record("prune", mode="masked", reason=reason, layer_index=layer_to_prune_idx,
+                    layer_type=type(layer_to_prune).__name__, rate=compression_rate,
+                    old_width=old_width, new_width=int(keep_idx.numel()))
+
     model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
 
     return model_with_rows

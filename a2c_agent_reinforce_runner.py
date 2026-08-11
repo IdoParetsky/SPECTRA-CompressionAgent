@@ -1,3 +1,5 @@
+import os
+import sys
 import numpy as np
 import torch
 import torch.distributed as dist
@@ -10,15 +12,21 @@ from NetworkFeatureExtraction.src.ModelClasses.NetX.netX import NetX  # required
 from src.A2C_Agent_Reinforce import A2CAgentReinforce
 from src.NetworkEnv import *
 import src.utils as utils
+import src.distributed as ddp
+import src.logging_utils as logging_utils
+import src.run_recorder as run_recorder
 from src.Configuration.StaticConf import StaticConf
 
-if torch.distributed.is_available() and not torch.distributed.is_initialized():
-    dist.init_process_group(backend='nccl', init_method='env://')
-rank = int(os.environ.get("RANK", 0))
-port = 12345 + rank  # each rank gets its own port, initial value chosen arbitrarily
-utils.print_flush(f"[Rank {rank}] Connecting debugger on port {port}")
-import pydevd_pycharm
-pydevd_pycharm.settrace('localhost', port=port, stdoutToServer=True, stderrToServer=True, suspend=False)
+# Distributed is opt-in: a plain `python a2c_agent_reinforce_runner.py ...` on a single
+# rtx_6000 never initialises NCCL. Launch with torchrun/srun to enable multi-GPU.
+ddp.maybe_init_distributed()
+rank = ddp.get_rank()
+# Optional PyCharm remote debug (set SPECTRA_PYDEVD=1). Off by default for Cursor/SLURM runs.
+if os.environ.get("SPECTRA_PYDEVD", "").strip() in ("1", "true", "True"):
+    port = 12345 + rank  # each rank gets its own port, initial value chosen arbitrarily
+    utils.print_flush(f"[Rank {rank}] Connecting debugger on port {port}")
+    import pydevd_pycharm
+    pydevd_pycharm.settrace('localhost', port=port, stdoutToServer=True, stderrToServer=True, suspend=False)
 
 import logging
 logging.getLogger("torch.distributed.distributed_c10d").setLevel(logging.ERROR)
@@ -49,45 +57,62 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
 
     env = NetworkEnv(train_dict, mode, fold_idx)
 
-    for model_idx, (net_path, _) in enumerate(test_dict.items()):
-        utils.print_flush(f"Evaluating model: {net_path}, {model_idx=}/{len(env.networks)}")
+    # Under a multi-GPU launch each rank evaluates a disjoint slice of the networks and
+    # writes its own results file, so the work is split rather than duplicated
+    world_size, rank = ddp.get_world_size(), ddp.get_rank()
+    shard = list(test_dict.items())[rank::world_size]
+    if world_size > 1:
+        utils.print_flush(f"Rank {rank} evaluating {len(shard)}/{len(test_dict)} networks")
 
-        # Reset environment with test model instead of selecting from train_dict
-        state = env.reset(test_net_path=net_path)
-        done = False
-        env.t_start = time.perf_counter()
+    for model_idx, (net_path, (net_model, net_loaders)) in enumerate(shard):
+        utils.print_flush(f"Evaluating model {model_idx + 1}/{len(shard)}: {net_path}")
 
-        while not done:
-            # Get action distribution from the agent
-            action_dist = agent.actor_model(state)
+        # One failing network must not abort the whole evaluation sweep: the remaining
+        # networks still produce results, and the failure is recorded for triage.
+        try:
+            with logging_utils.context(net=os.path.basename(net_path), phase=mode):
+                # Reset environment with test model instead of selecting from train_dict
+                env.t_start = time.perf_counter()
+                state = env.reset(test_net_path=net_path, test_model=net_model, test_loaders=net_loaders)
+                done = False
 
-            action = action_dist.sample()  # Compression Rate
-            compression_rate = conf.compression_rates_dict[action.item()]
-            next_state, reward, done = env.step(compression_rate)
-            state = next_state
+                while not done:
+                    # Get action distribution from the agent
+                    action_dist = agent.actor_model(state)
+
+                    action = action_dist.sample()  # Compression Rate
+                    compression_rate = conf.compression_rates_dict[action.item()]
+                    next_state, reward, done = env.step(compression_rate)
+                    state = next_state
+        except Exception as error:
+            logging_utils.exception(f"Evaluation of {net_path} failed; continuing with the rest")
+            run_recorder.issue("eval_network_failed", f"{type(error).__name__}: {error}",
+                               network=net_path, eval_mode=mode)
 
 
 def main():
     """ Main function for training and evaluating the A2C agent. """
     conf = StaticConf.get_instance().conf_values
-    agent = A2CAgentReinforce()
+
+    with logging_utils.stage("agent.construct"):
+        agent = A2CAgentReinforce()
 
     utils.print_flush(f"Starting test: {conf.test_name}")
 
     # Agent training is skipped if both actor and critic checkpoints are provided (Agent is pretrained)
     if not all([conf.actor_checkpoint_path, conf.critic_checkpoint_path]):
-        utils.print_flush("Starting Agent training")
-        agent.train()
-        utils.print_flush("Done Agent training")
+        with logging_utils.stage("phase.train"):
+            with logging_utils.context(phase="train"):
+                agent.train()
     else:
         utils.print_flush(f"Agent is pre-trained, training is skipped (actor_checkpoint={conf.actor_checkpoint_path}, "
                           f"critic_checkpoint={conf.critic_checkpoint_path}")
 
     # Perform standard intra-model evaluation
     for mode in [EVAL_TRAIN, EVAL_TEST]:
-        utils.print_flush(f"Evaluating {mode.split('_')[1]} models")
-        evaluate_model(mode, agent)
-        utils.print_flush(f"DONE evaluating {mode.split('_')[1]} models")
+        with logging_utils.stage(f"phase.{mode}"):
+            with logging_utils.context(phase=mode):
+                evaluate_model(mode, agent)
 
     # Optionally, perform inter-model evaluation via cross-validation
     if conf.n_splits:  # Default is 0 (no CV), recommended value is 10
@@ -95,13 +120,24 @@ def main():
         folds = utils.get_cross_validation_splits(conf.input_dict)
 
         for fold_idx, (train_dict, test_dict) in enumerate(folds):
-            utils.print_flush(f"Cross-Validation Fold {fold_idx + 1}")
-            evaluate_model(EVAL_TEST, agent, train_dict, test_dict, fold_idx + 1)
+            with logging_utils.stage(f"phase.cv_fold_{fold_idx + 1}"):
+                with logging_utils.context(phase="cv", fold=fold_idx + 1):
+                    evaluate_model(EVAL_TEST, agent, train_dict, test_dict, fold_idx + 1)
         utils.print_flush("DONE Cross-Validation")
 
 
 if __name__ == "__main__":
-    torch.autograd.set_detect_anomaly(True)  # Enables to track and interrupt execution due to important RunTimeErrors
+    # Logging is configured before anything else so that even an argument-parsing failure or
+    # an import-time crash lands in the run directory with a full traceback.
+    RUN_DIR = logging_utils.setup()
+    logging_utils.start_heartbeat()
+    utils.print_flush(f"SPECTRA run {logging_utils.run_id()} -> {RUN_DIR}")
+    logging_utils.log_environment()
+
+    # Anomaly detection roughly triples backward-pass cost, so it is opt-in via
+    # SPECTRA_DETECT_ANOMALY=1 rather than always-on.
+    if os.environ.get("SPECTRA_DETECT_ANOMALY", "").strip() in ("1", "true", "True"):
+        torch.autograd.set_detect_anomaly(True)
 
     # GPUs have Tensor Cores capable of speeding up float32 matmul ops (used in conv/linear layers),
     # but PyTorch doesn't enable them by default. This increases performance without needing AMP
@@ -129,7 +165,9 @@ if __name__ == "__main__":
     train_compressed_layer_only = "_train_compressed-layer-only" if args.train_compressed_layer_only else ""
     dt_string = datetime.now().strftime("%d/%m/%Y %H:%M:%S").replace("/", "-").replace(":", "-")
 
-    preloaded_dataloaders_dict = utils.preload_datasets(args.datasets, args.train_split, args.val_split)
+    # Every dataset is materialised once here and shared by all networks referencing it
+    with logging_utils.stage("startup.preload_datasets", datasets=",".join(args.datasets or [])):
+        preloaded_dataloaders_dict = utils.preload_datasets(args.datasets, args.train_split, args.val_split)
 
     utils.init_conf_values(
         # args.input_dict and args.database are left out due to file name's length limitation
@@ -160,4 +198,33 @@ if __name__ == "__main__":
         test_ts=dt_string
     )
 
-    main()
+    # The manifest pins down what was run (config, git commit, GPUs, SPECTRA_* switches), so a
+    # results directory can be interpreted months later without the launch command.
+    recorder_instance = run_recorder.RunRecorder.instance()
+    recorder_instance.write_manifest({
+        "argv": sys.argv,
+        "args": vars(args),
+        "config": run_recorder.config_snapshot(StaticConf.get_instance().conf_values),
+    })
+    run_recorder.record("run_start", test_name=StaticConf.get_instance().conf_values.test_name)
+
+    RUN_STARTED = time.perf_counter()
+    try:
+        main()
+    except Exception as fatal:
+        # The excepthook logs the traceback; this records the terminal status so a summary of
+        # a failed run still reports how far it got and why it stopped.
+        run_recorder.record("run_end", status="failed",
+                            error=f"{type(fatal).__name__}: {fatal}",
+                            seconds=round(time.perf_counter() - RUN_STARTED, 2))
+        recorder_instance.close()
+        raise
+    else:
+        run_recorder.record("run_end", status="ok",
+                            seconds=round(time.perf_counter() - RUN_STARTED, 2),
+                            counters=recorder_instance.counters())
+        utils.print_flush(f"Run finished in {(time.perf_counter() - RUN_STARTED) / 60:.1f} min; "
+                          f"artefacts in {RUN_DIR}")
+    finally:
+        logging_utils.stop_heartbeat()
+        recorder_instance.close()

@@ -1,10 +1,20 @@
+import os
+
 import torch
 from torch import nn
 from torch.distributions import Categorical
 import numpy as np
 
 from src.utils import normalize_2d_data, normalize_3d_data
-from src.BERTInputModeler import BERTInputModeler
+from src.BERTInputModeler import BERTInputModeler, token_feature_dim
+from src.Model.StateEncoder import SpectraStateEncoder
+
+# "transformer" (default): small Transformer trained with the RL objective — the SPECTRA
+# baseline recommended in docs/THESIS_INSTRUCTOR_BRIEFING.md.
+# "bert":                   frozen bert-base-uncased ablation from the "Extending BERT
+#                           Input Mechanisms" document (loaded lazily only in this mode).
+# "legacy":                 NEON's original convolutional feature pipelines.
+STATE_ENCODER = os.environ.get("SPECTRA_STATE_ENCODER", "transformer").strip().lower()
 
 
 class Flatten(nn.Module):
@@ -13,20 +23,31 @@ class Flatten(nn.Module):
 
 
 class Agent(nn.Module):
-    def __init__(self, device, num_outputs):
+    def __init__(self, device, num_outputs, encoder=None):
         super(Agent, self).__init__()
         self.device = device
         self.is_actor = False
         self.is_critic = False
 
-        # BERT mechanism
-        self.bert_enabled = True
+        self.encoder_kind = (encoder or STATE_ENCODER)
+        self.bert_enabled = self.encoder_kind == "bert"
+
+        # State builder is always needed (numeric layer tokens). Frozen BERT weights are
+        # loaded inside BERTInputModeler only when encoder_kind == "bert".
         self.bert_input_modeler = BERTInputModeler()
-        self.embedding_dim = (
-            self.bert_input_modeler.bert_model.module.config.hidden_size
-            if isinstance(self.bert_input_modeler.bert_model, torch.nn.parallel.DistributedDataParallel)
-            else self.bert_input_modeler.bert_model.config.hidden_size
-        )
+
+        if self.encoder_kind == "transformer":
+            # Width includes the per-rate action-cost slots on the target layer token
+            feature_dim = token_feature_dim(num_outputs)
+            self.state_encoder = SpectraStateEncoder(feature_dim=feature_dim)
+            self.embedding_dim = self.state_encoder.output_dim
+        elif self.bert_enabled:
+            self.bert_input_modeler._ensure_bert()
+            self.state_encoder = None
+            self.embedding_dim = self.bert_input_modeler.hidden_size
+        else:
+            self.state_encoder = None
+            self.embedding_dim = 5350  # width of the concatenated legacy pipelines
 
         # DRL Head
         self.actor = nn.Sequential(
@@ -46,7 +67,14 @@ class Agent(nn.Module):
             nn.Linear(300, 1),
         )
 
-        # Original NEON feature processing pipelines (legacy)
+        # Original NEON feature processing pipelines (legacy). These hold ~10M parameters
+        # per agent and are unreachable unless they are the selected encoder, yet they used
+        # to be constructed unconditionally: they were handed to Adam (allocating optimizer
+        # state for them) and forced DDP into static_graph mode to tolerate unused parameters.
+        if self.encoder_kind == "legacy":
+            self._build_legacy_feature_pipelines()
+
+    def _build_legacy_feature_pipelines(self):
         self.architecture_network = nn.Sequential(
             nn.Conv2d(1, 50, (1, 8)),
             nn.BatchNorm2d(50),
@@ -119,21 +147,21 @@ class Agent(nn.Module):
     def forward(self, state_tokens_or_fm):
         """
         Forward pass of the DRL Agent.
-        If BERT-based embeddings are enabled, this expects tokenized BERT inputs.
-        Otherwise, expects raw feature maps (legacy).
 
         Args:
-            state_tokens_or_fm: BERT input tokens or raw feature map tuple.
+            state_tokens_or_fm: Agent state dict (transformer/bert) or legacy feature maps.
 
         Returns:
             Either:
                 - Categorical action distribution (Actor)
                 - Value prediction (Critic)
         """
-        if self.bert_enabled:
+        if self.encoder_kind == "transformer":
+            # Trained end to end with the policy, so no no_grad here
+            embeddings = self.state_encoder(state_tokens_or_fm)
+        elif self.bert_enabled:
             with torch.no_grad():
-                embeddings = self.bert_input_modeler.forward(state_tokens_or_fm)
-            embeddings = embeddings.mean(dim=1)  # shape: (batch_size, embedding_dim)
+                embeddings = self.bert_input_modeler.embed_state(state_tokens_or_fm)
         else:
             embeddings = self.extract_legacy_features(state_tokens_or_fm)
 

@@ -1,0 +1,3 @@
+# Force LF for shell scripts (BGU login/compute nodes reject CRLF bash)
+*.sh text eol=lf
+*.sbatch text eol=lf

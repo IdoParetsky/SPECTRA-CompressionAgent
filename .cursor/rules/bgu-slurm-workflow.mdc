@@ -1,0 +1,46 @@
+---
+description: BGU Slurm connection details and SPECTRA experiment runner workflow for Cursor
+alwaysApply: true
+---
+
+# BGU Slurm + SPECTRA experiments (Cursor)
+
+## Recommended workflow
+
+Keep the **main Cursor workspace local** (`C:\SPECTRA-CompressionAgent`). Sync with **git**, run on the **allocated GPU node**. Do not train on the login node.
+
+**Cheat sheet:** `docs/SLURM_EXPERIMENT_CHEATSHEET.md`
+
+1. Edit locally → **commit** + **push** what should run remotely.
+2. Allocate: `ssh bgu-slurm` then `sinteractive` / `bash scripts/run_spectra_sinteractive.sh`.
+3. From Windows: `.\scripts\slurm_run.ps1` (auto-resolves node, syncs, runs, saves `runs/slurm_logs/*.log`).
+4. Feed log to Cursor via `@runs/slurm_logs/<file>.log`.
+5. If no CUDA: `scancel` and re-allocate.
+
+## Connection
+
+| Field | Value |
+|-------|-------|
+| Login alias | `bgu-slurm` → `slurm.bgu.ac.il`, user `paretsky`, port `22` |
+| GPU alias | `bgu-slurm-gpu` (ProxyJump `bgu-slurm`; refresh HostName each job) |
+| IdentityFile | `~/.ssh/id_ed25519_bgu_slurm` (passwordless installed) |
+| Secrets | `%USERPROFILE%\.spectra\bgu-slurm.secrets.md` (not in git) |
+
+Example GPU HostName (ephemeral): `cs-1080-05.auth.ad.bgu.ac.il`
+
+## Remote paths
+
+| Role | Path |
+|------|------|
+| Repo | `/home/paretsky/SPECTRA-CompressionAgent` |
+| Python | `/home/paretsky/.conda/envs/spectra/bin/python` |
+| Input (default) | `/home/paretsky/initial_input_no_imagenet.json` |
+| Database (default) | `/home/paretsky/initial_database_no_imagenet.json` |
+
+## Runner params
+
+See `scripts/run_agent.sh` and `.vscode/launch.json` (`SPECTRA A2C (SLURM GPU)`).
+
+```text
+--passes 2 --rollout_limit 10 --seed 42 --n_splits 3 --save_pruned_checkpoints True
+```

@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "SPECTRA A2C (SLURM GPU)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/a2c_agent_reinforce_runner.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "python": "/home/paretsky/.conda/envs/spectra/bin/python",
+      "env": {
+        "SPECTRA_PYDEVD": ""
+      },
+      "args": [
+        "--input", "/home/paretsky/initial_input_no_imagenet.json",
+        "--database", "/home/paretsky/initial_database_no_imagenet.json",
+        "--passes", "2",
+        "--rollout_limit", "10",
+        "--seed", "42",
+        "--n_splits", "3",
+        "--save_pruned_checkpoints", "True"
+      ]
+    }
+  ]
+}

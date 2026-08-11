@@ -5,9 +5,12 @@ class ConfigurationValues:
 
     def __init__(self, device, test_name, input_dict, compression_rates_dict, runtime_limit, num_epochs,
                  train_compressed_layer_only, allowed_acc_reduction, discount_factor, learning_rate,
-                 rollout_limit, passes, prune, seed, n_splits, train_split, val_split, database_dict, dataloaders_dict,
-                 actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts) -> None:
-        self.test_name = test_name,
+                 rollout_limit, passes, prune, seed, n_splits, train_split, val_split, database_dict,
+                 actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts,
+                 dataloaders_dict=None) -> None:
+        # NB: a stray trailing comma used to make this a 1-tuple, which leaked into every
+        # TensorBoard run directory and results filename built from it.
+        self.test_name = test_name
         self.input_dict = input_dict
         self.compression_rates_dict = compression_rates_dict
         self.device = device
@@ -26,7 +29,7 @@ class ConfigurationValues:
         self.val_split = val_split
         self.runtime_limit = runtime_limit
         self.database_dict = database_dict
-        self. dataloaders_dict = dataloaders_dict
+        self.dataloaders_dict = dataloaders_dict
         self.actor_checkpoint_path = actor_checkpoint_path
         self.critic_checkpoint_path = critic_checkpoint_path
         self.save_pruned_checkpoints = save_pruned_checkpoints

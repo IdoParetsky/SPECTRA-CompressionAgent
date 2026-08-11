@@ -1,0 +1,25 @@
+# DEPRECATED for local Windows installs.
+# GPU / CUDA PyTorch for SPECTRA experiments lives on SLURM only:
+#   /home/paretsky/.conda/envs/spectra
+# See SLURM_GPU.md and environment.slurm.yml.
+#
+# Do NOT: pip install -r requirements.spectra.txt on this laptop (CPU torch path cancelled).
+# Install / upgrade deps on the cluster inside the spectra conda env instead.
+#
+# Reference packages (install on SLURM with CUDA torch from pytorch channel, not CPU wheels):
+# torch  (CUDA build matching cluster, e.g. cu121)
+# torchvision
+# torchaudio
+# transformers~=4.46.3
+# accelerate>=0.20.3,<1.0
+# thop~=0.1.1
+# tensorboard>=2.14,<2.20
+# safetensors
+# sentencepiece
+# protobuf
+# einops
+# timm
+# numpy scipy pandas scikit-learn matplotlib seaborn
+# pillow pyyaml requests tqdm networkx h5py
+# opencv-python-headless jupyter notebook ipykernel
+# black pytest rich

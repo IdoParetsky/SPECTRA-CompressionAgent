@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
+
+import src.distributed as ddp
 from src.Configuration.StaticConf import StaticConf
 
 
@@ -49,19 +49,18 @@ class ModelWithRows:
             model (torch.nn.Module): The neural network model to analyze.
         """
 
-        self.model = model
-        # Initialize DDP (only if distributed environment is available)
-        if dist.is_available() and dist.is_initialized():
-            local_rank = dist.get_rank()
-            torch.cuda.set_device(local_rank)
-            device = torch.device(f"cuda:{local_rank}")
-            self.model.to(device)
-            self.model = DDP(self.model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
-        else:
-            device = StaticConf.get_instance().conf_values.device
-            self.model.to(device)
+        # A ModelWithRows is rebuilt on every environment step. Wrapping the model in
+        # DDP here made each step wrap the previous step's wrapper, so the nesting depth
+        # (and its per-iteration gradient bookkeeping) grew for the whole episode and only
+        # reset when reset() reloaded the pristine model. The pruned CNN is therefore kept
+        # unwrapped; replication, when enabled, is the caller's responsibility.
+        self.model = ddp.unwrap(model)
+        self.model.to(StaticConf.get_instance().conf_values.device)
 
         self.all_layers = []
+        # (owning module, attribute name) per entry of all_layers, so a layer can be swapped
+        # for a resized one inside the real module tree rather than only in this list
+        self.layer_parents = []
         # Define which layer types should trigger a new row.
         self.main_layer_types = [torch.nn.Conv2d, torch.nn.Linear]
 
@@ -80,11 +79,27 @@ class ModelWithRows:
             - If a module has children (submodules), it will recursively explore them.
             - If a module does not have children, it is treated as an atomic layer.
         """
-        for sub_layer in layer.children():
+        for name, sub_layer in layer.named_children():
             if len(list(sub_layer.children())):
                 self.extract_layers_from_model(sub_layer)  # Recursive call for nested layers
             else:
                 self.all_layers.append(sub_layer)
+                self.layer_parents.append((layer, name))
+
+    def replace_layer(self, layer_idx: int, new_layer: torch.nn.Module):
+        """
+        Swap a layer for a (typically resized) replacement.
+
+        Assigning to ``all_layers[idx]`` alone only rebinds a Python list entry; the model
+        itself keeps the original module, so the network is left unchanged. The parent
+        module recorded during extraction is updated here as well.
+        """
+        parent, attr_name = self.layer_parents[layer_idx]
+        setattr(parent, attr_name, new_layer)
+        self.all_layers[layer_idx] = new_layer
+
+        # Rows hold references to the replaced modules, so rebuild them
+        self.all_rows, self.row_to_main_layer = self.split_and_map_layers_to_rows()
 
     def is_to_split_row(self, curr_layer: torch.nn.Module, curr_row: list) -> bool:
         """
@@ -136,11 +151,9 @@ class ModelWithRows:
         return np.array(all_rows, dtype=object), row_to_main_layer
 
     def unwrap_model(self):
-        if isinstance(self.model, (torch.nn.DataParallel, torch.nn.parallel.DistributedDataParallel)):
-            self.model = self.model.module
+        self.model = ddp.unwrap(self.model)
 
     def rewrap_model(self, device):
-        if torch.cuda.device_count() > 1 and dist.is_initialized():
-            self.model = DDP(self.model.to(device), device_ids=[device.index], output_device=device.index,
-                             find_unused_parameters=True)
+        """Kept for call-site compatibility; the model is only moved onto its device."""
+        self.model.to(device)
 

@@ -52,6 +52,9 @@ class ClassificationHandler(BasicHandler):
         with torch.no_grad():
             for x_batch, y_batch in loader:
                 x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+                if y_batch.dim() > 1 and y_batch.shape[1] > 1:  # one-hot targets
+                    y_batch = torch.argmax(y_batch, dim=1)
+                y_batch = y_batch.long()  # CrossEntropyLoss requires integer class indices
                 preds = self.model(x_batch)
                 total_loss += loss_func(preds, y_batch).item()
                 preds_classes = torch.argmax(preds, dim=1)
@@ -65,16 +68,27 @@ class ClassificationHandler(BasicHandler):
         utils.print_flush(f"Average Loss: {total_loss / len(loader):.3f}")
         return accuracy
 
-    def train_model(self, train_loader):
+    def train_model(self, train_loader, allow_reinit_retry=True):
         """
-         Trains the model using the provided training data loader.
+         Fine-tunes the model after a compression step, keeping the best-loss weights.
 
          Args:
              train_loader (DataLoader): The DataLoader for training
+             allow_reinit_retry (bool): Whether a non-converging run may reinitialise the
+                 weights and train once more. The retry is single-shot on purpose: it used
+                 to call train_model unconditionally, so any configuration that produced no
+                 epoch loss at all (e.g. num_epochs == 0, or an empty loader) recursed until
+                 the interpreter hit its recursion limit.
          """
-        device = StaticConf.get_instance().conf_values.device
+        conf = StaticConf.get_instance().conf_values
+        device = conf.device
         self.model.float().to(device)
         self.model.train()
+
+        num_epochs = conf.num_epochs
+        if num_epochs <= 0:
+            utils.print_flush("num_epochs <= 0; skipping post-compression fine-tuning.")
+            return
 
         best_loss = np.inf
         best_state_buffer = None
@@ -85,17 +99,18 @@ class ClassificationHandler(BasicHandler):
         # Recreate optimizer with current model parameters
         # Filter only trainable parameters to avoid non-grad tensors
         trainable_params = [p for p in self.model.parameters() if p.requires_grad]
-        self.optimizer = torch.optim.Adam(trainable_params,
-                                          lr=StaticConf.get_instance().conf_values.learning_rate)
+        if not trainable_params:
+            utils.print_flush("No trainable parameters after freezing; skipping fine-tuning.")
+            return
+        self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate)
         # Clear any leftover optimizer state to ensure fresh start
         self.optimizer.state.clear()
 
         # Dynamic Learning Rate Scheduling  # TODO: New addition, assess with and without
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.5, patience=2, verbose=True)
+            self.optimizer, mode='min', factor=0.5, patience=2)
 
-        # for epoch in range(StaticConf.get_instance().conf_values.num_epochs):  # 100 in NEON -> 40
-        for epoch in range(0):  #TODO: Skipping loop to verify code progression. Experiment with 2 epochs as a sandard
+        for epoch in range(num_epochs):  # 100 in NEON -> 40
             epoch_losses = []
             for curr_x, curr_y in train_loader:
                 curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)
@@ -109,24 +124,26 @@ class ClassificationHandler(BasicHandler):
                 outputs = self.model(curr_x)
                 if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
                     curr_y = torch.argmax(curr_y, dim=1)
-                loss = self.loss_func(outputs, curr_y)
+                loss = self.loss_func(outputs, curr_y.long())
 
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
                 self.optimizer.step()
 
                 epoch_losses.append(loss.detach())
+
+            if not epoch_losses:
+                utils.print_flush("Training loader yielded no usable batches; aborting fine-tuning.")
+                break
 
             avg_loss = torch.stack(epoch_losses).mean().item()
             scheduler.step(avg_loss)
 
             if avg_loss < best_loss - EPSILON:
                 best_loss = avg_loss
-                if not dist.is_initialized() or dist.get_rank() == 0:
-                    best_state_buffer = io.BytesIO()
-                    torch.save(self.model.state_dict(), best_state_buffer)
-                if dist.is_initialized():  # # Sync all processes if in DDP
-                    dist.barrier()
+                # Every rank keeps its own copy so that non-zero ranks can restore too
+                best_state_buffer = io.BytesIO()
+                torch.save(self.model.state_dict(), best_state_buffer)
                 epochs_not_improved = 0
             else:
                 epochs_not_improved += 1
@@ -138,14 +155,15 @@ class ClassificationHandler(BasicHandler):
                 utils.print_flush("Early stopping due to no improvement.")
                 break
 
-        # If training fails to converge - reinitializing weights and retraining
+        # If training fails to converge - reinitializing weights and retraining (at most once)
         if best_loss == np.inf:
-            utils.print_flush("Model failed to converge. Reinitializing weights.")
-            self.reinitialize_weights()
-            return self.train_model(train_loader)  # Retry training
-
-        # Restore the best model state
-        if best_state_buffer is not None:
+            if allow_reinit_retry:
+                utils.print_flush("Model failed to converge. Reinitializing weights and retrying once.")
+                self.reinitialize_weights()
+                return self.train_model(train_loader, allow_reinit_retry=False)
+            utils.print_flush("Model failed to converge after a reinitialisation retry; keeping current weights.")
+        elif best_state_buffer is not None:
+            # Restore the best model state
             best_state_buffer.seek(0)
             self.model.load_state_dict(torch.load(best_state_buffer, weights_only=True, map_location=device))
 

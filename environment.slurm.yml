@@ -1,0 +1,53 @@
+﻿# SPECTRA conda env for BGU SLURM (GPU / CUDA PyTorch).
+# Target: /home/paretsky/.conda/envs/spectra on the cluster.
+# DO NOT use this to install on local Windows — use SLURM only.
+#
+# Example (on cluster login or GPU node):
+#   conda env create -f environment.slurm.yml
+#   # or update existing:
+#   conda env update -n spectra -f environment.slurm.yml --prune
+#
+# Adjust pytorch-cuda=12.1 if the cluster driver/CUDA toolkit differs.
+# Historical reference: torch 2.4.1+cu121 on prior GPU workstation.
+name: spectra
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  - numpy
+  - scipy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - seaborn
+  - jupyter
+  - notebook
+  - ipykernel
+  - pillow
+  - pyyaml
+  - requests
+  - tqdm
+  - networkx
+  - h5py
+  - pytorch::pytorch
+  - pytorch::torchvision
+  - pytorch::torchaudio
+  - pytorch-cuda=12.1
+  - pip:
+      - transformers~=4.46.3
+      - accelerate>=0.20.3,<1.0
+      - thop~=0.1.1
+      - tensorboard~=2.14
+      - safetensors
+      - sentencepiece
+      - protobuf
+      - einops
+      - timm
+      - opencv-python-headless
+      - black
+      - pytest
+      - rich

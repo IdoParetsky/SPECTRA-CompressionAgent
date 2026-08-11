@@ -1,0 +1,19 @@
+# DEPRECATED — DO NOT INSTALL on this Windows machine for SPECTRA experiments.
+#
+# Policy (2026-08): GPU PyTorch belongs ONLY on BGU SLURM:
+#   /home/paretsky/.conda/envs/spectra
+# See SLURM_GPU.md and environment.slurm.yml.
+#
+# Local Windows is optional for editing/git only. Do not recreate a CPU
+# torch / cpuonly stack from this file. Kept only as an archival note of a
+# mistaken local path (no NVIDIA driver on the laptop).
+name: spectra-windows-DEPRECATED-cpuonly
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pip
+  # Intentionally incomplete — refuse to pin pytorch::cpuonly for installs.
+  # If you need a remote GPU env, use environment.slurm.yml on the cluster.

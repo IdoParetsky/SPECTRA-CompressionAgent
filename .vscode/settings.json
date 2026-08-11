@@ -1,0 +1,8 @@
+{
+  "python.defaultInterpreterPath": "/home/paretsky/.conda/envs/spectra/bin/python",
+  "python.terminal.activateEnvironment": false,
+  "terminal.integrated.env.linux": {
+    "SPECTRA_PYTHON": "/home/paretsky/.conda/envs/spectra/bin/python",
+    "SPECTRA_REPO": "/home/paretsky/SPECTRA-CompressionAgent"
+  }
+}

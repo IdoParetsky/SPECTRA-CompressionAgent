@@ -21,9 +21,17 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 from src.Configuration.ConfigurationValues import ConfigurationValues
 from src.Configuration.StaticConf import StaticConf
+import src.distributed as ddp
+import src.logging_utils as logging_utils
 
-# TODO: Change to dynamic assignment
-SPECTRA_DATASETS = "/home/paretsky/spectra_datasets"
+# Root under which torchvision datasets are downloaded / looked up.
+# Override with the SPECTRA_DATASETS environment variable.
+SPECTRA_DATASETS = os.environ.get("SPECTRA_DATASETS", "/home/paretsky/spectra_datasets")
+
+# DataLoader workers per loader. Each dataset builds 3 loaders, so keep this modest:
+# the previous hard-coded 8 (with persistent_workers) spawned hundreds of resident
+# processes once several datasets were preloaded.
+DATALOADER_WORKERS = int(os.environ.get("SPECTRA_DATALOADER_WORKERS", "4"))
 
 # Possible instantiation functions' parameters
 NUM_CLASSES = "num_classes"
@@ -32,10 +40,16 @@ WIDTH = "width"
 
 
 def print_flush(msg):
-    if dist.get_rank() == 0:  # Prevent print_flush per rank
-        now = datetime.now()
-        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        print(f"{dt_string} -- {msg}", flush=True)
+    """
+    Informational log line.
+
+    Kept under its original name so the ~100 existing call sites keep working, but it is now
+    a thin shim over src.logging_utils: timestamped to the millisecond, level-tagged,
+    rank-tagged, annotated with the active context (episode / network / layer) and mirrored
+    into the run's per-rank log file. Non-main ranks no longer discard their output; the
+    console filter lives in the handler, so rank 1's messages still reach rank1.log.
+    """
+    logging_utils.info(str(msg))
 
 
 def extract_args_from_cmd():
@@ -74,6 +88,15 @@ def extract_args_from_cmd():
             "  \"network_path_1\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\", optional_kwargs],\n"
             "  \"network_path_2\": [\"architecture\", \"instantiation_script_path\", \"dataset_name_or_path\", optional_kwargs]\n"
             "}\n\n"
+        )
+    )
+
+    parser.add_argument('--datasets', type=str, nargs='*', default=None,
+        help=(
+            "Datasets to preload once, up-front, and share across every network that uses them "
+            "(e.g. --datasets cifar-10 cifar-100). Each entry is a known dataset name (see "
+            "utils.dataset_loaders) or a path to an ImageFolder-style directory. When omitted, "
+            "the dataset names referenced by --input / --database are preloaded automatically."
         )
     )
 
@@ -140,14 +163,111 @@ def extract_args_from_cmd():
     return parser.parse_args()
 
 
-def parse_input_argument(input_arg, train_split, val_split):
+class DatasetRegistry:
+    """
+    Loads every dataset at most once and hands the same DataLoaders to all networks
+    that share it.
+
+    The previous implementation looked the dataset key up in the *networks* dictionary,
+    so the cache never hit: every entry of --database rebuilt its dataset and spawned a
+    fresh set of persistent DataLoader workers. With a few hundred networks that alone
+    exhausted the node's processes and shared memory.
+    """
+
+    def __init__(self, train_split: float, val_split: float):
+        self.train_split = train_split
+        self.val_split = val_split
+        self._entries = {}
+
+    @staticmethod
+    def key_for(spec) -> str:
+        """Cache key that distinguishes a dataset *and* the preprocessing applied to it."""
+        name_or_path, options = parse_dataset_spec(spec)
+        base = name_or_path if os.path.exists(str(name_or_path)) else canonical_dataset_name(name_or_path)
+        if not options:
+            return base
+        detail = ",".join(f"{k}={options[k]}" for k in sorted(options))
+        return f"{base}[{detail}]"
+
+    def get(self, spec) -> dict:
+        key = self.key_for(spec)
+        if key not in self._entries:
+            print_flush(f"Preloading dataset '{key}'")
+            loaders = load_cnn_dataset(spec, self.train_split, self.val_split)
+            self._entries[key] = {
+                "loaders": loaders,
+                "num_classes": infer_num_classes(loaders[0].dataset),
+                "input_shape": get_input_shape(loaders[0]),
+            }
+        return self._entries[key]
+
+    def loaders(self, spec):
+        return self.get(spec)["loaders"]
+
+    def num_classes(self, spec) -> int:
+        return self.get(spec)["num_classes"]
+
+    def input_shape(self, spec) -> tuple:
+        """(C, H, W) of a single sample, used to size architectures and count MACs."""
+        return self.get(spec)["input_shape"]
+
+    def __contains__(self, spec) -> bool:
+        return self.key_for(spec) in self._entries
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+    def keys(self):
+        return self._entries.keys()
+
+
+def infer_num_classes(dataset) -> int:
+    """
+    Determine the number of classes of a (possibly ``Subset``-wrapped) dataset without
+    re-instantiating it.
+    """
+    while hasattr(dataset, "dataset"):  # unwrap random_split Subsets
+        dataset = dataset.dataset
+
+    classes = getattr(dataset, "classes", None)
+    if classes:
+        return len(classes)
+
+    for attr in ("targets", "labels"):
+        values = getattr(dataset, attr, None)
+        if values is not None:
+            return int(len(set(int(v) for v in values)))
+
+    raise ValueError(f"Unable to infer the number of classes for dataset {type(dataset).__name__}")
+
+
+def preload_datasets(datasets, train_split: float, val_split: float) -> DatasetRegistry:
+    """
+    Build the shared dataset registry before any network is instantiated.
+
+    Args:
+        datasets (list[str] | None): Dataset names/paths to load eagerly. When None, datasets
+                                     are loaded lazily the first time a network references them.
+        train_split (float):         Fraction of the dataset to use for training.
+        val_split (float):           Fraction of the dataset to use for validation.
+
+    Returns:
+        DatasetRegistry: Registry shared by --input and --database instantiation.
+    """
+    registry = DatasetRegistry(train_split, val_split)
+    for name_or_path in datasets or []:
+        registry.get(name_or_path)
+    return registry
+
+
+def parse_input_argument(input_arg, dataloaders_dict: DatasetRegistry):
     """
     Parse the --input or --database arguments as a JSON-formatted string or file.
 
     Args:
-        input_arg (str):        A JSON string or a path to a JSON file for Agent Training / Evaluation.
-        train_split (float):    Fraction of the dataset to use for training.
-        val_split (float):      Fraction of the dataset to use for validation.
+        input_arg (str):                       A JSON string or a path to a JSON file for
+                                               Agent Training / Evaluation.
+        dataloaders_dict (DatasetRegistry):    Shared registry of preloaded datasets.
 
     Returns:
         dict: {network_path: (nn.Module, (train_loader, val_loader, test_loader))}
@@ -169,7 +289,7 @@ def parse_input_argument(input_arg, train_split, val_split):
     except json.JSONDecodeError:
         pass
     else:
-        return instantiate_networks_and_load_datasets(input_dict, train_split, val_split)
+        return instantiate_networks_and_load_datasets(input_dict, dataloaders_dict)
 
     # Try reading JSON file
     try:
@@ -178,18 +298,18 @@ def parse_input_argument(input_arg, train_split, val_split):
     except (FileNotFoundError, json.JSONDecodeError):
         raise ValueError("Invalid input: Provide a valid JSON string or JSON file path.")
 
-    return instantiate_networks_and_load_datasets(input_dict, train_split, val_split)
+    return instantiate_networks_and_load_datasets(input_dict, dataloaders_dict)
 
 
-def instantiate_networks_and_load_datasets(input_dict, train_split, val_split):
+def instantiate_networks_and_load_datasets(input_dict, dataloaders_dict: DatasetRegistry):
     """
     Instantiates networks from their given architecture checkpoint and instantiation script,
-    then loads the corresponding standard / custom datasets.
+    then attaches the corresponding standard / custom dataset loaders.
 
     Args:
-        input_dict (dict):      {network_path: (architecture, instantiation_script, dataset_name_or_path)}
-        train_split (float):    Fraction of the dataset to use for training.
-        val_split (float):      Fraction of the dataset to use for validation.
+        input_dict (dict):                     {network_path: (architecture, instantiation_script,
+                                                dataset_name_or_path[, optional_kwargs])}
+        dataloaders_dict (DatasetRegistry):    Shared registry of preloaded datasets.
 
     Returns:
         dict: {network_path: (nn.Module, (train_loader, val_loader, test_loader))}
@@ -208,40 +328,23 @@ def instantiate_networks_and_load_datasets(input_dict, train_split, val_split):
         if not os.path.exists(net_path):
             raise ValueError(f"Network checkpoint not found: {net_path}")
 
-        # Load dataset (avoiding redundant loads)
-        dataset_key = dataset_path if os.path.exists(dataset_path) else dataset_path.lower()
-        if dataset_key not in instantiated_networks:
-            train_loader, val_loader, test_loader = load_cnn_dataset(dataset_path, train_split, val_split)
-        else:
-            train_loader, val_loader, test_loader = instantiated_networks[dataset_key][1]
+        # Loaded once per dataset and reused by every network trained on it
+        loaders = dataloaders_dict.loaders(dataset_path)
+        num_classes = dataloaders_dict.num_classes(dataset_path)
+        input_shape = dataloaders_dict.input_shape(dataset_path)
 
         # Load model architecture from script
-        model = load_model_from_script(arch, dataset_path, script_path, net_path, optional_kwargs)
+        model = load_model_from_script(arch, dataset_path, script_path, net_path, optional_kwargs,
+                                       num_classes, input_shape)
 
-        instantiated_networks[net_path] = (model, (train_loader, val_loader, test_loader))
+        instantiated_networks[net_path] = (model, loaders)
 
     return instantiated_networks
 
 
-def get_longest_matching_key(dataset_path: str) -> str:
-    """
-    Given a dataset path, return the longest matching key from the dataset_loaders dictionary.
-
-    Args:
-        dataset_path (str): The dataset path or name.
-
-    Returns:
-        str: The longest matching key from the dataset_loaders dictionary.
-    """
-    best_match = ""
-    for key in dataset_loaders.keys():
-        if key in dataset_path and len(key) > len(best_match):
-            best_match = key
-    return best_match
-
-
-def load_model_from_script(arch: str, dataset_path: str, script_path: str, checkpoint_path: str,
-                           optional_kwargs: dict) -> torch.nn.Module:
+def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint_path: str,
+                           optional_kwargs: dict, num_classes: int = None,
+                           input_shape: tuple = None) -> torch.nn.Module:
     """
     Dynamically loads a model architecture from a user-provided script and initializes it with a checkpoint.
 
@@ -252,6 +355,8 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
         checkpoint_path (str): Path to the model checkpoint (.pt/.pth/.th).
         optional_kwargs (dict):  Keyword dict for custom instantiation parameters (e.g., {num_classes=10, width=56}).
                                  If not assigned by the user, {} is propagated from instantiate_networks_and_load_datasets().
+        num_classes (int): Class count taken from the already-loaded dataset. Passing it avoids
+                           rebuilding the dataset purely to read its ``classes`` attribute.
 
     Returns:
         nn.Module: The instantiated model.
@@ -277,14 +382,21 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     params_dict = {}
 
     if NUM_CLASSES in params_list:
-        # By default, 'num_classes' is dynamically assigned via dataset_loaders's correspondent train_data's 'classes' field
-        params_dict[NUM_CLASSES] = optional_kwargs.get(NUM_CLASSES, len(dataset_loaders[dataset_path]()[0].classes))
+        # By default, 'num_classes' is taken from the already-loaded dataset (see DatasetRegistry)
+        params_dict[NUM_CLASSES] = optional_kwargs.get(NUM_CLASSES, num_classes)
+        if params_dict[NUM_CLASSES] is None:
+            raise ValueError(f"'{arch}' requires num_classes but it could not be resolved for {dataset_path}")
 
     if LARGE_INPUT in params_list:
-        # By default, 'large_input' is True is the dataset has 'imagenet' in its name / path
         large_input = optional_kwargs.get(LARGE_INPUT)
-        # Safeguarding 'False' cases
-        params_dict[LARGE_INPUT] = large_input if large_input is not None else "imagenet" in dataset_path
+        if large_input is None:
+            # Decided from the actual image size rather than from the dataset's name, so any
+            # high-resolution dataset selects the ImageNet-style stem
+            if input_shape is not None and len(input_shape) == 3:
+                large_input = min(input_shape[1], input_shape[2]) >= 128
+            else:
+                large_input = "imagenet" in str(dataset_path).lower()
+        params_dict[LARGE_INPUT] = large_input
 
     if WIDTH in params_list:
         # By default, 'width' is scraped from 'network_path' via regex
@@ -294,18 +406,11 @@ def load_model_from_script(arch: str, dataset_path: str, script_path: str, check
     # Extend params_dict with other optional_kwargs, excluding handled keys
     params_dict.update({k: v for k, v in optional_kwargs.items() if k not in [NUM_CLASSES, LARGE_INPUT, WIDTH]})
 
-    if dist.is_available() and dist.is_initialized():
-        local_rank = dist.get_rank()
-    else:
-        local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    device = ddp.resolve_device()
 
-    device = torch.device(f"cuda:{local_rank}")
-    torch.cuda.set_device(device)
-
+    # The CNN under evaluation is repeatedly pruned and rebuilt, so it is deliberately left
+    # unwrapped: a DDP replica would be invalidated by the first structural change.
     model = instantiation_func(**params_dict).to(device)
-
-    if dist.is_initialized():
-        model = DDP(model, device_ids=[local_rank], output_device=local_rank, find_unused_parameters=True)
 
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
     state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
@@ -367,12 +472,14 @@ def parse_compression_rates(compression_rates):
 def init_conf_values(test_name, input_dict, compression_rates_dict, train_compressed_layer_only,
                      allowed_acc_reduction, discount_factor, learning_rate, rollout_limit, passes, prune,
                      seed, num_epochs, runtime_limit, n_splits, train_split, val_split, database_dict,
-                     actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts):
+                     actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts,
+                     dataloaders_dict=None):
     """
     Initialize configuration values for the A2C Agent.
 
     Args:
         test_name (str):                          Indicative agent training instance name.
+        dataloaders_dict (DatasetRegistry):       Shared registry of preloaded datasets.
         input_dict (dict):                        Agent Evaluation dict - {network_path:
                                                           [arch, instantiation_script_path, dataset_name_or_path], ...}
         database_dict (dict):                     Agent Training dict - {network_path:
@@ -407,15 +514,14 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
     if not torch.cuda.is_available():
         sys.exit("GPU was not allocated!")
 
-    local_rank = int(os.environ.get("LOCAL_RANK", 0))  # fallback to 0 for single GPU
-    torch.cuda.set_device(local_rank)
-    device = torch.device(f"cuda:{local_rank}")
+    device = ddp.resolve_device()
 
-    print_flush(f"Device: {device}")
-    print_flush(f"Device Name: {torch.cuda.get_device_name(local_rank)}")
+    print_flush(f"Device: {device} (world size {ddp.get_world_size()})")
+    print_flush(f"Device Name: {torch.cuda.get_device_name(device.index)}")
 
     cv = ConfigurationValues(
         device=device,
+        dataloaders_dict=dataloaders_dict,
         test_name=test_name,
         input_dict=input_dict,
         compression_rates_dict=compression_rates_dict,
@@ -441,55 +547,142 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
     StaticConf(cv)
 
 
-# Define default transformations
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+# Channel statistics per dataset. Normalising every dataset with 0.5/0.5, as before, shifts
+# the activation distribution the agent reads and therefore the features it acts on.
+DATASET_STATS = {
+    'cifar-10': ((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
+    'cifar-100': ((0.5071, 0.4865, 0.4409), (0.2673, 0.2564, 0.2762)),
+    'mnist': ((0.1307,), (0.3081,)),
+    'fashion-mnist': ((0.2860,), (0.3530,)),
+    'kmnist': ((0.1918,), (0.3483,)),
+    'svhn': ((0.4377, 0.4438, 0.4728), (0.1980, 0.2010, 0.1970)),
+    'stl10': ((0.4467, 0.4398, 0.4066), (0.2603, 0.2566, 0.2713)),
+    'places365': ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    'imagenet1k': ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+}
+DEFAULT_STATS = ((0.5,), (0.5,))
 
-dataset_loaders = {
-    'cifar-10': lambda: (datasets.CIFAR10(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
-                         datasets.CIFAR10(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
-    'cifar10': lambda: dataset_loaders['cifar-10'](),  # Alias to allow both formats
-    'cifar-100': lambda: (datasets.CIFAR100(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
-                          datasets.CIFAR100(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
-    'cifar100': lambda: dataset_loaders['cifar-100'](),  # Alias to allow both formats
-    'mnist': lambda: (datasets.MNIST(root=SPECTRA_DATASETS, train=True, download=True, transform=transform),
-                      datasets.MNIST(root=SPECTRA_DATASETS, train=False, download=True, transform=transform)),
-    'svhn': lambda: (datasets.SVHN(root=SPECTRA_DATASETS, split='train', download=True, transform=transform),
-                     datasets.SVHN(root=SPECTRA_DATASETS, split='test', download=True, transform=transform)),
-    'imagenet1k': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
-                           datasets.ImageNet(root=SPECTRA_DATASETS, split='val', transform=transform)),
-    'imagenet-1k': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
-    'imagenet1kv1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
-    'imagenet1k-v1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
-    'imagenet-1k-v1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
-    'imagenet-1kv1': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow both formats
-    'imagenet': lambda: dataset_loaders['imagenet1k'](),  # Alias to allow all formats
-    'imagenet1kv2': lambda: (datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
-                             datasets.ImageFolder(root=f'{SPECTRA_DATASETS}/imagenetv2-matched-frequency', transform=transform)),
-    'imagenet1k-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
-    'imagenet-1k-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
-    'imagenet-1kv2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
-    'imagenetv2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
-    'imagenet-v2': lambda: dataset_loaders['imagenet1kv2'](),  # Alias to allow all formats
 
+def _torchvision_split(factory, train_kwargs, test_kwargs):
+    """Build a (train, test) pair from a torchvision dataset class."""
+    return lambda transform: (factory(root=SPECTRA_DATASETS, transform=transform, **train_kwargs),
+                              factory(root=SPECTRA_DATASETS, transform=transform, **test_kwargs))
+
+
+# Canonical name -> builder. Aliases are resolved by DATASET_ALIASES so that a database JSON
+# can spell a dataset however its source repository did.
+DATASET_BUILDERS = {
+    'cifar-10': _torchvision_split(datasets.CIFAR10, {'train': True, 'download': True},
+                                   {'train': False, 'download': True}),
+    'cifar-100': _torchvision_split(datasets.CIFAR100, {'train': True, 'download': True},
+                                    {'train': False, 'download': True}),
+    'mnist': _torchvision_split(datasets.MNIST, {'train': True, 'download': True},
+                                {'train': False, 'download': True}),
+    'fashion-mnist': _torchvision_split(datasets.FashionMNIST, {'train': True, 'download': True},
+                                        {'train': False, 'download': True}),
+    'kmnist': _torchvision_split(datasets.KMNIST, {'train': True, 'download': True},
+                                 {'train': False, 'download': True}),
+    'svhn': _torchvision_split(datasets.SVHN, {'split': 'train', 'download': True},
+                               {'split': 'test', 'download': True}),
+    'stl10': _torchvision_split(datasets.STL10, {'split': 'train', 'download': True},
+                                {'split': 'test', 'download': True}),
+    'places365': _torchvision_split(datasets.Places365, {'split': 'train-standard', 'small': True},
+                                    {'split': 'val', 'small': True}),
+    'imagenet1k': _torchvision_split(datasets.ImageNet, {'split': 'train'}, {'split': 'val'}),
+    'imagenet1kv2': lambda transform: (
+        datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
+        datasets.ImageFolder(root=f'{SPECTRA_DATASETS}/imagenetv2-matched-frequency', transform=transform)),
+}
+
+DATASET_ALIASES = {
+    'cifar10': 'cifar-10', 'cifar_10': 'cifar-10',
+    'cifar100': 'cifar-100', 'cifar_100': 'cifar-100',
+    'fashionmnist': 'fashion-mnist', 'fashion_mnist': 'fashion-mnist', 'fmnist': 'fashion-mnist',
+    'stl-10': 'stl10', 'places-365': 'places365', 'places': 'places365',
+    'imagenet': 'imagenet1k', 'imagenet-1k': 'imagenet1k', 'imagenet1k-v1': 'imagenet1k',
+    'imagenet1kv1': 'imagenet1k', 'imagenet-1k-v1': 'imagenet1k', 'imagenet-1kv1': 'imagenet1k',
+    'imagenet1k-v2': 'imagenet1kv2', 'imagenet-1k-v2': 'imagenet1kv2',
+    'imagenet-1kv2': 'imagenet1kv2', 'imagenetv2': 'imagenet1kv2', 'imagenet-v2': 'imagenet1kv2',
 }
 
 
-def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
+def canonical_dataset_name(name: str) -> str:
+    key = str(name).strip().lower()
+    return DATASET_ALIASES.get(key, key)
+
+
+def parse_dataset_spec(spec):
+    """
+    Normalise a dataset entry from the input/database JSON.
+
+    Accepts a plain name or path ("cifar-10", "/data/my_images") or a mapping that also
+    carries preprocessing needed to match the checkpoint being pruned, e.g.
+    ``{"name": "mnist", "image_size": 32, "to_rgb": true}`` for a 3-channel network trained
+    on upscaled digits.
+
+    Returns:
+        (str, dict): the dataset name or path, and its options.
+    """
+    if isinstance(spec, dict):
+        options = dict(spec)
+        name = options.pop("name", None) or options.pop("path", None)
+        if name is None:
+            raise ValueError(f"Dataset specification {spec} needs a 'name' or 'path' entry")
+        return name, options
+    return spec, {}
+
+
+def build_transform(name_or_path: str, options: dict):
+    """
+    Preprocessing pipeline for a dataset.
+
+    Args:
+        name_or_path (str): Dataset name or directory.
+        options (dict):     May contain ``image_size`` (int or (H, W)) and ``to_rgb`` (bool),
+                            which let a grayscale or small-image dataset feed a network that
+                            expects something else -- the usual obstacle to reusing one agent
+                            across unrelated datasets.
+    """
+    steps = []
+
+    if options.get("to_rgb"):
+        steps.append(transforms.Grayscale(num_output_channels=3))
+
+    image_size = options.get("image_size")
+    if image_size:
+        steps.append(transforms.Resize(image_size if isinstance(image_size, (list, tuple))
+                                       else (image_size, image_size)))
+
+    steps.append(transforms.ToTensor())
+
+    mean, std = DATASET_STATS.get(canonical_dataset_name(name_or_path), DEFAULT_STATS)
+    if options.get("to_rgb") and len(mean) == 1:  # replicate grayscale statistics per channel
+        mean, std = mean * 3, std * 3
+    steps.append(transforms.Normalize(mean, std))
+
+    return transforms.Compose(steps)
+
+
+def load_cnn_dataset(spec, train_split: float, val_split: float):
     """
     Loads a standard or custom dataset, splitting it into train, validation, and test sets.
     Implicitly, test_split = 1 - train_split - val_split
 
     Args:
-        name_or_path (str): Dataset name (e.g., 'cifar-10', 'mnist') or custom dataset path.
+        spec: Dataset name (e.g., 'cifar-10', 'mnist'), a custom dataset path, or a mapping
+              with a 'name'/'path' plus preprocessing options. See parse_dataset_spec().
         train_split (float): Fraction of data for training. Defaults to 0.7.
         val_split (float): Fraction of data for validation. Defaults to 0.2.
 
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader]: Dataloaders for train, validation, and test datasets.
     """
+    name_or_path, options = parse_dataset_spec(spec)
+    transform = build_transform(name_or_path, options)
+    canonical = canonical_dataset_name(name_or_path)
 
-    if name_or_path in dataset_loaders:
-        train_data, test_data = dataset_loaders[name_or_path]()
+    if canonical in DATASET_BUILDERS:
+        train_data, test_data = DATASET_BUILDERS[canonical](transform)
 
         train_len = int(len(train_data) * train_split / (train_split + val_split))
         val_len = len(train_data) - train_len
@@ -500,18 +693,22 @@ def load_cnn_dataset(name_or_path: str, train_split: float, val_split: float):
         val_len = int(len(dataset) * val_split)
         test_len = len(dataset) - train_len - val_len
         train_data, val_data, test_data = random_split(dataset, [train_len, val_len, test_len])
-        # Avoids repetitive loads and ensures data is accessible from within load_model_from_script()
-        dataset_loaders[name_or_path] = lambda: (train_data, test_data)
     else:
-        raise ValueError("Invalid dataset name or path. Provide a known dataset name or a valid directory.")
+        raise ValueError(
+            f"Unknown dataset '{name_or_path}'. Provide a directory, or one of: "
+            f"{', '.join(sorted(DATASET_BUILDERS))}.")
 
-    # Create DataLoaders with optimizations
-    train_loader = DataLoader(train_data, batch_size=get_adaptive_batch_size(), shuffle=True, num_workers=8,
-                              pin_memory=True, persistent_workers=True, prefetch_factor=4)
-    val_loader = DataLoader(val_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=8,
-                            pin_memory=True, persistent_workers=True, prefetch_factor=4)
-    test_loader = DataLoader(test_data, batch_size=get_adaptive_batch_size(), shuffle=False, num_workers=8,
-                             pin_memory=True, persistent_workers=True, prefetch_factor=4)
+    # Create DataLoaders with optimizations. Worker-related options are only valid when
+    # num_workers > 0, and the count is bounded so that preloading many datasets does not
+    # exhaust the node's process/shared-memory budget.
+    batch_size = get_adaptive_batch_size()
+    worker_kwargs = {"num_workers": DATALOADER_WORKERS, "pin_memory": True}
+    if DATALOADER_WORKERS > 0:
+        worker_kwargs.update({"persistent_workers": True, "prefetch_factor": 4})
+
+    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, **worker_kwargs)
+    val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, **worker_kwargs)
+    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, **worker_kwargs)
 
     return train_loader, val_loader, test_loader
 
@@ -690,65 +887,89 @@ def calc_num_parameters(model, is_pruned=False):
     return orig_params - pruned_params
 
 
-def calc_flops(model, is_pruned=False):
+def get_input_shape(loader) -> tuple:
     """
-    Calculate the total number of floating-point operations (FLOPs) for the model,
-    considering pruned parameters if specified.
-    Because SPECTRA replaces layers rather than pruning them, is_pruned is always set to False.
+    Per-sample input shape (C, H, W) taken from one batch of `loader`.
+
+    Needed because FLOPs depend on the spatial size of every feature map, which is a
+    property of the data rather than of the module definitions.
+    """
+    x_batch = next(iter(loader))[0]
+    return tuple(x_batch.shape[1:])
+
+
+def per_module_macs(model, input_shape, device=None) -> dict:
+    """
+    Multiply-accumulate operations attributable to each module, for a single input sample.
+
+    The counts are collected from a real forward pass, because the spatial dimensions of
+    every intermediate feature map (and therefore the cost of each convolution) are only
+    known once an input has flowed through the network. The previous implementation read
+    ``module.output_size`` / ``module.input_size``, attributes PyTorch modules do not have,
+    so it raised ``AttributeError`` on the first Conv2d.
 
     Args:
-        model (nn.Module): The model to analyze.
-        is_pruned (bool): Whether to account for pruned parameters.
+        model (nn.Module):     The model to analyze.
+        input_shape (tuple):   Per-sample input shape, e.g. (3, 32, 32). See get_input_shape().
+        device (torch.device): Device to run the probe pass on. Defaults to the model's device.
 
     Returns:
-        float: The total number of FLOPs in the model (in millions).
+        dict: ``id(module) -> MACs``. Keyed by identity so callers can look a layer up
+              without needing its qualified name.
     """
-    total_flops = 0
+    model = ddp.unwrap(model)
+    if device is None:
+        device = next(model.parameters()).device
+
+    counts = {}
+    handles = []
+
+    def conv_hook(module, _inputs, output):
+        # One output element costs (in_channels / groups) * k_h * k_w multiply-accumulates
+        kernel_ops = (module.in_channels // module.groups) * module.kernel_size[0] * module.kernel_size[1]
+        counts[id(module)] = counts.get(id(module), 0) + output.numel() * kernel_ops
+
+    def linear_hook(module, _inputs, output):
+        counts[id(module)] = counts.get(id(module), 0) + output.numel() * module.in_features
+
+    def elementwise_hook(module, _inputs, output):
+        counts[id(module)] = counts.get(id(module), 0) + output.numel()
 
     for module in model.modules():
         if isinstance(module, nn.Conv2d):
-            # FLOPs for Conv2d layers
-            kernel_size = module.kernel_size[0]
-            in_channels = module.in_channels
-            out_channels = module.out_channels
-            output_height, output_width = module.output_size[2], module.output_size[3]
-
-            flops = (kernel_size * kernel_size * in_channels * output_height * output_width * out_channels)
-            total_flops += flops
-
+            handles.append(module.register_forward_hook(conv_hook))
         elif isinstance(module, nn.Linear):
-            # FLOPs for Linear layers
-            in_features = module.in_features
-            out_features = module.out_features
+            handles.append(module.register_forward_hook(linear_hook))
+        elif isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d, nn.ReLU, nn.ELU, nn.SiLU,
+                                 nn.Softmax, nn.Tanh, nn.Sigmoid)):
+            handles.append(module.register_forward_hook(elementwise_hook))
 
-            flops = in_features * out_features
-            total_flops += flops
+    was_training = model.training
+    model.eval()
+    try:
+        with torch.no_grad():
+            model(torch.zeros(1, *input_shape, device=device))
+    finally:
+        for handle in handles:
+            handle.remove()
+        model.train(was_training)
 
-        elif isinstance(module, (nn.BatchNorm1d, nn.BatchNorm2d)):
-            # FLOPs for BatchNorm1/2d
-            num_features = module.num_features
-            flops = num_features  # For each feature, one operation for mean and variance
-            total_flops += flops
+    return counts
 
-        elif isinstance(module, (nn.ReLU, nn.ELU, nn.SiLU, nn.Softmax, nn.Tanh, nn.Sigmoid)):
-            # FLOPs for activation functions
-            input_size = module.input_size
-            flops = input_size[1] * input_size[2] * input_size[3]  # Element-wise operation
-            total_flops += flops
 
-        elif isinstance(module, nn.Dropout):
-            # Dropout does not contribute to FLOPs during inference
-            pass
+def calc_flops(model, input_shape, device=None):
+    """
+    Total multiply-accumulate operations for a single input sample.
 
-    if is_pruned:
-        # If pruned, account for the removed weights and the corresponding FLOPs
-        pruned_flops = 0
-        for module in model.modules():
-            if hasattr(module, 'weight_mask'):
-                pruned_flops += (module.weight_mask == 0).sum().item()
-        total_flops -= pruned_flops  # Remove pruned FLOPs
+    Args:
+        model (nn.Module):     The model to analyze.
+        input_shape (tuple):   Per-sample input shape, e.g. (3, 32, 32).
+        device (torch.device): Device to run the probe pass on.
 
-    return total_flops
+    Returns:
+        float: Total MACs for one sample.
+    """
+    return float(sum(per_module_macs(model, input_shape, device).values()))
 
 
 def save_times_csv(name, times, datasets):
