@@ -9,6 +9,8 @@
 #     bash scripts/submit.sh smoke      # minutes: one network, few steps, correctness only
 #     bash scripts/submit.sh medium     # hours: realistic fine-tune + exploration, small DB
 #     bash scripts/submit.sh full       # the real experiment
+#     bash scripts/submit.sh probe      # ~2h: rate×epochs recovery matrix (no RL)
+#     bash scripts/submit.sh diag       # ~2.5h: short agent run on 2 nets
 #
 # Or directly:
 #     sbatch --gpus=rtx_6000:1 --mem=120G --time=0-08:00:00 scripts/spectra.sbatch
@@ -109,19 +111,49 @@ case "$PROFILE" in
     export SPECTRA_STANDARDIZER_PATH="${SPECTRA_STANDARDIZER_PATH:-${REPO_DIR}/runs/standardizer.pt}"
     EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-54000}")
     ;;
+  probe)
+    # No RL: rate × epochs recovery matrix on 1–2 nets, both freeze policies.
+    # Answers whether fine-tune budgets can recover before another long agent run.
+    RUN_KIND=probe
+    ;;
+  diag)
+    # Short agent probe on 2 CIFAR-10 nets: enough episodes to see whether exploration
+    # ever produces recoverable compressions, without an 8h wall.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=20
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-5}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-10}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction 5)
+    ;;
   *)
-    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full)" >&2
+    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|diag)" >&2
     exit 1
     ;;
 esac
 
-echo "profile ${PROFILE}: input=${SPECTRA_INPUT} database=${SPECTRA_DATABASE}"
-echo "datasets=${SPECTRA_DATASET_NAMES} passes=${SPECTRA_PASSES} rollout=${SPECTRA_ROLLOUT_LIMIT}"
-echo "num_epochs=${SPECTRA_NUM_EPOCHS} entropy_coef=${SPECTRA_ENTROPY_COEF:-default} warmup_mult=${SPECTRA_WARMUP_MULTIPLIER:-default}"
-env | grep '^SPECTRA_' | sort
+if [[ "${RUN_KIND:-agent}" == "probe" ]]; then
+  echo "profile probe: recovery matrix (no RL)"
+  env | grep '^SPECTRA_' | sort
+  bash scripts/run_recovery_probe.sh
+  STATUS=$?
+else
+  echo "profile ${PROFILE}: input=${SPECTRA_INPUT} database=${SPECTRA_DATABASE}"
+  echo "datasets=${SPECTRA_DATASET_NAMES} passes=${SPECTRA_PASSES} rollout=${SPECTRA_ROLLOUT_LIMIT}"
+  echo "num_epochs=${SPECTRA_NUM_EPOCHS} entropy_coef=${SPECTRA_ENTROPY_COEF:-default} warmup_mult=${SPECTRA_WARMUP_MULTIPLIER:-default}"
+  env | grep '^SPECTRA_' | sort
 
-bash scripts/run_agent.sh "${EXTRA_ARGS[@]}" ${SPECTRA_EXTRA_ARGS:-}
-STATUS=$?
+  bash scripts/run_agent.sh "${EXTRA_ARGS[@]}" ${SPECTRA_EXTRA_ARGS:-}
+  STATUS=$?
+fi
 
 echo "=============================================================="
 echo " SPECTRA job ${SLURM_JOB_ID} finished with status ${STATUS} at $(date -Is)"
