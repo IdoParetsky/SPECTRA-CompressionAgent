@@ -91,7 +91,7 @@ case "$PROFILE" in
     export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
     export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
     export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
-    EXTRA_ARGS=(--runtime_limit 28800)
+    EXTRA_ARGS=(--runtime_limit 25200)
     ;;
   full)
     # NEON used 100 fine-tune epochs; SPECTRA's documented default is 40 (see argparse /
@@ -109,7 +109,8 @@ case "$PROFILE" in
     export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
     # Cache the database-wide feature statistics so later runs skip the fitting pass
     export SPECTRA_STANDARDIZER_PATH="${SPECTRA_STANDARDIZER_PATH:-${REPO_DIR}/runs/standardizer.pt}"
-    EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-54000}")
+    # Soft-stop 2h before the 15h SLURM wall so eval/summarize can finish.
+    EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-46800}")
     ;;
   probe)
     # No RL: rate × epochs recovery matrix on 1–2 nets, both freeze policies.
@@ -141,6 +142,7 @@ case "$PROFILE" in
   recover)
     # Probe lead #1: full-network fine-tune + 40 epochs + milder rates (1.0/0.9/0.8).
     # Today's matrices showed only these settings ever stay inside the -5 pp cliff.
+    # Train soft-stops at 4h; submit.sh wall is 6h so eval is not SLURM-killed.
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
