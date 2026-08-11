@@ -31,7 +31,7 @@ On the login node:
 cd /home/paretsky/SPECTRA-CompressionAgent
 bash scripts/run_spectra_sinteractive.sh
 # equivalent:
-# sinteractive --gpu 1 --time 0-3:00:00 --mem 120
+# sinteractive --gpu 1 --time 0-3:00:00 --mem 80
 ```
 
 Wait until you land on a compute host (e.g. `paretsky@cs-1080-05...`).  

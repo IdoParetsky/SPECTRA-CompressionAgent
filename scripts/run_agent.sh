@@ -40,7 +40,7 @@ fi
 
 if (( GPUS < 1 )); then
   echo "No GPU detected. SPECTRA experiments run on SLURM GPUs only - allocate one with:" >&2
-  echo "  sinteractive --gpu rtx_6000:1 --time 0-15:00:00 --mem 120" >&2
+  echo "  sinteractive --gpu rtx_6000:1 --time 0-15:00:00 --mem 80" >&2
   exit 1
 fi
 

@@ -267,9 +267,15 @@ class NetworkEnv:
             # Prepare model handler
             learning_handler_new_model = self.create_learning_handler(model_with_rows.model)
 
-            # Freeze/unfreeze layers based on config
+            # Freeze/unfreeze layers based on config. Prefer the modules actually rewritten by
+            # the last structural group prune (producers + consumers + norms); the old
+            # "pruned row + next layer" rule left resized consumers frozen and made mild
+            # compressions unrecoverable under the -5 pp reward cliff (see recovery probes).
             if self.conf.train_compressed_layer_only:
-                params_to_keep_trainable = build_param_names_to_keep_trainable(model_with_rows, self.row_idx - 1)
+                edited = getattr(model_with_rows, "last_edited_param_ids", None)
+                params_to_keep_trainable = (
+                    edited if edited
+                    else build_param_names_to_keep_trainable(model_with_rows, self.row_idx - 1))
                 learning_handler_new_model.freeze_all_layers_but_pruned(params_to_keep_trainable)
             else:
                 learning_handler_new_model.unfreeze_all_layers()
@@ -583,10 +589,12 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
                 f"across {coupled} coupled layer(s), {len(group.consumers)} consumer(s) resized")
             # Recorded on the ModelWithRows so NetworkEnv.step can fold the outcome into its
             # own step record; the caller owns the episode/network context.
+            edited_ids = list(getattr(model_with_rows, "last_edited_param_ids", []) or [])
             model_with_rows.last_prune_outcome = {
                 "mode": "structural", "reason": None, "old_width": old_width,
                 "new_width": int(keep_idx.numel()), "coupled_layers": coupled,
                 "consumers_resized": len(group.consumers),
+                "trainable_param_count": len(edited_ids),
             }
             recorder.record("prune", mode="structural", layer_index=layer_to_prune_idx,
                             layer_type=type(layer_to_prune).__name__, rate=compression_rate,
@@ -630,6 +638,8 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
         "mode": "floor" if at_floor else "masked", "reason": reason, "old_width": old_width,
         "new_width": int(keep_idx.numel()), "coupled_layers": 0, "consumers_resized": 0,
     }
+    # Masked / floor edits do not rewrite a dependency group; fall back to the row-local rule.
+    model_with_rows.last_edited_param_ids = None
     recorder.issue(kind, reason, layer_index=layer_to_prune_idx,
                    layer_type=type(layer_to_prune).__name__, rate=compression_rate)
     recorder.record("prune", mode="floor" if at_floor else "masked", reason=reason,

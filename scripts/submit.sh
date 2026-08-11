@@ -5,7 +5,8 @@
 #   bash scripts/submit.sh medium           # 1 GPU, 8h  - a few networks
 #   bash scripts/submit.sh full             # 2 GPUs, 15h - the real experiment
 #   bash scripts/submit.sh probe            # 1 GPU, 3h  - recovery matrix (no RL)
-#   bash scripts/submit.sh diag             # 1 GPU, 2.5h - short agent on 2 nets
+#   bash scripts/submit.sh recover          # 1 GPU, 4h  - full FT + mild rates (probe lead)
+#   bash scripts/submit.sh recover_groupft  # 1 GPU, 4h  - group-aware freeze + mild rates
 #   bash scripts/submit.sh full 1           # ... forced onto 1 GPU
 #
 # Resource choice per profile is deliberate: debugging on two GPUs adds an NCCL failure mode
@@ -26,7 +27,9 @@ case "$PROFILE" in
   probe)  GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"  ;;
   probe_continue) GPUS="${GPU_COUNT:-1}"; TIME="0-02:00:00"; MEM="64G"  ;;
   diag)   GPUS="${GPU_COUNT:-1}"; TIME="0-02:30:00"; MEM="64G"  ;;
-  *) echo "usage: $0 {smoke|medium|full|probe|probe_continue|diag} [gpu_count]" >&2; exit 1 ;;
+  recover) GPUS="${GPU_COUNT:-1}"; TIME="0-04:00:00"; MEM="64G"  ;;
+  recover_groupft) GPUS="${GPU_COUNT:-1}"; TIME="0-04:00:00"; MEM="64G"  ;;
+  *) echo "usage: $0 {smoke|medium|full|probe|probe_continue|diag|recover|recover_groupft} [gpu_count]" >&2; exit 1 ;;
 esac
 
 cd "$REPO_DIR"

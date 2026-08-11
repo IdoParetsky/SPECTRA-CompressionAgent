@@ -6,7 +6,7 @@ set -euo pipefail
 # Defaults match a typical Cursor experiment session; override e.g. GPUS=rtx_6000:2
 GPUS="${GPUS:-1}"
 TIME="${TIME:-0-3:00:00}"
-MEM="${MEM:-120}"
+MEM="${MEM:-80}"
 
 echo "Requesting: sinteractive --gpu ${GPUS} --time ${TIME} --mem ${MEM}"
 echo "After allocation: update local ~/.ssh/config Host bgu-slurm-gpu HostName to this node."

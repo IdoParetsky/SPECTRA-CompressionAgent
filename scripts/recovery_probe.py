@@ -89,7 +89,7 @@ def evaluate(handler, loader) -> float:
 
 def _apply_finetune_mode(handler, mwr, row_idx, train_compressed_layer_only: bool):
     if train_compressed_layer_only:
-        keep = build_param_names_to_keep_trainable(mwr, row_idx)
+        keep = getattr(mwr, "last_edited_param_ids", None) or build_param_names_to_keep_trainable(mwr, row_idx)
         handler.freeze_all_layers_but_pruned(keep)
     else:
         handler.unfreeze_all_layers()

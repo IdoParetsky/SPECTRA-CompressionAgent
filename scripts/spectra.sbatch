@@ -138,8 +138,48 @@ case "$PROFILE" in
     export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction 5)
     ;;
+  recover)
+    # Probe lead #1: full-network fine-tune + 40 epochs + milder rates (1.0/0.9/0.8).
+    # Today's matrices showed only these settings ever stay inside the -5 pp cliff.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-5}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-10}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
+    EXTRA_ARGS=(--runtime_limit 14400 --allowed_acc_reduction 5
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  recover_groupft)
+    # Probe lead #2: keep layer-only FT but train every module rewritten by the group prune
+    # (producers/consumers/norms), still with 40 epochs and mild rates.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-5}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-10}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
+    EXTRA_ARGS=(--runtime_limit 14400 --allowed_acc_reduction 5
+                --train_compressed_layer_only True
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   *)
-    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|probe_continue|diag)" >&2
+    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|probe_continue|diag|recover|recover_groupft)" >&2
     exit 1
     ;;
 esac

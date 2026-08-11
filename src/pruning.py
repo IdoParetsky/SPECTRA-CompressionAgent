@@ -326,8 +326,14 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
                                        in_idx)
         replacements.append((index_of[module_id], new_module))
 
+    edited_param_ids = []
     for idx, new_layer in replacements + norm_edits:
         model_with_rows.replace_layer(idx, new_layer)
+        # Every module rewritten by the group edit must stay trainable under
+        # train_compressed_layer_only: NEON's "pruned + next" freeze is too narrow once
+        # residual producers, consumers and norms are resized together.
+        edited_param_ids.extend(id(param) for param in new_layer.parameters())
+    model_with_rows.last_edited_param_ids = edited_param_ids
     return True
 
 
