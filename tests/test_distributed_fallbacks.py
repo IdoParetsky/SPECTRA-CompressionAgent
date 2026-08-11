@@ -56,38 +56,92 @@ def test_unwrap_handles_plain_and_nested_wrappers():
     assert ddp.unwrap(nn.DataParallel(nn.DataParallel(model))) is model
 
 
-def test_print_flush_does_not_require_a_process_group(caplog):
+def _capture_spectra_records():
     """
-    print_flush now routes through src.logging_utils, so the assertion is on the logging
-    record rather than on stdout: the console handler binds sys.stdout at setup time, which
-    pytest's capsys replaces afterwards.
+    Collect records emitted on the 'spectra' logger.
+
+    Neither capsys nor caplog can see them: the console handler binds sys.stdout at setup
+    time (before capsys replaces it), and the logger sets propagate=False so records never
+    reach caplog's root handler. Attaching our own handler tests the real path and behaves
+    identically across pytest versions.
     """
-    import logging
-    import src.utils as utils
-
-    with caplog.at_level(logging.INFO, logger="spectra"):
-        utils.print_flush("hello")
-
-    assert any("hello" in record.getMessage() for record in caplog.records)
-
-
-def test_logging_carries_timestamp_rank_and_context():
-    """A log line must be self-describing: when, how severe, which rank, which episode."""
     import logging
     import src.logging_utils as logging_utils
 
     logging_utils.setup()
     logger = logging_utils.get_logger()
-    formatter = logger.handlers[0].formatter
 
-    with logging_utils.context(ep=7, net="resnet20"):
-        record = logger.makeRecord("spectra", logging.INFO, __file__, 0, "probe", (), None)
-        for log_filter in logger.filters:
-            log_filter.filter(record)
-        line = formatter.format(record)
+    class _Collector(logging.Handler):
+        def __init__(self):
+            super().__init__(level=logging.DEBUG)
+            self.records = []
+
+        def emit(self, record):
+            self.records.append(record)
+
+    return logger, _Collector()
+
+
+def test_print_flush_does_not_require_a_process_group():
+    """print_flush must work with no process group, and must actually emit a record."""
+    import src.utils as utils
+
+    logger, collector = _capture_spectra_records()
+    logger.addHandler(collector)
+    try:
+        utils.print_flush("hello")
+    finally:
+        logger.removeHandler(collector)
+
+    assert any("hello" in record.getMessage() for record in collector.records)
+
+
+def test_logging_carries_timestamp_rank_and_context():
+    """A log line must be self-describing: when, how severe, which rank, which episode."""
+    import src.logging_utils as logging_utils
+
+    logger, collector = _capture_spectra_records()
+    logger.addHandler(collector)
+    try:
+        with logging_utils.context(ep=7, net="resnet20"):
+            logging_utils.info("probe")
+    finally:
+        logger.removeHandler(collector)
+
+    # The context filter already stamped the record at emit time, inside the scope; running
+    # it again here would re-read the (now-empty) context and erase what we are testing.
+    line = logging_utils._Formatter().format(collector.records[-1])
 
     assert "INFO" in line and "r0" in line and "ep=7" in line and "net=resnet20" in line
     assert line.count(":") >= 2  # HH:MM:SS timestamp present
+
+
+def test_context_is_restored_after_the_scope_exits():
+    """A leaked context would mislabel every later log line with a stale episode."""
+    import src.logging_utils as logging_utils
+
+    before = logging_utils.current_context()
+    with logging_utils.context(ep=99):
+        assert logging_utils.current_context().get("ep") == 99
+    assert logging_utils.current_context() == before
+
+
+def test_stage_logs_and_reraises_failures():
+    """A stage that raises must be recorded as failed, not swallowed."""
+    import src.logging_utils as logging_utils
+
+    logger, collector = _capture_spectra_records()
+    logger.addHandler(collector)
+    try:
+        with pytest.raises(ValueError):
+            with logging_utils.stage("unit.explode", record=False):
+                raise ValueError("boom")
+    finally:
+        logger.removeHandler(collector)
+
+    messages = [r.getMessage() for r in collector.records]
+    assert any("FAILED" in m and "unit.explode" in m for m in messages)
+    assert any(r.exc_info for r in collector.records), "traceback must be attached"
 
 
 def test_run_recorder_writes_jsonl_events(tmp_path):
