@@ -90,7 +90,7 @@ mkdir -p runs/slurm_logs
 
 # Prefer non-preemptible rtx_6000-class nodes. ee-l40s-* preempted recover_pref10/wide
 # mid-run and wiped progress (no mid-train resume yet).
-EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-[01-99]}"
+EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-01,ee-l40s-02}"
 
 JOB_ID=$(sbatch --parsable \
   --gpus="rtx_6000:${GPUS}" \
