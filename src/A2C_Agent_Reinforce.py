@@ -127,9 +127,14 @@ class A2CAgentReinforce:
 
         # Database-wide per-feature standardisation (critique §6 / thesis briefing). One-time
         # cost over the training database; cache with SPECTRA_STANDARDIZER_PATH, or skip with
-        # SPECTRA_SKIP_STANDARDIZER=1 for short correctness runs.
-        if self.conf.database_dict and not (
-                self.conf.actor_checkpoint_path and self.conf.critic_checkpoint_path):
+        # SPECTRA_SKIP_STANDARDIZER=1 for short correctness runs. Still fit when warm-starting
+        # continued training so train/eval features stay calibrated to this database.
+        continue_train = os.environ.get("SPECTRA_CONTINUE_TRAIN", "").strip().lower() in (
+            "1", "true", "yes")
+        skip_for_eval_only = (
+            self.conf.actor_checkpoint_path and self.conf.critic_checkpoint_path
+            and not continue_train)
+        if self.conf.database_dict and not skip_for_eval_only:
             from src.BERTInputModeler import TOKEN_BASE_DIM
             from src.feature_standardizer import ensure_fitted
             with logging_utils.stage("standardizer.fit"):
@@ -298,17 +303,31 @@ class A2CAgentReinforce:
             curr_reward = v(returns[0])
             all_rewards_episodes.append(curr_reward)
 
-            checkpoint_folder = 'checkpoints'
-            if (self.episode_idx + 1) % 100 == 0:
-                utils.print_flush(f'Saving Actor and Critic Checkpoints in {checkpoint_folder}:\n'
-                                  f'{self.conf.test_name} + _actor.pt and _critic.pt respectively')
-                save_agent_checkpoint(self.critic_model, join(checkpoint_folder, self.conf.test_name + '_critic.pt'))
-                save_agent_checkpoint(self.actor_model, join(checkpoint_folder, self.conf.test_name + '_actor.pt'))
+            # Persist under the run directory (not a cwd-relative "checkpoints/") so SLURM jobs
+            # and later warm-starts can find actor/critic without archaeology. Also keep a
+            # best-so-far pair: periodic saves alone miss the useful policy when wall-clock ends
+            # between the 100-episode marks.
+            checkpoint_folder = join(logging_utils.run_dir(), "agent_checkpoints")
+            new_best = curr_reward > max_reward_in_all_episodes
+            if new_best or (self.episode_idx + 1) % 25 == 0:
+                tag = "best" if new_best else f"ep{self.episode_idx}"
+                utils.print_flush(
+                    f'Saving Actor/Critic ({tag}) under {checkpoint_folder}')
+                save_agent_checkpoint(
+                    self.critic_model, join(checkpoint_folder, f'{tag}_critic.pt'))
+                save_agent_checkpoint(
+                    self.actor_model, join(checkpoint_folder, f'{tag}_actor.pt'))
+                # Stable names for resume / SPECTRA_*_CHECKPOINT_PATH warm-start
+                if new_best:
+                    save_agent_checkpoint(
+                        self.critic_model, join(checkpoint_folder, 'latest_best_critic.pt'))
+                    save_agent_checkpoint(
+                        self.actor_model, join(checkpoint_folder, 'latest_best_actor.pt'))
 
             # Convergence test: a new all-time best resets the patience counter. The previous
             # test compared the running maximum against a window that the maximum is always
             # part of, so it was satisfied on the first episode past min_episode_num.
-            if curr_reward > max_reward_in_all_episodes:
+            if new_best:
                 max_reward_in_all_episodes = curr_reward
                 episodes_since_improvement = 0
             else:
@@ -349,6 +368,10 @@ class A2CAgentReinforce:
                           f'{self.conf.test_name} + _actor.pt and _critic.pt respectively')
         save_agent_checkpoint(self.critic_model, join(TRAINED_AGENTS_DIR, self.conf.test_name + '_critic.pt'))
         save_agent_checkpoint(self.actor_model, join(TRAINED_AGENTS_DIR, self.conf.test_name + '_actor.pt'))
+        # Mirror finals into the run dir so a finished job is self-contained for warm-start.
+        final_folder = join(logging_utils.run_dir(), "agent_checkpoints")
+        save_agent_checkpoint(self.critic_model, join(final_folder, 'final_critic.pt'))
+        save_agent_checkpoint(self.actor_model, join(final_folder, 'final_actor.pt'))
 
         writer.close()
         utils.print_flush("DONE Training")

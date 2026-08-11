@@ -99,14 +99,25 @@ def main():
 
     utils.print_flush(f"Starting test: {conf.test_name}")
 
-    # Agent training is skipped if both actor and critic checkpoints are provided (Agent is pretrained)
-    if not all([conf.actor_checkpoint_path, conf.critic_checkpoint_path]):
+    # Both actor+critic paths historically meant "eval only". For warm-start continued
+    # training set SPECTRA_CONTINUE_TRAIN=1 (loads weights, still runs agent.train()).
+    continue_train = os.environ.get("SPECTRA_CONTINUE_TRAIN", "").strip().lower() in (
+        "1", "true", "yes")
+    pretrained = bool(conf.actor_checkpoint_path and conf.critic_checkpoint_path)
+    if pretrained and not continue_train:
+        utils.print_flush(
+            f"Agent is pre-trained, training is skipped "
+            f"(actor_checkpoint={conf.actor_checkpoint_path}, "
+            f"critic_checkpoint={conf.critic_checkpoint_path}). "
+            f"Set SPECTRA_CONTINUE_TRAIN=1 to warm-start training from these weights.")
+    else:
+        if pretrained and continue_train:
+            utils.print_flush(
+                f"Warm-start training from actor={conf.actor_checkpoint_path} "
+                f"critic={conf.critic_checkpoint_path}")
         with logging_utils.stage("phase.train"):
             with logging_utils.context(phase="train"):
                 agent.train()
-    else:
-        utils.print_flush(f"Agent is pre-trained, training is skipped (actor_checkpoint={conf.actor_checkpoint_path}, "
-                          f"critic_checkpoint={conf.critic_checkpoint_path}")
 
     # Perform standard intra-model evaluation
     for mode in [EVAL_TRAIN, EVAL_TEST]:

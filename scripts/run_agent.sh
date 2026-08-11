@@ -57,6 +57,14 @@ RUNNER_ARGS=(
   "$@"
 )
 
+# Optional warm-start from a prior run's agent_checkpoints/ (skip full cold warmup later).
+if [[ -n "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" ]]; then
+  RUNNER_ARGS+=(--actor_checkpoint_path "$SPECTRA_ACTOR_CHECKPOINT_PATH")
+fi
+if [[ -n "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
+  RUNNER_ARGS+=(--critic_checkpoint_path "$SPECTRA_CRITIC_CHECKPOINT_PATH")
+fi
+
 if (( GPUS == 1 )); then
   echo "Detected 1 GPU -> single-process run"
   exec "$PYTHON" a2c_agent_reinforce_runner.py "${RUNNER_ARGS[@]}"

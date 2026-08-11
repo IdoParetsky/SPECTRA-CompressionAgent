@@ -56,8 +56,11 @@ case "$PROFILE" in
   recover_king)
     # Compose today's winners: mild rates + -10 pp preference + full FT + 40 epochs.
     GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+  recover_careful)
+    # AMC-scale warmup + 6-net DB + standardizer; wall >> train for eval buffer.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   *)
-    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king} [gpu_count]" >&2
+    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king|recover_careful} [gpu_count]" >&2
     exit 1
     ;;
 esac

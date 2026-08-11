@@ -250,11 +250,35 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  recover_careful)
+    # Literature-careful follow-up (AMC-style explore length + NEON multi-net):
+    # king recipe knobs, but AMC-scale warmup floor, feature standardizer ON, and the
+    # 6-net initial DB (CIFAR-10/100 × ResNet20/56 widths) instead of the 2-net diag slice.
+    # Held-out eval nets stay on initial_input (3 nets). Not ImageNet-diverse yet — that
+    # is a later scaling step once this recipe shows post-warmup learning.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    # AMC explores ~100 random episodes before trusting the policy; NEON used 2×#nets.
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   probe_groupft)
     RUN_KIND=probe_groupft
     ;;
   *)
-    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king)" >&2
+    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king|recover_careful)" >&2
     exit 1
     ;;
 esac
