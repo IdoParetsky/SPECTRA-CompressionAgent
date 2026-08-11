@@ -108,6 +108,19 @@ class ClassificationHandler(BasicHandler):
         if not trainable_params:
             utils.print_flush("No trainable parameters after freezing; skipping fine-tuning.")
             return
+        # Frozen BatchNorm left in train() still updates running_mean/var from every batch,
+        # which quietly destroys pretrained stats when train_compressed_layer_only is on.
+        # Keep frozen norms in eval mode; trainable ones stay in train mode with the rest.
+        frozen_norms = []
+        for module in self.model.modules():
+            if isinstance(module, (torch.nn.BatchNorm1d, torch.nn.BatchNorm2d, torch.nn.BatchNorm3d)):
+                if not any(p.requires_grad for p in module.parameters(recurse=False)):
+                    module.eval()
+                    frozen_norms.append(module)
+        if frozen_norms:
+            utils.print_flush(
+                f"BN-safe fine-tune: {len(frozen_norms)} frozen BatchNorm module(s) held in eval()")
+
         self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate)
         # Clear any leftover optimizer state to ensure fresh start
         self.optimizer.state.clear()

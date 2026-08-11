@@ -23,6 +23,8 @@
 #SBATCH --gpus=rtx_6000:1
 #SBATCH --mem=80G
 #SBATCH --time=0-08:00:00
+# 15 minutes before the wall, ask the agent to soft-stop so eval can still run.
+#SBATCH --signal=B:USR1@900
 #SBATCH --output=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_%j.out
 #SBATCH --error=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_%j.out
 
@@ -40,6 +42,14 @@ mkdir -p runs/slurm_logs
 export SPECTRA_RUN_ID="job${SLURM_JOB_ID}"
 export SPECTRA_RUN_DIR="${REPO_DIR}/runs/${SPECTRA_RUN_ID}"
 mkdir -p "$SPECTRA_RUN_DIR"
+export SPECTRA_STOP_FILE="${SPECTRA_RUN_DIR}/SLURM_STOP"
+
+# Soft-stop before the hard TIME LIMIT: USR1 writes a flag the agent polls each episode.
+_spectra_on_usr1() {
+  echo "$(date -Is) SLURM USR1: writing stop flag ${SPECTRA_STOP_FILE}" >&2
+  : > "${SPECTRA_STOP_FILE}"
+}
+trap '_spectra_on_usr1' USR1
 
 echo "=============================================================="
 echo " SPECTRA job ${SLURM_JOB_ID} | profile=${PROFILE}"
@@ -48,6 +58,7 @@ echo " started    : $(date -Is)"
 echo " run dir    : ${SPECTRA_RUN_DIR}"
 echo " commit     : $(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null)"
 echo " gpus       : ${SLURM_JOB_GPUS:-?} / CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-unset}"
+echo " Timelimit  : ${SLURM_JOB_END_TIME:-unknown} (USR1 soft-stop -> ${SPECTRA_STOP_FILE})"
 echo "=============================================================="
 nvidia-smi --query-gpu=index,name,memory.total --format=csv 2>&1 || echo "nvidia-smi unavailable"
 
@@ -180,8 +191,50 @@ case "$PROFILE" in
                 --train_compressed_layer_only True
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  recover_wide)
+    # Include 0.7 so we can see whether the agent learns to avoid the unrecoverable rate
+    # once 0.9/0.8 are actually recoverable under full FT.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-5}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-10}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
+    EXTRA_ARGS=(--runtime_limit 14400 --allowed_acc_reduction 5
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8 0.7)
+    ;;
+  recover_pref10)
+    # Same as recover but NEON-style preference knob at -10 pp (reward *formula* unchanged).
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-5}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-10}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
+    EXTRA_ARGS=(--runtime_limit 14400 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  probe_groupft)
+    RUN_KIND=probe_groupft
+    ;;
   *)
-    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|probe_continue|diag|recover|recover_groupft)" >&2
+    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10)" >&2
     exit 1
     ;;
 esac
@@ -195,6 +248,11 @@ elif [[ "${RUN_KIND:-agent}" == "probe_continue" ]]; then
   echo "profile probe_continue: remaining recovery matrices"
   env | grep '^SPECTRA_' | sort
   bash scripts/run_recovery_probe_continue.sh
+  STATUS=$?
+elif [[ "${RUN_KIND:-agent}" == "probe_groupft" ]]; then
+  echo "profile probe_groupft: layer-only recovery under group-aware freeze"
+  env | grep '^SPECTRA_' | sort
+  bash scripts/run_recovery_probe_groupft.sh
   STATUS=$?
 else
   echo "profile ${PROFILE}: input=${SPECTRA_INPUT} database=${SPECTRA_DATABASE}"

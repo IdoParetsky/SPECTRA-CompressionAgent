@@ -178,12 +178,16 @@ class A2CAgentReinforce:
                 (self.episode_idx >= min_episode_num and reward_not_improving)
                 or time.perf_counter() >= start_time + self.conf.runtime_limit
                 or len(all_rewards_episodes) > 5 * min_episode_num
+                or os.path.exists(os.environ.get("SPECTRA_STOP_FILE", ""))
             )
             if ddp.broadcast_flag(stop):
+                stop_file = os.environ.get("SPECTRA_STOP_FILE", "")
+                via_slurm = bool(stop_file and os.path.exists(stop_file))
                 utils.print_flush(
                     f"Stopping training after {self.episode_idx} episodes "
                     f"(reward_not_improving={reward_not_improving}, "
-                    f"elapsed={time.perf_counter() - start_time:.0f}s/{self.conf.runtime_limit}s)")
+                    f"elapsed={time.perf_counter() - start_time:.0f}s/{self.conf.runtime_limit}s"
+                    f"{', slurm_usr1_stop=True' if via_slurm else ''})")
                 break
 
             # Tag every log line and event produced by this episode
