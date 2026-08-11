@@ -283,7 +283,9 @@ def main():
                     checkpoint=os.path.basename(args.checkpoint),
                     ok=ok, total=len(all_results),
                     allowed_drop=args.allowed_acc_reduction)
-    return 0 if ok else 1
+    # Always exit 0 after a completed matrix: "0 OK cells" is a scientific result,
+    # not a crash. Wrappers that used `set -e` were aborting the rest of the suite.
+    return 0
 
 
 if __name__ == "__main__":

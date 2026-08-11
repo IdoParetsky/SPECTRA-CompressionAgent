@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Recovery matrix on 1–2 thin ResNets: rate × epochs × fine-tune mode.
 # Invoked by the `probe` SLURM profile (see spectra.sbatch).
+#
+# Each matrix may exit 1 when every cell is outside the accuracy budget; that is a
+# scientific outcome, not a job failure. Keep going so later nets / scopes still run.
 
-set -euo pipefail
+set -uo pipefail
 
 REPO_DIR="${SPECTRA_REPO_DIR:-/home/paretsky/SPECTRA-CompressionAgent}"
 PYTHON="${SPECTRA_PYTHON:-$HOME/.conda/envs/spectra/bin/python}"
@@ -15,6 +18,8 @@ RATES=(${SPECTRA_PROBE_RATES:-0.9 0.8 0.7 0.6})
 EPOCHS=(${SPECTRA_PROBE_EPOCHS:-0 10 20 40})
 ROWS="${SPECTRA_PROBE_ROWS:-0,mid}"
 
+STATUS=0
+
 run_one() {
   local ckpt="$1" arch="$2" dataset="$3" ft_mode="$4"
   local ft_flag
@@ -24,7 +29,7 @@ run_one() {
     ft_flag=False
   fi
   echo "======== probe arch=${arch} dataset=${dataset} ft=${ft_mode} ========"
-  "$PYTHON" scripts/recovery_probe.py \
+  if ! "$PYTHON" scripts/recovery_probe.py \
     --checkpoint "$ckpt" \
     --script "$SCRIPT" \
     --arch "$arch" \
@@ -34,7 +39,10 @@ run_one() {
     --scope single \
     --rows "$ROWS" \
     --train_compressed_layer_only "$ft_flag" \
-    --allowed_acc_reduction 5
+    --allowed_acc_reduction 5; then
+    echo "NOTE: probe returned non-zero (often means 0 cells within budget); continuing."
+    STATUS=1
+  fi
 }
 
 # Two representative train-DB nets (CIFAR-10), both fine-tune policies.
@@ -53,7 +61,7 @@ run_one \
 
 # One full-pass check at mild rates (recovery after compressing every row once).
 echo "======== full-pass recovery (mild rates, full FT) ========"
-"$PYTHON" scripts/recovery_probe.py \
+if ! "$PYTHON" scripts/recovery_probe.py \
   --checkpoint "$CKPT_ROOT/resnet20-width10_cifar10_thin-res-net_91.90_0.107_16.55.pt" \
   --script "$SCRIPT" \
   --arch resnet20 \
@@ -62,6 +70,10 @@ echo "======== full-pass recovery (mild rates, full FT) ========"
   --epochs 20 40 \
   --scope pass \
   --train_compressed_layer_only False \
-  --allowed_acc_reduction 5
+  --allowed_acc_reduction 5; then
+  echo "NOTE: full-pass probe returned non-zero; continuing to summary."
+  STATUS=1
+fi
 
-echo "Recovery probe suite finished."
+echo "Recovery probe suite finished (aggregate_status=${STATUS})."
+exit 0

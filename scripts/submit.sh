@@ -18,12 +18,15 @@ GPU_COUNT="${2:-}"
 REPO_DIR="${SPECTRA_REPO_DIR:-/home/paretsky/SPECTRA-CompressionAgent}"
 
 case "$PROFILE" in
+  # HPC: do not request >80G with an rtx_6000 (IT policy). Our CIFAR thin-ResNet
+  # jobs peak around ~3G host RSS / ~2G GPU; 64–80G is already a large cushion.
   smoke)  GPUS="${GPU_COUNT:-1}"; TIME="0-01:00:00"; MEM="64G"  ;;
-  medium) GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="120G" ;;
-  full)   GPUS="${GPU_COUNT:-2}"; TIME="0-15:00:00"; MEM="120G" ;;
+  medium) GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="80G"  ;;
+  full)   GPUS="${GPU_COUNT:-2}"; TIME="0-15:00:00"; MEM="80G"  ;;
   probe)  GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"  ;;
+  probe_continue) GPUS="${GPU_COUNT:-1}"; TIME="0-02:00:00"; MEM="64G"  ;;
   diag)   GPUS="${GPU_COUNT:-1}"; TIME="0-02:30:00"; MEM="64G"  ;;
-  *) echo "usage: $0 {smoke|medium|full|probe|diag} [gpu_count]" >&2; exit 1 ;;
+  *) echo "usage: $0 {smoke|medium|full|probe|probe_continue|diag} [gpu_count]" >&2; exit 1 ;;
 esac
 
 cd "$REPO_DIR"

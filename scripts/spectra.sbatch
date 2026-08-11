@@ -13,7 +13,7 @@
 #     bash scripts/submit.sh diag       # ~2.5h: short agent run on 2 nets
 #
 # Or directly:
-#     sbatch --gpus=rtx_6000:1 --mem=120G --time=0-08:00:00 scripts/spectra.sbatch
+#     sbatch --gpus=rtx_6000:1 --mem=80G --time=0-08:00:00 scripts/spectra.sbatch
 #
 #SBATCH --job-name=spectra
 #SBATCH --partition=main
@@ -21,7 +21,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus=rtx_6000:1
-#SBATCH --mem=120G
+#SBATCH --mem=80G
 #SBATCH --time=0-08:00:00
 #SBATCH --output=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_%j.out
 #SBATCH --error=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_%j.out
@@ -116,6 +116,10 @@ case "$PROFILE" in
     # Answers whether fine-tune budgets can recover before another long agent run.
     RUN_KIND=probe
     ;;
+  probe_continue)
+    # Finish nets/scopes skipped when an earlier probe job aborted on set -e.
+    RUN_KIND=probe_continue
+    ;;
   diag)
     # Short agent probe on 2 CIFAR-10 nets: enough episodes to see whether exploration
     # ever produces recoverable compressions, without an 8h wall.
@@ -135,7 +139,7 @@ case "$PROFILE" in
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction 5)
     ;;
   *)
-    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|diag)" >&2
+    echo "Unknown SPECTRA_PROFILE='${PROFILE}' (expected smoke|medium|full|probe|probe_continue|diag)" >&2
     exit 1
     ;;
 esac
@@ -144,6 +148,11 @@ if [[ "${RUN_KIND:-agent}" == "probe" ]]; then
   echo "profile probe: recovery matrix (no RL)"
   env | grep '^SPECTRA_' | sort
   bash scripts/run_recovery_probe.sh
+  STATUS=$?
+elif [[ "${RUN_KIND:-agent}" == "probe_continue" ]]; then
+  echo "profile probe_continue: remaining recovery matrices"
+  env | grep '^SPECTRA_' | sort
+  bash scripts/run_recovery_probe_continue.sh
   STATUS=$?
 else
   echo "profile ${PROFILE}: input=${SPECTRA_INPUT} database=${SPECTRA_DATABASE}"
