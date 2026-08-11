@@ -301,5 +301,72 @@ def test_flops_counter_reflects_pruning():
     assert after < before
 
 
+def test_any_compression_rate_removes_at_least_one_channel():
+    """
+    Regression: `ceil(0.9 * 6) == 6` kept every filter, so the action was a no-op that the
+    agent was still rewarded for. On the thin ResNets in the database (widths of 6-16) this
+    fired on most narrow layers.
+    """
+    for width in range(2, 33):
+        for rate in (0.6, 0.7, 0.8, 0.9, 0.95):
+            kept = pruning.target_width(width, rate)
+            assert 1 <= kept < width, f"rate {rate} on width {width} kept {kept}"
+
+
+def test_rate_one_is_the_only_no_op():
+    assert pruning.target_width(16, 1.0) == 16
+    assert pruning.target_width(1, 0.5) == 1  # a single channel cannot be removed
+
+
+def test_target_width_tracks_the_requested_rate():
+    """Away from the rounding edges the realised width should match the request closely."""
+    for width in (32, 64, 128):
+        for rate in (0.5, 0.75, 0.9):
+            assert abs(pruning.target_width(width, rate) - rate * width) <= 1
+
+
+def test_narrow_layer_actually_shrinks_end_to_end():
+    """The rounding fix must reach the model, not just the helper."""
+    from src.NetworkEnv import prune_current_model
+
+    model = ResidualNet().eval()
+    model_with_rows = ModelWithRows(model)
+    before = pruning.layer_width(model.stem)
+
+    prune_current_model(model_with_rows, compression_rate=0.9, row_to_prune_idx=0)
+
+    assert pruning.layer_width(model_with_rows.model.stem) < before
+    assert model_with_rows.last_prune_outcome["mode"] == "structural"
+    model_with_rows.model.eval()(torch.randn(2, 3, 32, 32))
+
+
+def test_fallback_reason_distinguishes_its_causes():
+    """
+    'no dependency group resolved' previously covered four unrelated failures, so the logs
+    could not say whether the library needed a new trace rule or nothing at all.
+    """
+    from src.NetworkEnv import prune_current_model
+
+    class Untraceable(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv = nn.Conv2d(3, 8, 3, padding=1)
+            self.pool = nn.AdaptiveAvgPool2d(1)
+            self.fc = nn.Linear(8, 4)
+
+        def forward(self, x):
+            x = self.conv(x)
+            if x.mean() > 0:  # data-dependent control flow defeats symbolic tracing
+                x = x * 2
+            return self.fc(self.pool(x).flatten(1))
+
+    model_with_rows = ModelWithRows(Untraceable().eval())
+    prune_current_model(model_with_rows, compression_rate=0.5, row_to_prune_idx=0)
+
+    outcome = model_with_rows.last_prune_outcome
+    assert outcome["mode"] == "masked"
+    assert "traceable" in outcome["reason"] or "fx trace raised" in outcome["reason"]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

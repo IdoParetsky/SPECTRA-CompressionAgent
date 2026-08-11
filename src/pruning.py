@@ -53,6 +53,25 @@ def alive_filters(layer: nn.Module) -> torch.Tensor:
     return torch.nonzero(filter_importance(layer) > 0, as_tuple=False).flatten()
 
 
+def target_width(alive_count: int, compression_rate: float) -> int:
+    """
+    How many channels a compression rate should leave alive.
+
+    This used to be ``ceil(rate * alive)``, which silently turned small rates on narrow
+    layers into no-ops: ``ceil(0.9 * 6) == 6`` keeps every filter, so the environment applied
+    nothing while the agent was still rewarded or punished for the action. An action that
+    cannot change the environment is pure noise in the RL signal, and on the thin ResNets in
+    the database (widths of 6-16 channels) it fired constantly.
+
+    The target is now the nearest width, with the guarantee that asking for *any* compression
+    removes at least one channel.
+    """
+    if alive_count <= 1 or compression_rate >= 1.0:
+        return max(alive_count, 1)
+    target = int(round(compression_rate * alive_count))
+    return max(1, min(target, alive_count - 1))
+
+
 def select_surviving_filters(layer: nn.Module, compression_rate: float) -> torch.Tensor:
     """
     Choose which output filters to keep.
@@ -65,8 +84,7 @@ def select_surviving_filters(layer: nn.Module, compression_rate: float) -> torch
     if alive.numel() == 0:  # fully masked already; keep one filter to stay runnable
         return torch.zeros(1, dtype=torch.long, device=importance.device)
 
-    target = int(np.ceil(compression_rate * alive.numel()))
-    target = max(1, min(target, alive.numel()))
+    target = target_width(alive.numel(), compression_rate)
 
     # Highest-importance survivors, restored to ascending order so channel order is stable
     best = torch.topk(importance[alive], k=target).indices
@@ -230,7 +248,7 @@ def select_group_survivors(group, compression_rate: float) -> Optional[torch.Ten
     if alive.numel() == 0:
         return torch.zeros(1, dtype=torch.long, device=importance.device)
 
-    target = max(1, min(int(np.ceil(compression_rate * alive.numel())), alive.numel()))
+    target = target_width(alive.numel(), compression_rate)
     best = torch.topk(importance[alive], k=target).indices
     return torch.sort(alive[best]).values
 

@@ -30,6 +30,7 @@ ENTROPY_COLLAPSE_WARN = 0.30     # fraction of the maximum entropy for the actio
 ACTION_DOMINANCE_WARN = 0.70     # one action chosen this often => little exploration
 SLOW_STEP_WARN = 60.0            # seconds per RL step
 ACC_DROP_WARN = 5.0              # percentage points of accuracy lost on average
+CRITIC_LOSS_WARN = 1e6           # value-head targets this large indicate a reward-scale problem
 
 
 def find_latest_run(root: str = "runs") -> Optional[str]:
@@ -151,6 +152,17 @@ def build_report(run_dir: str) -> Dict[str, Any]:
         action_counts.update(episode.get("actions") or [])
     rate_counts = Counter(s.get("compression_rate") for s in steps)
 
+    # Actions the environment could not act on: the agent asked for compression but the layer
+    # kept every channel, so the reward it received carries no information about the choice.
+    noop_steps = [s for s in steps
+                  if s.get("compression_rate") not in (None, 1, 1.0)
+                  and s.get("old_width") is not None
+                  and s.get("old_width") == s.get("new_width")]
+    noop_fraction = len(noop_steps) / len(steps) if steps else 0.0
+
+    critic_losses = [abs(e["critic_loss"]) for e in episodes if e.get("critic_loss") is not None]
+    rewards = [s["reward"] for s in steps if s.get("reward") is not None]
+
     returns = [e["discounted_return"] for e in episodes if e.get("discounted_return") is not None]
     entropies = [e["entropy"] for e in episodes if e.get("entropy") is not None]
     step_seconds = [s["seconds"] for s in steps if s.get("seconds") is not None]
@@ -198,6 +210,10 @@ def build_report(run_dir: str) -> Dict[str, Any]:
         "masked_by_type": masked_by_type,
         "action_counts": action_counts,
         "rate_counts": rate_counts,
+        "noop_fraction": noop_fraction,
+        "noop_steps": len(noop_steps),
+        "critic_losses": critic_losses,
+        "rewards": rewards,
         "returns": returns,
         "return_trend": trend(returns),
         "entropies": entropies,
@@ -234,6 +250,24 @@ def recommendations(report: Dict[str, Any]) -> List[str]:
     elif report["prune_modes"]:
         notes.append(f"Structured pruning succeeded on {1 - masked:.0%} of actions "
                      f"({report['prune_modes'].get('structural', 0)}/{sum(report['prune_modes'].values())}).")
+
+    if report["noop_steps"]:
+        notes.append(
+            f"**{report['noop_steps']} steps ({report['noop_fraction']:.0%}) requested "
+            f"compression but changed no channel.** The reward for those steps reflects damage "
+            f"done by earlier actions, not the action taken, so they inject noise into credit "
+            f"assignment. Check the width-rounding rule in `src/pruning.py::target_width`.")
+
+    critic_losses = report["critic_losses"]
+    if critic_losses and statistics.fmean(critic_losses) > CRITIC_LOSS_WARN:
+        reward_span = (f"rewards span {min(report['rewards']):.0f}..{max(report['rewards']):.0f}"
+                       if report["rewards"] else "")
+        notes.append(
+            f"**Critic loss averages {statistics.fmean(critic_losses):.3g}** ({reward_span}). "
+            f"`compute_reward` cubes a percentage-scale term, so a single step can be worth "
+            f"1e5 while the value head is initialised near 0. Gradient clipping bounds the "
+            f"step size but not the target, so the critic spends the run chasing scale rather "
+            f"than ranking actions. Consider normalising or log-scaling the reward.")
 
     actions = report["action_counts"]
     if actions:

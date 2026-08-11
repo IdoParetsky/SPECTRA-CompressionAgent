@@ -331,6 +331,12 @@ class NetworkEnv:
             param_reduction=round(1 - params_after / max(params_before, 1), 5),
             prune_mode=prune_outcome.get("mode"),
             prune_reason=prune_outcome.get("reason"),
+            old_width=prune_outcome.get("old_width"),
+            new_width=prune_outcome.get("new_width"),
+            # Requested vs. applied: a rate the layer's width cannot express (0.9 of 6
+            # channels) would otherwise look like a normal action in the trajectory
+            realized_rate=(round(prune_outcome["new_width"] / prune_outcome["old_width"], 4)
+                           if prune_outcome.get("old_width") else None),
             seconds=round(step_timer.seconds, 3),
             done=bool(done),
         )
@@ -560,7 +566,12 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     # Layers whose widths are tied together (a residual block's conv2 and whatever feeds its
     # shortcut) are compressed as one unit, so coupled convolutions shrink instead of merely
     # being masked
-    groups = channel_groups.build_channel_groups(model_with_rows.model)
+    try:
+        groups = channel_groups.build_channel_groups(model_with_rows.model)
+    except Exception as error:
+        groups, trace_error = None, f"{type(error).__name__}: {error}"
+    else:
+        trace_error = None
     group = channel_groups.group_of(groups, layer_to_prune) if groups else None
 
     if group is not None and group.prunable:
@@ -584,7 +595,19 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
             model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
             return model_with_rows
 
-    reason = group.reason if group is not None and not group.prunable else "no dependency group resolved"
+    # "no dependency group resolved" conflated four different failures, so the logs could not
+    # say whether the library needs a new fx rule, a new resize rule, or nothing at all.
+    if trace_error is not None:
+        reason = f"fx trace raised {trace_error}"
+    elif groups is None:
+        reason = "model is not symbolically traceable (dynamic control flow)"
+    elif group is None:
+        reason = f"layer produces no channel group (of {len(groups)} resolved)"
+    elif not group.prunable:
+        reason = group.reason
+    else:
+        reason = "structural edit rejected (target width equals current width)"
+
     keep_idx = pruning.select_surviving_filters(layer_to_prune, compression_rate)
     pruning.mask_layer_filters(layer_to_prune, keep_idx)
     utils.print_flush(f"Layer {layer_to_prune_idx}: masked {old_width - keep_idx.numel()}/{old_width} "
