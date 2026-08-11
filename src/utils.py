@@ -337,26 +337,53 @@ def instantiate_networks_and_load_datasets(input_dict, dataloaders_dict: Dataset
         ValueError: If model instantiation fails.
     """
     instantiated_networks = {}
+    failures = []
+
     for net_path, values in input_dict.items():
-        if len(values) == 3:
-            arch, script_path, dataset_path = values
-            optional_kwargs = {}  # Assign an empty dict if not assigned
-        else:
-            arch, script_path, dataset_path, optional_kwargs = values
+        try:
+            if len(values) == 3:
+                arch, script_path, dataset_path = values
+                optional_kwargs = {}  # Assign an empty dict if not assigned
+            else:
+                arch, script_path, dataset_path, optional_kwargs = values
 
-        if not os.path.exists(net_path):
-            raise ValueError(f"Network checkpoint not found: {net_path}")
+            if not os.path.exists(net_path):
+                raise ValueError(f"Network checkpoint not found: {net_path}")
 
-        # Loaded once per dataset and reused by every network trained on it
-        loaders = dataloaders_dict.loaders(dataset_path)
-        num_classes = dataloaders_dict.num_classes(dataset_path)
-        input_shape = dataloaders_dict.input_shape(dataset_path)
+            # Loaded once per dataset and reused by every network trained on it
+            loaders = dataloaders_dict.loaders(dataset_path)
+            num_classes = dataloaders_dict.num_classes(dataset_path)
+            input_shape = dataloaders_dict.input_shape(dataset_path)
 
-        # Load model architecture from script
-        model = load_model_from_script(arch, dataset_path, script_path, net_path, optional_kwargs,
-                                       num_classes, input_shape)
+            # Load model architecture from script
+            model = load_model_from_script(arch, dataset_path, script_path, net_path, optional_kwargs,
+                                           num_classes, input_shape)
 
-        instantiated_networks[net_path] = (model, loaders)
+            instantiated_networks[net_path] = (model, loaders)
+        except Exception as error:
+            # A single malformed entry used to abort the whole run at the first bad path, so a
+            # typo in one of ~280 database entries cost an entire allocation. Collect them all
+            # instead and report them together: the count of dropped networks is recorded, so
+            # the effective database size is never silently wrong.
+            failures.append((net_path, f"{type(error).__name__}: {error}"))
+            logging_utils.exception(f"Could not instantiate {net_path}")
+            try:
+                import src.run_recorder as _recorder
+                _recorder.issue("network_load_failed", f"{type(error).__name__}: {error}",
+                                network=net_path)
+            except Exception:
+                pass
+
+    if failures:
+        listing = "\n".join(f"  - {path}: {reason}" for path, reason in failures)
+        logging_utils.warning(
+            f"{len(failures)}/{len(input_dict)} networks could not be instantiated and were "
+            f"skipped:\n{listing}")
+
+    if not instantiated_networks:
+        raise ValueError(
+            f"None of the {len(input_dict)} configured networks could be instantiated. "
+            f"Problems:\n" + "\n".join(f"  - {p}: {r}" for p, r in failures))
 
     return instantiated_networks
 
@@ -384,7 +411,18 @@ def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint
         ValueError: If model instantiation fails.
     """
     if not os.path.exists(script_path):
-        raise ValueError(f"Instantiation script not found: {script_path}")
+        # The database JSONs are hand-maintained and mix 'thin_res_net.py' with
+        # 'thin-res-net.py'. Accepting the other separator turns an entire lost run into a
+        # warning, while still reporting the mismatch so the JSON gets corrected.
+        alternative = Path(script_path).with_name(
+            Path(script_path).name.replace("-", "_") if "-" in Path(script_path).name
+            else Path(script_path).name.replace("_", "-"))
+        if alternative.exists():
+            print_flush(f"Instantiation script {script_path} not found; using {alternative} "
+                        f"(separator mismatch - please correct the database JSON)")
+            script_path = str(alternative)
+        else:
+            raise ValueError(f"Instantiation script not found: {script_path}")
 
     module_name = Path(script_path).stem  # Extract script name
     spec = importlib.util.spec_from_file_location(module_name, script_path)
