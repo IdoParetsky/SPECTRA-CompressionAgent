@@ -340,6 +340,66 @@ def test_narrow_layer_actually_shrinks_end_to_end():
     model_with_rows.model.eval()(torch.randn(2, 3, 32, 32))
 
 
+class MeanPoolNet(nn.Module):
+    """Global average pooling written as `x.mean(dim=(2, 3))`, as the thin-ResNets do."""
+
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1)
+        self.bn1 = nn.BatchNorm2d(16)
+        self.conv2 = nn.Conv2d(16, 24, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(24)
+        self.fc = nn.Linear(24, 10)
+
+    def forward(self, x):
+        x = torch.relu(self.bn1(self.conv1(x)))
+        x = torch.relu(self.bn2(self.conv2(x)))
+        return self.fc(x.mean(dim=(2, 3)))
+
+
+def test_spatial_mean_does_not_block_pruning():
+    """
+    Regression: `mean` was rejected outright as an unsupported op, so every layer feeding the
+    global-average-pool of a thin ResNet fell back to masking and shed no FLOPs.
+    """
+    from src.NetworkEnv import prune_current_model
+    import src.channel_groups as channel_groups
+
+    model = MeanPoolNet().eval()
+    groups = channel_groups.build_channel_groups(model)
+    group = channel_groups.group_of(groups, model.conv2)
+    assert group is not None and group.prunable, (
+        f"conv2 blocked: {group.reason if group else 'no group'}")
+
+    model_with_rows = ModelWithRows(model)
+    row = _row_index_of_layer(model_with_rows, model_with_rows.all_layers.index(model.conv2))
+    prune_current_model(model_with_rows, compression_rate=0.5, row_to_prune_idx=row)
+
+    assert model_with_rows.last_prune_outcome["mode"] == "structural"
+    assert model_with_rows.model.conv2.out_channels == 12
+    assert model_with_rows.model.fc.in_features == 12
+    model_with_rows.model.eval()(torch.randn(2, 3, 32, 32))
+
+
+def test_channel_reducing_mean_still_blocks():
+    """A reduction over the channel axis genuinely destroys the layout and must block."""
+    import src.channel_groups as channel_groups
+
+    class ChannelMean(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv = nn.Conv2d(3, 8, 3, padding=1)
+            self.fc = nn.Linear(1024, 10)
+
+        def forward(self, x):
+            # Averaging over channels collapses the dimension the group would resize
+            return self.fc(self.conv(x).mean(dim=1).flatten(1))
+
+    groups = channel_groups.build_channel_groups(ChannelMean().eval())
+    assert groups is not None
+    assert any(not g.prunable and "reduces the channel dimension" in g.reason for g in groups)
+
+
 def test_fallback_reason_distinguishes_its_causes():
     """
     'no dependency group resolved' previously covered four unrelated failures, so the logs

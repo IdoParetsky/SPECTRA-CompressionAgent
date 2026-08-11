@@ -52,6 +52,25 @@ def print_flush(msg):
     logging_utils.info(str(msg))
 
 
+def str2bool(value):
+    """
+    Parse a boolean command-line flag.
+
+    ``type=bool`` in argparse calls ``bool(str)``, which is True for every non-empty string:
+    ``--prune False`` and ``--save_pruned_checkpoints False`` both evaluated to True, so these
+    switches could not be turned off from the command line at all. That silently disabled the
+    masking-vs-structural comparison and forced checkpoint writing during smoke runs.
+    """
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in ("true", "t", "yes", "y", "1"):
+        return True
+    if normalized in ("false", "f", "no", "n", "0"):
+        return False
+    raise argparse.ArgumentTypeError(f"expected a boolean value, got {value!r}")
+
+
 def extract_args_from_cmd():
     """ Parse command-line arguments. """
     parser = argparse.ArgumentParser(
@@ -115,11 +134,11 @@ def extract_args_from_cmd():
         )
     )
 
-    parser.add_argument('--train_compressed_layer_only', type=bool, default=True,
+    parser.add_argument('--train_compressed_layer_only', type=str2bool, default=True,
                         help="Whether to train the entire network or only the new layer, post-compression.\n"
                              "Training the entire network after the compression of each layer greatly affects runtime.")
 
-    parser.add_argument('--split', type=bool, default=True,
+    parser.add_argument('--split', type=str2bool, default=True,
                         help="Whether to split the networks to train and test sets. Must be True in the first run.")
 
     parser.add_argument('--allowed_acc_reduction', type=int, default=5,
@@ -137,7 +156,7 @@ def extract_args_from_cmd():
     parser.add_argument('--passes', type=int, default=1,
                         help="How many per-layer compression iterations over the entire network. Default=1, 4 is also recommended.")
 
-    parser.add_argument('--prune', type=bool, default=True,
+    parser.add_argument('--prune', type=str2bool, default=True,
                         help="Whether to prune layers via torch.nn.utils.prune.ln_structured during compression or resize them manually.")
 
     parser.add_argument('--num_epochs', type=int, default=40, help="Agent's training epochs amount. Default=40.")
@@ -157,7 +176,7 @@ def extract_args_from_cmd():
     parser.add_argument('--val_split', type=float, default=0.2,
                         help="Validation data split fraction. Test data split is 1 - train_split - val_split")
 
-    parser.add_argument('--save_pruned_checkpoints', type=bool, default=False,
+    parser.add_argument('--save_pruned_checkpoints', type=str2bool, default=False,
                         help="Whether to save a final checkpoint for each pruned network.")
 
     return parser.parse_args()
@@ -796,7 +815,12 @@ def get_layer_by_type(row, layer_types):
         - nn.Dropout: Dropout regularization layers.
         - nn.AdaptiveAvgPool2d, nn.AdaptiveMaxPool2d: Adaptive pooling layers for spatial down-sampling.
     """
-    if not isinstance(layer_types, tuple):
+    # A bare class is the common call (get_layer_by_type(row, nn.Linear)), and tuple() on a
+    # class raises TypeError: 'type' object is not iterable. That aborted every evaluation
+    # record, since get_model_layers_str passes exactly that.
+    if isinstance(layer_types, type):
+        layer_types = (layer_types,)
+    elif not isinstance(layer_types, tuple):
         layer_types = tuple(layer_types)
 
     for layer in row:

@@ -164,6 +164,21 @@ def test_run_recorder_writes_jsonl_events(tmp_path):
     RunRecorder.reset_instance()
 
 
+def test_boolean_flags_can_actually_be_disabled():
+    """
+    Regression: argparse's type=bool made `--prune False` evaluate to True, so the
+    masking-vs-structural switch could not be turned off from the command line.
+    """
+    import argparse
+    from src.utils import str2bool
+
+    assert str2bool("False") is False and str2bool("false") is False
+    assert str2bool("0") is False and str2bool("no") is False
+    assert str2bool("True") is True and str2bool("1") is True
+    with pytest.raises(argparse.ArgumentTypeError):
+        str2bool("maybe")
+
+
 def test_summarizer_reports_a_masked_fallback_run(tmp_path):
     """The summary must flag library gaps, not just print counts."""
     import json

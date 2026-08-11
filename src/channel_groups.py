@@ -65,6 +65,13 @@ MERGING_METHODS = {"add", "add_", "sub", "sub_", "mul", "mul_"}
 
 CHANNEL_DIMS = (1, -3)
 
+# Reductions that may or may not preserve the channel dimension, depending on `dim`.
+# Global average pooling is frequently written as `x.mean(dim=(2, 3))` (the thin-ResNet
+# family used in SPECTRA's database, and torchvision's ResNet.forward), which used to be
+# rejected as "unsupported op mean" and forced every layer feeding it into masking.
+REDUCTION_FUNCTIONS = {torch.mean, torch.sum, torch.amax, torch.amin}
+REDUCTION_METHODS = {"mean", "sum", "amax", "amin"}
+
 
 @dataclass(frozen=True)
 class Ref:
@@ -163,6 +170,26 @@ def _node_args(node: Node) -> List[Node]:
 
 def _total_width(segments: Sequence[Segment]) -> int:
     return sum(segment.width for segment in segments)
+
+
+def _reduces_only_spatial(node: Node) -> bool:
+    """
+    True when a reduction leaves the channel dimension addressable.
+
+    ``x.mean(dim=(2, 3))`` is global average pooling: channels survive, so the group can
+    still be resized. ``x.mean()`` collapses everything to a scalar and ``x.mean(dim=1)``
+    reduces over channels; both destroy the layout and must block the group.
+    """
+    dim = node.kwargs.get("dim")
+    if dim is None and len(node.args) > 1:
+        dim = node.args[1]
+    if dim is None:
+        return False
+
+    dims = dim if isinstance(dim, (list, tuple)) else (dim,)
+    if not all(isinstance(d, int) for d in dims):
+        return False
+    return all(d not in CHANNEL_DIMS and d != 0 for d in dims)
 
 
 def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
@@ -329,6 +356,17 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
                           else target in WIDTH_PRESERVING_METHODS)
             if preserving:
                 layout[node] = list(incoming) if incoming else None
+                continue
+
+            reducing = (target in REDUCTION_FUNCTIONS if node.op == "call_function"
+                        else target in REDUCTION_METHODS)
+            if reducing:
+                if _reduces_only_spatial(node):
+                    layout[node] = list(incoming) if incoming else None
+                else:
+                    name = getattr(target, "__name__", target)
+                    block_inputs(node, f"{name} reduces the channel dimension")
+                    layout[node] = None
                 continue
 
             name = getattr(target, "__name__", target)
