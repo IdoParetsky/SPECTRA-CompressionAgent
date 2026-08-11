@@ -144,7 +144,11 @@ def build_report(run_dir: str) -> Dict[str, Any]:
     blocked_reasons = Counter(p.get("reason") for p in prunes if p.get("mode") == "masked")
     masked_by_type = Counter(p.get("layer_type") for p in prunes if p.get("mode") == "masked")
     total_prunes = sum(prune_modes.values())
+    # "floor" means the layer was already one channel wide; that is a property of the
+    # architecture and the action space, not a gap in the pruning library, so it is excluded
+    # from the coverage metric and reported on its own.
     masked_fraction = prune_modes.get("masked", 0) / total_prunes if total_prunes else 0.0
+    floor_hits = prune_modes.get("floor", 0)
 
     # --- agent behaviour ----------------------------------------------------
     action_counts = Counter()
@@ -206,6 +210,7 @@ def build_report(run_dir: str) -> Dict[str, Any]:
         "timing": timing,
         "prune_modes": prune_modes,
         "masked_fraction": masked_fraction,
+        "floor_hits": floor_hits,
         "blocked_reasons": blocked_reasons,
         "masked_by_type": masked_by_type,
         "action_counts": action_counts,
@@ -251,6 +256,13 @@ def recommendations(report: Dict[str, Any]) -> List[str]:
         notes.append(f"Structured pruning succeeded on {1 - masked:.0%} of actions "
                      f"({report['prune_modes'].get('structural', 0)}/{sum(report['prune_modes'].values())}).")
 
+    if report["floor_hits"]:
+        notes.append(
+            f"**{report['floor_hits']} actions hit a one-channel floor.** Those layers cannot "
+            f"be compressed further, so the action space is offering choices the architecture "
+            f"cannot honour. Consider a minimum-width constraint, or making rate 1.0 the only "
+            f"legal action once a group reaches its floor.")
+
     if report["noop_steps"]:
         notes.append(
             f"**{report['noop_steps']} steps ({report['noop_fraction']:.0%}) requested "
@@ -284,10 +296,24 @@ def recommendations(report: Dict[str, Any]) -> List[str]:
     if entropies and actions:
         import math
         max_entropy = math.log(max(len(actions), 2))
-        if statistics.fmean(entropies[-max(len(entropies) // 3, 1):]) < ENTROPY_COLLAPSE_WARN * max_entropy:
-            notes.append("**Policy entropy collapsed** in the final third of training. "
-                         "Either the agent converged or exploration died too early; compare "
-                         "against the reward trend before deciding.")
+        tail = entropies[-max(len(entropies) // 3, 1):]
+        tail_mean = statistics.fmean(tail)
+        if tail_mean < ENTROPY_COLLAPSE_WARN * max_entropy:
+            # A degenerate policy that always picks rate 1.0 scores better than any policy
+            # that compresses, whenever fine-tuning cannot recover the accuracy that pruning
+            # costs. That is a reward/fine-tuning design problem, not a bug.
+            degenerate = ""
+            if report["rate_counts"]:
+                top_rate, top_count = max(report["rate_counts"].items(), key=lambda kv: kv[1])
+                share = top_count / sum(report["rate_counts"].values())
+                if top_rate in (1, 1.0) and share > 0.5:
+                    degenerate = (f" It settled on the no-op rate 1.0 for {share:.0%} of steps: "
+                                  f"doing nothing scores 0 while any real compression is "
+                                  f"punished, so 'never compress' is genuinely optimal under "
+                                  f"the current reward and fine-tuning budget.")
+            notes.append(f"**Policy entropy collapsed to {tail_mean:.3f}** "
+                         f"({tail_mean / max_entropy:.0%} of maximum) in the final third of "
+                         f"training.{degenerate}")
 
     trend = report["return_trend"]
     if trend:

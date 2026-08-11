@@ -616,13 +616,24 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     # Masking is a correctness-preserving fallback, not a success: it removes parameters from
     # the reward's point of view but no FLOPs. Counting the reasons is how we learn which
     # dependency patterns the library still cannot resize.
+    #
+    # A layer already down to a single channel is the one case that is *not* a library gap:
+    # there is nothing left to remove. It is counted separately so the masked-fallback rate
+    # keeps measuring what it is meant to measure, and because a network whose layers reach
+    # width 1 is telling us the action space is too aggressive for that architecture.
+    at_floor = old_width <= 1
+    kind = "prune_floor_reached" if at_floor else "prune_fallback_masked"
+    if at_floor:
+        reason = "layer is already one channel wide"
+
     model_with_rows.last_prune_outcome = {
-        "mode": "masked", "reason": reason, "old_width": old_width,
+        "mode": "floor" if at_floor else "masked", "reason": reason, "old_width": old_width,
         "new_width": int(keep_idx.numel()), "coupled_layers": 0, "consumers_resized": 0,
     }
-    recorder.issue("prune_fallback_masked", reason, layer_index=layer_to_prune_idx,
+    recorder.issue(kind, reason, layer_index=layer_to_prune_idx,
                    layer_type=type(layer_to_prune).__name__, rate=compression_rate)
-    recorder.record("prune", mode="masked", reason=reason, layer_index=layer_to_prune_idx,
+    recorder.record("prune", mode="floor" if at_floor else "masked", reason=reason,
+                    layer_index=layer_to_prune_idx,
                     layer_type=type(layer_to_prune).__name__, rate=compression_rate,
                     old_width=old_width, new_width=int(keep_idx.numel()))
 
