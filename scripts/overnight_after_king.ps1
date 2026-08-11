@@ -1,4 +1,4 @@
-# Overnight: wait for recover_king, summarize matrix, submit recover_careful, write morning brief.
+# Overnight: wait for recover_king, summarize, submit careful A/B (+ king_fortify), write morning brief.
 $ErrorActionPreference = "Continue"
 $Repo = "C:\SPECTRA-CompressionAgent"
 $King = "20061144"
@@ -24,63 +24,37 @@ while ($true) {
   Start-Sleep -Seconds 900
 }
 
-# Sync code that may have been committed before sleep, then submit careful.
 Rexec "cd /home/paretsky/SPECTRA-CompressionAgent && git fetch origin master && git reset --hard origin/master" | Out-Null
 
 $summary = Rexec @"
 cd /home/paretsky/SPECTRA-CompressionAgent
 echo '==== KING summarize ===='
 python3 scripts/summarize_run.py runs/job$King 2>&1 | tail -n 80
-echo '==== non-id within -10pp (king) ===='
-python3 - <<'PY'
-import json,glob,statistics
-from pathlib import Path
-ev=Path('runs/job$King/events')
-rows=[]
-for f in ev.glob('*.jsonl'):
-  for line in f.open():
-    o=json.loads(line)
-    if o.get('event')!='step': continue
-    rate=o.get('compression_rate') or o.get('rate')
-    if rate is None: continue
-    try: rate=float(rate)
-    except: continue
-    if abs(rate-1.0)<1e-9: continue
-    dacc=o.get('delta_acc', o.get('acc_delta', o.get('accuracy_delta')))
-    rew=o.get('reward')
-    rows.append((rate,dacc,rew,o.get('episode')))
-print('non_id_steps', len(rows))
-if rows:
-  within=[]
-  for r,d,rw,ep in rows:
-    if d is None: continue
-    within.append(abs(float(d))<=0.10 or float(d)>=-0.10)
-  # delta usually negative for drop
-  ok=[(d is not None and float(d)>=-0.10) for _,d,_,_ in rows]
-  print('non_id_within_m10pp', sum(1 for x in ok if x), '/', len(ok))
-  ds=[float(d) for _,d,_,_ in rows if d is not None]
-  if ds: print('median_delta_acc', statistics.median(ds))
-PY
+echo '==== submit A/B careful + careful_fortify (king_fortify may already be running) ===='
+bash scripts/submit.sh recover_careful
+bash scripts/submit.sh recover_careful_fortify
+# Only submit king_fortify if none is already queued/running
+if ! squeue -u paretsky -n spectra-recover_king_fortify -h | grep -q .; then
+  bash scripts/submit.sh recover_king_fortify || true
+fi
+squeue -u paretsky
 for j in $King $($Wander -join ' '); do
   echo ==== job\$j ====
   sacct -j \$j -n -X -o JobID,State,Elapsed,ExitCode --parsable2 | head -1
-  grep -E 'DONE Episode|Stopping training|finished with status|FATAL' runs/slurm_logs/spectra_\$j.out 2>/dev/null | tail -5
+  grep -E 'DONE Episode|Stopping training|finished with status|FATAL' runs/slurm_logs/spectra_\$j.out 2>/dev/null | tail -3
 done
-echo '==== submit recover_careful ===='
-bash scripts/submit.sh recover_careful
-squeue -u paretsky
 "@
 
-$carefulId = ($summary | Select-String -Pattern 'submitted job (\d+)' | Select-Object -Last 1)
-if ($carefulId) { $cid = $carefulId.Matches[0].Groups[1].Value } else { $cid = "UNKNOWN" }
-
+$ids = [regex]::Matches($summary, 'submitted job (\d+)') | ForEach-Object { $_.Groups[1].Value }
 $brief = @"
 SPECTRA morning brief ($(Get-Date -Format o))
 ========================================
 King job $King ended: $st
-Follow-up recover_careful: $cid (12h wall, 6-net DB, warmup floor 100, standardizer ON, -10pp, rates 1.0/0.9/0.8)
+Submitted follow-ups (careful A/B +/- fortify, king_fortify): $($ids -join ', ')
 
-Remote summary excerpt:
+Fortify package (SPECTRA_FORTIFY=1): stem/narrow action mask, entropy anneal, depth/stem/coupling/width tokens, train_resume.pt mid-run bundles.
+
+Remote excerpt:
 $summary
 "@
 Set-Content -Path $BriefLocal -Value $brief -Encoding UTF8
@@ -89,5 +63,5 @@ $brief
 EOF
 "
 
-Write-Output "$Sentinel done careful=$cid brief=$BriefLocal"
+Write-Output "$Sentinel done submitted=$($ids -join ',') brief=$BriefLocal"
 Write-Output $summary

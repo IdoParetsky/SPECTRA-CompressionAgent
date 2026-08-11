@@ -17,6 +17,7 @@ import src.utils as utils
 import src.distributed as ddp
 import src.logging_utils as logging_utils
 import src.run_recorder as recorder
+import src.fortify as fortify
 
 # Destination for the final agent. Override with SPECTRA_TRAINED_AGENTS_DIR.
 TRAINED_AGENTS_DIR = os.environ.get("SPECTRA_TRAINED_AGENTS_DIR",
@@ -65,6 +66,48 @@ def save_agent_checkpoint(model, path):
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         torch.save({"state_dict": ddp.unwrap(model).state_dict()}, path)
     ddp.barrier()
+
+
+def _resume_bundle_path() -> str:
+    override = os.environ.get("SPECTRA_RESUME_PATH", "").strip()
+    if override:
+        return override
+    return join(logging_utils.run_dir(), "agent_checkpoints", "train_resume.pt")
+
+
+def save_train_resume(agent, *, max_reward, episodes_since_improvement, path=None):
+    """Full mid-run bundle: weights + optimizers + episode index (USR1 / preempt safe)."""
+    path = path or _resume_bundle_path()
+    if ddp.is_main_process():
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        torch.save({
+            "episode_idx": agent.episode_idx,
+            "max_reward": float(max_reward),
+            "episodes_since_improvement": int(episodes_since_improvement),
+            "actor": ddp.unwrap(agent.actor_model).state_dict(),
+            "critic": ddp.unwrap(agent.critic_model).state_dict(),
+            "actor_opt": agent.actor_optimizer.state_dict(),
+            "critic_opt": agent.critic_optimizer.state_dict(),
+        }, path)
+        utils.print_flush(f"Saved train resume bundle -> {path} (ep={agent.episode_idx})")
+    ddp.barrier()
+
+
+def load_train_resume(agent, path=None):
+    """Restore mid-run bundle if present. Returns (max_reward, episodes_since_improvement) or None."""
+    path = path or _resume_bundle_path()
+    if not os.path.isfile(path):
+        return None
+    blob = torch.load(path, map_location=agent.device, weights_only=False)
+    ddp.unwrap(agent.actor_model).load_state_dict(blob["actor"])
+    ddp.unwrap(agent.critic_model).load_state_dict(blob["critic"])
+    agent.actor_optimizer.load_state_dict(blob["actor_opt"])
+    agent.critic_optimizer.load_state_dict(blob["critic_opt"])
+    agent.episode_idx = int(blob.get("episode_idx", 0))
+    utils.print_flush(
+        f"Resumed training from {path} at episode={agent.episode_idx} "
+        f"best_return={blob.get('max_reward')}")
+    return float(blob.get("max_reward", -np.inf)), int(blob.get("episodes_since_improvement", 0))
 
 
 class A2CAgentReinforce:
@@ -158,11 +201,16 @@ class A2CAgentReinforce:
         reward_patience = max(len(self.env.networks), 100)
         start_time = time.perf_counter()
 
+        resumed = load_train_resume(self)
+        if resumed is not None:
+            max_reward_in_all_episodes, episodes_since_improvement = resumed
+
         utils.print_flush(
             f"Agent training topology: {ddp.summary()} | "
             f"networks={len(self.env.networks)} warmup={warmup_len} "
             f"min_episodes={min_episode_num} patience={reward_patience} "
-            f"entropy_coef={ENTROPY_COEF} finetune_epochs={self.conf.num_epochs}")
+            f"entropy_coef={ENTROPY_COEF} fortify={fortify.fortify_enabled()} "
+            f"finetune_epochs={self.conf.num_epochs}")
         recorder.record(
             "train_config",
             num_networks=len(self.env.networks),
@@ -170,9 +218,11 @@ class A2CAgentReinforce:
             min_episode_num=min_episode_num,
             reward_patience=reward_patience,
             entropy_coef=ENTROPY_COEF,
+            fortify=fortify.fortify_enabled(),
             finetune_epochs=self.conf.num_epochs,
             rollout_limit=self.conf.rollout_limit,
             passes=self.conf.passes,
+            resumed_episode=self.episode_idx,
         )
 
         while True:
@@ -193,6 +243,8 @@ class A2CAgentReinforce:
                     f"(reward_not_improving={reward_not_improving}, "
                     f"elapsed={time.perf_counter() - start_time:.0f}s/{self.conf.runtime_limit}s"
                     f"{', slurm_usr1_stop=True' if via_slurm else ''})")
+                save_train_resume(self, max_reward=max_reward_in_all_episodes,
+                                  episodes_since_improvement=episodes_since_improvement)
                 break
 
             # Tag every log line and event produced by this episode
@@ -217,13 +269,13 @@ class A2CAgentReinforce:
             while not done and (self.conf.rollout_limit is None or step_count < self.conf.rollout_limit):
                 value_pred = self.critic_model(state)
                 action_dist = self.actor_model(state)
-
-                if self.episode_idx < warmup_len:
-                    # Uniform exploration over the configured compression rates
-                    action = torch.tensor([np.random.randint(0, self.conf.num_actions)],
-                                          device=self.conf.device)
-                else:
-                    action = action_dist.sample()
+                legal = self.env.legal_action_mask(device=self.conf.device)
+                action_dist = fortify.apply_action_mask(action_dist, legal)
+                action = fortify.sample_masked_action(
+                    action_dist, legal,
+                    uniform=(self.episode_idx < warmup_len),
+                    device=self.conf.device,
+                )
 
                 compression_rate = self.conf.compression_rates_dict[int(action.item())]
                 actions_taken.append(int(action.item()))
@@ -275,7 +327,8 @@ class A2CAgentReinforce:
 
             log_probs = torch.cat(log_probs)
             mean_entropy = entropy / step_count
-            actor_loss = -(log_probs * adv).mean() - ENTROPY_COEF * mean_entropy
+            ent_coef = fortify.entropy_coef(self.episode_idx, warmup_len, ENTROPY_COEF)
+            actor_loss = -(log_probs * adv).mean() - ent_coef * mean_entropy
 
             # Critic keeps the raw return scale: its job is to predict the actual return, and
             # the NEON reward's magnitude is intentional. Gradient clipping below keeps updates
@@ -287,6 +340,7 @@ class A2CAgentReinforce:
             utils.print_flush(f'Critic Loss, Episode {self.episode_idx}: {v(critic_loss)}')
             writer.add_scalar('Critic Loss', v(critic_loss), self.episode_idx)
             writer.add_scalar('Policy Entropy', v(mean_entropy), self.episode_idx)
+            writer.add_scalar('Entropy Coef', ent_coef, self.episode_idx)
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -330,11 +384,18 @@ class A2CAgentReinforce:
             if new_best:
                 max_reward_in_all_episodes = curr_reward
                 episodes_since_improvement = 0
+                save_train_resume(self, max_reward=max_reward_in_all_episodes,
+                                  episodes_since_improvement=0)
             else:
                 episodes_since_improvement += 1
 
             reward_not_improving = episodes_since_improvement >= reward_patience
             utils.print_flush(f"{max_reward_in_all_episodes=}, {episodes_since_improvement=}/{reward_patience}")
+
+            # Periodic full resume bundle (even without a new best) for preempt recovery
+            if (self.episode_idx + 1) % 25 == 0 and not new_best:
+                save_train_resume(self, max_reward=max_reward_in_all_episodes,
+                                  episodes_since_improvement=episodes_since_improvement)
 
             episode_timer.__exit__(None, None, None)
             # One record per A2C update. Together with the per-step records this is enough to

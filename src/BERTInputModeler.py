@@ -39,7 +39,7 @@ STATE_ENCODER_KIND = os.environ.get("SPECTRA_STATE_ENCODER", "transformer").stri
 NUM_MOMENTS = 12
 WEIGHT_SHAPE_DIM = 7
 TOPOLOGY_DIM = 7
-# Base width *before* the per-rate action-cost slots appended for the target layer
+# Base width *before* fortify channels and per-rate action-cost slots on the target layer
 TOKEN_BASE_DIM = TOPOLOGY_DIM + NUM_MOMENTS + NUM_MOMENTS + WEIGHT_SHAPE_DIM  # 38
 
 BERT_MAX_POSITIONS = 512
@@ -62,7 +62,8 @@ def action_cost_slot_dim(num_actions: Optional[int] = None) -> int:
 
 
 def token_feature_dim(num_actions: Optional[int] = None) -> int:
-    return TOKEN_BASE_DIM + action_cost_slot_dim(num_actions)
+    from src.fortify import fortify_token_dim
+    return TOKEN_BASE_DIM + fortify_token_dim() + action_cost_slot_dim(num_actions)
 
 
 # Back-compat alias used by Agent / tests; recomputed at import from StaticConf when present
@@ -206,8 +207,16 @@ class BERTInputModeler:
         return torch.cat([base_scaled, slots], dim=1)
 
     def _build_layer_tokens(self, feature_maps, curr_layer_idx,
-                            action_costs=None) -> torch.Tensor:
+                            action_costs=None, coupling_ids=None) -> torch.Tensor:
+        from src.fortify import fortify_enabled, build_fortify_features
+
         base = self._scale_base_tokens(self.build_base_tokens(feature_maps))
+        if fortify_enabled():
+            # Fortify channels are already ~[0,1]; append after z-score of raw moments.
+            fort = build_fortify_features(
+                base.size(0), coupling_ids, feature_maps.get("Topology", []),
+                device=base.device, dtype=base.dtype)
+            base = torch.cat([base, fort], dim=1)
         target = min(curr_layer_idx, base.size(0) - 1) if base.size(0) else 0
         return self._attach_action_cost_slots(base, target, action_costs)
 
@@ -241,19 +250,20 @@ class BERTInputModeler:
         ``SPECTRA_STATE_ENCODER=bert``, also fills a ``bert`` entry for the frozen ablation.
         """
         with torch.no_grad():
-            layer_tokens = self._build_layer_tokens(feature_maps, curr_layer_idx, action_costs)
             topology = feature_maps["Topology"]
-            layer_types = torch.tensor(
-                [int(row[0]) if row else 0 for row in topology],
-                dtype=torch.long, device=self.device)[: layer_tokens.size(0)]
-
             # Exact channel-coupling ids when groups are available; module-parent fallback
             if dependency_groups is not None:
                 coupling = channel_groups.coupling_ids_for_layers(
                     model_with_rows.all_layers, dependency_groups).to(self.device)
             else:
                 coupling = self._block_ids(model_with_rows).to(self.device)
+
+            layer_tokens = self._build_layer_tokens(
+                feature_maps, curr_layer_idx, action_costs, coupling_ids=coupling)
             coupling = coupling[: layer_tokens.size(0)]
+            layer_types = torch.tensor(
+                [int(row[0]) if row else 0 for row in topology],
+                dtype=torch.long, device=self.device)[: layer_tokens.size(0)]
 
         target_index = min(curr_layer_idx, layer_tokens.size(0) - 1) if layer_tokens.size(0) else 0
         state = {

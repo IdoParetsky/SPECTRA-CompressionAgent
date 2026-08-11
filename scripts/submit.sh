@@ -59,8 +59,12 @@ case "$PROFILE" in
   recover_careful)
     # AMC-scale warmup + 6-net DB + standardizer; wall >> train for eval buffer.
     GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  recover_careful_fortify)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  recover_king_fortify)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
   *)
-    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king|recover_careful} [gpu_count]" >&2
+    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king|recover_careful|recover_careful_fortify|recover_king_fortify} [gpu_count]" >&2
     exit 1
     ;;
 esac

@@ -223,6 +223,24 @@ class NetworkEnv:
                            network=self.selected_net_path)
         return groups
 
+    def legal_action_mask(self, device=None):
+        """Bool mask over ``compression_rates_dict`` for the current row (fortify-aware)."""
+        from src.fortify import legal_action_mask
+        import src.pruning as pruning
+
+        model_with_rows = ModelWithRows(self.current_model)
+        row = max(0, (self.row_idx or 1) - 1)
+        layer_idx = model_with_rows.row_to_main_layer[row]
+        layer = model_with_rows.all_layers[layer_idx]
+        alive = int(pruning.alive_filters(layer).numel()) if hasattr(layer, "weight") else 1
+        dev = device if device is not None else self.conf.device
+        return legal_action_mask(
+            self.conf.compression_rates_dict,
+            row_index=row,
+            alive_count=alive,
+            device=dev,
+        )
+
     def step(self, compression_rate, is_to_train=True):
         """
         Compress the network, then move to the next state.
