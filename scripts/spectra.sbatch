@@ -445,7 +445,7 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  careful_fortify_tau15|careful_fortify_mildrates|careful_fortify_structural_guard)
+  careful_fortify_tau15|careful_fortify_mildrates|careful_fortify_structural_guard|careful_fortify_structural_tau15)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
@@ -466,6 +466,11 @@ case "$PROFILE" in
     if [[ "$PROFILE" == "careful_fortify_structural_guard" ]]; then
       export SPECTRA_REWARD_MODE=structural_guard
       EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.9 0.8)
+    elif [[ "$PROFILE" == "careful_fortify_structural_tau15" ]]; then
+      export SPECTRA_REWARD_MODE=structural
+      EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 15
                   --train_compressed_layer_only False
                   --compression_rates 1.0 0.9 0.8)
     elif [[ "$PROFILE" == "careful_fortify_tau15" ]]; then

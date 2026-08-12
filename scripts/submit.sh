@@ -93,8 +93,11 @@ case "$PROFILE" in
   careful_fortify_structural_guard)
     # Asymmetric RCPR: realized credit in-budget, max(realized,nominal) on violations.
     GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_structural_tau15)
+    # Combine mid-run levers: RCPR (healthier credit; late within-10↑) + τ=15 (covers −11 pp mass).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   *)
-    echo "usage: $0 {...|careful_fortify_tau15|careful_fortify_mildrates|careful_fortify_structural_guard}" >&2
+    echo "usage: $0 {...|careful_fortify_tau15|mildrates|structural_guard|structural_tau15}" >&2
     exit 1
     ;;
 esac
