@@ -160,7 +160,50 @@ scancel <JOBID>      # squeue -u paretsky
 
 ---
 
-## 6) Manual fallback (no PowerShell helpers)
+## 7) Overnight / VPN expiry (important)
+
+Your Check Point client shows a hard **Expiration** countdown (BGU policy). Neither Cursor nor the client can turn that into “never expires.” When it hits zero, the tunnel drops and **this PC loses SSH** until you reconnect (often with a password / GUI prompt).
+
+### What actually survives overnight
+
+| Approach | Survives VPN drop? | Notes |
+|----------|--------------------|--------|
+| `sinteractive` + live SSH / `slurm_run.ps1` | **No** (access lost; interactive allocation may die) | Fine while you are awake |
+| **`sbatch` via `scripts/submit.sh`** | **Yes** (job keeps running on the cluster) | Preferred for sleep / long runs |
+| `tmux` inside `sinteractive` | Partial | Process may continue; still fragile vs VPN + allocation policy |
+
+**For runs while you sleep, submit a batch job** (after commit/push/sync):
+
+```powershell
+.\scripts\slurm_sync.ps1
+ssh bgu-slurm "cd /home/paretsky/SPECTRA-CompressionAgent && bash scripts/submit.sh medium"
+# profiles: smoke | medium | full | probe | diag | ...
+```
+
+Logs land on the cluster under:
+
+- `/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_<JOBID>.out`
+- `/home/paretsky/SPECTRA-CompressionAgent/runs/job<JOBID>/`
+
+Next morning (VPN back up):
+
+```powershell
+ssh bgu-slurm "squeue -u paretsky; sacct -u paretsky --starttime=now-1day --format=JobID,State,Elapsed,ExitCode -n"
+scp bgu-slurm:/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/spectra_<JOBID>.out runs/slurm_logs/
+```
+
+Then `@runs/slurm_logs/spectra_<JOBID>.out` in Cursor.
+
+### VPN hygiene (reduces mid-night *idle* drops; does not remove Expiration)
+
+1. **VPN Options** → enable anything like Always-Connect / auto-reconnect if present; avoid “disconnect on idle/lock” if offered.  
+2. Windows: **Settings → System → Power** → keep the PC awake (or “Stay on when plugged in”); disable sleep overnight.  
+3. Expiration still wins: after ~hours you must re-auth. Do **not** rely on VPN staying up for the experiment itself — rely on **`sbatch`**.
+
+Do **not** leave your VPN password in a scheduled reconnect script unless you accept that risk; BGU often still wants an interactive login.
+
+---
+
 
 ```powershell
 ssh bgu-slurm

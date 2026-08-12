@@ -396,6 +396,55 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  careful_fortify_structural|careful_fortify_shaped)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    if [[ "$PROFILE" == "careful_fortify_structural" ]]; then
+      export SPECTRA_REWARD_MODE=structural
+    else
+      export SPECTRA_REWARD_MODE=structural_shaped
+    fi
+    EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  reward_structural_seed43)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-8}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-20}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-1}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_SEED=43
+    export SPECTRA_REWARD_MODE=structural
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    EXTRA_ARGS=(--runtime_limit 18000 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   probe_groupft)
     RUN_KIND=probe_groupft
     ;;

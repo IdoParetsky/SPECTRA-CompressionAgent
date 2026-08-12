@@ -76,8 +76,16 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
   reward_shaped_ab)
     GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+  careful_fortify_structural)
+    # Promote RCPR onto 6-net careful+fortify (vs running 20066522 neon).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_shaped)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  reward_structural_seed43)
+    # Seed replicate of structural reward A/B (luck check).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
   *)
-    echo "usage: $0 {...|recover_warm_king_fortify|recover_careful_fortify_ft80|reward_neon_ab|reward_structural_ab|reward_shaped_ab} [gpu_count]" >&2
+    echo "usage: $0 {...|reward_*|careful_fortify_structural|careful_fortify_shaped|reward_structural_seed43}" >&2
     exit 1
     ;;
 esac
