@@ -95,6 +95,7 @@ class NetworkEnv:
         self.row_idx = None  # This variable will hold the index of the row after the one to be pruned
         self.actions_history = []
         self.original_acc = None
+        self.original_params = None
         self.selected_net_path = None
         self.current_model = None
         self.feature_extractor = None
