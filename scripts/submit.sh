@@ -84,8 +84,17 @@ case "$PROFILE" in
   reward_structural_seed43)
     # Seed replicate of structural reward A/B (luck check).
     GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+  careful_fortify_tau15)
+    # Preference τ=15: careful non-id mass sits at median ≈−11 pp (just past τ=10).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_mildrates)
+    # Safer action set 1.0/0.95/0.9 under fortify (cut 0.8 toxic channel).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_structural_guard)
+    # Asymmetric RCPR: realized credit in-budget, max(realized,nominal) on violations.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   *)
-    echo "usage: $0 {...|reward_*|careful_fortify_structural|careful_fortify_shaped|reward_structural_seed43}" >&2
+    echo "usage: $0 {...|careful_fortify_tau15|careful_fortify_mildrates|careful_fortify_structural_guard}" >&2
     exit 1
     ;;
 esac

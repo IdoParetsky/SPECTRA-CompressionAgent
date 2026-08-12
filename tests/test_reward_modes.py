@@ -52,3 +52,15 @@ def test_shaped_softens_near_cliff(monkeypatch):
     from src.utils import compute_reward
     r = compute_reward(0.95, 1.0, 0.9, params_before=100, params_after=90)
     assert abs(r - 2.5) < 1e-9
+
+
+def test_structural_guard_uses_nominal_on_violation(monkeypatch):
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_guard")
+    _init_static_conf(10)
+    from src.utils import compute_reward
+    # Tiny realized prune but large Δacc violation → penalty uses nominal 10%
+    r = compute_reward(0.80, 1.0, 0.9, params_before=1000, params_after=995)
+    assert abs(r - (-(10.0 ** 3))) < 1e-6
+    # In-budget mild loss → realized 0.5% credit
+    r2 = compute_reward(0.95, 1.0, 0.9, params_before=1000, params_after=995)
+    assert abs(r2 - 0.5) < 1e-9

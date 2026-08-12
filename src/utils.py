@@ -792,6 +792,10 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
           over-budget penalties grow with how far past τ the drop goes. Keeps
           NEON's preference semantics while fixing CNN credit cliffs we observed
           empirically (≈−5 to −11 pp recoverable steps looking like −1000).
+      structural_guard
+          Asymmetric RCPR: realized param reduction for in-budget / accuracy-gain
+          credit, but ``max(realized, nominal)`` on over-budget penalties so tiny
+          channel-group edits cannot under-penalize preference violations.
 
     The NEON body is preserved verbatim under ``neon``; other modes are explicit
     gated ablations for A/B experiments.
@@ -802,10 +806,12 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
     delta_acc = (new_acc - prev_acc) * 100
 
     nominal = (1.0 - float(compression_rate)) * 100.0
-    if (mode in ("structural", "structural_shaped")
+    realized = None
+    if (mode in ("structural", "structural_shaped", "structural_guard")
             and params_before is not None and params_after is not None
             and float(params_before) > 0):
-        reduction = max(0.0, (1.0 - float(params_after) / float(params_before)) * 100.0)
+        realized = max(0.0, (1.0 - float(params_after) / float(params_before)) * 100.0)
+        reduction = realized
         # Identity / no-op edits: keep a tiny nominal floor so the trichotomy still
         # distinguishes "safe identity" from catastrophic prune when Δacc is nonzero
         # due to FT noise; if both reduction and nominal are 0, reward is 0.
@@ -814,7 +820,13 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
     else:
         reduction = nominal
 
-    if mode == "neon" or mode == "structural":
+    if mode == "structural_guard":
+        # Prefer realized credit when safe; never softer than nominal when over τ.
+        if delta_acc < -tau:
+            reduction = max(reduction, nominal)
+        # else keep realized (or nominal floor for true no-ops)
+
+    if mode in ("neon", "structural", "structural_guard"):
         # NEON trichotomy (Hirsch & Katz 2022), magnitude = reduction
         if delta_acc < -tau:
             reward = -reduction ** 3

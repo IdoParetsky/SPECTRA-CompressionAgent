@@ -445,6 +445,42 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  careful_fortify_tau15|careful_fortify_mildrates|careful_fortify_structural_guard)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    if [[ "$PROFILE" == "careful_fortify_structural_guard" ]]; then
+      export SPECTRA_REWARD_MODE=structural_guard
+      EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.9 0.8)
+    elif [[ "$PROFILE" == "careful_fortify_tau15" ]]; then
+      export SPECTRA_REWARD_MODE=neon
+      EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 15
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.9 0.8)
+    else
+      # mildrates
+      export SPECTRA_REWARD_MODE=neon
+      EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.95 0.9)
+    fi
+    ;;
   probe_groupft)
     RUN_KIND=probe_groupft
     ;;
