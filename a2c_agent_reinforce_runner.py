@@ -76,12 +76,30 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 state = env.reset(test_net_path=net_path, test_model=net_model, test_loaders=net_loaders)
                 done = False
 
+                env._budget_logged = False
                 while not done:
-                    # Get action distribution from the agent
                     action_dist = agent.actor_model(state)
+                    legal = env.legal_action_mask(device=conf.device)
+                    from src import fortify as fortify_mod
+                    action_dist = fortify_mod.apply_action_mask(action_dist, legal)
 
-                    action = action_dist.sample()  # Compression Rate
-                    compression_rate = conf.compression_rates_dict[action.item()]
+                    min_ratio = fortify_mod.eval_min_param_ratio()
+                    at_budget = env.param_ratio() <= min_ratio
+                    if at_budget:
+                        if not env._budget_logged:
+                            utils.print_flush(
+                                f"[eval] param budget x{env.param_ratio():.3f} <= {min_ratio}; "
+                                f"identity-pad remaining steps")
+                            env._budget_logged = True
+                        identity = next(
+                            (i for i, r in conf.compression_rates_dict.items()
+                             if abs(float(r) - 1.0) < 1e-9),
+                            0)
+                        action = torch.tensor([identity], device=conf.device)
+                    else:
+                        action = action_dist.sample()
+
+                    compression_rate = conf.compression_rates_dict[int(action.item())]
                     next_state, reward, done = env.step(compression_rate)
                     state = next_state
         except Exception as error:

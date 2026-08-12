@@ -115,25 +115,31 @@ def legal_action_mask(
     device,
 ) -> torch.Tensor:
     """
-    Bool mask over discrete actions. When fortify is off, everything is legal.
+    Bool mask over discrete actions.
 
-    Under fortify:
+    Always on (library hygiene):
+      * rates that cannot change width (target_width == alive) → illegal if rate < 1
+      * layers already at 1 alive channel → identity only
+
+    Under SPECTRA_FORTIFY=1 additionally:
       * stem rows → only rate == 1.0
       * narrow layers (alive <= min_width) → only rate == 1.0
-      * rates that cannot change width (target_width == alive) → illegal if rate < 1
     """
     n = len(compression_rates)
     mask = torch.ones(n, dtype=torch.bool, device=device)
-    if not fortify_enabled():
-        return mask
 
-    force_identity = (row_index < stem_rows()) or (alive_count <= min_width_for_prune())
+    force_identity = alive_count <= 1
+    if fortify_enabled():
+        force_identity = force_identity or (row_index < stem_rows()) or (
+            alive_count <= min_width_for_prune())
+
     for idx, rate in compression_rates.items():
         if force_identity:
             mask[idx] = abs(float(rate) - 1.0) < 1e-9
             continue
         if float(rate) >= 1.0:
             continue
+        # No-op compressions are pure credit-assignment noise (always illegal).
         if pruning.target_width(alive_count, float(rate)) >= alive_count:
             mask[idx] = False
 
@@ -145,6 +151,16 @@ def legal_action_mask(
         if not mask.any():
             mask[0] = True
     return mask
+
+
+def eval_min_param_ratio() -> float:
+    """Stop applying non-identity prune actions in eval once params fall below this fraction."""
+    return float(os.environ.get("SPECTRA_EVAL_MIN_PARAM_RATIO", "0.70"))
+
+
+def critic_huber_delta() -> float:
+    """Smooth-L1 beta for critic; override with SPECTRA_CRITIC_HUBER_DELTA (0 disables)."""
+    return float(os.environ.get("SPECTRA_CRITIC_HUBER_DELTA", "100.0"))
 
 
 def apply_action_mask(dist: Categorical, legal: torch.Tensor) -> Categorical:

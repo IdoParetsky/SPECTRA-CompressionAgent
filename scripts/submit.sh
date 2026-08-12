@@ -63,8 +63,14 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   recover_king_fortify)
     GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+  recover_warm_king_fortify)
+    # Warm-start 6-net careful-fortify from king_fortify best actor/critic.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  recover_careful_fortify_ft80)
+    # Same as careful_fortify but 80 FT epochs (NEON-closer recovery budget).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
   *)
-    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king|recover_careful|recover_careful_fortify|recover_king_fortify} [gpu_count]" >&2
+    echo "usage: $0 {smoke|medium|full|probe|probe_continue|probe_groupft|diag|recover|recover_groupft|recover_wide|recover_pref10|recover_king|recover_careful|recover_careful_fortify|recover_king_fortify|recover_warm_king_fortify|recover_careful_fortify_ft80} [gpu_count]" >&2
     exit 1
     ;;
 esac
@@ -99,6 +105,13 @@ mkdir -p runs/slurm_logs
 # mid-run and wiped progress (no mid-train resume yet).
 EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-01,ee-l40s-02}"
 
+# Cluster-side chaining: SPECTRA_DEPENDENCY=afterok:JOBID (or afterany:JOBID).
+# Survives laptop/VPN disconnects — do not rely on a local PowerShell watcher.
+SBATCH_EXTRA=()
+if [[ -n "${SPECTRA_DEPENDENCY:-}" ]]; then
+  SBATCH_EXTRA+=(--dependency="${SPECTRA_DEPENDENCY}")
+fi
+
 JOB_ID=$(sbatch --parsable \
   --gpus="rtx_6000:${GPUS}" \
   --mem="${MEM}" \
@@ -107,10 +120,11 @@ JOB_ID=$(sbatch --parsable \
   --exclude="${EXCLUDE_NODES}" \
   --job-name="spectra-${PROFILE}" \
   --export=ALL,SPECTRA_PROFILE="${PROFILE}" \
+  "${SBATCH_EXTRA[@]}" \
   scripts/spectra.sbatch)
 
 LOG="${REPO_DIR}/runs/slurm_logs/spectra_${JOB_ID}.out"
-echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, exclude=${EXCLUDE_NODES})"
+echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}})"
 echo "log     : ${LOG}"
 echo "run dir : ${REPO_DIR}/runs/job${JOB_ID}"
 # Confirm the scheduler accepted the Timelimit we asked for (qos/partition can silently clamp).

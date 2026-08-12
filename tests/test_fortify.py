@@ -26,6 +26,14 @@ def test_fortify_token_dim_when_on(monkeypatch):
     assert token_feature_dim(5) == TOKEN_BASE_DIM + fortify.FORTIFY_TOKEN_DIM + 10
 
 
+def test_noop_mask_always_on(monkeypatch):
+    monkeypatch.delenv("SPECTRA_FORTIFY", raising=False)
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    # alive=1 → identity only even without fortify
+    mask = fortify.legal_action_mask(rates, row_index=5, alive_count=1, device="cpu")
+    assert mask.tolist() == [True, False, False]
+
+
 def test_stem_forces_identity(monkeypatch):
     monkeypatch.setenv("SPECTRA_FORTIFY", "1")
     monkeypatch.setenv("SPECTRA_STEM_ROWS", "1")

@@ -186,6 +186,7 @@ class NetworkEnv:
         learning_handler_original_model = self.create_learning_handler(self.current_model)
         with logging_utils.stage("reset.baseline_accuracy"):
             self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
+        self.original_params = utils.calc_num_parameters(self.current_model)
 
         num_rows = max(len(model_with_rows.all_rows) - 1, 0)
         recorder.record(
@@ -194,7 +195,7 @@ class NetworkEnv:
             baseline_acc=round(float(self.original_acc), 5),
             num_layers=len(model_with_rows.all_layers),
             num_prunable_rows=num_rows,
-            params_m=round(utils.calc_num_parameters(self.current_model) / 1e6, 4),
+            params_m=round(self.original_params / 1e6, 4),
         )
 
         # After feature extraction and setup
@@ -222,6 +223,11 @@ class NetworkEnv:
             recorder.issue("fx_trace_failed", "model is not symbolically traceable",
                            network=self.selected_net_path)
         return groups
+
+    def param_ratio(self) -> float:
+        """Current / original parameter count (1.0 at reset)."""
+        origin = getattr(self, "original_params", None) or utils.calc_num_parameters(self.current_model)
+        return utils.calc_num_parameters(self.current_model) / max(float(origin), 1.0)
 
     def legal_action_mask(self, device=None):
         """Bool mask over ``compression_rates_dict`` for the current row (fortify-aware)."""

@@ -330,10 +330,14 @@ class A2CAgentReinforce:
             ent_coef = fortify.entropy_coef(self.episode_idx, warmup_len, ENTROPY_COEF)
             actor_loss = -(log_probs * adv).mean() - ent_coef * mean_entropy
 
-            # Critic keeps the raw return scale: its job is to predict the actual return, and
-            # the NEON reward's magnitude is intentional. Gradient clipping below keeps updates
-            # numerically stable without rewriting the targets.
-            critic_loss = (returns.detach() - values).pow(2).mean()
+            # Critic: Smooth-L1 (Huber) on raw returns so 1e5 outliers do not dominate MSE.
+            # Leave NEON compute_reward unchanged; only the critic regression loss is hardened.
+            huber_delta = fortify.critic_huber_delta()
+            if huber_delta > 0:
+                critic_loss = torch.nn.functional.smooth_l1_loss(
+                    values, returns.detach(), beta=huber_delta)
+            else:
+                critic_loss = (returns.detach() - values).pow(2).mean()
 
             utils.print_flush(f'Actor Loss, Episode {self.episode_idx}: {v(actor_loss)}')
             writer.add_scalar('Actor Loss', v(actor_loss), self.episode_idx)
