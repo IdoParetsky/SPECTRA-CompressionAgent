@@ -1,0 +1,54 @@
+"""Reward-mode unit tests (no GPU)."""
+
+import sys
+from pathlib import Path
+
+import torch
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from src.Configuration.ConfigurationValues import ConfigurationValues
+from src.Configuration.StaticConf import StaticConf
+
+
+def _init_static_conf(tau=5):
+    if StaticConf.get_instance() is None:
+        StaticConf(ConfigurationValues(
+            device=torch.device("cpu"), test_name="unit-test", input_dict={},
+            compression_rates_dict={0: 1.0, 1: 0.9, 2: 0.8},
+            runtime_limit=60, num_epochs=0, train_compressed_layer_only=True,
+            allowed_acc_reduction=tau, discount_factor=0.99, learning_rate=1e-3,
+            rollout_limit=10, passes=1, prune=True, seed=42, n_splits=0,
+            train_split=0.7, val_split=0.2, database_dict={},
+            actor_checkpoint_path=None, critic_checkpoint_path=None,
+            save_pruned_checkpoints=False, test_ts="ts",
+        ))
+    else:
+        StaticConf.get_instance().conf_values.allowed_acc_reduction = tau
+
+
+def test_neon_matches_legacy_trichotomy(monkeypatch):
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "neon")
+    _init_static_conf(5)
+    from src.utils import compute_reward
+    assert compute_reward(0.97, 1.0, 0.9) == 10.0
+    assert compute_reward(0.90, 1.0, 0.9) == -(10.0 ** 3)
+    assert compute_reward(1.01, 1.0, 0.9) == 10.0 ** 3
+
+
+def test_structural_uses_realized_params(monkeypatch):
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural")
+    _init_static_conf(10)
+    from src.utils import compute_reward
+    r = compute_reward(0.99, 1.0, 0.9, params_before=1000, params_after=950)
+    assert r == 5.0
+    r2 = compute_reward(0.80, 1.0, 0.9, params_before=1000, params_after=950)
+    assert r2 == -(5.0 ** 3)
+
+
+def test_shaped_softens_near_cliff(monkeypatch):
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_shaped")
+    _init_static_conf(10)
+    from src.utils import compute_reward
+    r = compute_reward(0.95, 1.0, 0.9, params_before=100, params_after=90)
+    assert abs(r - 2.5) < 1e-9

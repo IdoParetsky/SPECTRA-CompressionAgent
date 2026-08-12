@@ -773,19 +773,76 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
     return train_loader, val_loader, test_loader
 
 
-def compute_reward(new_acc, prev_acc, compression_rate):
-    layer_reduction_size = (1 - compression_rate) * 100
+def compute_reward(new_acc, prev_acc, compression_rate, *,
+                   params_before=None, params_after=None):
+    """
+    Preference-aware step reward (NEON lineage).
 
+    Modes (``SPECTRA_REWARD_MODE``):
+      neon (default)
+          Original NEON trichotomy on nominal ``(1 - rate) * 100``.
+      structural
+          Same trichotomy, but the magnitude is *realized* parameter reduction
+          ``(1 - params_after/params_before) * 100``. On CNNs with channel groups /
+          residuals, nominal rate systematically mis-credits the edit; realized
+          cost is the thesis-aligned CNN transfer of NEON's preference reward.
+      structural_shaped
+          Like ``structural``, but softens the hard preference cliff: within-budget
+          mild losses scale the positive term by ``((τ + Δacc) / τ)^2``, and
+          over-budget penalties grow with how far past τ the drop goes. Keeps
+          NEON's preference semantics while fixing CNN credit cliffs we observed
+          empirically (≈−5 to −11 pp recoverable steps looking like −1000).
+
+    The NEON body is preserved verbatim under ``neon``; other modes are explicit
+    gated ablations for A/B experiments.
+    """
+    import os
+    mode = os.environ.get("SPECTRA_REWARD_MODE", "neon").strip().lower()
+    tau = float(StaticConf.get_instance().conf_values.allowed_acc_reduction)
     delta_acc = (new_acc - prev_acc) * 100
 
-    if delta_acc < -StaticConf.get_instance().conf_values.allowed_acc_reduction:
-        reward = -layer_reduction_size ** 3
-    elif delta_acc > 0:
-        reward = layer_reduction_size ** 3
+    nominal = (1.0 - float(compression_rate)) * 100.0
+    if (mode in ("structural", "structural_shaped")
+            and params_before is not None and params_after is not None
+            and float(params_before) > 0):
+        reduction = max(0.0, (1.0 - float(params_after) / float(params_before)) * 100.0)
+        # Identity / no-op edits: keep a tiny nominal floor so the trichotomy still
+        # distinguishes "safe identity" from catastrophic prune when Δacc is nonzero
+        # due to FT noise; if both reduction and nominal are 0, reward is 0.
+        if reduction < 1e-9:
+            reduction = nominal
     else:
-        reward = layer_reduction_size
+        reduction = nominal
 
-    return reward
+    if mode == "neon" or mode == "structural":
+        # NEON trichotomy (Hirsch & Katz 2022), magnitude = reduction
+        if delta_acc < -tau:
+            reward = -reduction ** 3
+        elif delta_acc > 0:
+            reward = reduction ** 3
+        else:
+            reward = reduction
+        return reward
+
+    if mode == "structural_shaped":
+        # Soft preference shaping (still preference-aware; not AMC's -Error·log FLOPs).
+        if delta_acc < -tau:
+            overshoot = (-delta_acc - tau) / max(tau, 1e-6)
+            reward = -(reduction ** 3) * (1.0 + overshoot)
+        elif delta_acc > 0:
+            reward = (reduction ** 3) * (1.0 + 0.1 * delta_acc)
+        else:
+            # Mild loss inside budget: taper toward 0 as we approach the cliff
+            soften = ((tau + delta_acc) / max(tau, 1e-6)) ** 2
+            reward = reduction * soften
+        return reward
+
+    # Unknown mode → NEON fallback
+    if delta_acc < -tau:
+        return -nominal ** 3
+    if delta_acc > 0:
+        return nominal ** 3
+    return nominal
 
 
 def compute_returns(next_value, rewards, masks, gamma):

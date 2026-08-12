@@ -314,15 +314,17 @@ class NetworkEnv:
         with logging_utils.stage("step.evaluate", level=logging.DEBUG):
             new_acc = learning_handler_new_model.evaluate_model(self.val_loader)
 
-        # Compute reward
-        reward = utils.compute_reward(new_acc, self.original_acc, compression_rate)
+        # Realized size before reward: CNN group edits ≠ nominal (1-rate).
+        params_after = utils.calc_num_parameters(learning_handler_new_model.model)
+        reward = utils.compute_reward(
+            new_acc, self.original_acc, compression_rate,
+            params_before=params_before, params_after=params_after)
 
         # Move to next state
         self.row_idx += 1
         learning_handler_new_model.unfreeze_all_layers()
         old_model = self.current_model
         self.current_model = learning_handler_new_model.model
-        params_after = utils.calc_num_parameters(self.current_model)
         del old_model
         del learning_handler_new_model
         torch.cuda.empty_cache()
@@ -354,6 +356,7 @@ class NetworkEnv:
             layer_type=type(target_layer).__name__,
             compression_rate=compression_rate,
             reward=round(float(reward), 4),
+            reward_mode=__import__("os").environ.get("SPECTRA_REWARD_MODE", "neon"),
             baseline_acc=round(float(self.original_acc), 5),
             new_acc=round(float(new_acc), 5),
             delta_acc=round(float(new_acc - self.original_acc), 5),
