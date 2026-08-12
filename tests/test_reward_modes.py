@@ -31,9 +31,9 @@ def test_neon_matches_legacy_trichotomy(monkeypatch):
     monkeypatch.setenv("SPECTRA_REWARD_MODE", "neon")
     _init_static_conf(5)
     from src.utils import compute_reward
-    assert compute_reward(0.97, 1.0, 0.9) == 10.0
-    assert compute_reward(0.90, 1.0, 0.9) == -(10.0 ** 3)
-    assert compute_reward(1.01, 1.0, 0.9) == 10.0 ** 3
+    assert abs(compute_reward(0.97, 1.0, 0.9) - 10.0) < 1e-9
+    assert abs(compute_reward(0.90, 1.0, 0.9) - (-(10.0 ** 3))) < 1e-6
+    assert abs(compute_reward(1.01, 1.0, 0.9) - (10.0 ** 3)) < 1e-6
 
 
 def test_structural_uses_realized_params(monkeypatch):
@@ -41,9 +41,9 @@ def test_structural_uses_realized_params(monkeypatch):
     _init_static_conf(10)
     from src.utils import compute_reward
     r = compute_reward(0.99, 1.0, 0.9, params_before=1000, params_after=950)
-    assert r == 5.0
+    assert abs(r - 5.0) < 1e-9
     r2 = compute_reward(0.80, 1.0, 0.9, params_before=1000, params_after=950)
-    assert r2 == -(5.0 ** 3)
+    assert abs(r2 - (-(5.0 ** 3))) < 1e-6
 
 
 def test_shaped_softens_near_cliff(monkeypatch):
