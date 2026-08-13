@@ -18,9 +18,10 @@
 # HPC notes that have bitten us:
 #   - rtx_6000: request <=80G RAM (IT policy)
 #   - gpu partition MaxMemPerCPU=16G -> for 80G use >=5 CPUs
+#   - MaxTime on gpu is 7 days. Default wall is that max so eval is never SIGKILL'd;
+#     --runtime_limit still ends *training* and starts eval. scancel when a run is done.
 #   - scontrol update TimeLimit is denied for users; cancel+resubmit instead
-#   - #SBATCH --signal=USR1@900 soft-stops the agent before the hard kill
-#   - MaxTime on gpu is 7 days; keep walls well under that
+#   - #SBATCH --signal=USR1@900 is overridden by submit.sh to fire at train-end
 
 set -euo pipefail
 
@@ -129,11 +130,21 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
   probe_c100_extra)
     GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+  eval_only)
+    # Skip training; load SPECTRA_ACTOR/CRITIC_CHECKPOINT_PATH and evaluate.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|probe_c100*|eval_*_c100}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|probe_c100*|eval_*|eval_only}" >&2
     exit 1
     ;;
 esac
+
+# Slurm always needs --time (partition MaxTime=7-00:00:00). Default to that so a
+# slow eval cannot be hard-killed. Training still stops at TRAIN_SEC. Override:
+#   SPECTRA_WALL=0-12:00:00   or   SPECTRA_KEEP_PROFILE_WALL=1
+if [[ "${SPECTRA_KEEP_PROFILE_WALL:-}" != "1" && "$PROFILE" != "smoke" ]]; then
+  TIME="${SPECTRA_WALL:-7-00:00:00}"
+fi
 
 # Parse TIME (D-HH:MM:SS or HH:MM:SS) into seconds for the guardrail.
 _wall_to_sec() {

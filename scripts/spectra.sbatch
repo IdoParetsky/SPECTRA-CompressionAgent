@@ -604,6 +604,27 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  eval_only)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
+      echo "eval_only requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
+      exit 1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   *)
     echo "Unknown SPECTRA_PROFILE='${PROFILE}'" >&2
     exit 1
