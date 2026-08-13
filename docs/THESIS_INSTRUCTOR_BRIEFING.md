@@ -6,11 +6,28 @@ critique in `docs/BERT_INPUT_CRITIQUE.md`.
 
 ## One-line pitch
 
-We keep the *document’s goals* (generic offline DRL agent; architecture-aware state; mark the
-layer under consideration; inject skip-connection structure) but replace the *document’s
-default mechanism* (frozen `bert-base-uncased` over dual local/global segments) with a small
-**trainable** Transformer over fixed-width per-layer tokens — the representation the RL
-objective can actually learn.
+We keep the *document’s goals* (one generic offline DRL agent; a state that *describes* the
+CNN under compression; mark the layer under consideration; inject skip-connection structure)
+but replace the *document’s default mechanism* (frozen `bert-base-uncased` over dual
+local/global segments) with a small **trainable** Transformer over fixed-width per-layer
+tokens — the representation the RL objective can actually learn.
+
+## Terminology (NEON vs this briefing)
+
+NEON’s agent is **architecture-agnostic** in the *policy* sense: one DRL agent is trained
+offline on many nets and then prunes **unseen** nets without retraining. SPECTRA keeps that
+claim. “Architecture-aware state” in this note does **not** mean a per-architecture agent.
+
+| | What is generic / agnostic | What is architecture-specific |
+|---|---|---|
+| **Agent (policy)** | One actor/critic for every CNN, as in NEON | — (that would be AMC-style, one agent per net) |
+| **State (observation)** | Same *encoder* and feature layout for every net | The *contents* of the state: this net’s depth, layer types, weight/activation statistics, skip/coupling graph, action costs |
+
+NEON already did the second column with fixed-size topology / weight / activation maps.
+CNNs break that fixed-size layout (variable depth, skips, channel groups), so SPECTRA
+replaces the *maps* with a sequence of per-layer tokens. Attention over coupling ids is
+extra structure so the generic agent can *see* ResNet/DenseNet connectivity — not so that
+we train a ResNet-only agent.
 
 ## What we recommend as the baseline (vs. frozen BERT)
 
@@ -24,7 +41,7 @@ objective can actually learn.
 | Scaling | Unspecified / ad-hoc log | **Database-wide per-feature z-score** |
 | Env flag | — | `SPECTRA_STATE_ENCODER=transformer` (default) |
 
-Frozen BERT / text / NEON-legacy remain switchable ablations — not the training default.
+| Frozen BERT / text / NEON-legacy / set-encoder remain switchable ablations — not the training default.
 
 **Justification.** Representation learning that never receives gradients is not representation
 learning. A generic CNN-pruning agent needs features comparable across architectures and a
@@ -106,15 +123,29 @@ activation features, not for every debug job.
 
 ## Ablation stance (for the meeting)
 
-It is **too early** to lock a single experimental baseline for the thesis tables — we are
-still assembling the representation the agent deserves. Near-term goal: freeze *this* stack
-as the candidate baseline, then ablate encoder (transformer vs bert vs legacy), markers,
-coupling bias, action costs, and standardisation on a fixed DB / seed / reward.
+The candidate baseline is the small trainable Transformer (`SPECTRA_STATE_ENCODER=transformer`).
+That is a modelling choice for *how* the generic agent reads CNN structure, not a claim that
+the encoder caused the CIFAR-100 recovery floor (that is an environment/FT issue). Encoder
+A/B belongs on **CIFAR-10**, where prune+FT is recoverable, so a worse encoder can actually
+show up as a worse policy.
+
+| Run | `SPECTRA_STATE_ENCODER` | What it tests |
+|---|---|---|
+| Relational Transformer (default) | `transformer` | Coupling-aware attention; ~2–3M, trained with A2C |
+| Wider/deeper Transformer | `transformer_wide` | Capacity: 6 layers × 512-d. Not BERT; still task-trained |
+| Set / DeepSets (agnostic read) | `set` | Same tokens, **no** cross-layer attention. Closest to “ignore topology, pool statistics” |
+| Frozen BERT | `bert` | Document mechanism; linguistic inductive bias, no RL gradients into the encoder |
+| NEON conv pipelines | `legacy` | Original dense-DNN feature maps |
+
+We do **not** swap in a pretrained LLM or a vision Transformer: those are the wrong
+modality. If `set` matches `transformer` on CIFAR-10, relational encoding is not buying
+the generic-agent claim and we should simplify. If `transformer_wide` wins, the 3×256
+encoder was the capacity bottleneck.
 
 ## Env cheatsheet
 
 ```text
-SPECTRA_STATE_ENCODER=transformer|bert|legacy   # default transformer
+SPECTRA_STATE_ENCODER=transformer|transformer_wide|set|bert|legacy
 SPECTRA_BERT_INPUT_MODE=embeds|text             # only if encoder=bert
 SPECTRA_PROBE_BATCHES=2
 SPECTRA_STANDARDIZER_PATH=/path/to/stats.pt

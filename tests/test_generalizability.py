@@ -72,6 +72,44 @@ def test_registry_keys_separate_different_preprocessing():
     assert plain != resized
 
 
+def test_preloaded_datasets_do_not_lazy_load_the_rest_of_the_json(monkeypatch, tmp_path):
+    """--datasets cifar-10 used to still instantiate CIFAR-100 JSON nets via lazy load."""
+    c10 = tmp_path / "c10.pt"
+    c100 = tmp_path / "c100.pt"
+    c10.write_bytes(b"x")
+    c100.write_bytes(b"x")
+    script = tmp_path / "dummy.py"
+    script.write_text("def resnet20(**kw):\n    return None\n")
+
+    registry = utils.DatasetRegistry(0.7, 0.2)
+    registry.restrict_to_preloaded = True
+    registry._entries["cifar-10"] = {
+        "loaders": ("train", "val", "test"),
+        "num_classes": 10,
+        "input_shape": (3, 32, 32),
+    }
+
+    loaded = []
+
+    def fake_load(arch, dataset_path, script_path, checkpoint_path, optional_kwargs,
+                  num_classes, input_shape):
+        loaded.append((checkpoint_path, dataset_path))
+        return nn.Identity()
+
+    monkeypatch.setattr(utils, "load_model_from_script", fake_load)
+
+    out = utils.instantiate_networks_and_load_datasets({
+        str(c10): ["resnet20", str(script), "cifar-10"],
+        str(c100): ["resnet20", str(script), "cifar-100"],
+    }, registry)
+
+    assert str(c10) in out
+    assert str(c100) not in out
+    assert loaded == [(str(c10), "cifar-10")]
+    with pytest.raises(KeyError, match="cifar-100"):
+        registry.get("cifar-100")
+
+
 def test_unknown_dataset_reports_the_supported_ones():
     with pytest.raises(ValueError, match="cifar-10"):
         utils.load_cnn_dataset("not-a-dataset", 0.7, 0.2)

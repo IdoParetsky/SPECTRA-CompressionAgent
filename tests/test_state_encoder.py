@@ -17,7 +17,7 @@ from tests.test_pruning import _init_static_conf, SmallVGG, ResidualNet  # noqa:
 
 _init_static_conf()
 
-from src.Model.StateEncoder import SpectraStateEncoder, NUM_LAYER_TYPES  # noqa: E402
+from src.Model.StateEncoder import SpectraStateEncoder, SpectraSetEncoder, NUM_LAYER_TYPES, build_state_encoder  # noqa: E402
 from src.BERTInputModeler import token_feature_dim, TOKEN_BASE_DIM  # noqa: E402
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows  # noqa: E402
 import src.channel_groups as channel_groups  # noqa: E402
@@ -115,6 +115,24 @@ def test_action_cost_projection_receives_gradient():
     encoder = SpectraStateEncoder(FEATURE_DIM, d_model=64, nhead=4, num_layers=2)
     encoder(_fake_state(action_costs=_costs([0.0, 0.1, 0.2, 0.3, 0.4]))).sum().backward()
     assert encoder.action_proj[0].weight.grad is not None
+
+
+def test_set_encoder_is_trainable_and_fixed_width():
+    encoder = SpectraSetEncoder(FEATURE_DIM, d_model=64)
+    out = encoder(_fake_state())
+    assert out.shape == (1, 64)
+    out.sum().backward()
+    assert encoder.token_mlp[1].weight.grad is not None
+    assert not hasattr(encoder, "block_affinity")
+
+
+def test_factory_builds_wide_and_set():
+    wide = build_state_encoder("transformer_wide", FEATURE_DIM)
+    sett = build_state_encoder("set", FEATURE_DIM)
+    assert wide.output_dim == 512
+    assert sett.output_dim == 256
+    assert wide(_fake_state(num_layers=8)).shape == (1, 512)
+    assert sett(_fake_state(num_layers=8)).shape == (1, 256)
 
 
 def test_coupling_ids_share_residual_producers():

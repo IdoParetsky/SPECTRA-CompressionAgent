@@ -210,6 +210,7 @@ class A2CAgentReinforce:
             f"networks={len(self.env.networks)} warmup={warmup_len} "
             f"min_episodes={min_episode_num} patience={reward_patience} "
             f"entropy_coef={ENTROPY_COEF} fortify={fortify.fortify_enabled()} "
+            f"encoder={os.environ.get('SPECTRA_STATE_ENCODER', 'transformer')} "
             f"finetune_epochs={self.conf.num_epochs}")
         recorder.record(
             "train_config",
@@ -219,6 +220,7 @@ class A2CAgentReinforce:
             reward_patience=reward_patience,
             entropy_coef=ENTROPY_COEF,
             fortify=fortify.fortify_enabled(),
+            encoder=os.environ.get("SPECTRA_STATE_ENCODER", "transformer"),
             finetune_epochs=self.conf.num_epochs,
             rollout_limit=self.conf.rollout_limit,
             passes=self.conf.passes,

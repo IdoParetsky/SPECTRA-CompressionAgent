@@ -496,9 +496,15 @@ case "$PROFILE" in
     export SPECTRA_PROBE_C100_EXTRA=1
     RUN_KIND=probe_c100
     ;;
-  careful_fortify_cifar10|careful_fortify_cifar10_structural|careful_fortify_cifar10_mildrates|c10_curriculum_king|careful_fortify_cifar10_neon_rates|careful_fortify_cifar10_fine)
-    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
-    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+  careful_fortify_cifar10|careful_fortify_cifar10_structural|careful_fortify_cifar10_mildrates|c10_curriculum_king|careful_fortify_cifar10_neon_rates|careful_fortify_cifar10_fine|encoder_c10_set|encoder_c10_wide|encoder_c10_bert|generic_c10_fortify)
+    # Dedicated C10 JSON (not mixed initial_*). --datasets used to lazy-load C100.
+    if [[ "$PROFILE" == "generic_c10_fortify" ]]; then
+      export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_cifar10_generic.json}"
+      export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_cifar10_generic.json}"
+    else
+      export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c10_thin.json}"
+      export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_c10_thin.json}"
+    fi
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
     export SPECTRA_PASSES=1
     export SPECTRA_ROLLOUT_LIMIT=5
@@ -514,6 +520,16 @@ case "$PROFILE" in
     export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
     export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
     export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    if [[ "$PROFILE" == "encoder_c10_set" ]]; then
+      export SPECTRA_STATE_ENCODER=set
+    elif [[ "$PROFILE" == "encoder_c10_wide" ]]; then
+      export SPECTRA_STATE_ENCODER=transformer_wide
+    elif [[ "$PROFILE" == "encoder_c10_bert" ]]; then
+      export SPECTRA_STATE_ENCODER=bert
+      export SPECTRA_BERT_INPUT_MODE="${SPECTRA_BERT_INPUT_MODE:-embeds}"
+    else
+      export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    fi
     if [[ "$PROFILE" == "careful_fortify_cifar10_structural" ]]; then
       export SPECTRA_REWARD_MODE=structural
     else
@@ -543,8 +559,8 @@ case "$PROFILE" in
     fi
     ;;
   c100_mild_structural|c100_mild_neon|c100_curriculum_king|c100_ultra_mild|c100_mild_structural_seed43)
-    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
-    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c100_thin.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_c100_thin.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
     export SPECTRA_PASSES=1
     export SPECTRA_ROLLOUT_LIMIT=5
@@ -584,8 +600,8 @@ case "$PROFILE" in
     fi
     ;;
   eval_diag_structural_c100|eval_king_fortify_c100|eval_neon_c100)
-    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
-    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c100_thin.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_c100_thin.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
     export SPECTRA_PASSES=1
     export SPECTRA_ROLLOUT_LIMIT=5

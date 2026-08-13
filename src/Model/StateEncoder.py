@@ -1,31 +1,19 @@
 """
-A trainable Transformer encoder over CNN layer tokens.
+Trainable encoders over CNN layer tokens.
 
-Motivation (see docs/BERT_INPUT_CRITIQUE.md / docs/THESIS_INSTRUCTOR_BRIEFING.md): the
-"Extending BERT Input Mechanisms" document frames the state encoder as *representation
-learning*, but a frozen ``bert-base-uncased`` learns nothing — only the two-layer policy
-head adapts. The frozen encoder also brings ~110M parameters, a hard 512-position limit,
-and weights trained on English word-pieces rather than on network statistics.
+The default is a small Transformer with a Graphormer-style coupling bias
+(``SPECTRA_STATE_ENCODER=transformer``). That is how the *generic* agent *reads*
+architecture; it is not a per-net policy. Sibling variants:
 
-This encoder keeps the document's structural ideas — one token per layer, an explicit
-marker for the layer under consideration (entity marker), and a structural signal that
-reflects *channel coupling* — while being small enough to train end to end with the RL
-objective (roughly 2–3M parameters at the default width).
+* ``transformer_wide`` — same inductive bias, more capacity (6 × 512)
+* ``set`` — same tokens, no cross-layer attention (architecture-agnostic *read*)
+* ``bert`` / ``legacy`` — handled in ``Agent``, not here
 
-Pooling recommendation (critique §8)
-------------------------------------
-A plain mean over the sequence treats the target layer as one vote among dozens. The action
-is *about* that layer, so we use target-aware pooling:
-
-    0.5 * mean(all layer tokens) + 0.5 * encoded[target]
-
-Action-cost tokens (if present) participate in the mean so their information is not dropped,
-but they are not substituted for the target term. This keeps ``output_dim == d_model`` and
-is a natural baseline before any learned attention-pooling head.
+Pooling (critique §8): ``0.5 * mean(sequence) + 0.5 * encoded[target]``.
 """
 
 import math
-from typing import Dict
+from typing import Dict, Tuple
 
 import torch
 from torch import nn
@@ -38,6 +26,8 @@ NUM_LAYER_TYPES = 8
 
 # Blend weight for the target layer in the pooled state vector
 TARGET_POOL_WEIGHT = 0.5
+
+TRAINABLE_ENCODER_KINDS = ("transformer", "transformer_wide", "transformer_deep", "set", "mlp")
 
 
 def sinusoidal_positions(length: int, dim: int, device) -> torch.Tensor:
@@ -52,69 +42,27 @@ def sinusoidal_positions(length: int, dim: int, device) -> torch.Tensor:
     return encoding
 
 
-class SpectraStateEncoder(nn.Module):
-    """
-    Encode a CNN into a fixed-size state vector for the DRL agent.
+class SpectraTokenFront(nn.Module):
+    """Shared per-layer token construction (projection, type embed, target marker, action tokens)."""
 
-    Args:
-        feature_dim (int): Width of a per-layer feature token (incl. action-cost slots).
-        d_model (int):     Transformer width.
-        nhead (int):       Attention heads.
-        num_layers (int):  Encoder depth.
-        dropout (float):   Dropout inside the encoder.
-    """
-
-    def __init__(self, feature_dim: int, d_model: int = 256, nhead: int = 8,
-                 num_layers: int = 3, dropout: float = 0.1):
+    def __init__(self, feature_dim: int, d_model: int = 256):
         super().__init__()
         self.output_dim = d_model
         self.feature_dim = feature_dim
-
         self.input_proj = nn.Sequential(
             nn.Linear(feature_dim, d_model),
             nn.LayerNorm(d_model),
         )
         self.type_embedding = nn.Embedding(NUM_LAYER_TYPES, d_model)
-
-        # Entity marker for the layer the agent is about to compress. Replaces the document's
-        # dual local/global segments (critique §3): same distinction, half the sequence length,
-        # no dependence on BERT's segment embedding table.
         self.target_marker = nn.Parameter(torch.zeros(d_model))
-
-        # Optional dedicated tokens for each compression rate's cost vector. Costs are *also*
-        # concatenated onto the target layer's feature vector (critique §7); these tokens let
-        # attention compare prices as first-class sequence elements.
         self.action_proj = nn.Sequential(
             nn.Linear(ACTION_FEATURE_DIM, d_model),
             nn.LayerNorm(d_model),
         )
         self.action_marker = nn.Parameter(torch.zeros(d_model))
 
-        # Learned additive attention bias between layers that share a channel-coupling id
-        # (from src/channel_groups.py). This is the Graphormer-style mechanism recommended
-        # in critique §5 — connectivity enters the attention logits, not the input PE sum.
-        self.block_affinity = nn.Parameter(torch.zeros(1))
-
-        encoder_layer = nn.TransformerEncoderLayer(
-            d_model=d_model, nhead=nhead, dim_feedforward=4 * d_model,
-            dropout=dropout, batch_first=True, norm_first=True, activation="gelu",
-        )
-        # Nested tensors are incompatible with pre-norm layers and only help padded batches;
-        # SPECTRA encodes one network at a time, so the fast path is irrelevant here
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers,
-                                             enable_nested_tensor=False)
-        self.output_norm = nn.LayerNorm(d_model)
-
-    def forward(self, state: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """
-        Args:
-            state: Mapping from FeatureExtractor.encode_to_bert_input(), containing
-                   ``layer_features`` (L, feature_dim), ``layer_types`` (L,),
-                   ``coupling_ids`` (or legacy ``block_ids``) (L,) and ``target_index``.
-
-        Returns:
-            torch.Tensor: (1, d_model) state embedding.
-        """
+    def embed_tokens(self, state: Dict[str, torch.Tensor]
+                     ) -> Tuple[torch.Tensor, int, int, torch.Tensor]:
         features = state["layer_features"]
         device = features.device
         num_layers = features.size(0)
@@ -129,11 +77,8 @@ class SpectraStateEncoder(nn.Module):
             marker[target_index] = self.target_marker
             tokens = tokens + marker
 
-        # Prefer exact coupling ids; fall back to the legacy key name
         coupling_ids = state.get("coupling_ids", state["block_ids"])
-
         action_costs = state.get("action_costs")
-        num_layer_tokens = num_layers
         if action_costs is not None and action_costs.numel():
             action_tokens = self.action_proj(action_costs.to(device)) + self.action_marker
             tokens = torch.cat([tokens, action_tokens], dim=0)
@@ -142,20 +87,90 @@ class SpectraStateEncoder(nn.Module):
                                else coupling_ids.new_zeros(()))
             coupling_ids = torch.cat([coupling_ids, target_coupling.expand(action_tokens.size(0))])
 
+        return tokens, target_index, num_layers, coupling_ids
+
+    def pool(self, encoded: torch.Tensor, target_index: int, num_layer_tokens: int) -> torch.Tensor:
+        """encoded: (1, L', d) → (1, d)."""
+        sequence_mean = encoded.mean(dim=1)
+        if 0 <= target_index < num_layer_tokens:
+            target_vec = encoded[:, target_index, :]
+            return ((1.0 - TARGET_POOL_WEIGHT) * sequence_mean
+                    + TARGET_POOL_WEIGHT * target_vec)
+        return sequence_mean
+
+
+class SpectraStateEncoder(SpectraTokenFront):
+    """
+    Encode a CNN into a fixed-size state vector for the DRL agent.
+
+    Args:
+        feature_dim (int): Width of a per-layer feature token (incl. action-cost slots).
+        d_model (int):     Transformer width.
+        nhead (int):       Attention heads.
+        num_layers (int):  Encoder depth.
+        dropout (float):   Dropout inside the encoder.
+    """
+
+    def __init__(self, feature_dim: int, d_model: int = 256, nhead: int = 8,
+                 num_layers: int = 3, dropout: float = 0.1):
+        super().__init__(feature_dim=feature_dim, d_model=d_model)
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=4 * d_model,
+            dropout=dropout, batch_first=True, norm_first=True, activation="gelu",
+        )
+        self.block_affinity = nn.Parameter(torch.zeros(1))
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers,
+                                             enable_nested_tensor=False)
+        self.output_norm = nn.LayerNorm(d_model)
+
+    def forward(self, state: Dict[str, torch.Tensor]) -> torch.Tensor:
+        tokens, target_index, num_layer_tokens, coupling_ids = self.embed_tokens(state)
         length = tokens.size(0)
+        device = tokens.device
         same_group = coupling_ids.unsqueeze(0) == coupling_ids.unsqueeze(1)
         attention_bias = torch.zeros(length, length, device=device)
         attention_bias = attention_bias.masked_fill(same_group, 1.0) * self.block_affinity
 
-        encoded = self.encoder(tokens.unsqueeze(0), mask=attention_bias)  # (1, L', d)
+        encoded = self.encoder(tokens.unsqueeze(0), mask=attention_bias)
         encoded = self.output_norm(encoded)
+        return self.pool(encoded, target_index, num_layer_tokens)
 
-        # Target-aware pooling (see module docstring)
-        sequence_mean = encoded.mean(dim=1)  # (1, d)
-        if 0 <= target_index < num_layer_tokens:
-            target_vec = encoded[:, target_index, :]
-            pooled = ((1.0 - TARGET_POOL_WEIGHT) * sequence_mean
-                      + TARGET_POOL_WEIGHT * target_vec)
-        else:
-            pooled = sequence_mean
-        return pooled
+
+class SpectraSetEncoder(SpectraTokenFront):
+    """
+    Architecture-agnostic *read* of the same tokens: per-token MLP, then target-aware pool.
+
+    No cross-layer attention and no coupling bias. If this matches the Transformer on a
+    recoverable environment (CIFAR-10), relational encoding is not what the agent is using.
+    """
+
+    def __init__(self, feature_dim: int, d_model: int = 256, dropout: float = 0.1):
+        super().__init__(feature_dim=feature_dim, d_model=d_model)
+        self.token_mlp = nn.Sequential(
+            nn.LayerNorm(d_model),
+            nn.Linear(d_model, 4 * d_model),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(4 * d_model, d_model),
+        )
+        self.output_norm = nn.LayerNorm(d_model)
+
+    def forward(self, state: Dict[str, torch.Tensor]) -> torch.Tensor:
+        tokens, target_index, num_layer_tokens, _ = self.embed_tokens(state)
+        tokens = tokens + self.token_mlp(tokens)
+        encoded = self.output_norm(tokens).unsqueeze(0)
+        return self.pool(encoded, target_index, num_layer_tokens)
+
+
+def build_state_encoder(kind: str, feature_dim: int) -> nn.Module:
+    """Factory for ``SPECTRA_STATE_ENCODER`` trainable variants."""
+    key = (kind or "transformer").strip().lower()
+    if key == "transformer":
+        return SpectraStateEncoder(feature_dim=feature_dim)
+    if key in ("transformer_wide", "transformer_deep"):
+        return SpectraStateEncoder(feature_dim=feature_dim, d_model=512, nhead=8,
+                                   num_layers=6, dropout=0.1)
+    if key in ("set", "mlp"):
+        return SpectraSetEncoder(feature_dim=feature_dim)
+    raise ValueError(
+        f"Unknown trainable encoder {kind!r}. Expected one of {TRAINABLE_ENCODER_KINDS}")

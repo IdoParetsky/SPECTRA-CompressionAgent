@@ -7,13 +7,13 @@ import numpy as np
 
 from src.utils import normalize_2d_data, normalize_3d_data
 from src.BERTInputModeler import BERTInputModeler, token_feature_dim
-from src.Model.StateEncoder import SpectraStateEncoder
+from src.Model.StateEncoder import TRAINABLE_ENCODER_KINDS, build_state_encoder
 
-# "transformer" (default): small Transformer trained with the RL objective — the SPECTRA
-# baseline recommended in docs/THESIS_INSTRUCTOR_BRIEFING.md.
-# "bert":                   frozen bert-base-uncased ablation from the "Extending BERT
-#                           Input Mechanisms" document (loaded lazily only in this mode).
-# "legacy":                 NEON's original convolutional feature pipelines.
+# "transformer" (default): small Transformer trained with A2C — SPECTRA baseline.
+# "transformer_wide":      same bias, 6×512 capacity check.
+# "set":                   same tokens, no cross-layer attention (agnostic read).
+# "bert":                  frozen bert-base-uncased ablation.
+# "legacy":                NEON convolutional feature pipelines.
 STATE_ENCODER = os.environ.get("SPECTRA_STATE_ENCODER", "transformer").strip().lower()
 
 
@@ -36,18 +36,22 @@ class Agent(nn.Module):
         # loaded inside BERTInputModeler only when encoder_kind == "bert".
         self.bert_input_modeler = BERTInputModeler()
 
-        if self.encoder_kind == "transformer":
+        if self.encoder_kind in TRAINABLE_ENCODER_KINDS:
             # Width includes the per-rate action-cost slots on the target layer token
             feature_dim = token_feature_dim(num_outputs)
-            self.state_encoder = SpectraStateEncoder(feature_dim=feature_dim)
+            self.state_encoder = build_state_encoder(self.encoder_kind, feature_dim)
             self.embedding_dim = self.state_encoder.output_dim
         elif self.bert_enabled:
             self.bert_input_modeler._ensure_bert()
             self.state_encoder = None
             self.embedding_dim = self.bert_input_modeler.hidden_size
-        else:
+        elif self.encoder_kind == "legacy":
             self.state_encoder = None
             self.embedding_dim = 5350  # width of the concatenated legacy pipelines
+        else:
+            raise ValueError(
+                f"Unknown SPECTRA_STATE_ENCODER={self.encoder_kind!r}. "
+                f"Expected transformer|transformer_wide|set|bert|legacy")
 
         # DRL Head
         self.actor = nn.Sequential(
@@ -156,7 +160,7 @@ class Agent(nn.Module):
                 - Categorical action distribution (Actor)
                 - Value prediction (Critic)
         """
-        if self.encoder_kind == "transformer":
+        if self.encoder_kind in TRAINABLE_ENCODER_KINDS:
             # Trained end to end with the policy, so no no_grad here
             embeddings = self.state_encoder(state_tokens_or_fm)
         elif self.bert_enabled:

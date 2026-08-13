@@ -166,6 +166,8 @@ database, seed and reward:
 | Run | Setting |
 |---|---|
 | Trainable encoder (default) | `SPECTRA_STATE_ENCODER=transformer` |
+| Wider trainable encoder | `SPECTRA_STATE_ENCODER=transformer_wide` |
+| Set / DeepSets (no relational attention) | `SPECTRA_STATE_ENCODER=set` |
 | Frozen BERT, per-layer tokens | `SPECTRA_STATE_ENCODER=bert SPECTRA_BERT_INPUT_MODE=embeds` |
 | Frozen BERT, stringified floats (as originally implemented) | `SPECTRA_STATE_ENCODER=bert SPECTRA_BERT_INPUT_MODE=text` |
 | NEON legacy pipelines | `SPECTRA_STATE_ENCODER=legacy` |

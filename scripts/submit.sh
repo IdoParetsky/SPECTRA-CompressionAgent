@@ -127,6 +127,17 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_cifar10_fine)
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  encoder_c10_set)
+    # Same C10 fortify recipe; architecture-agnostic read of the same tokens.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  encoder_c10_wide)
+    # Capacity A/B: 6-layer 512-d Transformer (still task-trained, not BERT).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  encoder_c10_bert)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  generic_c10_fortify)
+    # Multi-family C10 (thin-ResNet + chenyaofo ResNet-32 + VGG-16 + MobileNetV2).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   c100_ultra_mild)
     # Even smaller cuts (2–5%) on C100 — tests whether any prune is recoverable.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
@@ -138,7 +149,7 @@ case "$PROFILE" in
     # Skip training; load SPECTRA_ACTOR/CRITIC_CHECKPOINT_PATH and evaluate.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|probe_c100*|eval_*|eval_only}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|probe_c100*|eval_*|eval_only}" >&2
     exit 1
     ;;
 esac

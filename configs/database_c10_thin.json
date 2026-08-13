@@ -1,0 +1,17 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width10_cifar10_thin-res-net_91.90_0.107_16.55.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width6_cifar10_thin-res-net_92.88_0.122_18.60.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width3_cifar10_thin-res-net_76.18_0.010_1.65.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ]
+}

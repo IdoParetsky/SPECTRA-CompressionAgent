@@ -114,8 +114,10 @@ def extract_args_from_cmd():
         help=(
             "Datasets to preload once, up-front, and share across every network that uses them "
             "(e.g. --datasets cifar-10 cifar-100). Each entry is a known dataset name (see "
-            "utils.dataset_loaders) or a path to an ImageFolder-style directory. When omitted, "
-            "the dataset names referenced by --input / --database are preloaded automatically."
+            "utils.dataset_loaders) or a path to an ImageFolder-style directory. When given, "
+            "JSON entries whose dataset is not in this list are skipped (they are not "
+            "lazy-loaded). When omitted, every dataset named in --input / --database is "
+            "loaded on first use."
         )
     )
 
@@ -200,6 +202,9 @@ class DatasetRegistry:
         self.train_split = train_split
         self.val_split = val_split
         self._entries = {}
+        # True when the caller passed --datasets. JSON nets on other datasets are
+        # skipped instead of silently lazy-loading CIFAR-100 into a "C10-only" job.
+        self.restrict_to_preloaded = False
 
     @staticmethod
     def key_for(spec) -> str:
@@ -214,6 +219,10 @@ class DatasetRegistry:
     def get(self, spec) -> dict:
         key = self.key_for(spec)
         if key not in self._entries:
+            if self.restrict_to_preloaded:
+                raise KeyError(
+                    f"dataset {key!r} is not in --datasets {list(self.keys())}; "
+                    f"refusing to lazy-load it")
             print_flush(f"Preloading dataset '{key}'")
             loaders = load_cnn_dataset(spec, self.train_split, self.val_split)
             self._entries[key] = {
@@ -277,6 +286,7 @@ def preload_datasets(datasets, train_split: float, val_split: float) -> DatasetR
         DatasetRegistry: Registry shared by --input and --database instantiation.
     """
     registry = DatasetRegistry(train_split, val_split)
+    registry.restrict_to_preloaded = bool(datasets)
     for name_or_path in datasets or []:
         registry.get(name_or_path)
     return registry
@@ -341,6 +351,7 @@ def instantiate_networks_and_load_datasets(input_dict, dataloaders_dict: Dataset
     """
     instantiated_networks = {}
     failures = []
+    skipped_dataset = []
 
     for net_path, values in input_dict.items():
         try:
@@ -349,6 +360,11 @@ def instantiate_networks_and_load_datasets(input_dict, dataloaders_dict: Dataset
                 optional_kwargs = {}  # Assign an empty dict if not assigned
             else:
                 arch, script_path, dataset_path, optional_kwargs = values
+
+            if (getattr(dataloaders_dict, "restrict_to_preloaded", False)
+                    and dataset_path not in dataloaders_dict):
+                skipped_dataset.append((net_path, dataset_path))
+                continue
 
             if not os.path.exists(net_path):
                 raise ValueError(f"Network checkpoint not found: {net_path}")
@@ -377,6 +393,21 @@ def instantiate_networks_and_load_datasets(input_dict, dataloaders_dict: Dataset
             except Exception:
                 pass
 
+    if skipped_dataset:
+        listing = "\n".join(f"  - {path}: dataset {ds!r} not in --datasets"
+                            for path, ds in skipped_dataset)
+        logging_utils.warning(
+            f"{len(skipped_dataset)}/{len(input_dict)} networks skipped because their "
+            f"dataset is not in --datasets {list(dataloaders_dict.keys())}:\n{listing}")
+        try:
+            import src.run_recorder as _recorder
+            _recorder.issue("network_dataset_skipped",
+                            f"{len(skipped_dataset)} nets outside --datasets",
+                            count=len(skipped_dataset),
+                            datasets=[ds for _, ds in skipped_dataset])
+        except Exception:
+            pass
+
     if failures:
         listing = "\n".join(f"  - {path}: {reason}" for path, reason in failures)
         logging_utils.warning(
@@ -384,9 +415,20 @@ def instantiate_networks_and_load_datasets(input_dict, dataloaders_dict: Dataset
             f"skipped:\n{listing}")
 
     if not instantiated_networks:
+        skip_note = ""
+        if skipped_dataset:
+            skip_note = (
+                f"\n{len(skipped_dataset)} were skipped as outside --datasets "
+                f"{list(dataloaders_dict.keys())}. Point --database/--input at a matching "
+                f"JSON or pass the datasets those nets need.")
         raise ValueError(
             f"None of the {len(input_dict)} configured networks could be instantiated. "
-            f"Problems:\n" + "\n".join(f"  - {p}: {r}" for p, r in failures))
+            f"Problems:\n" + "\n".join(f"  - {p}: {r}" for p, r in failures)
+            + skip_note)
+
+    print_flush(
+        f"Instantiated {len(instantiated_networks)}/{len(input_dict)} networks "
+        f"({len(skipped_dataset)} dataset-filtered, {len(failures)} failed)")
 
     return instantiated_networks
 
@@ -472,7 +514,16 @@ def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint
     # unwrapped: a DDP replica would be invalidated by the first structural change.
     model = instantiation_func(**params_dict).to(device)
 
-    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
+    # weights_only=True is the safe default, but several older SPECTRA pickles wrap the
+    # tensors in a dict that also stores floats (e.g. akamaster ``best_prec1``). Falling
+    # back keeps those checkpoints loadable without weakening the common path.
+    try:
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=True)
+    except Exception as exc:
+        print_flush(
+            f"torch.load(..., weights_only=True) failed for {checkpoint_path} "
+            f"({type(exc).__name__}: {exc}); retrying with weights_only=False")
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
 
     # Detect mismatch: model expects 'module.' but checkpoint doesn't have it
