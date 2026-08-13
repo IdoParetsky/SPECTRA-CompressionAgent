@@ -496,7 +496,7 @@ case "$PROFILE" in
     export SPECTRA_PROBE_C100_EXTRA=1
     RUN_KIND=probe_c100
     ;;
-  careful_fortify_cifar10|careful_fortify_cifar10_structural|careful_fortify_cifar10_mildrates|c10_curriculum_king)
+  careful_fortify_cifar10|careful_fortify_cifar10_structural|careful_fortify_cifar10_mildrates|c10_curriculum_king|careful_fortify_cifar10_neon_rates|careful_fortify_cifar10_fine)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
@@ -528,6 +528,14 @@ case "$PROFILE" in
       EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
                   --train_compressed_layer_only False
                   --compression_rates 1.0 0.95 0.9)
+    elif [[ "$PROFILE" == "careful_fortify_cifar10_neon_rates" ]]; then
+      EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.9 0.8 0.7 0.6)
+    elif [[ "$PROFILE" == "careful_fortify_cifar10_fine" ]]; then
+      EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.95 0.9 0.85 0.8)
     else
       EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
                   --train_compressed_layer_only False

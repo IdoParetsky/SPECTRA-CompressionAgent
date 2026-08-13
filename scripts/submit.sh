@@ -123,6 +123,10 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   c10_curriculum_king)
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_cifar10_neon_rates)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_cifar10_fine)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   c100_ultra_mild)
     # Even smaller cuts (2–5%) on C100 — tests whether any prune is recoverable.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
