@@ -185,13 +185,14 @@ fi
 if [[ -n "${SPECTRA_BEGIN:-}" ]]; then
   SBATCH_EXTRA+=(--begin="${SPECTRA_BEGIN}")
 fi
-# Command-line --signal overrides #SBATCH --signal=B:USR1@900. Overnight TIMOUTTs
-# were mid-eval: 15 min is too short for 3-net prune+FT. Fire USR1 when the
-# wall-minus-train buffer begins (floor 90 min for agent jobs).
+# Command-line --signal overrides #SBATCH --signal=B:USR1@900.
+# This is a last-resort stop before SIGKILL, not the train/eval split
+# (--runtime_limit ends training). Slurm rejects huge @seconds (7d walls).
 if [[ -z "${SPECTRA_USR1_SEC:-}" ]]; then
   if (( TRAIN_SEC > 0 )); then
     USR1_SEC=$(( WALL_SEC - TRAIN_SEC - 300 ))
     (( USR1_SEC < 5400 )) && USR1_SEC=5400
+    (( USR1_SEC > 10800 )) && USR1_SEC=10800
     (( USR1_SEC > WALL_SEC - 600 )) && USR1_SEC=$(( WALL_SEC - 600 ))
     (( USR1_SEC < 120 )) && USR1_SEC=120
   else
