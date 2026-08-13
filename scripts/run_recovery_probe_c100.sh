@@ -45,6 +45,15 @@ run_one \
   "$CKPT_ROOT/resnet56-width9_cifar100_thin-res-net_73.05_0.275_41.13.pt" \
   resnet56
 
+if [[ "${SPECTRA_PROBE_C100_EXTRA:-}" == "1" ]]; then
+  run_one \
+    "$CKPT_ROOT/resnet56-width15_cifar100_thin-res-net_78.46_0.758_112.59.pt" \
+    resnet56
+  run_one \
+    "$CKPT_ROOT/resnet20-width8_cifar100_thin-res-net_60.09_0.072_10.72.pt" \
+    resnet20
+fi
+
 echo "======== full-pass C100 (mild 0.95/0.9, 80 FT) ========"
 if ! "$PYTHON" scripts/recovery_probe.py \
   --checkpoint "$CKPT_ROOT/resnet20-width13_cifar100_thin-res-net_69.95_0.185_27.67.pt" \

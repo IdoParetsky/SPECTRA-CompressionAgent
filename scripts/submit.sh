@@ -114,8 +114,23 @@ case "$PROFILE" in
   eval_diag_structural_c100)
     # Eval-only: structural diag agent on C100 held-out (no training).
     GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
+  eval_king_fortify_c100)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
+  eval_neon_c100)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
+  careful_fortify_cifar10_mildrates)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  c10_curriculum_king)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  c100_ultra_mild)
+    # Even smaller cuts (2–5%) on C100 — tests whether any prune is recoverable.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+  c100_mild_structural_seed43)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+  probe_c100_extra)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|careful_fortify_cifar10|c100_mild_structural|probe_c100|eval_diag_structural_c100|c100_mild_neon|careful_fortify_cifar10_structural|c100_curriculum_king}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|probe_c100*|eval_*_c100}" >&2
     exit 1
     ;;
 esac
@@ -139,8 +154,8 @@ if (( TRAIN_SEC > 0 && WALL_SEC <= TRAIN_SEC )); then
   echo "Eval would be SLURM-killed. Raise TIME or lower runtime_limit." >&2
   exit 2
 fi
-if (( TRAIN_SEC > 0 && WALL_SEC - TRAIN_SEC < 1800 )); then
-  echo "WARNING: only $(( WALL_SEC - TRAIN_SEC ))s wall buffer after train stop; prefer >=90min." >&2
+if (( TRAIN_SEC > 0 && WALL_SEC - TRAIN_SEC < 10800 )); then
+  echo "WARNING: only $(( WALL_SEC - TRAIN_SEC ))s wall buffer after train stop; prefer >=3h for 6-net eval." >&2
 fi
 
 cd "$REPO_DIR"
@@ -159,6 +174,22 @@ fi
 if [[ -n "${SPECTRA_BEGIN:-}" ]]; then
   SBATCH_EXTRA+=(--begin="${SPECTRA_BEGIN}")
 fi
+# Command-line --signal overrides #SBATCH --signal=B:USR1@900. Overnight TIMOUTTs
+# were mid-eval: 15 min is too short for 3-net prune+FT. Fire USR1 when the
+# wall-minus-train buffer begins (floor 90 min for agent jobs).
+if [[ -z "${SPECTRA_USR1_SEC:-}" ]]; then
+  if (( TRAIN_SEC > 0 )); then
+    USR1_SEC=$(( WALL_SEC - TRAIN_SEC - 300 ))
+    (( USR1_SEC < 5400 )) && USR1_SEC=5400
+    (( USR1_SEC > WALL_SEC - 600 )) && USR1_SEC=$(( WALL_SEC - 600 ))
+    (( USR1_SEC < 120 )) && USR1_SEC=120
+  else
+    USR1_SEC=900
+  fi
+else
+  USR1_SEC="$SPECTRA_USR1_SEC"
+fi
+SBATCH_EXTRA+=(--signal="B:USR1@${USR1_SEC}")
 
 JOB_ID=$(sbatch --parsable \
   --gpus="rtx_6000:${GPUS}" \
@@ -172,7 +203,7 @@ JOB_ID=$(sbatch --parsable \
   scripts/spectra.sbatch)
 
 LOG="${REPO_DIR}/runs/slurm_logs/spectra_${JOB_ID}.out"
-    echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}}${SPECTRA_BEGIN:+, begin=${SPECTRA_BEGIN}})"
+    echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, usr1=${USR1_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}}${SPECTRA_BEGIN:+, begin=${SPECTRA_BEGIN}})"
 echo "log     : ${LOG}"
 echo "run dir : ${REPO_DIR}/runs/job${JOB_ID}"
 # Confirm the scheduler accepted the Timelimit we asked for (qos/partition can silently clamp).
