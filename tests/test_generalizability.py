@@ -110,6 +110,26 @@ def test_preloaded_datasets_do_not_lazy_load_the_rest_of_the_json(monkeypatch, t
         registry.get("cifar-100")
 
 
+def test_preload_allows_the_requested_datasets_then_locks(monkeypatch):
+    seen_restrict = []
+
+    def fake_get(self, spec):
+        seen_restrict.append(self.restrict_to_preloaded)
+        key = self.key_for(spec)
+        self._entries[key] = {
+            "loaders": ("train", "val", "test"),
+            "num_classes": 10,
+            "input_shape": (3, 32, 32),
+        }
+        return self._entries[key]
+
+    monkeypatch.setattr(utils.DatasetRegistry, "get", fake_get)
+    registry = utils.preload_datasets(["cifar-10"], 0.7, 0.2)
+    assert seen_restrict == [False]
+    assert registry.restrict_to_preloaded is True
+    assert "cifar-10" in registry
+
+
 def test_unknown_dataset_reports_the_supported_ones():
     with pytest.raises(ValueError, match="cifar-10"):
         utils.load_cnn_dataset("not-a-dataset", 0.7, 0.2)

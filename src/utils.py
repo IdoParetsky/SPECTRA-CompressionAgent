@@ -286,9 +286,11 @@ def preload_datasets(datasets, train_split: float, val_split: float) -> DatasetR
         DatasetRegistry: Registry shared by --input and --database instantiation.
     """
     registry = DatasetRegistry(train_split, val_split)
-    registry.restrict_to_preloaded = bool(datasets)
     for name_or_path in datasets or []:
         registry.get(name_or_path)
+    # Restrict only after the explicit preload so --datasets cifar-10 can load
+    # CIFAR-10. Instantiation then skips any other JSON dataset.
+    registry.restrict_to_preloaded = bool(datasets)
     return registry
 
 
