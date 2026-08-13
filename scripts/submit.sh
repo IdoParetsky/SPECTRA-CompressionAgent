@@ -96,8 +96,26 @@ case "$PROFILE" in
   careful_fortify_structural_tau15)
     # Combine mid-run levers: RCPR (healthier credit; late within-10↑) + τ=15 (covers −11 pp mass).
     GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_cifar10)
+    # Mixed-DB failure is C100; C10-only 6-net diversity (same fortify recipe).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_cifar10_structural)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  c100_mild_structural)
+    # C100-only agent: milder rates, τ=15, 80 FT, structural reward.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+  c100_mild_neon)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+  c100_curriculum_king)
+    # Warm-start king_fortify (C10) onto C100-only mild recipe.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+  probe_c100)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+  eval_diag_structural_c100)
+    # Eval-only: structural diag agent on C100 held-out (no training).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
   *)
-    echo "usage: $0 {...|careful_fortify_tau15|mildrates|structural_guard|structural_tau15}" >&2
+    echo "usage: $0 {smoke|...|careful_fortify_cifar10|c100_mild_structural|probe_c100|eval_diag_structural_c100|c100_mild_neon|careful_fortify_cifar10_structural|c100_curriculum_king}" >&2
     exit 1
     ;;
 esac
@@ -138,6 +156,9 @@ SBATCH_EXTRA=()
 if [[ -n "${SPECTRA_DEPENDENCY:-}" ]]; then
   SBATCH_EXTRA+=(--dependency="${SPECTRA_DEPENDENCY}")
 fi
+if [[ -n "${SPECTRA_BEGIN:-}" ]]; then
+  SBATCH_EXTRA+=(--begin="${SPECTRA_BEGIN}")
+fi
 
 JOB_ID=$(sbatch --parsable \
   --gpus="rtx_6000:${GPUS}" \
@@ -151,7 +172,7 @@ JOB_ID=$(sbatch --parsable \
   scripts/spectra.sbatch)
 
 LOG="${REPO_DIR}/runs/slurm_logs/spectra_${JOB_ID}.out"
-echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}})"
+    echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}}${SPECTRA_BEGIN:+, begin=${SPECTRA_BEGIN}})"
 echo "log     : ${LOG}"
 echo "run dir : ${REPO_DIR}/runs/job${JOB_ID}"
 # Confirm the scheduler accepted the Timelimit we asked for (qos/partition can silently clamp).

@@ -489,6 +489,87 @@ case "$PROFILE" in
   probe_groupft)
     RUN_KIND=probe_groupft
     ;;
+  probe_c100)
+    RUN_KIND=probe_c100
+    ;;
+  careful_fortify_cifar10|careful_fortify_cifar10_structural)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    if [[ "$PROFILE" == "careful_fortify_cifar10_structural" ]]; then
+      export SPECTRA_REWARD_MODE=structural
+    else
+      export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    fi
+    EXTRA_ARGS=(--runtime_limit 36000 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  c100_mild_structural|c100_mild_neon|c100_curriculum_king)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=80
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-15}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    if [[ "$PROFILE" == "c100_mild_neon" ]]; then
+      export SPECTRA_REWARD_MODE=neon
+    else
+      export SPECTRA_REWARD_MODE=structural
+    fi
+    if [[ "$PROFILE" == "c100_curriculum_king" ]]; then
+      export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20063793/agent_checkpoints/latest_best_actor.pt}"
+      export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20063793/agent_checkpoints/latest_best_critic.pt}"
+      export SPECTRA_CONTINUE_TRAIN=1
+    fi
+    EXTRA_ARGS=(--runtime_limit 43200 --allowed_acc_reduction 15
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.95 0.9)
+    ;;
+  eval_diag_structural_c100)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_REWARD_MODE=structural
+    export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20066579/agent_checkpoints/latest_best_actor.pt}"
+    export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20066579/agent_checkpoints/latest_best_critic.pt}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    EXTRA_ARGS=(--runtime_limit 3600 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   *)
     echo "Unknown SPECTRA_PROFILE='${PROFILE}'" >&2
     exit 1
@@ -509,6 +590,11 @@ elif [[ "${RUN_KIND:-agent}" == "probe_groupft" ]]; then
   echo "profile probe_groupft: layer-only recovery under group-aware freeze"
   env | grep '^SPECTRA_' | sort
   bash scripts/run_recovery_probe_groupft.sh
+  STATUS=$?
+elif [[ "${RUN_KIND:-agent}" == "probe_c100" ]]; then
+  echo "profile probe_c100: CIFAR-100 rate×epochs recovery (no RL)"
+  env | grep '^SPECTRA_' | sort
+  bash scripts/run_recovery_probe_c100.sh
   STATUS=$?
 else
   echo "profile ${PROFILE}: input=${SPECTRA_INPUT} database=${SPECTRA_DATABASE}"
