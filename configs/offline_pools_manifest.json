@@ -10,6 +10,17 @@
   },
   "do_not_train_on_all_287": true,
   "catalogs": {
+    "database_c10_thin_plus_skinny.json": {
+      "role": "width-transfer-train-ab",
+      "n": 4,
+      "use_now": true,
+      "note": "C10-thin train plus skinny r20-w2. Held-out test is r56-w4 only (input_c10_width_heldout.json). Does not replace the leap catalog."
+    },
+    "input_c10_width_heldout.json": {
+      "role": "width-transfer-eval-r56w4",
+      "n": 1,
+      "use_now": true
+    },
     "database_offline_train.json": {
       "role": "agent-train-now",
       "n": 10,

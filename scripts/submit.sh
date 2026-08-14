@@ -100,6 +100,15 @@ case "$PROFILE" in
   careful_fortify_cifar10)
     # Mixed-DB failure is C100; C10-only 6-net diversity (same fortify recipe).
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  careful_fortify_cifar10_fast)
+    # Experimental AMP + channels_last + skip FT empty_cache. Same C10-thin recipe.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=36000 ;;
+  c10_width_skinny_train)
+    # Put skinny r20-w2 in train; held-out eval is r56-w4 only.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=36000 ;;
+  c10_budget_state)
+    # Remaining-param ratio as an extra token channel (same C10-thin catalog).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=36000 ;;
   careful_fortify_cifar10_structural)
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   c100_mild_structural)
@@ -112,6 +121,9 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
   probe_c100)
     GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+  probe_c100_aug)
+    # CIFAR-100 recovery with train-time RandomCrop+Flip (no RL).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
   eval_diag_structural_c100)
     # Eval-only: structural diag agent on C100 held-out (no training).
     GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
@@ -141,7 +153,9 @@ case "$PROFILE" in
     # 10-net leap catalog (C10 families + SVHN + Fashion-MNIST). Floor-constrained eval.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
   eval_offline_similar|eval_offline_novel)
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+    # 8 CPUs: 3 DataLoaders x SPECTRA_DATALOADER_WORKERS=4 plus the trainer.
+    # 80G needs >=5 CPUs under MaxMemPerCPU=16G.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
   c100_ultra_mild)
     # Even smaller cuts (2–5%) on C100 — tests whether any prune is recoverable.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
@@ -151,12 +165,15 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
   eval_only)
     # Skip training; load SPECTRA_ACTOR/CRITIC_CHECKPOINT_PATH and evaluate.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|eval_offline_*|probe_c100*|eval_*|eval_only}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|eval_offline_*|probe_c100*|eval_*|eval_only|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug}" >&2
     exit 1
     ;;
 esac
+
+CPUS="${SPECTRA_CPUS:-$CPUS}"
+MEM="${SPECTRA_MEM:-$MEM}"
 
 # Slurm always needs --time (partition MaxTime=7-00:00:00). Default to that so a
 # slow eval cannot be hard-killed. Training still stops at TRAIN_SEC. Override:
@@ -221,6 +238,8 @@ else
   USR1_SEC="$SPECTRA_USR1_SEC"
 fi
 SBATCH_EXTRA+=(--signal="B:USR1@${USR1_SEC}")
+SBATCH_EXTRA+=(--output="${REPO_DIR}/runs/slurm_logs/spectra_%j.out")
+SBATCH_EXTRA+=(--error="${REPO_DIR}/runs/slurm_logs/spectra_%j.out")
 
 JOB_ID=$(sbatch --parsable \
   --gpus="rtx_6000:${GPUS}" \

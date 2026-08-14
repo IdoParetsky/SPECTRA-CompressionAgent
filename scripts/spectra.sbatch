@@ -496,11 +496,19 @@ case "$PROFILE" in
     export SPECTRA_PROBE_C100_EXTRA=1
     RUN_KIND=probe_c100
     ;;
-  careful_fortify_cifar10|careful_fortify_cifar10_structural|careful_fortify_cifar10_mildrates|c10_curriculum_king|careful_fortify_cifar10_neon_rates|careful_fortify_cifar10_fine|encoder_c10_set|encoder_c10_wide|encoder_c10_bert|generic_c10_fortify)
+  probe_c100_aug)
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_PROBE_RATES="${SPECTRA_PROBE_RATES:-0.99 0.98 0.95}"
+    RUN_KIND=probe_c100
+    ;;
+  careful_fortify_cifar10|careful_fortify_cifar10_structural|careful_fortify_cifar10_mildrates|c10_curriculum_king|careful_fortify_cifar10_neon_rates|careful_fortify_cifar10_fine|encoder_c10_set|encoder_c10_wide|encoder_c10_bert|generic_c10_fortify|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state)
     # Dedicated C10 JSON (not mixed initial_*). --datasets used to lazy-load C100.
     if [[ "$PROFILE" == "generic_c10_fortify" ]]; then
       export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_cifar10_generic.json}"
       export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_cifar10_generic.json}"
+    elif [[ "$PROFILE" == "c10_width_skinny_train" ]]; then
+      export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_c10_width_heldout.json}"
+      export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_thin_plus_skinny.json}"
     else
       export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c10_thin.json}"
       export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_c10_thin.json}"
@@ -529,6 +537,15 @@ case "$PROFILE" in
       export SPECTRA_BERT_INPUT_MODE="${SPECTRA_BERT_INPUT_MODE:-embeds}"
     else
       export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    fi
+    if [[ "$PROFILE" == "careful_fortify_cifar10_fast" ]]; then
+      # Experimental FT speed arm. Defaults stay off for every other profile.
+      export SPECTRA_AMP=1
+      export SPECTRA_CHANNELS_LAST=1
+      export SPECTRA_SKIP_FT_GC=1
+    fi
+    if [[ "$PROFILE" == "c10_budget_state" ]]; then
+      export SPECTRA_BUDGET_IN_STATE=1
     fi
     if [[ "$PROFILE" == "careful_fortify_cifar10_structural" ]]; then
       export SPECTRA_REWARD_MODE=structural

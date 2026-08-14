@@ -207,8 +207,9 @@ class BERTInputModeler:
         return torch.cat([base_scaled, slots], dim=1)
 
     def _build_layer_tokens(self, feature_maps, curr_layer_idx,
-                            action_costs=None, coupling_ids=None) -> torch.Tensor:
-        from src.fortify import fortify_enabled, build_fortify_features
+                            action_costs=None, coupling_ids=None,
+                            param_ratio=None) -> torch.Tensor:
+        from src.fortify import fortify_enabled, build_fortify_features, budget_in_state
 
         base = self._scale_base_tokens(self.build_base_tokens(feature_maps))
         if fortify_enabled():
@@ -217,6 +218,11 @@ class BERTInputModeler:
                 base.size(0), coupling_ids, feature_maps.get("Topology", []),
                 device=base.device, dtype=base.dtype)
             base = torch.cat([base, fort], dim=1)
+        if budget_in_state() and base.size(0):
+            ratio = 1.0 if param_ratio is None else float(param_ratio)
+            ratio = min(1.0, max(0.0, ratio))
+            col = torch.full((base.size(0), 1), ratio, device=base.device, dtype=base.dtype)
+            base = torch.cat([base, col], dim=1)
         target = min(curr_layer_idx, base.size(0) - 1) if base.size(0) else 0
         return self._attach_action_cost_slots(base, target, action_costs)
 
@@ -242,7 +248,8 @@ class BERTInputModeler:
 
     def encode_model_to_bert_input(self, model_with_rows, feature_maps, curr_layer_idx,
                                    dependency_groups=None,
-                                   action_costs=None) -> Dict[str, torch.Tensor]:
+                                   action_costs=None,
+                                   param_ratio=None) -> Dict[str, torch.Tensor]:
         """
         Package CNN features as an agent state.
 
@@ -259,7 +266,8 @@ class BERTInputModeler:
                 coupling = self._block_ids(model_with_rows).to(self.device)
 
             layer_tokens = self._build_layer_tokens(
-                feature_maps, curr_layer_idx, action_costs, coupling_ids=coupling)
+                feature_maps, curr_layer_idx, action_costs, coupling_ids=coupling,
+                param_ratio=param_ratio)
             coupling = coupling[: layer_tokens.size(0)]
             layer_types = torch.tensor(
                 [int(row[0]) if row else 0 for row in topology],

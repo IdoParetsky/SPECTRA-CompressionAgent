@@ -28,6 +28,12 @@ def fortify_enabled() -> bool:
     return raw in ("1", "true", "yes")
 
 
+def budget_in_state() -> bool:
+    """Broadcast remaining-param ratio as an extra token channel (default off)."""
+    raw = os.environ.get("SPECTRA_BUDGET_IN_STATE", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
 def stem_rows() -> int:
     """How many leading prunable rows are treated as stem (identity-only under fortify)."""
     return max(0, int(os.environ.get("SPECTRA_STEM_ROWS", "1")))
@@ -59,7 +65,10 @@ def entropy_coef(episode_idx: int, warmup_len: int, base: float) -> float:
 
 
 def fortify_token_dim() -> int:
-    return FORTIFY_TOKEN_DIM if fortify_enabled() else 0
+    n = FORTIFY_TOKEN_DIM if fortify_enabled() else 0
+    if budget_in_state():
+        n += 1
+    return n
 
 
 def build_fortify_features(

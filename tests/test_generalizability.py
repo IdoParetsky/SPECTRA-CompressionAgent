@@ -41,6 +41,43 @@ def test_dataset_aliases_resolve_to_one_canonical_entry():
     assert utils.canonical_dataset_name("/data/custom") == "/data/custom"
 
 
+def test_env_flag_off_by_default(monkeypatch):
+    monkeypatch.delenv("SPECTRA_AMP", raising=False)
+    assert utils.env_flag("SPECTRA_AMP") is False
+    monkeypatch.setenv("SPECTRA_AMP", "1")
+    assert utils.env_flag("SPECTRA_AMP") is True
+
+
+def test_cifar_ft_aug_is_off_by_default(monkeypatch):
+    monkeypatch.delenv("SPECTRA_FT_AUG", raising=False)
+    tf = utils.build_transform("cifar-10", {}, train=True)
+    kinds = [type(t).__name__ for t in tf.transforms]
+    assert "RandomCrop" not in kinds
+    assert "RandomHorizontalFlip" not in kinds
+
+
+def test_cifar_ft_aug_only_on_train_split(monkeypatch):
+    monkeypatch.setenv("SPECTRA_FT_AUG", "1")
+    train_tf = utils.build_transform("cifar-10", {}, train=True)
+    eval_tf = utils.build_transform("cifar-10", {}, train=False)
+    train_kinds = [type(t).__name__ for t in train_tf.transforms]
+    eval_kinds = [type(t).__name__ for t in eval_tf.transforms]
+    assert "RandomCrop" in train_kinds
+    assert "RandomHorizontalFlip" in train_kinds
+    assert "RandomCrop" not in eval_kinds
+    assert "RandomHorizontalFlip" not in eval_kinds
+
+
+def test_dataset_cache_key_includes_ft_aug(monkeypatch):
+    monkeypatch.delenv("SPECTRA_FT_AUG", raising=False)
+    plain = utils.DatasetRegistry.key_for("cifar-10")
+    monkeypatch.setenv("SPECTRA_FT_AUG", "1")
+    aug = utils.DatasetRegistry.key_for("cifar-10")
+    assert plain == "cifar-10"
+    assert aug.endswith("|aug=1")
+    assert plain != aug
+
+
 def test_normalisation_is_per_dataset():
     """A single 0.5/0.5 normalisation shifts the activation statistics the agent reads."""
     cifar = utils.build_transform("cifar-10", {})

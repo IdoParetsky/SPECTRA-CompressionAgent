@@ -1,10 +1,7 @@
-import io
 import gc
 import os
 import torch
-from sklearn.metrics import accuracy_score
 import numpy as np
-import torch.distributed as dist
 
 from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
@@ -44,30 +41,40 @@ class ClassificationHandler(BasicHandler):
         self.model.eval()
         device = StaticConf.get_instance().conf_values.device
         self.model.to(device)
+        use_cuda = getattr(device, "type", str(device)) == "cuda"
+        use_amp = utils.env_flag("SPECTRA_AMP") and use_cuda
+        use_channels_last = utils.env_flag("SPECTRA_CHANNELS_LAST") and use_cuda
+        if use_channels_last:
+            self.model.to(memory_format=torch.channels_last)
 
-        all_preds = []
-        all_labels = []
+        correct = 0
+        total = 0
         total_loss = 0.0
+        n_batches = 0
 
         loss_func = self.loss_func if hasattr(self, 'loss_func') else torch.nn.CrossEntropyLoss()
 
         with torch.no_grad():
             for x_batch, y_batch in loader:
-                x_batch, y_batch = x_batch.to(device), y_batch.to(device)
+                x_batch = x_batch.to(device, non_blocking=True)
+                y_batch = y_batch.to(device, non_blocking=True)
+                if use_channels_last and x_batch.dim() == 4:
+                    x_batch = x_batch.contiguous(memory_format=torch.channels_last)
                 if y_batch.dim() > 1 and y_batch.shape[1] > 1:  # one-hot targets
                     y_batch = torch.argmax(y_batch, dim=1)
                 y_batch = y_batch.long()  # CrossEntropyLoss requires integer class indices
-                preds = self.model(x_batch)
-                total_loss += loss_func(preds, y_batch).item()
-                preds_classes = torch.argmax(preds, dim=1)
+                with torch.cuda.amp.autocast(enabled=use_amp):
+                    preds = self.model(x_batch)
+                    batch_loss = loss_func(preds, y_batch)
+                total_loss += batch_loss.item()
+                pred_classes = torch.argmax(preds, dim=1)
+                correct += int((pred_classes == y_batch).sum().item())
+                total += int(y_batch.numel())
+                n_batches += 1
 
-                all_preds.extend(preds_classes.detach().tolist())
-                all_labels.extend(y_batch.detach().tolist())
-
-        # Calculate accuracy
-        accuracy = accuracy_score(all_labels, all_preds)
+        accuracy = (correct / total) if total else 0.0
         utils.print_flush(f"Accuracy: {accuracy:.3f}")
-        utils.print_flush(f"Average Loss: {total_loss / len(loader):.3f}")
+        utils.print_flush(f"Average Loss: {(total_loss / n_batches) if n_batches else 0.0:.3f}")
         return accuracy
 
     def train_model(self, train_loader, allow_reinit_retry=True):
@@ -86,6 +93,14 @@ class ClassificationHandler(BasicHandler):
         device = conf.device
         self.model.float().to(device)
         self.model.train()
+        use_cuda = getattr(device, "type", str(device)) == "cuda"
+        use_amp = utils.env_flag("SPECTRA_AMP") and use_cuda
+        use_channels_last = utils.env_flag("SPECTRA_CHANNELS_LAST") and use_cuda
+        if use_channels_last:
+            self.model.to(memory_format=torch.channels_last)
+        if use_amp or use_channels_last:
+            utils.print_flush(
+                f"Fine-tune speed flags: AMP={int(use_amp)} channels_last={int(use_channels_last)}")
 
         num_epochs = conf.num_epochs
         if num_epochs <= 0:
@@ -124,6 +139,7 @@ class ClassificationHandler(BasicHandler):
         self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate)
         # Clear any leftover optimizer state to ensure fresh start
         self.optimizer.state.clear()
+        scaler = torch.cuda.amp.GradScaler(enabled=True) if use_amp else None
 
         # Dynamic Learning Rate Scheduling  # TODO: New addition, assess with and without
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -133,6 +149,8 @@ class ClassificationHandler(BasicHandler):
             epoch_losses = []
             for curr_x, curr_y in train_loader:
                 curr_x, curr_y = curr_x.to(device, non_blocking=True), curr_y.to(device, non_blocking=True)
+                if use_channels_last and curr_x.dim() == 4:
+                    curr_x = curr_x.contiguous(memory_format=torch.channels_last)
 
                 # Skip batches with less than 2 samples to avoid issues in loss calculation
                 if curr_x.size(0) < 2:
@@ -140,14 +158,22 @@ class ClassificationHandler(BasicHandler):
 
                 self.optimizer.zero_grad(set_to_none=True)
 
-                outputs = self.model(curr_x)
-                if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
-                    curr_y = torch.argmax(curr_y, dim=1)
-                loss = self.loss_func(outputs, curr_y.long())
+                with torch.cuda.amp.autocast(enabled=use_amp):
+                    outputs = self.model(curr_x)
+                    if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
+                        curr_y = torch.argmax(curr_y, dim=1)
+                    loss = self.loss_func(outputs, curr_y.long())
 
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
-                self.optimizer.step()
+                if use_amp:
+                    scaler.scale(loss).backward()
+                    scaler.unscale_(self.optimizer)
+                    torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
+                    scaler.step(self.optimizer)
+                    scaler.update()
+                else:
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
+                    self.optimizer.step()
 
                 epoch_losses.append(loss.detach())
 
@@ -160,9 +186,8 @@ class ClassificationHandler(BasicHandler):
 
             if avg_loss < best_loss - EPSILON:
                 best_loss = avg_loss
-                # Every rank keeps its own copy so that non-zero ranks can restore too
-                best_state_buffer = io.BytesIO()
-                torch.save(self.model.state_dict(), best_state_buffer)
+                # Clone on-device; pickling to BytesIO every improving epoch was a CPU stall.
+                best_state_buffer = {k: v.detach().clone() for k, v in self.model.state_dict().items()}
                 epochs_not_improved = 0
             else:
                 epochs_not_improved += 1
@@ -214,14 +239,14 @@ class ClassificationHandler(BasicHandler):
                 return self.train_model(train_loader, allow_reinit_retry=False)
             utils.print_flush("Model failed to converge after a reinitialisation retry; keeping current weights.")
         elif best_state_buffer is not None:
-            # Restore the best model state
-            best_state_buffer.seek(0)
-            self.model.load_state_dict(torch.load(best_state_buffer, weights_only=True, map_location=device))
+            self.model.load_state_dict(best_state_buffer)
 
-        # Free up cache and memory after training
+        # Free up cache and memory after training. Identity-heavy evals spend a lot of
+        # wall time in empty_cache; SPECTRA_SKIP_FT_GC=1 is the experimental speed arm.
         del self.optimizer
-        torch.cuda.empty_cache()
-        gc.collect()
+        if not utils.env_flag("SPECTRA_SKIP_FT_GC"):
+            torch.cuda.empty_cache()
+            gc.collect()
 
     def reinitialize_weights(self):
         """

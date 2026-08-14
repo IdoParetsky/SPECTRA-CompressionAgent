@@ -66,7 +66,7 @@ class FeatureExtractor:
         return feature_maps
 
     def encode_to_bert_input(self, model_with_rows, curr_layer_idx, update_indices=None,
-                             dependency_groups=None):
+                             dependency_groups=None, param_ratio=None):
         """
         Converts the extracted CNN features into the agent's state representation.
 
@@ -77,6 +77,7 @@ class FeatureExtractor:
             update_indices (List[int], optional): Layer indices to update for Activations.
             dependency_groups (list, optional):   Channel groups already computed for this
                                     model, reused to avoid a second symbolic trace.
+            param_ratio (float, optional): Remaining-parameter fraction for SPECTRA_BUDGET_IN_STATE.
 
         Returns:
             Dict[str, torch.Tensor]: The agent state.
@@ -85,7 +86,8 @@ class FeatureExtractor:
         costs = self._action_costs(model_with_rows, curr_layer_idx, dependency_groups)
         state = self.state_builder.encode_model_to_bert_input(
             model_with_rows, feature_maps, curr_layer_idx,
-            dependency_groups=dependency_groups, action_costs=costs)
+            dependency_groups=dependency_groups, action_costs=costs,
+            param_ratio=param_ratio)
         return state
 
     def _action_costs(self, model_with_rows, curr_layer_idx, dependency_groups):

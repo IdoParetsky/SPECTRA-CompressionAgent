@@ -13,7 +13,7 @@ from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 import torch
 from torch import nn
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import random_split, DataLoader, Subset
 from torchvision import datasets, transforms
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -32,6 +32,14 @@ SPECTRA_DATASETS = os.environ.get("SPECTRA_DATASETS", "/home/paretsky/spectra_da
 # the previous hard-coded 8 (with persistent_workers) spawned hundreds of resident
 # processes once several datasets were preloaded.
 DATALOADER_WORKERS = int(os.environ.get("SPECTRA_DATALOADER_WORKERS", "4"))
+
+# CIFAR datasets that may take RandomCrop+Flip during fine-tune when SPECTRA_FT_AUG=1.
+_FT_AUG_DATASETS = ("cifar-10", "cifar-100")
+
+
+def env_flag(name: str, default: str = "0") -> bool:
+    """Parse a SPECTRA_* on/off environment flag. Default is off unless ``default`` says otherwise."""
+    return os.environ.get(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
 # Possible instantiation functions' parameters
 NUM_CLASSES = "num_classes"
@@ -222,10 +230,15 @@ class DatasetRegistry:
         """Cache key that distinguishes a dataset *and* the preprocessing applied to it."""
         name_or_path, options = parse_dataset_spec(spec)
         base = name_or_path if os.path.exists(str(name_or_path)) else canonical_dataset_name(name_or_path)
-        if not options:
-            return base
-        detail = ",".join(f"{k}={options[k]}" for k in sorted(options))
-        return f"{base}[{detail}]"
+        if options:
+            detail = ",".join(f"{k}={options[k]}" for k in sorted(options))
+            key = f"{base}[{detail}]"
+        else:
+            key = base
+        # Train-time CIFAR aug must not share loaders with the unaugmented cache.
+        if env_flag("SPECTRA_FT_AUG") and canonical_dataset_name(name_or_path) in _FT_AUG_DATASETS:
+            key = f"{key}|aug=1"
+        return key
 
     def _may_load(self, spec) -> bool:
         if not self.restrict_to_preloaded:
@@ -900,7 +913,7 @@ def parse_dataset_spec(spec):
     return spec, {}
 
 
-def build_transform(name_or_path: str, options: dict):
+def build_transform(name_or_path: str, options: dict, train: bool = False):
     """
     Preprocessing pipeline for a dataset.
 
@@ -910,6 +923,10 @@ def build_transform(name_or_path: str, options: dict):
                             which let a grayscale or small-image dataset feed a network that
                             expects something else -- the usual obstacle to reusing one agent
                             across unrelated datasets.
+        train (bool):       When True and ``SPECTRA_FT_AUG=1``, CIFAR-10/100 get the
+                            standard RandomCrop(pad=4)+Flip used to train those checkpoints.
+                            Val/test must keep ``train=False`` so reward accuracy is not
+                            stochastic. Default off — does not change historical C10 jobs.
     """
     steps = []
 
@@ -920,6 +937,14 @@ def build_transform(name_or_path: str, options: dict):
     if image_size:
         steps.append(transforms.Resize(image_size if isinstance(image_size, (list, tuple))
                                        else (image_size, image_size)))
+
+    canonical = canonical_dataset_name(name_or_path)
+    if train and env_flag("SPECTRA_FT_AUG") and canonical in _FT_AUG_DATASETS:
+        crop = 32
+        if image_size:
+            crop = image_size[0] if isinstance(image_size, (list, tuple)) else int(image_size)
+        steps.append(transforms.RandomCrop(crop, padding=4))
+        steps.append(transforms.RandomHorizontalFlip())
 
     steps.append(transforms.ToTensor())
 
@@ -946,16 +971,35 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
         Tuple[DataLoader, DataLoader, DataLoader]: Dataloaders for train, validation, and test datasets.
     """
     name_or_path, options = parse_dataset_spec(spec)
-    transform = build_transform(name_or_path, options)
     canonical = canonical_dataset_name(name_or_path)
+    use_aug = env_flag("SPECTRA_FT_AUG") and canonical in _FT_AUG_DATASETS
 
     if canonical in DATASET_BUILDERS:
-        train_data, test_data = DATASET_BUILDERS[canonical](transform)
+        if use_aug:
+            # Val/test must stay unaugmented: reward and reported Δacc cannot be stochastic.
+            factory = datasets.CIFAR10 if canonical == "cifar-10" else datasets.CIFAR100
+            train_tf = build_transform(name_or_path, options, train=True)
+            eval_tf = build_transform(name_or_path, options, train=False)
+            train_aug = factory(root=SPECTRA_DATASETS, train=True, download=True, transform=train_tf)
+            train_eval = factory(root=SPECTRA_DATASETS, train=True, download=True, transform=eval_tf)
+            test_data = factory(root=SPECTRA_DATASETS, train=False, download=True, transform=eval_tf)
+            train_len = int(len(train_eval) * train_split / (train_split + val_split))
+            g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
+            perm = torch.randperm(len(train_eval), generator=g).tolist()
+            train_data = Subset(train_aug, perm[:train_len])
+            val_data = Subset(train_eval, perm[train_len:])
+            print_flush(
+                f"FT aug on {canonical}: RandomCrop+Flip on train only "
+                f"(n_train={len(train_data)}, n_val={len(val_data)})")
+        else:
+            transform = build_transform(name_or_path, options)
+            train_data, test_data = DATASET_BUILDERS[canonical](transform)
 
-        train_len = int(len(train_data) * train_split / (train_split + val_split))
-        val_len = len(train_data) - train_len
-        train_data, val_data = random_split(train_data, [train_len, val_len])
+            train_len = int(len(train_data) * train_split / (train_split + val_split))
+            val_len = len(train_data) - train_len
+            train_data, val_data = random_split(train_data, [train_len, val_len])
     elif os.path.exists(name_or_path):  # Custom dataset path
+        transform = build_transform(name_or_path, options)
         dataset = datasets.ImageFolder(Path(name_or_path), transform=transform)
         train_len = int(len(dataset) * train_split)
         val_len = int(len(dataset) * val_split)

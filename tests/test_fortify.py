@@ -78,6 +78,21 @@ def test_apply_action_mask_renorms(monkeypatch):
     assert torch.allclose(masked.probs.sum(), torch.tensor(1.0))
 
 
+def test_budget_in_state_adds_one_channel(monkeypatch):
+    monkeypatch.setenv("SPECTRA_FORTIFY", "1")
+    monkeypatch.setenv("SPECTRA_BUDGET_IN_STATE", "1")
+    assert fortify.budget_in_state() is True
+    assert fortify.fortify_token_dim() == fortify.FORTIFY_TOKEN_DIM + 1
+    assert token_feature_dim(5) == TOKEN_BASE_DIM + fortify.FORTIFY_TOKEN_DIM + 1 + 10
+
+
+def test_budget_in_state_off_by_default(monkeypatch):
+    monkeypatch.delenv("SPECTRA_BUDGET_IN_STATE", raising=False)
+    monkeypatch.setenv("SPECTRA_FORTIFY", "1")
+    assert fortify.budget_in_state() is False
+    assert fortify.fortify_token_dim() == fortify.FORTIFY_TOKEN_DIM
+
+
 def test_fortify_features_shape():
     coupling = torch.tensor([0, 0, 1, 2, 2])
     topo = [[2, 3, 16, 3, 1, 1, 1]] * 5

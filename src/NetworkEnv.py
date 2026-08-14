@@ -186,6 +186,7 @@ class NetworkEnv:
         # Each episode restarts from the pristine checkpoint, so the compression applied by the
         # previous episode does not leak into this one
         self.current_model = copy.deepcopy(self.current_model)
+        self.original_params = utils.calc_num_parameters(self.current_model)
 
         model_with_rows = ModelWithRows(self.current_model)
 
@@ -199,13 +200,13 @@ class NetworkEnv:
         with logging_utils.stage("reset.feature_extraction"):
             fm = self.feature_extractor.encode_to_bert_input(
                 model_with_rows, model_with_rows.row_to_main_layer[self.row_idx - 1],
-                dependency_groups=self._dependency_groups(model_with_rows))
+                dependency_groups=self._dependency_groups(model_with_rows),
+                param_ratio=1.0)
 
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
         with logging_utils.stage("reset.baseline_accuracy"):
             self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
-        self.original_params = utils.calc_num_parameters(self.current_model)
 
         num_rows = max(len(model_with_rows.all_rows) - 1, 0)
         recorder.record(
@@ -348,15 +349,20 @@ class NetworkEnv:
         self.current_model = learning_handler_new_model.model
         del old_model
         del learning_handler_new_model
-        torch.cuda.empty_cache()
-        gc.collect()
+        # Identity steps do not allocate a new graph; skipping the cache flush avoids a
+        # stall on every remaining eval step after the param floor.
+        if compression_rate != 1:
+            torch.cuda.empty_cache()
+            gc.collect()
 
         # Extract features for the next state. The dependency analysis is redone here because
         # the compression just applied changed the graph.
         with logging_utils.stage("step.feature_extraction", level=logging.DEBUG):
+            kept = utils.calc_num_parameters(self.current_model) / max(self.original_params, 1e-9)
             fm = self.feature_extractor.encode_to_bert_input(
                 model_with_rows, current_layer_idx, update_indices,
-                dependency_groups=self._dependency_groups(model_with_rows))
+                dependency_groups=self._dependency_groups(model_with_rows),
+                param_ratio=min(1.0, max(0.0, kept)))
 
         # Check termination condition
         num_rows = len(model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
