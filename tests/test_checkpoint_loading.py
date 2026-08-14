@@ -139,3 +139,45 @@ def test_optioned_fashionmnist_is_allowed_when_canonical_was_preloaded():
     spec = {"name": "fashion-mnist", "image_size": 32, "to_rgb": True}
     assert spec in registry
     assert "cifar-100" not in registry
+
+
+def test_dfpc_mobilenet_named_blocks_and_shortcuts():
+    from spectra_models_instantiation.mobilenetv2_dfpc import mobilenet_v2_dfpc
+    model = mobilenet_v2_dfpc(num_classes=100)
+    keys = list(model.state_dict())
+    assert "conv1.weight" in keys and "layers.0.conv1.weight" in keys
+    assert "linear.weight" in keys and model.linear.out_features == 100
+    assert "layers.0.shortcut.0.weight" in keys
+    assert "layers.2.shortcut.0.weight" not in keys
+    out = model.eval()(torch.randn(1, 3, 32, 32))
+    assert out.shape == (1, 100)
+
+
+def test_vgg19_bn_linear_head():
+    from spectra_models_instantiation.vgg_chenyaofo import vgg19_bn_linear
+    model = vgg19_bn_linear(num_classes=100, large_input=False)
+    keys = list(model.state_dict())
+    assert "features.0.weight" in keys
+    assert "classifier.weight" in keys
+    assert "classifier.0.weight" not in keys
+    assert model.classifier.weight.shape == (100, 512)
+    assert model.eval()(torch.randn(1, 3, 32, 32)).shape == (1, 100)
+
+
+def test_vgg19_bn_blocks_match_depgraph_layout():
+    from spectra_models_instantiation.vgg_repdistiller import vgg19_bn
+    model = vgg19_bn(num_classes=100, large_input=False)
+    keys = list(model.state_dict())
+    assert "block0.0.weight" in keys and "block4.9.weight" in keys
+    assert "classifier.weight" in keys
+    assert model.eval()(torch.randn(1, 3, 32, 32)).shape == (1, 100)
+
+
+def test_sublinear_lenet_named_3x3():
+    from spectra_models_instantiation.sublinear_instantiation import lenet_mnist_sublinear
+    model = lenet_mnist_sublinear(num_classes=10)
+    keys = list(model.state_dict())
+    assert keys[:2] == ["conv1.weight", "conv1.bias"]
+    assert model.conv1.kernel_size == (3, 3)
+    assert model.fc1.in_features == 400
+    assert model.eval()(torch.randn(1, 1, 28, 28)).shape == (1, 10)

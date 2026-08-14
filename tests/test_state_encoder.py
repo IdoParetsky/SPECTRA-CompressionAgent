@@ -50,7 +50,8 @@ def test_token_layout_matches_moments_and_action_slots():
     assert len(BaseFE.MOMENT_NAMES) == 12
     assert len(BaseFE.SHAPE_NAMES) == 7
     assert TOKEN_BASE_DIM == 7 + 12 + 12 + 7
-    assert FEATURE_DIM == TOKEN_BASE_DIM + 2 * 5  # StaticConf has 5 rates
+    from src import fortify
+    assert FEATURE_DIM == TOKEN_BASE_DIM + fortify.fortify_token_dim() + 2 * 5
 
 
 def test_encoder_returns_a_fixed_width_state():

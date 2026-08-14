@@ -231,7 +231,13 @@ def map_file(name: str):
     if name.startswith("resnet18_cifar100_pruning_bench"):
         return "resnet18_cifar", "resnet_cifar.py", "cifar-100", 100, (3, 32, 32)
     if name.startswith("vgg19_cifar100_dfpc_pre"):
-        return "vgg19_bn", "vgg_chenyaofo.py", "cifar-100", 100, (3, 32, 32)
+        return "vgg19_bn_linear", "vgg_chenyaofo.py", "cifar-100", 100, (3, 32, 32)
+    if name.startswith("vgg19_cifar100_dep_graph") or name.startswith("vgg19_cifar100_pruning_bench"):
+        return "vgg19_bn", "vgg_repdistiller.py", "cifar-100", 100, (3, 32, 32)
+    if name.startswith("mobilenet-v2_cifar10_dfpc"):
+        return "mobilenet_v2_dfpc", "mobilenetv2_dfpc.py", "cifar-10", 10, (3, 32, 32)
+    if name.startswith("mobilenet-v2_cifar100_dfpc"):
+        return "mobilenet_v2_dfpc", "mobilenetv2_dfpc.py", "cifar-100", 100, (3, 32, 32)
     if name.startswith("convnext_tiny_") and "isomorphic" in name:
         return "convnext_tiny_1k", "convnext_facebook_research.py", "imagenet1k", 1000, (3, 224, 224)
     if name.startswith("convnext_small_") and "isomorphic" in name:

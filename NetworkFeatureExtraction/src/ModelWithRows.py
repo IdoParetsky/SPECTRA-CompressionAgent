@@ -20,18 +20,9 @@ class ModelWithRows:
         model (torch.nn.Module): The input PyTorch model.
         all_layers (List[torch.nn.Module]): A flat list of all layers extracted from the model.
         all_rows (np.ndarray): A structured representation of the model, grouping layers into rows.
-        main_layer_types (List[Type[torch.nn.Module]]): The primary types of layers that define new rows. Currently includes:
-            - torch.nn.Conv2d: Convolutional layers.
-            - torch.nn.Linear: Fully-connected layers.
-
-    TODO:
-        - Consider adding 'torch.nn.BatchNorm2d', 'torch.nn.MaxPool2d', and 'torch.nn.AvgPool2d' to 'main_layer_types'.
-          - Reason: BatchNorm and Pooling layers are typically linked to their corresponding Conv2D layers.
-          - Decision: Should they be treated as independent layers or remain associated with Conv2D layers?
-        - If BatchNorm and Pooling layers should remain in the same row as Conv2D, no modifications are needed.
-          - Otherwise, logic needs to be updated to treat them as separate layers.
-        * If other types are added to 'main_layer_types', the termination condition ('done') in NetworkEnv's step()
-          must be edited accordingly.
+        main_layer_types (List[Type[torch.nn.Module]]): Layer types that start a new prune
+            row. Only Conv2d and Linear — BatchNorm and pooling stay in the same row as
+            the convolution they follow. They are not independent prune actions.
 
     Methods:
         extract_layers_from_model(layer): Recursively extracts all layers from the model and stores them in 'all_layers'.

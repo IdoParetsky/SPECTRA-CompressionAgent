@@ -13,8 +13,14 @@ from src import fortify  # noqa: E402
 from src.BERTInputModeler import token_feature_dim, TOKEN_BASE_DIM  # noqa: E402
 
 
-def test_fortify_off_by_default(monkeypatch):
+def test_fortify_on_by_default(monkeypatch):
     monkeypatch.delenv("SPECTRA_FORTIFY", raising=False)
+    assert fortify.fortify_enabled() is True
+    assert fortify.fortify_token_dim() == fortify.FORTIFY_TOKEN_DIM
+
+
+def test_fortify_can_be_disabled(monkeypatch):
+    monkeypatch.setenv("SPECTRA_FORTIFY", "0")
     assert fortify.fortify_enabled() is False
     assert fortify.fortify_token_dim() == 0
     assert token_feature_dim(5) == TOKEN_BASE_DIM + 10

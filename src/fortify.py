@@ -1,5 +1,5 @@
 """
-SPECTRA fortifications: gated behind SPECTRA_FORTIFY=1 for A/B experiment arms.
+SPECTRA fortifications. On by default (SPECTRA_FORTIFY=1); set SPECTRA_FORTIFY=0 to disable.
 
 When enabled:
   * Stem / narrow-width action masking (identity-only on fragile layers)
@@ -24,7 +24,8 @@ FORTIFY_TOKEN_DIM = 4  # relative_depth, is_stem, is_coupled, width_norm
 
 
 def fortify_enabled() -> bool:
-    return os.environ.get("SPECTRA_FORTIFY", "0").strip().lower() in ("1", "true", "yes")
+    raw = os.environ.get("SPECTRA_FORTIFY", "1").strip().lower()
+    return raw in ("1", "true", "yes")
 
 
 def stem_rows() -> int:
@@ -121,7 +122,7 @@ def legal_action_mask(
       * rates that cannot change width (target_width == alive) → illegal if rate < 1
       * layers already at 1 alive channel → identity only
 
-    Under SPECTRA_FORTIFY=1 additionally:
+    When fortify is enabled (default) additionally:
       * stem rows → only rate == 1.0
       * narrow layers (alive <= min_width) → only rate == 1.0
     """

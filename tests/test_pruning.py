@@ -39,6 +39,7 @@ def _init_static_conf():
 _init_static_conf()
 
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows  # noqa: E402
+import src.channel_groups as channel_groups  # noqa: E402
 import src.pruning as pruning  # noqa: E402
 
 
@@ -426,6 +427,85 @@ def test_fallback_reason_distinguishes_its_causes():
     outcome = model_with_rows.last_prune_outcome
     assert outcome["mode"] == "masked"
     assert "traceable" in outcome["reason"] or "fx trace raised" in outcome["reason"]
+
+
+class MiniShuffle(nn.Module):
+    """ShuffleNet-V2 stride-1 block: stem, chunk, cat, channel_shuffle."""
+
+    def __init__(self, channels=8):
+        super().__init__()
+        half = channels // 2
+        self.stem = nn.Conv2d(3, channels, 3, padding=1, bias=False)
+        self.pw = nn.Conv2d(half, half, 1, bias=False)
+        self.bn = nn.BatchNorm2d(half)
+        self.dw = nn.Conv2d(half, half, 3, padding=1, groups=half, bias=False)
+        self.bn_dw = nn.BatchNorm2d(half)
+        self.head = nn.Conv2d(channels, 4, 1)
+        self.pool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(4, 2)
+
+    def forward(self, x):
+        x = self.stem(x)
+        x1, x2 = x.chunk(2, dim=1)
+        y = torch.nn.functional.relu(self.bn(self.pw(x2)))
+        y = torch.nn.functional.relu(self.bn_dw(self.dw(y)))
+        out = torch.cat((x1, y), dim=1)
+        b, c, h, w = out.size()
+        out = out.view(b, 2, c // 2, h, w).transpose(1, 2).contiguous().view(b, -1, h, w)
+        return self.fc(self.pool(self.head(out)).flatten(1))
+
+
+def test_shufflenet_chunk_cat_shuffle_is_structural():
+    from src.NetworkEnv import prune_current_model
+
+    model = MiniShuffle(8).eval()
+    sample = torch.randn(2, 3, 8, 8)
+    params_before = sum(p.numel() for p in model.parameters())
+    groups = channel_groups.build_channel_groups(model)
+    assert groups is not None
+    pw_group = channel_groups.group_of(groups, model.pw)
+    assert pw_group is not None
+    assert pw_group.prunable, pw_group.reason
+
+    model_with_rows = ModelWithRows(model)
+    conv_idx = next(idx for idx, layer in enumerate(model_with_rows.all_layers) if layer is model.pw)
+    prune_current_model(model_with_rows, 0.5, _row_index_of_layer(model_with_rows, conv_idx))
+    pruned = model_with_rows.model.eval()
+    assert model_with_rows.last_prune_outcome["mode"] == "structural", model_with_rows.last_prune_outcome
+    assert pruned.pw.out_channels == 2
+    assert sum(p.numel() for p in pruned.parameters()) < params_before
+    assert pruned(sample).shape == (2, 2)
+
+
+def test_chenyaofo_shufflenetv2_prunes_without_masking_every_layer():
+    from src.NetworkEnv import prune_current_model
+    from spectra_models_instantiation.shufflenetv2_chenyaofo import shufflenetv2x1
+
+    sample = torch.randn(1, 3, 32, 32)
+    template = shufflenetv2x1(num_classes=10, large_input=False).eval()
+    groups = channel_groups.build_channel_groups(template)
+    assert groups is not None
+    blocked = [g.reason for g in groups if not g.prunable and (g.producers or g.depthwise)]
+    prunable = [g for g in groups if g.prunable]
+    assert prunable, f"no prunable groups; blocked={blocked[:8]}"
+
+    structural = 0
+    masked = 0
+    num_rows = len(ModelWithRows(template).row_to_main_layer)
+    for row_idx in range(min(num_rows, 8)):
+        model = shufflenetv2x1(num_classes=10, large_input=False).eval()
+        params_before = sum(p.numel() for p in model.parameters())
+        model_with_rows = ModelWithRows(model)
+        prune_current_model(model_with_rows, 0.8, row_idx)
+        model = model_with_rows.model.eval()
+        mode = model_with_rows.last_prune_outcome["mode"]
+        if mode == "structural":
+            structural += 1
+            assert sum(p.numel() for p in model.parameters()) < params_before
+        elif mode == "masked":
+            masked += 1
+        assert model(sample).shape == (1, 10)
+    assert structural >= 1, f"structural={structural} masked={masked} blocked={blocked[:8]}"
 
 
 if __name__ == "__main__":

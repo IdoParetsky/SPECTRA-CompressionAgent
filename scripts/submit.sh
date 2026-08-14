@@ -136,8 +136,12 @@ case "$PROFILE" in
   encoder_c10_bert)
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
   generic_c10_fortify)
-    # Multi-family C10 (thin-ResNet + chenyaofo ResNet-32 + VGG-16 + MobileNetV2).
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+  offline_train)
+    # 10-net leap catalog (C10 families + SVHN + Fashion-MNIST). Floor-constrained eval.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+  eval_offline_similar|eval_offline_novel)
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
   c100_ultra_mild)
     # Even smaller cuts (2–5%) on C100 — tests whether any prune is recoverable.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
@@ -149,7 +153,7 @@ case "$PROFILE" in
     # Skip training; load SPECTRA_ACTOR/CRITIC_CHECKPOINT_PATH and evaluate.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|probe_c100*|eval_*|eval_only}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|eval_offline_*|probe_c100*|eval_*|eval_only}" >&2
     exit 1
     ;;
 esac

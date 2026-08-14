@@ -27,6 +27,7 @@ import numpy as np
 import torch
 from torch import nn
 
+import src.channel_groups as channel_groups
 import src.distributed as ddp
 import src.utils as utils
 
@@ -105,7 +106,10 @@ def count_effective_parameters(model: nn.Module) -> int:
     """
     Parameter count that treats structurally-zero filters as removed.
 
-    Needed so that masked (fallback) pruning is not reported as zero compression.
+    Needed so that *masked* fallback can be compared against structural ``numel`` counts.
+    Eval ``param_ratio`` uses ``calc_num_parameters`` (shapes) and does **not** treat
+    masked zeros as removed; quoting this helper as the thesis compression number
+    overstates real size cut.
     """
     total = 0
     for module in model.modules():
@@ -209,14 +213,39 @@ def surviving_input_channels(ref, group_width: int, keep_idx: torch.Tensor) -> t
     Input channels a consumer retains once one segment of its input has been pruned.
 
     A layer reading a concatenated tensor (a DenseNet block, an Inception branch merge) sees
-    the pruned group as one slice of a wider input. Everything before and after that slice is
-    untouched; only the slice itself is filtered, and it is filtered at its true offset.
+    the pruned group as one slice of a wider input. ShuffleNet channel-shuffle scatters that
+    slice across even/odd indices; a later ``chunk`` may expose only a subset of the group.
+    ``ref.positions[j]`` is the consumer index for producer channel ``ref.producer_idx[j]``.
     """
-    device = keep_idx.device
-    before = torch.arange(ref.offset, device=device)
-    inside = ref.offset + keep_idx
-    after = torch.arange(ref.offset + group_width, ref.total, device=device)
-    return torch.cat([before, inside, after])
+    positions = list(ref.positions)
+    producer_idx = list(getattr(ref, "producer_idx", None) or ())
+    if not producer_idx or len(producer_idx) != len(positions):
+        if len(positions) == group_width:
+            producer_idx = list(range(group_width))
+        else:
+            # Legacy contiguous slice, clamped so arange cannot invert.
+            device = keep_idx.device
+            start = max(0, min(int(ref.offset), int(ref.total)))
+            end = max(start, min(int(ref.offset) + int(group_width), int(ref.total)))
+            before = torch.arange(0, start, device=device)
+            span = end - start
+            if span <= 0:
+                kept = torch.arange(ref.total, device=device)
+                return kept if kept.numel() else torch.zeros(1, dtype=torch.long, device=device)
+            local = keep_idx[(keep_idx >= 0) & (keep_idx < span)]
+            inside = start + local
+            after = torch.arange(end, ref.total, device=device)
+            parts = [p for p in (before, inside, after) if p.numel()]
+            if not parts:
+                return torch.zeros(1, dtype=torch.long, device=device)
+            return torch.cat(parts)
+
+    keep_local = {int(i) for i in keep_idx.detach().cpu().tolist()}
+    drop = {int(pos) for pos, pidx in zip(positions, producer_idx) if int(pidx) not in keep_local}
+    kept = [i for i in range(ref.total) if i not in drop]
+    if not kept:
+        kept = [0]
+    return torch.tensor(kept, dtype=torch.long, device=keep_idx.device)
 
 
 def group_importance(group) -> Optional[torch.Tensor]:
@@ -253,6 +282,38 @@ def select_group_survivors(group, compression_rate: float) -> Optional[torch.Ten
     return torch.sort(alive[best]).values
 
 
+def _replay_consumer_indices(old_units, new_units, device):
+    """Map post-prune (token, origin) channel order onto pre-prune input indices."""
+    if not old_units or new_units is None:
+        return None
+    index = {unit: i for i, unit in enumerate(old_units)}
+    kept = [index.get(unit) for unit in new_units]
+    if any(i is None for i in kept):
+        return None
+    if not kept:
+        kept = [0]
+    return torch.tensor(kept, dtype=torch.long, device=device)
+
+
+def _survivors_of_width(group, k: int, device) -> Optional[torch.Tensor]:
+    importance = group_importance(group)
+    if importance is None:
+        return None
+    alive = torch.nonzero(importance > 0, as_tuple=False).flatten()
+    if alive.numel() == 0:
+        return torch.zeros(1, dtype=torch.long, device=importance.device)
+    k = max(1, min(int(k), int(alive.numel()) - (1 if alive.numel() > 1 else 0)))
+    if alive.numel() == 1:
+        return alive
+    best = torch.topk(importance[alive], k=k).indices
+    return torch.sort(alive[best]).values
+
+
+def _producer_keep_dict(group, keep_idx):
+    kept = [int(i) for i in keep_idx.detach().cpu().tolist()]
+    return {id(module): kept for module in list(group.producers) + list(group.depthwise)}
+
+
 def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> bool:
     """
     Shrink every layer tied to a coupled channel group in one consistent edit.
@@ -262,6 +323,11 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
     resized, and every consumer's input dimension is sliced to match. This is what allows a
     residual-coupled convolution to actually shrink instead of merely being masked.
 
+    ShuffleNet channel-shuffle is a permutation of the *current* width, so consumer slices
+    are taken from a replay of the FX layout with the kept producer origins, not by deleting
+    indices from the pre-prune permutation. Nearby keep-counts are tried when a candidate
+    would leave a shuffle/chunk with an odd channel count.
+
     Returns:
         bool: False when the edit cannot be expressed (unexpected widths); the model is left
               untouched because all replacements are prepared before any is applied.
@@ -269,9 +335,39 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
     if not group.prunable or keep_idx.numel() == group.width:
         return False
 
+    # A later ShuffleNet chunk sees only a subset of this group. One such consumer
+    # (MiniShuffle's head) can be resized by replaying the shuffle; a chain of
+    # them desynchronizes keep-counts from the real cat/shuffle widths, so mask.
+    partial_views = sum(
+        1 for ref in group.consumers
+        if ref.positions and len(ref.positions) != group.width)
+    if partial_views > 1:
+        return False
+
+    model = model_with_rows.model
+    new_units = {}
+    if partial_views == 1:
+        target_k = int(keep_idx.numel())
+        chosen = None
+        for k in [target_k] + [k for delta in range(1, 9) for k in (target_k + delta, target_k - delta)]:
+            if k < 1 or k >= group.width:
+                continue
+            trial = keep_idx if k == target_k else _survivors_of_width(group, k, keep_idx.device)
+            if trial is None:
+                continue
+            flag, units = [], {}
+            replayed = channel_groups.build_channel_groups(
+                model, producer_keep=_producer_keep_dict(group, trial),
+                input_units_out=units, shuffle_ok_out=flag)
+            if replayed is not None and flag and flag[0]:
+                chosen = trial
+                new_units = units
+                break
+        if chosen is None:
+            return False
+        keep_idx = chosen
+
     index_of = {id(layer): idx for idx, layer in enumerate(model_with_rows.all_layers)}
-    # module -> (out_idx, in_idx); a layer can be both a producer and a consumer of the
-    # same group (e.g. a same-width residual convolution), so edits are merged per module
     edits: dict = {}
 
     def stage(module, out_idx=None, in_idx=None) -> bool:
@@ -292,13 +388,14 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
 
     for ref in group.consumers:
         consumer = ref.module
-        kept = surviving_input_channels(ref, group.width, keep_idx)
+        kept = _replay_consumer_indices(ref.units, new_units.get(id(consumer)), keep_idx.device)
+        if kept is None:
+            kept = surviving_input_channels(ref, group.width, keep_idx)
 
         if isinstance(consumer, nn.Conv2d):
             if consumer.in_channels != ref.total or not stage(consumer, in_idx=kept):
                 return False
         else:
-            # A Linear behind a flatten sees each channel as a block of spatial positions
             in_idx = (kept if consumer.in_features == ref.total
                       else _expand_indices_for_flatten(kept, ref.total, consumer.in_features))
             if in_idx is None or not stage(consumer, in_idx=in_idx):
@@ -309,7 +406,10 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
         norm = ref.module
         if norm.num_features != ref.total or id(norm) not in index_of:
             return False
-        norm_edits.append((index_of[id(norm)], _clone_norm(norm, surviving_input_channels(ref, group.width, keep_idx))))
+        kept = _replay_consumer_indices(ref.units, new_units.get(id(norm)), keep_idx.device)
+        if kept is None:
+            kept = surviving_input_channels(ref, group.width, keep_idx)
+        norm_edits.append((index_of[id(norm)], _clone_norm(norm, kept)))
 
     depthwise_ids = {id(m) for m in group.depthwise}
     replacements = []
@@ -329,9 +429,6 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
     edited_param_ids = []
     for idx, new_layer in replacements + norm_edits:
         model_with_rows.replace_layer(idx, new_layer)
-        # Every module rewritten by the group edit must stay trainable under
-        # train_compressed_layer_only: NEON's "pruned + next" freeze is too narrow once
-        # residual producers, consumers and norms are resized together.
         edited_param_ids.extend(id(param) for param in new_layer.parameters())
     model_with_rows.last_edited_param_ids = edited_param_ids
     return True

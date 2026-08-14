@@ -558,6 +558,56 @@ case "$PROFILE" in
                   --compression_rates 1.0 0.9 0.8)
     fi
     ;;
+  offline_train)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 svhn fashion-mnist}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    EXTRA_ARGS=(--runtime_limit 43200 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  eval_offline_similar|eval_offline_novel)
+    if [[ "$PROFILE" == "eval_offline_novel" ]]; then
+      export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_novel.json}"
+    else
+      export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
+    fi
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
+      echo "${PROFILE} requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
+      exit 1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   c100_mild_structural|c100_mild_neon|c100_curriculum_king|c100_ultra_mild|c100_mild_structural_seed43)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c100_thin.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_c100_thin.json}"

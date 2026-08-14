@@ -64,3 +64,15 @@ def test_structural_guard_uses_nominal_on_violation(monkeypatch):
     # In-budget mild loss → realized 0.5% credit
     r2 = compute_reward(0.95, 1.0, 0.9, params_before=1000, params_after=995)
     assert abs(r2 - 0.5) < 1e-9
+
+
+def test_masked_noop_does_not_get_neon_compression_credit():
+    from src.NetworkEnv import reward_compression_rate
+
+    tau = 10
+    # In-budget mask, numel unchanged → identity rate (zero NEON compression credit)
+    assert reward_compression_rate({"mode": "masked"}, 0.8, 1000, 1000, 0.95, 1.0, tau) == 1.0
+    # Over-budget still uses the nominal rate so wrecking an unprunable layer is punished
+    assert reward_compression_rate({"mode": "masked"}, 0.8, 1000, 1000, 0.80, 1.0, tau) == 0.8
+    # Structural shrink keeps the action's rate
+    assert reward_compression_rate({"mode": "structural"}, 0.8, 1000, 800, 0.95, 1.0, tau) == 0.8

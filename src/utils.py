@@ -128,23 +128,24 @@ def extract_args_from_cmd():
                         help="Path to Critic Checkpoint (pre-trained agent)")
 
     parser.add_argument(
-        '--compression_rates', type=float, nargs='+', default=[1.0, 0.9, 0.8, 0.7, 0.6],
+        '--compression_rates', type=float, nargs='+', default=[1.0, 0.9, 0.8],
         help=(
-            "List of compression rates for pruning layers. The first rate (1.0) means no pruning, "
-            "followed by progressively higher compression levels (e.g., 0.9, 0.8). "
-            "This will be converted to a dictionary where indices map to compression rates."
+            "List of compression rates for pruning layers. The first rate (1.0) means no pruning. "
+            "Default 1.0/0.9/0.8 is the SPECTRA recipe; 0.7/0.6 (NEON's denser set) over-prunes "
+            "thin CNNs. Profiles may still pass a different list."
         )
     )
 
-    parser.add_argument('--train_compressed_layer_only', type=str2bool, default=True,
-                        help="Whether to train the entire network or only the new layer, post-compression.\n"
-                             "Training the entire network after the compression of each layer greatly affects runtime.")
+    parser.add_argument('--train_compressed_layer_only', type=str2bool, default=False,
+                        help="Whether to train only the rewritten layers after compression. "
+                             "Default False (full-net FT); True is the NEON dense-DNN freeze "
+                             "and under-recovers CNN group edits.")
 
     parser.add_argument('--split', type=str2bool, default=True,
                         help="Whether to split the networks to train and test sets. Must be True in the first run.")
 
-    parser.add_argument('--allowed_acc_reduction', type=int, default=5,
-                        help="The permissible reduction in performance (in percents). Default value=5; 1 is also recommended.")
+    parser.add_argument('--allowed_acc_reduction', type=int, default=10,
+                        help="The permissible reduction in performance (in percents). SPECTRA default=10; NEON used 5.")
 
     parser.add_argument('--discount_factor', type=float, default=0.99,
                         help="Discount Factor, a.k.a Gamma, controls the weight of the agent's future rewards.")

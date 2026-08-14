@@ -28,7 +28,7 @@ Towards Any Structural Pruning" (CVPR 2023), which the thesis proposal cites.
 
 import operator
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import torch
 from torch import nn
@@ -42,8 +42,11 @@ RESIZABLE_NORM_TYPES = (nn.BatchNorm1d, nn.BatchNorm2d)
 WIDTH_PRESERVING_TYPES = (
     nn.ReLU, nn.ReLU6, nn.ELU, nn.SiLU, nn.LeakyReLU, nn.GELU, nn.Tanh, nn.Sigmoid,
     nn.Hardtanh, nn.Hardswish, nn.Hardsigmoid, nn.Softplus, nn.PReLU, nn.SELU, nn.CELU,
-    nn.Dropout, nn.Dropout2d, nn.Identity, nn.MaxPool2d, nn.AvgPool2d,
-    nn.AdaptiveAvgPool2d, nn.AdaptiveMaxPool2d, nn.Flatten, nn.ZeroPad2d,
+    nn.Dropout, nn.Dropout2d, nn.Identity, nn.Flatten, nn.ZeroPad2d,
+    nn.MaxPool1d, nn.MaxPool2d, nn.MaxPool3d,
+    nn.AvgPool1d, nn.AvgPool2d, nn.AvgPool3d,
+    nn.AdaptiveAvgPool1d, nn.AdaptiveAvgPool2d, nn.AdaptiveAvgPool3d,
+    nn.AdaptiveMaxPool1d, nn.AdaptiveMaxPool2d, nn.AdaptiveMaxPool3d,
 )
 
 WIDTH_PRESERVING_FUNCTIONS = {
@@ -52,11 +55,15 @@ WIDTH_PRESERVING_FUNCTIONS = {
     torch.nn.functional.silu, torch.nn.functional.leaky_relu, torch.nn.functional.elu,
     torch.nn.functional.hardswish, torch.nn.functional.hardtanh,
     torch.nn.functional.dropout, torch.nn.functional.dropout2d,
-    torch.nn.functional.max_pool2d, torch.nn.functional.avg_pool2d,
-    torch.nn.functional.adaptive_avg_pool2d, torch.nn.functional.pad,
+    torch.nn.functional.max_pool1d, torch.nn.functional.max_pool2d, torch.nn.functional.max_pool3d,
+    torch.nn.functional.avg_pool1d, torch.nn.functional.avg_pool2d, torch.nn.functional.avg_pool3d,
+    torch.nn.functional.adaptive_avg_pool1d, torch.nn.functional.adaptive_avg_pool2d,
+    torch.nn.functional.adaptive_avg_pool3d, torch.nn.functional.pad,
 }
+# ``size`` is *not* width-preserving: it yields a metadata tuple, not a tensor.
+# ``transpose`` / ``permute`` are handled explicitly (channel-shuffle vs spatial).
 WIDTH_PRESERVING_METHODS = {"flatten", "view", "reshape", "contiguous", "relu", "sigmoid",
-                            "tanh", "clone", "to", "float", "size"}
+                            "tanh", "clone", "to", "float"}
 
 # Element-wise binary operations: their operands must share a channel dimension
 MERGING_FUNCTIONS = {operator.add, operator.iadd, operator.sub, operator.isub,
@@ -75,11 +82,23 @@ REDUCTION_METHODS = {"mean", "sum", "amax", "amin"}
 
 @dataclass(frozen=True)
 class Ref:
-    """A layer that reads a group's channels, and where those channels sit in its input."""
+    """A layer that reads a group's channels, and where those channels sit in its input.
+
+    ``positions[j]`` is the consumer input index for producer channel ``producer_idx[j]``.
+    Contiguous concat slices are a consecutive range with ``producer_idx = 0..width-1``.
+    ShuffleNet channel-shuffle interleaves groups, and a later ``chunk`` may expose only a
+    subset of a group's channels — ``producer_idx`` then is that subset, not ``0..width-1``.
+    """
 
     module: nn.Module
-    offset: int   # index of the group's first channel within the layer's input
-    total: int    # total channel count of that input
+    total: int
+    positions: tuple
+    producer_idx: tuple = ()
+    units: tuple = ()  # (token, origin) per input channel of the full tensor
+
+    @property
+    def offset(self) -> int:
+        return int(self.positions[0]) if self.positions else 0
 
 
 @dataclass
@@ -111,10 +130,15 @@ class ChannelGroup:
 
 @dataclass(frozen=True)
 class Segment:
-    """One contiguous run of channels within a tensor, owned by a single group."""
+    """One contiguous run of channels within a tensor, owned by a single group.
+
+    ``origin`` is the producer-channel index of the first channel in this run (0 for a
+    freshly produced conv output; non-zero after chunk/shuffle splits a group).
+    """
 
     token: int
     width: int
+    origin: int = 0
 
 
 class _Groups:
@@ -192,9 +216,115 @@ def _reduces_only_spatial(node: Node) -> bool:
     return all(d not in CHANNEL_DIMS and d != 0 for d in dims)
 
 
-def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
+def _explode_units(segments: Sequence[Segment]) -> List[Segment]:
+    units = []
+    for segment in segments:
+        units.extend(Segment(segment.token, 1, segment.origin + i) for i in range(segment.width))
+    return units
+
+
+def _merge_adjacent(units: Sequence[Segment]) -> List[Segment]:
+    merged: List[Segment] = []
+    for unit in units:
+        if (merged and merged[-1].token == unit.token
+                and merged[-1].origin + merged[-1].width == unit.origin):
+            merged[-1] = Segment(unit.token, merged[-1].width + unit.width, merged[-1].origin)
+        else:
+            merged.append(Segment(unit.token, unit.width, unit.origin))
+    return merged
+
+
+def _split_evenly(segments: Sequence[Segment], parts: int) -> Optional[List[List[Segment]]]:
+    total = _total_width(segments)
+    if parts <= 0 or total % parts != 0:
+        return None
+    part_w = total // parts
+    units = _explode_units(segments)
+    return [_merge_adjacent(units[i * part_w:(i + 1) * part_w]) for i in range(parts)]
+
+
+def _channel_shuffle_segments(segments: Sequence[Segment], groups: int) -> Optional[List[Segment]]:
+    """Permute (groups, channels_per_group) -> (channels_per_group, groups) on the channel axis."""
+    total = _total_width(segments)
+    if groups <= 1 or total % groups != 0:
+        return None
+    units = _explode_units(segments)
+    cpg = len(units) // groups
+    shuffled = []
+    for i in range(cpg):
+        for g in range(groups):
+            shuffled.append(units[g * cpg + i])
+    return _merge_adjacent(shuffled)
+
+
+def _view_channel_groups(node: Node) -> Optional[int]:
+    """Integer group count in ``x.view(b, groups, cpg, h, w)`` (ShuffleNet channel_shuffle)."""
+    extras = list(node.args[1:]) + [v for v in node.kwargs.values() if not isinstance(v, Node)]
+    ints = [a for a in extras if isinstance(a, int) and a > 1]
+    return ints[0] if ints else None
+
+
+def _transpose_dims(node: Node) -> Optional[tuple]:
+    if node.op == "call_method" and node.target == "transpose":
+        if len(node.args) >= 3 and isinstance(node.args[1], int) and isinstance(node.args[2], int):
+            return int(node.args[1]), int(node.args[2])
+        dim0 = node.kwargs.get("dim0")
+        dim1 = node.kwargs.get("dim1")
+        if isinstance(dim0, int) and isinstance(dim1, int):
+            return dim0, dim1
+    if node.op == "call_function" and node.target is torch.transpose:
+        if len(node.args) >= 3 and isinstance(node.args[1], int) and isinstance(node.args[2], int):
+            return int(node.args[1]), int(node.args[2])
+    if node.op == "call_method" and node.target == "permute":
+        order = node.args[1:]
+        if order and all(isinstance(d, int) for d in order):
+            return tuple(order)
+    return None
+
+
+def _coalesce_refs(refs: Sequence[Ref]) -> Tuple[List[Ref], bool]:
+    """Merge multiple reads of the same module (interleaved ShuffleNet channels).
+
+    Returns ``(refs, ok)``. ``ok`` is False when the same module is recorded with
+    disagreeing input widths; the caller must block rather than drop the consumer.
+    """
+    buckets = {}
+    order = []
+    for ref in refs:
+        key = id(ref.module)
+        pidx = list(ref.producer_idx) if ref.producer_idx else list(range(len(ref.positions)))
+        units = list(ref.units) if ref.units else []
+        if key not in buckets:
+            buckets[key] = [ref.module, ref.total, list(ref.positions), pidx, units]
+            order.append(key)
+        else:
+            module, total, positions, producer_idx, stored_units = buckets[key]
+            if total != ref.total:
+                buckets[key] = [module, total, None, None, None]
+            else:
+                positions.extend(ref.positions)
+                producer_idx.extend(pidx)
+                if not stored_units and units:
+                    buckets[key][4] = units
+    out = []
+    for key in order:
+        module, total, positions, producer_idx, units = buckets[key]
+        if positions is None:
+            return [], False
+        out.append(Ref(module, total, tuple(positions), tuple(producer_idx), tuple(units)))
+    return out, True
+
+
+def build_channel_groups(model: nn.Module, producer_keep: Optional[Dict[int, Sequence[int]]] = None,
+                         input_units_out: Optional[dict] = None,
+                         shuffle_ok_out: Optional[list] = None) -> Optional[List[ChannelGroup]]:
     """
     Recover the channel-dependency groups of `model`.
+
+    ``producer_keep`` (optional) is ``{id(module): kept_origin_indices}`` used to replay
+    layouts as if those producers had already been pruned — needed so ShuffleNet
+    channel-shuffle permutations are recomputed on the post-prune width, not by deleting
+    indices from the old permutation.
 
     Returns:
         The groups, or None when the model cannot be symbolically traced (dynamic control
@@ -207,10 +337,18 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
 
     modules = dict(traced.named_modules())
     groups = _Groups()
-    layout: Dict[Node, Optional[List[Segment]]] = {}
+    # Values are a segment list, a tuple of segment-lists (chunk/split outputs), or None.
+    layout: Dict[Node, Any] = {}
+    keep_map = producer_keep or {}
+    shuffle_ok = True
 
     def segments_of(node) -> Optional[List[Segment]]:
-        return layout.get(node) if isinstance(node, Node) else None
+        if not isinstance(node, Node):
+            return None
+        found = layout.get(node)
+        if found is None or isinstance(found, tuple):
+            return None
+        return found
 
     def first_input(node: Node) -> Optional[List[Segment]]:
         for arg in _node_args(node):
@@ -227,9 +365,15 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
     def register_readers(segments: Sequence[Segment], attribute: str, module: nn.Module):
         """Record `module` against each segment it reads, with that segment's offset."""
         total = _total_width(segments)
+        full_units = tuple((seg.token, seg.origin) for seg in _explode_units(segments))
+        if input_units_out is not None:
+            input_units_out[id(module)] = full_units
         offset = 0
         for segment in segments:
-            getattr(groups.get(segment.token), attribute).append(Ref(module, offset, total))
+            positions = tuple(range(offset, offset + segment.width))
+            producer_idx = tuple(range(segment.origin, segment.origin + segment.width))
+            getattr(groups.get(segment.token), attribute).append(
+                Ref(module, total, positions, producer_idx, full_units))
             offset += segment.width
 
     for node in traced.graph.nodes:
@@ -284,7 +428,12 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
                 produced_group.producers.append(module)
                 if other_grouped:
                     produced_group.block("grouped convolution producer")
-                layout[node] = [Segment(produced, width)]
+                origins = list(range(width))
+                if id(module) in keep_map:
+                    origins = [int(i) for i in keep_map[id(module)]]
+                    produced_group.width = len(origins)
+                layout[node] = _merge_adjacent([Segment(produced, 1, o) for o in origins]) or [
+                    Segment(produced, 0)]
                 continue
 
             if isinstance(module, NORM_TYPES):
@@ -307,6 +456,89 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
 
         if node.op in ("call_function", "call_method"):
             target = node.target
+
+            if target is operator.getitem or target == "__getitem__":
+                src = node.args[0] if node.args else None
+                idx = node.args[1] if len(node.args) > 1 else node.kwargs.get("key")
+                packed = layout.get(src) if isinstance(src, Node) else None
+                if isinstance(packed, tuple) and isinstance(idx, int) and 0 <= idx < len(packed):
+                    layout[node] = list(packed[idx])
+                    continue
+                # Metadata indexing (``x.size()[0]``) is not a tensor; do not block producers.
+                layout[node] = None
+                continue
+
+            if target in (torch.chunk, torch.split) or (node.op == "call_method" and target in ("chunk", "split")):
+                if target in (torch.split, "split"):
+                    split_size = node.kwargs.get("split_size_or_sections",
+                                                node.args[1] if len(node.args) > 1 else None)
+                    dim = node.kwargs.get("dim", node.args[2] if len(node.args) > 2 else 0)
+                    if not incoming or dim not in CHANNEL_DIMS or not isinstance(split_size, int) or split_size <= 0:
+                        block_inputs(node, "split along a non-channel axis")
+                        layout[node] = None
+                        continue
+                    parts = _total_width(incoming) // split_size
+                    packed = _split_evenly(incoming, parts)
+                else:
+                    chunks = node.kwargs.get("chunks", node.args[1] if len(node.args) > 1 else None)
+                    dim = node.kwargs.get("dim", node.args[2] if len(node.args) > 2 else 0)
+                    if not incoming or dim not in CHANNEL_DIMS or not isinstance(chunks, int):
+                        block_inputs(node, "chunk along a non-channel axis")
+                        layout[node] = None
+                        continue
+                    packed = _split_evenly(incoming, int(chunks))
+                if packed is None:
+                    shuffle_ok = False
+                    block_inputs(node, "uneven channel chunk/split")
+                    layout[node] = None
+                    continue
+                layout[node] = tuple(packed)
+                continue
+
+            if target in (torch.Tensor.size, "size", "numel") or (
+                    node.op == "call_method" and target in ("size", "numel", "dim", "shape")):
+                layout[node] = None
+                continue
+
+            # Integer metadata (``c // groups`` in channel_shuffle). Do not block tensors.
+            if target in (operator.floordiv, operator.truediv, operator.mod, operator.pow):
+                layout[node] = None
+                continue
+
+            dims = _transpose_dims(node)
+            if dims is not None:
+                if incoming is None:
+                    layout[node] = None
+                    continue
+                # Spatial-only permute: channel dim stays at index 1.
+                if len(dims) > 2:
+                    channel_stays = len(dims) >= 2 and dims[1] == 1
+                    layout[node] = list(incoming) if channel_stays else None
+                    if not channel_stays:
+                        block_inputs(node, "permute moves the channel axis")
+                    continue
+                d0, d1 = dims[0], dims[1]
+                if {d0, d1} <= {2, 3}:
+                    layout[node] = list(incoming)
+                    continue
+                if {d0, d1} == {1, 2}:
+                    src = node.args[0] if node.args else None
+                    n_shuffle = 2
+                    if isinstance(src, Node) and src.op == "call_method" and src.target in ("view", "reshape"):
+                        n_shuffle = _view_channel_groups(src) or 2
+                    shuffled = _channel_shuffle_segments(incoming, n_shuffle) if incoming else None
+                    if shuffled is None:
+                        shuffle_ok = False
+                        if incoming:
+                            block_inputs(node, "channel shuffle with uneven groups")
+                        layout[node] = None
+                    else:
+                        layout[node] = shuffled
+                    continue
+                block_inputs(node, "transpose moves the channel axis")
+                layout[node] = None
+                continue
+
             merging = (target in MERGING_FUNCTIONS if node.op == "call_function"
                        else target in MERGING_METHODS)
 
@@ -348,7 +580,7 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
                     token = segment.token
                     for other in operand_layouts[1:]:
                         token = groups.union(token, other[position].token)
-                    merged.append(Segment(token, segment.width))
+                    merged.append(Segment(token, segment.width, segment.origin))
                 layout[node] = merged
                 continue
 
@@ -391,21 +623,24 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
                     resolved[first].block(f"module reused across groups ({role})")
 
     # Reading several groups at once is not a conflict -- that is precisely what a layer
-    # behind a concatenation does -- but a layer may read each group only once, and all of
-    # its references must agree on how wide its input is.
+    # behind a concatenation does. Channel-shuffle interleaves one group through a consumer,
+    # so the same module may appear at several offsets; those refs are merged. Overlapping
+    # positions or disagreeing input widths still block.
     widths_seen: Dict[int, set] = {}
     for group in resolved:
         for role in ("consumers", "norms"):
-            unique, seen_ids = [], set()
-            for ref in getattr(group, role):
-                key = id(ref.module)
-                if key in seen_ids:
-                    # cat([x, x]) would need two simultaneous edits at different offsets
-                    group.block(f"channels read twice by the same layer ({role})")
-                    continue
-                seen_ids.add(key)
-                unique.append(ref)
-                widths_seen.setdefault(key, set()).add(ref.total)
+            unique, ok = _coalesce_refs(getattr(group, role))
+            if not ok:
+                group.block(f"layer reused with differing input widths ({role})")
+                continue
+            overlapping = False
+            for ref in unique:
+                if (len(ref.positions) != len(set(ref.positions))
+                        or (ref.producer_idx and len(ref.producer_idx) != len(set(ref.producer_idx)))):
+                    overlapping = True
+                widths_seen.setdefault(id(ref.module), set()).add(ref.total)
+            if overlapping:
+                group.block(f"overlapping channel reads by the same layer ({role})")
             setattr(group, role, unique)
 
     ambiguous = {key for key, widths in widths_seen.items() if len(widths) > 1}
@@ -419,6 +654,8 @@ def build_channel_groups(model: nn.Module) -> Optional[List[ChannelGroup]]:
         if not group.producers and not group.depthwise:
             group.block("no resizable producer")
 
+    if shuffle_ok_out is not None:
+        shuffle_ok_out.append(shuffle_ok)
     return resolved
 
 

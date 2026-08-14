@@ -212,7 +212,7 @@ def vgg19(num_classes):
     return model
 
 
-def vgg19_bn(num_classes):
+def vgg19_bn(num_classes, large_input=False):
     """VGG 19-layer model (configuration 'E') with batch normalization"""
     model = VGG(cfg['E'], batch_norm=True, num_classes=num_classes)
     return model

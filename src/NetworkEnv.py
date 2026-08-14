@@ -26,6 +26,24 @@ EVAL_TRAIN = "eval_train"  # Mode when NetworkEnv is called from a2c_agent_reinf
 EVAL_TEST = "eval_test"  # Mode when NetworkEnv is called from a2c_agent_reinforce_runner.py, evaluating the test dataset
 
 
+def reward_compression_rate(prune_outcome, compression_rate, params_before, params_after,
+                            new_acc, original_acc, tau):
+    """
+    Rate fed to NEON ``compute_reward``. The trichotomy itself is unchanged.
+
+    Masked fallback does not change ``numel``/FLOPs. Crediting ``(1 - rate)`` taught the
+    agent to "compress" ShuffleNet / unknown ops that never shrink. In-budget masked
+    no-ops therefore use rate 1.0 (zero compression credit). Over-budget accuracy drops
+    still use the nominal rate so wrecking an unprunable layer is punished.
+    """
+    outcome = prune_outcome or {}
+    if (outcome.get("mode") == "masked"
+            and params_after >= params_before * (1.0 - 1e-12)
+            and (new_acc - original_acc) * 100.0 >= -float(tau)):
+        return 1.0
+    return compression_rate
+
+
 class NetworkEnv:
     """
     Implements a Reinforcement Learning Environment for structured CNN pruning.
@@ -316,8 +334,11 @@ class NetworkEnv:
 
         # Realized size before reward: CNN group edits ≠ nominal (1-rate).
         params_after = utils.calc_num_parameters(learning_handler_new_model.model)
+        reward_rate = reward_compression_rate(
+            prune_outcome, compression_rate, params_before, params_after,
+            new_acc, self.original_acc, self.conf.allowed_acc_reduction)
         reward = utils.compute_reward(
-            new_acc, self.original_acc, compression_rate,
+            new_acc, self.original_acc, reward_rate,
             params_before=params_before, params_after=params_after)
 
         # Move to next state
@@ -462,6 +483,8 @@ class NetworkEnv:
         acc_delta = result_entry['new_acc'] - result_entry['origin_acc']
         param_ratio = result_entry['new_param (M)'] / max(result_entry['origin_param (M)'], 1e-9)
         flops_ratio = result_entry['new_flops (M)'] / max(result_entry['origin_flops (M)'], 1e-9)
+        effective_ratio = (result_entry['new_effective_param (M)']
+                           / max(result_entry['origin_param (M)'], 1e-9))
         recorder.record(
             "eval",
             network=self.selected_net_path,
@@ -475,16 +498,22 @@ class NetworkEnv:
             origin_param_m=result_entry['origin_param (M)'],
             new_effective_param_m=result_entry['new_effective_param (M)'],
             param_ratio=round(param_ratio, 5),
+            effective_param_ratio=round(effective_ratio, 5),
             new_flops_m=result_entry['new_flops (M)'],
             origin_flops_m=result_entry['origin_flops (M)'],
             flops_ratio=round(flops_ratio, 5),
             actions=list(self.actions_history),
             evaluation_time=result_entry['evaluation_time'],
         )
+        mask_note = ""
+        if abs(effective_ratio - param_ratio) > 0.02:
+            mask_note = (f" | effective-params x{effective_ratio:.3f} "
+                         "(masked zeros; not a structural size cut)")
         utils.print_flush(
             f"[eval] {os.path.basename(self.selected_net_path)} pass {result_entry['pass']} | "
             f"acc {result_entry['origin_acc']:.3f} -> {result_entry['new_acc']:.3f} "
-            f"({acc_delta:+.3f}) | params x{param_ratio:.3f} | FLOPs x{flops_ratio:.3f}")
+            f"({acc_delta:+.3f}) | params x{param_ratio:.3f} | FLOPs x{flops_ratio:.3f}"
+            f"{mask_note}")
 
     def save_pruned_checkpoint(self):
         """
@@ -649,9 +678,10 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     utils.print_flush(f"Layer {layer_to_prune_idx}: masked {old_width - keep_idx.numel()}/{old_width} "
                       f"filters, shape preserved ({reason})")
 
-    # Masking is a correctness-preserving fallback, not a success: it removes parameters from
-    # the reward's point of view but no FLOPs. Counting the reasons is how we learn which
-    # dependency patterns the library still cannot resize.
+    # Masking is a correctness-preserving fallback, not a success: filters are zeroed but
+    # numel/FLOPs stay put. NetworkEnv withholds NEON compression credit on in-budget
+    # masked no-ops (see reward_compression_rate). Counting the reasons is how we learn
+    # which dependency patterns the library still cannot resize.
     #
     # A layer already down to a single channel is the one case that is *not* a library gap:
     # there is nothing left to remove. It is counted separately so the masked-fallback rate
