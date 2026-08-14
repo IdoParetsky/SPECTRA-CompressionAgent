@@ -1,0 +1,117 @@
+"""Checkpoint unwrap / alias / RepVGG-deploy / akamaster option-A loading."""
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import torch
+from torch import nn
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tests.test_pruning import _init_static_conf  # noqa: E402
+
+_init_static_conf()
+
+import src.utils as utils  # noqa: E402
+from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows  # noqa: E402
+from src.NetworkEnv import prune_current_model  # noqa: E402
+from spectra_models_instantiation.resnet_akamaster import resnet20 as akamaster_resnet20  # noqa: E402
+from spectra_models_instantiation.repvgg_chenyaofo import repvgga0, repvgg_a0  # noqa: E402
+
+
+def test_unwrap_akamaster_wrapper_drops_best_prec1():
+    weights = {"conv1.weight": torch.ones(1), "bn1.weight": torch.ones(1)}
+    wrapped = {"best_prec1": 91.73, "state_dict": weights}
+    assert utils.unwrap_checkpoint_state_dict(wrapped) == weights
+
+
+def test_unwrap_nested_model_key():
+    inner = {"fc.weight": torch.zeros(2, 2)}
+    assert utils.unwrap_checkpoint_state_dict({"model": inner, "epoch": 12}) == inner
+
+
+def test_align_strips_module_prefix():
+    sd = {"module.conv.weight": torch.ones(1)}
+    aligned = utils.align_module_prefix(sd, ["conv.weight"])
+    assert list(aligned) == ["conv.weight"]
+
+
+def test_ignorable_bn_buffers_do_not_fail_load():
+    model = nn.Sequential(nn.Conv2d(3, 4, 1, bias=False), nn.BatchNorm2d(4))
+    sd = {k: v.clone() for k, v in model.state_dict().items()
+          if not k.endswith("num_batches_tracked")}
+    missing, unexpected = utils.load_state_dict_compatible(model, sd)
+    assert missing == []
+    assert unexpected == []
+
+
+def test_real_missing_weights_still_fail():
+    model = nn.Linear(4, 2)
+    missing, unexpected = utils.load_state_dict_compatible(model, {})
+    assert "weight" in missing
+    assert "bias" in missing
+    assert unexpected == []
+
+
+def test_repvgg_filename_alias_and_deploy_inference():
+    module = SimpleNamespace(repvgg_a0=repvgg_a0, repvgga0=repvgga0)
+    fn, name = utils.resolve_instantiation_func(module, "repvgga0")
+    assert name in ("repvgga0", "repvgg_a0")
+    assert fn is not None
+
+    train_keys = {"stage0.rbr_dense.conv.weight": torch.zeros(1)}
+    deploy_keys = {"stage0.rbr_reparam.weight": torch.zeros(1)}
+    assert utils.infer_repvgg_deploy(train_keys) is False
+    assert utils.infer_repvgg_deploy(deploy_keys) is True
+
+
+def test_akamaster_option_a_shortcut_matches_paper_pad():
+    import torch.nn.functional as F
+    from spectra_models_instantiation.resnet_akamaster import PadShortcut
+
+    x = torch.randn(2, 16, 32, 32)
+    paper = F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, 8, 8), "constant", 0)
+    ours = PadShortcut(16, 32)(x)
+    assert torch.allclose(ours, paper)
+
+
+def test_akamaster_option_a_shortcut_is_frozen_identity():
+    model = akamaster_resnet20(num_classes=10)
+    trainable = [n for n, p in model.named_parameters() if "shortcut" in n and p.requires_grad]
+    assert trainable == []
+    assert any(n.endswith("shortcut.channel.weight") for n, _ in model.named_parameters())
+
+
+def test_akamaster_resnet20_prunes_and_runs():
+    model = akamaster_resnet20(num_classes=10).eval()
+    sample = torch.randn(1, 3, 32, 32)
+    before = sum(p.numel() for p in model.parameters())
+    for row_idx in range(len(ModelWithRows(model).row_to_main_layer)):
+        rows = ModelWithRows(model)
+        prune_current_model(rows, 0.8, row_idx)
+        model = rows.model
+    out = model.eval()(sample)
+    assert out.shape == (1, 10)
+    assert sum(p.numel() for p in model.parameters()) < before
+
+
+def test_repvgg_train_mode_forwards():
+    model = repvgg_a0(num_classes=10, large_input=False, deploy=False).eval()
+    out = model(torch.randn(1, 3, 32, 32))
+    assert out.shape == (1, 10)
+    assert any("rbr_dense.conv.weight" in k for k in model.state_dict())
+    assert not any("rbr_reparam" in k for k in model.state_dict())
+
+
+def test_optioned_fashionmnist_is_allowed_when_canonical_was_preloaded():
+    registry = utils.DatasetRegistry(0.7, 0.2)
+    registry.restrict_to_preloaded = True
+    registry._allowed_canonical = {"fashion-mnist"}
+    registry._entries["fashion-mnist"] = {
+        "loaders": ("train", "val", "test"),
+        "num_classes": 10,
+        "input_shape": (1, 28, 28),
+    }
+    spec = {"name": "fashion-mnist", "image_size": 32, "to_rgb": True}
+    assert spec in registry
+    assert "cifar-100" not in registry

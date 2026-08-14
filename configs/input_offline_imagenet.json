@@ -1,0 +1,27 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet50_imagenet1kv1_torchvision_76.13_25.56.pth": [
+    "resnet50",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2_imagenet1kv1_torchvision_71.88_3.505_327.487.pth": [
+    "mobilenet_v2",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg16-bn_imagenet1k_torchvision_73.36_138.358.pth": [
+    "vgg16_bn",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/densenet121_imagenet1kv1_torchvision_74.43_7.98.pth": [
+    "densenet121",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/shufflenet-v2-x1-0_imagenet1kv1_torchvision_69.36_2.28.pth": [
+    "shufflenet_v2_x1_0",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ]
+}

@@ -205,6 +205,16 @@ class DatasetRegistry:
         # True when the caller passed --datasets. JSON nets on other datasets are
         # skipped instead of silently lazy-loading CIFAR-100 into a "C10-only" job.
         self.restrict_to_preloaded = False
+        # Canonical names that --datasets allowed. Optioned specs (Fashion-MNIST
+        # with to_rgb/image_size) share a canonical name with the preloaded one.
+        self._allowed_canonical = set()
+
+    @staticmethod
+    def canonical_base(spec) -> str:
+        name_or_path, _ = parse_dataset_spec(spec)
+        if os.path.exists(str(name_or_path)):
+            return str(name_or_path)
+        return canonical_dataset_name(name_or_path)
 
     @staticmethod
     def key_for(spec) -> str:
@@ -216,10 +226,19 @@ class DatasetRegistry:
         detail = ",".join(f"{k}={options[k]}" for k in sorted(options))
         return f"{base}[{detail}]"
 
+    def _may_load(self, spec) -> bool:
+        if not self.restrict_to_preloaded:
+            return True
+        if self.key_for(spec) in self._entries:
+            return True
+        if self._allowed_canonical:
+            return self.canonical_base(spec) in self._allowed_canonical
+        return False
+
     def get(self, spec) -> dict:
         key = self.key_for(spec)
         if key not in self._entries:
-            if self.restrict_to_preloaded:
+            if not self._may_load(spec):
                 raise KeyError(
                     f"dataset {key!r} is not in --datasets {list(self.keys())}; "
                     f"refusing to lazy-load it")
@@ -243,7 +262,11 @@ class DatasetRegistry:
         return self.get(spec)["input_shape"]
 
     def __contains__(self, spec) -> bool:
-        return self.key_for(spec) in self._entries
+        if self.key_for(spec) in self._entries:
+            return True
+        # Optioned Fashion-MNIST / MNIST specs must not be skipped just because
+        # --datasets listed the canonical name without to_rgb / image_size.
+        return self.restrict_to_preloaded and bool(self._allowed_canonical) and self._may_load(spec)
 
     def __len__(self) -> int:
         return len(self._entries)
@@ -291,6 +314,8 @@ def preload_datasets(datasets, train_split: float, val_split: float) -> DatasetR
     # Restrict only after the explicit preload so --datasets cifar-10 can load
     # CIFAR-10. Instantiation then skips any other JSON dataset.
     registry.restrict_to_preloaded = bool(datasets)
+    if datasets:
+        registry._allowed_canonical = {DatasetRegistry.canonical_base(spec) for spec in datasets}
     return registry
 
 
@@ -435,6 +460,94 @@ def instantiate_networks_and_load_datasets(input_dict, dataloaders_dict: Dataset
     return instantiated_networks
 
 
+def unwrap_checkpoint_state_dict(checkpoint):
+    """Pull a tensor ``state_dict`` out of the wrappers used by SPECTRA sources.
+
+    akamaster saves ``{'best_prec1': float, 'state_dict': OrderedDict}``. Other
+    pickles nest weights under ``model`` / ``net``. Non-tensor extras are dropped.
+    """
+    obj = checkpoint
+    for _ in range(6):
+        if not isinstance(obj, dict):
+            raise TypeError(f"cannot unwrap checkpoint of type {type(obj).__name__}")
+        tensors = {k: v for k, v in obj.items() if torch.is_tensor(v)}
+        wrappers = [obj[k] for k in ("state_dict", "model", "net", "network", "ema")
+                    if isinstance(obj.get(k), dict)]
+        if wrappers:
+            inner_tensors = {k: v for k, v in wrappers[0].items() if torch.is_tensor(v)}
+            if inner_tensors:
+                obj = wrappers[0]
+                continue
+        if tensors:
+            return tensors
+        break
+    if isinstance(obj, dict):
+        tensors = {k: v for k, v in obj.items() if torch.is_tensor(v)}
+        if tensors:
+            return tensors
+    raise ValueError("checkpoint contains no tensor weights")
+
+
+def align_module_prefix(state_dict, model_state_keys):
+    """Add or strip a ``module.`` prefix so DataParallel checkpoints load into a bare model."""
+    if not state_dict or not model_state_keys:
+        return state_dict
+    ckpt_mod = next(iter(state_dict)).startswith("module.")
+    model_mod = model_state_keys[0].startswith("module.")
+    if model_mod and not ckpt_mod:
+        return {f"module.{k}": v for k, v in state_dict.items()}
+    if ckpt_mod and not model_mod:
+        return {k[len("module."):] if k.startswith("module.") else k: v
+                for k, v in state_dict.items()}
+    return state_dict
+
+
+def ignorable_state_key(key: str) -> bool:
+    """Buffers / synthesized tensors that older pickles omit; safe to keep the module default."""
+    name = str(key)
+    if name.endswith("num_batches_tracked"):
+        return True
+    # Option-A akamaster downsample is reconstructed as a frozen 1x1 identity expand.
+    return name.endswith("shortcut.channel.weight")
+
+
+def infer_repvgg_deploy(state_dict):
+    """Training-time RepVGG has ``rbr_dense`` / ``rbr_1x1``; fused deploy has ``rbr_reparam``."""
+    keys = list(state_dict)
+    has_reparam = any("rbr_reparam" in k for k in keys)
+    has_branches = any(("rbr_dense" in k or "rbr_1x1" in k) for k in keys)
+    if has_reparam and not has_branches:
+        return True
+    if has_branches:
+        return False
+    return None
+
+
+def resolve_instantiation_func(module, arch: str):
+    """Resolve a factory, accepting filename-style aliases (``repvgga0``, ``vgg11-bn``)."""
+    compact = re.sub(r"[-_]", "", arch)
+    candidates = [arch, arch.replace("-", "_"), arch.replace("_", "-"), compact]
+    match = re.fullmatch(r"(repvgg)(a\d+)", compact, flags=re.IGNORECASE)
+    if match:
+        candidates.append(f"{match.group(1).lower()}_{match.group(2).lower()}")
+    seen = set()
+    for name in candidates:
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        if hasattr(module, name):
+            return getattr(module, name), name
+    raise ValueError(f"Function '{arch}' not found in {getattr(module, '__file__', module)}")
+
+
+def load_state_dict_compatible(model, state_dict):
+    """``strict=False`` only for ignorable BN buffers; real key mismatches still fail."""
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+    real_missing = [k for k in missing if not ignorable_state_key(k)]
+    real_unexpected = [k for k in unexpected if not ignorable_state_key(k)]
+    return real_missing, real_unexpected
+
+
 def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint_path: str,
                            optional_kwargs: dict, num_classes: int = None,
                            input_shape: tuple = None) -> torch.nn.Module:
@@ -476,14 +589,15 @@ def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)  # Load module
 
-    if not hasattr(module, arch):
-        raise ValueError(f"Function '{arch}' not found in {script_path}")
+    instantiation_func, resolved_arch = resolve_instantiation_func(module, arch)
+    if resolved_arch != arch:
+        print_flush(f"Architecture alias {arch!r} resolved to factory {resolved_arch!r} in {script_path}")
 
     print_flush(f"{checkpoint_path=}, {script_path=}, {optional_kwargs=}")
 
-    instantiation_func = getattr(module, arch)
-    params_list = list(inspect.signature(getattr(module, arch)).parameters)
+    params_list = list(inspect.signature(instantiation_func).parameters)
     params_dict = {}
+    optional_kwargs = dict(optional_kwargs or {})
 
     if NUM_CLASSES in params_list:
         # By default, 'num_classes' is taken from the already-loaded dataset (see DatasetRegistry)
@@ -508,13 +622,10 @@ def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint
         params_dict[WIDTH] = optional_kwargs.get(WIDTH, int(match.group(1)) if match else None)
 
     # Extend params_dict with other optional_kwargs, excluding handled keys
-    params_dict.update({k: v for k, v in optional_kwargs.items() if k not in [NUM_CLASSES, LARGE_INPUT, WIDTH]})
+    params_dict.update({k: v for k, v in optional_kwargs.items()
+                        if k not in [NUM_CLASSES, LARGE_INPUT, WIDTH]})
 
     device = ddp.resolve_device()
-
-    # The CNN under evaluation is repeatedly pruned and rebuilt, so it is deliberately left
-    # unwrapped: a DDP replica would be invalidated by the first structural change.
-    model = instantiation_func(**params_dict).to(device)
 
     # weights_only=True is the safe default, but several older SPECTRA pickles wrap the
     # tensors in a dict that also stores floats (e.g. akamaster ``best_prec1``). Falling
@@ -526,22 +637,39 @@ def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint
             f"torch.load(..., weights_only=True) failed for {checkpoint_path} "
             f"({type(exc).__name__}: {exc}); retrying with weights_only=False")
         checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    state_dict = checkpoint["state_dict"] if "state_dict" in checkpoint else checkpoint
+    state_dict = unwrap_checkpoint_state_dict(checkpoint)
 
-    # Detect mismatch: model expects 'module.' but checkpoint doesn't have it
-    model_keys = list(model.state_dict().keys())
-    ckpt_keys = list(state_dict.keys())
+    if "deploy" in params_list and "deploy" not in params_dict:
+        inferred = infer_repvgg_deploy(state_dict)
+        if inferred is not None:
+            params_dict["deploy"] = inferred
 
-    if model_keys[0].startswith("module.") and not ckpt_keys[0].startswith("module."):
-        # Wrap keys with 'module.' to match DistributedDataParallel
-        state_dict = {f"module.{k}": v for k, v in state_dict.items()}
-    elif not model_keys[0].startswith("module.") and ckpt_keys[0].startswith("module."):
-        # Unwrap if model is not wrapped but checkpoint is
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    def _instantiate_and_load(kwargs):
+        # The CNN under evaluation is repeatedly pruned and rebuilt, so it is deliberately left
+        # unwrapped: a DDP replica would be invalidated by the first structural change.
+        built = instantiation_func(**kwargs).to(device)
+        aligned = align_module_prefix(state_dict, list(built.state_dict().keys()))
+        missing, unexpected = load_state_dict_compatible(built, aligned)
+        return built, missing, unexpected
 
-    model.load_state_dict(state_dict)
+    model, real_missing, real_unexpected = _instantiate_and_load(params_dict)
+
+    if (real_missing or real_unexpected) and "deploy" in params_list and infer_repvgg_deploy(state_dict) is None:
+        flipped = dict(params_dict)
+        flipped["deploy"] = not bool(params_dict.get("deploy", False))
+        print_flush(
+            f"RepVGG key mismatch with deploy={params_dict.get('deploy')}; "
+            f"retrying deploy={flipped['deploy']}")
+        model, real_missing, real_unexpected = _instantiate_and_load(flipped)
+        params_dict = flipped
+
+    if real_missing or real_unexpected:
+        raise RuntimeError(
+            f"Checkpoint key mismatch for {checkpoint_path} ({arch}): "
+            f"missing={len(real_missing)} unexpected={len(real_unexpected)}. "
+            f"missing[:8]={real_missing[:8]} unexpected[:8]={real_unexpected[:8]}")
+
     model.eval()
-
     return model
 
 

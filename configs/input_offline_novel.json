@@ -1,0 +1,22 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/shufflenetv2x1_cifar10_chenyaofo_92.98_1.26_90.pt": [
+    "shufflenetv2x1",
+    "/home/paretsky/spectra_models_instantiation/shufflenetv2_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/repvgga0_cifar10_chenyaofo_94.39_7.84_978.16.pt": [
+    "repvgg_a0",
+    "/home/paretsky/spectra_models_instantiation/repvgg_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/repvgga1_cifar10_chenyaofo_94.89_12.82_1702.66.pt": [
+    "repvgg_a1",
+    "/home/paretsky/spectra_models_instantiation/repvgg_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/shufflenetv2x1.5_cifar10_chenyaofo_93.55_2.49_188.52.pt": [
+    "shufflenetv2x15",
+    "/home/paretsky/spectra_models_instantiation/shufflenetv2_chenyaofo.py",
+    "cifar-10"
+  ]
+}

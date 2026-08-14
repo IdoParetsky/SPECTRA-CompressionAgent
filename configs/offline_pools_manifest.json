@@ -1,0 +1,48 @@
+{
+  "purpose": "Final offline SPECTRA agent split over the 287-file checkpoint pool. Train never sees every checkpoint. ImageNet and ViT/DeiT are not in the DRL fine-tune loop.",
+  "pool_size": 287,
+  "cnn_loadable_target": "Every CNN checkpoint should load after the akamaster option-A and RepVGG deploy remaps. Grafting / DeiT / ViT / MaxViT stay out of SPECTRA catalogs (not structured-CNN prune targets).",
+  "split_rule": {
+    "train": "At least one competent net per (family x cheap-dataset) combo we actually have. Cheap datasets = CIFAR-10, SVHN, Fashion-MNIST. CIFAR-100 joins train only after a 2-5% structured cut recovers inside -10 pp.",
+    "eval_similar": "Same families, different width / depth / source (thin vs chenyaofo vs akamaster). This is the in-distribution generalizability claim.",
+    "eval_novel": "Families absent from train (ShuffleNet, RepVGG) on a dataset the agent did train on (CIFAR-10). This is the unlike-architecture claim.",
+    "eval_heldout_dataset": "CIFAR-100 nets, listed separately, once recovery exists. ImageNet CNNs are a later transfer catalog with no overnight fine-tune."
+  },
+  "do_not_train_on_all_287": true,
+  "catalogs": {
+    "database_offline_train.json": {
+      "role": "agent-train-now",
+      "n": 10,
+      "use_now": true,
+      "families": ["thin-ResNet", "chenyaofo-ResNet", "VGG-BN", "MobileNetV2", "DenseNet-BC"],
+      "datasets": ["cifar-10", "svhn", "fashion-mnist"]
+    },
+    "input_offline_similar.json": {
+      "role": "held-out-similar",
+      "n": 7,
+      "use_now": true
+    },
+    "input_offline_novel.json": {
+      "role": "held-out-unlike-family",
+      "n": 4,
+      "use_now": true,
+      "families": ["ShuffleNetV2", "RepVGG"]
+    },
+    "database_offline_train_with_c100.json": {
+      "role": "agent-train-when-c100-recovers",
+      "n": 16,
+      "use_now": false
+    },
+    "input_offline_c100.json": {
+      "role": "held-out-dataset-c100",
+      "n": 5,
+      "use_now": false
+    },
+    "input_offline_imagenet.json": {
+      "role": "eval-only-imagenet-cnn-transfer",
+      "n": 5,
+      "use_now": false,
+      "note": "Never overnight FT. Load and prune with frozen or short eval only."
+    }
+  }
+}
