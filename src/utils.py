@@ -471,16 +471,22 @@ def unwrap_checkpoint_state_dict(checkpoint):
         if not isinstance(obj, dict):
             raise TypeError(f"cannot unwrap checkpoint of type {type(obj).__name__}")
         tensors = {k: v for k, v in obj.items() if torch.is_tensor(v)}
-        wrappers = [obj[k] for k in ("state_dict", "model", "net", "network", "ema")
-                    if isinstance(obj.get(k), dict)]
-        if wrappers:
-            inner_tensors = {k: v for k, v in wrappers[0].items() if torch.is_tensor(v)}
-            if inner_tensors:
-                obj = wrappers[0]
-                continue
-        if tensors:
-            return tensors
-        break
+        wrappers = [obj[k] for k in ("state_dict", "model_state_dict", "model", "net", "network", "ema")
+                    if k in obj]
+        for inner in wrappers:
+            if isinstance(inner, torch.nn.Module):
+                obj = inner.state_dict()
+                break
+            if isinstance(inner, dict):
+                inner_tensors = {k: v for k, v in inner.items() if torch.is_tensor(v)}
+                if inner_tensors:
+                    obj = inner
+                    break
+        else:
+            if tensors:
+                return tensors
+            break
+        continue
     if isinstance(obj, dict):
         tensors = {k: v for k, v in obj.items() if torch.is_tensor(v)}
         if tensors:
@@ -488,18 +494,38 @@ def unwrap_checkpoint_state_dict(checkpoint):
     raise ValueError("checkpoint contains no tensor weights")
 
 
+def apply_key_aliases(state_dict, model_keys):
+    """Rename the handful of layout aliases used across SPECTRA checkpoint sources."""
+    sd = dict(state_dict)
+    model_keys = list(model_keys)
+
+    for prefix in ("module.", "model."):
+        model_has = any(k.startswith(prefix) for k in model_keys)
+        ckpt_has = any(k.startswith(prefix) for k in sd)
+        if model_has and not ckpt_has:
+            sd = {f"{prefix}{k}": v for k, v in sd.items()}
+        elif ckpt_has and not model_has:
+            sd = {k[len(prefix):] if k.startswith(prefix) else k: v for k, v in sd.items()}
+
+    if any("downsample" in k for k in model_keys) and any("shortcut" in k for k in sd):
+        sd = {k.replace(".shortcut.", ".downsample."): v for k, v in sd.items()}
+    elif any("shortcut" in k for k in model_keys) and any("downsample" in k for k in sd):
+        sd = {k.replace(".downsample.", ".shortcut."): v for k, v in sd.items()}
+
+    swaps = []
+    if "fc.weight" in model_keys and "linear.weight" in sd:
+        swaps.append(("linear", "fc"))
+    if "linear.weight" in model_keys and "fc.weight" in sd:
+        swaps.append(("fc", "linear"))
+    for src, dst in swaps:
+        sd = {(f"{dst}.weight" if k == f"{src}.weight" else
+               f"{dst}.bias" if k == f"{src}.bias" else k): v for k, v in sd.items()}
+    return sd
+
+
 def align_module_prefix(state_dict, model_state_keys):
-    """Add or strip a ``module.`` prefix so DataParallel checkpoints load into a bare model."""
-    if not state_dict or not model_state_keys:
-        return state_dict
-    ckpt_mod = next(iter(state_dict)).startswith("module.")
-    model_mod = model_state_keys[0].startswith("module.")
-    if model_mod and not ckpt_mod:
-        return {f"module.{k}": v for k, v in state_dict.items()}
-    if ckpt_mod and not model_mod:
-        return {k[len("module."):] if k.startswith("module.") else k: v
-                for k, v in state_dict.items()}
-    return state_dict
+    """Backward-compatible name: DataParallel ``module.`` plus the other SPECTRA aliases."""
+    return apply_key_aliases(state_dict, model_state_keys)
 
 
 def ignorable_state_key(key: str) -> bool:
@@ -648,7 +674,7 @@ def load_model_from_script(arch: str, dataset_path, script_path: str, checkpoint
         # The CNN under evaluation is repeatedly pruned and rebuilt, so it is deliberately left
         # unwrapped: a DDP replica would be invalidated by the first structural change.
         built = instantiation_func(**kwargs).to(device)
-        aligned = align_module_prefix(state_dict, list(built.state_dict().keys()))
+        aligned = apply_key_aliases(state_dict, list(built.state_dict().keys()))
         missing, unexpected = load_state_dict_compatible(built, aligned)
         return built, missing, unexpected
 

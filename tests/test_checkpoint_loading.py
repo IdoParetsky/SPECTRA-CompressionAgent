@@ -25,7 +25,20 @@ def test_unwrap_akamaster_wrapper_drops_best_prec1():
     assert utils.unwrap_checkpoint_state_dict(wrapped) == weights
 
 
-def test_unwrap_nested_model_key():
+def test_unwrap_model_state_dict_and_module():
+    weights = {"conv.weight": torch.ones(1, 1, 1, 1)}
+    wrapped = {"model_config": {"arch": "resnet50"}, "model_state_dict": weights}
+    assert utils.unwrap_checkpoint_state_dict(wrapped) == weights
+
+    class Tiny(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv = nn.Conv2d(1, 1, 1, bias=False)
+            nn.init.ones_(self.conv.weight)
+
+    nested = {"state_dict": Tiny(), "epoch": 3}
+    got = utils.unwrap_checkpoint_state_dict(nested)
+    assert list(got) == ["conv.weight"]
     inner = {"fc.weight": torch.zeros(2, 2)}
     assert utils.unwrap_checkpoint_state_dict({"model": inner, "epoch": 12}) == inner
 
@@ -34,6 +47,17 @@ def test_align_strips_module_prefix():
     sd = {"module.conv.weight": torch.ones(1)}
     aligned = utils.align_module_prefix(sd, ["conv.weight"])
     assert list(aligned) == ["conv.weight"]
+
+
+def test_alias_shortcut_and_linear_to_torchvision_names():
+    sd = {
+        "linear.weight": torch.ones(2, 4),
+        "linear.bias": torch.zeros(2),
+        "layer2.0.shortcut.0.weight": torch.ones(1),
+    }
+    aligned = utils.apply_key_aliases(sd, ["fc.weight", "fc.bias", "layer2.0.downsample.0.weight"])
+    assert "fc.weight" in aligned and "linear.weight" not in aligned
+    assert "layer2.0.downsample.0.weight" in aligned
 
 
 def test_ignorable_bn_buffers_do_not_fail_load():
