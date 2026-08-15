@@ -168,6 +168,53 @@ def eval_min_param_ratio() -> float:
     return float(os.environ.get("SPECTRA_EVAL_MIN_PARAM_RATIO", "0.70"))
 
 
+def eval_policy_name() -> str:
+    """Eval action source: actor (default) or a same-loop heuristic (l1 / mild / random)."""
+    return os.environ.get("SPECTRA_EVAL_POLICY", "actor").strip().lower() or "actor"
+
+
+def heuristic_eval_action(
+    legal: torch.Tensor,
+    compression_rates: Dict[int, float],
+    *,
+    policy: str,
+    device,
+) -> torch.Tensor:
+    """
+    Pick a discrete compression rate without the actor.
+
+    The environment already ranks filters by L1 inside each chosen layer, so these
+    baselines only choose *how hard* to prune the current layer — the same action
+    menu, FT budget, fortify mask, and param floor as DRL eval.
+
+    l1 / aggressive / uniform: strongest legal prune (lowest rate < 1).
+    mild: prefer 0.9 if legal, else strongest prune.
+    random: uniform among legal non-identity actions.
+    """
+    identity = next(
+        (i for i, r in compression_rates.items() if abs(float(r) - 1.0) < 1e-9),
+        0,
+    )
+    legal_idx = legal.nonzero(as_tuple=False).flatten().tolist()
+    prune_idx = [
+        int(i) for i in legal_idx
+        if abs(float(compression_rates[int(i)]) - 1.0) >= 1e-9
+    ]
+    if not prune_idx:
+        return torch.tensor([identity], device=device)
+
+    name = (policy or "l1").strip().lower()
+    if name in ("random", "uniform_random"):
+        pick = prune_idx[int(torch.randint(0, len(prune_idx), (1,)).item())]
+        return torch.tensor([pick], device=device)
+    if name in ("mild", "l1_mild"):
+        nines = [i for i in prune_idx if abs(float(compression_rates[i]) - 0.9) < 1e-9]
+        if nines:
+            return torch.tensor([nines[0]], device=device)
+    best = min(prune_idx, key=lambda i: float(compression_rates[i]))
+    return torch.tensor([best], device=device)
+
+
 def critic_huber_delta() -> float:
     """Smooth-L1 beta for critic; override with SPECTRA_CRITIC_HUBER_DELTA (0 disables)."""
     return float(os.environ.get("SPECTRA_CRITIC_HUBER_DELTA", "100.0"))

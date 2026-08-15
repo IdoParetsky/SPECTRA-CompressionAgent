@@ -716,6 +716,35 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  baseline_c10_l1|baseline_c10_mild|baseline_c10_random)
+    # Same-loop structured baselines vs DRL: same rates, FT, fortify, floor 0.70.
+    # Env still L1-ranks filters; these policies only pick the compression rate.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_c10_thin.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_thin.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER=1
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    if [[ "$PROFILE" == "baseline_c10_mild" ]]; then
+      export SPECTRA_EVAL_POLICY=mild
+    elif [[ "$PROFILE" == "baseline_c10_random" ]]; then
+      export SPECTRA_EVAL_POLICY=random
+    else
+      export SPECTRA_EVAL_POLICY=l1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   *)
     echo "Unknown SPECTRA_PROFILE='${PROFILE}'" >&2
     exit 1

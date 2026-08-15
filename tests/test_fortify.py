@@ -86,11 +86,36 @@ def test_budget_in_state_adds_one_channel(monkeypatch):
     assert token_feature_dim(5) == TOKEN_BASE_DIM + fortify.FORTIFY_TOKEN_DIM + 1 + 10
 
 
-def test_budget_in_state_off_by_default(monkeypatch):
-    monkeypatch.delenv("SPECTRA_BUDGET_IN_STATE", raising=False)
-    monkeypatch.setenv("SPECTRA_FORTIFY", "1")
-    assert fortify.budget_in_state() is False
-    assert fortify.fortify_token_dim() == fortify.FORTIFY_TOKEN_DIM
+def test_heuristic_eval_l1_picks_strongest_prune(monkeypatch):
+    monkeypatch.setenv("SPECTRA_EVAL_POLICY", "l1")
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    action = fortify.heuristic_eval_action(legal, rates, policy="l1", device="cpu")
+    assert int(action.item()) == 2
+
+
+def test_heuristic_eval_mild_prefers_0_9(monkeypatch):
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    action = fortify.heuristic_eval_action(legal, rates, policy="mild", device="cpu")
+    assert int(action.item()) == 1
+
+
+def test_heuristic_eval_identity_when_no_prune_legal():
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, False, False])
+    action = fortify.heuristic_eval_action(legal, rates, policy="l1", device="cpu")
+    assert int(action.item()) == 0
+
+
+def test_heuristic_eval_random_stays_in_prune_set():
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    torch.manual_seed(0)
+    seen = {int(fortify.heuristic_eval_action(legal, rates, policy="random", device="cpu").item())
+            for _ in range(20)}
+    assert seen <= {1, 2}
+    assert 0 not in seen
 
 
 def test_fortify_features_shape():

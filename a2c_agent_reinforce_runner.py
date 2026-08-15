@@ -77,12 +77,10 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 done = False
 
                 env._budget_logged = False
+                from src import fortify as fortify_mod
+                eval_policy = fortify_mod.eval_policy_name()
                 while not done:
-                    action_dist = agent.actor_model(state)
                     legal = env.legal_action_mask(device=conf.device)
-                    from src import fortify as fortify_mod
-                    action_dist = fortify_mod.apply_action_mask(action_dist, legal)
-
                     min_ratio = fortify_mod.eval_min_param_ratio()
                     at_budget = env.param_ratio() <= min_ratio
                     if at_budget:
@@ -96,7 +94,13 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                              if abs(float(r) - 1.0) < 1e-9),
                             0)
                         action = torch.tensor([identity], device=conf.device)
+                    elif eval_policy not in ("actor",):
+                        action = fortify_mod.heuristic_eval_action(
+                            legal, conf.compression_rates_dict,
+                            policy=eval_policy, device=conf.device)
                     else:
+                        action_dist = fortify_mod.apply_action_mask(
+                            agent.actor_model(state), legal)
                         action = action_dist.sample()
 
                     compression_rate = conf.compression_rates_dict[int(action.item())]
@@ -119,10 +123,20 @@ def main():
 
     # Both actor+critic paths historically meant "eval only". For warm-start continued
     # training set SPECTRA_CONTINUE_TRAIN=1 (loads weights, still runs agent.train()).
+    # Heuristic eval policies (SPECTRA_EVAL_POLICY=l1|mild|random) skip training and
+    # do not need checkpoints — they only pick rates; the env still L1-ranks filters.
     continue_train = os.environ.get("SPECTRA_CONTINUE_TRAIN", "").strip().lower() in (
         "1", "true", "yes")
+    from src import fortify as fortify_mod
+    heuristic_eval = fortify_mod.eval_policy_name() not in ("actor",)
+    skip_train = heuristic_eval or os.environ.get("SPECTRA_SKIP_TRAIN", "").strip().lower() in (
+        "1", "true", "yes")
     pretrained = bool(conf.actor_checkpoint_path and conf.critic_checkpoint_path)
-    if pretrained and not continue_train:
+    if skip_train and not continue_train:
+        utils.print_flush(
+            f"Skipping training "
+            f"(eval_policy={fortify_mod.eval_policy_name()}, SPECTRA_SKIP_TRAIN set).")
+    elif pretrained and not continue_train:
         utils.print_flush(
             f"Agent is pre-trained, training is skipped "
             f"(actor_checkpoint={conf.actor_checkpoint_path}, "
