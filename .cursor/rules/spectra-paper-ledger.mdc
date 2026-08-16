@@ -1,0 +1,22 @@
+---
+description: Keep SPECTRA paper numbers in git (docs/paper), not in chat memory or canvases.
+alwaysApply: true
+---
+
+# SPECTRA paper ledger (durable memory)
+
+Canonical files (in git):
+
+- `docs/paper/RESULTS_LEDGER.md` — TEST numbers, job ids, claims C1–C9; **§§10–20 = 8–16 Aug backfill** (already mined from cluster logs). New jobs *extend* those tables; do not re-derive the overhaul / encoder / mixed-6-net / night-A/B story from chat.
+- `docs/paper/SPECTRA_draft.md` — NEON-section paper draft
+- `docs/paper/README.md` — how to update
+
+When a **TEST** row (or C100 recoverability jsonl TEST) lands:
+
+1. Edit the ledger first (job, net, Δacc, params, FLOPs, seed, LOCKED vs PRELIM).
+2. Update the matching table or claim in `SPECTRA_draft.md` in the same turn.
+3. Then refresh the current-affairs canvas if the user is watching ops.
+
+Do **not** treat chat summaries or `*.canvas.tsx` as the record of record. Quote TEST only. Skip akamaster ResNet-32. `param_ratio` / `flops_ratio` = fraction kept. Do not mix C100 DRL train returns into paper tables. Do not describe early C100 failure as missing C100 from the 10-net train set (see ledger §7).
+
+**Do not quote as TEST:** overnight-matrix −1.2 pp (20066579 TEST is −3.1); train-step “within −10 %”; log `eval_train` (CNN train-loader, e.g. r56-w4 −1.7 pp vs TEST −15.9); C100 `within_budget` at ≥98% params. Encoder A/B, AMP, skinny-in-train, and DenseNet-in-train already failed to move r56-w4 (ledger §16–18) — do not restart those A/Bs.
