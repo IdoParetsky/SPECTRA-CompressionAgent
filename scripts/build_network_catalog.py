@@ -198,9 +198,42 @@ OFFLINE_NOVEL = [
            "shufflenetv2x15", "shufflenetv2_chenyaofo.py", "cifar-10"),
 ]
 
-# C100 is every family×dataset combo we have, for the *final* offline agent
-# after structured-prune recovery on CIFAR-100 actually works. Not for tonight.
-OFFLINE_TRAIN_WITH_C100 = OFFLINE_TRAIN + [
+OFFLINE_WIDE_TRAIN = OFFLINE_TRAIN + [
+    # Extra C10 widths (not similar w16 / w10, not skinny eval w2 / w4).
+    _entry("resnet20-width8_cifar10_thin-res-net_89.74_0.069_10.72.pt",
+           "resnet20", "thin_res_net.py", "cifar-10"),
+    _entry("resnet20-width9_cifar10_thin-res-net_91.47_0.087_13.47.pt",
+           "resnet20", "thin_res_net.py", "cifar-10"),
+    _entry("resnet20-width12_cifar10_thin-res-net_93.39_0.154_23.64.pt",
+           "resnet20", "thin_res_net.py", "cifar-10"),
+    _entry("resnet56-width7_cifar10_thin-res-net_93.58_0.165_25.13.pt",
+           "resnet56", "thin_res_net.py", "cifar-10"),
+    _entry("resnet56-width8_cifar10_thin-res-net_94.71_0.215_32.64.pt",
+           "resnet56", "thin_res_net.py", "cifar-10"),
+    _entry("resnet56-width12_cifar10_thin-res-net_96.35_0.482_72.45.pt",
+           "resnet56", "thin_res_net.py", "cifar-10"),
+    # Other C10 sources / depths / families (ShuffleNet + RepVGG stay novel).
+    _entry("resnet20_cifar10_chenyaofo_92.6_0.27_81.62.pt",
+           "resnet20", "resnet_chenyaofo.py", "cifar-10"),
+    _entry("resnet56_cifar10_chenyaofo_94.37_0.86_251.5.pt",
+           "resnet56", "resnet_chenyaofo.py", "cifar-10"),
+    _entry("resnet20-width14_cifar10_thin-res-net_93.95_0.209_32.00.pt",
+           "resnet20", "thin_res_net.py", "cifar-10"),
+    _entry("resnet56-width14_cifar10_thin-res-net_96.45_0.656_98.23.pt",
+           "resnet56", "thin_res_net.py", "cifar-10"),
+    _entry("vgg11_bn_cifar10_chenyaofo_92.79_9.76_306.58.pt",
+           "vgg11_bn", "vgg_chenyaofo.py", "cifar-10"),
+    _entry("vgg13_bn_cifar10_chenyaofo_94_9.94_457.58.pt",
+           "vgg13_bn", "vgg_chenyaofo.py", "cifar-10"),
+    _entry("mobilenet-v2x0.5_cifar10_chenyaofo_92.99_0.7_55.94.pt",
+           "mobilenet_v2x05", "mobilenetv2_chenyaofo.py", "cifar-10"),
+    _entry("mobilenet-v2x1.4_cifar10_chenyaofo_94.22_4.33_340.14.pt",
+           "mobilenet_v2x14", "mobilenetv2_chenyaofo.py", "cifar-10"),
+]
+
+# Competent C100 train slice for DRL *after* a recovery probe cell is inside -10 pp.
+# Held-out C100 eval stays in OFFLINE_C100_EVAL (r20-w16, r56-w15, VGG-16, ShuffleNet, RepVGG).
+C100_WIDE_TRAIN = [
     _entry("resnet20-width13_cifar100_thin-res-net_69.95_0.185_27.67.pt",
            "resnet20", "thin_res_net.py", "cifar-100"),
     _entry("resnet56-width9_cifar100_thin-res-net_73.05_0.275_41.13.pt",
@@ -214,6 +247,7 @@ OFFLINE_TRAIN_WITH_C100 = OFFLINE_TRAIN + [
     _entry("densenet40_cifar100_densenet-cifar_70.25_0.188_74.44.pt",
            "densenet40", "densenet_cifar.py", "cifar-100"),
 ]
+OFFLINE_TRAIN_WITH_C100 = OFFLINE_TRAIN + C100_WIDE_TRAIN
 
 OFFLINE_C100_EVAL = [
     _entry("resnet20-width16_cifar100_thin-res-net_72.98_0.278_41.62.pt",
@@ -341,6 +375,8 @@ def main():
         "database_offline_train.json": OFFLINE_TRAIN,
         "input_offline_similar.json": OFFLINE_SIMILAR,
         "input_offline_novel.json": OFFLINE_NOVEL,
+        "database_offline_wide.json": OFFLINE_WIDE_TRAIN,
+        "database_c100_wide.json": C100_WIDE_TRAIN,
         "database_offline_train_with_c100.json": OFFLINE_TRAIN_WITH_C100,
         "input_offline_c100.json": OFFLINE_C100_EVAL,
         "input_offline_imagenet.json": OFFLINE_IMAGENET,

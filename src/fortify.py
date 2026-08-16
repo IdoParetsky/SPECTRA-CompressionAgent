@@ -168,8 +168,62 @@ def eval_min_param_ratio() -> float:
     return float(os.environ.get("SPECTRA_EVAL_MIN_PARAM_RATIO", "0.70"))
 
 
+def eval_lookahead_enabled() -> bool:
+    """If set, refuse a prune whose *previewed* param_ratio would land below the floor."""
+    raw = os.environ.get("SPECTRA_EVAL_LOOKAHEAD", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def identity_action_index(compression_rates: Dict[int, float]) -> int:
+    return next(
+        (i for i, r in compression_rates.items() if abs(float(r) - 1.0) < 1e-9),
+        0,
+    )
+
+
+def action_respecting_param_floor(
+    env,
+    action: torch.Tensor,
+    legal: torch.Tensor,
+    compression_rates: Dict[int, float],
+    min_ratio: float,
+    device,
+) -> torch.Tensor:
+    """
+    Keep the chosen action unless applying it would jump below ``min_ratio``.
+
+    Then pick the strongest legal prune whose dry-run still stays on the floor;
+    otherwise identity. Default-off (``SPECTRA_EVAL_LOOKAHEAD``) so running DRL
+    evals are unchanged. Floor 0.71 without this still overshot to 0.667.
+    """
+    identity = identity_action_index(compression_rates)
+    idx = int(action.item())
+    rate = float(compression_rates[idx])
+    if abs(rate - 1.0) < 1e-9:
+        return action
+    if float(env.preview_param_ratio(rate)) + 1e-9 >= min_ratio:
+        return action
+    legal_idx = legal.nonzero(as_tuple=False).flatten().tolist()
+    prune_opts = sorted(
+        (
+            (int(i), float(compression_rates[int(i)]))
+            for i in legal_idx
+            if abs(float(compression_rates[int(i)]) - 1.0) >= 1e-9
+        ),
+        key=lambda item: item[1],
+    )
+    for cand_i, cand_rate in prune_opts:
+        if float(env.preview_param_ratio(cand_rate)) + 1e-9 >= min_ratio:
+            return torch.tensor([cand_i], device=device)
+    return torch.tensor([identity], device=device)
+
+
 def eval_policy_name() -> str:
-    """Eval action source: actor (default) or a same-loop heuristic (l1 / mild / random)."""
+    """
+    Eval action source: ``actor`` (learned DRL) or a rate heuristic (``l1`` / ``mild`` /
+    ``random``). All four share the same prune + fine-tune + floor loop; only the *rate*
+    picker changes. ``l1`` here means greedy strongest cut, not a different ranking.
+    """
     return os.environ.get("SPECTRA_EVAL_POLICY", "actor").strip().lower() or "actor"
 
 
@@ -183,11 +237,15 @@ def heuristic_eval_action(
     """
     Pick a discrete compression rate without the actor.
 
-    The environment already ranks filters by L1 inside each chosen layer, so these
-    baselines only choose *how hard* to prune the current layer — the same action
-    menu, FT budget, fortify mask, and param floor as DRL eval.
+    The environment already ranks filters by magnitude inside each chosen layer
+    (Li et al. 2017 L1 by default; see ``src/pruning.py``). These baselines only choose
+    *how hard* to prune the current layer — the same action menu, fine-tune budget,
+    illegal-action mask, and parameter floor as DRL eval. That is the fair comparison
+    for "did the agent learn a better *schedule* than a heuristic?"
 
     l1 / aggressive / uniform: strongest legal prune (lowest rate < 1).
+        The name ``l1`` is historical: it is *greedy rate selection*, not a different
+        ranking. Filters are still ranked by ``filter_importance``.
     mild: prefer 0.9 if legal, else strongest prune.
     random: uniform among legal non-identity actions.
     """

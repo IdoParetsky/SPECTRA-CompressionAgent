@@ -124,6 +124,18 @@ case "$PROFILE" in
   probe_c100_aug)
     # CIFAR-100 recovery with train-time RandomCrop+Flip (no RL).
     GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+  probe_c100_recipe)
+    # SGD+cosine+mixup+AutoAugment+160 ep C100 recovery (no RL).
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+  probe_c100_kd)
+    # Same as recipe plus knowledge distillation; no mixup.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+  offline_wide)
+    # 24-net recoverable catalog (C10/SVHN/FMNIST). Similar/novel/C10-thin stay held out.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=129600 ;;
+  c100_wide_drl)
+    # C100 DRL on 6 competent nets; start only afterok a recipe probe that recovered.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=129600 ;;
   eval_diag_structural_c100)
     # Eval-only: structural diag agent on C100 held-out (no training).
     GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
@@ -170,7 +182,7 @@ case "$PROFILE" in
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|eval_offline_*|probe_c100*|eval_*|eval_only|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|baseline_c10_*}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|baseline_c10_*}" >&2
     exit 1
     ;;
 esac
@@ -224,6 +236,9 @@ fi
 if [[ -n "${SPECTRA_BEGIN:-}" ]]; then
   SBATCH_EXTRA+=(--begin="${SPECTRA_BEGIN}")
 fi
+if [[ -n "${SPECTRA_NICE:-}" ]]; then
+  SBATCH_EXTRA+=(--nice="${SPECTRA_NICE}")
+fi
 # Command-line --signal overrides #SBATCH --signal=B:USR1@900.
 # This is a last-resort stop before SIGKILL, not the train/eval split
 # (--runtime_limit ends training). Slurm rejects huge @seconds (7d walls).
@@ -250,7 +265,7 @@ JOB_ID=$(sbatch --parsable \
   --cpus-per-task="${CPUS}" \
   --time="${TIME}" \
   --exclude="${EXCLUDE_NODES}" \
-  --job-name="spectra-${PROFILE}" \
+  --job-name="${SPECTRA_JOB_NAME:-spectra-${PROFILE}}" \
   --export=ALL,SPECTRA_PROFILE="${PROFILE}" \
   "${SBATCH_EXTRA[@]}" \
   scripts/spectra.sbatch)

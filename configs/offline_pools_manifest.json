@@ -21,6 +21,18 @@
       "n": 1,
       "use_now": true
     },
+    "database_offline_wide.json": {
+      "role": "agent-train-wide",
+      "n": 24,
+      "use_now": true,
+      "note": "10-net leap catalog plus extra C10 widths/sources/families. Similar/novel/C10-thin eval files stay held out. No C100, no ImageNet, no grafting/MNIST toys."
+    },
+    "database_c100_wide.json": {
+      "role": "c100-drl-train-after-recovery",
+      "n": 6,
+      "use_now": false,
+      "note": "Start only after a recipe probe cell is inside -10 pp (afterok)."
+    },
     "database_offline_train.json": {
       "role": "agent-train-now",
       "n": 10,

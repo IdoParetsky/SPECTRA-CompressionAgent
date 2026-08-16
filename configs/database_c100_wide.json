@@ -1,0 +1,32 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width13_cifar100_thin-res-net_69.95_0.185_27.67.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-100"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width9_cifar100_thin-res-net_73.05_0.275_41.13.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-100"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet44_cifar100_chenyaofo_71.63_0.67_184.88.pt": [
+    "resnet44",
+    "/home/paretsky/spectra_models_instantiation/resnet_chenyaofo.py",
+    "cifar-100"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg11_bn_cifar100_chenyaofo_70.78_9.8_306.68.pt": [
+    "vgg11_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-100"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2x1_cifar100_chenyaofo_74.2_2.35_176.18.pt": [
+    "mobilenet_v2x1",
+    "/home/paretsky/spectra_models_instantiation/mobilenetv2_chenyaofo.py",
+    "cifar-100"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/densenet40_cifar100_densenet-cifar_70.25_0.188_74.44.pt": [
+    "densenet40",
+    "/home/paretsky/spectra_models_instantiation/densenet_cifar.py",
+    "cifar-100"
+  ]
+}

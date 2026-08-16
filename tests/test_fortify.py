@@ -108,6 +108,43 @@ def test_heuristic_eval_identity_when_no_prune_legal():
     assert int(action.item()) == 0
 
 
+def test_eval_lookahead_off_by_default(monkeypatch):
+    monkeypatch.delenv("SPECTRA_EVAL_LOOKAHEAD", raising=False)
+    assert fortify.eval_lookahead_enabled() is False
+    monkeypatch.setenv("SPECTRA_EVAL_LOOKAHEAD", "1")
+    assert fortify.eval_lookahead_enabled() is True
+
+
+class _FakePreviewEnv:
+    def __init__(self, previews):
+        self.previews = previews
+
+    def preview_param_ratio(self, rate):
+        return self.previews[float(rate)]
+
+
+def test_lookahead_keeps_action_when_preview_stays_on_floor():
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    env = _FakePreviewEnv({1.0: 0.80, 0.9: 0.75, 0.8: 0.71})
+    action = torch.tensor([2])
+    out = fortify.action_respecting_param_floor(env, action, legal, rates, 0.70, "cpu")
+    assert int(out.item()) == 2
+
+
+def test_lookahead_falls_back_to_milder_cut_then_identity():
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    env = _FakePreviewEnv({1.0: 0.83, 0.9: 0.72, 0.8: 0.66})
+    action = torch.tensor([2])
+    out = fortify.action_respecting_param_floor(env, action, legal, rates, 0.70, "cpu")
+    assert int(out.item()) == 1
+    env_both_low = _FakePreviewEnv({1.0: 0.83, 0.9: 0.65, 0.8: 0.60})
+    out_id = fortify.action_respecting_param_floor(
+        env_both_low, action, legal, rates, 0.70, "cpu")
+    assert int(out_id.item()) == 0
+
+
 def test_heuristic_eval_random_stays_in_prune_set():
     rates = {0: 1.0, 1: 0.9, 2: 0.8}
     legal = torch.tensor([True, True, True])

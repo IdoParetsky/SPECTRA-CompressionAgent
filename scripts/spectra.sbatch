@@ -501,6 +501,37 @@ case "$PROFILE" in
     export SPECTRA_PROBE_RATES="${SPECTRA_PROBE_RATES:-0.99 0.98 0.95}"
     RUN_KIND=probe_c100
     ;;
+  probe_c100_recipe)
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_FT_AUTOAUG=1
+    export SPECTRA_FT_OPTIM=sgd
+    export SPECTRA_FT_COSINE=1
+    export SPECTRA_FT_MIXUP="${SPECTRA_FT_MIXUP:-0.2}"
+    export SPECTRA_FT_LABEL_SMOOTH="${SPECTRA_FT_LABEL_SMOOTH:-0.1}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-80}"
+    export SPECTRA_PROBE_RATES="${SPECTRA_PROBE_RATES:-0.99 0.98 0.95}"
+    export SPECTRA_PROBE_EPOCHS="${SPECTRA_PROBE_EPOCHS:-160}"
+    export SPECTRA_PROBE_ROWS="${SPECTRA_PROBE_ROWS:-mid}"
+    export SPECTRA_PROBE_TAU="${SPECTRA_PROBE_TAU:-10}"
+    RUN_KIND=probe_c100_recipe
+    ;;
+  probe_c100_kd)
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_FT_AUTOAUG=1
+    export SPECTRA_FT_OPTIM=sgd
+    export SPECTRA_FT_COSINE=1
+    export SPECTRA_FT_MIXUP=0
+    export SPECTRA_FT_LABEL_SMOOTH="${SPECTRA_FT_LABEL_SMOOTH:-0.1}"
+    export SPECTRA_FT_KD=1
+    export SPECTRA_FT_KD_T="${SPECTRA_FT_KD_T:-4}"
+    export SPECTRA_FT_KD_ALPHA="${SPECTRA_FT_KD_ALPHA:-0.7}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-80}"
+    export SPECTRA_PROBE_RATES="${SPECTRA_PROBE_RATES:-0.99 0.98 0.95}"
+    export SPECTRA_PROBE_EPOCHS="${SPECTRA_PROBE_EPOCHS:-160}"
+    export SPECTRA_PROBE_ROWS="${SPECTRA_PROBE_ROWS:-mid}"
+    export SPECTRA_PROBE_TAU="${SPECTRA_PROBE_TAU:-10}"
+    RUN_KIND=probe_c100_recipe
+    ;;
   careful_fortify_cifar10|careful_fortify_cifar10_structural|careful_fortify_cifar10_mildrates|c10_curriculum_king|careful_fortify_cifar10_neon_rates|careful_fortify_cifar10_fine|encoder_c10_set|encoder_c10_wide|encoder_c10_bert|generic_c10_fortify|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state)
     # Dedicated C10 JSON (not mixed initial_*). --datasets used to lazy-load C100.
     if [[ "$PROFILE" == "generic_c10_fortify" ]]; then
@@ -599,6 +630,30 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  offline_wide)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_wide.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 svhn fashion-mnist}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-10}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    EXTRA_ARGS=(--runtime_limit 129600 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   eval_offline_similar|eval_offline_novel)
     if [[ "$PROFILE" == "eval_offline_novel" ]]; then
       export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_novel.json}"
@@ -665,6 +720,36 @@ case "$PROFILE" in
                   --train_compressed_layer_only False
                   --compression_rates 1.0 0.95 0.9)
     fi
+    ;;
+  c100_wide_drl)
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_c100.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c100_wide.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-80}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-20}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_FT_AUTOAUG=1
+    export SPECTRA_FT_OPTIM=sgd
+    export SPECTRA_FT_COSINE=1
+    export SPECTRA_FT_MIXUP="${SPECTRA_FT_MIXUP:-0.2}"
+    export SPECTRA_FT_LABEL_SMOOTH="${SPECTRA_FT_LABEL_SMOOTH:-0.1}"
+    EXTRA_ARGS=(--runtime_limit 129600 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.98 0.95)
     ;;
   eval_diag_structural_c100|eval_king_fortify_c100|eval_neon_c100)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c100_thin.json}"
@@ -770,6 +855,11 @@ elif [[ "${RUN_KIND:-agent}" == "probe_c100" ]]; then
   echo "profile probe_c100: CIFAR-100 rate×epochs recovery (no RL)"
   env | grep '^SPECTRA_' | sort
   bash scripts/run_recovery_probe_c100.sh
+  STATUS=$?
+elif [[ "${RUN_KIND:-agent}" == "probe_c100_recipe" ]]; then
+  echo "profile ${PROFILE}: CIFAR-100 published-style FT recovery (no RL)"
+  env | grep '^SPECTRA_' | sort
+  bash scripts/run_recovery_probe_c100_recipe.sh
   STATUS=$?
 else
   echo "profile ${PROFILE}: input=${SPECTRA_INPUT} database=${SPECTRA_DATABASE}"

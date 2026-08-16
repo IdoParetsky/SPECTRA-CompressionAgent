@@ -187,6 +187,13 @@ class NetworkEnv:
         # previous episode does not leak into this one
         self.current_model = copy.deepcopy(self.current_model)
         self.original_params = utils.calc_num_parameters(self.current_model)
+        if utils.env_flag("SPECTRA_FT_KD"):
+            self.kd_teacher = copy.deepcopy(self.current_model).eval()
+            for param in self.kd_teacher.parameters():
+                param.requires_grad = False
+            self.kd_teacher.to(self.conf.device)
+        else:
+            self.kd_teacher = None
 
         model_with_rows = ModelWithRows(self.current_model)
 
@@ -248,6 +255,31 @@ class NetworkEnv:
         """Current / original parameter count (1.0 at reset)."""
         origin = getattr(self, "original_params", None) or utils.calc_num_parameters(self.current_model)
         return utils.calc_num_parameters(self.current_model) / max(float(origin), 1.0)
+
+    def preview_param_ratio(self, compression_rate: float) -> float:
+        """
+        Parameter fraction after applying ``compression_rate`` to the current row, without
+        mutating the live model or running fine-tune.
+
+        Used by eval look-ahead so a 0.8 group-cut cannot jump past
+        ``SPECTRA_EVAL_MIN_PARAM_RATIO`` in one step. Identity is a no-op preview.
+        """
+        origin = float(getattr(self, "original_params", None) or utils.calc_num_parameters(self.current_model))
+        origin = max(origin, 1.0)
+        if abs(float(compression_rate) - 1.0) < 1e-9:
+            return utils.calc_num_parameters(self.current_model) / origin
+        cloned = copy.deepcopy(self.current_model)
+        try:
+            mwr = ModelWithRows(cloned)
+            prune_current_model(
+                mwr, compression_rate, max(0, (self.row_idx or 1) - 1),
+                quiet=True, record=False)
+            after = utils.calc_num_parameters(mwr.model)
+        except Exception:
+            after = utils.calc_num_parameters(self.current_model)
+        finally:
+            del cloned
+        return after / origin
 
     def legal_action_mask(self, device=None):
         """Bool mask over ``compression_rates_dict`` for the current row (fortify-aware)."""
@@ -559,10 +591,13 @@ class NetworkEnv:
         ensuring compatibility with both training & testing scenarios.
         SPECTRA's current implementation supports Classifications tasks only.
         """
-        return ClassificationHandler(
+        handler = ClassificationHandler(
             new_model,
             torch.nn.CrossEntropyLoss()
         )
+        if getattr(self, "kd_teacher", None) is not None:
+            handler.kd_teacher = self.kd_teacher
+        return handler
 
 
 def build_param_names_to_keep_trainable(model_with_rows, row_to_modify_idx):
@@ -611,7 +646,8 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
     return prune_current_model(model_with_rows, compression_rate, row_to_resize_idx)
 
 
-def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
+def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
+                        *, quiet=False, record=True):
     """
     Compress the target layer by removing its least important output filters.
 
@@ -622,6 +658,8 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
         model_with_rows (ModelWithRows):  The model whose layer is to be pruned
         compression_rate (float):         The desired compression rate for pruning
         row_to_prune_idx (int):           Index of the row whose first layer is to be pruned
+        quiet (bool):                     Skip log lines (eval look-ahead dry-run).
+        record (bool):                    Skip run_recorder writes (eval look-ahead dry-run).
 
     Returns:
         pruned_model_with_rows (ModelWithRows): The pruned model
@@ -647,9 +685,10 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
         keep_idx = pruning.select_group_survivors(group, compression_rate)
         if keep_idx is not None and pruning.prune_group_structurally(model_with_rows, group, keep_idx):
             coupled = len(group.producers) + len(group.depthwise)
-            utils.print_flush(
-                f"Layer {layer_to_prune_idx}: width {old_width} -> {keep_idx.numel()} "
-                f"across {coupled} coupled layer(s), {len(group.consumers)} consumer(s) resized")
+            if not quiet:
+                utils.print_flush(
+                    f"Layer {layer_to_prune_idx}: width {old_width} -> {keep_idx.numel()} "
+                    f"across {coupled} coupled layer(s), {len(group.consumers)} consumer(s) resized")
             # Recorded on the ModelWithRows so NetworkEnv.step can fold the outcome into its
             # own step record; the caller owns the episode/network context.
             edited_ids = list(getattr(model_with_rows, "last_edited_param_ids", []) or [])
@@ -659,10 +698,11 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
                 "consumers_resized": len(group.consumers),
                 "trainable_param_count": len(edited_ids),
             }
-            recorder.record("prune", mode="structural", layer_index=layer_to_prune_idx,
-                            layer_type=type(layer_to_prune).__name__, rate=compression_rate,
-                            old_width=old_width, new_width=int(keep_idx.numel()),
-                            coupled_layers=coupled, consumers_resized=len(group.consumers))
+            if record:
+                recorder.record("prune", mode="structural", layer_index=layer_to_prune_idx,
+                                layer_type=type(layer_to_prune).__name__, rate=compression_rate,
+                                old_width=old_width, new_width=int(keep_idx.numel()),
+                                coupled_layers=coupled, consumers_resized=len(group.consumers))
             model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
             return model_with_rows
 
@@ -681,8 +721,9 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
 
     keep_idx = pruning.select_surviving_filters(layer_to_prune, compression_rate)
     pruning.mask_layer_filters(layer_to_prune, keep_idx)
-    utils.print_flush(f"Layer {layer_to_prune_idx}: masked {old_width - keep_idx.numel()}/{old_width} "
-                      f"filters, shape preserved ({reason})")
+    if not quiet:
+        utils.print_flush(f"Layer {layer_to_prune_idx}: masked {old_width - keep_idx.numel()}/{old_width} "
+                          f"filters, shape preserved ({reason})")
 
     # Masking is a correctness-preserving fallback, not a success: filters are zeroed but
     # numel/FLOPs stay put. NetworkEnv withholds NEON compression credit on in-budget
@@ -704,12 +745,13 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx):
     }
     # Masked / floor edits do not rewrite a dependency group; fall back to the row-local rule.
     model_with_rows.last_edited_param_ids = None
-    recorder.issue(kind, reason, layer_index=layer_to_prune_idx,
-                   layer_type=type(layer_to_prune).__name__, rate=compression_rate)
-    recorder.record("prune", mode="floor" if at_floor else "masked", reason=reason,
-                    layer_index=layer_to_prune_idx,
-                    layer_type=type(layer_to_prune).__name__, rate=compression_rate,
-                    old_width=old_width, new_width=int(keep_idx.numel()))
+    if record:
+        recorder.issue(kind, reason, layer_index=layer_to_prune_idx,
+                       layer_type=type(layer_to_prune).__name__, rate=compression_rate)
+        recorder.record("prune", mode="floor" if at_floor else "masked", reason=reason,
+                        layer_index=layer_to_prune_idx,
+                        layer_type=type(layer_to_prune).__name__, rate=compression_rate,
+                        old_width=old_width, new_width=int(keep_idx.numel()))
 
     model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
 

@@ -78,6 +78,46 @@ def test_dataset_cache_key_includes_ft_aug(monkeypatch):
     assert plain != aug
 
 
+def test_cifar_autoaug_off_by_default(monkeypatch):
+    monkeypatch.delenv("SPECTRA_FT_AUTOAUG", raising=False)
+    tf = utils.build_transform("cifar-100", {}, train=True)
+    kinds = [type(t).__name__ for t in tf.transforms]
+    assert "AutoAugment" not in kinds
+
+
+def test_cifar_autoaug_on_train_split(monkeypatch):
+    monkeypatch.setenv("SPECTRA_FT_AUTOAUG", "1")
+    train_tf = utils.build_transform("cifar-100", {}, train=True)
+    eval_tf = utils.build_transform("cifar-100", {}, train=False)
+    assert "AutoAugment" in [type(t).__name__ for t in train_tf.transforms]
+    assert "AutoAugment" not in [type(t).__name__ for t in eval_tf.transforms]
+
+
+def test_dataset_cache_key_includes_autoaug(monkeypatch):
+    monkeypatch.delenv("SPECTRA_FT_AUTOAUG", raising=False)
+    plain = utils.DatasetRegistry.key_for("cifar-100")
+    monkeypatch.setenv("SPECTRA_FT_AUTOAUG", "1")
+    aug = utils.DatasetRegistry.key_for("cifar-100")
+    assert plain == "cifar-100"
+    assert aug.endswith("|autoaug=1")
+    assert plain != aug
+
+
+def test_mixup_batch_noop_and_mix():
+    from src.ModelHandlers.ClassificationHandler import mixup_batch
+    x = torch.randn(4, 3, 8, 8)
+    y = torch.tensor([0, 1, 2, 3])
+    x2, ya, yb, lam = mixup_batch(x, y, 0.0)
+    assert yb is None
+    assert lam == 1.0
+    assert torch.equal(x2, x)
+    mixed, ya, yb, lam = mixup_batch(x, y, 0.2)
+    assert yb is not None
+    assert ya.shape == y.shape
+    assert 0.0 <= lam <= 1.0
+    assert mixed.shape == x.shape
+
+
 def test_normalisation_is_per_dataset():
     """A single 0.5/0.5 normalisation shifts the activation statistics the agent reads."""
     cifar = utils.build_transform("cifar-10", {})

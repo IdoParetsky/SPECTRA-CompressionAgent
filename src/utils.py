@@ -238,6 +238,8 @@ class DatasetRegistry:
         # Train-time CIFAR aug must not share loaders with the unaugmented cache.
         if env_flag("SPECTRA_FT_AUG") and canonical_dataset_name(name_or_path) in _FT_AUG_DATASETS:
             key = f"{key}|aug=1"
+        if env_flag("SPECTRA_FT_AUTOAUG") and canonical_dataset_name(name_or_path) in _FT_AUG_DATASETS:
+            key = f"{key}|autoaug=1"
         return key
 
     def _may_load(self, spec) -> bool:
@@ -945,6 +947,8 @@ def build_transform(name_or_path: str, options: dict, train: bool = False):
             crop = image_size[0] if isinstance(image_size, (list, tuple)) else int(image_size)
         steps.append(transforms.RandomCrop(crop, padding=4))
         steps.append(transforms.RandomHorizontalFlip())
+    if train and env_flag("SPECTRA_FT_AUTOAUG") and canonical in _FT_AUG_DATASETS:
+        steps.append(transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10))
 
     steps.append(transforms.ToTensor())
 
@@ -972,7 +976,10 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
     """
     name_or_path, options = parse_dataset_spec(spec)
     canonical = canonical_dataset_name(name_or_path)
-    use_aug = env_flag("SPECTRA_FT_AUG") and canonical in _FT_AUG_DATASETS
+    use_aug = (
+        (env_flag("SPECTRA_FT_AUG") or env_flag("SPECTRA_FT_AUTOAUG"))
+        and canonical in _FT_AUG_DATASETS
+    )
 
     if canonical in DATASET_BUILDERS:
         if use_aug:
@@ -988,8 +995,13 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
             perm = torch.randperm(len(train_eval), generator=g).tolist()
             train_data = Subset(train_aug, perm[:train_len])
             val_data = Subset(train_eval, perm[train_len:])
+            bits = []
+            if env_flag("SPECTRA_FT_AUG"):
+                bits.append("RandomCrop+Flip")
+            if env_flag("SPECTRA_FT_AUTOAUG"):
+                bits.append("AutoAugment")
             print_flush(
-                f"FT aug on {canonical}: RandomCrop+Flip on train only "
+                f"FT aug on {canonical}: {'+'.join(bits) or 'none'} on train only "
                 f"(n_train={len(train_data)}, n_val={len(val_data)})")
         else:
             transform = build_transform(name_or_path, options)

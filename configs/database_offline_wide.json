@@ -1,0 +1,130 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width10_cifar10_thin-res-net_91.90_0.107_16.55.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width6_cifar10_thin-res-net_92.88_0.122_18.60.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet32_cifar10_chenyaofo_93.53_047_138.24.pt": [
+    "resnet32",
+    "/home/paretsky/spectra_models_instantiation/resnet_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg16_bn_cifar10_chenyaofo_94.16_15.25_627.46.pt": [
+    "vgg16_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2x1_cifar10_chenyaofo_93.79_2.24_175.96.pt": [
+    "mobilenet_v2x1",
+    "/home/paretsky/spectra_models_instantiation/mobilenetv2_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/densenet40_cifar10_densenet-cifar_93.17_0.176_74.43.pt": [
+    "densenet40",
+    "/home/paretsky/spectra_models_instantiation/densenet_cifar.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width16_svhn_thin-res-net_96.62_0.272_41.03.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "svhn"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg11-bn_svhn_vgg-chenyaofo_96.25_9.756_153.60.pt": [
+    "vgg11_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "svhn"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width16_fashionmnist_thin-res-net_94.91_0.272_41.03.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg11-bn_fashionmnist_vgg-chenyaofo_94.40_9.756_153.60.pt": [
+    "vgg11_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width8_cifar10_thin-res-net_89.74_0.069_10.72.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width9_cifar10_thin-res-net_91.47_0.087_13.47.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width12_cifar10_thin-res-net_93.39_0.154_23.64.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width7_cifar10_thin-res-net_93.58_0.165_25.13.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width8_cifar10_thin-res-net_94.71_0.215_32.64.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width12_cifar10_thin-res-net_96.35_0.482_72.45.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20_cifar10_chenyaofo_92.6_0.27_81.62.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/resnet_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56_cifar10_chenyaofo_94.37_0.86_251.5.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/resnet_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width14_cifar10_thin-res-net_93.95_0.209_32.00.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width14_cifar10_thin-res-net_96.45_0.656_98.23.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg11_bn_cifar10_chenyaofo_92.79_9.76_306.58.pt": [
+    "vgg11_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg13_bn_cifar10_chenyaofo_94_9.94_457.58.pt": [
+    "vgg13_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2x0.5_cifar10_chenyaofo_92.99_0.7_55.94.pt": [
+    "mobilenet_v2x05",
+    "/home/paretsky/spectra_models_instantiation/mobilenetv2_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2x1.4_cifar10_chenyaofo_94.22_4.33_340.14.pt": [
+    "mobilenet_v2x14",
+    "/home/paretsky/spectra_models_instantiation/mobilenetv2_chenyaofo.py",
+    "cifar-10"
+  ]
+}

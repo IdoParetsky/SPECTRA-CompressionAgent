@@ -19,9 +19,33 @@ Note on compounding: importance is always computed over the *currently alive* fi
 so applying rate ``r`` twice leaves ``r^2`` of the original width. ``torch.nn.utils.prune``
 ranks all filters including previously zeroed ones, whose L1 norm is 0, so it re-selects
 them first and the second pass removes almost nothing new.
+
+Filter ranking (``SPECTRA_FILTER_IMPORTANCE``, default ``l1``)
+    The DRL *agent* only chooses a compression *rate* for the current layer. Which channels
+    die is an environment decision, shared by the learned policy and by the greedy/random
+    baselines. That split follows SPA's group-level wrapping of any criterion
+    (Wang, Rachwan, Günnemann, Charpentier, "Structurally Prune Anything", arXiv:2403.18955,
+    2024) — not a per-model search, and not SPA's OBSPA Hessian (too slow for an RL step).
+
+    ``l1``  Li, Kadav, Durdanovic, Samet, Graf, "Pruning Filters for Efficient ConvNets"
+            (ICLR 2017 workshop; arXiv:1608.08710). Default; matches the running experiments.
+    ``l2``  Per-filter Frobenius / Euclidean norm (He, Kang, Dong, Fu, Yang,
+            "Soft Filter Pruning for Accelerating Deep Convolutional Neural Networks",
+            IJCAI 2018). Same interface, no extra data.
+    ``svd`` Nuclear norm (sum of singular values) of each filter unfolded to (Cin × spatial).
+            Weight-only score in the family of Pham, Zniyed, Nguyen, "Singular values-driven
+            automated filter pruning", Neural Networks 192:107857, 2025
+            (doi:10.1016/j.neunet.2025.107857). We take *only* the per-filter nuclear score,
+            not SLIMING's combinatorial search over layer-wise rates — that search would
+            replace SPECTRA's offline agent.
+
+    Poplar / metaheuristic channel search, MLPruner, DAGP, flow-guided pruning, and
+    activation spectral-entropy scores are *per-model* solvers (they need a new search or
+    extra forwards on each CNN). They would replace SPECTRA rather than sit under it.
 """
 
 from typing import Optional
+import os
 
 import numpy as np
 import torch
@@ -43,10 +67,43 @@ def layer_width(layer: nn.Module) -> int:
     return layer.out_channels if isinstance(layer, nn.Conv2d) else layer.out_features
 
 
+def filter_importance_mode() -> str:
+    """See module docstring. Unknown values fall back to L1 so a typo cannot silent-skip prune."""
+    raw = os.environ.get("SPECTRA_FILTER_IMPORTANCE", "l1").strip().lower()
+    if raw in ("l2", "frobenius", "euclidean"):
+        return "l2"
+    if raw in ("svd", "nuclear", "spectral"):
+        return "svd"
+    return "l1"
+
+
 def filter_importance(layer: nn.Module) -> torch.Tensor:
-    """L1 norm of each output filter, flattened over its input/spatial dimensions."""
+    """
+    Per-output-filter score; higher = more likely to survive.
+
+    Default is L1 magnitude (Li et al. 2017). ``l2`` / ``svd`` are drop-in criteria at
+    group level (SPA 2024). All three are zero iff the filter is all zeros, so
+    ``alive_filters`` stays well-defined.
+    """
     weight = layer.weight.detach()
+    mode = filter_importance_mode()
+    if mode == "l2":
+        return weight.reshape(weight.size(0), -1).pow(2).sum(dim=1).sqrt()
+    if mode == "svd":
+        return _nuclear_per_filter(weight)
     return weight.reshape(weight.size(0), -1).abs().sum(dim=1)
+
+
+def _nuclear_per_filter(weight: torch.Tensor) -> torch.Tensor:
+    """Sum of singular values of each output filter as a matrix (Cin × spatial)."""
+    cout = int(weight.size(0))
+    if weight.dim() <= 2:
+        # Linear / 1-D: a row's only singular value is its Euclidean norm.
+        return weight.reshape(cout, -1).norm(dim=1)
+    cin = int(weight.size(1))
+    unfolded = weight.reshape(cout, cin, -1)
+    # svdvals is defined on the last two dims; fully zero filters yield 0.
+    return torch.linalg.svdvals(unfolded).sum(dim=1)
 
 
 def alive_filters(layer: nn.Module) -> torch.Tensor:
@@ -252,9 +309,13 @@ def group_importance(group) -> Optional[torch.Tensor]:
     """
     Importance of each channel position of a coupled group.
 
-    Every producer votes on the same channel index, so their per-filter norms are summed.
-    Each producer is normalised by its own maximum first, otherwise a layer with larger
-    weights (a 3x3 conv against a 1x1 shortcut) would decide the ranking on its own.
+    DepGraph (Fang, Ma, Song, Mi, Wang, "DepGraph: Towards Any Structural Pruning",
+    CVPR 2023, arXiv:2301.12900) requires coupled parameters to be *consistently*
+    unimportant, not merely unimportant in one layer of the residual/concat group. SPA
+    (Wang et al., arXiv:2403.18955) then wraps any per-filter criterion into that group.
+    SPECTRA does both: every producer votes on the same channel index via
+    ``filter_importance``, each vote is normalised by its own maximum (so a 3x3 conv cannot
+    outvote a 1x1 shortcut just by having larger weights), and the votes are summed.
     """
     votes = []
     for producer in list(group.producers) + list(group.depthwise):

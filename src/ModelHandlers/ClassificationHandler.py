@@ -1,12 +1,31 @@
 import gc
 import os
 import torch
+import torch.nn.functional as F
 import numpy as np
 
 from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
 import src.utils as utils
 import src.logging_utils as logging_utils
+
+
+def _ft_float(name: str, default: str) -> float:
+    raw = os.environ.get(name, default)
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return float(default)
+
+
+def mixup_batch(x, y, alpha: float):
+    """MixUp on a class-index batch. ``alpha <= 0`` is a no-op. Returns x, y_a, y_b, lam."""
+    if alpha <= 0.0 or x.size(0) < 2:
+        return x, y, None, 1.0
+    lam = float(np.random.beta(alpha, alpha))
+    index = torch.randperm(x.size(0), device=x.device)
+    mixed = lam * x + (1.0 - lam) * x[index]
+    return mixed, y, y[index], lam
 
 
 # TODO: Consider data normalization and augmentation via torchvision.transforms
@@ -27,6 +46,10 @@ class Dataset(torch.utils.data.Dataset):
 
 
 class ClassificationHandler(BasicHandler):
+
+    def __init__(self, model, loss_function):
+        super().__init__(model, loss_function)
+        self.kd_teacher = None
 
     def evaluate_model(self, loader) -> float:
         """
@@ -136,14 +159,44 @@ class ClassificationHandler(BasicHandler):
             utils.print_flush(
                 f"BN-safe fine-tune: {len(frozen_norms)} frozen BatchNorm module(s) held in eval()")
 
-        self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate)
-        # Clear any leftover optimizer state to ensure fresh start
+        optim_name = os.environ.get("SPECTRA_FT_OPTIM", "adam").strip().lower() or "adam"
+        mixup_alpha = _ft_float("SPECTRA_FT_MIXUP", "0")
+        label_smooth = _ft_float("SPECTRA_FT_LABEL_SMOOTH", "0")
+        use_cosine = utils.env_flag("SPECTRA_FT_COSINE")
+        kd_t = _ft_float("SPECTRA_FT_KD_T", "4")
+        kd_alpha = _ft_float("SPECTRA_FT_KD_ALPHA", "0.7")
+        use_kd = self.kd_teacher is not None and utils.env_flag("SPECTRA_FT_KD")
+        if label_smooth > 0:
+            self.loss_func = torch.nn.CrossEntropyLoss(label_smoothing=label_smooth)
+        if use_kd:
+            self.kd_teacher.to(device).eval()
+            for param in self.kd_teacher.parameters():
+                param.requires_grad = False
+            if use_channels_last:
+                self.kd_teacher.to(memory_format=torch.channels_last)
+
+        if optim_name == "sgd":
+            sgd_lr = _ft_float("SPECTRA_FT_SGD_LR", "0.01")
+            momentum = _ft_float("SPECTRA_FT_MOMENTUM", "0.9")
+            weight_decay = _ft_float("SPECTRA_FT_WD", "5e-4")
+            self.optimizer = torch.optim.SGD(
+                trainable_params, lr=sgd_lr, momentum=momentum, weight_decay=weight_decay)
+            shown_lr = sgd_lr
+        else:
+            self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate)
+            shown_lr = conf.learning_rate
         self.optimizer.state.clear()
         scaler = torch.cuda.amp.GradScaler(enabled=True) if use_amp else None
-
-        # Dynamic Learning Rate Scheduling  # TODO: New addition, assess with and without
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, mode='min', factor=0.5, patience=2)
+        if use_cosine:
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer, T_max=max(num_epochs, 1))
+        else:
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, mode='min', factor=0.5, patience=2)
+        utils.print_flush(
+            f"Fine-tune recipe: optim={optim_name} lr={shown_lr:g} cosine={int(use_cosine)} "
+            f"mixup={mixup_alpha:g} smooth={label_smooth:g} kd={int(use_kd)} "
+            f"patience={MAX_EPOCHS_PATIENCE} epochs={num_epochs}")
 
         for epoch in range(num_epochs):  # 100 in NEON -> 40
             epoch_losses = []
@@ -155,14 +208,29 @@ class ClassificationHandler(BasicHandler):
                 # Skip batches with less than 2 samples to avoid issues in loss calculation
                 if curr_x.size(0) < 2:
                     continue
+                if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
+                    curr_y = torch.argmax(curr_y, dim=1)
+
+                curr_x, y_a, y_b, lam = mixup_batch(curr_x, curr_y, mixup_alpha)
 
                 self.optimizer.zero_grad(set_to_none=True)
 
                 with torch.cuda.amp.autocast(enabled=use_amp):
                     outputs = self.model(curr_x)
-                    if len(curr_y.shape) > 1 and curr_y.shape[1] > 1:
-                        curr_y = torch.argmax(curr_y, dim=1)
-                    loss = self.loss_func(outputs, curr_y.long())
+                    if y_b is None:
+                        ce = self.loss_func(outputs, y_a.long())
+                    else:
+                        ce = lam * self.loss_func(outputs, y_a.long()) + (
+                            1.0 - lam) * self.loss_func(outputs, y_b.long())
+                    if use_kd:
+                        with torch.no_grad():
+                            teacher_logits = self.kd_teacher(curr_x)
+                        log_s = F.log_softmax(outputs / kd_t, dim=1)
+                        p_t = F.softmax(teacher_logits / kd_t, dim=1)
+                        kd = F.kl_div(log_s, p_t, reduction="batchmean") * (kd_t * kd_t)
+                        loss = (1.0 - kd_alpha) * ce + kd_alpha * kd
+                    else:
+                        loss = ce
 
                 if use_amp:
                     scaler.scale(loss).backward()
@@ -182,7 +250,10 @@ class ClassificationHandler(BasicHandler):
                 break
 
             avg_loss = torch.stack(epoch_losses).mean().item()
-            scheduler.step(avg_loss)
+            if use_cosine:
+                scheduler.step()
+            else:
+                scheduler.step(avg_loss)
 
             if avg_loss < best_loss - EPSILON:
                 best_loss = avg_loss

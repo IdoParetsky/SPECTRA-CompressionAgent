@@ -103,6 +103,18 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             agent.actor_model(state), legal)
                         action = action_dist.sample()
 
+                    if (fortify_mod.eval_lookahead_enabled()
+                            and not at_budget):
+                        before = int(action.item())
+                        action = fortify_mod.action_respecting_param_floor(
+                            env, action, legal, conf.compression_rates_dict,
+                            min_ratio, conf.device)
+                        if int(action.item()) != before:
+                            utils.print_flush(
+                                f"[eval] lookahead: rate "
+                                f"{conf.compression_rates_dict[before]} would "
+                                f"drop below {min_ratio:.3f}; using "
+                                f"{conf.compression_rates_dict[int(action.item())]}")
                     compression_rate = conf.compression_rates_dict[int(action.item())]
                     next_state, reward, done = env.step(compression_rate)
                     state = next_state
@@ -124,7 +136,8 @@ def main():
     # Both actor+critic paths historically meant "eval only". For warm-start continued
     # training set SPECTRA_CONTINUE_TRAIN=1 (loads weights, still runs agent.train()).
     # Heuristic eval policies (SPECTRA_EVAL_POLICY=l1|mild|random) skip training and
-    # do not need checkpoints — they only pick rates; the env still L1-ranks filters.
+    # do not need checkpoints — they only pick *how much* to cut this layer. The
+    # environment still ranks which channels die (default L1, Li et al. 2017).
     continue_train = os.environ.get("SPECTRA_CONTINUE_TRAIN", "").strip().lower() in (
         "1", "true", "yes")
     from src import fortify as fortify_mod

@@ -23,7 +23,11 @@ concatenation along a non-channel axis -- marks the affected groups unprunable, 
 caller falls back to masking.
 
 This is a lightweight rendering of the dependency-graph idea from Fang et al., "DepGraph:
-Towards Any Structural Pruning" (CVPR 2023), which the thesis proposal cites.
+Towards Any Structural Pruning" (CVPR 2023, arXiv:2301.12900), which the thesis proposal
+cites. SPECTRA uses it as *environment infrastructure* so the offline DRL agent can prune
+ResNets/DenseNets/ShuffleNets without hand-written per-family rules. The thesis claim is
+policy transfer (NEON), not a new grouping algorithm. SPA (Wang et al., 2024,
+arXiv:2403.18955) is the ONNX/framework-portable cousin; we stay on ``torch.fx``.
 """
 
 import operator

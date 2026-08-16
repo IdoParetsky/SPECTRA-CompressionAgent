@@ -130,6 +130,8 @@ def probe_one(model, train_loader, val_loader, test_loader, rates, epoch_budgets
                 mwr = ModelWithRows(mwr.model)
 
             handler = ClassificationHandler(mwr.model, torch.nn.CrossEntropyLoss())
+            if utils.env_flag("SPECTRA_FT_KD"):
+                handler.kd_teacher = model
             # Agent freezes relative to the row just pruned; for a full pass that is the
             # last row. Full-network FT always unfreezes everything.
             _apply_finetune_mode(handler, mwr, last_row, train_compressed_layer_only)

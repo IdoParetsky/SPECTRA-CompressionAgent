@@ -508,5 +508,39 @@ def test_chenyaofo_shufflenetv2_prunes_without_masking_every_layer():
     assert structural >= 1, f"structural={structural} masked={masked} blocked={blocked[:8]}"
 
 
+def test_filter_importance_l1_is_default(monkeypatch):
+    monkeypatch.delenv("SPECTRA_FILTER_IMPORTANCE", raising=False)
+    conv = nn.Conv2d(3, 4, 3, bias=False)
+    with torch.no_grad():
+        conv.weight.zero_()
+        conv.weight[1].fill_(1.0)
+        conv.weight[3].fill_(2.0)
+    scores = pruning.filter_importance(conv)
+    assert pruning.filter_importance_mode() == "l1"
+    assert scores.shape == (4,)
+    assert scores[0].item() == 0
+    assert scores[1].item() < scores[3].item()
+    assert 0 not in pruning.alive_filters(conv).tolist()
+
+
+def test_filter_importance_l2_and_svd_keep_shape_and_zero_dead(monkeypatch):
+    conv = nn.Conv2d(8, 5, 3, bias=False)
+    with torch.no_grad():
+        conv.weight.normal_()
+        conv.weight[2].zero_()
+    for mode in ("l2", "svd"):
+        monkeypatch.setenv("SPECTRA_FILTER_IMPORTANCE", mode)
+        scores = pruning.filter_importance(conv)
+        assert scores.shape == (5,)
+        assert scores[2].item() == 0
+        assert 2 not in pruning.alive_filters(conv).tolist()
+        assert (scores[:2] > 0).all() and (scores[3:] > 0).all()
+
+
+def test_filter_importance_unknown_falls_back_to_l1(monkeypatch):
+    monkeypatch.setenv("SPECTRA_FILTER_IMPORTANCE", "not_a_mode")
+    assert pruning.filter_importance_mode() == "l1"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
