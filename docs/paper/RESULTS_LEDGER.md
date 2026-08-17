@@ -200,10 +200,10 @@ Train catalog `database_c100_wide.json` (mixes VGG with unrecovered residuals). 
 | 20202693 | 24-net DRL s43 | post-train **eval_train**. Do not quote. |
 | 20204215 | 24-net DRL s44 | train ~ep **383**/720 |
 | 20201260 / 63 / 65 | 24-net afterok held-out evals | PENDING (Dependency on 20201235) |
-| *(queued)* | ImageNet MobileNet-v2 frozen 3-ep FT, s42, param floor 0.70 | `eval_imagenet_short`. Prefer 4090/6000. Not DRL train. |
-| *(queued)* | C10-thin param floor **0.80 only** (no FLOP floor), frozen s42/s43 | Walk between C4 (70%/55%) and FLOP-floor (~91%/70%). |
-| *(queued)* | C100 thin r20-w16 + r56-w15, frozen s42, SGD+cosine+MixUp+AutoAugment, 80 ep | Isolates FT recipe vs C9 Adam-40 miss. Not a second C100 DRL. |
-| *(queued)* | C100 ShuffleNet-v2×1 frozen s42 | After dummy-forward grouped-prune rollback in `NetworkEnv.prune_current_model`. |
+| **20289097** | ImageNet MobileNet-v2 frozen 3-ep FT, s42, param floor 0.70 | RUNNING ise-4090-11. `eval_imagenet_short`. Not DRL train. Misses 17:00 TEST. |
+| **20289103 / 20289105** | C10-thin param floor **0.80 only** (no FLOP floor), frozen s42/s43 | RUNNING ise-4090-08/09. Walk between C4 (70%/55%) and FLOP-floor (~91%/70%). |
+| **20289099** | C100 thin r20-w16 + r56-w15, frozen s42, SGD+cosine+MixUp+AutoAugment, 80 ep | RUNNING ise-4090-03. Isolates FT recipe vs C9 Adam-40 miss. Not a second C100 DRL. |
+| **20289101** | C100 ShuffleNet-v2×1 frozen s42 | scancel+resubmit after dummy-forward on **every** structural prune (depthwise-only check missed the 116 vs 104 crash). |
 
 **20189049 is done.** Overlay of `e985d5e` onto `/home/paretsky/SPECTRA-CompressionAgent` is now allowed. New jobs use the leap tree after `git pull` (ShuffleNet rollback is not in SPECTRA-night).
 

@@ -726,6 +726,8 @@ def dummy_forward_ok(model, input_shape=None):
     """
     True if a dummy batch runs. ShuffleNet grouped-conv mismatches raise here
     instead of hours into fine-tune (C9 C100 ShuffleNet, jobs 20270291/293/295).
+    Checked after every structural prune, not only depthwise groups: the C100
+    crash was a producer resize that left a later grouped conv mismatched.
     """
     device = next(model.parameters()).device
     in_ch = 3
@@ -791,17 +793,16 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
     else:
         trace_error = None
     group = channel_groups.group_of(groups, layer_to_prune) if groups else None
-    risky_groups = bool(group is not None and group.prunable and group.depthwise)
-    backup = copy.deepcopy(model_with_rows.model) if risky_groups else None
+    backup = copy.deepcopy(model_with_rows.model) if (group is not None and group.prunable) else None
     rolled_back_grouped = False
 
     if group is not None and group.prunable:
         keep_idx = pruning.select_group_survivors(group, compression_rate)
         if keep_idx is not None and pruning.prune_group_structurally(model_with_rows, group, keep_idx):
-            if risky_groups and not dummy_forward_ok(model_with_rows.model, input_shape):
+            if not dummy_forward_ok(model_with_rows.model, input_shape):
                 if not quiet:
                     utils.print_flush(
-                        f"Layer {layer_to_prune_idx}: structural grouped prune broke a dummy "
+                        f"Layer {layer_to_prune_idx}: structural prune broke a dummy "
                         f"forward; restoring and masking")
                 _rebind_model(model_with_rows, backup)
                 layer_to_prune = model_with_rows.all_layers[layer_to_prune_idx]
@@ -830,7 +831,7 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
     # "no dependency group resolved" conflated four different failures, so the logs could not
     # say whether the library needs a new fx rule, a new resize rule, or nothing at all.
     if rolled_back_grouped:
-        reason = "structural grouped prune broke dummy forward; masked instead"
+        reason = "structural prune broke dummy forward; masked instead"
     elif trace_error is not None:
         reason = f"fx trace raised {trace_error}"
     elif groups is None:
