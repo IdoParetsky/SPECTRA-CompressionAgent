@@ -19,7 +19,7 @@ Write new TEST here and in the ledger in the same turn. This block is the memory
 - **Digit-MNIST LeNet (held-out dataset):** three-seed TEST **gain** +2.8/+2.7/+2.9 pp. Toy net. Ledger §22.
 - **SVHN r20-w8 (held-out width, dataset was in the 10-net train mix):** −2.0/−1.5/−2.0 inside τ. Not in-catalog r20-w16. Ledger §23.
 - **C8 / 24-net:** still running. s42 in-catalog eval_test; s44 ~ep 383/720. Held-out afterok not started. Do not quote in-catalog eval.
-- **Queued 18 Aug (not TEST):** ImageNet MobileNet-v2 frozen 3-ep s42; C10-thin param floor 0.80 (no FLOP floor); C100 residual SGD-recipe re-eval; C100 ShuffleNet rerun after dummy-forward rollback. Ledger §8.
+- **Queued 18 Aug (not TEST):** ImageNet MobileNet-v2 frozen 3-ep s42 **20289097**; C10-thin param floor 0.80 **20289103 / 20289105**; C100 residual SGD-recipe **20289099**; C100 ShuffleNet rerun **20289197**. Ledger §8.
 - **C100 odds:** miss is dataset × residual/RepVGG family × Adam-40 FT, not a missing-C100-in-train bug and not “ResNets cannot prune” (same families work on CIFAR-10). Next lever is the C6 SGD recipe on the frozen actor, not a second C100 DRL.
 
 Citation numbers **[1]–[78]** are those of the August 2024 thesis proposal, kept wherever the claim still holds. **[79]–[92]** are papers from the August 2026 literature survey (DepGraph was already [12] in the proposal). Tags: **LOCKED** / **DRAFT** / **TBD** / **CLAIM** — see [README.md](README.md).
