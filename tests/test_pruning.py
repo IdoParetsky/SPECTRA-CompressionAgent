@@ -508,6 +508,23 @@ def test_chenyaofo_shufflenetv2_prunes_without_masking_every_layer():
     assert structural >= 1, f"structural={structural} masked={masked} blocked={blocked[:8]}"
 
 
+def test_chenyaofo_shufflenet_sequential_prunes_stay_runnable():
+    """C9 C100 ShuffleNet died mid-FT: groups=116 vs input 104. Dummy-forward rollback."""
+    from src.NetworkEnv import prune_current_model
+    from spectra_models_instantiation.shufflenetv2_chenyaofo import shufflenetv2x1
+
+    sample = torch.randn(1, 3, 32, 32)
+    model = shufflenetv2x1(num_classes=100, large_input=False).eval()
+    model_with_rows = ModelWithRows(model)
+    num_rows = len(model_with_rows.row_to_main_layer)
+    for row_idx in range(num_rows):
+        prune_current_model(
+            model_with_rows, 0.8, row_idx, quiet=True, record=False,
+            input_shape=(3, 32, 32))
+        model_with_rows.model.eval()
+        assert model_with_rows.model(sample).shape == (1, 100)
+
+
 def test_filter_importance_l1_is_default(monkeypatch):
     monkeypatch.delenv("SPECTRA_FILTER_IMPORTANCE", raising=False)
     conv = nn.Conv2d(3, 4, 3, bias=False)

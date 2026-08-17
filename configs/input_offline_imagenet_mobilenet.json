@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2_imagenet1kv1_torchvision_71.88_3.505_327.487.pth": [
+    "mobilenet_v2",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ]
+}

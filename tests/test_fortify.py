@@ -110,8 +110,17 @@ def test_heuristic_eval_identity_when_no_prune_legal():
 
 def test_eval_lookahead_off_by_default(monkeypatch):
     monkeypatch.delenv("SPECTRA_EVAL_LOOKAHEAD", raising=False)
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
+    assert fortify.eval_min_flop_ratio() == 0.0
     assert fortify.eval_lookahead_enabled() is False
     monkeypatch.setenv("SPECTRA_EVAL_LOOKAHEAD", "1")
+    assert fortify.eval_lookahead_enabled() is True
+
+
+def test_flop_floor_auto_enables_lookahead(monkeypatch):
+    monkeypatch.delenv("SPECTRA_EVAL_LOOKAHEAD", raising=False)
+    monkeypatch.setenv("SPECTRA_EVAL_MIN_FLOP_RATIO", "0.70")
+    assert fortify.eval_min_flop_ratio() == 0.70
     assert fortify.eval_lookahead_enabled() is True
 
 
@@ -123,7 +132,8 @@ class _FakePreviewEnv:
         return self.previews[float(rate)]
 
 
-def test_lookahead_keeps_action_when_preview_stays_on_floor():
+def test_lookahead_keeps_action_when_preview_stays_on_floor(monkeypatch):
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
     rates = {0: 1.0, 1: 0.9, 2: 0.8}
     legal = torch.tensor([True, True, True])
     env = _FakePreviewEnv({1.0: 0.80, 0.9: 0.75, 0.8: 0.71})
@@ -132,7 +142,8 @@ def test_lookahead_keeps_action_when_preview_stays_on_floor():
     assert int(out.item()) == 2
 
 
-def test_lookahead_falls_back_to_milder_cut_then_identity():
+def test_lookahead_falls_back_to_milder_cut_then_identity(monkeypatch):
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
     rates = {0: 1.0, 1: 0.9, 2: 0.8}
     legal = torch.tensor([True, True, True])
     env = _FakePreviewEnv({1.0: 0.83, 0.9: 0.72, 0.8: 0.66})
@@ -143,6 +154,90 @@ def test_lookahead_falls_back_to_milder_cut_then_identity():
     out_id = fortify.action_respecting_param_floor(
         env_both_low, action, legal, rates, 0.70, "cpu")
     assert int(out_id.item()) == 0
+
+
+class _FakeRatioEnv:
+    def __init__(self, param, flop, param_previews, flop_previews):
+        self._param = param
+        self._flop = flop
+        self.param_previews = param_previews
+        self.flop_previews = flop_previews
+
+    def param_ratio(self):
+        return self._param
+
+    def flops_ratio(self):
+        return self._flop
+
+    def preview_param_ratio(self, rate):
+        return self.param_previews[float(rate)]
+
+    def preview_flops_ratio(self, rate):
+        return self.flop_previews[float(rate)]
+
+    def preview_ratios(self, rate):
+        return self.preview_param_ratio(rate), self.preview_flops_ratio(rate)
+
+
+def test_eval_at_size_floor_param_then_flop(monkeypatch):
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
+    env = _FakeRatioEnv(0.69, 0.80, {}, {})
+    stop, reason = fortify.eval_at_size_floor(env)
+    assert stop is True and reason == "param"
+    monkeypatch.setenv("SPECTRA_EVAL_MIN_FLOP_RATIO", "0.70")
+    env_flop = _FakeRatioEnv(0.80, 0.55, {}, {})
+    stop, reason = fortify.eval_at_size_floor(env_flop)
+    assert stop is True and reason == "flop"
+    env_ok = _FakeRatioEnv(0.80, 0.75, {}, {})
+    stop, reason = fortify.eval_at_size_floor(env_ok)
+    assert stop is False and reason == ""
+
+
+def test_eval_at_size_floor_skips_flops_when_floor_off(monkeypatch):
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
+
+    class _ParamOnly:
+        def param_ratio(self):
+            return 0.80
+
+    stop, reason = fortify.eval_at_size_floor(_ParamOnly())
+    assert stop is False and reason == ""
+
+
+def test_flop_lookahead_falls_back_when_params_ok_flops_breach(monkeypatch):
+    monkeypatch.setenv("SPECTRA_EVAL_MIN_FLOP_RATIO", "0.70")
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    action = torch.tensor([2])
+    env = _FakeRatioEnv(
+        0.80, 0.72,
+        {1.0: 0.80, 0.9: 0.80, 0.8: 0.80},
+        {1.0: 0.72, 0.9: 0.71, 0.8: 0.55},
+    )
+    out = fortify.action_respecting_param_floor(env, action, legal, rates, 0.70, "cpu")
+    assert int(out.item()) == 1
+    env_both = _FakeRatioEnv(
+        0.80, 0.72,
+        {1.0: 0.80, 0.9: 0.80, 0.8: 0.80},
+        {1.0: 0.72, 0.9: 0.60, 0.8: 0.55},
+    )
+    out_id = fortify.action_respecting_param_floor(
+        env_both, action, legal, rates, 0.70, "cpu")
+    assert int(out_id.item()) == 0
+
+
+def test_flop_lookahead_keeps_0_8_when_both_floors_ok(monkeypatch):
+    monkeypatch.setenv("SPECTRA_EVAL_MIN_FLOP_RATIO", "0.70")
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    env = _FakeRatioEnv(
+        0.85, 0.80,
+        {1.0: 0.85, 0.9: 0.82, 0.8: 0.80},
+        {1.0: 0.80, 0.9: 0.76, 0.8: 0.72},
+    )
+    out = fortify.action_respecting_param_floor(
+        env, torch.tensor([2]), legal, rates, 0.70, "cpu")
+    assert int(out.item()) == 2
 
 
 def test_heuristic_eval_random_stays_in_prune_set():

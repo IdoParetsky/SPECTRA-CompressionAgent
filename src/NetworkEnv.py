@@ -114,6 +114,7 @@ class NetworkEnv:
         self.actions_history = []
         self.original_acc = None
         self.original_params = None
+        self.original_flops = None
         self.selected_net_path = None
         self.current_model = None
         self.feature_extractor = None
@@ -187,6 +188,16 @@ class NetworkEnv:
         # previous episode does not leak into this one
         self.current_model = copy.deepcopy(self.current_model)
         self.original_params = utils.calc_num_parameters(self.current_model)
+        # FLOP origin is only needed when the eval FLOP floor is on (otherwise a
+        # MAC probe every episode would tax training for no reason).
+        self.original_flops = None
+        try:
+            min_flop = float(os.environ.get("SPECTRA_EVAL_MIN_FLOP_RATIO", "0") or 0)
+        except ValueError:
+            min_flop = 0.0
+        if min_flop > 0:
+            self.original_flops = utils.calc_flops(
+                self.current_model, self._input_shape())
         if utils.env_flag("SPECTRA_FT_KD"):
             self.kd_teacher = copy.deepcopy(self.current_model).eval()
             for param in self.kd_teacher.parameters():
@@ -256,6 +267,70 @@ class NetworkEnv:
         origin = getattr(self, "original_params", None) or utils.calc_num_parameters(self.current_model)
         return utils.calc_num_parameters(self.current_model) / max(float(origin), 1.0)
 
+    def _input_shape(self):
+        return utils.get_input_shape(self.train_loader)
+
+    def flops_ratio(self) -> float:
+        """Current / original FLOPs (1.0 at reset). Lazy-origin if reset skipped the probe."""
+        current = utils.calc_flops(self.current_model, self._input_shape())
+        origin = getattr(self, "original_flops", None)
+        if not origin:
+            # First call should be at reset (unpruned). Do not lock origin after a prune.
+            self.original_flops = current
+            return 1.0
+        return current / max(float(origin), 1.0)
+
+    def preview_ratios(self, compression_rate: float):
+        """
+        ``(param_ratio, flops_ratio)`` after a dry-run prune of the current row.
+
+        One clone, no fine-tune. Identity is a no-op preview. FLOPs are only
+        measured when ``SPECTRA_EVAL_MIN_FLOP_RATIO`` is on.
+        """
+        origin_p = float(getattr(self, "original_params", None)
+                         or utils.calc_num_parameters(self.current_model))
+        origin_p = max(origin_p, 1.0)
+        try:
+            need_flops = float(os.environ.get("SPECTRA_EVAL_MIN_FLOP_RATIO", "0") or 0) > 0
+        except ValueError:
+            need_flops = False
+        origin_f = getattr(self, "original_flops", None)
+
+        def _current_flops():
+            return utils.calc_flops(self.current_model, self._input_shape())
+
+        if abs(float(compression_rate) - 1.0) < 1e-9:
+            p = utils.calc_num_parameters(self.current_model) / origin_p
+            if not need_flops:
+                return p, 1.0
+            if not origin_f:
+                origin_f = _current_flops()
+                self.original_flops = origin_f
+            return p, _current_flops() / max(float(origin_f), 1.0)
+
+        cloned = copy.deepcopy(self.current_model)
+        try:
+            mwr = ModelWithRows(cloned)
+            prune_current_model(
+                mwr, compression_rate, max(0, (self.row_idx or 1) - 1),
+                quiet=True, record=False, input_shape=self._input_shape())
+            after_p = utils.calc_num_parameters(mwr.model)
+            after_f = None
+            if need_flops:
+                if not origin_f:
+                    origin_f = _current_flops()
+                    self.original_flops = origin_f
+                after_f = utils.calc_flops(mwr.model, self._input_shape())
+        except Exception:
+            after_p = utils.calc_num_parameters(self.current_model)
+            after_f = None
+        finally:
+            del cloned
+        p = after_p / origin_p
+        if not need_flops or after_f is None:
+            return p, 1.0
+        return p, after_f / max(float(origin_f), 1.0)
+
     def preview_param_ratio(self, compression_rate: float) -> float:
         """
         Parameter fraction after applying ``compression_rate`` to the current row, without
@@ -264,22 +339,11 @@ class NetworkEnv:
         Used by eval look-ahead so a 0.8 group-cut cannot jump past
         ``SPECTRA_EVAL_MIN_PARAM_RATIO`` in one step. Identity is a no-op preview.
         """
-        origin = float(getattr(self, "original_params", None) or utils.calc_num_parameters(self.current_model))
-        origin = max(origin, 1.0)
-        if abs(float(compression_rate) - 1.0) < 1e-9:
-            return utils.calc_num_parameters(self.current_model) / origin
-        cloned = copy.deepcopy(self.current_model)
-        try:
-            mwr = ModelWithRows(cloned)
-            prune_current_model(
-                mwr, compression_rate, max(0, (self.row_idx or 1) - 1),
-                quiet=True, record=False)
-            after = utils.calc_num_parameters(mwr.model)
-        except Exception:
-            after = utils.calc_num_parameters(self.current_model)
-        finally:
-            del cloned
-        return after / origin
+        return self.preview_ratios(compression_rate)[0]
+
+    def preview_flops_ratio(self, compression_rate: float) -> float:
+        """FLOP fraction after a dry-run prune of the current row (eval FLOP floor)."""
+        return self.preview_ratios(compression_rate)[1]
 
     def legal_action_mask(self, device=None):
         """Bool mask over ``compression_rates_dict`` for the current row (fortify-aware)."""
@@ -334,7 +398,9 @@ class NetworkEnv:
             # Modify the model in-place
             with logging_utils.stage("step.prune", level=logging.DEBUG):
                 if self.conf.prune:
-                    model_with_rows = prune_current_model(model_with_rows, compression_rate, self.row_idx - 1)
+                    model_with_rows = prune_current_model(
+                        model_with_rows, compression_rate, self.row_idx - 1,
+                        input_shape=self._input_shape())
                 else:
                     model_with_rows = create_new_model_with_new_weights(model_with_rows, compression_rate,
                                                                         self.row_idx - 1)
@@ -646,8 +712,51 @@ def create_new_model_with_new_weights(model_with_rows, compression_rate, row_to_
     return prune_current_model(model_with_rows, compression_rate, row_to_resize_idx)
 
 
+def _rebind_model(model_with_rows, model):
+    """Point ModelWithRows at a restored module tree after a rolled-back structural prune."""
+    model_with_rows.model = model
+    model_with_rows.all_layers = []
+    model_with_rows.layer_parents = []
+    model_with_rows.extract_layers_from_model(model)
+    model_with_rows.all_rows, model_with_rows.row_to_main_layer = (
+        model_with_rows.split_and_map_layers_to_rows())
+
+
+def dummy_forward_ok(model, input_shape=None):
+    """
+    True if a dummy batch runs. ShuffleNet grouped-conv mismatches raise here
+    instead of hours into fine-tune (C9 C100 ShuffleNet, jobs 20270291/293/295).
+    """
+    device = next(model.parameters()).device
+    in_ch = 3
+    for module in model.modules():
+        if isinstance(module, nn.Conv2d):
+            in_ch = int(module.in_channels)
+            break
+    shapes = []
+    if input_shape is not None:
+        shapes.append(tuple(input_shape))
+    for spatial in (32, 224, 28):
+        cand = (in_ch, spatial, spatial)
+        if cand not in shapes:
+            shapes.append(cand)
+    was_training = model.training
+    model.eval()
+    try:
+        with torch.no_grad():
+            for shape in shapes:
+                try:
+                    model(torch.zeros(1, *shape, device=device))
+                    return True
+                except Exception:
+                    continue
+    finally:
+        model.train(was_training)
+    return False
+
+
 def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
-                        *, quiet=False, record=True):
+                        *, quiet=False, record=True, input_shape=None):
     """
     Compress the target layer by removing its least important output filters.
 
@@ -660,6 +769,8 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
         row_to_prune_idx (int):           Index of the row whose first layer is to be pruned
         quiet (bool):                     Skip log lines (eval look-ahead dry-run).
         record (bool):                    Skip run_recorder writes (eval look-ahead dry-run).
+        input_shape (tuple, optional):    NCHW spatial shape for the grouped-conv dummy
+            forward (CIFAR 32, ImageNet 224). Tried 32/224/28 if omitted.
 
     Returns:
         pruned_model_with_rows (ModelWithRows): The pruned model
@@ -680,35 +791,47 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
     else:
         trace_error = None
     group = channel_groups.group_of(groups, layer_to_prune) if groups else None
+    risky_groups = bool(group is not None and group.prunable and group.depthwise)
+    backup = copy.deepcopy(model_with_rows.model) if risky_groups else None
+    rolled_back_grouped = False
 
     if group is not None and group.prunable:
         keep_idx = pruning.select_group_survivors(group, compression_rate)
         if keep_idx is not None and pruning.prune_group_structurally(model_with_rows, group, keep_idx):
-            coupled = len(group.producers) + len(group.depthwise)
-            if not quiet:
-                utils.print_flush(
-                    f"Layer {layer_to_prune_idx}: width {old_width} -> {keep_idx.numel()} "
-                    f"across {coupled} coupled layer(s), {len(group.consumers)} consumer(s) resized")
-            # Recorded on the ModelWithRows so NetworkEnv.step can fold the outcome into its
-            # own step record; the caller owns the episode/network context.
-            edited_ids = list(getattr(model_with_rows, "last_edited_param_ids", []) or [])
-            model_with_rows.last_prune_outcome = {
-                "mode": "structural", "reason": None, "old_width": old_width,
-                "new_width": int(keep_idx.numel()), "coupled_layers": coupled,
-                "consumers_resized": len(group.consumers),
-                "trainable_param_count": len(edited_ids),
-            }
-            if record:
-                recorder.record("prune", mode="structural", layer_index=layer_to_prune_idx,
-                                layer_type=type(layer_to_prune).__name__, rate=compression_rate,
-                                old_width=old_width, new_width=int(keep_idx.numel()),
-                                coupled_layers=coupled, consumers_resized=len(group.consumers))
-            model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
-            return model_with_rows
+            if risky_groups and not dummy_forward_ok(model_with_rows.model, input_shape):
+                if not quiet:
+                    utils.print_flush(
+                        f"Layer {layer_to_prune_idx}: structural grouped prune broke a dummy "
+                        f"forward; restoring and masking")
+                _rebind_model(model_with_rows, backup)
+                layer_to_prune = model_with_rows.all_layers[layer_to_prune_idx]
+                rolled_back_grouped = True
+            else:
+                coupled = len(group.producers) + len(group.depthwise)
+                if not quiet:
+                    utils.print_flush(
+                        f"Layer {layer_to_prune_idx}: width {old_width} -> {keep_idx.numel()} "
+                        f"across {coupled} coupled layer(s), {len(group.consumers)} consumer(s) resized")
+                edited_ids = list(getattr(model_with_rows, "last_edited_param_ids", []) or [])
+                model_with_rows.last_prune_outcome = {
+                    "mode": "structural", "reason": None, "old_width": old_width,
+                    "new_width": int(keep_idx.numel()), "coupled_layers": coupled,
+                    "consumers_resized": len(group.consumers),
+                    "trainable_param_count": len(edited_ids),
+                }
+                if record:
+                    recorder.record("prune", mode="structural", layer_index=layer_to_prune_idx,
+                                    layer_type=type(layer_to_prune).__name__, rate=compression_rate,
+                                    old_width=old_width, new_width=int(keep_idx.numel()),
+                                    coupled_layers=coupled, consumers_resized=len(group.consumers))
+                model_with_rows.rewrap_model(StaticConf.get_instance().conf_values.device)
+                return model_with_rows
 
     # "no dependency group resolved" conflated four different failures, so the logs could not
     # say whether the library needs a new fx rule, a new resize rule, or nothing at all.
-    if trace_error is not None:
+    if rolled_back_grouped:
+        reason = "structural grouped prune broke dummy forward; masked instead"
+    elif trace_error is not None:
         reason = f"fx trace raised {trace_error}"
     elif groups is None:
         reason = "model is not symbolically traceable (dynamic control flow)"

@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/lenet_mnist_sublinear_97.75.pt": [
+    "lenet_mnist_sublinear",
+    "/home/paretsky/spectra_models_instantiation/sublinear_instantiation.py",
+    "mnist"
+  ]
+}

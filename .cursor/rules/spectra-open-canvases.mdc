@@ -1,0 +1,21 @@
+---
+description: Open SPECTRA canvases beside chat; Windows markdown links must be clickable
+alwaysApply: true
+---
+
+# SPECTRA canvases — open them; do not rely on a click
+
+On this Windows workspace, a markdown link with `C:\...` **does not open**. Backslashes break the link. The user has asked repeatedly to pop canvases beside the chat.
+
+Whenever you create, update, or mention a `.canvas.tsx`:
+
+1. **Call `open_resource`** (cursor-app-control) with
+   `file:///C:/Users/User/.cursor/projects/c-SPECTRA-CompressionAgent/canvases/<file>.canvas.tsx`
+   Do not wait for the user to click.
+2. In chat, link with **forward slashes** (POSIX), never a `C:\` path:
+
+```
+[Gilad brief](/Users/User/.cursor/projects/c-SPECTRA-CompressionAgent/canvases/spectra-gilad-brief.canvas.tsx)
+```
+
+Canvases live only in that `canvases/` directory (Cursor-managed). Do not put `.canvas.tsx` in the git repo.

@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width8_svhn_thin-res-net_96.30_0.069_10.42.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "svhn"
+  ]
+}

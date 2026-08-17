@@ -1388,6 +1388,10 @@ def get_adaptive_batch_size(base=64):
     """
     Returns an adaptive batch size based on the GPU type and memory size.
     """
+    override = os.environ.get("SPECTRA_BATCH_SIZE", "").strip()
+    if override:
+        return max(1, int(override))
+
     if not torch.cuda.is_available():
         return base
 
@@ -1401,6 +1405,8 @@ def get_adaptive_batch_size(base=64):
         multiplier = 1
     elif "2080" in name:
         multiplier = 2
+    elif "4090" in name:
+        multiplier = 4
     elif "3090" in name or "titan" in name:
         multiplier = 4
     elif "a100" in name or "6000" in name:

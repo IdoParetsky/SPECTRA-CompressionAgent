@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/shufflenetv2x1_cifar100_chenyaofo_72.39_1.36_90.18.pt": [
+    "shufflenetv2x1",
+    "/home/paretsky/spectra_models_instantiation/shufflenetv2_chenyaofo.py",
+    "cifar-100"
+  ]
+}

@@ -175,14 +175,17 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
   probe_c100_extra)
     GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
-  eval_only)
+  eval_only|eval_offline_c100|eval_imagenet_short)
     # Skip training; load SPECTRA_ACTOR/CRITIC_CHECKPOINT_PATH and evaluate.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+  eval_c10_thin_flop_floor)
+    # Eval-only FLOP floor 0.70 + look-ahead on C10-thin; frozen 10-net s42 actor.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
   baseline_c10_l1|baseline_c10_mild|baseline_c10_random)
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|baseline_c10_*}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|eval_offline_c100|eval_imagenet_short|eval_c10_thin_flop_floor|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|baseline_c10_*}" >&2
     exit 1
     ;;
 esac
@@ -226,6 +229,11 @@ mkdir -p runs/slurm_logs
 # Prefer non-preemptible rtx_6000-class nodes. ee-l40s-* preempted recover_pref10/wide
 # mid-run and wiped progress (no mid-train resume yet).
 EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-01,ee-l40s-02}"
+if [[ -n "${SPECTRA_GPU_GRES:-}" ]]; then
+  GPU_GRES="${SPECTRA_GPU_GRES}"
+else
+  GPU_GRES="${SPECTRA_GPU_TYPE:-rtx_6000}:${GPUS}"
+fi
 
 # Cluster-side chaining: SPECTRA_DEPENDENCY=afterok:JOBID (or afterany:JOBID).
 # Survives laptop/VPN disconnects — do not rely on a local PowerShell watcher.
@@ -260,7 +268,7 @@ SBATCH_EXTRA+=(--output="${REPO_DIR}/runs/slurm_logs/spectra_%j.out")
 SBATCH_EXTRA+=(--error="${REPO_DIR}/runs/slurm_logs/spectra_%j.out")
 
 JOB_ID=$(sbatch --parsable \
-  --gpus="rtx_6000:${GPUS}" \
+  --gpus="${GPU_GRES}" \
   --mem="${MEM}" \
   --cpus-per-task="${CPUS}" \
   --time="${TIME}" \
@@ -271,7 +279,7 @@ JOB_ID=$(sbatch --parsable \
   scripts/spectra.sbatch)
 
 LOG="${REPO_DIR}/runs/slurm_logs/spectra_${JOB_ID}.out"
-    echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPUS}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, usr1=${USR1_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}}${SPECTRA_BEGIN:+, begin=${SPECTRA_BEGIN}})"
+    echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPU_GRES}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, usr1=${USR1_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}}${SPECTRA_BEGIN:+, begin=${SPECTRA_BEGIN}})"
 echo "log     : ${LOG}"
 echo "run dir : ${REPO_DIR}/runs/job${JOB_ID}"
 # Confirm the scheduler accepted the Timelimit we asked for (qos/partition can silently clamp).

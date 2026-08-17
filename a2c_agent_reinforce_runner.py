@@ -82,12 +82,18 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 while not done:
                     legal = env.legal_action_mask(device=conf.device)
                     min_ratio = fortify_mod.eval_min_param_ratio()
-                    at_budget = env.param_ratio() <= min_ratio
+                    at_budget, floor_kind = fortify_mod.eval_at_size_floor(env)
                     if at_budget:
                         if not env._budget_logged:
-                            utils.print_flush(
-                                f"[eval] param budget x{env.param_ratio():.3f} <= {min_ratio}; "
-                                f"identity-pad remaining steps")
+                            min_flop = fortify_mod.eval_min_flop_ratio()
+                            if floor_kind == "flop":
+                                utils.print_flush(
+                                    f"[eval] flop budget x{env.flops_ratio():.3f} "
+                                    f"<= {min_flop}; identity-pad remaining steps")
+                            else:
+                                utils.print_flush(
+                                    f"[eval] param budget x{env.param_ratio():.3f} "
+                                    f"<= {min_ratio}; identity-pad remaining steps")
                             env._budget_logged = True
                         identity = next(
                             (i for i, r in conf.compression_rates_dict.items()
@@ -110,10 +116,13 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             env, action, legal, conf.compression_rates_dict,
                             min_ratio, conf.device)
                         if int(action.item()) != before:
+                            min_flop = fortify_mod.eval_min_flop_ratio()
                             utils.print_flush(
                                 f"[eval] lookahead: rate "
                                 f"{conf.compression_rates_dict[before]} would "
-                                f"drop below {min_ratio:.3f}; using "
+                                f"drop below param {min_ratio:.3f}"
+                                f"{f' / flop {min_flop:.3f}' if min_flop > 0 else ''}"
+                                f"; using "
                                 f"{conf.compression_rates_dict[int(action.item())]}")
                     compression_rate = conf.compression_rates_dict[int(action.item())]
                     next_state, reward, done = env.step(compression_rate)

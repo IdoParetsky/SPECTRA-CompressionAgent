@@ -780,6 +780,33 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
+  eval_offline_c100)
+    # Frozen-agent held-out dataset eval (claim C9). Database must be C100 too:
+    # instantiate_networks filters --database by --datasets and crashes if the
+    # 10-net C10/SVHN/Fashion catalog is passed with datasets=cifar-100.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_c100.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/input_offline_c100.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
+      echo "eval_offline_c100 requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
+      exit 1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
   eval_only)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/initial_input_no_imagenet.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/initial_database_no_imagenet.json}"
@@ -787,14 +814,75 @@ case "$PROFILE" in
     export SPECTRA_PASSES=1
     export SPECTRA_ROLLOUT_LIMIT=5
     export SPECTRA_N_SPLITS=0
-    export SPECTRA_NUM_EPOCHS=40
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
     export SPECTRA_SAVE_PRUNED=False
     export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
     export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_SKIP_TRAIN="${SPECTRA_SKIP_TRAIN:-1}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
     export SPECTRA_CONTINUE_TRAIN=0
     export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
     if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
       echo "eval_only requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
+      exit 1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  eval_imagenet_short)
+    # Frozen 10-net actor, MobileNet-v2 ImageNet-1k, 3-epoch FT, param floor 0.70.
+    # Transfer probe, not ImageNet DRL train. Prefer a 4090/6000; 2080 will OOM.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_imagenet_mobilenet.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/input_offline_imagenet_mobilenet.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-imagenet1k}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-3}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    unset SPECTRA_EVAL_MIN_FLOP_RATIO
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_BATCH_SIZE="${SPECTRA_BATCH_SIZE:-128}"
+    if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
+      echo "eval_imagenet_short requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
+      exit 1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  eval_c10_thin_flop_floor)
+    # Eval-only FLOP floor + look-ahead on C10-thin (r20-w2, r56-w4).
+    # Same frozen 10-net s42 actor as 20189046 (control: r56-w4 TEST −15.9 @ 0.704/0.550).
+    # Default-off everywhere else: this profile is the only one that sets the FLOP floor.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_c10_thin.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_thin.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_EVAL_MIN_FLOP_RATIO="${SPECTRA_EVAL_MIN_FLOP_RATIO:-0.70}"
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-/home/paretsky/SPECTRA-CompressionAgent/runs/job20158274/agent_checkpoints/latest_best_actor.pt}"
+    export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-/home/paretsky/SPECTRA-CompressionAgent/runs/job20158274/agent_checkpoints/latest_best_critic.pt}"
+    if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
+      echo "eval_c10_thin_flop_floor requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
       exit 1
     fi
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"

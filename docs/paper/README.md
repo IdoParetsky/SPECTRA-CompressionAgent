@@ -7,7 +7,7 @@ matrix) are for live ops; they go stale and they are not in git.
 | File | Role |
 |---|---|
 | [RESULTS_LEDGER.md](RESULTS_LEDGER.md) | Canonical numbers. Quote **TEST** only. Update this first when a job finishes. |
-| [SPECTRA_draft.md](SPECTRA_draft.md) | Paper skeleton in **NEON’s section order**. Prose + tables that point at the ledger. Fill blanks; do not invent numbers. |
+| [SPECTRA_draft.md](SPECTRA_draft.md) | Paper in **NEON’s section order**. Prose + tables that point at the ledger. Bibliography **[1]–[78]** = thesis proposal; **[79]–[92]** = Aug 2026 literature survey. Fill blanks; do not invent numbers. |
 
 ## Status tags (used in both files)
 
@@ -20,8 +20,8 @@ matrix) are for live ops; they go stale and they are not in git.
 
 ## How to update (Ido or the agent)
 
-1. New TEST row → append/edit **RESULTS_LEDGER.md** (job, net, Δacc, params, FLOPs, seed). §§1–9 are the live paper tables; §§10–20 are the 8–16 Aug backfill (do not duplicate; extend).
-2. If it changes a paper table or a CLAIM → update **SPECTRA_draft.md** in the same turn.
+1. New TEST row → append/edit **RESULTS_LEDGER.md** (job, net, Δacc, params, FLOPs, seed). §§1–9 are the live paper tables; §§10–20 are the 8–16 Aug backfill; **§§21+ are 17 Aug onward** (C9, MNIST, SVHN-w8). Do not duplicate; extend.
+2. If it changes a paper table or a CLAIM → update **SPECTRA_draft.md** in the same turn, including the **Durable snapshot** under the title (dated progress so chat is not the memory).
 3. Do not treat mean-of-train+test job summaries, overnight-matrix “Eval Δacc”, or train-step “within −10 %” as TEST.
 4. Log `eval_train` is the CNN train-image loader, not “architecture in the DRL catalog.”
 5. Skip akamaster ResNet-32 (`origin_acc` broken).

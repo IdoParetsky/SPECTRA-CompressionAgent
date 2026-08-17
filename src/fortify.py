@@ -168,10 +168,41 @@ def eval_min_param_ratio() -> float:
     return float(os.environ.get("SPECTRA_EVAL_MIN_PARAM_RATIO", "0.70"))
 
 
+def eval_min_flop_ratio() -> float:
+    """
+    Eval FLOP floor (fraction kept). ``0`` disables (default) so running jobs
+    are unchanged. Typical A/B: ``0.70``. Residual 3x3 groups can sit at 70%
+    params and ~55% FLOPs; this stops the walk on compute, not just size.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_MIN_FLOP_RATIO", "0").strip()
+    if not raw:
+        return 0.0
+    return max(0.0, float(raw))
+
+
 def eval_lookahead_enabled() -> bool:
-    """If set, refuse a prune whose *previewed* param_ratio would land below the floor."""
+    """Refuse a prune whose previewed param/FLOP ratio would land below a floor."""
     raw = os.environ.get("SPECTRA_EVAL_LOOKAHEAD", "0").strip().lower()
-    return raw in ("1", "true", "yes", "on")
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    # A FLOP floor without look-ahead still overshoots in one 0.8 group-cut.
+    return eval_min_flop_ratio() > 0
+
+
+def eval_at_size_floor(env) -> tuple:
+    """
+    ``(stop, reason)`` for eval identity-pad.
+
+    reason is ``param``, ``flop``, or ``""``. FLOPs are not probed unless the
+    FLOP floor is on.
+    """
+    min_param = eval_min_param_ratio()
+    if float(env.param_ratio()) <= min_param:
+        return True, "param"
+    min_flop = eval_min_flop_ratio()
+    if min_flop > 0 and float(env.flops_ratio()) <= min_flop:
+        return True, "flop"
+    return False, ""
 
 
 def identity_action_index(compression_rates: Dict[int, float]) -> int:
@@ -179,6 +210,24 @@ def identity_action_index(compression_rates: Dict[int, float]) -> int:
         (i for i, r in compression_rates.items() if abs(float(r) - 1.0) < 1e-9),
         0,
     )
+
+
+def _rate_respects_eval_floors(env, rate: float, min_param: float, min_flop: float) -> bool:
+    if abs(float(rate) - 1.0) < 1e-9:
+        return True
+    preview_both = getattr(env, "preview_ratios", None)
+    if min_flop > 0 and callable(preview_both):
+        param_r, flop_r = preview_both(rate)
+        if float(param_r) + 1e-9 < min_param:
+            return False
+        return float(flop_r) + 1e-9 >= min_flop
+    if float(env.preview_param_ratio(rate)) + 1e-9 < min_param:
+        return False
+    if min_flop > 0:
+        preview_f = getattr(env, "preview_flops_ratio", None)
+        if callable(preview_f) and float(preview_f(rate)) + 1e-9 < min_flop:
+            return False
+    return True
 
 
 def action_respecting_param_floor(
@@ -190,18 +239,21 @@ def action_respecting_param_floor(
     device,
 ) -> torch.Tensor:
     """
-    Keep the chosen action unless applying it would jump below ``min_ratio``.
+    Keep the chosen action unless applying it would jump below the param floor
+    (and the FLOP floor when ``SPECTRA_EVAL_MIN_FLOP_RATIO`` is on).
 
-    Then pick the strongest legal prune whose dry-run still stays on the floor;
-    otherwise identity. Default-off (``SPECTRA_EVAL_LOOKAHEAD``) so running DRL
-    evals are unchanged. Floor 0.71 without this still overshot to 0.667.
+    Then pick the strongest legal prune whose dry-run still stays on every
+    active floor; otherwise identity. Param look-ahead is default-off
+    (``SPECTRA_EVAL_LOOKAHEAD``). A FLOP floor turns look-ahead on so one
+    residual 0.8 cannot skip from 0.72 FLOPs to 0.55.
     """
     identity = identity_action_index(compression_rates)
+    min_flop = eval_min_flop_ratio()
     idx = int(action.item())
     rate = float(compression_rates[idx])
     if abs(rate - 1.0) < 1e-9:
         return action
-    if float(env.preview_param_ratio(rate)) + 1e-9 >= min_ratio:
+    if _rate_respects_eval_floors(env, rate, min_ratio, min_flop):
         return action
     legal_idx = legal.nonzero(as_tuple=False).flatten().tolist()
     prune_opts = sorted(
@@ -213,7 +265,7 @@ def action_respecting_param_floor(
         key=lambda item: item[1],
     )
     for cand_i, cand_rate in prune_opts:
-        if float(env.preview_param_ratio(cand_rate)) + 1e-9 >= min_ratio:
+        if _rate_respects_eval_floors(env, cand_rate, min_ratio, min_flop):
             return torch.tensor([cand_i], device=device)
     return torch.tensor([identity], device=device)
 
