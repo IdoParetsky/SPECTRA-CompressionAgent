@@ -105,6 +105,11 @@ def test_imagenet_eval_resizes_variable_jpegs(monkeypatch):
     assert "CenterCrop" not in cifar
 
 
+def test_imagenet_allows_truncated_jpegs():
+    from PIL import ImageFile
+    assert ImageFile.LOAD_TRUNCATED_IMAGES is True
+
+
 def test_imagenet_train_uses_random_resized_crop():
     tf = utils.build_transform("imagenet1k", {}, train=True)
     kinds = [type(t).__name__ for t in tf.transforms]

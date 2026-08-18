@@ -39,6 +39,11 @@ _FT_AUG_DATASETS = ("cifar-10", "cifar-100")
 # DataLoader collate crashes (job 20289097). CIFAR stays 32×32.
 _LARGE_SPATIAL = ("imagenet1k", "imagenet1kv2", "places365")
 
+# Cluster ImageNet has truncated JPEGs. Job 20308031 died mid-FT
+# (`OSError: image file is truncated`) with no TEST. PIL default is strict.
+from PIL import ImageFile as _ImageFile
+_ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 
 def env_flag(name: str, default: str = "0") -> bool:
     """Parse a SPECTRA_* on/off environment flag. Default is off unless ``default`` says otherwise."""

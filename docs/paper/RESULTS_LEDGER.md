@@ -1,6 +1,6 @@
 # SPECTRA results ledger
 
-**As of:** 18 Aug 2026 11:30 IDT. Idle GPUs filled. ImageNet resize retry **20307394** RUNNING. C100 ShuffleNet s43/s44 **20307286 / 20307395**. C100 residual SGD s43 **20307289**. FLOP-floor prefer-Δparams/ΔFLOPs s42 **20307291**. C100 recoverable DRL **20307403** queued. 24-net similar **20201260** still eval_train.  
+**As of:** 18 Aug 2026 15:20 IDT. FLOP-prefer s43 **20308033 COMPLETED**: r56-w4 **−8.0 @ 0.704/0.872** (two-seed with s42 **−8.9 @ 0.704/0.872**, both inside τ). Similar VGG-19 **−2.8**. Skip r32. Prefer s44 / p80 s44 still RUNNING. **7/8 GPUs** until ImageNet truncated-JPEG retry.  
 **Backfill:** every important result since git `ecefe78` (8 Aug 2026, “Transfer to new PC”) through the 10-net leap. Later jobs only *extend* these tables.  
 **Protocol (current defaults):** τ = 10 pp; eval floor 0.70 params kept; rates 1.0 / 0.9 / 0.8 unless noted; full-net FT 40 ep / patience 10 on C10; NEON reward; small Transformer encoder; Fortify on.  
 **Quote TEST only.** Skip akamaster ResNet-32.  
@@ -28,8 +28,8 @@
 | C5 | On hard ResNets, DRL beats greedy: similar r56-w10 ~10 pp at matched params; held-out r56-w4 ~9 pp vs look-ahead greedy that kept **more** params. | LOCKED | §6 r56-w10; §5 job 20213131 −24.9 @ 0.722/0.477 vs DRL −15.9 @ 0.704/0.550 |
 | C6 | C10 is a recoverable FT environment. C100 is **not**, except VGG-11 BN under the 160-ep SGD recipe. | LOCKED | §7. Probe **20204214 COMPLETED**. Residuals/DenseNet/MobileNet are tiny cuts or val DROP. |
 | C7 | Encoder capacity (BERT / wider / set) did not fix r56-w4. Catalog diversity (10-net vs 3-net) is the remaining lever. | LOCKED | §16 encoder ~−24 pp; §17 10-net moved it to −15.9 |
-| C8 | 24-net train catalog moves r56-w4 further. | TBD | s42 in-catalog eval done; held-out **20201260** still eval_train |
-| C9 | Frozen C10-trained agent on held-out **CIFAR-100**: VGG-16 BN and ShuffleNet-v2×1 (s42) inside τ; thin ResNets and RepVGG-A0 miss. | LOCKED mixed | §21; ShuffleNet **20289197** −3.9 @ 0.833/0.823 |
+| C8 | 24-net train catalog moves r56-w4 further. | TBD | r56-w4 is **20201263**. Similar **20201260**: r20 **−5.9**; r56-w10 **−12.6** miss; r44 **−4.5**; VGG-19 **−2.8 @ 0.817/0.771**. Skip r32. |
+| C9 | Frozen C10-trained agent on held-out **CIFAR-100**: VGG-16 BN and ShuffleNet-v2×1 inside τ (three seeds); thin ResNets and RepVGG-A0 miss. | LOCKED mixed | §21; ShuffleNet **−3.9 / −3.4 / −4.3** |
 | C10 | Eval-only FLOP floor 0.70 puts held-out r56-w4 **inside τ=10** (same frozen 10-net actor). | LOCKED | §5 s42 **−8.9 @ 0.907/0.702**; s43 **−9.2 @ 0.926/0.703**; s44 **−9.6 @ 0.907/0.703**. Not the 0.704-param operating point of C4. |
 
 ---
@@ -96,10 +96,12 @@ Generic 5-family C10 agent **20140553** already had ShuffleNet-v2×1 TEST −1.4
 | **20238166** | **FLOP floor 0.70 + look-ahead, frozen s42** | **−2.1 @ 0.600/0.773** | **−8.9 @ 0.907/0.702** | **LOCKED** (s42) |
 | **20238653** | **FLOP floor 0.70, frozen s43** | **−3.7 @ 0.600/0.763** | **−9.2 @ 0.926/0.703** | **LOCKED** (s43) |
 | **20238655** | **FLOP floor 0.70, frozen s44** | **−4.0 @ 0.800/0.799** | **−9.6 @ 0.907/0.703** | **LOCKED** (s44; r20 is a larger net than s42/s43) |
+| **20307291** | FLOP floor 0.70 + prefer Δparams/ΔFLOPs s42 | **−2.7 @ 0.600/0.886** | **−8.9 @ 0.704/0.872** | PRELIM (s42). Same Δacc as 20238166, C4 param point, more FLOPs kept. |
+| **20308033** | FLOP floor 0.70 + prefer Δparams/ΔFLOPs s43 | **−2.7 @ 0.600/0.886** | **−8.0 @ 0.704/0.872** | PRELIM (s43). Same param/FLOP point as s42; Δacc −8.0 vs s42 −8.9. Both inside τ. |
 
 Do **not** quote unmatched always-0.8 −24 as the only r56-w4 greedy. Look-ahead greedy (param floor 0.70) is **−24.9 @ 0.722/0.477** — more params than DRL 0.704, fewer FLOPs than DRL 0.550, and still the cliff. DRL’s −15.9 is not “milder because it kept more weights.”
 
-**FLOP floor (same actors as 20189046/048/050):** r56-w4 TEST is **inside τ=10** on three seeds: s42 **−8.9 @ 0.907/0.702**, s43 **−9.2 @ 0.926/0.703**, s44 **−9.6 @ 0.907/0.703**. Cost vs param-floor DRL: ~91–93% params vs 0.704, ~70% FLOPs vs 0.550. Easy r20-w2: s42 **−2.1 @ 0.600/0.773**; s43 **−3.7 @ 0.600/0.763**; s44 **−4.0 @ 0.800/0.799** (FLOP floor bound earlier on this seed — not the 0.60-param tie). Do **not** quote eval_train r56-w4 **+7.4**. C4 stays LOCKED at 0.704/0.550.
+**FLOP floor (same actors as 20189046/048/050):** r56-w4 TEST is **inside τ=10** on three seeds: s42 **−8.9 @ 0.907/0.702**, s43 **−9.2 @ 0.926/0.703**, s44 **−9.6 @ 0.907/0.703**. Cost vs param-floor DRL: ~91–93% params vs 0.704, ~70% FLOPs vs 0.550. Easy r20-w2: s42 **−2.1 @ 0.600/0.773**; s43 **−3.7 @ 0.600/0.763**; s44 **−4.0 @ 0.800/0.799** (FLOP floor bound earlier on this seed — not the 0.60-param tie). Prefer-Δparams/ΔFLOPs s42 (**20307291 COMPLETED**): r20-w2 **−2.7 @ 0.600/0.886**; r56-w4 **−8.9 @ 0.704/0.872**. s43 (**20308033 COMPLETED**): r20-w2 **−2.7 @ 0.600/0.886**; r56-w4 **−8.0 @ 0.704/0.872**. Two seeds, same 0.704/0.872 point, both inside τ. s44 **20317562 RUNNING**. Do **not** quote eval_train r56-w4 **+7.4**. C4 stays LOCKED at 0.704/0.550.
 
 On 20189046 the **same** r56-w4 checkpoint is −1.7 pp on the CNN **train** loader @ 0.667/0.472 (`eval_train`) vs −15.9 TEST. On 20189048, eval_train is **−0.8 pp @ 0.667/0.472** vs TEST **−16.2 @ 0.704/0.550**. Quote TEST. That gap is FT generalization on the hard net, not catalog leakage (r56-w4 is not in `database_offline_train.json`). Look-ahead 20213131 eval_train r56-w4 **+6.0 pp @ 0.722/0.477** vs TEST **−24.9** — same trap, larger.
 
@@ -195,25 +197,25 @@ Train catalog `database_c100_wide.json` (mixes VGG with unrecovered residuals). 
 | **20276582 / 583 / 584** | Digit-MNIST LeNet s42/s43/s44 | **COMPLETED**. TEST **+2.8 / +2.7 / +2.9 pp**. §22 three-seed. |
 | **20276586 / 587 / 588** | SVHN r20-w8 frozen eval | **COMPLETED**. TEST **−2.0 / −1.5 / −2.0**. §23. |
 | **20270291 / 293 / 295** | C9 frozen 10-net → C100 | **COMPLETED**. TEST in §21. ShuffleNet hole filled by **20289197**. |
-| **20201235** | 24-net DRL s42 | **COMPLETED** 04:29. In-catalog DenseNet-100 −2.1 @ 0.793/0.825. **Not C8 held-out.** |
-| 20202693 | 24-net DRL s43 | in-catalog **eval_test** DenseNet. Do not quote. |
+| **20201235** | 24-net DRL s42 | **COMPLETED** 04:29. Post-train similar-pool DenseNet-100 −2.1 @ 0.793/0.825. **Not r56-w4.** |
+| **20202693** | 24-net DRL s43 | **COMPLETED** 12:12. Similar-pool TEST in §26. Skip r32. Not r56-w4. |
 | 20204215 | 24-net DRL s44 | train **stopped ep 463/720** (runtime_limit). Eval next. |
-| **20201260** | 24-net similar held-out | RUNNING **eval_train** ~4h (DenseNet). C8 TEST is this job’s eval_test. |
+| **20201260** | 24-net similar held-out (skip-train afterok) | RUNNING eval_test MobileNet. r20 **−5.9**; r56-w10 **−12.6** miss; r44 **−4.5**; VGG-19 **−2.8 @ 0.817/0.771**. Skip r32. |
 | 20201263 / 65 | 24-net thin / unlike afterok | PENDING (Dependency) |
-| **20289097 / 20307394** | ImageNet MobileNet-v2 | **FAILED**. 20289097: no Resize. 20307394: Resize worked; thop `total_ops` keys. Retry **20308031**. |
+| **20289097 / 20307394 / 20308031** | ImageNet MobileNet-v2 | **20308031 COMPLETED** 14:23 exit 0, **no TEST**. Truncated JPEG on eval_train and eval_test (`image file is truncated`). 20289097 no Resize; 20307394 thop keys. Do not quote 82.8%. |
 | **20289103 / 20289105** | C10-thin param floor 0.80 | **COMPLETED**. §24. r56-w4 still cliffs. |
 | **20289099** | C100 residual SGD 80-ep s42 | **COMPLETED** 08:51. §25. r56-w15 **−9.1 @ 0.612/0.442** inside τ; r20-w16 **−12.2** still miss. |
-| **20289197** | C100 ShuffleNet dummy-forward s42 | **COMPLETED**. TEST **−3.9 @ 0.833/0.823**. Inside τ. §21. |
-| **20307286 / 20307395** | C100 ShuffleNet s43 / s44 | RUNNING. Dummy-forward already in leap. |
-| **20307289** | C100 residual SGD 80-ep s43 | RUNNING. s44 **20307396** PENDING QOS. |
-| **20307291** | FLOP floor 0.70 + prefer Δparams/ΔFLOPs s42 | RUNNING. s43 **20307296** PENDING QOS. |
-| **20307403** | CIFAR-100 DRL on VGG-11/16 + ShuffleNet (SGD recipe) | PENDING QOS. Held-out eval = thin residuals. |
+| **20289197 / 20307286 / 20307395** | C100 ShuffleNet dummy-forward s42/s43/s44 | **COMPLETED**. TEST **−3.9 / −3.4 / −4.3**. Three-seed inside τ. §21. |
+| **20307289** | C100 residual SGD 80-ep s43 | RUNNING. s44 **20307396** RUNNING. |
+| **20307291 / 20308033 / 20317562** | FLOP floor + prefer Δparams/ΔFLOPs | s42 r56 **−8.9 @ 0.704/0.872**. s43 **20308033 COMPLETED** r56 **−8.0 @ 0.704/0.872**. Two-seed PRELIM, both inside τ. s44 **20317562 RUNNING** (eval_train — do not quote). |
+| **20317564** | Param floor 0.80 s44 | RUNNING. s42/s43 already miss (r56 **−21.7 / −25.7**). |
+| **20307403** | CIFAR-100 DRL on VGG-11/16 + ShuffleNet (SGD recipe) | **RUNNING** (~8 min). Held-out eval = thin residuals. Do not quote train returns. |
 
 **20189049 is done.** Overlay of `e985d5e` onto `/home/paretsky/SPECTRA-CompressionAgent` is now allowed. New jobs use the leap tree after `git pull` (ShuffleNet rollback is not in SPECTRA-night).
 
 **C100 next lever (not more C10 catalog diversity):** Frozen CIFAR-10 agent + Adam-40 misses on thin residuals. SGD-80 one-seed puts r56-w15 inside τ (§25). Next: lock SGD on seeds 43/44 (**20307289 / 20307396**), then train a CIFAR-100 agent only on families that recover (VGG-11/16 + ShuffleNet, **20307403**). Do not mix unrecovered residuals into that train catalog. Do not restart encoder/BERT A/Bs.
 
-**Floors:** They are eval-time stop rules on how far a *held-out network* may be pruned. They do not use test labels to train the agent, and they do not change the test images. They **do** limit how small that network gets (param floor 0.70 → ~30% cut; FLOP floor 0.70 → ~9% param cut on skinny ResNet-56). Prefer-Δparams/ΔFLOPs under a FLOP floor is now on (**20307291**).
+**Floors:** They are eval-time stop rules on how far a *held-out network* may be pruned. They do not use test labels to train the agent, and they do not change the test images. They **do** limit how small that network gets. Prefer-Δparams/ΔFLOPs under a FLOP floor (two seeds): r56-w4 **−8.9 / −8.0 @ 0.704/0.872** — inside τ at the C4 param point, without spending FLOPs down to 0.55. s44 still running.
 
 **20189049 is done.** Overlay of `e985d5e` onto `/home/paretsky/SPECTRA-CompressionAgent` is now allowed (not done this turn).
 
@@ -414,9 +416,9 @@ Same frozen actors as C1–C5 (`job20158274` / `20163257` / `20164515`). Catalog
 | thin r20-w16 | −19.3 @ 0.604/0.645 | −17.1 @ 0.647/0.619 | −13.6 @ 0.770/0.655 | miss |
 | thin r56-w15 | −15.0 @ 0.694/0.600 | −17.8 @ 0.682/0.491 | −17.6 @ 0.682/0.497 | miss |
 | RepVGG-A0 | −12.1 @ 0.571/0.446 | −10.6 @ 0.686/0.540 | −12.6 @ 0.570/0.449 | miss |
-| ShuffleNet-v2×1 | **−3.9 @ 0.833/0.823** (job **20289197**) | — | — | inside (s42; 39% mask fallback) |
+| ShuffleNet-v2×1 | **−3.9 @ 0.833/0.823** (job **20289197**) | **−3.4 @ 0.819/0.823** (job **20307286**) | **−4.3 @ 0.837/0.823** (job **20307395**) | inside three seeds. s44 log also reports masked effective-params 0.815 — quote **0.837** structural. |
 
-ShuffleNet-v2×1 first C9 jobs crashed (`groups=116` vs input 104) — **not Slurm**. Dummy-forward after every structural prune; restore and mask. Rerun **20289197** TEST **−3.9 @ 0.833/0.823** (72.6% → 68.7%). Five rollbacks; 39% actions masked. Quote Δacc; do not claim every grouped layer was resized. C10 ShuffleNet TEST still stands.
+ShuffleNet-v2×1 first C9 jobs crashed (`groups=116` vs input 104) — **not Slurm**. Dummy-forward after every structural prune; restore and mask. Three-seed TEST: s42 **−3.9 @ 0.833/0.823** (72.6% → 68.7%); s43 **−3.4 @ 0.819/0.823** (72.6% → 69.2%); s44 **−4.3 @ 0.837/0.823** (72.6% → 68.3%; masked effective-params 0.815). Quote structural param_ratio. Do not claim every grouped layer was resized. C10 ShuffleNet TEST still stands.
 
 Read with C6: VGG is the C100 family that recovers from structured cuts; residuals miss under C9’s Adam-40 recipe. C9 is dataset transfer of the *frozen C10 agent*, not a new C100 policy. SGD-recipe A/B is §25 (one seed): r56-w15 enters τ; r20-w16 still misses. Do not start a second C100 DRL.
 
@@ -477,3 +479,23 @@ Same frozen 10-net actor as C9 s42 (`job20158274`). Catalog `configs/input_offli
 | thin r56-w15 | −15.0 @ 0.694/0.600 | **−9.1 @ 0.612/0.442** (78.4% → 69.3%) | **inside** (smaller net than C9) |
 
 r56-w15 is the clean recipe win: better Δacc at **fewer** params and FLOPs. r20-w16 improved vs Adam but kept more params (0.687 vs 0.604), so it is not a matched-size A/B. Do not claim “C100 residuals are solved.” Do not quote eval_train. Three-seed SGD is the next lock if Gilad wants it; a second C100 DRL is still the wrong spend.
+
+---
+
+## 26. 24-net s43 post-train similar-pool TEST (20202693) — PRELIM
+
+Job **20202693** COMPLETED 18 Aug 12:12 (status 0). Profile `offline_wide`: train on `database_offline_wide.json`, then eval `input_offline_similar.json` in the **same** job. Those similar checkpoints are **not** in the 24-net train catalog. Skip akamaster r32.
+
+This is **not** skinny ResNet-56 w4 (that is **20201263**). Dedicated skip-train similar job **20201260** (24-net **s42** actor): r20-w16 **−5.9 @ 0.695/0.611** vs 10-net s42 **−5.4 @ 0.603/0.639**; r56-w10 **−12.6 @ 0.634/0.410** vs 10-net s42 **−9.2 @ 0.658/0.488** — 10-net s42 was inside τ; 24-net s42 **misses**, at a smaller net (not size-matched). r44 **−4.5 @ 0.682/0.542** vs 10-net s42 **−4.3 @ 0.632/0.519**. Skip r32 (broken origin_acc; TEST line exists and is discarded).
+
+| Net | 10-net s43 (§3, 20163257) | 24-net s43 (20202693) | 24-net s42 skip-train (20201260) | vs τ=10 |
+|---|---|---|---|---|
+| ResNet-20 w16 | −4.5 @ 0.673/0.696 | **−4.5 @ 0.673/0.716** | **−5.9 @ 0.695/0.611** | inside |
+| ResNet-56 w10 | −12.4 @ 0.664/0.433 | **−12.3 @ 0.661/0.422** | **−12.6 @ 0.634/0.410** | miss. Fair s42 compare: 10-net **−9.2 @ 0.658/0.488** (inside) |
+| ResNet-44 | −4.2 @ 0.700/0.586 | **−5.1 @ 0.667/0.509** | **−4.5 @ 0.682/0.542** | inside |
+| VGG-19 BN | −2.6 @ 0.788/0.802 | **−2.6 @ 0.898/0.882** | **−2.8 @ 0.817/0.771** | inside |
+| MobileNet-v2×0.75 | −2.1 @ 0.697/0.651 | **−2.4 @ 0.672/0.590** | — | inside |
+| DenseNet-100 | −2.1 @ 0.805/0.833 | **−2.4 @ 0.793/0.814** | — | inside |
+
+24-net did **not** pull similar r56-w10 inside τ. Do not quote as the skinny-w4 result.
+
