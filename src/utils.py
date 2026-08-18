@@ -552,6 +552,9 @@ def ignorable_state_key(key: str) -> bool:
     name = str(key)
     if name.endswith("num_batches_tracked"):
         return True
+    # thop / similar FLOP profilers stash these next to real weights.
+    if name.endswith("total_ops") or name.endswith("total_params"):
+        return True
     # Option-A akamaster downsample is reconstructed as a frozen 1x1 identity expand.
     return name.endswith("shortcut.channel.weight")
 

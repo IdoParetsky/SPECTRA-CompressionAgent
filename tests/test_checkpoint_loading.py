@@ -77,6 +77,17 @@ def test_real_missing_weights_still_fail():
     assert unexpected == []
 
 
+def test_thop_profiler_keys_are_ignorable():
+    model = nn.Conv2d(3, 4, 1, bias=False)
+    sd = {k: v.clone() for k, v in model.state_dict().items()}
+    sd["total_ops"] = torch.zeros(1)
+    sd["total_params"] = torch.zeros(1)
+    sd["features.0.total_ops"] = torch.zeros(1)
+    missing, unexpected = utils.load_state_dict_compatible(model, sd)
+    assert missing == []
+    assert unexpected == []
+
+
 def test_repvgg_filename_alias_and_deploy_inference():
     module = SimpleNamespace(repvgg_a0=repvgg_a0, repvgga0=repvgga0)
     fn, name = utils.resolve_instantiation_func(module, "repvgga0")
