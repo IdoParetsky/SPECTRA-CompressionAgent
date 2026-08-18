@@ -8,7 +8,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 
 Status of this file: **DRAFT**. Experiment freeze 15 Sep 2026; paper 30 Sep.  
 Section order matches NEON [1]: Introduction → Related Work → Approach → Evaluation → Results → Discussion → Conclusions.  
-**Last restamp: 18 Aug 2026 08:55 IDT.**
+**Last restamp: 18 Aug 2026 11:30 IDT.**
 
 ### Durable snapshot — 18 Aug 2026 08:55 IDT (do not rely on chat)
 

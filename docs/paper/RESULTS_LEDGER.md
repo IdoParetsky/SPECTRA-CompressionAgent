@@ -1,6 +1,6 @@
 # SPECTRA results ledger
 
-**As of:** 18 Aug 2026 08:55 IDT. C100 SGD **20289099 COMPLETED**. r56-w15 TEST **−9.1 @ 0.612/0.442** (inside τ; smaller than C9 Adam −15.0 @ 0.694). r20-w16 **−12.2 @ 0.687/0.648** still miss. One seed. C8 held-out **20201260** still eval_train. ImageNet **20289097 FAILED**.  
+**As of:** 18 Aug 2026 11:30 IDT. Idle GPUs filled. ImageNet resize retry **20307394** RUNNING. C100 ShuffleNet s43/s44 **20307286 / 20307395**. C100 residual SGD s43 **20307289**. FLOP-floor prefer-Δparams/ΔFLOPs s42 **20307291**. C100 recoverable DRL **20307403** queued. 24-net similar **20201260** still eval_train.  
 **Backfill:** every important result since git `ecefe78` (8 Aug 2026, “Transfer to new PC”) through the 10-net leap. Later jobs only *extend* these tables.  
 **Protocol (current defaults):** τ = 10 pp; eval floor 0.70 params kept; rates 1.0 / 0.9 / 0.8 unless noted; full-net FT 40 ep / patience 10 on C10; NEON reward; small Transformer encoder; Fortify on.  
 **Quote TEST only.** Skip akamaster ResNet-32.  
@@ -190,7 +190,7 @@ Train catalog `database_c100_wide.json` (mixes VGG with unrecovered residuals). 
 
 ## 8. Running / queued (ops, not paper tables)
 
-| Job | Role | State at 08:55 IDT 18 Aug |
+| Job | Role | State at 11:30 IDT 18 Aug |
 |---|---|---|
 | **20276582 / 583 / 584** | Digit-MNIST LeNet s42/s43/s44 | **COMPLETED**. TEST **+2.8 / +2.7 / +2.9 pp**. §22 three-seed. |
 | **20276586 / 587 / 588** | SVHN r20-w8 frozen eval | **COMPLETED**. TEST **−2.0 / −1.5 / −2.0**. §23. |
@@ -200,16 +200,20 @@ Train catalog `database_c100_wide.json` (mixes VGG with unrecovered residuals). 
 | 20204215 | 24-net DRL s44 | train **stopped ep 463/720** (runtime_limit). Eval next. |
 | **20201260** | 24-net similar held-out | RUNNING **eval_train** ~4h (DenseNet). C8 TEST is this job’s eval_test. |
 | 20201263 / 65 | 24-net thin / unlike afterok | PENDING (Dependency) |
-| **20289097** | ImageNet MobileNet-v2 3-ep s42 | **FAILED** 02:28. No Resize/CenterCrop on ImageNet JPEGs. Not TEST. |
+| **20289097** | ImageNet MobileNet-v2 3-ep s42 | **FAILED** 02:28 (no Resize). Retry **20307394** RUNNING (Resize/CenterCrop in `a7987fd`). First retry **20307283** CUDA-dead on cs-4090-09. |
 | **20289103 / 20289105** | C10-thin param floor 0.80 | **COMPLETED**. §24. r56-w4 still cliffs. |
 | **20289099** | C100 residual SGD 80-ep s42 | **COMPLETED** 08:51. §25. r56-w15 **−9.1 @ 0.612/0.442** inside τ; r20-w16 **−12.2** still miss. |
-| **20289197** | C100 ShuffleNet dummy-forward rerun | **COMPLETED**. TEST **−3.9 @ 0.833/0.823**. Inside τ. §21. |
+| **20289197** | C100 ShuffleNet dummy-forward s42 | **COMPLETED**. TEST **−3.9 @ 0.833/0.823**. Inside τ. §21. |
+| **20307286 / 20307395** | C100 ShuffleNet s43 / s44 | RUNNING. Dummy-forward already in leap. |
+| **20307289** | C100 residual SGD 80-ep s43 | RUNNING. s44 **20307396** PENDING QOS. |
+| **20307291** | FLOP floor 0.70 + prefer Δparams/ΔFLOPs s42 | RUNNING. s43 **20307296** PENDING QOS. |
+| **20307403** | CIFAR-100 DRL on VGG-11/16 + ShuffleNet (SGD recipe) | PENDING QOS. Held-out eval = thin residuals. |
 
 **20189049 is done.** Overlay of `e985d5e` onto `/home/paretsky/SPECTRA-CompressionAgent` is now allowed. New jobs use the leap tree after `git pull` (ShuffleNet rollback is not in SPECTRA-night).
 
-**C100 next lever (not more C10 catalog diversity):** C9 used default Adam 40-ep FT. C6 VGG recoverability used 160-ep SGD + cosine + MixUp + AutoAugment. Same residual families work on CIFAR-10 (C1/C3). Job **20289099** (§25) is the SGD A/B: r56-w15 inside τ one-seed; r20-w16 still misses. Do not start a second C100 DRL. Do not restart encoder/BERT A/Bs.
+**C100 next lever (not more C10 catalog diversity):** Frozen CIFAR-10 agent + Adam-40 misses on thin residuals. SGD-80 one-seed puts r56-w15 inside τ (§25). Next: lock SGD on seeds 43/44 (**20307289 / 20307396**), then train a CIFAR-100 agent only on families that recover (VGG-11/16 + ShuffleNet, **20307403**). Do not mix unrecovered residuals into that train catalog. Do not restart encoder/BERT A/Bs.
 
-**Floors (“walk between the raindrops”):** FLOP floor 0.70 binds first on r56-w4 and stops at ~91% params. Joint 0.80-param + 0.70-FLOP cannot pull params down. Empirical walk is **param floor 0.80 / 0.85, no FLOP floor**. Follow-up (not implemented): eval-time prefer high Δparams/ΔFLOPs before the FLOP floor binds.
+**Floors:** They are eval-time stop rules on how far a *held-out network* may be pruned. They do not use test labels to train the agent, and they do not change the test images. They **do** limit how small that network gets (param floor 0.70 → ~30% cut; FLOP floor 0.70 → ~9% param cut on skinny ResNet-56). Prefer-Δparams/ΔFLOPs under a FLOP floor is now on (**20307291**).
 
 **20189049 is done.** Overlay of `e985d5e` onto `/home/paretsky/SPECTRA-CompressionAgent` is now allowed (not done this turn).
 
