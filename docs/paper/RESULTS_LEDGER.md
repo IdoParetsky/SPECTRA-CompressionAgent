@@ -200,7 +200,7 @@ Train catalog `database_c100_wide.json` (mixes VGG with unrecovered residuals). 
 | 20204215 | 24-net DRL s44 | train **stopped ep 463/720** (runtime_limit). Eval next. |
 | **20201260** | 24-net similar held-out | RUNNING **eval_train** ~4h (DenseNet). C8 TEST is this job’s eval_test. |
 | 20201263 / 65 | 24-net thin / unlike afterok | PENDING (Dependency) |
-| **20289097** | ImageNet MobileNet-v2 3-ep s42 | **FAILED** 02:28 (no Resize). Retry **20307394** RUNNING (Resize/CenterCrop in `a7987fd`). First retry **20307283** CUDA-dead on cs-4090-09. |
+| **20289097 / 20307394** | ImageNet MobileNet-v2 | **FAILED**. 20289097: no Resize. 20307394: Resize worked; thop `total_ops` keys. Retry **20308031**. |
 | **20289103 / 20289105** | C10-thin param floor 0.80 | **COMPLETED**. §24. r56-w4 still cliffs. |
 | **20289099** | C100 residual SGD 80-ep s42 | **COMPLETED** 08:51. §25. r56-w15 **−9.1 @ 0.612/0.442** inside τ; r20-w16 **−12.2** still miss. |
 | **20289197** | C100 ShuffleNet dummy-forward s42 | **COMPLETED**. TEST **−3.9 @ 0.833/0.823**. Inside τ. §21. |
