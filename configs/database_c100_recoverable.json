@@ -1,0 +1,17 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/vgg11_bn_cifar100_chenyaofo_70.78_9.8_306.68.pt": [
+    "vgg11_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-100"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg16_bn_cifar100_chenyaofo_74_15.3_627.54.pt": [
+    "vgg16_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-100"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/shufflenetv2x1_cifar100_chenyaofo_72.39_1.36_90.18.pt": [
+    "shufflenetv2x1",
+    "/home/paretsky/spectra_models_instantiation/shufflenetv2_chenyaofo.py",
+    "cifar-100"
+  ]
+}

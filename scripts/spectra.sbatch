@@ -751,6 +751,39 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.98 0.95)
     ;;
+  c100_recoverable_drl)
+    # Train a CIFAR-100 agent only on families that already recover / transfer:
+    # VGG-11 BN, VGG-16 BN, ShuffleNet-v2×1. Held-out eval is thin residuals.
+    # SGD+cosine+MixUp+AutoAugment. Do not mix unrecovered residuals into train.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_c100_residuals.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c100_recoverable.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-80}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-20}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_FT_AUTOAUG=1
+    export SPECTRA_FT_OPTIM=sgd
+    export SPECTRA_FT_COSINE=1
+    export SPECTRA_FT_MIXUP="${SPECTRA_FT_MIXUP:-0.2}"
+    export SPECTRA_FT_LABEL_SMOOTH="${SPECTRA_FT_LABEL_SMOOTH:-0.1}"
+    EXTRA_ARGS=(--runtime_limit 129600 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.98 0.95)
+    ;;
   eval_diag_structural_c100|eval_king_fortify_c100|eval_neon_c100)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c100_thin.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_c100_thin.json}"

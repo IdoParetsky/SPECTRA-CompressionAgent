@@ -35,6 +35,9 @@ DATALOADER_WORKERS = int(os.environ.get("SPECTRA_DATALOADER_WORKERS", "4"))
 
 # CIFAR datasets that may take RandomCrop+Flip during fine-tune when SPECTRA_FT_AUG=1.
 _FT_AUG_DATASETS = ("cifar-10", "cifar-100")
+# Native ImageNet / Places JPEGs are not a fixed H×W. Without Resize the
+# DataLoader collate crashes (job 20289097). CIFAR stays 32×32.
+_LARGE_SPATIAL = ("imagenet1k", "imagenet1kv2", "places365")
 
 
 def env_flag(name: str, default: str = "0") -> bool:
@@ -894,6 +897,23 @@ def canonical_dataset_name(name: str) -> str:
     return DATASET_ALIASES.get(key, key)
 
 
+def _large_spatial_split(canonical: str, split: str, transform):
+    """ImageNet / Places365 with a train vs val transform (variable-size JPEGs)."""
+    if canonical == "imagenet1k":
+        tv_split = "train" if split == "train" else "val"
+        return datasets.ImageNet(root=SPECTRA_DATASETS, split=tv_split, transform=transform)
+    if canonical == "imagenet1kv2":
+        if split == "train":
+            return datasets.ImageNet(root=SPECTRA_DATASETS, split="train", transform=transform)
+        return datasets.ImageFolder(
+            root=f"{SPECTRA_DATASETS}/imagenetv2-matched-frequency", transform=transform)
+    if canonical == "places365":
+        tv_split = "train-standard" if split == "train" else "val"
+        return datasets.Places365(
+            root=SPECTRA_DATASETS, split=tv_split, small=True, transform=transform)
+    raise ValueError(f"not a large-spatial dataset: {canonical}")
+
+
 def parse_dataset_spec(spec):
     """
     Normalise a dataset entry from the input/database JSON.
@@ -941,6 +961,13 @@ def build_transform(name_or_path: str, options: dict, train: bool = False):
                                        else (image_size, image_size)))
 
     canonical = canonical_dataset_name(name_or_path)
+    if canonical in _LARGE_SPATIAL and not image_size:
+        if train:
+            steps.append(transforms.RandomResizedCrop(224))
+            steps.append(transforms.RandomHorizontalFlip())
+        else:
+            steps.append(transforms.Resize(256))
+            steps.append(transforms.CenterCrop(224))
     if train and env_flag("SPECTRA_FT_AUG") and canonical in _FT_AUG_DATASETS:
         crop = 32
         if image_size:
@@ -1003,6 +1030,21 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
             print_flush(
                 f"FT aug on {canonical}: {'+'.join(bits) or 'none'} on train only "
                 f"(n_train={len(train_data)}, n_val={len(val_data)})")
+        elif canonical in _LARGE_SPATIAL:
+            train_tf = build_transform(name_or_path, options, train=True)
+            eval_tf = build_transform(name_or_path, options, train=False)
+            train_aug = _large_spatial_split(canonical, "train", train_tf)
+            train_eval = _large_spatial_split(canonical, "train", eval_tf)
+            test_data = _large_spatial_split(canonical, "val", eval_tf)
+            train_len = int(len(train_eval) * train_split / (train_split + val_split))
+            g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
+            perm = torch.randperm(len(train_eval), generator=g).tolist()
+            train_data = Subset(train_aug, perm[:train_len])
+            val_data = Subset(train_eval, perm[train_len:])
+            print_flush(
+                f"{canonical}: RandomResizedCrop(224) train / "
+                f"Resize(256)+CenterCrop(224) val-test "
+                f"(n_train={len(train_data)}, n_val={len(val_data)}, n_test={len(test_data)})")
         else:
             transform = build_transform(name_or_path, options)
             train_data, test_data = DATASET_BUILDERS[canonical](transform)

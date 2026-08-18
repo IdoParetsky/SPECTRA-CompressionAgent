@@ -93,6 +93,26 @@ def test_cifar_autoaug_on_train_split(monkeypatch):
     assert "AutoAugment" not in [type(t).__name__ for t in eval_tf.transforms]
 
 
+def test_imagenet_eval_resizes_variable_jpegs(monkeypatch):
+    monkeypatch.delenv("SPECTRA_FT_AUG", raising=False)
+    tf = utils.build_transform("imagenet1k", {}, train=False)
+    kinds = [type(t).__name__ for t in tf.transforms]
+    assert "Resize" in kinds
+    assert "CenterCrop" in kinds
+    assert "RandomResizedCrop" not in kinds
+    cifar = [type(t).__name__ for t in utils.build_transform("cifar-10", {}).transforms]
+    assert "Resize" not in cifar
+    assert "CenterCrop" not in cifar
+
+
+def test_imagenet_train_uses_random_resized_crop():
+    tf = utils.build_transform("imagenet1k", {}, train=True)
+    kinds = [type(t).__name__ for t in tf.transforms]
+    assert "RandomResizedCrop" in kinds
+    assert "RandomHorizontalFlip" in kinds
+    assert "CenterCrop" not in kinds
+
+
 def test_dataset_cache_key_includes_autoaug(monkeypatch):
     monkeypatch.delenv("SPECTRA_FT_AUTOAUG", raising=False)
     plain = utils.DatasetRegistry.key_for("cifar-100")

@@ -189,6 +189,15 @@ def eval_lookahead_enabled() -> bool:
     return eval_min_flop_ratio() > 0
 
 
+def eval_prefer_param_per_flop() -> bool:
+    """
+    Eval overlay: when a FLOP floor is on, prefer cuts with high Δparams/ΔFLOPs
+    so parameter count falls before the FLOP budget binds. Default off.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_PREFER_PARAM_PER_FLOP", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
 def eval_at_size_floor(env) -> tuple:
     """
     ``(stop, reason)`` for eval identity-pad.
@@ -268,6 +277,55 @@ def action_respecting_param_floor(
         if _rate_respects_eval_floors(env, cand_rate, min_ratio, min_flop):
             return torch.tensor([cand_i], device=device)
     return torch.tensor([identity], device=device)
+
+
+def action_preferring_param_per_flop(
+    env,
+    action: torch.Tensor,
+    legal: torch.Tensor,
+    compression_rates: Dict[int, float],
+    min_ratio: float,
+    device,
+) -> torch.Tensor:
+    """
+    Among floor-legal prune rates, pick the highest Δparams/ΔFLOPs.
+
+    Skip (identity) if that ratio is below 1: the cut would spend more of the
+    FLOP budget than of the parameter budget, which is how skinny ResNet-56
+    stops at ~91% params when the FLOP floor is 0.70.
+    No-op when the FLOP floor is off.
+    """
+    identity = identity_action_index(compression_rates)
+    min_flop = eval_min_flop_ratio()
+    if min_flop <= 0:
+        return action
+    cur_p = float(env.param_ratio())
+    cur_f = float(env.flops_ratio())
+    best_i = identity
+    best_score = -1.0
+    for i in legal.nonzero(as_tuple=False).flatten().tolist():
+        rate = float(compression_rates[int(i)])
+        if abs(rate - 1.0) < 1e-9:
+            continue
+        if not _rate_respects_eval_floors(env, rate, min_ratio, min_flop):
+            continue
+        preview = getattr(env, "preview_ratios", None)
+        if callable(preview):
+            prev_p, prev_f = preview(rate)
+        else:
+            prev_p = env.preview_param_ratio(rate)
+            prev_f = env.preview_flops_ratio(rate)
+        dp = cur_p - float(prev_p)
+        df = cur_f - float(prev_f)
+        if dp <= 1e-12:
+            continue
+        score = 1e9 if df <= 1e-12 else dp / df
+        if score > best_score + 1e-12:
+            best_score = score
+            best_i = int(i)
+    if best_i == identity or best_score < 1.0 - 1e-12:
+        return torch.tensor([identity], device=device)
+    return torch.tensor([best_i], device=device)
 
 
 def eval_policy_name() -> str:

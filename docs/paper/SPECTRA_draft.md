@@ -8,19 +8,20 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 
 Status of this file: **DRAFT**. Experiment freeze 15 Sep 2026; paper 30 Sep.  
 Section order matches NEON [1]: Introduction → Related Work → Approach → Evaluation → Results → Discussion → Conclusions.  
-**Last restamp: 18 Aug 2026 ~02:30 IDT.**
+**Last restamp: 18 Aug 2026 08:55 IDT.**
 
-### Durable snapshot — 18 Aug 2026 ~02:30 IDT (do not rely on chat)
+### Durable snapshot — 18 Aug 2026 08:55 IDT (do not rely on chat)
 
 Write new TEST here and in the ledger in the same turn. This block is the memory.
 
 - **CIFAR-10 architecture transfer (C1–C5, C10 FLOP-floor):** LOCKED. Similar + unlike inside τ except skinny-deep ResNet-56 at 70% params (−15.9/−16.2/−17.2). FLOP floor 0.70 puts that net inside τ at ~91% params / 70% FLOPs (−8.9/−9.2/−9.6).
-- **Claim C9 (frozen 10-net → CIFAR-100):** LOCKED mixed. VGG-16 BN −7.5/−7.8/−7.3 inside τ. Thin ResNets and RepVGG-A0 miss. ShuffleNet-v2×1 no TEST (grouped-conv crash — code, not Slurm). Ledger §21.
+- **Claim C9 (frozen 10-net → CIFAR-100):** LOCKED mixed. VGG-16 BN −7.5/−7.8/−7.3 inside τ. ShuffleNet-v2×1 s42 **−3.9 @ 0.833/0.823** (20289197; 39% mask). Thin ResNets and RepVGG-A0 miss. Ledger §21.
+- **Param floor 0.80 walk:** r56-w4 still cliffs (−21.7 / −25.7 @ ~0.80p / 0.54f). Easy r20 inside τ. Ledger §24.
 - **Digit-MNIST LeNet (held-out dataset):** three-seed TEST **gain** +2.8/+2.7/+2.9 pp. Toy net. Ledger §22.
 - **SVHN r20-w8 (held-out width, dataset was in the 10-net train mix):** −2.0/−1.5/−2.0 inside τ. Not in-catalog r20-w16. Ledger §23.
-- **C8 / 24-net:** still running. s42 in-catalog eval_test; s44 ~ep 383/720. Held-out afterok not started. Do not quote in-catalog eval.
-- **Queued 18 Aug (not TEST):** ImageNet MobileNet-v2 frozen 3-ep s42 **20289097**; C10-thin param floor 0.80 **20289103 / 20289105**; C100 residual SGD-recipe **20289099**; C100 ShuffleNet rerun **20289197**. Ledger §8.
-- **C100 odds:** miss is dataset × residual/RepVGG family × Adam-40 FT, not a missing-C100-in-train bug and not “ResNets cannot prune” (same families work on CIFAR-10). Next lever is the C6 SGD recipe on the frozen actor, not a second C100 DRL.
+- **C8 / 24-net:** s42 in-catalog eval done (do not quote). Similar held-out **20201260** still eval_train. s44 train stopped ep 463/720.
+- **ImageNet 20289097 FAILED** (no Resize on JPEGs). Not TEST.
+- **C100 SGD 20289099 COMPLETED (one seed, PRELIM):** r56-w15 **−9.1 @ 0.612/0.442** inside τ (smaller than C9 Adam −15.0 @ 0.694). r20-w16 **−12.2 @ 0.687/0.648** still miss (milder cut than C9 −19.3 @ 0.604). Ledger §25. Do not overwrite C9.
 
 Citation numbers **[1]–[78]** are those of the August 2024 thesis proposal, kept wherever the claim still holds. **[79]–[92]** are papers from the August 2026 literature survey (DepGraph was already [12] in the proposal). Tags: **LOCKED** / **DRAFT** / **TBD** / **CLAIM** — see [README.md](README.md).
 
@@ -34,7 +35,7 @@ Convolutional networks remain the workhorse of real-time vision, but their compu
 
 SPECTRA (Structured Pruning & Efficient CNN Training Reinforcement Agent) extends NEON [1] from dense DNNs to CNNs: one offline actor-critic, trained on a catalog of architectures and datasets, then applied to unseen checkpoints without retraining the agent. A user-set accuracy budget τ (NEON’s preference-aware reward) trades size against accuracy. Unlike NEON, the environment *rebuilds* Conv2d/BatchNorm groups (residuals [3], DenseNet concat [4], depthwise ties) so reported parameter and FLOP ratios are real shape changes.
 
-On CIFAR-10 [73], the 10-net agent keeps similar-family and unlike-family held-out networks inside a 10 pp budget, except skinny-deep ResNets. Learned schedules tie greedy filter ranking [18] on easy nets and beat size-matched greedy on the hard similar ResNet-56. Encoder capacity (BERT / wider / set) did not move that hard net; catalog diversity did. CIFAR-100 is a recoverability problem: VGG-11 BN [76] admits a ~10% structured cut with a test-set *gain* under a long SGD recipe; residual, DenseNet, and MobileNet families have not yet shown a comparable cut. The same frozen 10-net agent, applied to CIFAR-100 with no extra agent training, keeps VGG-16 BN inside τ=10 (−7.5 / −7.8 / −7.3 pp) and misses on thin ResNets and RepVGG-A0; ShuffleNet-v2×1 produced no TEST row (grouped-conv crash). Digit-MNIST LeNet, a held-out dataset, is a three-seed TEST gain (+2.8 / +2.7 / +2.9 pp). SVHN ResNet-20 width 8 (new width; SVHN was already in the train mix) stays inside τ (−2.0 / −1.5 / −2.0 pp). **[C1–C7 LOCKED; C8 TBD; C9 LOCKED mixed; MNIST + SVHN-w8 three-seed LOCKED]**
+On CIFAR-10 [73], the 10-net agent keeps similar-family and unlike-family held-out networks inside a 10 pp budget, except skinny-deep ResNets. Learned schedules tie greedy filter ranking [18] on easy nets and beat size-matched greedy on the hard similar ResNet-56. Encoder capacity (BERT / wider / set) did not move that hard net; catalog diversity did. CIFAR-100 is a recoverability problem: VGG-11 BN [76] admits a ~10% structured cut with a test-set *gain* under a long SGD recipe; residual, DenseNet, and MobileNet families have not yet shown a comparable *no-agent* cut. The same frozen 10-net agent, applied to CIFAR-100 with no extra agent training, keeps VGG-16 BN inside τ=10 (−7.5 / −7.8 / −7.3 pp) and ShuffleNet-v2×1 s42 (−3.9 pp, mask fallback), and misses on thin ResNets and RepVGG-A0 under Adam-40; an 80-ep SGD recipe (one seed) puts thin ResNet-56 w15 inside τ at a smaller size while ResNet-20 w16 still misses. Digit-MNIST LeNet, a held-out dataset, is a three-seed TEST gain (+2.8 / +2.7 / +2.9 pp). SVHN ResNet-20 width 8 (new width; SVHN was already in the train mix) stays inside τ (−2.0 / −1.5 / −2.0 pp). **[C1–C7 LOCKED; C8 TBD; C9 LOCKED mixed; MNIST + SVHN-w8 three-seed LOCKED; C100 SGD A/B PRELIM]**
 
 ---
 
@@ -239,7 +240,9 @@ Jobs 20201235 / 20202693 / 20204215. Question: does r56-w4 move past −15.9/−
 
 ### 5.6 Frozen 10-net → CIFAR-100 (claim C9) — LOCKED mixed
 
-See ledger §21. Same actors as §5.1–5.3, no extra agent training. VGG-16 BN [76] stays inside τ=10 (−7.5 / −7.8 / −7.3 pp at ~80–83% params). Thin ResNet-20 w16 and ResNet-56 w15 miss (≈ −14 to −19 pp). RepVGG-A0 misses (≈ −11 to −13 pp). ShuffleNet-v2×1 produced **no TEST** (grouped-conv crash). Read with §5.4: the families that recover from a structured cut are the families this frozen agent can transfer to.
+See ledger §21. Same actors as §5.1–5.3, no extra agent training. VGG-16 BN [76] stays inside τ=10 (−7.5 / −7.8 / −7.3 pp at ~80–83% params). Thin ResNet-20 w16 and ResNet-56 w15 miss under Adam-40 (≈ −14 to −19 pp). RepVGG-A0 misses (≈ −11 to −13 pp). ShuffleNet-v2×1 s42 **−3.9 @ 0.833/0.823** (job 20289197; 39% mask fallback). Read with §5.4: under the C9 recipe, the families that recover from a structured cut are the families this frozen agent can transfer to.
+
+SGD-recipe A/B (ledger §25, one seed): same frozen s42 actor, 80-ep SGD+cosine+MixUp+AutoAugment. r56-w15 **−9.1 @ 0.612/0.442** enters τ at a *smaller* net than C9 Adam (−15.0 @ 0.694/0.600). r20-w16 **−12.2 @ 0.687/0.648** still misses (milder param cut than C9). PRELIM; do not overwrite §21.
 
 ### 5.7 Digit-MNIST LeNet (held-out dataset) — LOCKED three seeds
 
@@ -257,9 +260,9 @@ See ledger §23. SVHN [74] is in the 10-net train mix; this is a **new width**, 
 
 **Mechanism vs policy.** DepGraph [12] and SPA [81] are the right papers to thank. SPECTRA should not claim “first grouping for any CNN.” It should claim “first (in this lineage) offline preference-aware *policy* for structured CNNs,” with honest held-out splits.
 
-**Why C100 is a different chapter.** Recoverability probes have no agent. If fine-tune cannot undo a mid-layer prune, A2C cannot learn a useful C100 policy. VGG-11 BN under SGD+aug 160 ep *can*; thin C100 ResNets at keep-rate 0.8 still keep ~95% of parameters (ledger §7.2). Mixing those nets into a C10 agent is how train returns go to −100, not how dataset transfer is demonstrated. Frozen 10-net → C100 TEST (ledger §21) matches that split: VGG-16 BN stays inside τ=10 on three seeds; thin ResNets and RepVGG-A0 miss; ShuffleNet-v2×1 crashed (no TEST). The proposal already flagged C100 as the hardest image set for a generic pruner; the CNN experiments refined that to *family-wise FT*, not “needs BERT.”
+**Why C100 is a different chapter.** Recoverability probes have no agent. If fine-tune cannot undo a mid-layer prune, A2C cannot learn a useful C100 policy. VGG-11 BN under SGD+aug 160 ep *can*; thin C100 ResNets at keep-rate 0.8 still keep ~95% of parameters (ledger §7.2). Mixing those nets into a C10 agent is how train returns go to −100, not how dataset transfer is demonstrated. Frozen 10-net → C100 TEST (ledger §21) matches that split under Adam-40: VGG-16 BN stays inside τ=10 on three seeds; thin ResNets and RepVGG-A0 miss; ShuffleNet-v2×1 s42 −3.9 (mask fallback). Changing the *fine-tune* (ledger §25, one seed) moves r56-w15 inside τ (−9.1 @ 0.612/0.442, smaller than C9) while r20-w16 still misses (−12.2). The proposal already flagged C100 as the hardest image set for a generic pruner; the CNN experiments refined that to *family-wise FT*, not “needs BERT.”
 
-**Limitations (write them):** no ImageNet FT [71]; ShuffleNet grouping incomplete (mask fallback; C100 ShuffleNet eval crashed, no TEST); r56-w4 misses τ=10 at the 0.70-param operating point (DRL −15.9 vs look-ahead greedy −24.9); FLOP-floor 0.70 enters τ at ~91–93% params / 70% FLOPs (s42 −8.9, s43 −9.2, s44 −9.6); C100 residual recoverability open (C9 miss on thin ResNets); 24-net held-out eval not yet in; Places365 [75] and GoogLeNet [77] unused. Cheap-dataset transfer that *is* in: digit-MNIST LeNet TEST gain; SVHN r20-w8 inside τ (width held out, dataset in train). Do not quote overnight-matrix −1.2 pp or eval_train −1.7 / +6.0 / +7.4 as TEST (ledger §10).
+**Limitations (write them):** no ImageNet FT [71]; ShuffleNet grouping incomplete (mask fallback); r56-w4 misses τ=10 at the 0.70-param operating point (DRL −15.9 vs look-ahead greedy −24.9); FLOP-floor 0.70 enters τ at ~91–93% params / 70% FLOPs (s42 −8.9, s43 −9.2, s44 −9.6); C9 Adam-40 misses on C100 thin ResNets (SGD-80 one-seed puts r56-w15 inside τ, r20 still miss); 24-net held-out eval not yet in; Places365 [75] and GoogLeNet [77] unused. Cheap-dataset transfer that *is* in: digit-MNIST LeNet TEST gain; SVHN r20-w8 inside τ (width held out, dataset in train). Do not quote overnight-matrix −1.2 pp or eval_train −1.7 / +6.0 / +7.4 as TEST (ledger §10).
 
 ---
 

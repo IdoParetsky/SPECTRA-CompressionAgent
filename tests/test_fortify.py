@@ -240,6 +240,45 @@ def test_flop_lookahead_keeps_0_8_when_both_floors_ok(monkeypatch):
     assert int(out.item()) == 2
 
 
+def test_prefer_param_per_flop_picks_efficient_cut(monkeypatch):
+    monkeypatch.setenv("SPECTRA_EVAL_MIN_FLOP_RATIO", "0.70")
+    monkeypatch.setenv("SPECTRA_EVAL_PREFER_PARAM_PER_FLOP", "1")
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    env = _FakeRatioEnv(
+        0.90, 0.85,
+        {1.0: 0.90, 0.9: 0.86, 0.8: 0.88},
+        {1.0: 0.85, 0.9: 0.82, 0.8: 0.77},
+    )
+    out = fortify.action_preferring_param_per_flop(
+        env, torch.tensor([2]), legal, rates, 0.70, "cpu")
+    assert int(out.item()) == 1
+
+
+def test_prefer_param_per_flop_skips_when_all_cuts_flop_heavy(monkeypatch):
+    monkeypatch.setenv("SPECTRA_EVAL_MIN_FLOP_RATIO", "0.70")
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    env = _FakeRatioEnv(
+        0.92, 0.80,
+        {1.0: 0.92, 0.9: 0.91, 0.8: 0.90},
+        {1.0: 0.80, 0.9: 0.74, 0.8: 0.71},
+    )
+    out = fortify.action_preferring_param_per_flop(
+        env, torch.tensor([2]), legal, rates, 0.70, "cpu")
+    assert int(out.item()) == 0
+
+
+def test_prefer_param_per_flop_noop_without_flop_floor(monkeypatch):
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
+    rates = {0: 1.0, 1: 0.9, 2: 0.8}
+    legal = torch.tensor([True, True, True])
+    env = _FakeRatioEnv(0.90, 0.85, {0.8: 0.80}, {0.8: 0.80})
+    out = fortify.action_preferring_param_per_flop(
+        env, torch.tensor([2]), legal, rates, 0.70, "cpu")
+    assert int(out.item()) == 2
+
+
 def test_heuristic_eval_random_stays_in_prune_set():
     rates = {0: 1.0, 1: 0.9, 2: 0.8}
     legal = torch.tensor([True, True, True])

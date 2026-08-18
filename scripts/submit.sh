@@ -136,6 +136,9 @@ case "$PROFILE" in
   c100_wide_drl)
     # C100 DRL on 6 competent nets; start only afterok a recipe probe that recovered.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=129600 ;;
+  c100_recoverable_drl)
+    # CIFAR-100 DRL only on families that recover (VGG-11/16 + ShuffleNet). SGD recipe.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=129600 ;;
   eval_diag_structural_c100)
     # Eval-only: structural diag agent on C100 held-out (no training).
     GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
@@ -185,7 +188,7 @@ case "$PROFILE" in
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|eval_offline_c100|eval_imagenet_short|eval_c10_thin_flop_floor|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|baseline_c10_*}" >&2
+    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|eval_offline_c100|eval_imagenet_short|eval_c10_thin_flop_floor|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|c100_recoverable_drl|baseline_c10_*}" >&2
     exit 1
     ;;
 esac

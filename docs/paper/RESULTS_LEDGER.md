@@ -1,6 +1,6 @@
 # SPECTRA results ledger
 
-**As of:** 18 Aug 2026 ~02:30 IDT. C9 / MNIST / SVHN-w8 LOCKED as of 01:15. **Queued this turn (job ids in §8 after submit):** ImageNet MobileNet-v2 frozen 3-ep s42; C100 residual re-eval with VGG-winning SGD recipe s42; C100 ShuffleNet rerun after grouped-forward rollback; C10-thin param floor 0.80 (no FLOP floor) s42/s43. Do not quote until TEST. 24-net still running.  
+**As of:** 18 Aug 2026 08:55 IDT. C100 SGD **20289099 COMPLETED**. r56-w15 TEST **−9.1 @ 0.612/0.442** (inside τ; smaller than C9 Adam −15.0 @ 0.694). r20-w16 **−12.2 @ 0.687/0.648** still miss. One seed. C8 held-out **20201260** still eval_train. ImageNet **20289097 FAILED**.  
 **Backfill:** every important result since git `ecefe78` (8 Aug 2026, “Transfer to new PC”) through the 10-net leap. Later jobs only *extend* these tables.  
 **Protocol (current defaults):** τ = 10 pp; eval floor 0.70 params kept; rates 1.0 / 0.9 / 0.8 unless noted; full-net FT 40 ep / patience 10 on C10; NEON reward; small Transformer encoder; Fortify on.  
 **Quote TEST only.** Skip akamaster ResNet-32.  
@@ -28,8 +28,8 @@
 | C5 | On hard ResNets, DRL beats greedy: similar r56-w10 ~10 pp at matched params; held-out r56-w4 ~9 pp vs look-ahead greedy that kept **more** params. | LOCKED | §6 r56-w10; §5 job 20213131 −24.9 @ 0.722/0.477 vs DRL −15.9 @ 0.704/0.550 |
 | C6 | C10 is a recoverable FT environment. C100 is **not**, except VGG-11 BN under the 160-ep SGD recipe. | LOCKED | §7. Probe **20204214 COMPLETED**. Residuals/DenseNet/MobileNet are tiny cuts or val DROP. |
 | C7 | Encoder capacity (BERT / wider / set) did not fix r56-w4. Catalog diversity (10-net vs 3-net) is the remaining lever. | LOCKED | §16 encoder ~−24 pp; §17 10-net moved it to −15.9 |
-| C8 | 24-net train catalog moves r56-w4 further. | TBD | jobs 20201235 / 693 / 215 training |
-| C9 | Frozen C10-trained agent on held-out **CIFAR-100**: VGG-16 BN inside τ; thin ResNets and RepVGG-A0 miss; ShuffleNet-v2×1 crashed (no TEST). | LOCKED mixed | §21 jobs 20270291/293/295 |
+| C8 | 24-net train catalog moves r56-w4 further. | TBD | s42 in-catalog eval done; held-out **20201260** still eval_train |
+| C9 | Frozen C10-trained agent on held-out **CIFAR-100**: VGG-16 BN and ShuffleNet-v2×1 (s42) inside τ; thin ResNets and RepVGG-A0 miss. | LOCKED mixed | §21; ShuffleNet **20289197** −3.9 @ 0.833/0.823 |
 | C10 | Eval-only FLOP floor 0.70 puts held-out r56-w4 **inside τ=10** (same frozen 10-net actor). | LOCKED | §5 s42 **−8.9 @ 0.907/0.702**; s43 **−9.2 @ 0.926/0.703**; s44 **−9.6 @ 0.907/0.703**. Not the 0.704-param operating point of C4. |
 
 ---
@@ -190,24 +190,24 @@ Train catalog `database_c100_wide.json` (mixes VGG with unrecovered residuals). 
 
 ## 8. Running / queued (ops, not paper tables)
 
-| Job | Role | State at 02:30 IDT 18 Aug |
+| Job | Role | State at 08:55 IDT 18 Aug |
 |---|---|---|
 | **20276582 / 583 / 584** | Digit-MNIST LeNet s42/s43/s44 | **COMPLETED**. TEST **+2.8 / +2.7 / +2.9 pp**. §22 three-seed. |
-| **20276585** | SVHN r20-w8 pretrain | **COMPLETED**. 96.30% ckpt. |
-| **20276586 / 587 / 588** | SVHN r20-w8 frozen eval | **COMPLETED**. TEST **−2.0 / −1.5 / −2.0** @ 0.652/0.612, 0.710/0.667, 0.638/0.641. §23. |
-| **20270291 / 293 / 295** | C9 frozen 10-net → C100 | **COMPLETED**. TEST in §21. |
-| 20201235 | 24-net DRL s42 | still in-catalog **eval_test** (DenseNet-100). Do not quote. Held-out is afterok. |
-| 20202693 | 24-net DRL s43 | post-train **eval_train**. Do not quote. |
-| 20204215 | 24-net DRL s44 | train ~ep **383**/720 |
-| 20201260 / 63 / 65 | 24-net afterok held-out evals | PENDING (Dependency on 20201235) |
-| **20289097** | ImageNet MobileNet-v2 frozen 3-ep FT, s42, param floor 0.70 | RUNNING ise-4090-11. `eval_imagenet_short`. Not DRL train. Misses 17:00 TEST. |
-| **20289103 / 20289105** | C10-thin param floor **0.80 only** (no FLOP floor), frozen s42/s43 | RUNNING ise-4090-08/09. Walk between C4 (70%/55%) and FLOP-floor (~91%/70%). |
-| **20289099** | C100 thin r20-w16 + r56-w15, frozen s42, SGD+cosine+MixUp+AutoAugment, 80 ep | RUNNING ise-4090-03. Isolates FT recipe vs C9 Adam-40 miss. Not a second C100 DRL. |
-| **20289197** | C100 ShuffleNet-v2×1 frozen s42 | RUNNING ise-4090-03. Dummy-forward after **every** structural prune (`edcbc03`; sequential test passed). Replaced cancelled **20289101**. |
+| **20276586 / 587 / 588** | SVHN r20-w8 frozen eval | **COMPLETED**. TEST **−2.0 / −1.5 / −2.0**. §23. |
+| **20270291 / 293 / 295** | C9 frozen 10-net → C100 | **COMPLETED**. TEST in §21. ShuffleNet hole filled by **20289197**. |
+| **20201235** | 24-net DRL s42 | **COMPLETED** 04:29. In-catalog DenseNet-100 −2.1 @ 0.793/0.825. **Not C8 held-out.** |
+| 20202693 | 24-net DRL s43 | in-catalog **eval_test** DenseNet. Do not quote. |
+| 20204215 | 24-net DRL s44 | train **stopped ep 463/720** (runtime_limit). Eval next. |
+| **20201260** | 24-net similar held-out | RUNNING **eval_train** ~4h (DenseNet). C8 TEST is this job’s eval_test. |
+| 20201263 / 65 | 24-net thin / unlike afterok | PENDING (Dependency) |
+| **20289097** | ImageNet MobileNet-v2 3-ep s42 | **FAILED** 02:28. No Resize/CenterCrop on ImageNet JPEGs. Not TEST. |
+| **20289103 / 20289105** | C10-thin param floor 0.80 | **COMPLETED**. §24. r56-w4 still cliffs. |
+| **20289099** | C100 residual SGD 80-ep s42 | **COMPLETED** 08:51. §25. r56-w15 **−9.1 @ 0.612/0.442** inside τ; r20-w16 **−12.2** still miss. |
+| **20289197** | C100 ShuffleNet dummy-forward rerun | **COMPLETED**. TEST **−3.9 @ 0.833/0.823**. Inside τ. §21. |
 
 **20189049 is done.** Overlay of `e985d5e` onto `/home/paretsky/SPECTRA-CompressionAgent` is now allowed. New jobs use the leap tree after `git pull` (ShuffleNet rollback is not in SPECTRA-night).
 
-**C100 next lever (not more C10 catalog diversity):** C9 used default Adam 40-ep FT. C6 VGG recoverability used 160-ep SGD + cosine + MixUp + AutoAugment. Same residual families work on CIFAR-10 (C1/C3). The miss is dataset × family × FT recipe. Do not start a second C100 DRL. Do not restart encoder/BERT A/Bs.
+**C100 next lever (not more C10 catalog diversity):** C9 used default Adam 40-ep FT. C6 VGG recoverability used 160-ep SGD + cosine + MixUp + AutoAugment. Same residual families work on CIFAR-10 (C1/C3). Job **20289099** (§25) is the SGD A/B: r56-w15 inside τ one-seed; r20-w16 still misses. Do not start a second C100 DRL. Do not restart encoder/BERT A/Bs.
 
 **Floors (“walk between the raindrops”):** FLOP floor 0.70 binds first on r56-w4 and stops at ~91% params. Joint 0.80-param + 0.70-FLOP cannot pull params down. Empirical walk is **param floor 0.80 / 0.85, no FLOP floor**. Follow-up (not implemented): eval-time prefer high Δparams/ΔFLOPs before the FLOP floor binds.
 
@@ -410,11 +410,11 @@ Same frozen actors as C1–C5 (`job20158274` / `20163257` / `20164515`). Catalog
 | thin r20-w16 | −19.3 @ 0.604/0.645 | −17.1 @ 0.647/0.619 | −13.6 @ 0.770/0.655 | miss |
 | thin r56-w15 | −15.0 @ 0.694/0.600 | −17.8 @ 0.682/0.491 | −17.6 @ 0.682/0.497 | miss |
 | RepVGG-A0 | −12.1 @ 0.571/0.446 | −10.6 @ 0.686/0.540 | −12.6 @ 0.570/0.449 | miss |
-| ShuffleNet-v2×1 | no TEST | no TEST | no TEST | crash (depthwise groups) |
+| ShuffleNet-v2×1 | **−3.9 @ 0.833/0.823** (job **20289197**) | — | — | inside (s42; 39% mask fallback) |
 
-ShuffleNet-v2×1 instantiated, then `RuntimeError` on grouped conv channel mismatch in both `eval_train` and `eval_test` (same class of issue as C10 ShuffleNet mask-fallback). **Not a Δacc miss. Not Slurm/infra.** C10 ShuffleNet TEST still stands (mask fallback ~28%). Fix in `prune_current_model`: dummy-forward after a depthwise/grouped structural prune; restore and mask on failure. Rerun is the ShuffleNet-only C100 catalog (`configs/input_offline_c100_shufflenet.json`).
+ShuffleNet-v2×1 first C9 jobs crashed (`groups=116` vs input 104) — **not Slurm**. Dummy-forward after every structural prune; restore and mask. Rerun **20289197** TEST **−3.9 @ 0.833/0.823** (72.6% → 68.7%). Five rollbacks; 39% actions masked. Quote Δacc; do not claim every grouped layer was resized. C10 ShuffleNet TEST still stands.
 
-Read with C6: VGG is the C100 family that recovers from structured cuts; residuals do not, at this FT recipe. C9 is dataset transfer of the *frozen C10 agent*, not a new C100 policy. Highest-leverage C100 residual move is re-eval with the VGG-winning SGD recipe (not more 10-net/24-net CIFAR-10 training, not a second C100 DRL).
+Read with C6: VGG is the C100 family that recovers from structured cuts; residuals miss under C9’s Adam-40 recipe. C9 is dataset transfer of the *frozen C10 agent*, not a new C100 policy. SGD-recipe A/B is §25 (one seed): r56-w15 enters τ; r20-w16 still misses. Do not start a second C100 DRL.
 
 ---
 
@@ -443,3 +443,33 @@ Honest caveat: toy 1-channel net, modest param cut. It is a held-out **dataset**
 | 20276588 | 44 | **−2.0** | 0.638 / 0.641 | inside |
 
 Similar-family width transfer on a train-mix dataset. Complements C1 (which is CIFAR-10-only) and C9 (held-out CIFAR-100).
+
+---
+
+## 24. Param floor 0.80 walk (no FLOP floor) — LOCKED miss on r56-w4
+
+Same frozen 10-net actors as C4. Floor **0.80 params**, look-ahead off, no FLOP floor. Jobs **20289103** (s42) / **20289105** (s43).
+
+| Net | s42 TEST | s43 TEST | vs τ=10 |
+|---|---|---|---|
+| thin r20-w2 | **−4.3 @ 0.600/0.741** | **−2.0 @ 0.800/0.780** | inside (s42 overshot the 0.80 floor) |
+| thin r56-w4 | **−21.7 @ 0.815/0.543** | **−25.7 @ 0.796/0.537** | miss |
+
+A ~20% param cut is **not** between C4’s cliff and the FLOP-floor win. r56-w4 still falls off. Easy r20 stays inside τ. Do not quote eval_train (s42 r56 eval_train was +0.5 pp).
+
+ImageNet **20289097 FAILED** 02:28: `build_transform` never Resize/CenterCrops ImageNet JPEGs (collate `[3,489,379]` vs `[3,333,500]`). Not TEST.
+
+---
+
+## 25. C100 residual SGD recipe A/B (frozen s42) — PRELIM one-seed TEST
+
+Same frozen 10-net actor as C9 s42 (`job20158274`). Catalog `configs/input_offline_c100_residuals.json` (thin r20-w16 + r56-w15 only). Skip-train. FT **80-ep SGD + cosine + MixUp + AutoAugment** (C6 VGG recipe, shortened from 160 ep). Job **20289099** COMPLETED 18 Aug 08:51, elapsed 6h 27m. Param floor 0.70, no FLOP floor.
+
+**Quote TEST.** Sizes are **not** matched to C9 Adam-40. One seed. Do not overwrite §21.
+
+| Net | C9 Adam-40 s42 (§21) | SGD-80 s42 (20289099) | vs τ=10 |
+|---|---|---|---|
+| thin r20-w16 | −19.3 @ 0.604/0.645 | **−12.2 @ 0.687/0.648** (72.98% → 60.8%) | still miss (milder param cut than C9) |
+| thin r56-w15 | −15.0 @ 0.694/0.600 | **−9.1 @ 0.612/0.442** (78.4% → 69.3%) | **inside** (smaller net than C9) |
+
+r56-w15 is the clean recipe win: better Δacc at **fewer** params and FLOPs. r20-w16 improved vs Adam but kept more params (0.687 vs 0.604), so it is not a matched-size A/B. Do not claim “C100 residuals are solved.” Do not quote eval_train. Three-seed SGD is the next lock if Gilad wants it; a second C100 DRL is still the wrong spend.

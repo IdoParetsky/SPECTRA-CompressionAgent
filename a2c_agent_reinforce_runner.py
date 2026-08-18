@@ -124,6 +124,18 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                                 f"{f' / flop {min_flop:.3f}' if min_flop > 0 else ''}"
                                 f"; using "
                                 f"{conf.compression_rates_dict[int(action.item())]}")
+                    if (fortify_mod.eval_prefer_param_per_flop()
+                            and fortify_mod.eval_min_flop_ratio() > 0
+                            and not at_budget):
+                        before = int(action.item())
+                        action = fortify_mod.action_preferring_param_per_flop(
+                            env, action, legal, conf.compression_rates_dict,
+                            min_ratio, conf.device)
+                        if int(action.item()) != before:
+                            utils.print_flush(
+                                f"[eval] prefer Δparams/ΔFLOPs: "
+                                f"{conf.compression_rates_dict[before]} -> "
+                                f"{conf.compression_rates_dict[int(action.item())]}")
                     compression_rate = conf.compression_rates_dict[int(action.item())]
                     next_state, reward, done = env.step(compression_rate)
                     state = next_state
