@@ -1,0 +1,22 @@
+---
+description: SPECTRA PC cadence Aug–Sep 2026 — queue afterok for morning–afternoon PC-off; do not leave GPUs idle
+alwaysApply: true
+---
+
+# SPECTRA PC cadence (20 Aug – ~3 Sep 2026)
+
+Ido’s availability for the next two weeks:
+
+- **Morning:** a few minutes (handoff / submit).
+- **Morning → afternoon:** PC **closed**, Ido unavailable.
+- **Afternoon → next morning:** PC **open**. Ido is available from **late afternoon through the night**.
+
+GPUs must **not** sit idle in the closed window. Cluster `afterok` chains survive the laptop. Do not rely on a Windows watcher to submit jobs while the PC is off.
+
+## What to do
+
+1. Keep QOS 8 full. If a running job has **no** `afterok` child, queue the next Gilad-ranked eval **before** the morning close.
+2. Rank: coverage + Pareto operating points (FLOP floor / prefer) → same-loop heuristics (greedy / mild / random / look-ahead) on those nets → C100 Adam-40 VGG operating points → ImageNet **frozen** probe (7-day wall; no DRL train). Do not grow the 10-net catalog; do not restart encoder / BERT / AMP / skinny-in-train; do not start FPGM unless Ido asks.
+3. Quote `eval_test` FINAL only. Skip akamaster ResNet-32. Do not quote ImageNet train-loader or C100 DRL train returns.
+4. Frozen 10-net actors: s42 `job20158274`, s43 `job20163257`, s44 `job20164515`. Leap tree `/home/paretsky/SPECTRA-CompressionAgent`. Exclude `ee-l40s-01,ee-l40s-02,cs-4090-09`. ImageNet: avoid 2080s (OOM).
+5. Laptop watcher (when PC is open): `~\.spectra\spectra_slurm_orchestrate_watch.ps1`. It only **wakes** on COMPLETED / FAILED / idle GPUs. It does not submit. Afterok is the submit path for PC-off.

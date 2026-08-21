@@ -1,0 +1,16 @@
+---
+description: Gilad Katz 18 Aug 2026 standing orders for SPECTRA paper and experiments.
+alwaysApply: true
+---
+
+# Gilad 18 Aug directives
+
+Canonical minutes: `docs/paper/GILAD_DIRECTIVES_18AUG.md`.
+
+- Always compare TEST to SOTA / similar CNN compression papers (daily + final paper). SPECTRA’s justification is a **frozen generic DRL agent** (no per-target agent pre-training or adaptation), not “we beat DepGraph on ResNet-56 CIFAR-10.”
+- **Do not claim to beat focused SOTA on their home arch × dataset.** Competitive-enough while transferring is the frame.
+- Keep **both** artifacts: coverage matrix = family × dataset transfer map; **NEON-style Pareto** = TEST Δacc vs params/FLOPs kept vs heuristics (and quoted literature stars). Pareto does **not** replace coverage.
+- Same-loop heuristics: greedy, mild, random, look-ahead. Ranking already in env: L1/L2/SVD. Add FPGM / BN-scale / Taylor only as same-loop A/Bs. Quote DepGraph/SPA/OCS/SACP — do not overnight-reimplement them.
+- **No ImageNet DRL train.** Frozen C10/C100 → ImageNet transfer is the desired claim.
+- NAP2 (Michael Bohadana): wait for repo access; do not confuse with Amsel & Katz performance-prediction NAP2 or arXiv:2101.06608.
+- Comparison candidates: literature survey canvas + directives §5. Re-scan Scholar before freeze.

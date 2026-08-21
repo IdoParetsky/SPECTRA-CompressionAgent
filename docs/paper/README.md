@@ -7,7 +7,8 @@ matrix) are for live ops; they go stale and they are not in git.
 | File | Role |
 |---|---|
 | [RESULTS_LEDGER.md](RESULTS_LEDGER.md) | Canonical numbers. Quote **TEST** only. Update this first when a job finishes. |
-| [SPECTRA_draft.md](SPECTRA_draft.md) | Paper in **NEON’s section order**. Prose + tables that point at the ledger. Bibliography **[1]–[78]** = thesis proposal; **[79]–[92]** = Aug 2026 literature survey. Fill blanks; do not invent numbers. |
+| [SPECTRA_draft.md](SPECTRA_draft.md) | Paper in **NEON’s section order**. Prose + tables that point at the ledger. Bibliography **[1]–[78]** = thesis proposal; **[79]–[92]** = Aug 2026 literature survey; **[93]–[96]** = 18 Aug Scholar pass. Fill blanks; do not invent numbers. |
+| [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md) | Advisor minutes 18 Aug 2026. Comparison posture, NEON-style Pareto (does **not** replace coverage), heuristics, ImageNet = frozen transfer, NAP2 pending. Act in this light until the next meeting. |
 
 ## Status tags (used in both files)
 
