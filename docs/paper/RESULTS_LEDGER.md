@@ -1235,7 +1235,7 @@ Ido: the §54 defects are paper-critical. Status at the ask:
 2. If argmax **prunes and Δacc holds at matched size**: retake **DRL** catalogs only (similar / unlike / thin / C9 frozen) with `SPECTRA_EVAL_DETERMINISTIC=1`, three seeds. Heuristics (greedy / mild / random / look-ahead / prefer) are unchanged — they never sampled the actor.
 3. If argmax **prunes but sizes/Δacc move**: replace the DRL cells that moved; leave heuristics.
 
-**FPGM / BN-scale (6 Sep):** implemented as `SPECTRA_FILTER_IMPORTANCE=fpgm|bn_scale`, default still **`l1`**. Same-loop ranking, not a new agent, not a third-party import (He et al. CVPR 2019 / Liu et al. ICCV 2017 formulas in `src/pruning.py`). Do **not** change the frozen 10-net ranker. Queue thin **argmax+FPGM** and **argmax+BN-scale** `afterok:20945568` (behind similar-family argmax on nice). Fold into SPECTRA DRL *train* only if those evals beat L1 enough to justify a new actor before 15 Sep — unlikely; keep them on the Pareto as ranking A/Bs.
+**FPGM / BN-scale (6 Sep):** implemented as `SPECTRA_FILTER_IMPORTANCE=fpgm|bn_scale`, default still **`l1`**. Same-loop ranking, not a new agent, not a third-party import (He et al. CVPR 2019 / Liu et al. ICCV 2017 formulas in `src/pruning.py`). Do **not** change the frozen 10-net ranker. Queued **21040934** (`eval_c10_thin_fpgm`, `afterok:20945568`, nice 50) then **21040935** (`bn_scale`, `afterok:21040934`). Fold into SPECTRA DRL *train* only if those evals beat L1 enough to justify a new actor before 15 Sep — unlikely; keep them on the Pareto as ranking A/Bs.
 
 ---
 
