@@ -572,7 +572,8 @@ def test_filter_importance_fpgm_keeps_outliers_and_zeros_dead(monkeypatch):
     assert scores.shape == (3,)
     assert scores[2].item() > scores[0].item()
     assert scores[2].item() > scores[1].item()
-    conv.weight[1].zero_()
+    with torch.no_grad():
+        conv.weight[1].zero_()
     scores = pruning.filter_importance(conv)
     assert scores[1].item() == 0
     assert 1 not in pruning.alive_filters(conv).tolist()
