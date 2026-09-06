@@ -106,6 +106,7 @@ def estimate_action_costs(model: nn.Module, target_layer: nn.Module,
         and across architectures.
     """
     model = pruning.ddp_unwrap(model)
+    pruning.bind_bn_scales(model)
     device = device or next(model.parameters()).device
     rates = torch.tensor(list(compression_rates), dtype=torch.float32, device=device)
     costs = torch.zeros(len(compression_rates), ACTION_FEATURE_DIM, device=device)

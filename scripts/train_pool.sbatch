@@ -2,7 +2,7 @@
 # Train the missing thesis-pool cells (DenseNet-CIFAR, SVHN, Fashion-MNIST).
 #
 # Does not train on the login node. Submit from the cluster:
-#   sbatch --gpus=rtx_6000:1 --mem=80G --cpus-per-task=6 --time=1-00:00:00 \
+#   sbatch --gpus=rtx_6000:1 --mem-per-gpu=24G --cpus-per-task=6 --time=1-00:00:00 \
 #     --exclude=ee-l40s-01,ee-l40s-02 scripts/train_pool.sbatch
 #
 #SBATCH --job-name=spectra-pretrain
@@ -11,7 +11,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=6
 #SBATCH --gpus=rtx_6000:1
-#SBATCH --mem=80G
+#SBATCH --mem-per-gpu=24G
 #SBATCH --time=1-00:00:00
 #SBATCH --output=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/pretrain_%j.out
 #SBATCH --error=/home/paretsky/SPECTRA-CompressionAgent/runs/slurm_logs/pretrain_%j.out

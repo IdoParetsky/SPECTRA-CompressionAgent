@@ -4,9 +4,10 @@
 set -euo pipefail
 
 # Defaults match a typical Cursor experiment session; override e.g. GPUS=rtx_6000:2
+# HPC 6 Sep 2026: CPU-Mem-per-GPU-Limit is 24G. --mem is total; 2 GPUs need MEM=48.
 GPUS="${GPUS:-1}"
 TIME="${TIME:-0-3:00:00}"
-MEM="${MEM:-80}"
+MEM="${MEM:-24}"
 
 echo "Requesting: sinteractive --gpu ${GPUS} --time ${TIME} --mem ${MEM}"
 echo "After allocation: update local ~/.ssh/config Host bgu-slurm-gpu HostName to this node."

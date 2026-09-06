@@ -337,6 +337,40 @@ def eval_policy_name() -> str:
     return os.environ.get("SPECTRA_EVAL_POLICY", "actor").strip().lower() or "actor"
 
 
+def eval_deterministic() -> bool:
+    """
+    Evaluate the frozen policy deterministically: ``argmax`` instead of ``sample``,
+    and the actor/critic in ``eval()`` so encoder dropout is off.
+
+    Default off so already-quoted TEST rows stay reproducible. Sampling a Categorical
+    at test time reports a *mixture*, not the learned policy: at the entropy these
+    agents converge to (~0.88 of ln 3) roughly a third of steps take a non-argmax rate,
+    and one aggressive rate on a narrow layer is unrecoverable. See ledger §54.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_DETERMINISTIC", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def set_policy_eval_mode(*models) -> None:
+    """Put actor/critic in inference mode (no-op unless deterministic eval is on)."""
+    if not eval_deterministic():
+        return
+    for model in models:
+        if model is not None:
+            model.eval()
+
+
+def policy_action(dist: Categorical, legal: torch.Tensor, *, device) -> torch.Tensor:
+    """Action from the (masked) frozen policy: argmax under deterministic eval, else sample."""
+    masked = apply_action_mask(dist, legal)
+    if not eval_deterministic():
+        return masked.sample()
+    probs = masked.probs
+    while probs.dim() > 1:
+        probs = probs[0]
+    return probs.argmax().reshape(1).to(device)
+
+
 def heuristic_eval_action(
     legal: torch.Tensor,
     compression_rates: Dict[int, float],

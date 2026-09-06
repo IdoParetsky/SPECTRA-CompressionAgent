@@ -1,0 +1,12 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/vgg16_bn_cifar10_chenyaofo_94.16_15.25_627.46.pt": [
+    "vgg16_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg16_bn_cifar100_chenyaofo_74_15.3_627.54.pt": [
+    "vgg16_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-100"
+  ]
+}

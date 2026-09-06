@@ -559,5 +559,44 @@ def test_filter_importance_unknown_falls_back_to_l1(monkeypatch):
     assert pruning.filter_importance_mode() == "l1"
 
 
+def test_filter_importance_fpgm_keeps_outliers_and_zeros_dead(monkeypatch):
+    """He et al. CVPR 2019: filters near the geometric median are more redundant."""
+    monkeypatch.setenv("SPECTRA_FILTER_IMPORTANCE", "fpgm")
+    conv = nn.Conv2d(2, 3, 1, bias=False)
+    with torch.no_grad():
+        conv.weight.zero_()
+        conv.weight[0, :, 0, 0] = torch.tensor([1.0, 0.0])
+        conv.weight[1, :, 0, 0] = torch.tensor([1.05, 0.0])  # near filter 0
+        conv.weight[2, :, 0, 0] = torch.tensor([0.0, 8.0])   # outlier
+    scores = pruning.filter_importance(conv)
+    assert scores.shape == (3,)
+    assert scores[2].item() > scores[0].item()
+    assert scores[2].item() > scores[1].item()
+    conv.weight[1].zero_()
+    scores = pruning.filter_importance(conv)
+    assert scores[1].item() == 0
+    assert 1 not in pruning.alive_filters(conv).tolist()
+
+
+def test_filter_importance_bn_scale_uses_gamma_else_l1(monkeypatch):
+    monkeypatch.setenv("SPECTRA_FILTER_IMPORTANCE", "bn_scale")
+    conv = nn.Conv2d(2, 3, 1, bias=False)
+    bn = nn.BatchNorm2d(3)
+    with torch.no_grad():
+        conv.weight.fill_(1.0)
+        conv.weight[2].zero_()
+        bn.weight.copy_(torch.tensor([0.1, 4.0, 9.0]))
+    net = nn.Sequential(conv, bn)
+    pruning.bind_bn_scales(net)
+    scores = pruning.filter_importance(conv)
+    assert scores[1].item() > scores[0].item()
+    assert scores[2].item() == 0  # dead filter stays dead even if γ is large
+    pruning.bind_bn_scales(nn.Sequential(conv))  # no BN → L1 fallback
+    fallback = pruning.filter_importance(conv)
+    l1 = conv.weight.detach().reshape(3, -1).abs().sum(dim=1)
+    assert torch.allclose(fallback, l1)
+
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

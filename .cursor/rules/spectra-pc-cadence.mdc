@@ -1,22 +1,31 @@
 ---
-description: SPECTRA PC cadence Aug–Sep 2026 — queue afterok for morning–afternoon PC-off; do not leave GPUs idle
+description: SPECTRA PC cadence Sep 2026 — overnight Grok heartbeat, afterok for PC-off, canvases 09:30/16:00/23:00 IDT
 alwaysApply: true
 ---
 
-# SPECTRA PC cadence (20 Aug – ~3 Sep 2026)
+# SPECTRA PC cadence (4 Sep 2026 → freeze 15 Sep)
 
-Ido’s availability for the next two weeks:
+Ido switched this overnight agent **back to Grok 4.6** to save other-model tokens. Stay on Grok unless he asks. Remain active through the night via the 30-min sleeper — do not go idle after a lean poll.
+
+Typical availability (still true when the laptop is closed):
 
 - **Morning:** a few minutes (handoff / submit).
 - **Morning → afternoon:** PC **closed**, Ido unavailable.
-- **Afternoon → next morning:** PC **open**. Ido is available from **late afternoon through the night**.
+- **Afternoon → next morning:** PC **open**. Overnight this window stays open.
 
 GPUs must **not** sit idle in the closed window. Cluster `afterok` chains survive the laptop. Do not rely on a Windows watcher to submit jobs while the PC is off.
 
 ## What to do
 
-1. Keep QOS 8 full. If a running job has **no** `afterok` child, queue the next Gilad-ranked eval **before** the morning close.
-2. Rank: coverage + Pareto operating points (FLOP floor / prefer) → same-loop heuristics (greedy / mild / random / look-ahead) on those nets → C100 Adam-40 VGG operating points → ImageNet **frozen** probe (7-day wall; no DRL train). Do not grow the 10-net catalog; do not restart encoder / BERT / AMP / skinny-in-train; do not start FPGM unless Ido asks.
+1. Keep QOS **5** full (`partition gpu` default QOS `gpu-part`, `MaxTRESPU gres/gpu=5` as of 6 Sep 2026). That is the live running-GPU cap — 5 R is full, not a hole. Afterok children PD with `QOSMaxGRESPerUser` until a GPU frees; do not submit extras to chase an old “8”. Job `--qos=normal` has no GPU MaxTRESPU; the **partition** QOS still applies. `giladkz` is not in gpu `AllowQos` and zeros `rtx_6000`/`rtx_4090`. Do not use `bypass_limits`. If a running job has **no** `afterok` child, queue the next Gilad-ranked eval **before** the morning close.
+2. Rank: **Chain A determinism** (`20945567` sampled thin → `20945568` argmax) → Chain B reward retrain (`20945574`/`744`) → FPGM/BN-scale ranking A/B on thin argmax → remaining C10 heuristic tails → C100 recoverability (`20884671` already R; `20884673` R) → ImageNet **frozen** probe. Do not grow the 10-net C10 catalog; do not restart encoder / BERT / AMP / skinny-in-train. Do not mix unrecovered C100 residuals into the C10 train set. FPGM/BN-scale are `SPECTRA_FILTER_IMPORTANCE` (default `l1`); do not retrain the frozen actors with a new ranker unless Chain A says argmax is real and L1 loses the ranking A/B.
 3. Quote `eval_test` FINAL only. Skip akamaster ResNet-32. Do not quote ImageNet train-loader or C100 DRL train returns.
-4. Frozen 10-net actors: s42 `job20158274`, s43 `job20163257`, s44 `job20164515`. Leap tree `/home/paretsky/SPECTRA-CompressionAgent`. Exclude `ee-l40s-01,ee-l40s-02,cs-4090-09`. ImageNet: avoid 2080s (OOM).
+4. Frozen 10-net actors: s42 `job20158274`, s43 `job20163257`, s44 `job20164515`. Leap tree `/home/paretsky/SPECTRA-CompressionAgent`. Exclude `ee-l40s-01,ee-l40s-02,cs-4090-09`. ImageNet: `rtx_4090` only (2080s OOM).
 5. Laptop watcher (when PC is open): `~\.spectra\spectra_slurm_orchestrate_watch.ps1`. It only **wakes** on COMPLETED / FAILED / idle GPUs. It does not submit. Afterok is the submit path for PC-off.
+6. TEST heartbeat sleeper: **30 min** (`Start-Sleep -Seconds 1800`) until Ido says otherwise. File: `C:\Users\User\.spectra\spectra_slurm_heartbeat.ps1`. Wake string: `AGENT_LOOP_WAKE_spectra_slurm`. Poll: `powershell -NoProfile -File scripts/rexec.ps1 -File scripts/_tmp_hb0235_poll.sh`. Re-arm **one** sleeper every wake. If both pattern-wake and completion notify arrive, act on the wake and ignore the completion.
+7. **Ops canvases** (`spectra-current-affairs.canvas.tsx` and `spectra-two-week-gpu-plan.canvas.tsx`): restamp **files** three times a day at **09:30, 16:00, and 23:00 IDT** (±15 min), even when there is no new TEST. Also restamp whenever Ido explicitly asks. **Do not `open_resource` / leave them on display** unless Ido asks to view. Chat links use POSIX forward slashes. Do **not** restamp the meeting pack / Pareto / coverage unless a TEST lands or Ido asks.
+8. Ledger (`docs/paper/RESULTS_LEDGER.md`) → draft (`docs/paper/SPECTRA_draft.md`) only when a `pass 1/1` TEST lands or a parent COMPLETED / FAILED / orphan needs a Gilad-ranked fill. Then restamp canvases in the same turn.
+9. On a 30-min wake that is **not** a canvas slot and has **no** new TEST: poll, short chat, rewrite the sleeper with the latest poll, re-arm — do **not** restamp canvases or edit ledger/draft.
+10. C100 carve: do **not** scancel `20412540` / `20382187` (parents of arms A/B). Do not jump Wave Q (`20412555`). Do not start encoder / ImageNet DRL. FPGM/BN-scale ranking A/B is queued `afterok:20945568`, not a new DRL train. When `20884673` finishes: confirm `20884674` is R. **20967060** R (`structural_shaped`). **20884671** R (matched-VGG; FLAGS `neon`; 24G). Child **20884672** PD. Child **20412396** PD QOS — heuristic tail, behind Chain A.
+11. **4 Sep audit (ledger §54) — provenance, read before quoting.** The frozen policy was **sampled** at TEST and the actor/critic were never `.eval()`, so encoder dropout was live: the same actor on the same net lands up to **10.7 pp** apart in kept params. Ledger seed spreads of 1–3 pp are inside resampling noise — do not call them seed effects. The **prefer-Δparams/ΔFLOPs** arms (§30 / §33 / §35 / §48-prefer) bypass the actor entirely and are one deterministic heuristic run reported three times — do not quote them as three-seed DRL. New switches all default **off**: `SPECTRA_EVAL_DETERMINISTIC`, `SPECTRA_REWARD_MODE=structural_band`, `SPECTRA_REWARD_SCALE=cbrt`. A/B chains **20945567/568/570/572** (determinism, frozen s42) and **20945574/576** (`neon`+`cbrt`) / **20945744/749** (`structural_band`+`cbrt`) are **next GPU** (nice 0) — confirm FLAGS when they start. Named profiles pin the flags in sbatch. Overlay of these switches is **in git**. `20900187` kids=NONE by design — do not attach a child.
+12. **Cursor OOM (this laptop is 16 GB):** `spectra-current-affairs.canvas.tsx` is a **live board only** — keep it under ~400 lines / ~30 KB. Restamp **replaces** the live sections; never append historical callouts or overnight dumps. Do not restamp Pareto / coverage / meeting pack on ops wakes. Do not Read the full ledger, draft, Pareto (~1100 lines), coverage, meeting pack, or old canvases on a heartbeat — grep the needed section only. Lean chat: no log dumps. Workspace `files.watcherExclude` covers `runs/`, checkpoints, `*.out`, `*.jsonl`. If Cursor OOMs, poll immediately, re-arm **one** sleeper, and do not rebuild history into the ops canvas. **Do not leave canvases displayed** while Ido is not looking (`open_resource` only on an explicit view request). Keep **this** overnight heartbeat chat; old August chats are already in skills/rules.

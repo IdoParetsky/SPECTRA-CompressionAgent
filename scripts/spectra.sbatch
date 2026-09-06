@@ -13,7 +13,7 @@
 #     bash scripts/submit.sh diag       # ~2.5h: short agent run on 2 nets
 #
 # Or directly:
-#     sbatch --gpus=rtx_6000:1 --mem=80G --time=0-08:00:00 scripts/spectra.sbatch
+#     sbatch --gpus=rtx_6000:1 --mem-per-gpu=24G --time=0-08:00:00 scripts/spectra.sbatch
 #
 #SBATCH --job-name=spectra
 #SBATCH --partition=main
@@ -21,7 +21,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus=rtx_6000:1
-#SBATCH --mem=80G
+#SBATCH --mem-per-gpu=24G
 #SBATCH --time=0-08:00:00
 # 15 minutes before the wall, ask the agent to soft-stop so eval can still run.
 #SBATCH --signal=B:USR1@900
@@ -368,7 +368,7 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  reward_neon_ab|reward_structural_ab|reward_shaped_ab)
+  reward_neon_ab|reward_structural_ab|reward_shaped_ab|reward_band_ab)
     # Matched A/B on king_fortify recipe; only SPECTRA_REWARD_MODE differs.
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/diag_input.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/diag_database.json}"
@@ -391,6 +391,7 @@ case "$PROFILE" in
       reward_neon_ab) export SPECTRA_REWARD_MODE=neon ;;
       reward_structural_ab) export SPECTRA_REWARD_MODE=structural ;;
       reward_shaped_ab) export SPECTRA_REWARD_MODE=structural_shaped ;;
+      reward_band_ab) export SPECTRA_REWARD_MODE=structural_band ;;
     esac
     EXTRA_ARGS=(--runtime_limit 18000 --allowed_acc_reduction 10
                 --train_compressed_layer_only False
@@ -606,7 +607,7 @@ case "$PROFILE" in
                   --compression_rates 1.0 0.9 0.8)
     fi
     ;;
-  offline_train)
+  offline_train|offline_train_cbrt|offline_train_band_cbrt)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 svhn fashion-mnist}"
@@ -626,6 +627,19 @@ case "$PROFILE" in
     export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
     export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
     export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    # Named A/B profiles pin the switch in the sbatch file so --export=ALL
+    # dropping extras cannot void the arm. eval of these actors uses argmax.
+    if [[ "$PROFILE" == "offline_train_cbrt" ]]; then
+      export SPECTRA_REWARD_MODE=neon
+      export SPECTRA_REWARD_SCALE=cbrt
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_EVAL_DETERMINISTIC=1
+    elif [[ "$PROFILE" == "offline_train_band_cbrt" ]]; then
+      export SPECTRA_REWARD_MODE=structural_band
+      export SPECTRA_REWARD_SCALE=cbrt
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_EVAL_DETERMINISTIC=1
+    fi
     EXTRA_ARGS=(--runtime_limit 43200 --allowed_acc_reduction 10
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
@@ -654,7 +668,7 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  eval_offline_similar|eval_offline_novel)
+  eval_offline_similar|eval_offline_similar_det|eval_offline_novel)
     if [[ "$PROFILE" == "eval_offline_novel" ]]; then
       export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_novel.json}"
     else
@@ -672,6 +686,11 @@ case "$PROFILE" in
     export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
     export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
     export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_actor.pt}"
+    export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_critic.pt}"
+    if [[ "$PROFILE" == "eval_offline_similar_det" ]]; then
+      export SPECTRA_EVAL_DETERMINISTIC=1
+    fi
     if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
       echo "${PROFILE} requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
       exit 1
@@ -784,6 +803,170 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.98 0.95)
     ;;
+  c10_c100_matched_vgg_drl)
+    # Same VGG-16 BN, C10 (10-way) + C100 (100-way). Isolates class count vs task
+    # heaviness on a family that already recovers. Held-out eval: C100 residuals.
+    # Do not mix unrecovered residuals into this train catalog.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_c100_residuals.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_c100_matched_vgg.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-80}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-20}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_FT_AUTOAUG=1
+    export SPECTRA_FT_OPTIM=sgd
+    export SPECTRA_FT_COSINE=1
+    export SPECTRA_FT_MIXUP="${SPECTRA_FT_MIXUP:-0.2}"
+    export SPECTRA_FT_LABEL_SMOOTH="${SPECTRA_FT_LABEL_SMOOTH:-0.1}"
+    EXTRA_ARGS=(--runtime_limit 129600 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  eval_c100_spoof_classes)
+    # Frozen 10-net C10 actor, C9 catalog, Adam-40. Tokens only: last Linear 100→10.
+    # Compare TEST to ledger §21. Does not change the CNN head.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_c100.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/input_offline_c100.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_SPOOF_NUM_CLASSES="${SPECTRA_SPOOF_NUM_CLASSES:-10}"
+    export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_actor.pt}"
+    export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_critic.pt}"
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  eval_c100_residuals_sgd)
+    # Skip-train held-out C100 residuals, SGD-80 MixUp (ledger §31 recipe). Needs actor.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_c100_residuals.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/input_offline_c100_residuals.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-80}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_FT_AUTOAUG=1
+    export SPECTRA_FT_OPTIM=sgd
+    export SPECTRA_FT_COSINE=1
+    export SPECTRA_FT_MIXUP="${SPECTRA_FT_MIXUP:-0.2}"
+    export SPECTRA_FT_LABEL_SMOOTH="${SPECTRA_FT_LABEL_SMOOTH:-0.1}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-20}"
+    if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
+      echo "eval_c100_residuals_sgd requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
+      exit 1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  diag_reward_band)
+    # Why C10 trains and C100 does not. compute_reward only credits a cut when
+    # -tau <= delta_acc <= 0; outside that band a cut scores -reduction**3, so the
+    # argmax policy is "never prune". Catalog crosses dataset x known outcome:
+    #   VGG-16 BN C10 (inside tau)   vs  VGG-16 BN C100 (inside tau, ledger §21)
+    #   r56-w4 C10    (misses tau)   vs  r20-w16 C100   (misses tau, ledger §21)
+    # If empty bands track the OUTCOME rather than the DATASET, the root cause is
+    # recoverability under the FT recipe, not the 100-way classifier token.
+    # Frozen 10-net actor (job20158274) has 3 actions and encoder dim 48.
+    # Extra rates rebuild a 5-way head (dim 52) and fail to load — 20900185.
+    # Probe the frozen menu 1.0/0.9/0.8; the fine ladder belongs on TRAIN jobs.
+    # Read with: python scripts/reward_band_report.py runs/job<id>
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_reward_band_diag.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/input_reward_band_diag.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_REWARD_TRACE=1
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_actor.pt}"
+    export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_critic.pt}"
+    EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-72000}"
+                --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  c100_recoverable_drl_fine|c100_recoverable_drl_fine_shaped)
+    # C100 DRL, recoverable families, with the two levers that can re-open the reward
+    # band: a fine rate ladder (so some action lands inside tau) and SGD-80 + aug in
+    # the loop (so the cut is recoverable at all). Same held-out residual eval as
+    # c100_recoverable_drl, so the two are directly comparable.
+    # Named _shaped profile pins structural_shaped in sbatch so --export cannot drop it.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_c100_residuals.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c100_recoverable.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-100}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-80}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_ENTROPY_COEF="${SPECTRA_ENTROPY_COEF:-0.05}"
+    export SPECTRA_WARMUP_MULTIPLIER="${SPECTRA_WARMUP_MULTIPLIER:-20}"
+    export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-100}"
+    export SPECTRA_FINETUNE_PATIENCE="${SPECTRA_FINETUNE_PATIENCE:-20}"
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_STEM_ROWS="${SPECTRA_STEM_ROWS:-1}"
+    export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_ENTROPY_ANNEAL_HORIZON:-100}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    if [[ "$PROFILE" == "c100_recoverable_drl_fine_shaped" ]]; then
+      export SPECTRA_REWARD_MODE=structural_shaped
+    fi
+    export SPECTRA_REWARD_TRACE=1
+    export SPECTRA_FT_AUG=1
+    export SPECTRA_FT_AUTOAUG=1
+    export SPECTRA_FT_OPTIM=sgd
+    export SPECTRA_FT_COSINE=1
+    export SPECTRA_FT_MIXUP="${SPECTRA_FT_MIXUP:-0.2}"
+    export SPECTRA_FT_LABEL_SMOOTH="${SPECTRA_FT_LABEL_SMOOTH:-0.1}"
+    EXTRA_ARGS=(--runtime_limit 129600 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.99 0.98 0.96 0.94 0.90)
+    ;;
   eval_diag_structural_c100|eval_king_fortify_c100|eval_neon_c100)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/input_c100_thin.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/database_c100_thin.json}"
@@ -813,7 +996,7 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  eval_offline_c100)
+  eval_offline_c100|eval_offline_c100_det)
     # Frozen-agent held-out dataset eval (claim C9). Database must be C100 too:
     # instantiate_networks filters --database by --datasets and crashes if the
     # 10-net C10/SVHN/Fashion catalog is passed with datasets=cifar-100.
@@ -832,6 +1015,11 @@ case "$PROFILE" in
     export SPECTRA_CONTINUE_TRAIN=0
     export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
     export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_actor.pt}"
+    export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_critic.pt}"
+    if [[ "$PROFILE" == "eval_offline_c100_det" ]]; then
+      export SPECTRA_EVAL_DETERMINISTIC=1
+    fi
     if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
       echo "eval_offline_c100 requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
       exit 1
@@ -917,6 +1105,45 @@ case "$PROFILE" in
     if [[ -z "${SPECTRA_ACTOR_CHECKPOINT_PATH:-}" || -z "${SPECTRA_CRITIC_CHECKPOINT_PATH:-}" ]]; then
       echo "eval_c10_thin_flop_floor requires SPECTRA_ACTOR_CHECKPOINT_PATH and SPECTRA_CRITIC_CHECKPOINT_PATH" >&2
       exit 1
+    fi
+    EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8)
+    ;;
+  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale)
+    # Plain C10-thin held-out eval (easy r20-w2, hard r56-w4) for one frozen actor:
+    # param floor 0.70, no FLOP floor, no look-ahead. This is the §17 comparison point
+    # (10-net s42 20189046: r20-w2 -4.2 @ 0.600/0.760, r56-w4 -15.9 @ 0.704/0.550).
+    # Determinism A/B: submit twice, once with SPECTRA_EVAL_DETERMINISTIC=1.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_c10_thin.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_thin.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=5
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
+    export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
+    unset SPECTRA_EVAL_MIN_FLOP_RATIO
+    export SPECTRA_SKIP_TRAIN=1
+    export SPECTRA_SKIP_STANDARDIZER="${SPECTRA_SKIP_STANDARDIZER:-0}"
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
+    export SPECTRA_REWARD_TRACE="${SPECTRA_REWARD_TRACE:-1}"
+    export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    export SPECTRA_ACTOR_CHECKPOINT_PATH="${SPECTRA_ACTOR_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_actor.pt}"
+    export SPECTRA_CRITIC_CHECKPOINT_PATH="${SPECTRA_CRITIC_CHECKPOINT_PATH:-${REPO_DIR}/runs/job20158274/agent_checkpoints/latest_best_critic.pt}"
+    if [[ "$PROFILE" == "eval_c10_thin_det" ]]; then
+      export SPECTRA_EVAL_DETERMINISTIC=1
+    fi
+    if [[ "$PROFILE" == "eval_c10_thin_fpgm" ]]; then
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_FILTER_IMPORTANCE=fpgm
+    fi
+    if [[ "$PROFILE" == "eval_c10_thin_bnscale" ]]; then
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_FILTER_IMPORTANCE=bn_scale
     fi
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
                 --train_compressed_layer_only False

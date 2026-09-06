@@ -1,5 +1,6 @@
 import os
 import json
+import math
 import sys
 import importlib.util
 import inspect
@@ -1110,6 +1111,27 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
           Asymmetric RCPR: realized param reduction for in-budget / accuracy-gain
           credit, but ``max(realized, nominal)`` on over-budget penalties so tiny
           channel-group edits cannot under-penalize preference violations.
+      structural_band
+          Realized magnitude like ``structural``, but the over-budget arm is graded by
+          **how far past τ the accuracy fell**, not by how big the cut was:
+          ``-(-Δacc - τ)³``. Under NEON's ``-reduction³`` every cut outside the band is
+          punished in proportion to its size, so the only information the agent gets is
+          "cut less" — never "cut somewhere else". On a net whose band is empty (thin
+          ResNets, most CIFAR-100 residuals) that makes "never prune" the provable
+          argmax and the episode contributes no layer-selection signal at all
+          (ledger §52.1). Grading by overshoot keeps the trichotomy, keeps in-budget
+          strictly better than any violation, and additionally prefers the *larger* of
+          two equally damaging cuts — which is the Pareto-correct ordering.
+
+    Scale (``SPECTRA_REWARD_SCALE``):
+      raw (default)
+          Reward as computed above.
+      cbrt
+          ``cbrt(reward)``. A strictly monotone map, so the per-step preference
+          ordering is exactly NEON's; only the magnitude changes. Percentage-cubed
+          returns reach ~1e5–1e6, which the critic (Smooth-L1, β=100) cannot regress,
+          leaving A2C with a useless baseline. Cube root puts the signal back in
+          percentage-point units.
 
     The NEON body is preserved verbatim under ``neon``; other modes are explicit
     gated ablations for A/B experiments.
@@ -1121,7 +1143,7 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
 
     nominal = (1.0 - float(compression_rate)) * 100.0
     realized = None
-    if (mode in ("structural", "structural_shaped", "structural_guard")
+    if (mode in ("structural", "structural_shaped", "structural_guard", "structural_band")
             and params_before is not None and params_after is not None
             and float(params_before) > 0):
         realized = max(0.0, (1.0 - float(params_after) / float(params_before)) * 100.0)
@@ -1148,7 +1170,17 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
             reward = reduction ** 3
         else:
             reward = reduction
-        return reward
+        return apply_reward_scale(reward)
+
+    if mode == "structural_band":
+        # NEON trichotomy; only the over-budget magnitude changes (see docstring).
+        if delta_acc < -tau:
+            reward = -((-delta_acc - tau) ** 3)
+        elif delta_acc > 0:
+            reward = reduction ** 3
+        else:
+            reward = reduction
+        return apply_reward_scale(reward)
 
     if mode == "structural_shaped":
         # Soft preference shaping (still preference-aware; not AMC's -Error·log FLOPs).
@@ -1161,14 +1193,100 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
             # Mild loss inside budget: taper toward 0 as we approach the cliff
             soften = ((tau + delta_acc) / max(tau, 1e-6)) ** 2
             reward = reduction * soften
-        return reward
+        return apply_reward_scale(reward)
 
     # Unknown mode → NEON fallback
     if delta_acc < -tau:
-        return -nominal ** 3
+        return apply_reward_scale(-nominal ** 3)
     if delta_acc > 0:
-        return nominal ** 3
-    return nominal
+        return apply_reward_scale(nominal ** 3)
+    return apply_reward_scale(nominal)
+
+
+def reward_scale_name() -> str:
+    """``raw`` (default) or ``cbrt``. See ``compute_reward``."""
+    return os.environ.get("SPECTRA_REWARD_SCALE", "raw").strip().lower() or "raw"
+
+
+def apply_reward_scale(reward):
+    """
+    Monotone rescaling of the step reward for the learning signal.
+
+    ``cbrt`` inverts the trichotomy's cube, so the ordering over steps is unchanged
+    while the magnitude drops from ~1e5 to ~1e2. Nothing else in the pipeline is
+    scale-free: the critic regresses raw returns and the entropy bonus is compared
+    against the policy-gradient term.
+    """
+    if reward_scale_name() != "cbrt":
+        return reward
+    value = float(reward)
+    return math.copysign(abs(value) ** (1.0 / 3.0), value)
+
+
+def reward_branch(delta_acc, tau):
+    """Which arm of the NEON trichotomy a step landed in."""
+    if delta_acc < -float(tau):
+        return "over_budget"
+    if delta_acc > 0:
+        return "gain"
+    return "in_budget"
+
+
+def _dataset_from_net_path(net_path):
+    """Catalog checkpoints embed the dataset in the filename (``vgg16_bn_cifar100_...``)."""
+    stem = os.path.basename(str(net_path or "")).lower()
+    for token, name in (("cifar100", "cifar-100"), ("cifar-100", "cifar-100"),
+                        ("cifar10", "cifar-10"), ("cifar-10", "cifar-10"),
+                        ("imagenet", "imagenet"), ("svhn", "svhn"),
+                        ("fashion", "fashion-mnist"), ("mnist", "mnist")):
+        if token in stem:
+            return name
+    return "unknown"
+
+
+def trace_reward(net_path, compression_rate, new_acc, prev_acc, reward,
+                 params_before=None, params_after=None):
+    """
+    Append one step to ``reward_trace.jsonl`` when ``SPECTRA_REWARD_TRACE`` is on.
+
+    The trichotomy in ``compute_reward`` only rewards a cut when Δacc lands in
+    ``-tau <= Δacc <= 0``. If that band is empty for a dataset, every real cut scores
+    ``-reduction ** 3`` and the argmax policy is "never prune" regardless of encoder or
+    agent capacity. This trace is what separates that failure from a state-encoder one.
+    """
+    if not env_flag("SPECTRA_REWARD_TRACE"):
+        return
+    run_dir = os.environ.get("SPECTRA_RUN_DIR", "")
+    if not run_dir:
+        return
+    tau = float(StaticConf.get_instance().conf_values.allowed_acc_reduction)
+    delta_acc = (new_acc - prev_acc) * 100
+    realized = None
+    if params_before and params_after is not None and float(params_before) > 0:
+        realized = (1.0 - float(params_after) / float(params_before)) * 100.0
+    row = {
+        "net": os.path.basename(str(net_path or "")),
+        "dataset": _dataset_from_net_path(net_path),
+        "rate": float(compression_rate),
+        "prev_acc": round(float(prev_acc), 6),
+        "new_acc": round(float(new_acc), 6),
+        "delta_acc_pp": round(float(delta_acc), 4),
+        "nominal_pp": round((1.0 - float(compression_rate)) * 100.0, 4),
+        "realized_pp": None if realized is None else round(realized, 4),
+        "tau": tau,
+        "branch": reward_branch(delta_acc, tau),
+        "reward": round(float(reward), 6),
+        "mode": os.environ.get("SPECTRA_REWARD_MODE", "neon"),
+        "scale": reward_scale_name(),
+        "overshoot_pp": (round(float(-delta_acc - tau), 4)
+                         if delta_acc < -tau else 0.0),
+    }
+    try:
+        os.makedirs(run_dir, exist_ok=True)
+        with open(os.path.join(run_dir, "reward_trace.jsonl"), "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row) + "\n")
+    except OSError:
+        pass
 
 
 def compute_returns(next_value, rewards, masks, gamma):

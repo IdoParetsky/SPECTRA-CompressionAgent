@@ -176,5 +176,21 @@ def test_scale_exponent_replaced_by_abs_p10():
     assert "p25" in BaseFE.MOMENT_NAMES and "median" in BaseFE.MOMENT_NAMES
 
 
+def test_spoof_classifier_topology_rewrites_100_to_10(monkeypatch):
+    """C100 last Linear is visible as out_features=100; spoof asks if that OOD token is the miss."""
+    from src.BERTInputModeler import spoof_classifier_topology
+
+    conv = [2, 64, 64, 3, 1, 1, 1]
+    hidden = [1, 0, 0, 0, 0, 512, 512]
+    head = [1, 0, 0, 0, 0, 512, 100]
+    monkeypatch.delenv("SPECTRA_SPOOF_NUM_CLASSES", raising=False)
+    assert spoof_classifier_topology([conv, hidden, head])[2][6] == 100
+    monkeypatch.setenv("SPECTRA_SPOOF_NUM_CLASSES", "10")
+    out = spoof_classifier_topology([conv, hidden, head])
+    assert out[0][2] == 64
+    assert out[1][6] == 512
+    assert out[2][6] == 10.0
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

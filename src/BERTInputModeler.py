@@ -42,6 +42,39 @@ TOPOLOGY_DIM = 7
 # Base width *before* fortify channels and per-rate action-cost slots on the target layer
 TOKEN_BASE_DIM = TOPOLOGY_DIM + NUM_MOMENTS + NUM_MOMENTS + WEIGHT_SHAPE_DIM  # 38
 
+# Classifier Linear.out_features the agent can see (TopologyFE col 6). ImageNet is 1000.
+_CLASSIFIER_OUT_FEATURES = frozenset({10, 20, 100, 365, 1000})
+
+
+def spoof_num_classes() -> Optional[int]:
+    """``SPECTRA_SPOOF_NUM_CLASSES``: rewrite classifier width in tokens only, not the CNN."""
+    raw = os.environ.get("SPECTRA_SPOOF_NUM_CLASSES", "").strip()
+    if not raw.isdigit():
+        return None
+    return int(raw)
+
+
+def spoof_classifier_topology(topology: List[List[float]]) -> List[List[float]]:
+    """
+    Linear tokens are ``[1, 0, 0, 0, 0, in_features, out_features]``.
+
+    The encoder has no dataset id; class count only appears as the last Linear's
+    ``out_features``. Spoofing 100→10 asks whether C100 residual misses are that
+    coordinate going OOD versus C10 train, not task heaviness. Does not change weights.
+    """
+    target = spoof_num_classes()
+    if target is None or not topology:
+        return topology
+    rewritten = []
+    for row in topology:
+        cols = list(row)
+        if len(cols) >= 7 and int(cols[0]) == 1:
+            out_f = int(round(float(cols[6])))
+            if out_f in _CLASSIFIER_OUT_FEATURES and out_f != target:
+                cols[6] = float(target)
+        rewritten.append(cols)
+    return rewritten
+
 BERT_MAX_POSITIONS = 512
 
 
@@ -156,7 +189,7 @@ class BERTInputModeler:
 
         Used both for online state building and for fitting FeatureStandardizer.
         """
-        topology = feature_maps["Topology"]
+        topology = spoof_classifier_topology(feature_maps["Topology"])
         activations = feature_maps["Activations"]
         weights = feature_maps["Weights"]
 
@@ -211,11 +244,13 @@ class BERTInputModeler:
                             param_ratio=None) -> torch.Tensor:
         from src.fortify import fortify_enabled, build_fortify_features, budget_in_state
 
-        base = self._scale_base_tokens(self.build_base_tokens(feature_maps))
+        maps = dict(feature_maps)
+        maps["Topology"] = spoof_classifier_topology(list(feature_maps.get("Topology") or []))
+        base = self._scale_base_tokens(self.build_base_tokens(maps))
         if fortify_enabled():
             # Fortify channels are already ~[0,1]; append after z-score of raw moments.
             fort = build_fortify_features(
-                base.size(0), coupling_ids, feature_maps.get("Topology", []),
+                base.size(0), coupling_ids, maps.get("Topology", []),
                 device=base.device, dtype=base.dtype)
             base = torch.cat([base, fort], dim=1)
         if budget_in_state() and base.size(0):
@@ -257,7 +292,7 @@ class BERTInputModeler:
         ``SPECTRA_STATE_ENCODER=bert``, also fills a ``bert`` entry for the frozen ablation.
         """
         with torch.no_grad():
-            topology = feature_maps["Topology"]
+            topology = spoof_classifier_topology(feature_maps["Topology"])
             # Exact channel-coupling ids when groups are available; module-parent fallback
             if dependency_groups is not None:
                 coupling = channel_groups.coupling_ids_for_layers(

@@ -28,7 +28,7 @@ Filter ranking (``SPECTRA_FILTER_IMPORTANCE``, default ``l1``)
     2024) — not a per-model search, and not SPA's OBSPA Hessian (too slow for an RL step).
 
     ``l1``  Li, Kadav, Durdanovic, Samet, Graf, "Pruning Filters for Efficient ConvNets"
-            (ICLR 2017 workshop; arXiv:1608.08710). Default; matches the running experiments.
+            (ICLR 2017 workshop; arXiv:1608.08710). Default; matches the frozen 10-net actors.
     ``l2``  Per-filter Frobenius / Euclidean norm (He, Kang, Dong, Fu, Yang,
             "Soft Filter Pruning for Accelerating Deep Convolutional Neural Networks",
             IJCAI 2018). Same interface, no extra data.
@@ -38,13 +38,22 @@ Filter ranking (``SPECTRA_FILTER_IMPORTANCE``, default ``l1``)
             (doi:10.1016/j.neunet.2025.107857). We take *only* the per-filter nuclear score,
             not SLIMING's combinatorial search over layer-wise rates — that search would
             replace SPECTRA's offline agent.
+    ``fpgm`` He, Kang, Dong, Fu, Yang, "Filter Pruning via Geometric Median for Deep
+            Convolutional Neural Networks Acceleration" (CVPR 2019). Survival score is the
+            sum of L2 distances to other filters in the layer (far from the geometric median
+            → keep). Weight-only; no extra data. Default stays ``l1`` so the frozen agents
+            keep the ranking they were trained with.
+    ``bn_scale`` Liu, Li, Shen, Huang, "Learning Efficient Convolutional Networks through
+            Network Slimming" (ICCV 2017). Survival score is ``|γ|`` of the BatchNorm that
+            immediately follows the conv. Falls back to L1 when there is no matching BN.
+            Call ``bind_bn_scales(model)`` before ranking (NetworkEnv does this).
 
     Poplar / metaheuristic channel search, MLPruner, DAGP, flow-guided pruning, and
     activation spectral-entropy scores are *per-model* solvers (they need a new search or
     extra forwards on each CNN). They would replace SPECTRA rather than sit under it.
 """
 
-from typing import Optional
+from typing import Dict, Optional
 import os
 
 import numpy as np
@@ -74,16 +83,49 @@ def filter_importance_mode() -> str:
         return "l2"
     if raw in ("svd", "nuclear", "spectral"):
         return "svd"
+    if raw in ("fpgm", "geometric_median", "geometric-median"):
+        return "fpgm"
+    if raw in ("bn_scale", "bn-scale", "bn", "slimming", "network_slimming"):
+        return "bn_scale"
     return "l1"
+
+
+_BN_ABS_GAMMA: Dict[int, torch.Tensor] = {}
+
+
+def bind_bn_scales(model: Optional[nn.Module]) -> None:
+    """
+    Pair each Conv/Linear with the next BatchNorm in module order (Network Slimming).
+
+    Required before ``bn_scale`` ranking. Safe to call on every prune: the map is rebuilt
+    from current weights, including after a structural resize.
+    """
+    _BN_ABS_GAMMA.clear()
+    if model is None:
+        return
+    mods = list(model.modules())
+    for i, module in enumerate(mods):
+        if not isinstance(module, (nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear)):
+            continue
+        out_n = int(module.out_channels) if hasattr(module, "out_channels") else int(module.out_features)
+        for nxt in mods[i + 1 : i + 8]:
+            if isinstance(nxt, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+                gamma = nxt.weight.detach().abs()
+                if int(gamma.numel()) == out_n:
+                    _BN_ABS_GAMMA[id(module)] = gamma
+                break
+            if isinstance(nxt, (nn.Conv1d, nn.Conv2d, nn.Conv3d, nn.Linear)):
+                break
 
 
 def filter_importance(layer: nn.Module) -> torch.Tensor:
     """
     Per-output-filter score; higher = more likely to survive.
 
-    Default is L1 magnitude (Li et al. 2017). ``l2`` / ``svd`` are drop-in criteria at
-    group level (SPA 2024). All three are zero iff the filter is all zeros, so
-    ``alive_filters`` stays well-defined.
+    Default is L1 magnitude (Li et al. 2017). ``l2`` / ``svd`` / ``fpgm`` are drop-in
+    weight-only criteria at group level (SPA 2024). ``bn_scale`` uses the following BN's
+    ``|γ|`` when ``bind_bn_scales`` has paired it. All of these are zero iff the filter is
+    all zeros, so ``alive_filters`` stays well-defined.
     """
     weight = layer.weight.detach()
     mode = filter_importance_mode()
@@ -91,7 +133,35 @@ def filter_importance(layer: nn.Module) -> torch.Tensor:
         return weight.reshape(weight.size(0), -1).pow(2).sum(dim=1).sqrt()
     if mode == "svd":
         return _nuclear_per_filter(weight)
+    if mode == "fpgm":
+        return _fpgm_per_filter(weight)
+    if mode == "bn_scale":
+        return _bn_scale_per_filter(layer, weight)
     return weight.reshape(weight.size(0), -1).abs().sum(dim=1)
+
+
+def _fpgm_per_filter(weight: torch.Tensor) -> torch.Tensor:
+    """Sum of L2 distances to other filters (He et al. CVPR 2019 FPGM). Dead filters score 0."""
+    cout = int(weight.size(0))
+    flat = weight.reshape(cout, -1)
+    alive = flat.abs().sum(dim=1) > 0
+    dist = torch.cdist(flat.to(dtype=torch.float32), flat.to(dtype=torch.float32), p=2)
+    scores = dist.sum(dim=1).to(dtype=weight.dtype)
+    return scores * alive.to(dtype=weight.dtype)
+
+
+def _bn_scale_per_filter(layer: nn.Module, weight: torch.Tensor) -> torch.Tensor:
+    """|γ| of the paired BN; L1 fallback when no BN is bound or widths differ."""
+    gamma = _BN_ABS_GAMMA.get(id(layer))
+    cout = int(weight.size(0))
+    dead = weight.reshape(cout, -1).abs().sum(dim=1) <= 0
+    if gamma is None or int(gamma.numel()) != cout:
+        scores = weight.reshape(cout, -1).abs().sum(dim=1)
+    else:
+        scores = gamma.to(device=weight.device, dtype=weight.dtype)
+    scores = scores.clone()
+    scores[dead] = 0
+    return scores
 
 
 def _nuclear_per_filter(weight: torch.Tensor) -> torch.Tensor:

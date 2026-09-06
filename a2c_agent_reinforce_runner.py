@@ -57,6 +57,12 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
 
     env = NetworkEnv(train_dict, mode, fold_idx)
 
+    # Deterministic eval also takes the policy out of train mode: the state encoder carries
+    # dropout, which otherwise perturbs the frozen agent's logits at TEST time.
+    from src import fortify as _fortify_mod
+    _fortify_mod.set_policy_eval_mode(getattr(agent, "actor_model", None),
+                                      getattr(agent, "critic_model", None))
+
     # Under a multi-GPU launch each rank evaluates a disjoint slice of the networks and
     # writes its own results file, so the work is split rather than duplicated
     world_size, rank = ddp.get_world_size(), ddp.get_rank()
@@ -105,9 +111,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             legal, conf.compression_rates_dict,
                             policy=eval_policy, device=conf.device)
                     else:
-                        action_dist = fortify_mod.apply_action_mask(
-                            agent.actor_model(state), legal)
-                        action = action_dist.sample()
+                        action = fortify_mod.policy_action(
+                            agent.actor_model(state), legal, device=conf.device)
 
                     if (fortify_mod.eval_lookahead_enabled()
                             and not at_budget):

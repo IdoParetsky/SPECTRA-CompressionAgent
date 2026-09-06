@@ -26,6 +26,12 @@ EVAL_TRAIN = "eval_train"  # Mode when NetworkEnv is called from a2c_agent_reinf
 EVAL_TEST = "eval_test"  # Mode when NetworkEnv is called from a2c_agent_reinforce_runner.py, evaluating the test dataset
 
 
+def _ratio_cache_enabled() -> bool:
+    """Memoize size probes within a step. Kill switch: ``SPECTRA_PREVIEW_CACHE=0``."""
+    return os.environ.get("SPECTRA_PREVIEW_CACHE", "1").strip().lower() not in (
+        "0", "false", "no", "off")
+
+
 def reward_compression_rate(prune_outcome, compression_rate, params_before, params_after,
                             new_acc, original_acc, tau):
     """
@@ -118,6 +124,11 @@ class NetworkEnv:
         self.selected_net_path = None
         self.current_model = None
         self.feature_extractor = None
+        # Size probes for the *current* model, dropped whenever the model changes.
+        # Eval asks for the same param/FLOP ratios several times per step (floor check,
+        # look-ahead, Δparams/ΔFLOPs preference), and each miss is a deepcopy + prune or
+        # a hooked forward pass. See _ratio_cache_enabled.
+        self._ratio_cache = {}
 
         # EVAL_TRAIN / EVAL_TEST when called from a2c_agent_reinforce_runner.py's evaluate_model(),
         # used for accuracy calculation in NetworkEnv's compute_and_log_results().
@@ -164,6 +175,7 @@ class NetworkEnv:
 
         self.row_idx = 1  # The first row to be a candidate for pruning is self.row_idx - 1 -> index 0
         self.actions_history = []
+        self._ratio_cache = {}
 
         # If a specific network is requested, use it directly (evaluation / cross-validation).
         # Previously all three arguments had to be supplied for this branch to be taken, so a
@@ -262,23 +274,54 @@ class NetworkEnv:
                            network=self.selected_net_path)
         return groups
 
+    def _cached_ratio(self, key, compute):
+        """``compute()`` memoized until the model changes (see ``_ratio_cache``)."""
+        if not _ratio_cache_enabled():
+            return compute()
+        cache = getattr(self, "_ratio_cache", None)
+        if cache is None:
+            cache = self._ratio_cache = {}
+        if key not in cache:
+            cache[key] = compute()
+        return cache[key]
+
     def param_ratio(self) -> float:
         """Current / original parameter count (1.0 at reset)."""
-        origin = getattr(self, "original_params", None) or utils.calc_num_parameters(self.current_model)
-        return utils.calc_num_parameters(self.current_model) / max(float(origin), 1.0)
+        def _compute():
+            origin = (getattr(self, "original_params", None)
+                      or utils.calc_num_parameters(self.current_model))
+            return utils.calc_num_parameters(self.current_model) / max(float(origin), 1.0)
+
+        return self._cached_ratio("param_ratio", _compute)
 
     def _input_shape(self):
-        return utils.get_input_shape(self.train_loader)
+        """
+        Per-sample shape of the current train loader.
+
+        Cached per episode rather than per step: it does not depend on the model, and
+        ``get_input_shape`` materialises a batch (``next(iter(loader))``), which restarts
+        the loader's worker processes every call.
+        """
+        loader = self.train_loader
+        cached = getattr(self, "_input_shape_cache", None)
+        if cached is not None and cached[0] is loader and _ratio_cache_enabled():
+            return cached[1]
+        shape = utils.get_input_shape(loader)
+        self._input_shape_cache = (loader, shape)
+        return shape
 
     def flops_ratio(self) -> float:
         """Current / original FLOPs (1.0 at reset). Lazy-origin if reset skipped the probe."""
-        current = utils.calc_flops(self.current_model, self._input_shape())
-        origin = getattr(self, "original_flops", None)
-        if not origin:
-            # First call should be at reset (unpruned). Do not lock origin after a prune.
-            self.original_flops = current
-            return 1.0
-        return current / max(float(origin), 1.0)
+        def _compute():
+            current = utils.calc_flops(self.current_model, self._input_shape())
+            origin = getattr(self, "original_flops", None)
+            if not origin:
+                # First call should be at reset (unpruned). Do not lock origin after a prune.
+                self.original_flops = current
+                return 1.0
+            return current / max(float(origin), 1.0)
+
+        return self._cached_ratio("flops_ratio", _compute)
 
     def preview_ratios(self, compression_rate: float):
         """
@@ -287,6 +330,11 @@ class NetworkEnv:
         One clone, no fine-tune. Identity is a no-op preview. FLOPs are only
         measured when ``SPECTRA_EVAL_MIN_FLOP_RATIO`` is on.
         """
+        return self._cached_ratio(
+            ("preview", self.row_idx, round(float(compression_rate), 6)),
+            lambda: self._preview_ratios_uncached(compression_rate))
+
+    def _preview_ratios_uncached(self, compression_rate: float):
         origin_p = float(getattr(self, "original_params", None)
                          or utils.calc_num_parameters(self.current_model))
         origin_p = max(origin_p, 1.0)
@@ -439,12 +487,17 @@ class NetworkEnv:
         reward = utils.compute_reward(
             new_acc, self.original_acc, reward_rate,
             params_before=params_before, params_after=params_after)
+        utils.trace_reward(
+            self.selected_net_path, reward_rate, new_acc, self.original_acc, reward,
+            params_before=params_before, params_after=params_after)
 
         # Move to next state
         self.row_idx += 1
         learning_handler_new_model.unfreeze_all_layers()
         old_model = self.current_model
         self.current_model = learning_handler_new_model.model
+        # Every memoized size probe describes the pre-step model
+        self._ratio_cache = {}
         del old_model
         del learning_handler_new_model
         # Identity steps do not allocate a new graph; skipping the cache flush avoids a
@@ -778,6 +831,7 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
         pruned_model_with_rows (ModelWithRows): The pruned model
     """
     model_with_rows.unwrap_model()
+    pruning.bind_bn_scales(model_with_rows.model)
 
     layer_to_prune_idx = model_with_rows.row_to_main_layer[row_to_prune_idx]
     layer_to_prune = model_with_rows.all_layers[layer_to_prune_idx]

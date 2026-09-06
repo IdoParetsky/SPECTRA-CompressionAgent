@@ -16,10 +16,12 @@
 # library crash). This script refuses to submit if wall_sec <= train_sec.
 #
 # HPC notes that have bitten us:
-#   - rtx_6000: request <=80G RAM (IT policy)
-#   - gpu partition MaxMemPerCPU=16G -> for 80G use >=5 CPUs
-#   - MaxTime on gpu is 7 days. Default wall is that max so eval is never SIGKILL'd;
-#     --runtime_limit still ends *training* and starts eval. scancel when a run is done.
+#   - CPU-Mem-per-GPU-Limit is 24G (HPC 6 Sep 2026). Use --mem-per-gpu=24G, never --mem=80G.
+#     Do not pass both --mem and --mem-per-gpu. SPECTRA_MEM is ignored (warns).
+#   - gpu partition QoS=gpu-part MaxTRESPU gres/gpu=5 (live 6 Sep 2026). That is the
+#     running-GPU cap. Job --qos=normal has no GPU MaxTRESPU; partition QOS still applies.
+#     giladkz is not in gpu AllowQos and zeros rtx_6000/4090. Do not use bypass_limits.
+#   - gpu MaxMemPerCPU=16G; 24G/8 CPU is well under. MaxTime on gpu is 7 days.
 #   - scontrol update TimeLimit is denied for users; cancel+resubmit instead
 #   - #SBATCH --signal=USR1@900 is overridden by submit.sh to fire at train-end
 
@@ -33,168 +35,190 @@ REPO_DIR="${SPECTRA_REPO_DIR:-/home/paretsky/SPECTRA-CompressionAgent}"
 # wall must be strictly greater; keep >=90 min buffer for eval when possible.
 case "$PROFILE" in
   smoke)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-01:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=900 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-01:00:00"; CPUS=4; TRAIN_SEC=900 ;;
   medium)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=25200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; CPUS=6; TRAIN_SEC=25200 ;;
   full)
-    GPUS="${GPU_COUNT:-2}"; TIME="0-15:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=46800 ;;
+    GPUS="${GPU_COUNT:-2}"; TIME="0-15:00:00"; CPUS=6; TRAIN_SEC=46800 ;;
   probe)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; CPUS=4; TRAIN_SEC=0 ;;
   probe_continue)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-02:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-02:00:00"; CPUS=4; TRAIN_SEC=0 ;;
   probe_groupft)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-02:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-02:00:00"; CPUS=4; TRAIN_SEC=0 ;;
   diag)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-04:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=7200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-04:00:00"; CPUS=4; TRAIN_SEC=7200 ;;
   recover)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=14400 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; CPUS=4; TRAIN_SEC=14400 ;;
   recover_groupft)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=14400 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; CPUS=4; TRAIN_SEC=14400 ;;
   recover_wide)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=14400 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; CPUS=4; TRAIN_SEC=14400 ;;
   recover_pref10)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=14400 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-06:00:00"; CPUS=4; TRAIN_SEC=14400 ;;
   recover_king)
     # Compose today's winners: mild rates + -10 pp preference + full FT + 40 epochs.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; CPUS=4; TRAIN_SEC=18000 ;;
   recover_careful)
     # AMC-scale warmup + 6-net DB + standardizer; wall >> train for eval buffer.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   recover_careful_fortify)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   recover_king_fortify)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; CPUS=4; TRAIN_SEC=18000 ;;
   recover_warm_king_fortify)
     # Warm-start 6-net careful-fortify from king_fortify best actor/critic.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   recover_careful_fortify_ft80)
     # Same as careful_fortify but 80 FT epochs (NEON-closer recovery budget).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
   reward_neon_ab)
     # Short king_fortify-like A/B control: NEON reward (explicit).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; CPUS=4; TRAIN_SEC=18000 ;;
   reward_structural_ab)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; CPUS=4; TRAIN_SEC=18000 ;;
   reward_shaped_ab)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; CPUS=4; TRAIN_SEC=18000 ;;
+  reward_band_ab)
+    # Over-budget arm graded by accuracy overshoot instead of cut size (ledger §52.1).
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; CPUS=4; TRAIN_SEC=18000 ;;
   careful_fortify_structural)
     # Promote RCPR onto 6-net careful+fortify (vs running 20066522 neon).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_shaped)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   reward_structural_seed43)
     # Seed replicate of structural reward A/B (luck check).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=18000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-08:00:00"; CPUS=4; TRAIN_SEC=18000 ;;
   careful_fortify_tau15)
     # Preference τ=15: careful non-id mass sits at median ≈−11 pp (just past τ=10).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_mildrates)
     # Safer action set 1.0/0.95/0.9 under fortify (cut 0.8 toxic channel).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_structural_guard)
     # Asymmetric RCPR: realized credit in-budget, max(realized,nominal) on violations.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_structural_tau15)
     # Combine mid-run levers: RCPR (healthier credit; late within-10↑) + τ=15 (covers −11 pp mass).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_cifar10)
     # Mixed-DB failure is C100; C10-only 6-net diversity (same fortify recipe).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_cifar10_fast)
     # Experimental AMP + channels_last + skip FT empty_cache. Same C10-thin recipe.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=8; TRAIN_SEC=36000 ;;
   c10_width_skinny_train)
     # Put skinny r20-w2 in train; held-out eval is r56-w4 only.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=8; TRAIN_SEC=36000 ;;
   c10_budget_state)
     # Remaining-param ratio as an extra token channel (same C10-thin catalog).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=8; TRAIN_SEC=36000 ;;
   careful_fortify_cifar10_structural)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   c100_mild_structural)
     # C100-only agent: milder rates, τ=15, 80 FT, structural reward.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
   c100_mild_neon)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
   c100_curriculum_king)
     # Warm-start king_fortify (C10) onto C100-only mild recipe.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
   probe_c100)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; CPUS=4; TRAIN_SEC=0 ;;
   probe_c100_aug)
     # CIFAR-100 recovery with train-time RandomCrop+Flip (no RL).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-12:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   probe_c100_recipe)
     # SGD+cosine+mixup+AutoAugment+160 ep C100 recovery (no RL).
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   probe_c100_kd)
     # Same as recipe plus knowledge distillation; no mixup.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   offline_wide)
     # 24-net recoverable catalog (C10/SVHN/FMNIST). Similar/novel/C10-thin stay held out.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=129600 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=129600 ;;
   c100_wide_drl)
     # C100 DRL on 6 competent nets; start only afterok a recipe probe that recovered.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=129600 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=129600 ;;
   c100_recoverable_drl)
     # CIFAR-100 DRL only on families that recover (VGG-11/16 + ShuffleNet). SGD recipe.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=129600 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=129600 ;;
+  c10_c100_matched_vgg_drl)
+    # Same VGG-16 BN on C10 and C100. Isolates 10-way vs 100-way on a recoverable family.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=129600 ;;
+  eval_c100_spoof_classes|eval_c100_residuals_sgd)
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   eval_diag_structural_c100)
     # Eval-only: structural diag agent on C100 held-out (no training).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; CPUS=4; TRAIN_SEC=3600 ;;
   eval_king_fortify_c100)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; CPUS=4; TRAIN_SEC=3600 ;;
   eval_neon_c100)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=3600 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-03:00:00"; CPUS=4; TRAIN_SEC=3600 ;;
   careful_fortify_cifar10_mildrates)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   c10_curriculum_king)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_cifar10_neon_rates)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   careful_fortify_cifar10_fine)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   encoder_c10_set)
     # Same C10 fortify recipe; architecture-agnostic read of the same tokens.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   encoder_c10_wide)
     # Capacity A/B: 6-layer 512-d Transformer (still task-trained, not BERT).
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   encoder_c10_bert)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   generic_c10_fortify)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=36000 ;;
-  offline_train)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
+  offline_train|offline_train_cbrt|offline_train_band_cbrt)
     # 10-net leap catalog (C10 families + SVHN + Fashion-MNIST). Floor-constrained eval.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
-  eval_offline_similar|eval_offline_novel)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
+  eval_offline_similar|eval_offline_similar_det|eval_offline_novel)
     # 8 CPUs: 3 DataLoaders x SPECTRA_DATALOADER_WORKERS=4 plus the trainer.
     # 80G needs >=5 CPUs under MaxMemPerCPU=16G.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   c100_ultra_mild)
     # Even smaller cuts (2–5%) on C100 — tests whether any prune is recoverable.
-    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
   c100_mild_structural_seed43)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; MEM="80G"; CPUS=6; TRAIN_SEC=43200 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
   probe_c100_extra)
-    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; MEM="64G"; CPUS=4; TRAIN_SEC=0 ;;
-  eval_only|eval_offline_c100|eval_imagenet_short)
+    GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; CPUS=4; TRAIN_SEC=0 ;;
+  eval_only|eval_offline_c100|eval_offline_c100_det|eval_imagenet_short)
     # Skip training; load SPECTRA_ACTOR/CRITIC_CHECKPOINT_PATH and evaluate.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   eval_c10_thin_flop_floor)
     # Eval-only FLOP floor 0.70 + look-ahead on C10-thin; frozen 10-net s42 actor.
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
+  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale)
+    # Plain C10-thin held-out eval (no FLOP floor) — the §17 r20-w2 / r56-w4 comparison.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   baseline_c10_l1|baseline_c10_mild|baseline_c10_random)
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
-    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; MEM="80G"; CPUS=8; TRAIN_SEC=0 ;;
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
+  diag_reward_band)
+    # Crossed dataset x outcome reward-band trace. Short wall so it hands the GPU back.
+    GPUS="${GPU_COUNT:-1}"; TIME="1-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
+  c100_recoverable_drl_fine|c100_recoverable_drl_fine_shaped)
+    # C100 DRL on recoverable families with a fine rate ladder + SGD-80 in the loop.
+    # _shaped pins SPECTRA_REWARD_MODE=structural_shaped in sbatch.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=129600 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|eval_offline_c100|eval_imagenet_short|eval_c10_thin_flop_floor|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|c100_recoverable_drl|baseline_c10_*}" >&2
+    echo "usage: $0 {smoke|...|c100_*|c10_c100_matched_vgg_drl|eval_c100_spoof_classes|eval_c100_residuals_sgd|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|eval_offline_c100|eval_imagenet_short|eval_c10_thin|eval_c10_thin_flop_floor|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|c100_recoverable_drl|c100_recoverable_drl_fine|diag_reward_band|reward_band_ab|baseline_c10_*}" >&2
     exit 1
     ;;
 esac
 
 CPUS="${SPECTRA_CPUS:-$CPUS}"
-MEM="${SPECTRA_MEM:-$MEM}"
+# HPC 6 Sep 2026: --mem-per-gpu=24G only (CPU-Mem-per-GPU-Limit). Do not pass --mem.
+MEM_PER_GPU="${SPECTRA_MEM_PER_GPU:-24G}"
+if [[ -n "${SPECTRA_MEM:-}" ]]; then
+  echo "WARNING: SPECTRA_MEM=${SPECTRA_MEM} ignored; using --mem-per-gpu=${MEM_PER_GPU} (HPC CPU-Mem-per-GPU-Limit=24G)." >&2
+fi
 
 # Slurm always needs --time (partition MaxTime=7-00:00:00). Default to that so a
 # slow eval cannot be hard-killed. Training still stops at TRAIN_SEC. Override:
@@ -231,7 +255,7 @@ mkdir -p runs/slurm_logs
 
 # Prefer non-preemptible rtx_6000-class nodes. ee-l40s-* preempted recover_pref10/wide
 # mid-run and wiped progress (no mid-train resume yet).
-EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-01,ee-l40s-02}"
+EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-01,ee-l40s-02,cs-4090-09}"
 if [[ -n "${SPECTRA_GPU_GRES:-}" ]]; then
   GPU_GRES="${SPECTRA_GPU_GRES}"
 else
@@ -270,25 +294,41 @@ SBATCH_EXTRA+=(--signal="B:USR1@${USR1_SEC}")
 SBATCH_EXTRA+=(--output="${REPO_DIR}/runs/slurm_logs/spectra_%j.out")
 SBATCH_EXTRA+=(--error="${REPO_DIR}/runs/slurm_logs/spectra_%j.out")
 
+# Pin A/B / checkpoint switches on the --export line. This cluster's scontrol
+# only shows keys listed after ALL; relying on --export=ALL alone dropped
+# SPECTRA_EVAL_DETERMINISTIC / SPECTRA_REWARD_SCALE from the first A/B submit.
+SBATCH_EXPORT="ALL,SPECTRA_PROFILE=${PROFILE}"
+for _k in SPECTRA_EVAL_DETERMINISTIC SPECTRA_REWARD_MODE SPECTRA_REWARD_SCALE \
+          SPECTRA_REWARD_TRACE SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH \
+          SPECTRA_EVAL_POLICY SPECTRA_EVAL_MIN_FLOP_RATIO SPECTRA_EVAL_PREFER_PARAM_PER_FLOP \
+          SPECTRA_SEED SPECTRA_CONTINUE_TRAIN SPECTRA_SKIP_TRAIN SPECTRA_FILTER_IMPORTANCE; do
+  _v="${!_k-}"
+  if [[ -n "$_v" ]]; then
+    SBATCH_EXPORT+=",${_k}=${_v}"
+  fi
+done
+
 JOB_ID=$(sbatch --parsable \
   --gpus="${GPU_GRES}" \
-  --mem="${MEM}" \
+  --mem-per-gpu="${MEM_PER_GPU}" \
   --cpus-per-task="${CPUS}" \
   --time="${TIME}" \
   --exclude="${EXCLUDE_NODES}" \
   --job-name="${SPECTRA_JOB_NAME:-spectra-${PROFILE}}" \
-  --export=ALL,SPECTRA_PROFILE="${PROFILE}" \
+  --export="${SBATCH_EXPORT}" \
   "${SBATCH_EXTRA[@]}" \
   scripts/spectra.sbatch)
 
 LOG="${REPO_DIR}/runs/slurm_logs/spectra_${JOB_ID}.out"
-    echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPU_GRES}, cpus=${CPUS}, mem=${MEM}, time=${TIME}, train_limit=${TRAIN_SEC}s, usr1=${USR1_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}}${SPECTRA_BEGIN:+, begin=${SPECTRA_BEGIN}})"
+    echo "submitted job ${JOB_ID} (profile=${PROFILE}, gpus=${GPU_GRES}, cpus=${CPUS}, mem-per-gpu=${MEM_PER_GPU}, time=${TIME}, train_limit=${TRAIN_SEC}s, usr1=${USR1_SEC}s, exclude=${EXCLUDE_NODES}${SPECTRA_DEPENDENCY:+, dependency=${SPECTRA_DEPENDENCY}}${SPECTRA_BEGIN:+, begin=${SPECTRA_BEGIN}})"
 echo "log     : ${LOG}"
 echo "run dir : ${REPO_DIR}/runs/job${JOB_ID}"
 # Confirm the scheduler accepted the Timelimit we asked for (qos/partition can silently clamp).
 sleep 1
 TL=$(squeue -j "${JOB_ID}" -h -o "%l" 2>/dev/null || sacct -j "${JOB_ID}" -n -X -o Timelimit --parsable2 2>/dev/null | head -1 || true)
 echo "Timelimit (scheduler): ${TL:-unknown}"
+N_R=$(squeue -u "${USER}" -t R -h -o %i 2>/dev/null | wc -l | tr -d ' ')
+echo "QOS gpu-part running: ${N_R:-?}/5 (MaxTRESPU gres/gpu=5; extras PD until a GPU frees)"
 echo "follow  : tail -f ${LOG}"
 echo "status  : squeue -j ${JOB_ID}"
 echo "cancel  : scancel ${JOB_ID}"
