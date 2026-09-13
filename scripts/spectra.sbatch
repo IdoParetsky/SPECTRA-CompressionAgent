@@ -43,6 +43,24 @@ export SPECTRA_RUN_ID="job${SLURM_JOB_ID}"
 export SPECTRA_RUN_DIR="${REPO_DIR}/runs/${SPECTRA_RUN_ID}"
 mkdir -p "$SPECTRA_RUN_DIR"
 export SPECTRA_STOP_FILE="${SPECTRA_RUN_DIR}/SLURM_STOP"
+# Continue-train: copy resume + latest_best into THIS job, then drop SPECTRA_RESUME_PATH
+# so later save_train_resume writes here instead of overwriting the parent snapshot.
+if [[ -n "${SPECTRA_PARENT_RUN:-}" || -n "${SPECTRA_RESUME_PATH:-}" ]]; then
+  mkdir -p "${SPECTRA_RUN_DIR}/agent_checkpoints"
+  if [[ -n "${SPECTRA_RESUME_PATH:-}" && -f "${SPECTRA_RESUME_PATH}" ]]; then
+    cp -f "${SPECTRA_RESUME_PATH}" "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt"
+    echo "copied resume bundle from ${SPECTRA_RESUME_PATH}"
+    unset SPECTRA_RESUME_PATH
+  fi
+  if [[ -n "${SPECTRA_PARENT_RUN:-}" ]]; then
+    for _f in latest_best_actor.pt latest_best_critic.pt; do
+      if [[ -f "${SPECTRA_PARENT_RUN}/agent_checkpoints/${_f}" ]]; then
+        cp -f "${SPECTRA_PARENT_RUN}/agent_checkpoints/${_f}" "${SPECTRA_RUN_DIR}/agent_checkpoints/${_f}"
+        echo "seeded ${_f} from ${SPECTRA_PARENT_RUN}"
+      fi
+    done
+  fi
+fi
 
 # Soft-stop before the hard TIME LIMIT: USR1 writes a flag the agent polls each episode.
 _spectra_on_usr1() {
@@ -607,7 +625,7 @@ case "$PROFILE" in
                   --compression_rates 1.0 0.9 0.8)
     fi
     ;;
-  offline_train|offline_train_cbrt|offline_train_band_cbrt)
+  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 svhn fashion-mnist}"
@@ -635,14 +653,141 @@ case "$PROFILE" in
       export SPECTRA_REWARD_TRACE=1
       export SPECTRA_EVAL_DETERMINISTIC=1
     elif [[ "$PROFILE" == "offline_train_band_cbrt" ]]; then
+      # Full-net 128-step twin of neon_full. Do NOT skip over-budget actor
+      # updates: overshoot grading is the empty-band layer-selection signal.
+      # 20945744 was this profile with leftover rollout_limit=5 — invalid.
       export SPECTRA_REWARD_MODE=structural_band
       export SPECTRA_REWARD_SCALE=cbrt
       export SPECTRA_REWARD_TRACE=1
       export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_CHECKPOINT=inbudget_compression
+      export SPECTRA_STATE_ALIGN=next
+      export SPECTRA_ROLLOUT_LIMIT=128
+      export SPECTRA_WARMUP_MULTIPLIER=3
+      export SPECTRA_WARMUP_FLOOR=30
+      export SPECTRA_SKIP_EVAL=1
+      unset SPECTRA_ACTOR_SKIP_OVERBUDGET
+      unset SPECTRA_SKIP_EVAL_TRAIN
+      export SPECTRA_SKIP_TRAIN=0
+      if [[ -z "${SPECTRA_RESUME_PATH:-}" && "${SPECTRA_CONTINUE_TRAIN:-}" != "1" ]]; then
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH
+        export SPECTRA_CONTINUE_TRAIN=0
+      else
+        export SPECTRA_CONTINUE_TRAIN=1
+      fi
+    elif [[ "$PROFILE" == "offline_train_unified" ]]; then
+      # F1: hard unified, no cubes, no cbrt. Fresh actor (not a frozen warm-start).
+      export SPECTRA_REWARD_MODE=structural_unified
+      export SPECTRA_REWARD_SCALE=raw
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_CHECKPOINT=inbudget_compression
+      export SPECTRA_UNIFIED_EPS="${SPECTRA_UNIFIED_EPS:-1}"
+      unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH
+      unset SPECTRA_SKIP_EVAL_TRAIN
+      export SPECTRA_SKIP_TRAIN=0
+      export SPECTRA_CONTINUE_TRAIN=0
+    elif [[ "$PROFILE" == "offline_train_prefer" ]]; then
+      # Full-net prefer: F1 over-budget + in-budget ρ (no slack taper).
+      export SPECTRA_REWARD_MODE=structural_prefer
+      export SPECTRA_REWARD_SCALE=raw
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_CHECKPOINT=inbudget_compression
+      export SPECTRA_UNIFIED_EPS="${SPECTRA_UNIFIED_EPS:-1}"
+      export SPECTRA_STATE_ALIGN=next
+      export SPECTRA_ROLLOUT_LIMIT=64
+      export SPECTRA_WARMUP_MULTIPLIER=3
+      export SPECTRA_WARMUP_FLOOR=30
+      export SPECTRA_SKIP_EVAL=1
+      unset SPECTRA_SKIP_EVAL_TRAIN
+      export SPECTRA_SKIP_TRAIN=0
+      if [[ -z "${SPECTRA_RESUME_PATH:-}" && "${SPECTRA_CONTINUE_TRAIN:-}" != "1" ]]; then
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH
+        export SPECTRA_CONTINUE_TRAIN=0
+      else
+        export SPECTRA_CONTINUE_TRAIN=1
+      fi
+    elif [[ "$PROFILE" == "offline_train_unified_full" ]]; then
+      # F1 slack-taper, same full-net loop as prefer (fair reward A/B vs 21168773).
+      export SPECTRA_REWARD_MODE=structural_unified
+      export SPECTRA_REWARD_SCALE=raw
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_CHECKPOINT=inbudget_compression
+      export SPECTRA_UNIFIED_EPS="${SPECTRA_UNIFIED_EPS:-1}"
+      export SPECTRA_STATE_ALIGN=next
+      export SPECTRA_ROLLOUT_LIMIT=128
+      export SPECTRA_WARMUP_MULTIPLIER=3
+      export SPECTRA_WARMUP_FLOOR=30
+      export SPECTRA_SKIP_EVAL=1
+      unset SPECTRA_SKIP_EVAL_TRAIN
+      export SPECTRA_SKIP_TRAIN=0
+      if [[ -z "${SPECTRA_RESUME_PATH:-}" && "${SPECTRA_CONTINUE_TRAIN:-}" != "1" ]]; then
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH
+        export SPECTRA_CONTINUE_TRAIN=0
+      else
+        export SPECTRA_CONTINUE_TRAIN=1
+      fi
+    elif [[ "$PROFILE" == "offline_train_prefer_floor" ]]; then
+      # Prefer + train-time 0.70 floor/look-ahead + budget channel (paper-protocol MDP).
+      export SPECTRA_REWARD_MODE=structural_prefer
+      export SPECTRA_REWARD_SCALE=raw
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_CHECKPOINT=inbudget_compression
+      export SPECTRA_UNIFIED_EPS="${SPECTRA_UNIFIED_EPS:-1}"
+      export SPECTRA_STATE_ALIGN=next
+      export SPECTRA_ROLLOUT_LIMIT=128
+      export SPECTRA_WARMUP_MULTIPLIER=3
+      export SPECTRA_WARMUP_FLOOR=30
+      export SPECTRA_SKIP_EVAL=1
+      export SPECTRA_TRAIN_RESPECT_FLOOR=1
+      export SPECTRA_EVAL_LOOKAHEAD=1
+      export SPECTRA_BUDGET_IN_STATE=1
+      unset SPECTRA_SKIP_EVAL_TRAIN
+      export SPECTRA_SKIP_TRAIN=0
+      if [[ -z "${SPECTRA_RESUME_PATH:-}" && "${SPECTRA_CONTINUE_TRAIN:-}" != "1" ]]; then
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH
+        export SPECTRA_CONTINUE_TRAIN=0
+      else
+        export SPECTRA_CONTINUE_TRAIN=1
+      fi
+    elif [[ "$PROFILE" == "offline_train_neon_full" ]]; then
+      # Original NEON trichotomy on *realized* CNN cuts, cube-root critic scale.
+      # In-budget checkpoint; empty-band walks skip the actor; mixed walks mask
+      # only the violating steps so cubes cannot fold latest_best to identity.
+      export SPECTRA_REWARD_MODE=structural
+      export SPECTRA_REWARD_SCALE=cbrt
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_CHECKPOINT=inbudget_compression
+      export SPECTRA_ACTOR_SKIP_OVERBUDGET=1
+      export SPECTRA_STATE_ALIGN=next
+      export SPECTRA_ROLLOUT_LIMIT=128
+      export SPECTRA_WARMUP_MULTIPLIER=3
+      export SPECTRA_WARMUP_FLOOR=30
+      export SPECTRA_SKIP_EVAL=1
+      unset SPECTRA_SKIP_EVAL_TRAIN
+      export SPECTRA_SKIP_TRAIN=0
+      if [[ -z "${SPECTRA_RESUME_PATH:-}" && "${SPECTRA_CONTINUE_TRAIN:-}" != "1" ]]; then
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH
+        export SPECTRA_CONTINUE_TRAIN=0
+      else
+        export SPECTRA_CONTINUE_TRAIN=1
+      fi
     fi
-    EXTRA_ARGS=(--runtime_limit 43200 --allowed_acc_reduction 10
-                --train_compressed_layer_only False
-                --compression_rates 1.0 0.9 0.8)
+    if [[ "$PROFILE" == "offline_train_prefer" || "$PROFILE" == "offline_train_unified_full" || "$PROFILE" == "offline_train_prefer_floor" || "$PROFILE" == "offline_train_neon_full" || "$PROFILE" == "offline_train_band_cbrt" ]]; then
+      # Wall is a fuse. Stop is min_episodes (130) + 100-ep in-budget patience.
+      # 36h/48h runtime_limit truncated actor learning. 6d fits a 4090 160-ep run.
+      EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.9 0.8)
+    else
+      EXTRA_ARGS=(--runtime_limit 43200 --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.9 0.8)
+    fi
     ;;
   offline_wide)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
@@ -1054,7 +1199,8 @@ case "$PROFILE" in
     ;;
   eval_imagenet_short)
     # Frozen 10-net actor, MobileNet-v2 ImageNet-1k, 3-epoch FT, param floor 0.70.
-    # Transfer probe, not ImageNet DRL train. Prefer a 4090/6000; 2080 will OOM.
+    # Transfer probe, not ImageNet DRL train. submit.sh takes the strongest
+    # free SKU at or above rtx_4090 (2080/1080 OOM).
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_imagenet_mobilenet.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/input_offline_imagenet_mobilenet.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-imagenet1k}"
@@ -1110,11 +1256,13 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale)
+  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale|eval_c10_thin_traj)
     # Plain C10-thin held-out eval (easy r20-w2, hard r56-w4) for one frozen actor:
-    # param floor 0.70, no FLOP floor, no look-ahead. This is the §17 comparison point
-    # (10-net s42 20189046: r20-w2 -4.2 @ 0.600/0.760, r56-w4 -15.9 @ 0.704/0.550).
-    # Determinism A/B: submit twice, once with SPECTRA_EVAL_DETERMINISTIC=1.
+    # param floor 0.70, no FLOP floor. Look-ahead is on so a 0.8 cut cannot jump
+    # past 0.70 to ~0.60 (leaky Path 3 TESTs: set SPECTRA_EVAL_LOOKAHEAD=0).
+    # eval_c10_thin_traj: no identity-pad; Phase-A look-ahead labels ~0.70 then
+    # continues; quote floor_hold / val_best / terminal. Determinism A/B: submit
+    # twice, once with SPECTRA_EVAL_DETERMINISTIC=1.
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_c10_thin.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_thin.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
@@ -1144,6 +1292,12 @@ case "$PROFILE" in
     if [[ "$PROFILE" == "eval_c10_thin_bnscale" ]]; then
       export SPECTRA_EVAL_DETERMINISTIC=1
       export SPECTRA_FILTER_IMPORTANCE=bn_scale
+    fi
+    if [[ "$PROFILE" == "eval_c10_thin_traj" ]]; then
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_EVAL_TRAJECTORY=1
+      export SPECTRA_EVAL_LOOKAHEAD=0
+      export SPECTRA_SKIP_EVAL_TRAIN=1
     fi
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
                 --train_compressed_layer_only False
@@ -1183,6 +1337,13 @@ case "$PROFILE" in
     exit 1
     ;;
 esac
+
+# Eval-only jobs: skip the duplicated train-loader prune+FT walk. Paper quotes
+# eval_test only. Train profiles leave this unset (default off in code). Override
+# with SPECTRA_SKIP_EVAL_TRAIN=0 on an eval profile if a walk must keep both.
+if [[ "${SPECTRA_SKIP_TRAIN:-0}" == "1" ]]; then
+  export SPECTRA_SKIP_EVAL_TRAIN="${SPECTRA_SKIP_EVAL_TRAIN:-1}"
+fi
 
 if [[ "${RUN_KIND:-agent}" == "probe" ]]; then
   echo "profile probe: recovery matrix (no RL)"

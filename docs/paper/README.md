@@ -7,6 +7,7 @@ matrix) are for live ops; they go stale and they are not in git.
 | File | Role |
 |---|---|
 | [RESULTS_LEDGER.md](RESULTS_LEDGER.md) | Canonical numbers. Quote **TEST** only. Update this first when a job finishes. |
+| [PAPER_SKELETON.md](PAPER_SKELETON.md) | First write-against outline: NEON chapter map, figure/table analogs (Fig. 1–9 → SPECTRA F1–F10), what to write tonight vs wait for argmax `20945568`. |
 | [SPECTRA_draft.md](SPECTRA_draft.md) | Paper in **NEON’s section order**. Prose + tables that point at the ledger. Bibliography **[1]–[78]** = thesis proposal; **[79]–[92]** = Aug 2026 literature survey; **[93]–[96]** = 18 Aug Scholar pass. Fill blanks; do not invent numbers. |
 | [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md) | Advisor minutes 18 Aug 2026. Comparison posture, NEON-style Pareto (does **not** replace coverage), heuristics, ImageNet = frozen transfer, NAP2 pending. Act in this light until the next meeting. |
 
@@ -29,4 +30,4 @@ matrix) are for live ops; they go stale and they are not in git.
 6. `param_ratio` / `flops_ratio` = fraction **kept** (shapes, not masked zeros).
 7. A C100 probe cell inside val τ at ≥98% params is not a 2–5% cut.
 
-Paper due **30 Sep 2026**. Experiment freeze **15 Sep**. Git checkpoint for night code: `e985d5e` (16 Aug). Live leap tree may still be an older SHA until overlay is allowed.
+Paper due **30 Sep 2026**. Train freeze **night of 17 Sep 2026**. Git checkpoint for night code: `e985d5e` (16 Aug). Live leap tree may still be an older SHA until overlay is allowed.

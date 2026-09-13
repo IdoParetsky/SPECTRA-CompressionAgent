@@ -34,6 +34,42 @@ def budget_in_state() -> bool:
     return raw in ("1", "true", "yes", "on")
 
 
+INBUDGET_OVER_PENALTY = 1_000_000.0
+
+
+def inbudget_checkpointing() -> bool:
+    """
+    Save ``latest_best_*`` on in-budget compression, not max discounted return.
+
+    Default on for ``structural_unified`` / ``structural_prefer``. Cube-root / NEON training left
+    ``latest_best`` on the identity policy because a 0-return never-prune beat
+    every legal cut's large negative return (ledger Chain B 20945576).
+    Override with ``SPECTRA_CHECKPOINT=return`` to restore discounted-return
+    selection, or ``=inbudget_compression`` to force it on any mode.
+    """
+    raw = os.environ.get("SPECTRA_CHECKPOINT", "").strip().lower()
+    if raw in ("return", "discounted", "neon", "0", "false", "off"):
+        return False
+    if raw in ("inbudget", "inbudget_compression", "1", "true", "yes", "on"):
+        return True
+    mode = os.environ.get("SPECTRA_REWARD_MODE", "neon").strip().lower()
+    if mode in ("structural_unified", "structural_prefer"):
+        return True
+    # Cubes otherwise select identity as latest_best (20945576): 0-return never-prune
+    # beats every legal cut's large negative return.
+    if actor_skip_overbudget() and mode in (
+            "neon", "structural", "structural_guard", "structural_band"):
+        return True
+    return False
+
+
+def inbudget_checkpoint_score(rho_sum: float, overshoot_sum: float, any_over: bool) -> float:
+    """Higher is better. Any over-budget episode loses to every in-budget one."""
+    if any_over:
+        return -INBUDGET_OVER_PENALTY - float(overshoot_sum)
+    return float(rho_sum)
+
+
 def stem_rows() -> int:
     """How many leading prunable rows are treated as stem (identity-only under fortify)."""
     return max(0, int(os.environ.get("SPECTRA_STEM_ROWS", "1")))
@@ -163,9 +199,123 @@ def legal_action_mask(
     return mask
 
 
+def actor_skip_overbudget() -> bool:
+    """
+    Keep NEON cubes off the generic encoder when the walk left the τ-band.
+
+    Empty-band nets (C100 residuals, skinny r56-w4) produce only −reduction³
+    steps; those gradients teach "never prune" and fold latest_best to identity.
+    Critic still sees the violation. Pin with ``SPECTRA_ACTOR_SKIP_OVERBUDGET=1``.
+    """
+    raw = os.environ.get("SPECTRA_ACTOR_SKIP_OVERBUDGET", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def policy_gradient_advantages(adv: torch.Tensor, step_over, skip_overbudget: bool):
+    """
+    Advantage tensor for the actor plus a kind flag: ``full``, ``masked``, ``skip``.
+
+    Whole-episode skip is only for walks that were over-budget on *every* step
+    (empty band). Mixed walks zero the violating steps so the in-budget prefix
+    still teaches the intended arm, and the stop boundary is not a −reduction³
+    blast through the shared encoder. Standardise on kept steps only.
+    """
+    adv = adv.detach()
+    n = int(adv.shape[0])
+    over = torch.zeros(n, dtype=torch.bool, device=adv.device)
+    if skip_overbudget and step_over:
+        flags = [bool(x) for x in list(step_over)[:n]]
+        if flags:
+            over[:len(flags)] = torch.tensor(flags, dtype=torch.bool, device=adv.device)
+    over_b = over.view([-1] + [1] * (adv.ndim - 1))
+    if skip_overbudget and n > 0 and bool(over.all().item()):
+        return adv, "skip"
+    if skip_overbudget and n > 0 and bool(over.any().item()):
+        kept = adv[~over]
+        if kept.numel() > 1:
+            mu = kept.mean()
+            sd = kept.std(unbiased=False)
+            adv = (adv - mu) / (sd + 1e-8)
+        adv = torch.where(over_b, torch.zeros_like(adv), adv)
+        return adv, "masked"
+    if adv.numel() > 1:
+        adv = (adv - adv.mean()) / (adv.std(unbiased=False) + 1e-8)
+    return adv, "full"
+
+
+def train_respects_size_floor() -> bool:
+    """
+    Apply the eval param/FLOP floor during *training* (identity-pad + look-ahead).
+
+    Default off so already-running trains keep the old MDP. Paper TEST identity-pads
+    at 0.70 params; without this the actor is trained on post-floor states eval never
+    visits. Pin with ``SPECTRA_TRAIN_RESPECT_FLOOR=1``.
+    """
+    raw = os.environ.get("SPECTRA_TRAIN_RESPECT_FLOOR", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
 def eval_min_param_ratio() -> float:
     """Stop applying non-identity prune actions in eval once params fall below this fraction."""
     return float(os.environ.get("SPECTRA_EVAL_MIN_PARAM_RATIO", "0.70"))
+
+
+def eval_trajectory_enabled() -> bool:
+    """Unconstrained TEST walk: no identity-pad; quote a curve, not one stop.
+
+    Phase A still uses look-ahead so the walk *labels* a ~0.70 hold. Phase B
+    then applies the actor's blocked cut and continues to the end. After every
+    real prune+FT the test loader is scored. Selection is on **val** Δacc
+    (never on test). Default off so Path 3 identity-pad TESTs stay reproducible.
+    Pin ``SPECTRA_EVAL_TRAJECTORY=1``.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_TRAJECTORY", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def trajectory_release_floor(at_budget: bool, actor_idx: int, guarded_idx: int) -> bool:
+    """True when trajectory Phase A should record the hold and enter Phase B."""
+    if at_budget:
+        return True
+    return int(actor_idx) != int(guarded_idx)
+
+
+def select_trajectory_points(points, *, min_param: float, tau_pp: float) -> dict:
+    """Pick labeled TEST points from a recorded prune curve.
+
+    ``points`` are dicts with ``param``, ``flop``, ``val_dacc_pp``, ``test_dacc_pp``.
+    ``val_best`` is the *most compressed* in-budget val point (not the kindest
+    Δacc). Test Δacc is reported at that step but never used to pick it.
+    """
+    pts = list(points or [])
+    origin = pts[0] if pts else None
+    terminal = pts[-1] if pts else None
+    floor_cross = None
+    for p in pts:
+        if float(p["param"]) <= float(min_param) + 1e-12:
+            floor_cross = p
+            break
+    above = [p for p in pts if float(p["param"]) + 1e-12 >= float(min_param)]
+    floor_hold = None
+    if above:
+        floor_hold = min(
+            above,
+            key=lambda p: (float(p["param"]), float(p["flop"]), -float(p["val_dacc_pp"])),
+        )
+    in_tau = [p for p in pts if float(p["val_dacc_pp"]) + 1e-12 >= -float(tau_pp)]
+    val_best = None
+    if in_tau:
+        val_best = min(
+            in_tau,
+            key=lambda p: (float(p["param"]), float(p["flop"]), -float(p["val_dacc_pp"])),
+        )
+    return {
+        "origin": origin,
+        "floor_hold": floor_hold,
+        "floor_cross": floor_cross,
+        "val_best": val_best,
+        "terminal": terminal,
+    }
 
 
 def eval_min_flop_ratio() -> float:
@@ -181,12 +331,24 @@ def eval_min_flop_ratio() -> float:
 
 
 def eval_lookahead_enabled() -> bool:
-    """Refuse a prune whose previewed param/FLOP ratio would land below a floor."""
-    raw = os.environ.get("SPECTRA_EVAL_LOOKAHEAD", "0").strip().lower()
+    """Refuse a prune whose previewed param/FLOP ratio would land below a floor.
+
+    Explicit ``SPECTRA_EVAL_LOOKAHEAD=0`` reproduces the leaky Path 3 TESTs
+    (C10-thin r20 printed ``params x0.600`` despite ``MIN_PARAM=0.70``: one
+    0.8 group-cut overshoots, then identity-pad). Unset now means *on*
+    whenever a param or FLOP floor is live — the FLOP path already did this.
+
+    Trajectory TESTs own Phase-A look-ahead in the runner; this flag stays
+    off there so identity-pad cannot also fire.
+    """
+    if eval_trajectory_enabled():
+        return False
+    raw = os.environ.get("SPECTRA_EVAL_LOOKAHEAD", "").strip().lower()
+    if raw in ("0", "false", "no", "off"):
+        return False
     if raw in ("1", "true", "yes", "on"):
         return True
-    # A FLOP floor without look-ahead still overshoots in one 0.8 group-cut.
-    return eval_min_flop_ratio() > 0
+    return eval_min_flop_ratio() > 0 or eval_min_param_ratio() > 0
 
 
 def eval_prefer_param_per_flop() -> bool:
@@ -252,9 +414,10 @@ def action_respecting_param_floor(
     (and the FLOP floor when ``SPECTRA_EVAL_MIN_FLOP_RATIO`` is on).
 
     Then pick the strongest legal prune whose dry-run still stays on every
-    active floor; otherwise identity. Param look-ahead is default-off
-    (``SPECTRA_EVAL_LOOKAHEAD``). A FLOP floor turns look-ahead on so one
-    residual 0.8 cannot skip from 0.72 FLOPs to 0.55.
+    active floor; otherwise identity. Look-ahead is on whenever a param or
+    FLOP floor is live (``SPECTRA_EVAL_LOOKAHEAD=0`` restores the leaky
+    Path 3 walk). Without it, one residual 0.8 jumps past 0.70 params to
+    ~0.60, or past 0.72 FLOPs to ~0.55.
     """
     identity = identity_action_index(compression_rates)
     min_flop = eval_min_flop_ratio()
@@ -348,6 +511,45 @@ def eval_deterministic() -> bool:
     and one aggressive rate on a narrow layer is unrecoverable. See ledger §54.
     """
     raw = os.environ.get("SPECTRA_EVAL_DETERMINISTIC", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def state_align_next() -> bool:
+    """
+    Mark the *next* prunable row in the post-step state (default off).
+
+    ``NetworkEnv.step`` historically encoded the layer that was just pruned, then
+    incremented ``row_idx``. The actor therefore chose the next rate from the
+    previous layer's marker and action-cost slots. Frozen actors were trained
+    that way — leave this off when replaying them. New trains pin
+    ``SPECTRA_STATE_ALIGN=next``.
+    """
+    raw = os.environ.get("SPECTRA_STATE_ALIGN", "prev").strip().lower()
+    return raw in ("next", "1", "true", "yes", "on")
+
+
+def reward_needs_flops() -> bool:
+    """FLOP probes are only required for the ½ρ_w+½ρ_f unified / prefer mix."""
+    mode = os.environ.get("SPECTRA_REWARD_MODE", "neon").strip().lower()
+    return mode in ("structural_unified", "structural_prefer")
+
+
+def skip_eval() -> bool:
+    """Skip both in-job eval walks. Use when a chained child quotes ``eval_test``."""
+    raw = os.environ.get("SPECTRA_SKIP_EVAL", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def skip_eval_train() -> bool:
+    """Skip the duplicated train-loader prune+FT walk at eval.
+
+    ``eval_train`` then ``eval_test`` are two full prune+FT walks from the
+    pristine checkpoint. Both fine-tune on the train loader; they differ
+    mainly in the final accuracy loader. Paper quotes ``eval_test`` only.
+    Default off so running jobs and already-quoted walks stay unchanged.
+    Skip-train sbatch profiles turn this on (``SPECTRA_SKIP_EVAL_TRAIN=1``).
+    """
+    raw = os.environ.get("SPECTRA_SKIP_EVAL_TRAIN", "0").strip().lower()
     return raw in ("1", "true", "yes", "on")
 
 

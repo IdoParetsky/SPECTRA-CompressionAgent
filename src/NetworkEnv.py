@@ -19,6 +19,7 @@ from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
 from src.ModelHandlers.ClassificationHandler import ClassificationHandler
+import src.fortify as fortify
 import src.utils as utils
 
 AGENT_TRAIN = "agent_train"  # Mode when NetworkEnv is called from A2C_Agent_Reinforce.py
@@ -119,6 +120,8 @@ class NetworkEnv:
         self.row_idx = None  # This variable will hold the index of the row after the one to be pruned
         self.actions_history = []
         self.original_acc = None
+        self.last_val_acc = None
+        self._origin_test_acc = None
         self.original_params = None
         self.original_flops = None
         self.selected_net_path = None
@@ -162,6 +165,18 @@ class NetworkEnv:
         # t_start is assigned in a2c_agent_reinforce_runner.py's evaluate_model(),
         # and utilized in NetworkEnv's compute_and_log_results()
         self.t_start = None  # a Model's evaluation start time
+        self._reset_episode_reward_stats()
+
+    def _reset_episode_reward_stats(self):
+        self.episode_rho_sum = 0.0
+        self.episode_overshoot_sum = 0.0
+        self.episode_any_over = False
+        self.episode_step_over = []
+
+    def episode_checkpoint_score(self) -> float:
+        """In-budget compression (F1) vs discounted return. See fortify.inbudget_checkpointing."""
+        return fortify.inbudget_checkpoint_score(
+            self.episode_rho_sum, self.episode_overshoot_sum, self.episode_any_over)
 
     def reset(self, test_net_path=None, test_model=None, test_loaders=None):
         """ Reset environment with a new CNN model & dataset """
@@ -176,6 +191,7 @@ class NetworkEnv:
         self.row_idx = 1  # The first row to be a candidate for pruning is self.row_idx - 1 -> index 0
         self.actions_history = []
         self._ratio_cache = {}
+        self._reset_episode_reward_stats()
 
         # If a specific network is requested, use it directly (evaluation / cross-validation).
         # Previously all three arguments had to be supplied for this branch to be taken, so a
@@ -237,6 +253,8 @@ class NetworkEnv:
         learning_handler_original_model = self.create_learning_handler(self.current_model)
         with logging_utils.stage("reset.baseline_accuracy"):
             self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
+        self.last_val_acc = float(self.original_acc)
+        self._origin_test_acc = None
 
         num_rows = max(len(model_with_rows.all_rows) - 1, 0)
         recorder.record(
@@ -322,6 +340,17 @@ class NetworkEnv:
             return current / max(float(origin), 1.0)
 
         return self._cached_ratio("flops_ratio", _compute)
+
+    def score_test_loader(self):
+        """``(new_acc, origin_acc, delta_pp)`` on the CNN test split. Caches origin."""
+        origin_model = self.data_dict[self.selected_net_path][0]
+        if self._origin_test_acc is None:
+            origin_lh = self.create_learning_handler(origin_model)
+            self._origin_test_acc = float(origin_lh.evaluate_model(self.test_loader))
+        new_lh = self.create_learning_handler(self.current_model)
+        new_acc = float(new_lh.evaluate_model(self.test_loader))
+        origin = float(self._origin_test_acc)
+        return new_acc, origin, (new_acc - origin) * 100.0
 
     def preview_ratios(self, compression_rate: float):
         """
@@ -438,6 +467,11 @@ class NetworkEnv:
                           f"({type(target_layer).__name__}), Compression Rate: {compression_rate}")
 
         params_before = utils.calc_num_parameters(self.current_model)
+        flops_before = None
+        flops_after = None
+        need_flops = fortify.reward_needs_flops()
+        if need_flops and compression_rate != 1:
+            flops_before = utils.calc_flops(self.current_model, self._input_shape())
         prune_outcome = {"mode": "identity"}
 
         if compression_rate == 1:
@@ -478,18 +512,34 @@ class NetworkEnv:
         learning_handler_new_model.model.eval()
         with logging_utils.stage("step.evaluate", level=logging.DEBUG):
             new_acc = learning_handler_new_model.evaluate_model(self.val_loader)
+        self.last_val_acc = float(new_acc)
 
         # Realized size before reward: CNN group edits ≠ nominal (1-rate).
         params_after = utils.calc_num_parameters(learning_handler_new_model.model)
+        if need_flops and compression_rate != 1:
+            flops_after = utils.calc_flops(
+                learning_handler_new_model.model, self._input_shape())
         reward_rate = reward_compression_rate(
             prune_outcome, compression_rate, params_before, params_after,
             new_acc, self.original_acc, self.conf.allowed_acc_reduction)
         reward = utils.compute_reward(
             new_acc, self.original_acc, reward_rate,
-            params_before=params_before, params_after=params_after)
+            params_before=params_before, params_after=params_after,
+            flops_before=flops_before, flops_after=flops_after)
         utils.trace_reward(
             self.selected_net_path, reward_rate, new_acc, self.original_acc, reward,
             params_before=params_before, params_after=params_after)
+        tau = float(self.conf.allowed_acc_reduction)
+        delta_pp = (new_acc - self.original_acc) * 100.0
+        nominal = (1.0 - float(reward_rate)) * 100.0
+        rho_step = utils.unified_rho(
+            nominal, params_before, params_after, flops_before, flops_after)
+        overshoot = max(0.0, -delta_pp - tau)
+        self.episode_rho_sum += max(0.0, float(rho_step))
+        self.episode_overshoot_sum += overshoot
+        if overshoot > 0:
+            self.episode_any_over = True
+        self.episode_step_over.append(overshoot > 0)
 
         # Move to next state
         self.row_idx += 1
@@ -506,22 +556,28 @@ class NetworkEnv:
             torch.cuda.empty_cache()
             gc.collect()
 
-        # Extract features for the next state. The dependency analysis is redone here because
-        # the compression just applied changed the graph.
-        with logging_utils.stage("step.feature_extraction", level=logging.DEBUG):
-            kept = utils.calc_num_parameters(self.current_model) / max(self.original_params, 1e-9)
-            fm = self.feature_extractor.encode_to_bert_input(
-                model_with_rows, current_layer_idx, update_indices,
-                dependency_groups=self._dependency_groups(model_with_rows),
-                param_ratio=min(1.0, max(0.0, kept)))
-
-        # Check termination condition
+        # Check termination / wrap before encoding so the next-state marker can
+        # point at the layer the *next* action will actually prune.
         num_rows = len(model_with_rows.all_rows) - 1  # Only FC and Conv layers trigger a new row
         self.actions_history.append(compression_rate)
         num_actions = len(self.actions_history)
         # As self.row_idx - 1 is the current appraised row, the index should not drop below 1
         self.row_idx = max(1, self.row_idx % (num_rows + 1))
         done = num_actions >= num_rows * self.conf.passes
+        encode_idx = current_layer_idx
+        if fortify.state_align_next() and (not done) and num_rows > 0:
+            encode_idx = model_with_rows.row_to_main_layer[self.row_idx - 1]
+
+        # Extract features for the next state. The dependency analysis is redone here because
+        # the compression just applied changed the graph. update_indices stay the row that
+        # just changed (activation refresh); encode_idx is the layer about to be pruned
+        # when SPECTRA_STATE_ALIGN=next.
+        with logging_utils.stage("step.feature_extraction", level=logging.DEBUG):
+            kept = utils.calc_num_parameters(self.current_model) / max(self.original_params, 1e-9)
+            fm = self.feature_extractor.encode_to_bert_input(
+                model_with_rows, encode_idx, update_indices,
+                dependency_groups=self._dependency_groups(model_with_rows),
+                param_ratio=min(1.0, max(0.0, kept)))
 
         step_timer.__exit__(None, None, None)
         # One record per transition: enough to reconstruct the trajectory, the policy's

@@ -32,6 +32,37 @@ import logging
 logging.getLogger("torch.distributed.distributed_c10d").setLevel(logging.ERROR)
 
 
+def _traj_capture(env, step_index, rate, test_new, test_orig):
+    val_new = float(getattr(env, "last_val_acc", env.original_acc))
+    val_orig = float(env.original_acc)
+    return {
+        "step": int(step_index),
+        "rate": float(rate),
+        "param": float(env.param_ratio()),
+        "flop": float(env.flops_ratio()),
+        "val_acc": val_new,
+        "val_origin": val_orig,
+        "val_dacc_pp": (val_new - val_orig) * 100.0,
+        "test_acc": float(test_new),
+        "test_origin": float(test_orig),
+        "test_dacc_pp": (float(test_new) - float(test_orig)) * 100.0,
+    }
+
+
+def _print_traj_summary(net_path, picked):
+    name = os.path.basename(net_path)
+    for key in ("floor_hold", "floor_cross", "val_best", "terminal"):
+        point = picked.get(key)
+        if not point:
+            utils.print_flush(f"[eval] TRAJ {key} {name} NONE")
+            continue
+        utils.print_flush(
+            f"[eval] TRAJ {key} {name} step={point['step']} | "
+            f"acc {point['test_origin']:.3f} -> {point['test_acc']:.3f} "
+            f"({point['test_dacc_pp'] / 100.0:+.3f}) | params x{point['param']:.3f} | "
+            f"FLOPs x{point['flop']:.3f} | val Δacc {point['val_dacc_pp']:+.2f} pp")
+
+
 def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A"):
     """
     Evaluate models using intra-model (train/test) and inter-model (cross-validation).
@@ -85,11 +116,60 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 env._budget_logged = False
                 from src import fortify as fortify_mod
                 eval_policy = fortify_mod.eval_policy_name()
+                traj = fortify_mod.eval_trajectory_enabled()
+                if model_idx == 0:
+                    utils.print_flush(
+                        f"[eval] policy={eval_policy} det={int(fortify_mod.eval_deterministic())} "
+                        f"lookahead={int(fortify_mod.eval_lookahead_enabled())} "
+                        f"traj={int(traj)} "
+                        f"min_param={fortify_mod.eval_min_param_ratio():.2f} "
+                        f"min_flop={fortify_mod.eval_min_flop_ratio():.2f} "
+                        f"align={'next' if fortify_mod.state_align_next() else 'prev'}")
+                # Paper TEST walks every remaining prunable row. The size floor
+                # identity-pads unless SPECTRA_EVAL_TRAJECTORY=1, which labels a
+                # ~0.70 hold then continues. Train rollout_limit must not apply
+                # here (5-step trains vs full eval was the 20945744 defect).
+                traj_points = []
+                traj_phase_b = False
+                last_test = None
+                step_i = 0
+                if traj and mode == EVAL_TEST:
+                    test_new, test_orig, _ = env.score_test_loader()
+                    last_test = (test_new, test_orig)
+                    traj_points.append(
+                        _traj_capture(env, -1, 1.0, test_new, test_orig))
                 while not done:
                     legal = env.legal_action_mask(device=conf.device)
                     min_ratio = fortify_mod.eval_min_param_ratio()
                     at_budget, floor_kind = fortify_mod.eval_at_size_floor(env)
-                    if at_budget:
+                    if traj:
+                        if eval_policy not in ("actor",):
+                            action = fortify_mod.heuristic_eval_action(
+                                legal, conf.compression_rates_dict,
+                                policy=eval_policy, device=conf.device)
+                        else:
+                            action = fortify_mod.policy_action(
+                                agent.actor_model(state), legal, device=conf.device)
+                        if not traj_phase_b:
+                            before = int(action.item())
+                            guarded = fortify_mod.action_respecting_param_floor(
+                                env, action, legal, conf.compression_rates_dict,
+                                min_ratio, conf.device)
+                            if fortify_mod.trajectory_release_floor(
+                                    at_budget, before, int(guarded.item())):
+                                test_new, test_orig, _ = env.score_test_loader()
+                                last_test = (test_new, test_orig)
+                                traj_points.append(
+                                    _traj_capture(env, step_i, 1.0, test_new, test_orig))
+                                traj_phase_b = True
+                                if not env._budget_logged:
+                                    utils.print_flush(
+                                        f"[eval] TRAJ floor-hold x{env.param_ratio():.3f}; "
+                                        f"continuing without identity-pad")
+                                    env._budget_logged = True
+                            else:
+                                action = guarded
+                    elif at_budget:
                         if not env._budget_logged:
                             min_flop = fortify_mod.eval_min_flop_ratio()
                             if floor_kind == "flop":
@@ -114,7 +194,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         action = fortify_mod.policy_action(
                             agent.actor_model(state), legal, device=conf.device)
 
-                    if (fortify_mod.eval_lookahead_enabled()
+                    if (not traj
+                            and fortify_mod.eval_lookahead_enabled()
                             and not at_budget):
                         before = int(action.item())
                         action = fortify_mod.action_respecting_param_floor(
@@ -129,7 +210,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                                 f"{f' / flop {min_flop:.3f}' if min_flop > 0 else ''}"
                                 f"; using "
                                 f"{conf.compression_rates_dict[int(action.item())]}")
-                    if (fortify_mod.eval_prefer_param_per_flop()
+                    if (not traj
+                            and fortify_mod.eval_prefer_param_per_flop()
                             and fortify_mod.eval_min_flop_ratio() > 0
                             and not at_budget):
                         before = int(action.item())
@@ -143,7 +225,32 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                                 f"{conf.compression_rates_dict[int(action.item())]}")
                     compression_rate = conf.compression_rates_dict[int(action.item())]
                     next_state, reward, done = env.step(compression_rate)
+                    if traj and mode == EVAL_TEST:
+                        if abs(float(compression_rate) - 1.0) >= 1e-9:
+                            test_new, test_orig, _ = env.score_test_loader()
+                            last_test = (test_new, test_orig)
+                            traj_points.append(
+                                _traj_capture(env, step_i, compression_rate,
+                                              test_new, test_orig))
+                        elif done and last_test is not None:
+                            traj_points.append(
+                                _traj_capture(env, step_i, compression_rate,
+                                              last_test[0], last_test[1]))
+                    step_i += 1
                     state = next_state
+                if traj and mode == EVAL_TEST:
+                    picked = fortify_mod.select_trajectory_points(
+                        traj_points,
+                        min_param=fortify_mod.eval_min_param_ratio(),
+                        tau_pp=float(conf.allowed_acc_reduction))
+                    _print_traj_summary(net_path, picked)
+                    run_recorder.record(
+                        "eval_traj_summary",
+                        network=net_path,
+                        floor_hold=picked.get("floor_hold"),
+                        floor_cross=picked.get("floor_cross"),
+                        val_best=picked.get("val_best"),
+                        terminal=picked.get("terminal"))
         except Exception as error:
             logging_utils.exception(f"Evaluation of {net_path} failed; continuing with the rest")
             run_recorder.issue("eval_network_failed", f"{type(error).__name__}: {error}",
@@ -190,8 +297,20 @@ def main():
             with logging_utils.context(phase="train"):
                 agent.train()
 
-    # Perform standard intra-model evaluation
-    for mode in [EVAL_TRAIN, EVAL_TEST]:
+    # Perform standard intra-model evaluation.
+    # eval_train then eval_test is two full prune+FT walks; both fine-tune on the
+    # train loader and differ mainly in the final accuracy loader. Quote eval_test
+    # only. SPECTRA_SKIP_EVAL_TRAIN=1 drops the first walk (~2× remaining eval wall).
+    eval_modes = []
+    if fortify_mod.skip_eval():
+        utils.print_flush(
+            "SPECTRA_SKIP_EVAL=1: skipping in-job eval (chained child quotes eval_test).")
+    else:
+        eval_modes = [EVAL_TEST] if fortify_mod.skip_eval_train() else [EVAL_TRAIN, EVAL_TEST]
+        if fortify_mod.skip_eval_train():
+            utils.print_flush(
+                "SPECTRA_SKIP_EVAL_TRAIN=1: skipping eval_train walk (quote eval_test only).")
+    for mode in eval_modes:
         with logging_utils.stage(f"phase.{mode}"):
             with logging_utils.context(phase=mode):
                 evaluate_model(mode, agent)

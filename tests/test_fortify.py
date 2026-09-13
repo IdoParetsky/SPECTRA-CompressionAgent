@@ -108,13 +108,20 @@ def test_heuristic_eval_identity_when_no_prune_legal():
     assert int(action.item()) == 0
 
 
-def test_eval_lookahead_off_by_default(monkeypatch):
+def test_eval_lookahead_follows_size_floor(monkeypatch):
     monkeypatch.delenv("SPECTRA_EVAL_LOOKAHEAD", raising=False)
     monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_PARAM_RATIO", raising=False)
     assert fortify.eval_min_flop_ratio() == 0.0
-    assert fortify.eval_lookahead_enabled() is False
+    assert fortify.eval_min_param_ratio() == 0.70
+    assert fortify.eval_lookahead_enabled() is True
     monkeypatch.setenv("SPECTRA_EVAL_LOOKAHEAD", "1")
     assert fortify.eval_lookahead_enabled() is True
+    monkeypatch.setenv("SPECTRA_EVAL_LOOKAHEAD", "0")
+    assert fortify.eval_lookahead_enabled() is False
+    monkeypatch.delenv("SPECTRA_EVAL_LOOKAHEAD", raising=False)
+    monkeypatch.setenv("SPECTRA_EVAL_MIN_PARAM_RATIO", "0")
+    assert fortify.eval_lookahead_enabled() is False
 
 
 def test_flop_floor_auto_enables_lookahead(monkeypatch):
@@ -297,3 +304,37 @@ def test_fortify_features_shape():
     assert feats[0, 1] == 1.0  # stem
     assert feats[0, 2] == 1.0 and feats[1, 2] == 1.0  # coupled pair
     assert feats[2, 2] == 0.0  # singleton coupling
+
+
+def test_eval_trajectory_disables_default_lookahead(monkeypatch):
+    monkeypatch.setenv("SPECTRA_EVAL_TRAJECTORY", "1")
+    monkeypatch.delenv("SPECTRA_EVAL_LOOKAHEAD", raising=False)
+    monkeypatch.delenv("SPECTRA_EVAL_MIN_FLOP_RATIO", raising=False)
+    assert fortify.eval_trajectory_enabled() is True
+    assert fortify.eval_lookahead_enabled() is False
+    monkeypatch.setenv("SPECTRA_EVAL_LOOKAHEAD", "1")
+    assert fortify.eval_lookahead_enabled() is False
+
+
+def test_trajectory_release_floor_on_guard_or_budget():
+    assert fortify.trajectory_release_floor(False, 2, 2) is False
+    assert fortify.trajectory_release_floor(False, 2, 0) is True
+    assert fortify.trajectory_release_floor(True, 2, 2) is True
+
+
+def test_select_trajectory_points_val_best_is_max_compression_in_tau():
+    points = [
+        {"param": 1.00, "flop": 1.00, "val_dacc_pp": 0.0, "test_dacc_pp": 0.0, "step": -1},
+        {"param": 0.85, "flop": 0.80, "val_dacc_pp": -2.0, "test_dacc_pp": -3.0, "step": 3},
+        {"param": 0.72, "flop": 0.70, "val_dacc_pp": -8.0, "test_dacc_pp": -9.0, "step": 7},
+        {"param": 0.60, "flop": 0.55, "val_dacc_pp": -18.0, "test_dacc_pp": -22.0, "step": 12},
+        {"param": 0.48, "flop": 0.40, "val_dacc_pp": -30.0, "test_dacc_pp": -4.0, "step": 20},
+    ]
+    picked = fortify.select_trajectory_points(points, min_param=0.70, tau_pp=10.0)
+    assert picked["floor_hold"]["step"] == 7
+    assert picked["floor_cross"]["step"] == 12
+    assert picked["val_best"]["step"] == 7
+    assert picked["terminal"]["step"] == 20
+    # Test Δacc at the cliff must not win val_best.
+    assert picked["val_best"]["test_dacc_pp"] != -4.0
+

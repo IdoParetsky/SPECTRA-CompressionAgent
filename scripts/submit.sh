@@ -18,9 +18,10 @@
 # HPC notes that have bitten us:
 #   - CPU-Mem-per-GPU-Limit is 24G (HPC 6 Sep 2026). Use --mem-per-gpu=24G, never --mem=80G.
 #     Do not pass both --mem and --mem-per-gpu. SPECTRA_MEM is ignored (warns).
-#   - gpu partition QoS=gpu-part MaxTRESPU gres/gpu=5 (live 6 Sep 2026). That is the
-#     running-GPU cap. Job --qos=normal has no GPU MaxTRESPU; partition QOS still applies.
+#   - gpu partition QoS=gpu-part MaxTRESPU gres/gpu=6 (live 9 Sep 2026 17:08; was 5).
+#     That is the running-GPU cap. Job --qos=normal has no GPU MaxTRESPU; partition QOS still applies.
 #     giladkz is not in gpu AllowQos and zeros rtx_6000/4090. Do not use bypass_limits.
+#     Default GRES is any GPU, not one SKU. Strongest free card; ImageNet floor 4090.
 #   - gpu MaxMemPerCPU=16G; 24G/8 CPU is well under. MaxTime on gpu is 7 days.
 #   - scontrol update TimeLimit is denied for users; cancel+resubmit instead
 #   - #SBATCH --signal=USR1@900 is overridden by submit.sh to fire at train-end
@@ -174,9 +175,12 @@ case "$PROFILE" in
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
   generic_c10_fortify)
     GPUS="${GPU_COUNT:-1}"; TIME="0-14:00:00"; CPUS=6; TRAIN_SEC=36000 ;;
-  offline_train|offline_train_cbrt|offline_train_band_cbrt)
+  offline_train|offline_train_cbrt|offline_train_unified)
     # 10-net leap catalog (C10 families + SVHN + Fashion-MNIST). Floor-constrained eval.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
+  offline_train_band_cbrt|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full)
+    # Wall=7d (submit.sh default). Python runtime 6d fuse; patience is the stop.
+    GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=6; TRAIN_SEC=518400 ;;
   eval_offline_similar|eval_offline_similar_det|eval_offline_novel)
     # 8 CPUs: 3 DataLoaders x SPECTRA_DATALOADER_WORKERS=4 plus the trainer.
     # 80G needs >=5 CPUs under MaxMemPerCPU=16G.
@@ -194,8 +198,9 @@ case "$PROFILE" in
   eval_c10_thin_flop_floor)
     # Eval-only FLOP floor 0.70 + look-ahead on C10-thin; frozen 10-net s42 actor.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
-  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale)
+  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale|eval_c10_thin_traj)
     # Plain C10-thin held-out eval (no FLOP floor) — the §17 r20-w2 / r56-w4 comparison.
+    # _traj is the unconstrained curve (floor-hold then continue).
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   baseline_c10_l1|baseline_c10_mild|baseline_c10_random)
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
@@ -227,6 +232,11 @@ if [[ "${SPECTRA_KEEP_PROFILE_WALL:-}" != "1" && "$PROFILE" != "smoke" ]]; then
   TIME="${SPECTRA_WALL:-7-00:00:00}"
 fi
 
+# Continue-train extra wall: caller may raise --runtime_limit past the profile default.
+if [[ -n "${SPECTRA_RUNTIME_LIMIT:-}" ]]; then
+  TRAIN_SEC="${SPECTRA_RUNTIME_LIMIT}"
+fi
+
 # Parse TIME (D-HH:MM:SS or HH:MM:SS) into seconds for the guardrail.
 _wall_to_sec() {
   local t="$1" days=0 rest h m s
@@ -253,13 +263,86 @@ fi
 cd "$REPO_DIR"
 mkdir -p runs/slurm_logs
 
-# Prefer non-preemptible rtx_6000-class nodes. ee-l40s-* preempted recover_pref10/wide
-# mid-run and wiped progress (no mid-train resume yet).
-EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-01,ee-l40s-02,cs-4090-09}"
+# GPU pick (Ido 10 Sep): strongest free SKU; floor only for OOM.
+#   SPECTRA_GPU_GRES / SPECTRA_GPU_TYPE still override.
+#   ImageNet  floor rtx_4090 (2080/1080 OOM; 3090 untested on 1k).
+#   Train     no floor — 1080 has been running 40-ep CIFAR FT.
+#   Else      any SKU (--gpus=N) so tails do not steal a pro 6000.
+# Still exclude L40S (preempt) and cs-4090-09.
+EXCLUDE_NODES="${SPECTRA_EXCLUDE_NODES:-ee-l40s-01,ee-l40s-02,cs-4090-09,ise-6000p-01,ise-6000p-02,ise-6000p-03,ise-6000p-04,ise-6000p-05,ise-6000p-06,ise-6000p-07}"
+
+_pick_gpu() {
+  # Prints the strongest free typed GRES at or above optional floor (argv: floor sku or empty).
+  python3 - "$EXCLUDE_NODES" "${1:-}" <<'PY'
+import re, subprocess, sys
+exclude = {n.strip() for n in sys.argv[1].split(",") if n.strip()}
+floor = (sys.argv[2] if len(sys.argv) > 2 else "").strip()
+# Strongest first among SKUs this torch build can run.
+# rtx_pro_6000 (ise-6000p-*) is Blackwell; spectra CUDA wheel has no kernel image
+# ("CUDA error: no kernel image is available") — 21184403/405 FAILED 11 Sep 17:24.
+order = ["rtx_6000", "rtx_4090", "rtx_3090", "rtx_2080", "gtx_1080"]
+if floor:
+    if floor not in order:
+        print("")
+        raise SystemExit
+    allowed = order[: order.index(floor) + 1]
+else:
+    allowed = order
+try:
+    out = subprocess.check_output(["scontrol", "show", "nodes", "-o"], text=True, errors="replace")
+except Exception:
+    print("")
+    raise SystemExit
+free = {sku: 0 for sku in allowed}
+pat = {sku: re.compile(rf"gres/gpu:{re.escape(sku)}=(\d+)") for sku in allowed}
+for rec in out.splitlines():
+    kv = {}
+    for p in rec.split():
+        if "=" in p:
+            k, v = p.split("=", 1)
+            kv[k] = v
+    name = kv.get("NodeName", "")
+    if name in exclude:
+        continue
+    state = kv.get("State", "").upper()
+    if any(tok in state for tok in ("DOWN", "DRAIN", "NOT_RESPONDING", "FAIL")):
+        continue
+    cfg_s, alloc_s = kv.get("CfgTRES", "") or "", kv.get("AllocTRES", "") or ""
+    for sku, rx in pat.items():
+        cfg = rx.search(cfg_s)
+        if not cfg:
+            continue
+        alloc = rx.search(alloc_s)
+        ncfg, nalloc = int(cfg.group(1)), int(alloc.group(1) if alloc else 0)
+        if ncfg > nalloc:
+            free[sku] += ncfg - nalloc
+for sku in allowed:
+    if free[sku] > 0:
+        print(sku)
+        raise SystemExit
+print("")
+PY
+}
+
 if [[ -n "${SPECTRA_GPU_GRES:-}" ]]; then
   GPU_GRES="${SPECTRA_GPU_GRES}"
+elif [[ -n "${SPECTRA_GPU_TYPE:-}" ]]; then
+  GPU_GRES="${SPECTRA_GPU_TYPE}:${GPUS}"
 else
-  GPU_GRES="${SPECTRA_GPU_TYPE:-rtx_6000}:${GPUS}"
+  case "$PROFILE" in
+    eval_imagenet_short)
+      _strong="$(_pick_gpu rtx_4090 || true)"
+      GPU_GRES="${_strong:-rtx_4090}:${GPUS}" ;;
+    offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full)
+      _strong="$(_pick_gpu || true)"
+      if [[ -n "${_strong:-}" ]]; then
+        GPU_GRES="${_strong}:${GPUS}"
+      else
+        GPU_GRES="${GPUS}"
+      fi ;;
+    *)
+      GPU_GRES="${GPUS}" ;;
+  esac
 fi
 
 # Cluster-side chaining: SPECTRA_DEPENDENCY=afterok:JOBID (or afterany:JOBID).
@@ -301,7 +384,14 @@ SBATCH_EXPORT="ALL,SPECTRA_PROFILE=${PROFILE}"
 for _k in SPECTRA_EVAL_DETERMINISTIC SPECTRA_REWARD_MODE SPECTRA_REWARD_SCALE \
           SPECTRA_REWARD_TRACE SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH \
           SPECTRA_EVAL_POLICY SPECTRA_EVAL_MIN_FLOP_RATIO SPECTRA_EVAL_PREFER_PARAM_PER_FLOP \
-          SPECTRA_SEED SPECTRA_CONTINUE_TRAIN SPECTRA_SKIP_TRAIN SPECTRA_FILTER_IMPORTANCE; do
+          SPECTRA_SEED SPECTRA_CONTINUE_TRAIN SPECTRA_SKIP_TRAIN SPECTRA_SKIP_EVAL_TRAIN \
+          SPECTRA_SKIP_EVAL SPECTRA_STATE_ALIGN SPECTRA_ROLLOUT_LIMIT \
+          SPECTRA_WARMUP_MULTIPLIER SPECTRA_WARMUP_FLOOR \
+          SPECTRA_FILTER_IMPORTANCE SPECTRA_CHECKPOINT SPECTRA_UNIFIED_EPS \
+          SPECTRA_STANDARDIZER_PATH SPECTRA_TRAIN_RESPECT_FLOOR \
+          SPECTRA_BUDGET_IN_STATE SPECTRA_EVAL_LOOKAHEAD SPECTRA_ACTOR_SKIP_OVERBUDGET \
+          SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN SPECTRA_RUNTIME_LIMIT \
+          SPECTRA_EVAL_TRAJECTORY; do
   _v="${!_k-}"
   if [[ -n "$_v" ]]; then
     SBATCH_EXPORT+=",${_k}=${_v}"
@@ -328,7 +418,7 @@ sleep 1
 TL=$(squeue -j "${JOB_ID}" -h -o "%l" 2>/dev/null || sacct -j "${JOB_ID}" -n -X -o Timelimit --parsable2 2>/dev/null | head -1 || true)
 echo "Timelimit (scheduler): ${TL:-unknown}"
 N_R=$(squeue -u "${USER}" -t R -h -o %i 2>/dev/null | wc -l | tr -d ' ')
-echo "QOS gpu-part running: ${N_R:-?}/5 (MaxTRESPU gres/gpu=5; extras PD until a GPU frees)"
+echo "QOS gpu-part running: ${N_R:-?}/6 (MaxTRESPU gres/gpu=6; extras PD until a GPU frees)"
 echo "follow  : tail -f ${LOG}"
 echo "status  : squeue -j ${JOB_ID}"
 echo "cancel  : scancel ${JOB_ID}"
