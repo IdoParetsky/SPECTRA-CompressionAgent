@@ -111,6 +111,20 @@ Crossed off: ___.  Confirmed: ___.  Open Ido decisions: ___.
 
 4. **Ping Ido** when: a cap-40 pair lands (recipe/catalog decision), any freeze, any Traceback, and when `21536398` ends.
 
+## 4b. SOTA rows — what ops does with them (no GPU)
+
+The counterparts table in `GILAD_WEEK_27SEP.md` §1.5 is **quote-only** (DepGraph, OCSPruner, AMC,
+Network Slimming, GReg, HRank, FPGM, ResRep, C-SGD/Polar/SFP, PruningBench). Ops does not
+reimplement any of them. Ops' two SOTA tasks: (1) **budget table** — `sacct -j <id> -o Elapsed`
+for one train (`21536396`), one twin walk (`21703434`), one anchor walk (`21703466`); measure one
+CIFAR fine-tune epoch of ResNet-56 / VGG-16 / VGG-19 from any completed log's epoch timestamps;
+multiply by the published epoch counts (DepGraph reproduce script: sparse-learn + fine-tune stages;
+OCSPruner 300; PruningBench 100 fine-tune + 200 pretrain; Network Slimming/GReg/ResRep: their
+scripts) → fill §1.3 of the note (EN + HE) as "measured on <card>". (2) **Size-matched rows** —
+when a slot is free and no science job is PD: mild/L1 on the R56·C10 anchor continued to FLOPs
+≈ 0.39 (DepGraph 2.57×) and on VGG16·C10 to params ≈ 0.42 (OCS), captioned size-matched; Fable
+names the flag (`SPECTRA_EVAL_MIN_FLOP_RATIO` or extra passes) next sitting — do not improvise.
+
 ## 5. Never (this handoff)
 
 Scancel a running job. Start C-G / C-G+ DRL or a second factored / budget / group-token train.
