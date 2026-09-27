@@ -4,6 +4,8 @@
 
 Implemented in this sitting (default off, CPU-tested): `SPECTRA_PROBE_SCORE=area` (§1.1), `SPECTRA_FT_LR` (§1.3), `SPECTRA_EVAL_COUNTERFACTUAL` (§1.5), the V7 catalog + re-gate (`V7_TRAIN_CATALOG.md`).
 
+**Status 27 Sep (Fable, after the 21–26 Sep results §§112–125).** Implemented and enqueued, all default-off: **A-LSQ** (`SPECTRA_FT_LSQ_CONSUMERS=1`, §2.3 row 3 — least-squares refit of every consumer incl. concat and Linear-after-flatten; grouped convs skipped), **C-PCA** (`SPECTRA_FT_REINIT_EDITED=pca`, §2.3 row 4 — one basis per stream, consumers' group slice rotated, group norms reset, depthwise groups skipped), **BN recalibration** (`SPECTRA_FT_BN_RECAL=1`, §1.3), **Budget + STOP** (`SPECTRA_ACTION_MENU=budget`, §3.1–3.2 — one mapping feeds env step, legal mask and action-cost slots; STOP paid the slack-weighted area ×100), and the **one-recipe schedule** (`SPECTRA_FT_OPTIM=adamw|radam`, `SPECTRA_FT_SCHEDULE=warmcos`) that replaces the failed constant-LR re-gate of §117–§121. Queue and pass/fail rules: `docs/PROMPT_OPS_V8_QUEUE.md`. Results so far that bear on this file: the 3-pass heuristics do **not** reach the in-band actor's 0.756 keep on r56-w4 (§114, §122) — the learned-schedule sentence stands; ft40 did not move the walk (§112); the counterfactual probe says the encoder **is** read (38 % / 53 % of steps, §123) — the representation cell stays alive; Adam 1e-4 / SGD 0.01 admit some CIFAR-100 but fail the CIFAR-10 control (§117–§121) — hence the schedule, not a constant.
+
 ---
 
 ## 1. The moving parts, ranked by evidence

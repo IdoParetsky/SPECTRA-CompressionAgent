@@ -94,6 +94,25 @@ The 75.6% point is reproduced. A third pass of either hand rule never selects it
 
 **200-epoch SGD.** One such fine-tune of a single already-pruned ResNet-56 is a few GPU-hours, not a week. Putting 200 epochs inside every step of agent training would multiply the training by roughly an order of magnitude and mix the solver’s budget into the agent. The locked protocol says: not now, and never as a new training job. Optional later, one network, only if a transferred actor is close enough that the fine-tune budget is the remaining question.
 
+### 2b. In flight this week — implemented and submitted on 27 Sep, **no results yet**
+
+These are not findings. They are the experiments that follow from §1 and §2, written here so you see what is running before the numbers arrive. Every one is a switch that is off by default; the running method is unchanged until a test says otherwise.
+
+**Two informed ways to “generate a new layer”, tested without an agent** (same 90 % walk as the table in §1, on the skinny ResNet-56 and on the full-width ResNet-56 twin):
+
+| Recovery | What changes at each cut | What it is compared with | It is dropped if |
+|---|---|---|---|
+| **A-LSQ** (keep survivors + least-squares refit) | The surviving filters stay. Every layer that *reads* the pruned channels has its weights re-solved in closed form so that it reproduces its own pre-cut output from the channels that remain (He, Zhang, Sun, ICCV 2017). BatchNorm statistics are re-estimated. Then the usual whole-network fine-tune. | today’s recipe at the same size | it is not at least as accurate as today’s recipe at equal size on both networks |
+| **C-PCA** (a generated layer, not a random one) | The pruned layer is *replaced* by a layer of the new width whose filters are the principal directions of the old layer’s activations — your “generate a new layer”, with the information kept instead of thrown away. The reading layers are rotated to match; along a residual stream every producer is rotated the same way so the skip additions stay consistent. BatchNorm re-estimated; same fine-tune. | today’s recipe at the same size | it is more than about one point worse than today’s recipe at equal size |
+
+A third small control runs BatchNorm re-estimation alone on today’s recipe, so that any gain of A-LSQ can be attributed to the refit and not to the statistics.
+
+**One fine-tune recipe for every architecture and dataset.** You required that the method not change with the target. Today’s Adam at 0.001 recovers CIFAR-10 and fails CIFAR-100 in 12 epochs; a smaller constant does the opposite. The candidate that could pass both is not a new constant but a **schedule**: AdamW (decoupled weight decay, same decay the SGD arm already had), one epoch of linear warm-up, then cosine decay to 1e-5, inside the same 12 epochs, with BatchNorm re-estimated first. The rationale is Liu et al. (ICLR 2020): Adam’s first steps have a very large variance and warm-up is the standard remedy; our CIFAR-100 failure is an early-step failure. The alternate arm is RAdam, which needs no warm-up. Both run on the CIFAR-10 control and on the eight CIFAR-100 candidates. Pass = within half a point of today’s recipe on CIFAR-10 **and** at least four of eight CIFAR-100 networks recover a real cut. If both arms fail, the training recipe stays Adam 0.001 on CIFAR-10 only and we write that down.
+
+**One new learned agent: cost-shaped actions with an explicit stop.** Instead of “keep 90 % or 80 % of this layer”, the action is “remove 1, 2 or 4 % of the *whole network* through this group”, or “stop here”. The same request then means the same thing on a 16-channel stem and a 256-channel stage, and the agent chooses the operating depth itself instead of our post-hoc rule choosing it. Everything else is the recipe of the best learned policy so far (the linear in-band reward, the same 10-network catalog, the new selection score). It is dropped if its walk still matches a fixed-rate heuristic at equal size on the skinny ResNet-56. The action shape follows AMC (He et al., ECCV 2018), which clipped per-layer sparsity onto a FLOP budget; the explicit stop is ours.
+
+**Fixed this week, not an experiment.** The score that picked which training snapshot to test was the depth of the cut only; it saturated at the depth of the 90 % rule on the two probe networks, so the first snapshot that copied the rule was always the one tested. The new score weights the depth by the accuracy slack that remains, so a kinder policy at the same depth can win.
+
 ### 3. Questions for you
 
 1. Is the throw-away table enough to leave random layer replacement as a dense-net method, with keep-leftover as the CNN method — or do you want one retry under the source’s train-loss stopping rule before we close it?
@@ -142,6 +161,25 @@ Hirsch & Katz 2022, סעיף 3, בתוך לולאת הגיזום (אלגורית
 **סוכנים שנלמדו, רק על ResNet-56 הזול:** הרשת עם התגמול הלינארי שומרת 75.6% בירידה של 7.1, פעמיים. כלל ה-90% נשאר ב-92% גם במעבר שלישי. הסוכן שהגיע ל-75.6% אומן על קטלוג שכבר כלל את ResNet-56 המלא ואת VGG-16, ולכן אי אפשר לכנות את זה העברה על תאי L1 או L2. שני אימונים חדשים, על קטלוג בלי הארכיטקטורות האלה, עדיין רצים.
 
 **200 אפוקים של SGD.** כיוונון אחד של ResNet-56 שכבר נגזם הוא כמה שעות GPU, לא שבוע. לשים 200 אפוקים בכל צעד של אימון הסוכן מכפיל את האימון בסדר גודל ומערבב את תקציב המאמר לתוך הסוכן. לפי הפרוטוקול שננעל: לא עכשיו, ולא כאימון חדש.
+
+### 2ב. בתנועה השבוע — יושם והוגש ב-27 בספטמבר, **עדיין בלי תוצאות**
+
+אלה לא ממצאים. אלה הניסויים שנובעים מסעיפים 1 ו-2, כתובים כאן כדי שתראה מה רץ לפני שהמספרים מגיעים. כל אחד מהם הוא מתג שכבוי כברירת מחדל; השיטה הרצה לא משתנה עד שמבחן אומר אחרת.
+
+**שתי דרכים «מושכלות» לייצר שכבה חדשה, בלי סוכן** (אותו מסלול 90% כמו בטבלה בסעיף 1, על ResNet-56 הרזה ועל תאום ה-ResNet-56 ברוחב מלא):
+
+| שחזור | מה משתנה בכל חיתוך | מול מה משווים | נזרק אם |
+|---|---|---|---|
+| **A-LSQ** (שומרים מסננים + התאמת ריבועים פחותים) | המסננים ששרדו נשארים. לכל שכבה ש**קוראת** את הערוצים שנגזמו פותרים מחדש את המשקולות בצורה סגורה, כך שהיא משחזרת את הפלט שלה מלפני החיתוך מתוך הערוצים שנותרו (He, Zhang, Sun, ICCV 2017). סטטיסטיקות ה-BatchNorm נאמדות מחדש. אחר כך הכיוונון הרגיל של כל הרשת. | המתכון של היום באותו גודל | לא לפחות מדויק כמו המתכון של היום באותו גודל, בשתי הרשתות |
+| **C-PCA** (שכבה שנוצרת, לא מוגרלת) | השכבה הגזומה **מוחלפת** בשכבה ברוחב החדש שהמסננים שלה הם הכיוונים הראשיים של האקטיבציות של השכבה הישנה — «לייצר שכבה חדשה» שלך, כשהמידע נשמר במקום להיזרק. השכבות הקוראות מסובבות בהתאמה; לאורך זרם שיורי כל היצרנים מסובבים באותו אופן כדי שחיבורי הדילוג יישארו עקביים. BatchNorm נאמד מחדש; אותו כיוונון. | המתכון של היום באותו גודל | גרוע ביותר מנקודה אחת בערך מהמתכון של היום באותו גודל |
+
+בקרה קטנה שלישית מריצה רק את אמידת ה-BatchNorm על המתכון של היום, כדי שרווח של A-LSQ ייוחס להתאמה ולא לסטטיסטיקות.
+
+**מתכון כיוונון אחד לכל ארכיטקטורה ולכל דאטהסט.** דרשת שהשיטה לא תשתנה עם היעד. Adam ב-0.001 של היום משחזר CIFAR-10 ונכשל ב-CIFAR-100 ב-12 אפוקים; קבוע קטן יותר עושה את ההפך. המועמד שיכול לעבור את שניהם אינו קבוע חדש אלא **לוח זמנים**: AdamW (ירידת משקל מנותקת, אותה ירידה שהייתה כבר לזרוע ה-SGD), אפוק אחד של חימום ליניארי, ואז דעיכה קוסינוסית ל-1e-5, בתוך אותם 12 אפוקים, עם אמידת BatchNorm קודם. ההיגיון הוא Liu ושות׳ (ICLR 2020): לצעדים הראשונים של Adam שונות גדולה מאוד וחימום הוא התיקון המקובל; הכישלון שלנו ב-CIFAR-100 הוא כישלון של צעדים ראשונים. הזרוע החלופית היא RAdam, שלא צריך חימום. שתיהן רצות על ביקורת CIFAR-10 ועל שמונה מועמדי CIFAR-100. עובר = בטווח חצי נקודה מהמתכון של היום על CIFAR-10 **וגם** לפחות ארבע מתוך שמונה רשתות CIFAR-100 משחזרות חיתוך אמיתי. אם שתי הזרועות נכשלות, מתכון האימון נשאר Adam 0.001 על CIFAR-10 בלבד, ונכתוב זאת.
+
+**סוכן לומד חדש אחד: פעולות במונחי תקציב עם עצירה מפורשת.** במקום «שמור 90% או 80% מהשכבה הזאת», הפעולה היא «הסר 1, 2 או 4% מ**כל הרשת** דרך הקבוצה הזאת», או «עצור כאן». אותה בקשה אז אומרת אותו דבר על stem של 16 ערוצים ועל שלב של 256 ערוצים, והסוכן בוחר בעצמו את עומק הפעולה במקום שכלל בדיעבד שלנו יבחר אותו. כל השאר הוא המתכון של המדיניות הנלמדת הטובה ביותר עד כה (הגמול הליניארי בתוך הטווח, אותו קטלוג של 10 רשתות, ציון הבחירה החדש). נזרק אם המסלול שלו עדיין תואם היוריסטיקה בקצב קבוע באותו גודל על ResNet-56 הרזה. צורת הפעולה הולכת אחרי AMC (He ושות׳, ECCV 2018), שקטע דלילות פר-שכבה לתקציב FLOPs; העצירה המפורשת היא שלנו.
+
+**תוקן השבוע, לא ניסוי.** הציון שבחר איזה snapshot של האימון נבדוק היה עומק החיתוך בלבד; הוא התרווה בעומק של כלל ה-90% על שתי רשתות הבחינה, ולכן ה-snapshot הראשון שהעתיק את הכלל היה תמיד זה שנבדק. הציון החדש משקלל את העומק ברווח הדיוק שנותר, כך שמדיניות עדינה יותר באותו עומק יכולה לנצח.
 
 ### 3. שאלות אליך
 

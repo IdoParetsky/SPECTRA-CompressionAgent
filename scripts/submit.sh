@@ -181,7 +181,7 @@ case "$PROFILE" in
   offline_train|offline_train_cbrt|offline_train_unified)
     # 10-net leap catalog (C10 families + SVHN + Fashion-MNIST). Floor-constrained eval.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
-  offline_train_band_cbrt|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
+  offline_train_band_cbrt|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget)
     # Wall=7d (submit.sh default). Python runtime 6d fuse; patience is the stop.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=6; TRAIN_SEC=518400 ;;
   eval_offline_similar|eval_offline_similar_det|eval_offline_novel)
@@ -337,7 +337,7 @@ else
     eval_imagenet_short)
       _strong="$(_pick_gpu rtx_4090 || true)"
       GPU_GRES="${_strong:-rtx_4090}:${GPUS}" ;;
-    offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
+    offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget)
       _strong="$(_pick_gpu || true)"
       if [[ -n "${_strong:-}" ]]; then
         GPU_GRES="${_strong}:${GPUS}"
@@ -407,7 +407,10 @@ for _k in SPECTRA_EVAL_DETERMINISTIC SPECTRA_REWARD_MODE SPECTRA_REWARD_SCALE \
           SPECTRA_FT_REINIT_EPOCHS SPECTRA_FT_REINIT_PATIENCE SPECTRA_FT_REINIT_SELECT SPECTRA_FT_REINIT_SCOPE \
           SPECTRA_FT_POLISH_EPOCHS SPECTRA_FT_POLISH_PATIENCE SPECTRA_FT_POLISH_LR_MULT \
           SPECTRA_V5_DATABASE SPECTRA_INPUT SPECTRA_DATABASE SPECTRA_NUM_EPOCHS SPECTRA_FINETUNE_PATIENCE \
-          SPECTRA_DATASET_NAMES SPECTRA_EVAL_COUNTERFACTUAL SPECTRA_PROBE_SCORE SPECTRA_FT_LR SPECTRA_FT_OPTIM SPECTRA_FT_SGD_LR; do
+          SPECTRA_DATASET_NAMES SPECTRA_EVAL_COUNTERFACTUAL SPECTRA_PROBE_SCORE SPECTRA_FT_LR SPECTRA_FT_OPTIM SPECTRA_FT_SGD_LR \
+          SPECTRA_FT_SCHEDULE SPECTRA_FT_LR_MIN SPECTRA_FT_WARMUP_EPOCHS SPECTRA_FT_WD \
+          SPECTRA_FT_LSQ_CONSUMERS SPECTRA_FT_BN_RECAL SPECTRA_FT_CALIB_BATCHES SPECTRA_FT_CALIB_IMAGES \
+          SPECTRA_ACTION_MENU SPECTRA_STOP_REWARD_SCALE; do
   _v="${!_k-}"
   if [[ -n "$_v" ]]; then
     SBATCH_EXPORT+=",${_k}=${_v}"

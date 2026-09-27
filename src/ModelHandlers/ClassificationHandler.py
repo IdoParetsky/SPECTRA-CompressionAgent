@@ -1,4 +1,5 @@
 import gc
+import math
 import os
 import torch
 import torch.nn.functional as F
@@ -190,19 +191,49 @@ class ClassificationHandler(BasicHandler):
                 self.kd_teacher.to(memory_format=torch.channels_last)
 
         lr_mult = float(lr_mult) if lr_mult else 1.0
+        weight_decay = _ft_float("SPECTRA_FT_WD", "5e-4")
+        # V7 one-recipe schedule (default off): SPECTRA_FT_SCHEDULE=warmcos = one epoch of
+        # linear warmup to the peak, then cosine down to SPECTRA_FT_LR_MIN over the remaining
+        # epochs, stepped per batch. Adam's early steps have exploding variance (Liu et al.,
+        # ICLR 2020, RAdam); warmup is the variance reducer that a constant 1e-3 lacks and a
+        # constant 1e-4 over-corrects. Pair with AdamW (decoupled decay, Loshchilov & Hutter,
+        # ICLR 2019) so the adaptive arm has the decay the SGD arm already had.
+        schedule = os.environ.get("SPECTRA_FT_SCHEDULE", "").strip().lower()
+        use_warmcos = schedule == "warmcos"
         if optim_name == "sgd":
             sgd_lr = _ft_float("SPECTRA_FT_SGD_LR", "0.01") * lr_mult
             momentum = _ft_float("SPECTRA_FT_MOMENTUM", "0.9")
-            weight_decay = _ft_float("SPECTRA_FT_WD", "5e-4")
             self.optimizer = torch.optim.SGD(
                 trainable_params, lr=sgd_lr, momentum=momentum, weight_decay=weight_decay)
             shown_lr = sgd_lr
+        elif optim_name == "adamw":
+            self.optimizer = torch.optim.AdamW(
+                trainable_params, lr=conf.learning_rate * lr_mult, weight_decay=weight_decay)
+            shown_lr = conf.learning_rate * lr_mult
+        elif optim_name == "radam":
+            self.optimizer = torch.optim.RAdam(
+                trainable_params, lr=conf.learning_rate * lr_mult, weight_decay=weight_decay)
+            shown_lr = conf.learning_rate * lr_mult
         else:
             self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate * lr_mult)
             shown_lr = conf.learning_rate * lr_mult
         self.optimizer.state.clear()
         scaler = torch.cuda.amp.GradScaler(enabled=True) if use_amp else None
-        if use_cosine:
+        steps_per_epoch = max(1, len(train_loader)) if hasattr(train_loader, "__len__") else 1
+        if use_warmcos:
+            lr_min = _ft_float("SPECTRA_FT_LR_MIN", "1e-5")
+            warm_steps = max(1, int(round(_ft_float("SPECTRA_FT_WARMUP_EPOCHS", "1") * steps_per_epoch)))
+            total_steps = max(warm_steps + 1, num_epochs * steps_per_epoch)
+            floor = lr_min / max(shown_lr, 1e-12)
+
+            def _warmcos(step):
+                if step < warm_steps:
+                    return max(floor, (step + 1) / warm_steps)
+                progress = min(1.0, (step - warm_steps) / max(1, total_steps - warm_steps))
+                return floor + (1.0 - floor) * 0.5 * (1.0 + math.cos(math.pi * progress))
+
+            scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, _warmcos)
+        elif use_cosine:
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer, T_max=max(num_epochs, 1))
         else:
@@ -212,6 +243,8 @@ class ClassificationHandler(BasicHandler):
         n_trainable = sum(p.numel() for p in trainable_params)
         utils.print_flush(
             f"{log_tag}Fine-tune recipe: optim={optim_name} lr={shown_lr:g} cosine={int(use_cosine)} "
+            f"schedule={'warmcos' if use_warmcos else 'plateau' if not use_cosine else 'cosine'} "
+            f"wd={weight_decay if optim_name in ('sgd', 'adamw', 'radam') else 0:g} "
             f"mixup={mixup_alpha:g} smooth={label_smooth:g} kd={int(use_kd)} "
             f"patience={MAX_EPOCHS_PATIENCE} epochs={num_epochs} "
             f"select={'val' if select_on_val else 'train_loss'} trainable={n_trainable}")
@@ -260,6 +293,8 @@ class ClassificationHandler(BasicHandler):
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
                     self.optimizer.step()
+                if use_warmcos:
+                    scheduler.step()
 
                 epoch_losses.append(loss.detach())
 
@@ -268,7 +303,9 @@ class ClassificationHandler(BasicHandler):
                 break
 
             avg_loss = torch.stack(epoch_losses).mean().item()
-            if use_cosine:
+            if use_warmcos:
+                pass  # stepped per batch above
+            elif use_cosine:
                 scheduler.step()
             else:
                 scheduler.step(avg_loss)

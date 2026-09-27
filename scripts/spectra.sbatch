@@ -669,7 +669,7 @@ case "$PROFILE" in
                   --compression_rates 1.0 0.9 0.8)
     fi
     ;;
-  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
+  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
     if [[ "$PROFILE" == offline_train_v5_p5b3* ]]; then
@@ -893,7 +893,7 @@ case "$PROFILE" in
       export SPECTRA_CONTINUE_TRAIN=0
       export SPECTRA_SKIP_TRAIN=0
     fi
-    if [[ "$PROFILE" == offline_train_v3_* || "$PROFILE" == offline_train_v4_* || "$PROFILE" == offline_train_v5_* || "$PROFILE" == offline_train_v6_* ]]; then
+    if [[ "$PROFILE" == offline_train_v3_* || "$PROFILE" == offline_train_v4_* || "$PROFILE" == offline_train_v5_* || "$PROFILE" == offline_train_v6_* || "$PROFILE" == offline_train_v7_* ]]; then
       # ---- v3 (16 Sep last train). Everything v2a/v2b had, plus what the v2 traces showed
       # was missing: (1) band-edge exposure — B saw the τ edge on 2.5 % of steps, so "stop
       # from slack" had no signal → --passes 2 in training (TEST replays 2 passes via
@@ -954,7 +954,7 @@ case "$PROFILE" in
         offline_train_v3_fpgm_structraw)
           # Fallback if neonraw collapses like v2c: NEON trichotomy on the realised cut, no cube-root.
           export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=raw ;;
-        offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
+        offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget)
           # Ido 19 Sep GO: cbrt on cubed arms only; in-band stays linear +ρ.
           # Isolated vs live v3-fpgm 21385158 (same 24-net, same PPO, same fpgm menu).
           export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=cbrt_cubes ;;
@@ -966,7 +966,7 @@ case "$PROFILE" in
         offline_train_v3_bnscale) V3_RANK=bn_scale ;;
         *) V3_RANK=fpgm ;;
       esac
-      if [[ "$PROFILE" == "offline_train_v6_inband_p5b2" || "$PROFILE" == "offline_train_v6_inband_p5b2_factored" ]]; then
+      if [[ "$PROFILE" == "offline_train_v6_inband_p5b2" || "$PROFILE" == "offline_train_v6_inband_p5b2_factored" || "$PROFILE" == "offline_train_v7_budget" ]]; then
         # ---- V6 next-cycle thesis actor (Fable 21 Sep, Catalog L lock). In-band linear reward
         # (the only reward whose frozen actor left the 90% keep on r56-w4, ledger §111) on the
         # Catalog-L-clean catalog: 9-net C10 core (VGG-13, not VGG-16) + one SVHN net (P5-B2;
@@ -1036,7 +1036,21 @@ case "$PROFILE" in
             "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_critic.pt"
       export SPECTRA_CONTINUE_TRAIN=0
       export SPECTRA_SKIP_TRAIN=0
-      if [[ "$PROFILE" == offline_train_v4_* || "$PROFILE" == "offline_train_v6_inband_p5b2_factored" ]]; then
+      if [[ "$PROFILE" == "offline_train_v7_budget" ]]; then
+        # ---- V7 Budget + STOP (Fable 27 Sep): the action is "remove this fraction of the
+        # network's parameters through this group" (0 / 1 / 2 / 4 %) or STOP (-1). Same in-band
+        # linear reward, same 10-net Catalog-L-clean catalog, area probe score, recipe A, L1
+        # ranking on every cut. New actor (the action list changed). Cost-shaped action after
+        # AMC (He et al., ECCV 2018) plus an explicit stop AMC does not have. Control = the
+        # area train 21536396 (same catalog/reward/score, rates menu).
+        export SPECTRA_ACTION_MENU=budget
+        export SPECTRA_PROBE_SCORE="${SPECTRA_PROBE_SCORE:-area}"
+        export SPECTRA_STOP_REWARD_SCALE="${SPECTRA_STOP_REWARD_SCALE:-100}"
+        EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
+                    --train_compressed_layer_only False
+                    --compression_rates 1.0 0.01 0.02 0.04 -1
+                    --action_rankings l1 l1 l1 l1 l1)
+      elif [[ "$PROFILE" == offline_train_v4_* || "$PROFILE" == "offline_train_v6_inband_p5b2_factored" ]]; then
         # ---- V4-1: factored (rate x ranking) policy on the v3 recipe. Two heads: rate over
         # {1.0, 0.9, 0.8}, ranking over {l1, fpgm, bn_scale, svd, taylor}; the ranking head is
         # inactive on identity. Grows the criterion menu without a 13-way softmax. Taylor is
@@ -1651,11 +1665,22 @@ case "${SPECTRA_FT_RECIPE:-}" in
     export SPECTRA_FT_REINIT_EDITED=1 SPECTRA_FT_REINIT_THEN_POLISH=0 SPECTRA_REFRESH_ALL_FEATURES=1 ;;
   cgp)
     export SPECTRA_FT_REINIT_EDITED=1 SPECTRA_FT_REINIT_THEN_POLISH=1 SPECTRA_REFRESH_ALL_FEATURES=1 ;;
+  alsq)
+    # V7 A-LSQ: keep-leftover cut, least-squares refit of every consumer kernel to its pre-cut
+    # output (He, Zhang, Sun, ICCV 2017), BatchNorm running stats re-estimated, then recipe A's
+    # full-net fine-tune. The comparison with recipe A is the initialisation only.
+    export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0
+    export SPECTRA_FT_LSQ_CONSUMERS=1 SPECTRA_FT_BN_RECAL=1 ;;
+  pca)
+    # V7 C-PCA: new producer filters = top principal directions of the pre-cut output, consumers
+    # premultiplied by that basis, group norms reset, BN recalibrated, recipe A fine-tune.
+    export SPECTRA_FT_REINIT_EDITED=pca SPECTRA_FT_REINIT_THEN_POLISH=0
+    export SPECTRA_FT_LSQ_CONSUMERS=0 SPECTRA_FT_BN_RECAL=1 ;;
   a)
     export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0 ;;
   "") : ;;
   *)
-    echo "Unknown SPECTRA_FT_RECIPE='${SPECTRA_FT_RECIPE}' (use a | cg | cgp)" >&2
+    echo "Unknown SPECTRA_FT_RECIPE='${SPECTRA_FT_RECIPE}' (use a | cg | cgp | alsq | pca)" >&2
     exit 1 ;;
 esac
 if [[ "${SPECTRA_FT_REINIT_EDITED:-0}" == "1" ]]; then

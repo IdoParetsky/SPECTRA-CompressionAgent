@@ -13,7 +13,7 @@ agent so USR1 / preempt can warm-continue without a full cold start.
 from __future__ import annotations
 
 import os
-from typing import Dict, Sequence
+from typing import Dict, Optional, Sequence, Tuple
 
 import torch
 from torch.distributions import Categorical
@@ -210,8 +210,122 @@ FT_RECIPES = ("A", "B", "C-G", "C-G+")
 
 
 def ft_reinit_edited() -> bool:
-    """``SPECTRA_FT_REINIT_EDITED=1`` — NEON-C on CNN groups (recipe C-G), default off."""
+    """``SPECTRA_FT_REINIT_EDITED=1`` — NEON-C on CNN groups (recipe C-G), default off.
+
+    The value ``pca`` is not this flag. It selects C-PCA (``ft_pca_reinit``), which
+    keeps recipe A's full-net fine-tune and only changes how the new weights are built.
+    """
     return _flag("SPECTRA_FT_REINIT_EDITED")
+
+
+def ft_pca_reinit() -> bool:
+    """``SPECTRA_FT_REINIT_EDITED=pca`` — principal-direction replacement (C-PCA), default off."""
+    return os.environ.get("SPECTRA_FT_REINIT_EDITED", "").strip().lower() == "pca"
+
+
+def ft_lsq_consumers() -> bool:
+    """``SPECTRA_FT_LSQ_CONSUMERS=1`` — least-squares refit of consumer kernels (A-LSQ), default off."""
+    return _flag("SPECTRA_FT_LSQ_CONSUMERS")
+
+
+def ft_bn_recal() -> bool:
+    """``SPECTRA_FT_BN_RECAL=1`` — reset and re-estimate BatchNorm running stats after a cut, default off."""
+    return _flag("SPECTRA_FT_BN_RECAL")
+
+
+def ft_calib_batches(default: int = 2) -> int:
+    """Train batches used to fit A-LSQ / C-PCA (``SPECTRA_FT_CALIB_BATCHES``, default 2)."""
+    return max(1, _env_int_or("SPECTRA_FT_CALIB_BATCHES", default))
+
+
+def action_menu() -> str:
+    """``rates`` (default) or ``budget`` (``SPECTRA_ACTION_MENU``).
+
+    Under ``budget``, a rate in ``(0, 1)`` is the fraction of the *whole network's*
+    parameters to remove through the current group, and a negative rate is STOP.
+    """
+    raw = os.environ.get("SPECTRA_ACTION_MENU", "rates").strip().lower()
+    return "budget" if raw == "budget" else "rates"
+
+
+def is_stop_rate(rate) -> bool:
+    """True when this action ends the episode. Only under the budget menu, and only if rate < 0."""
+    try:
+        value = float(rate)
+    except (TypeError, ValueError):
+        return False
+    return action_menu() == "budget" and value < 0.0
+
+
+def budget_keep_rate(group_param_fraction: float, remove_network_fraction: float) -> float:
+    """Map "remove this fraction of the network via this group" onto a layer keep-rate.
+
+    A group that owns 10% of the parameters, asked to remove 2% of the network, keeps
+    80% of its channels. Asking for more than the group owns keeps nothing (rate 0).
+    A group that owns nothing, or a zero request, stays at rate 1 (identity).
+    """
+    owned = float(group_param_fraction)
+    remove = float(remove_network_fraction)
+    if remove <= 0.0 or owned <= 1e-12:
+        return 1.0
+    cut = min(1.0, remove / owned)
+    return max(0.0, 1.0 - cut)
+
+
+# Under the budget menu a request that would remove the whole group (or more) is not a
+# legal cut: it is masked, never rounded down to one channel.
+BUDGET_MIN_KEEP = 0.05
+
+
+def stop_reward_scale(default: float = 100.0) -> float:
+    """
+    Multiplier on the slack-weighted in-band area paid to STOP (``SPECTRA_STOP_REWARD_SCALE``).
+    Area is (fraction of the network removed) × (slack / τ); the per-step in-band reward is
+    ρ in percentage points, so ×100 puts STOP in the same units. 0 makes STOP a free exit.
+    """
+    return _env_float_or("SPECTRA_STOP_REWARD_SCALE", default)
+
+
+# A budget action whose smallest realisable cut (one channel of the group) removes more than
+# this multiple of the request is infeasible: the env must not spend 12 % of the net on a 1 % ask.
+BUDGET_OVERSHOOT_TOLERANCE = 1.5
+
+
+def effective_rates(compression_rates: Dict[int, float], group_param_fraction: float,
+                    group_width: Optional[int] = None) -> Dict[int, Tuple[float, bool, bool]]:
+    """
+    ``{action index: (keep rate the env will apply, is_stop, feasible)}`` for the current group.
+
+    ``rates`` menu: identity mapping, every action feasible, nothing is STOP.
+    ``budget`` menu (``SPECTRA_ACTION_MENU=budget``): a value ≥ 1 is identity; a negative
+    value is STOP (identity step that ends the episode); a value in (0, 1) is "remove this
+    fraction of the *network's* parameters through this group" and maps onto a keep rate
+    via :func:`budget_keep_rate`. Infeasible = the request exceeds what the group owns
+    (keep rate below ``BUDGET_MIN_KEEP``), or — when ``group_width`` is known — one channel of
+    the group already removes more than ``BUDGET_OVERSHOOT_TOLERANCE`` × the request (the
+    realised cut would not be the action the agent asked for). One mapping feeds the env
+    step, the legal mask and the action-cost slots, so the three never disagree.
+    """
+    out: Dict[int, Tuple[float, bool, bool]] = {}
+    budget = action_menu() == "budget"
+    per_channel = None
+    if group_width is not None and int(group_width) > 0:
+        per_channel = float(group_param_fraction) / float(group_width)
+    for idx, raw in compression_rates.items():
+        value = float(raw)
+        if not budget:
+            out[idx] = (value, False, True)
+        elif value < 0.0:
+            out[idx] = (1.0, True, True)
+        elif value >= 1.0:
+            out[idx] = (1.0, False, True)
+        else:
+            keep = budget_keep_rate(group_param_fraction, value)
+            feasible = keep >= BUDGET_MIN_KEEP
+            if feasible and per_channel is not None and per_channel > BUDGET_OVERSHOOT_TOLERANCE * value:
+                feasible = False
+            out[idx] = (keep, False, feasible)
+    return out
 
 
 def ft_reinit_then_polish() -> bool:
@@ -220,11 +334,19 @@ def ft_reinit_then_polish() -> bool:
 
 
 def ft_recipe(train_compressed_layer_only: bool = False) -> str:
-    """Name of the fine-tune recipe in force; polish implies reinit."""
+    """Name of the fine-tune recipe in force; polish implies reinit.
+
+    C-PCA and A-LSQ are closed-form weight edits followed by recipe A's full-net
+    fine-tune. They do not take the C-G "train only the new group" path.
+    """
     if ft_reinit_then_polish():
         return "C-G+"
+    if ft_pca_reinit():
+        return "C-PCA"
     if ft_reinit_edited():
         return "C-G"
+    if ft_lsq_consumers():
+        return "A-LSQ"
     return "B" if train_compressed_layer_only else "A"
 
 
@@ -670,6 +792,7 @@ def legal_action_mask(
     alive_count: int,
     device,
     force_identity: bool = False,
+    group_param_fraction: Optional[float] = None,
 ) -> torch.Tensor:
     """
     Bool mask over discrete actions.
@@ -684,6 +807,11 @@ def legal_action_mask(
 
     ``force_identity`` is the caller's own reason to allow identity only (e.g. the row's
     coupled group was already cut this pass under ``SPECTRA_GROUP_ONCE_PER_PASS``).
+
+    Budget menu (``SPECTRA_ACTION_MENU=budget``): legality is decided on the **mapped**
+    keep rate (``effective_rates`` with ``group_param_fraction``), STOP is legal on every
+    row including stems and locked groups, and a request the group cannot pay for is
+    illegal (never rounded to a one-channel cut).
     """
     n = len(compression_rates)
     mask = torch.ones(n, dtype=torch.bool, device=device)
@@ -693,14 +821,30 @@ def legal_action_mask(
         force_identity = force_identity or (row_index < stem_rows()) or (
             alive_count <= min_width_for_prune())
 
-    for idx, rate in compression_rates.items():
-        if force_identity:
-            mask[idx] = abs(float(rate) - 1.0) < 1e-9
+    budget = action_menu() == "budget"
+    unknown_fraction = budget and group_param_fraction is None
+    mapped = effective_rates(compression_rates,
+                             0.0 if group_param_fraction is None else float(group_param_fraction),
+                             group_width=None if group_param_fraction is None else int(alive_count))
+    for idx, raw in compression_rates.items():
+        keep, is_stop, feasible = mapped[idx]
+        # STOP (budget menu, rate < 0) is legal on every row, including stems.
+        if is_stop:
+            mask[idx] = True
             continue
-        if float(rate) >= 1.0:
+        if force_identity:
+            mask[idx] = abs(float(keep) - 1.0) < 1e-9 and not (budget and 0.0 < float(raw) < 1.0)
+            continue
+        if unknown_fraction and 0.0 < float(raw) < 1.0:
+            # Caller could not price the group: a budget cut stays legal; the env prices it.
+            continue
+        if not feasible:
+            mask[idx] = False
+            continue
+        if float(keep) >= 1.0:
             continue
         # No-op compressions are pure credit-assignment noise (always illegal).
-        if pruning.target_width(alive_count, float(rate)) >= alive_count:
+        if pruning.target_width(alive_count, float(keep)) >= alive_count:
             mask[idx] = False
 
     if not mask.any():

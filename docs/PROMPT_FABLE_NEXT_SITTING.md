@@ -1,72 +1,126 @@
 # SPECTRA next sitting — Fable 5.1 (paste this; ops will not start you)
 
-**Stamped:** 27 Sep 2026, ~01:15 IDT, by the ops chat after Ido’s weekend sitting.
-**Do not** overlay leap `src/`. **Do not** scancel `21536397` or `21536398`. **Do not** edit `SPECTRA_draft.md`. **Do not** emit `database_offline_v7_diverse_admitted.json`. **Do not** start a C-G / C-G+ training job. **Do not** put 200-epoch SGD inside a training job. **Do not** reopen BERT.
+**Stamped:** 27 Sep 2026, ~03:40 IDT. Supersedes the 01:15 paste. The 01:15 text is in git at the parent of this working tree.
+**Snapshot already committed, not pushed:** `b2d4427` (the V5–V7 tree) on top of `19ac66e`. Ahead of `origin/master` by 2. Do not push unless Ido says push.
+**This sitting's code is uncommitted on purpose,** so you review the diff before it is committed: `src/recovery_edits.py`, `src/fortify.py`, `src/pruning.py`, `src/NetworkEnv.py`, `src/A2C_Agent_Reinforce.py`, `tests/test_recovery_edits.py`.
 
-Read first, do not re-derive: `docs/GLOSSARY_CHRONOLOGICAL.md`, `docs/paper/GILAD_WEEK_27SEP.md`, `docs/V7_OVERHAUL_PROPOSAL.md` §2–§3, `docs/paper/CATALOG_L_TEST_PLAN.md` §5 (already locked; Ido has not signed), `docs/PROMPT_OPS_V7_QUEUE.md` §5.
+**Do not** overlay leap `src/` or the scratch trees `tree`, `tree_v6_inband`, `tree_v7`. **Do not** scancel `21536398`. **Do not** edit `SPECTRA_draft.md`. **Do not** emit `database_offline_v7_diverse_admitted.json` and **do not** revive the old 24-net ResNet-width file. **Do not** start a C-G / C-G+ training job. **Do not** put 200-epoch SGD inside a training job. **Do not** reopen BERT. **Do not** start a second factored-head train. **Do not** TEST any current freeze. **Do not** submit a GPU job until the unit tests below pass on the cluster conda.
+
+Read first: `docs/GLOSSARY_CHRONOLOGICAL.md`, `docs/paper/GILAD_WEEK_27SEP.md`, `docs/V7_OVERHAUL_PROPOSAL.md` §2–§3, `docs/V7_TRAIN_CATALOG.md`, `docs/paper/CATALOG_L_TEST_PLAN.md` §5, `docs/PROMPT_OPS_V7_QUEUE.md` §5 line F.
 
 ---
 
-## 0. What the week closed
+## 0. Standing for the next jobs
 
-The V7 measurement list finished except the two trains that are still learning.
+Ido required one recipe for every architecture and dataset (a per-target learning rate would break the frozen-agent claim). The other bullets are the ops recommendation for this sitting. Do not reopen them unless a test below kills one.
 
-- **Learned schedule stands.** 3-pass mild §114 and 3-pass L1 §122 stay near keep 0.91–0.92 inside τ. They do not select the 0.756 point.
-- **Best tested actor** remains in-band linear episode 95 (§123): skinny ResNet-56 **−7.1 @ 0.756**, reproduced from episode 83 (§111). `state_used` 38% / 53%. The encoder is read. ResNet-20 keep 0.536 is not a comparison.
-- **v3 and V4 are finished** and are mild clones under the old cube-root reward (about −6.7 to −6.9 @ 0.92). Do not extend them. The live factored job is the retry of that head under the linear reward. It is not a V4 continuation.
-- **40-epoch fine-tune inside training** (§112) ended on the six-day clock at −7.1 @ 0.923. The resubmit rule did not fire. Leave the live trains at 12/4.
-- **Area train** `21536396` finished 26 Sep 09:21 on patience. Best area score stayed 0.0586 (episode 83). Do not TEST it.
-- **CIFAR-100 gate:** Adam 1e-4 admits 4/8 and fails the thin CIFAR-10 control (§118). SGD 0.01 admits 2/8 and fails it (§119). Adam 1e-3 admits 0/8 CIFAR-100 and is the reference that holds CIFAR-10 (§120, ResNet-56 −6.5 @ 0.933). **No winning arm. Diverse catalog stays off.**
-- **Catalog L twins** (chenyaofo, not the DepGraph checkpoints) are in: mild §124, L1 §125. VGG-19 CIFAR-100 `val_best` is the unpruned net. The DepGraph-checkpoint trajectory has **not** been run.
-- **Throw-away** remains the 19–20 Sep no-agent table. Empty band. See §2 below before you touch it.
+1. **One reward going forward: in-band linear** (the scale that leaves the in-band arm linear; the cube-root-of-everything scale stays dead). Neon-raw is already measured on the same skinny ResNet-56 walk: −7.4 at keep 0.757 against −7.1 at keep 0.756 (§99 vs §123). A second copy of every future train does not answer a new question.
+2. **One fine-tune recipe, the same for every architecture and every dataset.** The agent does not choose the learning rate, the optimizer, or a per-network schedule. The preference the agent is allowed to use is τ (the accuracy budget the user sets). Per-dataset or per-architecture learning rates would make the method change with the target, which is the break Ido will not take. Today that one recipe is **Adam 1e-3, 12 epochs, patience 4**, because it is the only recipe that held the CIFAR-10 thin control. It admits 0/8 CIFAR-100 (§109). Adam 1e-4 and SGD 0.01 admit some CIFAR-100 and fail the thin control (§117–§121). **CIFAR-100 stays out of the training pool** until a single recipe passes both gates. Do not implement a dataset switch.
+3. **Agent patience stays.** Minimum 250 episodes (300 on the 8-epoch PPO job), then 150 episodes without a better probe, up to 3 rewinds. The saved scores arrived early (episodes 83, 95, 143, 167). Factored later fell to 0.011 and rebounded to 0.060 at episode 228, so a short patience would have stopped it before that rebound. Do not shorten it in this sitting.
+4. **Training fine-tune stays 12 epochs.** The 40-epoch arm (§112) is not a pure epoch experiment: its reward was still the cube-root scale, and its quoted test is −7.1 at keep 0.923. It did not beat the 12-epoch linear actor on depth. Keep 12 inside the learning loop so the next actor is comparable. The **quoted TEST fine-tune stays 40/10**. Do not shorten the TEST budget; that ablation has not been run.
+5. **The two-decision head is already the live job** `21536398` (factored × in-band linear × area score). Do not start another one. When it ends, its verdict is a TRAJ of the saved snapshot against the area-train baseline at equal keep. If they match, cross the head off. If it wins, it carries forward. Until that TRAJ there is no winner.
+6. **Catalog.** The old 24-net file was a CIFAR-10 thin-ResNet width upsample (about half the nets were one class). It is not a diverse catalog and it is not coming back. The designed diverse file is 16 nets = 8 CIFAR-10 + 8 CIFAR-100 (`docs/V7_TRAIN_CATALOG.md`), with SVHN and Fashion-MNIST held out as datasets and Catalog L (ResNet-56, VGG-16, VGG-19) held out as architectures. The CIFAR-100 half failed the gate, so it was never admitted. The live training file is the 10-net Catalog-L-clean set (9 CIFAR-10 + 1 SVHN). The next **training** catalog may add CIFAR-10 families we already have checkpoints for, still excluding Catalog L, and it should move that one SVHN net out so both held-out datasets are actually held out. It may not add CIFAR-100. Do not build that file until the no-agent walks below have a `val_best`.
 
-Live at the stamp: `21536397` PPO-8 and `21536398` factored, both recipe A, 12-epoch fine-tune, area probe, 10-net catalog. Both probes are under their freezes (0.065 vs 0.068; 0.060 vs 0.061). **Do not TEST those freezes** in this sitting. Four GPUs are empty. That is the budget for no-agent walks after code lands, not for a new agent.
+## 0b. Rewind — do not extend it
 
-## 1. Decide this, in writing, before new code
+The reload (up to 3 times: restore the best actor and critic, reset Adam, raise entropy for 30 episodes) did **not** find a better snapshot on any finished job. v3-fpgm and v3-svd used 3/3 and stayed frozen at episode 11. V4 used 3/3 and the probe returned to the old 0.262 ceiling, which tested as the mild walk. In-band linear, the area train, and PPO-8 each logged `rewinds=3` and stopped on the snapshot they already had (episodes 95, 83, and 143). The one thing it may have done is pull a collapsed walk back: the in-band probe at episode 228 scored 0.000 (every layer kept), and episode 240 tied the saved 0.262 again. That is a safety net, and it was not run as an on/off experiment, so it is not proved. It is not a learning method. Do not add a fourth rewind. Do not make the next train depend on it. Leaving the flag on for the one budget train is acceptable; designing around more reloads is not.
 
-**Is one fine-tune recipe still mandatory?**
+## 0c. Area-score order is not the product order
 
-Today’s training recipe is Adam 1e-3, 12 epochs, patience 4. It is the only recipe that holds the CIFAR-10 thin control. It admits no CIFAR-100 net. The gentler rates that admit CIFAR-100 hurt CIFAR-10 by more than a point at similar keep.
+Only three jobs logged `kind=area`. Higher is a larger slack-weighted cut on the two probe nets during training. None of the three has a TEST.
 
-Options, pick one:
+| Order | Job | Best area | ResNet-56 half | ResNet-20 half | TEST |
+|---|---|---|---|---|---|
+| 1 | PPO-8 `21536397` ep143 | 0.0675 | ~0.031 | ~0.104 | none |
+| 2 | Factored `21536398` ep167 | 0.0608 | not logged at the freeze; latest probe 240 is 0.007 | latest 0.032 | none, still running |
+| 3 | Area `21536396` ep83 | 0.0586 | last probe 0.028 | last probe 0.078 | none |
 
-1. **One recipe, CIFAR-10 only.** Keep Adam 1e-3. CIFAR-100 stays an evaluation dataset. Caption the gate as a fine-tune limit, not a transfer failure. This matches the current trains.
-2. **Per-dataset learning rate.** Adam 1e-3 on CIFAR-10, Adam 1e-4 on CIFAR-100, one agent, two rates. Say explicitly that this breaks “one recipe.”
-3. **A third recipe you name,** with a kill criterion on both the thin control and the 8 CIFAR-100 candidates, before any diverse catalog is emitted.
+PPO-8 leads this list because the ResNet-20 probe was cut, not because ResNet-56 was. The product order is still the tested skinny ResNet-56 `val_best`: in-band linear episode 95, −7.1 at keep 0.756. Do not crown PPO-8. Do not TEST these three freezes in this sitting.
 
-Do not emit the 16-net file under option 1. Do not restart `21536397/98` to change their learning rate.
+## 1. What you implement, and what is already written
 
-## 2. Producers / throw-away — audited 27 Sep, do not re-litigate the code
+Ops (Grok) wrote the first gated implementation. Your job is to review it, run the tests, fix what is wrong, and only then hand ops the sbatch lines. You do not submit.
 
-Ops read `src/pruning.py` `reinit_group_edit` and `tests/test_p8_neon_flow.py`.
+Flags, all default off, so a process that does not set them is the live recipe A:
 
-- Scope `group` redraws producers with Kaiming normal, zeros biases, resets group batch-norm, and redraws consumer input slices. Weights are **not** zeroed.
-- Scope `producers` leaves consumer weights bitwise equal to the pre-redraw tensor. The test asserts that.
-- NEON the paper (Drive PDF, §3): random init of the new layer, freeze all other layers, train until convergence. This step is inside Algorithm 1, so it runs in **agent training and in the test phase**. It is not DRL-train-only. The source also rebuilds the consumer; the paper’s sentence names only the new layer. Both readings were run. Both empty.
-- The performance drop is the result. The implementation matches the spec on the ResNet-20 unit walk and on the GPU walks (ledger §§100–108).
-- Real caveat, already in `V7_OVERHAUL_PROPOSAL.md` §2.2: validation patience 6 from epoch 1 is harsher than NEON’s train-loss patience 10, and frozen downstream batch-norm keeps stale statistics. That caveat does not overturn an empty band on three nets, with and without polish, under a fine-tune longer than the one recipe A uses to succeed.
-- **Do not write a C-G training job.** **Do not** “fix” throw-away by debugging the redraw.
+| Flag | Effect |
+|---|---|
+| `SPECTRA_FT_LSQ_CONSUMERS=1` | After a keep-leftover cut, least-squares refit of each consumer kernel to the pre-cut conv output (He, Zhang, Sun, ICCV 2017). Recipe name `A-LSQ`. Full-net fine-tune is unchanged. |
+| `SPECTRA_FT_BN_RECAL=1` | Reset BatchNorm running stats and re-estimate them on a few train batches before the fine-tune. |
+| `SPECTRA_FT_REINIT_EDITED=pca` | C-PCA. New producer filters are the top principal directions of the pre-cut output; consumers are premultiplied by that basis. Value `pca` does **not** turn on random C-G. Full-net fine-tune is recipe A's, so the comparison is the initialisation. |
+| `SPECTRA_ACTION_MENU=budget` | A rate in (0, 1) means "remove this fraction of the **network** through this group". A negative rate is STOP. STOP's reward is the slack-weighted area so far. Pass `--compression_rates 1.0 0.01 0.02 0.04 -1`. |
+| `SPECTRA_FT_CALIB_BATCHES` | Batches for the least-squares / PCA fit. Default 2. |
 
-If you still want a recovery cell, it is **A-LSQ + batch-norm recalibration** first (improves the recipe we use), then **C-PCA** (a generated layer, not a random one). Kill criterion from the overhaul: A-LSQ must be at least as good as recipe A at equal keep on the skinny ResNet-56 and the Catalog L ResNet-56 twin, or drop it. C-PCA must recover the mild walk within about 1 point of recipe A at equal keep, or NEON-style replacement stays closed for CNNs.
+Known limits, written so you extend them rather than rediscovering them:
 
-## 3. Implement (default off, tests, no running tree)
+- Least-squares and PCA are implemented for a plain `Conv2d` with `groups=1` whose input channels are exactly the pruned group. Concat consumers and grouped convolutions are counted as `skipped`. Residual identity-adds are not rotated by a weight change, so C-PCA is exact on a chain and approximate on a skip. If a ResNet walk skips most consumers, that is the gap to close, not a reason to turn the flag off silently.
+- C-PCA and A-LSQ in the same step: PCA wins and least-squares is not also applied. The combination experiments are **separate jobs**, not a stack inside one cut. The one combination that belongs in a single job is A-LSQ **with** BN recalibration.
+- Local Windows has no PyTorch. `python -m py_compile` passed. `pytest` did not run. First command, on the cluster, after these files are on a scratch tree that is not serving `21536398`:
 
-Ship, in this order, on a branch or a local commit Ido approves. Flags default **off**. v2/v3/V4/live-train replays stay byte-identical.
+```bash
+python -m pytest tests/test_recovery_edits.py tests/test_p8_neon_flow.py tests/test_pruning.py -q --tb=line
+```
 
-1. **A-LSQ + BN recalibration** (`SPECTRA_FT_LSQ_CONSUMERS`, `SPECTRA_FT_BN_RECAL`), recipe A only. Closed form before the fine-tune. Unit test on a tiny ResNet: consumer slice changes, a no-flag walk does not. Then two no-agent TRAJs (thin pair, Catalog L twin), recipe A vs A-LSQ, same 90% 2-pass walk, TEST budget 40/10. About 4 hours each. They fit the four free GPUs **after** the code is on a scratch tree. Do not submit from this prompt alone; hand ops the sbatch line.
-2. **Leave C-PCA and C-G-KD designed, not submitted,** until (1) has a `val_best`.
-3. **Cost-denominated actions + explicit STOP** stay a design in `V7_OVERHAUL_PROPOSAL.md` §3.1–§3.2. Do not start that agent until A-LSQ’s no-agent result is in, and do not start it on top of the two live trains’ checkpoints.
+Throw-away / C-G code was audited on 27 Sep and is not the bug. Random redraw matches the spec; the empty band is the result. Do not debug C-G. Do not write a C-G agent.
 
-## 4. Linear reward — where it is, so you do not reopen it
+## 2. Jobs, in this order, and which are TRAIN vs TEST
 
-Problem: cube-root on the in-band arm made a legal cut worth ~+2.7 and a miss worth ~−20, so “always keep 90%” was optimal. Change: in-band arm linear, cube-root only on the cubed arms, isolated train `21459737`. Immediate result: first learned walk past 90% on skinny ResNet-56, −7.1 @ 0.756, twice, and the encoder is read on that actor. The train then ended 24 Sep without beating episode 95 (probe 240 tied 0.262). The 40-epoch training arm did not buy depth. The area-score retrain finished without a TEST and without beating its own first freeze. **Way ahead:** keep linear as the reward for any new train; judge the two live trains only when you call a TEST; the next product change is the action menu (cost and STOP), not another reward scale.
+Empty GPUs are not a reason to start a 7-day agent. QOS is 6. Factored `21536398` is the one running train. Nothing else from the V7 list is queued.
 
-## 5. Catalog L — not “never started”
+**TEST (no agent, same 2-pass group-once mild walk as §93, quote `[eval] TRAJ val_best`).** These answer "does the edit recover the cut." They are a few GPU-hours each.
 
-`docs/PROMPT_FABLE_CATALOG_L.md` was a protocol lock, not a GPU sitting. You locked §5 on 21 Sep 18:10. Ido has not signed it. The twin controls ran (§124, §125). What has **not** run is a frozen-agent trajectory on the DepGraph checkpoints. Do not run it on the episode-95 actor: that actor’s catalog contained full ResNet-56 and VGG-16, so L1 and L2 would not be transfer. The live p5b2 trains are the first agents whose catalog excludes those architectures. Their freezes are under the area score and are not TESTed. **Leave the DepGraph-checkpoint job until one of those freezes is worth a TEST**, or until Ido names episode 95 as an in-catalog caption only.
+1. Recipe A control is already §93 (skinny ResNet-56 −6.6 at keep 0.923) and §124 (Catalog L ResNet-56 −3.3 at keep 0.661). Do not rerun them unless the scratch tree's recipe A disagrees.
+2. **A-LSQ + BN recalibration** on skinny ResNet-56 and on the Catalog L ResNet-56 twin. Kill: not at least as kind as recipe A at equal keep on both → drop A-LSQ.
+3. **C-PCA + BN recalibration**, same two nets, same fine-tune budget as A. Kill: not within about 1 point of recipe A at equal keep → principal-direction replacement stays closed for CNNs, and you write that into the Gilad note.
 
-Do not fill a new grocery list. If you tighten §5, the only open literature pin is which OCS ResNet-56 row we quote: the clean Table 2 row is 38.88% FLOPs remaining, 41.42% params, 93.97→93.65, drop 0.32, mean of 3, one-cycle 300-epoch SGD; a second printed row is 94.01→93.50 at 38.82/42.26. The 21 Sep note used the second. Pick one and caption it. DepGraph stays 93.53→93.64 (+0.11) at 2.57×, with sparsity learning on the target. Their main text does not print the epoch count.
+**Do not couple A-LSQ with C-PCA. Do not couple either with STOP in the first wave.**
 
-## 6. Out of scope this sitting
+**TRAIN, only after (2) has a `val_best`, and only one of them:**
 
-ImageNet DRL. Another ranking menu. Group-as-token training (the encoder is read; the design can wait for the action-menu cell). A 200-epoch rematch. Restarting v3 or V4. Editing the draft. The university letter.
+4. **Budget + STOP**, in-band linear reward, recipe A (switch the recovery to A-LSQ only if job 2 passed), area probe, the **current** 10-net catalog. New actor, because the action list changed. Kill: the argmax walk still matches a fixed-rate heuristic at equal keep on skinny ResNet-56. This is the literature's cost-shaped action (AMC, He et al., ECCV 2018, clips each layer's sparsity onto a FLOP budget) plus an explicit stop, which AMC does not have because AMC visits every layer once.
+
+**Not this sitting:** a factored-head × budget train, a C-PCA agent, a 16-net or 24-net train, a second learning rate, a 200-epoch train, ImageNet DRL.
+
+## 3. One fine-tune recipe — design this, then one no-agent gate
+
+Ido wants one recipe for every architecture and every dataset. The three constants we already ran are not that recipe, and they are not a matched triple: Adam is constructed with **weight decay 0** (`ClassificationHandler`, `torch.optim.Adam`), while SGD uses weight decay **5e-4**. A constant 1e-3 destroys CIFAR-100 in 12 epochs (§109). A constant 1e-4 admits 4/8 CIFAR-100 and fails the CIFAR-10 thin control (§117, §118). SGD 0.01 admits 2/8 and fails the same control (§119, §121). Do not add a fourth constant, and do not switch the learning rate by dataset.
+
+What to implement, default off, as **one schedule**:
+
+1. **AdamW** (decoupled weight decay, Loshchilov & Hutter, ICLR 2019), weight decay 5e-4, so the adaptive arm finally has the same decay the SGD arm already had.
+2. **One epoch of linear warmup, then cosine down to 1e-5**, peak 1e-3, inside the existing 12-epoch cap. Liu et al., ICLR 2020, “On the Variance of the Adaptive Learning Rate and Beyond” (arXiv:1908.03265): Adam’s early steps have exploding variance; warmup is a variance reducer; on CIFAR-10 their Adam+warmup and RAdam land within 0.1 point, and RAdam is less sensitive to the warmup length. Our CIFAR-100 failure is an early-step failure.
+3. **Gradient clip at 1.0.** Same clip on every net.
+4. Ride **BN recalibration** on this arm. Stale running stats make the first Adam steps look like a learning-rate explosion.
+
+**Alternate if that schedule fails either gate:** the same warmup is unnecessary if the optimizer is **RAdam** at peak 1e-3 (same paper). One extra arm, not a grid.
+
+**Do not** treat a smaller constant as the fix. Wang et al., arXiv:2301.05219 (“Why is the State of Neural Network Pruning so Confusing?”): in the CIFAR pruning line a short fine-tune at 0.001 understates the method; the schedules that match published tables are SGD 0.01 with step or cosine, for 90–180 epochs (their table: L1-norm’s original 20 epochs at 0.001, ResRep 180 cosine, GReg 90 step, HRank 30×layers at 0.01). That paper says a pruned net needs *more* trainability, not a gentler constant. Our 12-epoch cap is the constraint their table would call unfair. The schedule above is the attempt to get both gates **inside** 12 epochs. If it fails both, write that down and stop. The training recipe then stays Adam 1e-3 on CIFAR-10 only. A 40-epoch or 90-epoch version of the same schedule is a later single no-agent job, not a new agent, and only if Ido names it.
+
+Kill, same gates as September: thin CIFAR-10 within about 0.5 points of Adam 1e-3 12/4 at equal keep, and at least 4 of 8 CIFAR-100 candidates admitted (kept ≤ 0.98 and val Δacc ≥ −10). Fail either gate and the schedule is dropped. No per-dataset peak.
+
+The three-way “Adam 12 / Adam 40 / SGD 40” on one checkpoint stays available as a measurement of the **current** constants. It is not the new mechanism. Do not run it instead of the schedule.
+
+## 4. OCS row to pin
+
+Both rows are real. The FLOPs column is percent **remaining** (their VGG prose: "26.01% of the original network FLOPs remaining"). The sentence "38.88% reduced FLOPs" in section 4.3 fights that definition; use the table.
+
+- **Table 2, from scratch, ResNet-56:** 38.88% FLOPs remaining, 41.42% params, 93.97 → 93.65, drop **0.32**. This is the headline method.
+- **Table 5, same method on a pretrained net:** 38.82% FLOPs remaining, 42.26% params, 94.01 → 93.50, drop **0.51**. The 21 Sep Gilad note used this row.
+
+**Signed by Ido 27 Sep ~04:02.** Quote **Table 5** next to SPECTRA. Footnote Table 2. The sentence is now in `docs/paper/SPECTRA_draft.md` §4.1 (“OCS ResNet-56 row”). Do not move it. Do not also quote the lighter from-scratch row (46.93% FLOPs, drop 0.17) in that cell.
+
+## 5. Literature the new cells are allowed to cite
+
+- He, Zhang, Sun, ICCV 2017, [Channel Pruning](https://openaccess.thecvf.com/content_ICCV_2017/papers/He_Channel_Pruning_for_ICCV_2017_paper.pdf). Least-squares reconstruction. VGG-16 about 5× with 0.3% extra top-5 error on ImageNet; ResNet-50 2× with 1.4% top-5. That is ImageNet, a long fine-tune, and their own channel selection. It supports the refit, not a claim that A-LSQ will match those numbers on our 12-epoch walk.
+- Luo, Wu, Lin, ICCV 2017, ThiNet. A per-channel scale from least squares, as a better fine-tune initialisation. We fit the kernel (He), not only the scale.
+- He et al., ECCV 2018, AMC. A per-layer sparsity action constrained to a resource budget. Per-network search, then fine-tune. Cite the action shape. Do not cite it as a frozen generic agent.
+- PCA-Pruner (filter pruning by PCA) reports ResNet-56 CIFAR-10 at about 45.8% fewer FLOPs and +0.27 accuracy, but PCA there **chooses the width** and L1 chooses the filters. That is not C-PCA. Do not quote it as evidence that principal-direction replacement works. C-PCA is our construction; the walk is what will make it quotable.
+- Liu et al., ICLR 2019, arXiv:1810.05270. Training the whole pruned architecture from scratch matches fine-tuning kept weights, given a full training budget. They do not drop one random layer into a frozen residual net. This is why random C-G stays closed and why a 12-epoch random redraw was never the same experiment.
+
+## 6. After the walks, the Gilad note
+
+`docs/paper/GILAD_WEEK_27SEP.md` is the note for Gilad. Ops merged the 21 Sep benchmarking setup into it on 27 Sep ~04:45. Do not rewrite that merge. Do not send the file. After A-LSQ and C-PCA have a `val_best`, add those two rows, in English and Hebrew, to the throw-away section, and leave the three questions at the bottom unless a result answers one of them.
+
+## 7. Out of scope
+
+ImageNet DRL. Another ranking menu. Group-as-token train. Restarting v3 or V4. The university letter. The draft. A push. A scancel. A filler agent for the free GPUs.

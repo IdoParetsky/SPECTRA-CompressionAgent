@@ -184,7 +184,24 @@ def estimate_action_costs(model: nn.Module, target_layer: nn.Module,
         groups = channel_groups.build_channel_groups(model) or []
     group = channel_groups.group_of(groups, target_layer)
 
-    for index, rate in enumerate(compression_rates):
+    # Budget menu (V7): the action value is a fraction of the *network* to remove through this
+    # group; price the mapped keep rate, and give STOP zero cost. Column 0 keeps the raw action.
+    from src import fortify
+    keep_rates = list(compression_rates)
+    if fortify.action_menu() == "budget":
+        owned = 0.0
+        if group is not None and group.prunable and group.width > 0:
+            whole, _ = group_removal_cost(group, int(group.width), macs)
+            owned = float(whole) / float(total_params)
+        width = int(group.width) if (group is not None and group.prunable) else None
+        mapped = fortify.effective_rates({i: r for i, r in enumerate(compression_rates)}, owned,
+                                         group_width=width)
+        # Infeasible requests are masked for the actor; price them as "nothing removed".
+        keep_rates = [mapped[i][0] if mapped[i][2] else 1.0 for i in range(len(compression_rates))]
+
+    for index, rate in enumerate(keep_rates):
+        if float(rate) >= 1.0:
+            continue  # identity or STOP: nothing removed
         if group is not None and group.prunable:
             keep = pruning.select_group_survivors(group, rate)
             if keep is None:

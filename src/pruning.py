@@ -669,11 +669,28 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor,
             group_inputs = set(int(p) for p in expanded.tolist()) if expanded is not None else set()
         positions = [j for j, old in enumerate(in_idx.detach().cpu().tolist()) if int(old) in group_inputs]
         consumer_slices[index_of[id(consumer)]] = positions
+    consumer_in_idx = {}
+    consumer_group_positions = {}
+    for ref in group.consumers:
+        consumer = ref.module
+        if id(consumer) not in edits or id(consumer) not in index_of:
+            continue
+        in_idx = edits[id(consumer)][1]
+        if in_idx is None:
+            continue
+        consumer_in_idx[index_of[id(consumer)]] = [int(v) for v in in_idx.detach().cpu().tolist()]
+        # Old input positions of *every* channel of this group inside the consumer's input
+        # (C-PCA projects that whole slice; a concat consumer keeps its other slices).
+        consumer_group_positions[index_of[id(consumer)]] = sorted(int(p) for p in ref.positions)
     group_edit = {
         "producers": sorted(index_of[id(m)] for m in group.producers if id(m) in edits),
         "depthwise": sorted(index_of[id(m)] for m in group.depthwise if id(m) in edits),
         "norms": norm_slices,
         "consumers": consumer_slices,
+        "consumer_in_idx": consumer_in_idx,
+        "consumer_group_positions": consumer_group_positions,
+        "keep_idx": [int(v) for v in keep_idx.detach().cpu().tolist()],
+        "old_width": int(group.width),
         "new_width": int(keep_idx.numel()),
     }
 

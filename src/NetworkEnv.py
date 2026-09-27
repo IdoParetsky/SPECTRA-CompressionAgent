@@ -20,6 +20,7 @@ from src.Configuration.StaticConf import StaticConf
 from src.ModelHandlers.BasicHandler import BasicHandler
 from src.ModelHandlers.ClassificationHandler import ClassificationHandler
 import src.fortify as fortify
+import src.recovery_edits as recovery_edits
 import src.utils as utils
 
 AGENT_TRAIN = "agent_train"  # Mode when NetworkEnv is called from A2C_Agent_Reinforce.py
@@ -464,12 +465,17 @@ class NetworkEnv:
         layer = model_with_rows.all_layers[layer_idx]
         alive = int(pruning.alive_filters(layer).numel()) if hasattr(layer, "weight") else 1
         dev = device if device is not None else self.conf.device
+        owned = None
+        if fortify.action_menu() == "budget":
+            # Budget actions are priced per group: the mask must judge the mapped keep rate.
+            owned = recovery_edits.group_param_fraction(model_with_rows, row)
         return legal_action_mask(
             self.conf.compression_rates_dict,
             row_index=row,
             alive_count=alive,
             device=dev,
             force_identity=self.group_locked(layer_idx),
+            group_param_fraction=owned,
         )
 
     def group_locked(self, layer_idx: int) -> bool:
@@ -589,6 +595,33 @@ class NetworkEnv:
         else:
             handler.unfreeze_all_layers()
 
+        # A-LSQ / C-PCA / BN recalibration. Default off. C-G already returned above.
+        # C-PCA and A-LSQ then take this same full-net fine-tune, so the comparison
+        # with recipe A is the initialisation, not a different training budget.
+        if prune_outcome.get("mode") == "structural":
+            captured = getattr(self, "_pre_prune_io", None)
+            if fortify.ft_pca_reinit():
+                pca_summary = recovery_edits.apply_pca(model_with_rows, captured)
+                prune_outcome["pca"] = pca_summary
+                prune_outcome["ft_recipe"] = "C-PCA"
+                utils.print_flush(
+                    f"C-PCA: producers {pca_summary['pca_producers']}, "
+                    f"consumers {pca_summary['pca_consumers']}, "
+                    f"width {pca_summary['width']}, skipped {pca_summary['skipped']}")
+            elif fortify.ft_lsq_consumers():
+                lsq_summary = recovery_edits.apply_lsq(model_with_rows, captured)
+                prune_outcome["lsq"] = lsq_summary
+                prune_outcome["ft_recipe"] = "A-LSQ"
+                utils.print_flush(
+                    f"A-LSQ: consumers refit {lsq_summary['lsq']}, skipped {lsq_summary['skipped']}")
+            if fortify.ft_bn_recal():
+                n_norms = recovery_edits.recalibrate_batchnorm(
+                    model_with_rows.model, self.train_loader, self.conf.device,
+                    n_batches=max(8, fortify.ft_calib_batches()))
+                prune_outcome["bn_recal"] = n_norms
+                if n_norms:
+                    utils.print_flush(f"BN recalibration: {n_norms} BatchNorm module(s)")
+
         if is_to_train:
             with logging_utils.stage("step.finetune", level=logging.DEBUG):
                 # Policy-training episodes may use a shorter recovery budget
@@ -598,6 +631,10 @@ class NetworkEnv:
                     ft_kwargs = {"max_epochs": fortify.train_ft_epochs(),
                                  "patience": fortify.train_ft_patience()}
                 handler.train_model(self.train_loader, **ft_kwargs)
+        if fortify.ft_pca_reinit():
+            return "C-PCA"
+        if fortify.ft_lsq_consumers():
+            return "A-LSQ"
         return "B" if self.conf.train_compressed_layer_only else "A"
 
     def step(self, compression_rate, is_to_train=True, ranking=None):
@@ -616,6 +653,30 @@ class NetworkEnv:
         """
         step_timer = logging_utils.Timer().__enter__()
         model_with_rows = ModelWithRows(self.current_model)
+        self._pre_prune_io = None
+        requested_rate = float(compression_rate)
+        stop = fortify.is_stop_rate(requested_rate)
+        if requested_rate < 0.0:
+            # A negative rate is STOP under the budget menu, and identity otherwise,
+            # so an accidental minus never deletes every channel.
+            compression_rate = 1.0
+        elif fortify.action_menu() == "budget" and requested_rate < 1.0:
+            # Same mapping as the legal mask and the action-cost slots (fortify.effective_rates).
+            owned = recovery_edits.group_param_fraction(model_with_rows, self.row_idx - 1)
+            _target = model_with_rows.all_layers[model_with_rows.row_to_main_layer[self.row_idx - 1]]
+            _alive = int(pruning.alive_filters(_target).numel()) if hasattr(_target, "weight") else None
+            keep, _is_stop, feasible = fortify.effective_rates(
+                {0: requested_rate}, owned, group_width=_alive)[0]
+            if not feasible:
+                # The mask should have hidden this action; never round it to a one-channel cut.
+                utils.print_flush(
+                    f"budget action: remove {requested_rate:.4f} of the network exceeds what the "
+                    f"group owns ({owned:.4f}); treated as identity")
+                keep = 1.0
+            compression_rate = keep
+            utils.print_flush(
+                f"budget action: remove {requested_rate:.4f} of the network "
+                f"through a group that owns {owned:.4f} -> keep rate {compression_rate:.4f}")
 
         # Determine affected layers (from current row up to start of next row)
         current_layer_idx = model_with_rows.row_to_main_layer[self.row_idx - 1]
@@ -642,6 +703,10 @@ class NetworkEnv:
         else:
             # Modify the model in-place
             with logging_utils.stage("step.prune", level=logging.DEBUG):
+                if (fortify.ft_lsq_consumers() or fortify.ft_pca_reinit()) and self.train_loader is not None:
+                    self._pre_prune_io = recovery_edits.capture_pre_prune(
+                        model_with_rows, self.row_idx - 1, self.train_loader, self.conf.device,
+                        n_batches=fortify.ft_calib_batches())
                 if pruning.normalize_importance_mode(ranking) == "taylor" and ranking:
                     # Data-dependent criterion: one forward+backward on a train batch, bound
                     # right before ranking so a resized model never reads stale scores.
@@ -722,6 +787,13 @@ class NetworkEnv:
         # As self.row_idx - 1 is the current appraised row, the index should not drop below 1
         self.row_idx = max(1, self.row_idx % (num_rows + 1))
         done = num_actions >= num_rows * self.conf.passes
+        if stop:
+            # The step itself was an identity. The return for ending here is the
+            # slack-weighted area already accumulated (0 when nothing in-band was kept),
+            # in the same units as the per-step in-band reward (+ρ in percentage points of
+            # the network removed): area is a fraction × slack fraction, hence ×100.
+            done = True
+            reward = fortify.stop_reward_scale() * float(self.episode_inband_area())
         # A completed pass releases the group-once locks so the next pass may cut again.
         self._end_of_pass_reset(num_actions, num_rows)
         encode_idx = current_layer_idx
@@ -757,6 +829,8 @@ class NetworkEnv:
             layer_index=current_layer_idx,
             layer_type=type(target_layer).__name__,
             compression_rate=compression_rate,
+            requested_rate=requested_rate,
+            stop=int(stop),
             ranking=ranking,
             reward=round(float(reward), 4),
             reward_mode=__import__("os").environ.get("SPECTRA_REWARD_MODE", "neon"),

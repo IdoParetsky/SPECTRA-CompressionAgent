@@ -358,6 +358,15 @@ easy-net plateau. DepGraph [12] / SPA [81] / OCS [93] / SACP [94] are quoted on 
 different-fine-tune caption; they are not same-loop baselines and SPECTRA does not claim to beat
 them on their home cells (Gilad 18 Aug).
 
+**OCS ResNet-56 row (locked 27 Sep 2026).** Beside SPECTRA, quote OCSPruner [93] Table 5, the
+run that starts from a pretrained network, because SPECTRA does too: 38.82% of FLOPs remaining,
+42.26% of parameters, 94.01 → 93.50, drop 0.51. Footnote Table 2 (from scratch): 38.88% of FLOPs
+remaining, 41.42% of parameters, 93.97 → 93.65, drop 0.32. The table’s FLOPs column is percent
+remaining (their VGG text: “26.01% of the original network FLOPs remaining”); do not read the
+section 4.3 phrase “38.88% reduced FLOPs” as the column definition. Do not put the lighter
+from-scratch row (46.93% FLOPs remaining, drop 0.17) in the same cell. OCS’s baseline is their
+own training run, not DepGraph’s 93.53.
+
 **Figure (NEON Fig. 5 analog):** per architecture · dataset, TEST Δacc vs parameters kept and vs
 MACs kept at the quoted operating point of every method; the coverage matrix remains a separate
 genericity map.
