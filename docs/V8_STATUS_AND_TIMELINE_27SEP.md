@@ -66,3 +66,38 @@ Ido's question: were `V6_REPRESENTATION_DESIGN.md`, `GILAD_BENCHMARK_SETUP_21SEP
 6. CPU, no slot needed: Δacc surrogate over the logged transitions; standardizer OOD check; budget table.
 
 Not this cycle: C-G DRL, a second factored train, another ranking menu, BERT, ImageNet DRL, 200-epoch SGD inside training.
+
+---
+
+# 28 Sep 02:00 IDT — status after the first V8 night (Fable)
+
+Cell labels **L1/L2/L3 are retired** (they collide with L1/L2 pruning). Use **R56·C10**, **VGG16·C10**, **VGG19·C100**. "Catalog L" remains the name of the hold-out catalog file.
+
+## 6. What landed (ledger §126–§131)
+
+| Cell | Result | Verdict |
+|---|---|---|
+| A-LSQ (§126) | thin r20 −4.1 @ 0.536 (A −3.4); thin r56 **−6.2 @ 0.923** (A −6.6); twin −4.3 @ 0.661 (A −3.3) | kinder on 1 of 3 → fails "≥ A on both"; stays an off switch |
+| C-PCA (§127) | r20 −6.0 @ 0.536; r56 −7.7 @ 0.975; twin −5.2 @ 0.946 | worse everywhere → **crossed off**; layer replacement (random or generated) is closed for CNNs |
+| BN-recal alone (§128) | r20 −4.1; r56 −6.9 @ 0.923 | no gain → internal caption only (Ido decision 4) |
+| AdamW warm-up cosine (§129) | thin fails (−7.1 / −7.8 @ 0.832); C100 0/8 | crossed off |
+| RAdam (§130) | thin fails (−5.6 @ 0.655 / −8.2 @ 0.832); C100 2/8 (VGG-11/13) | crossed off |
+| DepGraph R56 anchor (§131) | mild **−3.1 @ 0.661/0.662**; L1 **−3.7 @ 0.575/0.482** (twin: −3.3 / −5.1 @ 0.415) | the τ-matched same-loop rows of R56·C10 on DepGraph's own weights |
+
+Reading of the recipe question: every *rate* / *schedule* change that helps CIFAR-100 in 12 epochs hurts the CIFAR-10 control. The remaining uniform lever is the **budget** → cap-40 / patience-4 arms at 1e-3 (`21715233/34`) and 1e-4 (`21715235/36`) submitted 01:00.
+
+## 7. Budget + STOP — the 27 Sep job was mis-profiled; re-submitted
+
+`21703443` ran the generic default branch (tree_v8 lacked the `offline_train_v7_*` gate line that was patched locally after staging): rates {1.0, 0.9, 0.8}, old leap 10-net DB, 5-step episodes, no PPO. Cancelled 00:55 (Fable's own job), tree fixed, re-submitted as **`21715228`** — verified at 00:52: budget menu, `cbrt_cubes`, p5b2, area probe, STOP scale 100, PPO, per-step budget mapping lines, 1 STOP in 26 episodes. Lesson written into the ops prompt: confirm `compression_rates` in the Namespace line on every new profile's first poll.
+
+## 8. Answers to Ido's 28 Sep questions
+
+**V6 representation — what were we waiting for?** Two gates, both now closed: (a) the counterfactual probe had to say the encoder is read (it is: 38 % / 53 %, §123) — otherwise a richer state could not matter; (b) a first *clean-catalog* actor had to exist as the control, so the representation cell is one change against it (area train `21536396`). Nothing else was needed from the running trains. **Group-token and shared trunk are separated**: group-token is the cell (`SPECTRA_STATE_TOKENS=groups`; `src/group_tokens.py`; relation bias in `SpectraStateEncoder`; contract key; 6 new tests; full suite 304/304 on the cluster conda); the shared trunk is a later, separate cell so that a read stays attributable. **A/B stack:** in-band linear × P5-B2 × area probe × fpgm 5-action menu × recipe A × 12/4 — identical to `21536396` except the state. **Implemented and queued:** `v8-grouptoken` **`21716380`** (tree_v8b, nice 30), starts when a slot frees. Read on the diagnostic pair against `21536396`'s freeze at equal keep; the `token_feature_dim` in its `policy_config.json` must be 4 larger than the control's. Insight so far: none — no group-token weights exist yet; the only representation evidence is the probe (state is read) and the saturation diagnosis (the *selection* was the blind part, not the encoder).
+
+**V7 overhaul — standing.** Implemented and tested: area score (used by every new train), PPO-8 (ran, untested freeze), `SPECTRA_FT_LR` + re-gates (failed), BN-recal (no gain), schedule arms (failed), A-LSQ / C-PCA (failed pass rules), Budget + STOP (training since 00:52), counterfactual probe (run). Not implemented: deterministic FT seed, incremental credit, Δacc surrogate, C-G-KD, pointer policy / batch-then-FT / hindsight τ / width ladder / per-net normalisation, standardizer OOD check, audit items A2/A6. Insight: of the seven "moving parts", two were real and are fixed (reward cube-root; saturated selection score), two are being tested by new actors (action semantics → Budget+STOP; state → group tokens), one is answered negative (recovery recipe variants do not move the walk), and per-step SNR remains the open one (no cell yet). **Next dev phase:** when Budget+STOP or group-token freezes and is walked (ops flags → Ido opens Fable), or when the cap-40 pair decides the catalog. Cells for that sitting: deterministic FT seed A/A (1 h GPU), Δacc surrogate (CPU), DepGraph VGG-19 loader, size-matched (2.57×) rows on R56·C10 / VGG16·C10, hold-out imports (ResNet-164, DenseNet-40 C10, PruningBench R18/R50 C100, Plain-20).
+
+**Catalog.** The P5-B2 catalog is the *current* live set, not a design goal; the design is the 16-net diverse file, emitted from the gate. Wording "until then / temporary" removed from the docs; the ImageNet-cost paragraph is in the Gilad note §3.
+
+## 9. Results feed (ops appends here — decision 2; this is Fable's entry point next sitting)
+
+_(empty — first cap-40 pair lands ~06:00–10:00 28 Sep)_

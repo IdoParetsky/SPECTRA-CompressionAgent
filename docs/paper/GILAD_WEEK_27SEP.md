@@ -1,188 +1,397 @@
-# Note for Dr. Gilad Katz — week of 27 Sep 2026
+# SPECTRA — status for Dr. Gilad Katz
 
 **From:** Ido Paretsky
-**Status:** snapshot as of 27 Sep 2026, 05:30. Results through the 22 Sep tests; §2b lists what is running now and has no result yet.
-**Since:** the 17 Sep meeting, your 19 Sep comment on the network list, and the two notes already written (layer replacement, 19 Sep; benchmarking setup, 21 Sep).
-**Two subjects you asked about:** (1) throw away the pruned layer and train a new one, instead of fine-tuning the surviving weights; (2) a real experimental setup, not a grocery list of networks. **This week's follow-ups to both** — two informed ways to generate the new layer, one fine-tune recipe for every network, and a cost-shaped agent with an explicit stop — were implemented and submitted on 27 Sep; §2b describes them as experiments in flight, not as results.
-
-Numbers below are test-set accuracy change at the most compressed point that is still inside a 10-point validation budget. Size is the fraction of parameters kept. Preliminary.
+**What this is:** the formal status of SPECTRA — where the method stands, what the benchmark is, what has been ruled out, and what is running. It is a snapshot and a way ahead, not a diary. Numbers are test-set accuracy change (points) at the most compressed point that is still inside a 10-point **validation** budget, with the fraction of parameters kept. Everything here is preliminary; the internal record (job ids, per-run rows) is `docs/paper/RESULTS_LEDGER.md`.
+**Two subjects from our meetings run through the whole note:** (1) the **benchmarking setup** — train/test split, metrics, budgets, and the papers we sit next to; (2) **"throw away the pruned layer and train a new one"** — the NEON recovery, and what happened when it was carried to CNNs in four forms.
 
 ---
 
-## English — executive
+## English
 
-**Throw-away.** On the original NEON loop this is not a training-only stage. Every pruning step, while the agent learns and again when the frozen agent is applied, replaces the layer with a new smaller one, draws its weights at random, freezes the rest, and trains that new layer. SPECTRA’s CNN version does the same draw (Kaiming normal, the usual new-convolution initialization, not zeros). On a forced 90% channel cut with no learned agent, throw-away does not recover a real CNN compression. Keeping the surviving filters does. Redrawing only the pruned layer, which matches the oral wording, fails the same way as redrawing the next layer too. A short polish of the whole network does not rescue it. We are not training an agent under throw-away. The two honest versions of “generate a new layer” — build it from the old activations (a projection the next layer can follow), or keep the survivors and refit the next layer by least squares — are **implemented and running since 27 Sep** on the same walk and the same two networks (§2b). Neither is a random draw; neither has a number yet.
+### 0. Executive summary
 
-**Benchmark.** The setup in the 21 Sep note is now the locked protocol: three cells only (DepGraph’s CIFAR-10 ResNet-56, OCS’s CIFAR-10 VGG-16, DepGraph’s CIFAR-100 VGG-19); the agent is not trained on those architectures; two operating points (our 10-point rule, and their published size); budgets reported as GPU time. What moved this week is the yardstick, not a claim that we beat those papers. On the full-width ResNet-56 twin, keep-leftover finds a real cut (−3.3 points at 66% kept). On VGG-19 CIFAR-100 the same 2-pass walk’s selected point is the original network. No single fine-tune learning rate both admits CIFAR-100 and preserves the CIFAR-10 control, so CIFAR-100 is not in the training set yet; the candidate that could pass both is a **schedule** (warm-up, then cosine decay, with weight decay) rather than a new constant, and it is being tested now (§2b). The best learned policy on the cheap ResNet-56 diagnostic keeps 76% of the parameters at −7.1 points, twice; no fixed-rate heuristic reaches that size inside the band even with a third pass. Every earlier learned policy stopped at 92%, next to the simple 90% rule. That diagnostic is not the committee table.
+SPECTRA is a **frozen, generic** structured-pruning agent: trained once, offline, on a catalog of pretrained CNNs, then applied to networks it never saw, with no per-target search or training. Every competing method in the tables below trains, searches or regularises **on the target**. That difference is the thesis claim, and it fixes the order of the three bars we hold ourselves to: (1) cheaper per additional network by construction; (2) at least as good as the same-loop heuristics at equal size **while transferring**; (3) printed honestly next to the published, target-trained numbers, expecting to be below them.
 
----
+The benchmark is now a reproduced protocol rather than a list of networks: DepGraph's CIFAR test set on **DepGraph's own released checkpoints**, plus OCSPruner's VGG-16 cell, with the field's other methods (AMC, Network Slimming, GReg, HRank, FPGM, ResRep, PruningBench) quoted on the same cells (§1). Our loop already runs on DepGraph's ResNet-56 weights. The training side has been rebuilt so that no benchmark architecture is in the catalog, and a **smart-reset** discipline governs every new idea: each is a switch that is off by default, tested first without an agent on a fixed walk against the live recipe, and crossed off in writing when it loses (§2, §3).
 
-## עברית — תקציר
+**Top wins (quotable):**
 
-**זריקת המשקולות.** ב-NEON המקורי זה לא שלב של האימון בלבד. בכל צעד גיזום, גם בזמן שהסוכן לומד וגם כשמפעילים את הסוכן הקפוא, מחליפים את השכבה בשכבה חדשה וצרה יותר, מגרילים את המשקולות, מקפיאים את השאר, ומאמנים את השכבה החדשה. ב-SPECTRA ההגרלה היא האתחול הרגיל של שכבת קונבולוציה חדשה (Kaiming), לא אפסים. על חיתוך כפוי של 90% בלי סוכן לומד, הזריקה לא משחזרת דחיסה אמיתית של CNN. השארת המסננים ששרדו כן משחזרת. ציור מחדש של השכבה הגזומה בלבד, לפי הניסוח בעל-פה, נכשל כמו ציור מחדש של השכבה הבאה. ליטוש קצר של כל הרשת לא מציל את זה. אנחנו לא מאמנים סוכן תחת זריקה. שתי הגרסאות הישרות של «לייצר שכבה חדשה» — לבנות אותה מהאקטיבציות הישנות (היטל שהשכבה הבאה יכולה לעקוב אחריו), או לשמור את השורדים ולהתאים את השכבה הבאה בריבועים פחותים — **יושמו ורצות מ-27 בספטמבר** על אותו מסלול ועל אותן שתי רשתות (סעיף 2ב). אף אחת מהן אינה הגרלה; לאף אחת עדיין אין מספר.
+1. **The field's benchmark runs in our loop, on their weights.** DepGraph's ResNet-56 CIFAR-10 checkpoint (published 93.53 %): same-loop 90 %-rule walk −3.1 points at 66 % of parameters kept; L1-magnitude walk −3.7 at 57.5 % parameters / 48 % FLOPs kept. These are the τ-matched rows the frozen agent has to beat on that cell.
+2. **First learned policy that leaves the 90 % rule inside the budget.** The in-band-linear-reward agent keeps **75.6 %** of the diagnostic ResNet-56's parameters at −7.1 points, and does so again from a second training snapshot. No fixed-rate heuristic reaches that size inside the band, not even with a third pass (the 90 % rule stops at 92.3 %; the hardest legal L1 walk at 89.8–91.4 %).
+3. **Real compression of standard networks inside the band, under a short fine-tune.** Full-width ResNet-56 twin −3.3 at 66 % kept; VGG-16 CIFAR-10 −3.5 at 66 % kept and −3.5 at 41 % kept (L1 walk). These are the same-loop heuristic rows on two of the three cells.
+4. **The agent reads the network, not only its own bias.** Zeroing or shuffling the layer tokens changes 38 % (ResNet-20) and 53 % (ResNet-56) of the frozen agent's decisions on identical walks — the encoder is used, so representation is a live lever rather than a dead one.
+5. **A closed, controlled answer to "throw away and regenerate".** Four forms of layer replacement × three networks, same walk, same budget, no agent — one table (§2). Negative, but decisive, and it fixes the recovery the whole evaluation stands on.
 
-**מדידה.** המערך מהפתק של 21 בספטמבר נעול: שלושה תאים בלבד (ResNet-56 של DepGraph על CIFAR-10, VGG-16 של OCS על CIFAR-10, VGG-19 של DepGraph על CIFAR-100). הסוכן לא מאומן על הארכיטקטורות האלה. שתי נקודות הפעלה: הכלל שלנו (ירידה של עד 10 נקודות בולידציה), והגודל שהם פרסמו. התקציב הוא זמן GPU. השבוע זז סרגל המדידה, לא טענה שניצחנו את המאמרים. על תאום ה-ResNet-56 ברוחב מלא, השארת המסננים מוצאת חיתוך אמיתי (3.3− נקודות ב-66% פרמטרים). על VGG-19 ב-CIFAR-100 הנקודה שנבחרת באותו מסלול היא הרשת המקורית. אין קצב למידה אחד שמכניס CIFAR-100 וגם שומר על ביקורת CIFAR-10, ולכן CIFAR-100 עדיין לא בסט האימון; המועמד שיכול לעבור את שניהם הוא **לוח זמנים** (חימום ואז דעיכה קוסינוסית, עם ירידת משקל) ולא קבוע חדש, והוא נבדק עכשיו (סעיף 2ב). המדיניות שנלמדה הכי טוב על רשת האבחון הזולה שומרת 76% מהפרמטרים בירידה של 7.1 נקודות, פעמיים; אף היוריסטיקה בקצב קבוע לא מגיעה לגודל הזה בתוך הטווח, גם לא במעבר שלישי. כל מדיניות קודמת נעצרה ב-92%, ליד כלל ה-90% הפשוט. זו אבחנה, לא טבלת הוועדה.
+**Top losses (quotable):**
 
----
+1. **Layer replacement does not carry from dense nets to residual CNNs.** Random redraw of the group (NEON-literal), redraw + polish, redraw of the pruned layer only, and a PCA-generated layer all recover **no real cut** (selected points at 94.6–99.9 % of parameters, or 2–3 points worse at equal size). Keeping the surviving filters wins on every network.
+2. **No learned policy beats the same-loop heuristics at equal size yet.** Every ranking-menu agent, the two-decision (rate × criterion) head, and the 40-epoch-fine-tune agent froze into a copy of the 90 % rule (92.3 % kept, −6.6 to −6.9). The 75.6 % policy is deeper, not kinder (−7.1 vs −6.6 at 92 %).
+3. **One fine-tune recipe does not yet recover CIFAR-100.** In 12 epochs: Adam 0.001 admits 0 of 8 CIFAR-100 candidates; AdamW with warm-up and cosine decay 0 of 8; RAdam 2 of 8; Adam 0.0001 4 of 8 but breaks the CIFAR-10 control; SGD 0.01 2 of 8 and breaks it. The training catalog is therefore CIFAR-10 + SVHN today, and the diversification plan (§3) is gated on the budget arm that is running now.
+4. **VGG-19 CIFAR-100 — DepGraph's second cell — selects the unpruned network.** Any cut under our recipe leaves the band (validation −30); the same-loop heuristics have no in-band point to quote there yet.
+5. **Two "informed" reset variants and two optimizer schedules also failed their pass rules.** Least-squares refit of the consumers (A-LSQ) is kinder on one of three networks only (−6.2 vs −6.6) and worse on the other two; PCA replacement is worse everywhere; BatchNorm re-estimation alone gains nothing.
 
-## English — detail
+### 1. Benchmarking setup
 
-### 1. Throw-away: what NEON did, and on which stages
+#### 1.1 (a) What we train on, what we test on
 
-Hirsch & Katz 2022, §3, inside the pruning loop (Algorithm 1), not as a separate post-training stage:
+**Training — one offline run, then frozen.** A catalog of pretrained CIFAR networks from several families (thin and standard ResNets, VGG-BN, MobileNet-v2, DenseNet), on **CIFAR-10 and SVHN** today, with **CIFAR-100 admitted network by network** as soon as the single fine-tune recipe recovers it (§3). The catalog **excludes every benchmark architecture by architecture, not only by weights**: no standard-width ResNet-56, no VGG-16 on CIFAR-10, no VGG-19 on either dataset. An automatic test fails if a training file and a test file ever share a network.
 
-- **Layer replacement.** Rather than removing neurons, generate a new layer of the desired size. It replaces the analyzed layer. Its weights are initialized randomly.
-- **Layer fine-tuning.** Freeze every layer except that new one. Train until convergence.
-- The same loop is the offline training of the agent **and** the test phase, when the trained agent is applied to a network it did not train on. `action = 1` (no cut) skips both the replacement and the fine-tune.
+**Test set 1 — the reproduced protocol (the committee slide). Three cells:**
 
-The public source also rebuilds the *next* linear layer and a fresh batch-norm, and trains those three modules. Patience in the source is 10 epochs on the **training** loss, not on validation. The paper’s sentence names only the new layer.
-
-SPECTRA’s live path is the method that paper rejected: keep surviving filters, fine-tune the whole network (recipe A). The CNN throw-away experiments change only the recovery, on a fixed 90% walk, with no agent.
-
-| Recovery | Skinny ResNet-20 | Skinny ResNet-56 | Full ResNet-56 (chenyaofo) |
+| Cell | Network | Checkpoint we prune | Whose published test this is |
 |---|---|---|---|
-| Keep surviving filters | −3.4 @ 53.6% | −6.6 @ 92.3% | −3.9 @ 66.1% (twin rerun −3.3 @ 66.1%) |
-| Throw-away, group, val patience | −0.9 @ 98.8% | −0.1 @ 99.9% | −0.5 @ 99.9% |
-| Throw-away + short polish | −10.3 @ 88.4% | −0.2 @ 99.9% | −1.0 @ 99.9% |
-| Throw-away, pruned layer only | −0.7 @ 98.8% | +0.0 @ 99.9% | not rerun; the skinny pair already matched the group |
+| **R56·C10** | CIFAR-10 ResNet-56 | DepGraph's released weights (93.53 %) — loads exactly into our ResNet-56 and is already walked | DepGraph, OCSPruner, AMC, FPGM, HRank, ResRep, GReg, C-SGD, SFP, Polar |
+| **VGG16·C10** | CIFAR-10 VGG-16-BN | standard zoo checkpoint (93.6 % in our loader) | OCSPruner, HRank, Network Slimming (VGG-19 variant), Li et al. |
+| **VGG19·C100** | CIFAR-100 VGG-19-BN | DepGraph's released weights (73.50 %); our zoo twin (73.87 %) walked meanwhile | DepGraph, OCSPruner, GReg, EigenDamage, PruningBench (their base is also 73.87) |
 
-Initialization is Kaiming normal, biases zero, batch-norm reset to scale 1 / shift 0. Unit tests check that producer weights change and, in the producers-only scope, consumer weights do not. The empty result is the experiment, not a missed redraw.
+**Test set 2 — transfer coverage (the genericity claim).** Networks and datasets the agent never saw: thinner and wider ResNet cousins, VGG-19 on CIFAR-10, DenseNet, two families absent from training (ShuffleNet-v2, RepVGG), and two datasets absent from training — **Fashion-MNIST**, and **ImageNet** (ResNet-50 / MobileNet-v2 probes, never trained on). Set 1 answers "how does it look on the field's own benchmark"; set 2 answers "did the frozen agent transfer". Neither replaces the other.
 
-Why a dense net tolerated this and a residual CNN does not: the new NEON layer owns its output; a ResNet block is `F(x) + x`, and a random `F` is added to a frozen path. The code also stops a from-scratch group on validation patience 6 from epoch 1 (groups often plateau around epoch 26 of a 60-epoch cap). That is harsher than NEON’s train-loss rule. It is a real caveat. It is not enough to explain an empty band on every net, including the polished arm, because keep-leftover recovers a cut under a *shorter* fine-tune.
+**Two operating points per method, on every cell.** (1) *Our rule:* the most compressed point whose **validation** drop is within 10 points, reported on the **test** set — the reported point is never chosen on the test set. (2) *Their size:* the walk continued to the published compression (DepGraph's 2.57× FLOPs on ResNet-56; their ratio on VGG-19; OCS's ≈42 % parameters), reported even if validation left the band and labelled size-matched. Only the second point is printed beside a published number.
 
-Literature that randomly reinitializes CNN weights (Liu, Sun, Wang, Zhang, *Rethinking the Value of Network Pruning*, ICLR 2019) retrains the **entire** pruned architecture for a full training budget. It does not drop one random layer into a frozen residual network. Their guideline, which we should follow: random weights are a fair baseline only when the whole small network is trained. Least-squares refit of the next layer (He et al. 2017; Luo et al., ThiNet) is the published way to adapt consumers while keeping the surviving filters. We have not run that yet.
+**The same loop for every method.** The learned agent and the simple heuristics (keep 90 % of every group; cut by L1 magnitude) share the walk, the recovery (40 fine-tune epochs, patience 10, Adam 0.001) and the selection rule. Published numbers keep their own fine-tuning protocol in the caption; nothing is converted.
 
-**Cross off:** throw-away as the CNN training objective; a learned agent under C-G until a non-random replacement recovers the keep-leftover walk.
-**Still open for you:** do you want the source’s train-loss patience retried once before that line is final, or is the table enough?
+#### 1.2 (b) Metrics
 
-### 2. Benchmark: what was locked, what was measured
+One row per method and network:
 
-Three cells. The agent that we will quote must not have been trained on these architectures.
+`original accuracy | pruned accuracy | Δ accuracy (points) | parameters kept (fraction, millions) | FLOPs kept (fraction, millions) | speed-up = 1 / FLOPs kept | recovery recipe and budget`
 
-| Cell | Network | Whose published test |
-|---|---|---|
-| L1 | CIFAR-10 ResNet-56, DepGraph checkpoint, origin 93.53% | DepGraph Table 1; also the ResNet-56 row of OCS |
-| L2 | CIFAR-10 VGG-16-BN, origin 94.16% | OCS |
-| L3 | CIFAR-100 VGG-19-BN, DepGraph checkpoint, origin 73.50% | DepGraph Table 1; OCS |
+The original accuracy is always printed (our checkpoints and theirs differ by up to a point; DepGraph's ResNet-56 reads 93.2 % in our test loader against their 93.53 %). Where a heuristic cannot reach the agent's size inside the band, that is printed explicitly — the gap is the learned-schedule result.
 
-**DepGraph’s own protocol** (Fang et al., CVPR 2023; confirmed on the CVF PDF and on the OCS table that reprints it). They follow ResRep and GReg. The headline CIFAR-10 number is 93.53 → 93.64 (**+0.11**) at **2.57×** fewer FLOPs, with group sparsity learning on that network and then a fine-tune in the style of pretraining (smaller learning rate, fewer iterations). The paper does not print an epoch count in the main text. Their released reproduction script separates a sparsity-learning stage from a fine-tune stage. Without sparsity learning their own ablation is 93.46 (−0.07) at 2.11×. CIFAR-100 VGG-19 is 73.50 → 70.39 (−3.11) at about 8.9×. We will quote these. We will not reimplement the solver. Putting their solver inside SPECTRA would abandon the frozen-agent claim.
+#### 1.3 (c) Budgets — where we are more efficient, and where we are not
 
-**OCS’s own protocol** (Ghimire et al., WACV 2026; CVF PDF). One training cycle from scratch, not prune-then-finetune of a pretrained net. CIFAR: SGD, momentum 0.9, batch 128, **300 epochs**, MultiStep learning-rate schedule. Pruning happens inside the cycle, at an epoch they choose by sub-network stability, and the remaining epochs finish the pruned net. CIFAR numbers are means of three runs. On their ResNet-56 table the row I can read cleanly is **38.88% of FLOPs remaining, 41.42% of parameters, 93.97 → 93.65, drop 0.32**. A second printed row is 38.82 / 42.26, 94.01 → 93.50, drop 0.51. The 21 Sep note used the second. Both are “about 39% of FLOPs and about 42% of parameters.” VGG-16 CIFAR-10 in the same paper keeps as little as 26% or 21% of FLOPs (93.88 and 93.76). VGG-19 CIFAR-100: 70.47 at about 11% of FLOPs. Their DepGraph reprint matches the CVPR table (93.53 → 93.64, drop written as −0.11 because accuracy rose).
-
-**What we measured on our side of that table, recipe A, 2 passes, no agent:**
-
-- Full ResNet-56 twin: mild −3.3 @ 66.1% kept; L1 −5.1 @ 41.5% kept. This is our loop, not a reproduction of their +0.11.
-- VGG-16 CIFAR-10: mild −3.5 @ 65.7%; L1 −3.5 @ 41.1%.
-- VGG-19 CIFAR-100: the selected point is the **unpruned** network. The walk does leave the band later (validation around −31). We do not quote that as success.
-
-**Learning rate.** Adam at 0.001 is the training recipe. It recovers CIFAR-10 and admitted **0 of 8** CIFAR-100 candidates. Adam at 0.0001 admits 4 of 8 CIFAR-100 nets and fails the CIFAR-10 control by more than a point. SGD at 0.01 admits 2 of 8 and also fails that control. So there is still no one recipe for both datasets. CIFAR-100 stays out of the training catalog until that is decided.
-
-**Learned agents, cheap ResNet-56 only** (not Catalog L):
-
-| Policy | Test Δacc @ params kept |
-|---|---|
-| In-band linear reward, episode 95, and the same point again at episode 83 | **−7.1 @ 75.6%** |
-| Original NEON reward, uncubed (v2c) | −7.4 @ 75.7% |
-| Always-keep-90%, 2 passes | −6.6 @ 92.3% |
-| Always-keep-90%, 3 passes | −6.9 @ 92.3% |
-| Hardest legal cut, 2 passes (L1) | −7.8 @ 89.8% |
-| Hardest legal cut, 3 passes | −7.6 @ 91.4% |
-| v3 ranking trains and V4 two-decision head, old reward | about −6.7 to −6.9 @ 92% |
-| Same actor trained with 40-epoch fine-tune inside learning | −7.1 @ 92.3% (no deeper than the 90% rule) |
-
-The 75.6% point is reproduced. A third pass of either hand rule never selects it. Whether it transfers to Catalog L is the next measurement, and it has not been run: the actor that reached 75.6% was trained on a catalog that already contained the full ResNet-56 and VGG-16, so it cannot be captioned as transfer on L1 or L2. Three trains on a catalog that excludes those architectures followed: two have finished (their saved snapshots are not tested yet), the third — the two-decision head — is still running, and a fourth agent with cost-shaped actions and an explicit stop is queued behind this week's recovery walks (§2b). We will not quote any of them until a trajectory finishes.
-
-**200-epoch SGD.** One such fine-tune of a single already-pruned ResNet-56 is a few GPU-hours, not a week. Putting 200 epochs inside every step of agent training would multiply the training by roughly an order of magnitude and mix the solver’s budget into the agent. The locked protocol says: not now, and never as a new training job. Optional later, one network, only if a transferred actor is close enough that the fine-tune budget is the remaining question.
-
-### 2b. In flight this week — implemented and submitted on 27 Sep, **no results yet**
-
-These are not findings. They are the experiments that follow from §1 and §2, written here so you see what is running before the numbers arrive. Every one is a switch that is off by default; the running method is unchanged until a test says otherwise.
-
-**Two informed ways to “generate a new layer”, tested without an agent** (same 90 % walk as the table in §1, on the skinny ResNet-56 and on the full-width ResNet-56 twin):
-
-| Recovery | What changes at each cut | What it is compared with | It is dropped if |
+| Method | Work done **per target network** | Recovery on the target | Cost of the **next** network |
 |---|---|---|---|
-| **A-LSQ** (keep survivors + least-squares refit) | The surviving filters stay. Every layer that *reads* the pruned channels has its weights re-solved in closed form so that it reproduces its own pre-cut output from the channels that remain (He, Zhang, Sun, ICCV 2017). BatchNorm statistics are re-estimated. Then the usual whole-network fine-tune. | today’s recipe at the same size | it is not at least as accurate as today’s recipe at equal size on both networks |
-| **C-PCA** (a generated layer, not a random one) | The pruned layer is *replaced* by a layer of the new width whose filters are the principal directions of the old layer’s activations — your “generate a new layer”, with the information kept instead of thrown away. The reading layers are rotated to match; along a residual stream every producer is rotated the same way so the skip additions stay consistent. BatchNorm re-estimated; same fine-tune. | today’s recipe at the same size | it is more than about one point worse than today’s recipe at equal size |
+| **SPECTRA** | **none** — one offline training on the catalog (days of one GPU, amortised over every later network) | 40 epochs / patience 10 per accepted cut; a 2-pass walk of a full-width ResNet-56 or VGG-16 is **2–6 GPU-hours** measured, a thin pair 3–5 | one walk plus short fine-tunes; no learning |
+| DepGraph | dependency-graph grouping, then **group-sparsity learning on the target** | fine-tune in the style of pre-training (their reproduce script separates a sparse-learning stage and a fine-tune stage) | repeat sparse learning + fine-tune |
+| OCSPruner | **one full training cycle from scratch on the target** (300 SGD epochs on CIFAR, mean of three runs) | inside the cycle | repeat the cycle |
+| AMC | a **reinforcement-learning search per target** (DDPG over layer sparsities) | fine-tune after the search | repeat search + fine-tune |
+| Network Slimming / GReg / ResRep / C-SGD / Polar | **sparsity or regularised training on the target** before the cut | fine-tune (or iterate) | repeat |
+| PruningBench (benchmark) | iterative pruning to a FLOPs target with DepGraph grouping | **fixed 100-epoch SGD fine-tune** per pruned model | repeat |
+| Same-loop heuristics (ours) | none | our 40 / 10 | same as SPECTRA without the agent |
 
-A third small control runs BatchNorm re-estimation alone on today’s recipe, so that any gain of A-LSQ can be attributed to the refit and not to the statistics.
+Our numbers are measured from Slurm job times; the compared methods' budgets are taken from the epoch counts in their published scripts and papers, to be multiplied by a CIFAR epoch measured on our GPU. Two totals will be reported: cost per additional network (SPECTRA lower by construction) and cost of the first network including our offline training (SPECTRA higher).
 
-**One fine-tune recipe for every architecture and dataset.** You required that the method not change with the target. Today’s Adam at 0.001 recovers CIFAR-10 and fails CIFAR-100 in 12 epochs; a smaller constant does the opposite. The candidate that could pass both is not a new constant but a **schedule**: AdamW (decoupled weight decay, same decay the SGD arm already had), one epoch of linear warm-up, then cosine decay to 1e-5, inside the same 12 epochs, with BatchNorm re-estimated first. The rationale is Liu et al. (ICLR 2020): Adam’s first steps have a very large variance and warm-up is the standard remedy; our CIFAR-100 failure is an early-step failure. The alternate arm is RAdam, which needs no warm-up. Both run on the CIFAR-10 control and on the eight CIFAR-100 candidates. Pass = within half a point of today’s recipe on CIFAR-10 **and** at least four of eight CIFAR-100 networks recover a real cut. If both arms fail, the training recipe stays Adam 0.001 on CIFAR-10 only and we write that down.
+#### 1.4 What "better" means — three bars, in this order, never substituted for one another
 
-**One new learned agent: cost-shaped actions with an explicit stop.** Instead of “keep 90 % or 80 % of this layer”, the action is “remove 1, 2 or 4 % of the *whole network* through this group”, or “stop here”. The same request then means the same thing on a 16-channel stem and a 256-channel stage, and the agent chooses the operating depth itself instead of our post-hoc rule choosing it. Everything else is the recipe of the best learned policy so far (the linear in-band reward, the same 10-network catalog, the new selection score). It is dropped if its walk still matches a fixed-rate heuristic at equal size on the skinny ResNet-56. The action shape follows AMC (He et al., ECCV 2018), which clipped per-layer sparsity onto a FLOP budget; the explicit stop is ours.
+1. **Budget.** One frozen agent prunes the benchmark networks with zero per-network search. Met by design; written first.
+2. **Same loop, matched size.** On cells the agent never saw, its operating point is at least as accurate as the same-loop heuristics at equal size, or reaches an in-band size the heuristics cannot. **This is the bar the current trainings are for.** Not met yet (loss 2).
+3. **Beside the published number, size-matched.** Our row at 2.57× next to DepGraph's 93.53 → 93.64. Expected below it under a 40-epoch fine-tune; said so in print.
 
-**Fixed this week, not an experiment.** The score that picked which training snapshot to test was the depth of the cut only; it saturated at the depth of the 90 % rule on the two probe networks, so the first snapshot that copied the rule was always the one tested. The new score weights the depth by the accuracy slack that remains, so a kinder policy at the same depth can win.
+*The sentence:* on the CIFAR test set of DepGraph plus OCSPruner's VGG-16 cell, a single frozen SPECTRA agent — trained once on a catalog containing none of these architectures and never adapted to a target — prunes to a size-matched operating point with no per-network search, at an accuracy reported next to the same-loop heuristics and to the published, differently fine-tuned, results.
 
-### 3. Questions for you
+#### 1.5 The counterparts
 
-1. Is the throw-away table enough to leave random layer replacement as a dense-net method, with keep-leftover as the CNN method — or do you want one retry under the source’s train-loss stopping rule before we close it?
-2. For “generate a new layer” on CNNs, is a layer built from the old activations (a projection the next layer can follow) an acceptable reading, as opposed to a random draw?
-3. The three bars, in this order: we are cheaper on the next network because there is no per-target search; we try to match our own heuristics at the same size while transferring; we print our short fine-tune next to DepGraph’s +0.11 and expect to be worse. Does that order still match what you want on the slide?
+Values are the papers' own (or, where marked *T1*, as reprinted in DepGraph's Table 1, which the OCSPruner paper reprints again). "Per-target" means the method trains, searches or regularises on the network being pruned; SPECTRA does none of that.
+
+| Method | Authors, year | In one paragraph | Methodology | Net — before → after (kept / speed-up) |
+|---|---|---|---|---|
+| **DepGraph** (Torch-Pruning) | Fang, Ma, Song, Mi, Wang — CVPR 2023 | Builds a dependency graph of every layer so that coupled parameters (residual sums, concatenations, depthwise ties) are grouped automatically and pruned consistently on any architecture; a group-level norm criterion plus a group sparsity regulariser ("sparse learning") drives the coupled parameters to zero together before the cut. The library (Torch-Pruning) is now the de-facto grouping engine for the field and for PruningBench. | Per-target: grouping → sparse learning on the target → prune → fine-tune. Released pruned checkpoints and the pretrained bases we hold. | ResNet-56 C10 **93.53 → 93.64 (+0.11) at 2.57×**; 93.77 (+0.24) at 2.11×; without sparse learning 93.46 (−0.07) at 2.11×. VGG-19 C100 **73.50 → 70.39 (−3.11) at 8.92×**; without SL 67.60 (−5.90). ResNet-50 ImageNet: >2× at −0.32. |
+| **OCSPruner** | Ghimire, Kil, Kim — WACV 2026 (arXiv 2501.13439) | Folds pre-training, pruning and fine-tuning into one training cycle: a norm-based *group* saliency and structured-sparsity regularisation shrink candidate groups early in training; a stability indicator (similarity of consecutive epochs' sub-networks) picks the epoch at which the structure is frozen; the remaining epochs finish the pruned net. Cheapest of the per-target methods in training cost. | Per-target: one cycle from scratch (300 SGD epochs on CIFAR, means of three runs); also a pretrained-start variant. Pruned models released; the base is trained inside the cycle. | ResNet-56 C10 93.97 → **93.65 (−0.32) at 38.9 % FLOPs / 41.4 % params kept**; pretrained-start 94.01 → 93.50 (−0.51) at 38.8 % / 42.3 %. VGG-16 C10 **93.88 at 26.0 % FLOPs**, 93.76 at 21.2 %; pretrained-start 94.07 → 93.63 (−0.44) at 21.2 % FLOPs / 13.7 % params. VGG-19 C100 **70.47 at ≈11 % FLOPs**; pretrained-start 73.58 → 69.98 (−3.64) at 11.2 % / 10.1 %. ResNet-50 ImageNet 76.29 → 76.22 at 51.7 % FLOPs. |
+| **AMC** | He, Lin, Liu, Wang, Li, Han — ECCV 2018 | The DRL ancestor of cost-shaped pruning: a DDPG agent walks the layers of *one* target network, emits a continuous sparsity ratio per layer under a FLOPs or accuracy constraint, and is rewarded by the pruned accuracy (with a log-FLOPs term); the agent is trained anew for every network and the result is fine-tuned. | Per-target RL search (hundreds of episodes per net), then fine-tune. No released CIFAR checkpoints. | ResNet-56 C10 **92.8 → 91.9 (−0.9) at 2.0× (50 % FLOPs)** (*T1*); Plain-20 C10 90.5 → 90.2 at 50 % FLOPs (their Table). ImageNet MobileNet-v1/ResNet-50 at ≈50 % FLOPs within ≈0.1–0.4. |
+| **Network Slimming** | Liu, Li, Shen, Huang, Yan, Zhang — ICCV 2017 | An L1 penalty on the BatchNorm scale factors during training makes unimportant channels' γ shrink to zero; channels are then pruned by a global γ threshold and the net is fine-tuned (optionally repeated). The BN-scale ranking we carry as a same-loop criterion comes from here. | Per-target: sparsity training → global threshold → fine-tune / iterate. Nets: VGG-19, ResNet-164, DenseNet-40 on CIFAR-10/100 (+SVHN). | VGG-19 C10 **93.66 → 93.80** (70 % channels; **11.5 % params, 49 % FLOPs kept**); C100 **73.26 → 73.48** (24.9 % params, 62.9 % FLOPs). ResNet-164 C10 94.58 → 94.92 (40 %) / 94.73 (60 %: 64.8 % params, 55.1 % FLOPs); C100 76.63 → 77.13 / 76.09 (70.3 % / 49.4 %). DenseNet-40 C10 93.89 → 94.81 / 94.35 (34.8 % / 45.0 %); C100 74.64 → 74.72 / 74.28 (45.4 % / 52.9 %). |
+| **GReg** | Wang, Qin, Zhang, Fu — ICLR 2021 | Grows an L2 penalty on the filters selected for removal until their weights collapse, so the network adapts *during* the regularisation rather than after the cut; two variants (GReg-1 by magnitude, GReg-2 with a Hessian-informed selection). Shows that the regularisation schedule, not the criterion, carries most of the result. | Per-target regularised training → prune → fine-tune. | ResNet-56 C10 93.36 → **93.18 (−0.18) / 93.36 (0.00) at 2.55×** (*T1*). VGG-19 C100 74.02 → **67.55 (−6.67) / 67.75 (−6.27) at 8.84×** (*T1*). |
+| **HRank** | Lin, Ji, Wang, Zhang, Zhang, Tian, Shao — CVPR 2020 | Ranks filters by the average rank of the feature maps they produce (a data-driven criterion that is stable across batches), prunes the low-rank ones layer-wise, and fine-tunes. PruningBench finds it strong on VGG and weak on ResNets. | Per-target feature-map ranking → prune → fine-tune. | ResNet-56 C10 **93.26 → 93.17 (−0.09) at 50 % FLOPs / 57.6 % params kept**; VGG-16 C10 93.96 → 93.43 at 46.5 % FLOPs / 17.1 % params kept. |
+| **FPGM** | He, Liu, Wang, Hu, Yang — CVPR 2019 | Prunes the filters closest to the geometric median of their layer (the most replaceable ones) instead of the smallest-norm ones, softly during training so that pruned filters may recover; the FPGM ranking is one of our same-loop criteria. | Per-target soft pruning during training → hard prune → fine-tune. | ResNet-56 C10 **93.59 → 93.26 (−0.33) at 1.70×** (*T1*; their own table: 93.49 fine-tuned from pretrained at 52.6 % FLOPs removed). |
+| **ResRep** | Ding, Hao, Tan, Liu, Han, Guo, Ding — ICCV 2021 | "Lossless" pruning by re-parameterisation: a compactor (1×1) after each conv absorbs the channel selection, trained with a penalty and *gradient resetting* so that the original weights are untouched; the compactor is then folded away. | Per-target training with compactors → fold → (light) fine-tune. | ResNet-56 C10 **93.71 → 93.71 (0.00) at 2.12×** (52.9 % FLOPs removed). |
+| **C-SGD / Polar / SFP** (quoted rows) | Ding et al. CVPR 2019 / Zhuang et al. NeurIPS 2020 / He et al. IJCAI 2018 | Three more per-target training schemes on the same ResNet-56 cell: centripetal SGD makes filters converge so duplicates can be removed; a polarisation regulariser on BN scales separates kept from pruned channels; soft filter pruning zeroes filters during training but lets them update. | Per-target. | ResNet-56 C10: C-SGD 93.39 → 93.44 (+0.05) at 2.55×; Polar 93.80 → 93.83 (+0.03) at 1.88×; SFP 93.59 → 93.36 (−0.23) at 2.11× (*T1*). |
+| **PruningBench** | Li, Li, Xue, Fang, Zhou, Feng, Wang, Wang, Cheng, Song, Song — 2024 (arXiv 2406.12315; Zhejiang U.) | The first unified benchmark of structural pruning: DepGraph grouping, iterative pruning to a FLOPs target, one fixed fine-tune for everyone, 16 importance criteria and sparsity regularisers on ResNet-18/50 and VGG-19 (CIFAR-100), ResNet/ViT (ImageNet), YOLOv8 (COCO) — 645 pruned models, 13 leaderboards. Finding: plain L1/L2 magnitude is top-5 almost everywhere; regularisers help only 57 % of the time. | Benchmark protocol, per pruned model: prune → **SGD 0.01, 100 epochs, step decay** (CIFAR-100 bases trained by them, 200 epochs). | VGG-19 C100 base **73.87** (= our zoo twin): 2× MagnitudeL2 73.88 (+0.01, 35.6 % params); 4× OBD-C 72.42 (−1.45, 11.1 %), FPGM 71.79 (−2.08, 15.3 %); 8× LAMP 69.91 (−3.96, 4.2 %), MagnitudeL1 61.20 (−12.67). ResNet-50 C100 78.35 → 78.68 (+0.33) at 2×; ResNet-18 C100 75.61 → 75.89 (+0.28) at 2×. |
+| *Rethinking the Value of Network Pruning* | Liu, Sun, Zhou, Huang, Darrell — ICLR 2019 | Not a pruner: shows that training the pruned *architecture* from scratch for a full budget matches or beats fine-tuning the inherited weights — the guideline behind our reading of layer replacement (random weights are fair only when the whole small net is trained). | Analysis. | — |
+
+**Our rows on the same cells today (same loop, no agent, recipe A, 2 passes, 40/10):** R56·C10 on DepGraph's weights: 90 %-rule −3.1 at 66.1 % params / 66.2 % FLOPs; L1 −3.7 at 57.5 % / 48.2 %. Zoo twin: −3.3 at 66 %; L1 −5.1 at 41.5 %. VGG16·C10: −3.5 at 65.7 %; L1 −3.5 at 41.1 % / 44.2 % FLOPs. VGG19·C100 (zoo twin): unpruned selected. Frozen-agent rows: not yet quotable (the agents trained without these architectures are still in training or untested).
+
+**Checkpoints and networks — what we hold, what we import.** Held and runnable: DepGraph's ResNet-56 C10 and VGG-19 C100 weights (the VGG-19 file uses DepGraph's own module layout and needs a small loader, written next); zoo twins for ResNet-20/32/44/56, VGG-11/13/16/19-BN on CIFAR-10 and CIFAR-100, MobileNet-v2, DenseNet-40 (C100), ShuffleNet-v2, RepVGG; ImageNet ResNet-50 / MobileNet-v2 / DenseNet-121 / VGG-16 / ShuffleNet. To import into the **hold-out** catalogs (never training): **ResNet-164 (BN) CIFAR-10/100** and **DenseNet-40 CIFAR-10** (Network Slimming's nets; pytorchcv has both), **PruningBench's ResNet-18 / ResNet-50 CIFAR-100** bases (their release), and AMC's **Plain-20** (a plain CIFAR net we can train once). OCSPruner's bases are produced inside its cycle, so only its published rows are quoted. GoogLeNet-CIFAR (HRank) is not planned.
+
+### 2. Recovery — "throw away the pruned layer" carried to CNNs, and the smart-reset discipline
+
+**What NEON did** (Hirsch & Katz 2022, §3, inside the pruning loop, in training and at test): generate a new layer of the target width, initialise it at random, freeze every other layer, train the new one to convergence; `action = 1` skips both. The public source also rebuilds the next linear layer and a fresh BatchNorm and trains those three modules, with patience 10 on the **training** loss.
+
+**SPECTRA's live path is the alternative that paper rejected:** keep the surviving filters, fine-tune the whole network (recipe **A**). Every alternative below is a default-off switch, tested first **without an agent** on the same fixed 90 %-per-step walk, on three networks, against recipe A at equal size — the smart-reset rule: nothing enters the training loop until it beats A on the fixed walk, and a loser is crossed off in writing.
+
+| Recovery at each cut | Skinny ResNet-20 | Skinny ResNet-56 | Full ResNet-56 (zoo twin) | Verdict |
+|---|---|---|---|---|
+| **A** — keep survivors, fine-tune all (live) | −3.4 @ 53.6 % | −6.6 @ 92.3 % | −3.3 @ 66.1 % (earlier run −3.9) | reference |
+| **C-G** — random new group, freeze rest, train group (NEON-literal) | −0.9 @ 98.8 % | −0.1 @ 99.9 % | −0.5 @ 99.9 % | no real cut; crossed off |
+| **C-G+** — C-G, then a short low-rate polish of the whole net | −10.3 @ 88.4 % | −0.2 @ 99.9 % | −1.0 @ 99.9 % | crossed off |
+| **C-G, pruned layer only** (the oral wording) | −0.7 @ 98.8 % | +0.0 @ 99.9 % | not rerun; the skinny pair matched the group scope | crossed off |
+| **C-PCA** — *generated* layer: principal directions of the old activations, consumers rotated, residual streams share one basis | −6.0 @ 53.6 % | −7.7 @ 97.5 % | −5.2 @ 94.6 % | worse everywhere; crossed off |
+| **A-LSQ** — keep survivors, closed-form least-squares refit of every reader of the cut channels, then A | −4.1 @ 53.6 % | **−6.2 @ 92.3 %** | −4.3 @ 66.1 % | kinder on one of three; fails "≥ A on both"; kept as an off switch |
+| **A + BatchNorm re-estimation** (control for A-LSQ) | −4.1 @ 53.6 % | −6.9 @ 92.3 % | — | no gain; internal caption only |
+
+Initialisation in the redraw arms is Kaiming normal, biases zero, BatchNorm reset to scale 1 / shift 0; unit tests check that producer weights change and, in the pruned-layer-only scope, consumer weights do not. The empty result is the experiment, not a missed redraw.
+
+**Why a dense net tolerated this and a residual CNN does not.** NEON's new layer owns its output; a ResNet block is `F(x) + x`, and a random (or even PCA-projected) `F` is added to a frozen path, so the block must relearn a function that the surviving filters already had. A real caveat: our from-scratch group stops on validation patience 6 (groups often plateau near epoch 26 of a 60-epoch cap), harsher than NEON's train-loss rule; it does not explain an empty band on every network, including the polished arm, because keep-survivors recovers a cut under a *shorter* fine-tune. The literature that reinitialises CNN weights (Liu et al., ICLR 2019) retrains the **entire** pruned architecture for a full budget; it never drops one random layer into a frozen residual network. Least-squares consumer refit (He, Zhang & Sun 2017; ThiNet) is the published way to adapt readers while keeping survivors — now measured, above.
+
+**Crossed off:** layer replacement — random or generated — as the CNN recovery; a learned agent trained under any replacement recipe. **Kept:** recipe A as the recovery of the evaluation protocol; A-LSQ and BN re-estimation as documented off-switches.
+
+### 3. One fine-tune recipe for every network, and the training catalog
+
+You required that the method not change with the target. The recovery recipe is therefore one recipe for every architecture and dataset, and CIFAR-100 networks enter the training catalog only when that one recipe recovers them. Gate: a candidate is *admitted* when the same 2-pass 90 % walk finds an in-band point at ≤ 98 % of parameters.
+
+| Recipe (12 epochs, patience 4, inside training) | CIFAR-10 thin control (must stay within 0.5 pt of Adam 0.001) | CIFAR-100 candidates admitted (8) | Verdict |
+|---|---|---|---|
+| Adam 0.001 (live) | reference at 12 epochs: −5.3 @ 53.6 % / −6.5 @ 93.3 % | **0 / 8** | live; CIFAR-10 only |
+| Adam 0.0001 | fails (> 1 pt worse) | 4 / 8 | crossed off |
+| SGD 0.01, momentum, wd 5e-4 | fails | 2 / 8 | crossed off |
+| AdamW + 1-epoch warm-up + cosine to 1e-5 | fails (−7.1 @ 53.6 %; −7.8 @ 83.2 %) | 0 / 8 | crossed off |
+| RAdam | fails (−5.6 @ 65.5 %; −8.2 @ 83.2 %) | 2 / 8 (VGG-11 −5.0 @ 81 %, VGG-13 −6.7 @ 84 %) | crossed off |
+| **Adam, patience 4, cap 40** — the budget, not the rate, is the variable; the cap binds only where 12 epochs were truncating (CIFAR-100) | running | running | **the open arm** (at 0.001 and at 0.0001) |
+
+The reading so far: whatever helps CIFAR-100 in 12 epochs hurts the CIFAR-10 control — the lever that is left is the **budget**, applied uniformly. If the cap-40 arm passes both halves, CIFAR-100 networks enter the catalog under that one recipe; if it fails, the recipe stays Adam 0.001 and CIFAR-100 remains a test-only dataset, written down as such.
+
+**The training catalog is being diversified, not kept CIFAR-10.** The current live catalog (nine CIFAR-10 networks across ResNet, VGG, MobileNet-v2 and DenseNet families plus one SVHN VGG) exists because it is the set the recipe recovers today, and because every benchmark architecture had to leave it. The target design is a **16-network catalog** — eight CIFAR-10 and eight admitted CIFAR-100 networks, balanced across families — and it is emitted automatically from the admission gate; nothing is hand-picked. Hold-outs stay out by construction: the three benchmark cells, the thin/similar/unlike coverage sets, Fashion-MNIST, ImageNet.
+
+**Why ImageNet is not in the training catalog.** One pruning step in our loop is prune → fine-tune → re-extract features. On CIFAR a fine-tune epoch of a ResNet-56 is under a minute on one GPU; on ImageNet a single epoch of ResNet-50 is on the order of an hour on the same card, so one agent episode (30–100 cuts, 12 epochs each) becomes days instead of minutes, and a training of a few hundred episodes becomes a year of one GPU. Per your directive ImageNet is the *dataset* hold-out: the frozen CIFAR-trained agent is applied to ImageNet networks (ResNet-50, MobileNet-v2, DenseNet-121, VGG-16, ShuffleNet) with the same loop, and that transfer is the strongest genericity claim we can make; it is also the most expensive test we run (one walk per network, tens of GPU-hours), so it runs on frozen agents only.
+
+### 4. The learned agent — where it stands and what is running
+
+**Diagnosis of "why does every agent copy the 90 % rule."** Four moving parts were identified and are being removed one at a time: (i) the cube-root that compressed the in-band reward made the mildest legal cut risk-optimal — fixed, the in-band term is linear and the first agent trained with it is the one that reached 75.6 %; (ii) the score that picked which training snapshot to test measured only depth of cut and saturated at the 90 %-rule's depth, so the first snapshot that copied the rule was always the one tested — fixed, the score now weights depth by remaining accuracy slack; (iii) the action is a per-layer keep rate, so "keep 90 %" means a different thing on a 16-channel stem and a 256-channel stage — being tested by the cost-shaped agent below; (iv) the state is a sequence of layers with channel coupling entering only as one learned attention scalar — being tested by the group-token agent below.
+
+| Agent | One change vs its control | Status | It is dropped if |
+|---|---|---|---|
+| In-band linear reward (the 75.6 % policy) | reward | tested on the diagnostic pair, reproduced from two snapshots; **not** transfer-quotable (its catalog still contained ResNet-56 and VGG-16) | — (superseded by the trains below on the clean catalog) |
+| Same recipe on the **clean** catalog, area selection score | catalog | trained; snapshots not yet walked | its walk is a fixed-rate heuristic at equal size |
+| Two-decision head (keep-rate × ranking criterion) on the clean catalog | action factorisation | in training (day 6); probe scores still small | same |
+| **Budget + STOP** — action = "remove 1, 2 or 4 % of the *whole network* through this group" or "stop"; the agent chooses its own operating depth (AMC's cost shaping plus an explicit stop AMC does not have) | action semantics | in training | its walk matches a fixed-rate heuristic at equal size on the diagnostic ResNet-56 |
+| **Group-as-token** — one token per prune unit (the coupled group) instead of per layer, with learned "feeds / fed-by" relations between units; token width and relations pinned in the policy contract | state representation | implemented, unit-tested on the cluster environment; queued behind the running jobs | its walk matches the layer-token control at equal size |
+| Shared trunk for actor and critic | encoder sharing | designed; a separate later cell, after group-token reads | — |
+
+Every agent is tested first on the cheap diagnostic pair (skinny ResNet-20 / ResNet-56), then, only if it is not a heuristic clone, on the coverage set and on the three benchmark cells at both operating points. **200-epoch SGD inside the training loop** is not done: it would multiply training by an order of magnitude and mix the solver's budget into the agent; a single long fine-tune on one already-pruned cell stays optional for bar 3.
+
+### 5. What has been done to make this solid
+
+Done:
+
+- Benchmark protocol locked and written: three cells on the field's own checkpoints, two operating points, one loop for every method, metrics row, budget table, three ordered bars.
+- DepGraph's ResNet-56 checkpoint loads exactly and has been walked by both same-loop heuristics; DepGraph's VGG-19 file is on the cluster.
+- Training catalogs rebuilt to exclude every benchmark architecture; an automatic test enforces train/test disjointness on every catalog file.
+- Selection is validation-based and reported on test, from a pinned policy contract that every evaluation must replay; the two probe networks and the selection score were both corrected.
+- Recovery fixed to keep-survivors by a controlled 7-recipe × 3-network table; layer replacement crossed off with numbers.
+- Reward corrected (in-band linear); first policy past the 90 % rule inside the band, reproduced.
+- Counterfactual state probe shows the encoder is read (38 % / 53 % of decisions change).
+- Literature pass: DepGraph, OCSPruner, AMC, Network Slimming, GReg, HRank, FPGM, ResRep, C-SGD/Polar/SFP, PruningBench verified against the papers and tabulated on our cells (§1.5).
+- 304 unit tests pass on the cluster environment; every new idea is a default-off switch.
+
+Ongoing (one line each):
+
+- Budget-not-rate fine-tune arm (Adam, patience 4, cap 40, at 0.001 and 0.0001): CIFAR-10 control + eight CIFAR-100 candidates.
+- Budget + STOP agent training on the clean catalog.
+- Two-decision-head agent training on the clean catalog (day 6).
+- Group-as-token agent queued on the clean catalog.
+- Snapshots of the finished clean-catalog trains awaiting their diagnostic walks.
+- DepGraph VGG-19 CIFAR-100 loader, then the same-loop heuristics on that checkpoint.
+- Hold-out imports: ResNet-164, DenseNet-40 CIFAR-10, PruningBench ResNet-18/50 CIFAR-100, Plain-20.
+
+### 6. Way ahead, in order
+
+1. Close the recipe question with the cap-40 arm; emit the diversified catalog from the gate.
+2. Walk the finished clean-catalog snapshots on the diagnostic pair; keep only agents that are not heuristic clones.
+3. Read Budget + STOP and group-as-token on the same pair; adopt whichever moves the walk, one change at a time.
+4. First transfer-quotable agent: coverage set, then the three benchmark cells at both operating points, printed with the heuristics and the published rows.
+5. Budget table from measured job times; ImageNet walks of the frozen agent.
+6. Optional, only if bar 2 is met and the size-matched ResNet-56 row is close: one run with DepGraph's long fine-tune on that single cell.
+
+What we will not do: claim to beat DepGraph or OCSPruner on their home cells; train the agent on ImageNet; put a benchmark network into training.
+
+### 7. Questions for you
+
+1. Is the recovery table (§2) enough to leave layer replacement as a dense-net method, with keep-survivors as the CNN recovery — or do you want one retry under the source's train-loss stopping rule before we close it?
+2. Is a layer built from the old activations (C-PCA) an acceptable reading of "generate a new layer"? It has now been measured and loses; if you had a different construction in mind, this is the moment to name it.
+3. The three bars in this order — budget, same loop at matched size while transferring, printed beside the published number — is that still the slide?
+4. If the cap-40 arm also fails, do you agree that CIFAR-100 becomes a test-only dataset for the thesis, with the training catalog diversified across families on CIFAR-10 + SVHN?
 
 ---
 
-## עברית — פירוט
+## עברית
 
-### 1. זריקת המשקולות: מה NEON עשה, ובאיזה שלב
+### 0. תקציר מנהלים
 
-Hirsch & Katz 2022, סעיף 3, בתוך לולאת הגיזום (אלגוריתם 1), לא כשלב נפרד אחרי האימון:
+SPECTRA הוא סוכן גיזום מבני **קפוא וגנרי**: מאומן פעם אחת, לא-מקוון, על קטלוג של רשתות CNN מאומנות, ואז מופעל על רשתות שמעולם לא ראה, בלי חיפוש או אימון פר-יעד. כל שיטה מתחרה בטבלאות למטה מאמנת, מחפשת או מרגלת **על רשת היעד**. ההבדל הזה הוא טענת התזה, והוא קובע את סדר שלושת הרפים: (1) זולים יותר לכל רשת נוספת, מבנייה; (2) לפחות כמו ההיוריסטיקות באותה לולאה ובאותו גודל **תוך העברה**; (3) מודפסים ביושר ליד המספרים המפורסמים של השיטות המאומנות-על-היעד, מתוך ציפייה להיות מתחתיהם.
 
-- **החלפת שכבה.** במקום למחוק נוירונים, מייצרים שכבה חדשה בגודל הרצוי. היא מחליפה את השכבה שנבדקה. המשקולות מאותחלות באקראי.
-- **כיוונון השכבה.** מקפיאים כל שכבה מלבד החדשה, ומאמנים עד התכנסות.
-- אותה לולאה היא גם האימון הלא-מקוון של הסוכן **וגם** שלב המבחן, כשהסוכן המאומן מופעל על רשת שהוא לא התאמן עליה. פעולה «בלי חיתוך» מדלגת גם על ההחלפה וגם על הכיוונון.
+המדידה היא עכשיו פרוטוקול משוחזר ולא רשימת רשתות: סט המבחן של DepGraph על CIFAR, על **המשקולות שהם עצמם פרסמו**, ועוד תא ה-VGG-16 של OCSPruner, כששאר השיטות בתחום (AMC, Network Slimming, GReg, HRank, FPGM, ResRep, PruningBench) מצוטטות על אותם תאים (סעיף 1). הלולאה שלנו כבר רצה על משקולות ה-ResNet-56 של DepGraph. צד האימון נבנה מחדש כך שאף ארכיטקטורת מדידה לא נמצאת בקטלוג, ומשמעת של **איפוס חכם** שולטת בכל רעיון חדש: כל רעיון הוא מתג שכבוי כברירת מחדל, נבדק קודם בלי סוכן על מסלול קבוע מול המתכון החי, ונמחק בכתב כשהוא מפסיד (סעיפים 2, 3).
 
-בקוד המקורי נבנות גם השכבה הלינארית הבאה וגם נורמליזציית אצווה חדשה, ומאמנים את שלושת המודולים. הסבלנות במקור היא 10 אפוקים על **הפסד האימון**, לא על ולידציה. המשפט במאמר מזכיר רק את השכבה החדשה.
+**הישגים מובילים (ניתנים לציטוט):**
 
-המסלול החי ב-SPECTRA הוא השיטה שהמאמר דחה: שומרים את המסננים ששרדו, ומאמנים את כל הרשת. ניסויי הזריקה על CNN משנים רק את השחזור, על מסלול כפוי של 90%, בלי סוכן.
+1. **המדידה של התחום רצה בלולאה שלנו, על המשקולות שלהם.** ResNet-56 של DepGraph על CIFAR-10 (פורסם 93.53%): מסלול כלל ה-90% באותה לולאה — 3.1− נקודות ב-66% פרמטרים; מסלול L1 — 3.7− ב-57.5% פרמטרים / 48% FLOPs. אלו השורות המותאמות-τ שהסוכן הקפוא צריך לעבור בתא הזה.
+2. **המדיניות הנלמדת הראשונה שיוצאת מכלל ה-90% בתוך התקציב.** הסוכן עם התגמול הליניארי-בטווח שומר **75.6%** מהפרמטרים של ResNet-56 האבחוני ב-7.1− נקודות, ושוב מ-snapshot אימון שני. אף היוריסטיקה בקצב קבוע לא מגיעה לגודל הזה בתוך הטווח, גם לא במעבר שלישי (כלל ה-90% נעצר ב-92.3%; מסלול L1 הקשוח ביותר ב-89.8–91.4%).
+3. **דחיסה אמיתית של רשתות סטנדרטיות בתוך הטווח, תחת כיוונון קצר.** תאום ResNet-56 ברוחב מלא 3.3− ב-66%; VGG-16 על CIFAR-10 3.5− ב-66% ו-3.5− ב-41% (מסלול L1). אלו שורות ההיוריסטיקה באותה לולאה בשניים משלושת התאים.
+4. **הסוכן קורא את הרשת, לא רק את ההטיה של עצמו.** איפוס או ערבוב של טוקני השכבות משנה 38% (ResNet-20) ו-53% (ResNet-56) מהחלטות הסוכן הקפוא על מסלולים זהים — המקודד בשימוש, ולכן הייצוג הוא מנוף חי.
+5. **תשובה סגורה ומבוקרת ל«לזרוק ולייצר מחדש».** ארבע צורות של החלפת שכבה × שלוש רשתות, אותו מסלול, אותו תקציב, בלי סוכן — טבלה אחת (סעיף 2). שלילית, אך חד-משמעית, והיא מקבעת את השחזור שכל ההערכה נשענת עליו.
 
-הטבלה זהה לזו שבחלק האנגלי: השארת המסננים דוחסת; זריקה משאירה כמעט את הרשת המלאה (מעל 98% פרמטרים); ליטוש לא מציל; ציור מחדש של השכבה הגזומה בלבד נכשל כמו הציור המלא.
+**כישלונות מובילים (ניתנים לציטוט):**
 
-האתחול הוא Kaiming, ההטיה אפס, והנורמליזציה מאופסת. בדיקות יחידה מאשרות שהמשקולות של השכבה הגזומה משתנות, ובמצב «רק השכבה הגזומה» משקולות השכבה הבאה לא משתנות. התוצאה הריקה היא הניסוי, לא ציור שנשכח.
+1. **החלפת שכבה לא עוברת מרשתות צפופות ל-CNN שיורי.** הגרלה מחדש של הקבוצה (NEON מילולי), הגרלה + ליטוש, הגרלה של השכבה הגזומה בלבד, ושכבה שנוצרה ב-PCA — כולן לא משחזרות **אף חיתוך אמיתי** (הנקודות שנבחרו ב-94.6–99.9% פרמטרים, או 2–3 נקודות גרוע יותר באותו גודל). שמירת המסננים ששרדו מנצחת בכל רשת.
+2. **אף מדיניות נלמדת עוד לא עוברת את ההיוריסטיקות באותה לולאה ובאותו גודל.** כל סוכני תפריט-הדירוג, הראש הדו-החלטי (קצב × קריטריון), והסוכן עם כיוונון 40 אפוקים קפאו להעתק של כלל ה-90% (92.3% נשמרים, 6.6− עד 6.9−). מדיניות ה-75.6% עמוקה יותר, לא עדינה יותר (7.1− מול 6.6− ב-92%).
+3. **מתכון כיוונון אחד עוד לא משחזר CIFAR-100.** ב-12 אפוקים: Adam 0.001 מכניס 0 מ-8 מועמדי CIFAR-100; AdamW עם חימום ודעיכה קוסינוסית 0 מ-8; RAdam 2 מ-8; Adam 0.0001 4 מ-8 אבל שובר את ביקורת CIFAR-10; SGD 0.01 2 מ-8 ושובר אותה. לכן קטלוג האימון הוא היום CIFAR-10 + SVHN, ותוכנית הגיוון (סעיף 3) תלויה בזרוע התקציב שרצה עכשיו.
+4. **VGG-19 על CIFAR-100 — התא השני של DepGraph — בוחר את הרשת הלא-גזומה.** כל חיתוך תחת המתכון שלנו יוצא מהטווח (ולידציה 30−); להיוריסטיקות באותה לולאה אין שם עדיין נקודה בטווח לצטט.
+5. **שתי גרסאות איפוס «מושכלות» ושני לוחות אופטימיזציה נכשלו גם הם בכללי המעבר שלהם.** התאמת ריבועים פחותים של הצרכנים (A-LSQ) עדינה יותר רק באחת משלוש רשתות (6.2− מול 6.6−) וגרועה בשתי האחרות; החלפה ב-PCA גרועה בכל מקום; אמידת BatchNorm לבדה לא מרוויחה כלום.
 
-למה רשת צפופה סבלה את זה ו-ResNet לא: ב-NEON השכבה החדשה בעלת הפלט שלה. ב-ResNet הפלט הוא `F(x) + x`, ו-`F` אקראי מתווסף למסלול קפוא. בנוסף, הקוד עוצר קבוצה מאקראי לפי סבלנות ולידציה של 6 אפוקים מההתחלה (בפועל הרבה קבוצות נעצרות סביב אפוק 26 מתוך 60). זה קשוח יותר מכלל הפסד-האימון של NEON. זו הסתייגות אמיתית. היא לא מסבירה פס ריק על כל הרשתות, כולל זרוע הליטוש, כי השארת המסננים מצליחה בחיתוך תחת כיוונון *קצר יותר*.
+### 1. מערך המדידה
 
-הספרות שמאתחלת מחדש משקולות CNN באקראי (Liu ושות׳, ICLR 2019) מאמנת את **כל** הרשת הקטנה לתקציב אימון מלא. היא לא שותלת שכבה אקראית אחת בתוך רשת שיורית קפואה. הכלל שכדאי לאמץ: משקולות אקראיות הן בסיס הוגן רק כשכל הרשת הקטנה מאומנת. התאמה בריבועים פחותים של השכבה הבאה (He ושות׳ 2017; ThiNet) היא הדרך המפורסמת להתאים את הצרכן בלי לזרוק את המסננים ששרדו. את זה עוד לא הרצנו.
+#### 1.1 (א) על מה מאמנים, על מה בוחנים
 
-**למחוק:** זריקה כיעד אימון ל-CNN; סוכן לומד תחת C-G, עד ששחזור לא-אקראי ישחזר את מסלול השארת-המסננים.
-**פתוח אצלך:** האם הטבלה מספיקה כדי להשאיר החלפת שכבה אקראית כשיטה לרשתות צפופות, או שאתה רוצה ניסיון אחד תחת כלל העצירה של המקור לפני שסוגרים.
+**אימון — ריצה לא-מקוונת אחת, ואז הקפאה.** קטלוג של רשתות CIFAR מאומנות מכמה משפחות (ResNet רזה וסטנדרטי, VGG-BN, MobileNet-v2, DenseNet), על **CIFAR-10 ו-SVHN** היום, עם **CIFAR-100 שמתקבל רשת-רשת** ברגע שמתכון הכיוונון היחיד משחזר אותה (סעיף 3). הקטלוג **מוציא כל ארכיטקטורת מדידה לפי ארכיטקטורה, לא רק לפי משקולות**: אין ResNet-56 ברוחב סטנדרטי, אין VGG-16 על CIFAR-10, אין VGG-19 על שני הדאטהסטים. בדיקה אוטומטית נכשלת אם קובץ אימון וקובץ מבחן משתפים אי-פעם רשת.
 
-### 2. מדידה: מה נעול, ומה נמדד
+**סט מבחן 1 — הפרוטוקול המשוחזר (שקף הוועדה). שלושה תאים:**
 
-שלושה תאים. הסוכן שנצטט לא יאומן על הארכיטקטורות האלה.
-
-**הפרוטוקול של DepGraph** (Fang ושות׳, CVPR 2023). הם הולכים אחרי ResRep ו-GReg. המספר הראשי ב-CIFAR-10 הוא 93.53 ל-93.64 (**+0.11**) ב-**2.57×** פחות FLOPs, עם למידת דלילות על אותה רשת ואז כיוונון בסגנון האימון המקורי. במאמר עצמו אין מספר אפוקים בטקסט הראשי. בלי למידת דלילות, האבלציה שלהם היא 93.46 (‏0.07−) ב-2.11×. VGG-19 על CIFAR-100: 73.50 ל-70.39 (‏3.11−) בכ-8.9×. נצטט. לא נממש את הפותר. להכניס את הפותר שלהם ל-SPECTRA זה לוותר על הטענה של סוכן קפוא.
-
-**הפרוטוקול של OCS** (Ghimire ושות׳, WACV 2026). מחזור אימון אחד מאפס, לא גיזום-ואז-כיוונון של רשת מאומנת. CIFAR: SGD, מומנטום 0.9, אצווה 128, **300 אפוקים**. הגיזום קורה בתוך המחזור, והאפוקים שנשארים מסיימים את הרשת הגזומה. המספרים הם ממוצע של שלושה ניסיונות. בשורת ResNet-56 שאפשר לקרוא נקי: **38.88% מה-FLOPs נשארים, 41.42% מהפרמטרים, 93.97 ל-93.65, ירידה 0.32**. שורה מודפסת שנייה: 38.82 / 42.26, 94.01 ל-93.50, ירידה 0.51. הפתק מ-21 בספטמבר השתמש בשנייה. שתיהן «בערך 39% FLOPs ובערך 42% פרמטרים».
-
-**מה שנמדד אצלנו, בלי סוכן:** תאום ResNet-56 מוצא חיתוך (מינוס 3.3 ב-66%). VGG-16 על CIFAR-10 דומה. VGG-19 על CIFAR-100: הנקודה שנבחרת היא הרשת המלאה.
-
-**קצב למידה.** Adam ב-0.001 הוא מתכון האימון. הוא משחזר CIFAR-10 והכניס **0 מתוך 8** מועמדי CIFAR-100. Adam ב-0.0001 מכניס 4 מתוך 8 ונכשל בביקורת CIFAR-10 ביותר מנקודה. SGD ב-0.01 מכניס 2 מתוך 8 וגם נכשל בביקורת. אין עדיין מתכון אחד לשני מסדי הנתונים.
-
-**סוכנים שנלמדו, רק על ResNet-56 הזול:** הרשת עם התגמול הלינארי שומרת 75.6% בירידה של 7.1, פעמיים. כלל ה-90% נשאר ב-92% גם במעבר שלישי. הסוכן שהגיע ל-75.6% אומן על קטלוג שכבר כלל את ResNet-56 המלא ואת VGG-16, ולכן אי אפשר לכנות את זה העברה על תאי L1 או L2. שלושה אימונים על קטלוג בלי הארכיטקטורות האלה באו אחריו: שניים הסתיימו (ה-snapshots שנשמרו עדיין לא נבדקו), השלישי — הראש הדו-החלטי — עדיין רץ, וסוכן רביעי עם פעולות במונחי תקציב ועצירה מפורשת עומד בתור אחרי הליכות השחזור של השבוע (סעיף 2ב). לא נצטט אף אחד מהם עד שמסלול יסתיים.
-
-**200 אפוקים של SGD.** כיוונון אחד של ResNet-56 שכבר נגזם הוא כמה שעות GPU, לא שבוע. לשים 200 אפוקים בכל צעד של אימון הסוכן מכפיל את האימון בסדר גודל ומערבב את תקציב המאמר לתוך הסוכן. לפי הפרוטוקול שננעל: לא עכשיו, ולא כאימון חדש.
-
-### 2ב. בתנועה השבוע — יושם והוגש ב-27 בספטמבר, **עדיין בלי תוצאות**
-
-אלה לא ממצאים. אלה הניסויים שנובעים מסעיפים 1 ו-2, כתובים כאן כדי שתראה מה רץ לפני שהמספרים מגיעים. כל אחד מהם הוא מתג שכבוי כברירת מחדל; השיטה הרצה לא משתנה עד שמבחן אומר אחרת.
-
-**שתי דרכים «מושכלות» לייצר שכבה חדשה, בלי סוכן** (אותו מסלול 90% כמו בטבלה בסעיף 1, על ResNet-56 הרזה ועל תאום ה-ResNet-56 ברוחב מלא):
-
-| שחזור | מה משתנה בכל חיתוך | מול מה משווים | נזרק אם |
+| תא | רשת | המשקולות שאנחנו גוזמים | של מי המבחן המפורסם |
 |---|---|---|---|
-| **A-LSQ** (שומרים מסננים + התאמת ריבועים פחותים) | המסננים ששרדו נשארים. לכל שכבה ש**קוראת** את הערוצים שנגזמו פותרים מחדש את המשקולות בצורה סגורה, כך שהיא משחזרת את הפלט שלה מלפני החיתוך מתוך הערוצים שנותרו (He, Zhang, Sun, ICCV 2017). סטטיסטיקות ה-BatchNorm נאמדות מחדש. אחר כך הכיוונון הרגיל של כל הרשת. | המתכון של היום באותו גודל | לא לפחות מדויק כמו המתכון של היום באותו גודל, בשתי הרשתות |
-| **C-PCA** (שכבה שנוצרת, לא מוגרלת) | השכבה הגזומה **מוחלפת** בשכבה ברוחב החדש שהמסננים שלה הם הכיוונים הראשיים של האקטיבציות של השכבה הישנה — «לייצר שכבה חדשה» שלך, כשהמידע נשמר במקום להיזרק. השכבות הקוראות מסובבות בהתאמה; לאורך זרם שיורי כל היצרנים מסובבים באותו אופן כדי שחיבורי הדילוג יישארו עקביים. BatchNorm נאמד מחדש; אותו כיוונון. | המתכון של היום באותו גודל | גרוע ביותר מנקודה אחת בערך מהמתכון של היום באותו גודל |
+| **R56·C10** | ResNet-56 על CIFAR-10 | המשקולות שפרסם DepGraph (93.53%) — נטענות בדיוק לתוך ResNet-56 שלנו וכבר נגזמו במסלול | DepGraph, OCSPruner, AMC, FPGM, HRank, ResRep, GReg, C-SGD, SFP, Polar |
+| **VGG16·C10** | VGG-16-BN על CIFAR-10 | משקולות זו סטנדרטיות (93.6% בטוען שלנו) | OCSPruner, HRank, Network Slimming (גרסת VGG-19), Li ושות׳ |
+| **VGG19·C100** | VGG-19-BN על CIFAR-100 | המשקולות שפרסם DepGraph (73.50%); התאום מהזו שלנו (73.87%) נגזם בינתיים | DepGraph, OCSPruner, GReg, EigenDamage, PruningBench (הבסיס שלהם גם 73.87) |
 
-בקרה קטנה שלישית מריצה רק את אמידת ה-BatchNorm על המתכון של היום, כדי שרווח של A-LSQ ייוחס להתאמה ולא לסטטיסטיקות.
+**סט מבחן 2 — כיסוי העברה (טענת הגנריות).** רשתות ודאטהסטים שהסוכן לא ראה: בני-דודים של ResNet רזים ורחבים, VGG-19 על CIFAR-10, DenseNet, שתי משפחות שאינן באימון (ShuffleNet-v2, RepVGG), ושני דאטהסטים שאינם באימון — **Fashion-MNIST** ו-**ImageNet** (בדיקות ResNet-50 / MobileNet-v2, ללא אימון). סט 1 עונה «איך זה נראה על המדידה של התחום»; סט 2 עונה «האם הסוכן הקפוא עבר». אף אחד לא מחליף את השני.
 
-**מתכון כיוונון אחד לכל ארכיטקטורה ולכל דאטהסט.** דרשת שהשיטה לא תשתנה עם היעד. Adam ב-0.001 של היום משחזר CIFAR-10 ונכשל ב-CIFAR-100 ב-12 אפוקים; קבוע קטן יותר עושה את ההפך. המועמד שיכול לעבור את שניהם אינו קבוע חדש אלא **לוח זמנים**: AdamW (ירידת משקל מנותקת, אותה ירידה שהייתה כבר לזרוע ה-SGD), אפוק אחד של חימום ליניארי, ואז דעיכה קוסינוסית ל-1e-5, בתוך אותם 12 אפוקים, עם אמידת BatchNorm קודם. ההיגיון הוא Liu ושות׳ (ICLR 2020): לצעדים הראשונים של Adam שונות גדולה מאוד וחימום הוא התיקון המקובל; הכישלון שלנו ב-CIFAR-100 הוא כישלון של צעדים ראשונים. הזרוע החלופית היא RAdam, שלא צריך חימום. שתיהן רצות על ביקורת CIFAR-10 ועל שמונה מועמדי CIFAR-100. עובר = בטווח חצי נקודה מהמתכון של היום על CIFAR-10 **וגם** לפחות ארבע מתוך שמונה רשתות CIFAR-100 משחזרות חיתוך אמיתי. אם שתי הזרועות נכשלות, מתכון האימון נשאר Adam 0.001 על CIFAR-10 בלבד, ונכתוב זאת.
+**שתי נקודות הפעלה לכל שיטה, בכל תא.** (1) *הכלל שלנו:* הנקודה הדחוסה ביותר שירידת ה**ולידציה** שלה בתוך 10 נקודות, מדווחת על סט ה**מבחן** — הנקודה המדווחת לעולם לא נבחרת על סט המבחן. (2) *הגודל שלהם:* המסלול נמשך עד הדחיסה המפורסמת (2.57× FLOPs של DepGraph על ResNet-56; היחס שלהם על VGG-19; כ-42% פרמטרים של OCS), מדווח גם אם הולידציה יצאה מהטווח ומסומן כמותאם-גודל. רק הנקודה השנייה מודפסת ליד מספר מפורסם.
 
-**סוכן לומד חדש אחד: פעולות במונחי תקציב עם עצירה מפורשת.** במקום «שמור 90% או 80% מהשכבה הזאת», הפעולה היא «הסר 1, 2 או 4% מ**כל הרשת** דרך הקבוצה הזאת», או «עצור כאן». אותה בקשה אז אומרת אותו דבר על stem של 16 ערוצים ועל שלב של 256 ערוצים, והסוכן בוחר בעצמו את עומק הפעולה במקום שכלל בדיעבד שלנו יבחר אותו. כל השאר הוא המתכון של המדיניות הנלמדת הטובה ביותר עד כה (הגמול הליניארי בתוך הטווח, אותו קטלוג של 10 רשתות, ציון הבחירה החדש). נזרק אם המסלול שלו עדיין תואם היוריסטיקה בקצב קבוע באותו גודל על ResNet-56 הרזה. צורת הפעולה הולכת אחרי AMC (He ושות׳, ECCV 2018), שקטע דלילות פר-שכבה לתקציב FLOPs; העצירה המפורשת היא שלנו.
+**אותה לולאה לכל שיטה.** הסוכן הנלמד וההיוריסטיקות הפשוטות (שמור 90% מכל קבוצה; חתוך לפי גודל L1) משתפים את המסלול, את השחזור (40 אפוקי כיוונון, סבלנות 10, Adam 0.001) ואת כלל הבחירה. מספרים מפורסמים שומרים על פרוטוקול הכיוונון שלהם בכיתוב; שום דבר לא מומר.
 
-**תוקן השבוע, לא ניסוי.** הציון שבחר איזה snapshot של האימון נבדוק היה עומק החיתוך בלבד; הוא התרווה בעומק של כלל ה-90% על שתי רשתות הבחינה, ולכן ה-snapshot הראשון שהעתיק את הכלל היה תמיד זה שנבדק. הציון החדש משקלל את העומק ברווח הדיוק שנותר, כך שמדיניות עדינה יותר באותו עומק יכולה לנצח.
+#### 1.2 (ב) מטריקות
 
-### 3. שאלות אליך
+שורה אחת לכל שיטה ורשת:
 
-1. האם טבלת הזריקה מספיקה כדי להשאיר החלפת שכבה אקראית כשיטה לרשתות צפופות, והשארת מסננים כשיטת ה-CNN — או שאתה רוצה ניסיון אחד תחת כלל העצירה של קוד המקור?
-2. האם שכבה שנבנית מהאקטיבציות הישנות (היטל שהשכבה הבאה יכולה לעקוב אחריו) היא קריאה קבילה של «לייצר שכבה חדשה», להבדיל מהגרלה?
-3. שלושת הרפים, בסדר הזה: זולים יותר על הרשת הבאה כי אין חיפוש לכל יעד; מנסים להשתוות להיוריסטיקות שלנו באותו גודל תוך העברה; מדפיסים את הכיוונון הקצר שלנו ליד ‎+0.11‎ של DepGraph ומצפים להיות גרועים יותר. האם הסדר הזה עדיין מה שאתה רוצה בשקף?
+`דיוק מקורי | דיוק גזום | Δ דיוק (נקודות) | פרמטרים שנשמרו (שבר, מיליונים) | FLOPs שנשמרו (שבר, מיליונים) | האצה = 1 / FLOPs שנשמרו | מתכון השחזור ותקציבו`
+
+הדיוק המקורי תמיד מודפס (המשקולות שלנו ושלהם נבדלות בעד נקודה; ה-ResNet-56 של DepGraph נקרא 93.2% בטוען המבחן שלנו מול 93.53% אצלם). כשהיוריסטיקה לא מגיעה לגודל של הסוכן בתוך הטווח, זה מודפס במפורש — הפער הוא תוצאת לוח-הזמנים הנלמד.
+
+#### 1.3 (ג) תקציבים — היכן אנחנו יעילים יותר, והיכן לא
+
+| שיטה | עבודה **לכל רשת יעד** | שחזור על היעד | עלות **הרשת הבאה** |
+|---|---|---|---|
+| **SPECTRA** | **אין** — אימון לא-מקוון אחד על הקטלוג (ימים של GPU אחד, מופחת על כל רשת עתידית) | 40 אפוקים / סבלנות 10 לכל חיתוך; מסלול דו-מעברי של ResNet-56 או VGG-16 ברוחב מלא הוא **2–6 שעות GPU** נמדדות, זוג רזה 3–5 | מסלול אחד וכיוונונים קצרים; בלי למידה |
+| DepGraph | קיבוץ בגרף תלויות, ואז **למידת דלילות קבוצתית על היעד** | כיוונון בסגנון האימון המקדים (סקריפט השחזור שלהם מפריד שלב למידה דלילה ושלב כיוונון) | חזרה על למידה דלילה + כיוונון |
+| OCSPruner | **מחזור אימון מלא אחד מאפס על היעד** (300 אפוקי SGD על CIFAR, ממוצע שלוש ריצות) | בתוך המחזור | חזרה על המחזור |
+| AMC | **חיפוש למידת-חיזוק לכל יעד** (DDPG על דלילות השכבות) | כיוונון אחרי החיפוש | חזרה על חיפוש + כיוונון |
+| Network Slimming / GReg / ResRep / C-SGD / Polar | **אימון דליל או מרוגל על היעד** לפני החיתוך | כיוונון (או איטרציה) | חזרה |
+| PruningBench (בנצ׳מרק) | גיזום איטרטיבי ליעד FLOPs עם קיבוץ DepGraph | **כיוונון SGD קבוע של 100 אפוקים** לכל מודל גזום | חזרה |
+| היוריסטיקות באותה לולאה (שלנו) | אין | 40 / 10 שלנו | כמו SPECTRA בלי הסוכן |
+
+המספרים שלנו נמדדים מזמני העבודות ב-Slurm; תקציבי השיטות המושוות נלקחים מספירת האפוקים בסקריפטים ובמאמרים שלהם, להכפלה באפוק CIFAR שנמדד על ה-GPU שלנו. ידווחו שני סכומים: עלות לרשת נוספת (SPECTRA נמוך יותר מבנייה) ועלות הרשת הראשונה כולל האימון הלא-מקוון שלנו (SPECTRA גבוה יותר).
+
+#### 1.4 מה פירוש «טוב יותר» — שלושה רפים, בסדר הזה, בלי להחליף ביניהם
+
+1. **תקציב.** סוכן קפוא אחד גוזם את רשתות המדידה בלי חיפוש פר-רשת. מתקיים מבנייה; נכתב ראשון.
+2. **אותה לולאה, גודל מותאם.** בתאים שהסוכן לא ראה, נקודת הפעולה שלו לפחות מדויקת כמו ההיוריסטיקות באותה לולאה באותו גודל, או מגיעה לגודל בטווח שההיוריסטיקות לא מגיעות אליו. **זה הרף שהאימונים הנוכחיים נועדו לו.** עוד לא מתקיים (כישלון 2).
+3. **ליד המספר המפורסם, מותאם-גודל.** השורה שלנו ב-2.57× ליד 93.53 ← 93.64 של DepGraph. צפוי מתחתיו תחת כיוונון של 40 אפוקים; נאמר בדפוס.
+
+*המשפט:* על סט המבחן של DepGraph ב-CIFAR ועוד תא ה-VGG-16 של OCSPruner, סוכן SPECTRA קפוא יחיד — מאומן פעם אחת על קטלוג שאינו מכיל אף אחת מהארכיטקטורות האלה ולא מותאם ליעד — גוזם לנקודת הפעלה מותאמת-גודל בלי חיפוש פר-רשת, בדיוק שמדווח ליד ההיוריסטיקות באותה לולאה וליד התוצאות המפורסמות, שכוונונן שונה.
+
+#### 1.5 השיטות המושוות
+
+הערכים הם של המאמרים עצמם (או, כשמסומן *T1*, כפי שהודפסו מחדש בטבלה 1 של DepGraph, שמאמר OCSPruner מדפיס שוב). «פר-יעד» = השיטה מאמנת, מחפשת או מרגלת על הרשת הנגזמת; SPECTRA לא עושה דבר מזה.
+
+| שיטה | מחברים, שנה | בפסקה אחת | מתודולוגיה | רשת — לפני ← אחרי (נשמר / האצה) |
+|---|---|---|---|---|
+| **DepGraph** (Torch-Pruning) | Fang, Ma, Song, Mi, Wang — CVPR 2023 | בונה גרף תלויות של כל שכבה כך שפרמטרים מצומדים (סכומים שיוריים, שרשורים, קשרי depthwise) מקובצים אוטומטית ונגזמים בעקביות בכל ארכיטקטורה; קריטריון נורמה קבוצתי ומרַגֵל דלילות קבוצתי («למידה דלילה») מובילים את הפרמטרים המצומדים לאפס יחד לפני החיתוך. הספרייה (Torch-Pruning) היא היום מנוע הקיבוץ בפועל של התחום ושל PruningBench. | פר-יעד: קיבוץ ← למידה דלילה על היעד ← גיזום ← כיוונון. משקולות גזומות ובסיסים מאומנים שוחררו ואצלנו. | ResNet-56 C10 **93.53 ← 93.64 (‏+0.11) ב-2.57×**; 93.77 (‏+0.24) ב-2.11×; בלי למידה דלילה 93.46 (‏0.07−) ב-2.11×. VGG-19 C100 **73.50 ← 70.39 (‏3.11−) ב-8.92×**; בלי SL 67.60 (‏5.90−). ResNet-50 ImageNet: מעל 2× ב-0.32−. |
+| **OCSPruner** | Ghimire, Kil, Kim — WACV 2026 (arXiv 2501.13439) | מקפל אימון מקדים, גיזום וכיוונון למחזור אימון אחד: בולטוּת *קבוצתית* מבוססת-נורמה ורגולריזציית דלילות מבנית מכווצות קבוצות מועמדות מוקדם באימון; מחוון יציבות (דמיון תת-הרשתות בין אפוקים עוקבים) בוחר את האפוק שבו המבנה מוקפא; האפוקים הנותרים מסיימים את הרשת הגזומה. הזול ביותר בעלות אימון בין שיטות פר-היעד. | פר-יעד: מחזור אחד מאפס (300 אפוקי SGD על CIFAR, ממוצע שלוש ריצות); גם גרסה מהתחלה מאומנת. מודלים גזומים שוחררו; הבסיס מאומן בתוך המחזור. | ResNet-56 C10 93.97 ← **93.65 (‏0.32−) ב-38.9% FLOPs / 41.4% פרמטרים**; מהתחלה מאומנת 94.01 ← 93.50 (‏0.51−) ב-38.8% / 42.3%. VGG-16 C10 **93.88 ב-26.0% FLOPs**, 93.76 ב-21.2%; מהתחלה מאומנת 94.07 ← 93.63 (‏0.44−) ב-21.2% FLOPs / 13.7% פרמטרים. VGG-19 C100 **70.47 בכ-11% FLOPs**; מהתחלה מאומנת 73.58 ← 69.98 (‏3.64−) ב-11.2% / 10.1%. ResNet-50 ImageNet 76.29 ← 76.22 ב-51.7% FLOPs. |
+| **AMC** | He, Lin, Liu, Wang, Li, Han — ECCV 2018 | האב הקדמון ב-DRL של גיזום מעוצב-עלות: סוכן DDPG עובר על שכבות רשת יעד *אחת*, פולט יחס דלילות רציף לכל שכבה תחת אילוץ FLOPs או דיוק, ומתוגמל בדיוק הגזום (עם איבר log-FLOPs); הסוכן מאומן מחדש לכל רשת והתוצאה מכוונת. | חיפוש RL פר-יעד (מאות אפיזודות לרשת), ואז כיוונון. אין משקולות CIFAR משוחררות. | ResNet-56 C10 **92.8 ← 91.9 (‏0.9−) ב-2.0× (‏50% FLOPs)** (*T1*); Plain-20 C10 90.5 ← 90.2 ב-50% FLOPs (הטבלה שלהם). ImageNet MobileNet-v1/ResNet-50 בכ-50% FLOPs בטווח כ-0.1–0.4. |
+| **Network Slimming** | Liu, Li, Shen, Huang, Yan, Zhang — ICCV 2017 | קנס L1 על גורמי הסקאלה של BatchNorm בזמן האימון מכווץ את γ של ערוצים לא חשובים לאפס; הערוצים נגזמים לפי סף γ גלובלי והרשת מכוונת (אפשר לחזור). דירוג BN-scale שאנחנו נושאים כקריטריון באותה לולאה מגיע מכאן. | פר-יעד: אימון דליל ← סף גלובלי ← כיוונון / איטרציה. רשתות: VGG-19, ResNet-164, DenseNet-40 על CIFAR-10/100 (‏+SVHN). | VGG-19 C10 **93.66 ← 93.80** (‏70% ערוצים; **11.5% פרמטרים, 49% FLOPs נשמרו**); C100 **73.26 ← 73.48** (‏24.9% פרמטרים, 62.9% FLOPs). ResNet-164 C10 94.58 ← 94.92 (‏40%) / 94.73 (‏60%: 64.8% פרמטרים, 55.1% FLOPs); C100 76.63 ← 77.13 / 76.09 (‏70.3% / 49.4%). DenseNet-40 C10 93.89 ← 94.81 / 94.35 (‏34.8% / 45.0%); C100 74.64 ← 74.72 / 74.28 (‏45.4% / 52.9%). |
+| **GReg** | Wang, Qin, Zhang, Fu — ICLR 2021 | מגדיל קנס L2 על המסננים שנבחרו להסרה עד שמשקולותיהם קורסות, כך שהרשת מסתגלת *בזמן* הרגולריזציה ולא אחרי החיתוך; שתי גרסאות (GReg-1 לפי גודל, GReg-2 עם בחירה מבוססת-הסיאן). מראה שלוח הרגולריזציה, לא הקריטריון, נושא את רוב התוצאה. | אימון מרוגל פר-יעד ← גיזום ← כיוונון. | ResNet-56 C10 93.36 ← **93.18 (‏0.18−) / 93.36 (‏0.00) ב-2.55×** (*T1*). VGG-19 C100 74.02 ← **67.55 (‏6.67−) / 67.75 (‏6.27−) ב-8.84×** (*T1*). |
+| **HRank** | Lin, Ji, Wang, Zhang, Zhang, Tian, Shao — CVPR 2020 | מדרג מסננים לפי הדרגה הממוצעת של מפות המאפיינים שהם מייצרים (קריטריון מבוסס-נתונים שיציב בין אצוות), גוזם את נמוכי-הדרגה שכבה-שכבה ומכוונן. PruningBench מוצא אותו חזק על VGG וחלש על ResNet. | דירוג מפות מאפיינים פר-יעד ← גיזום ← כיוונון. | ResNet-56 C10 **93.26 ← 93.17 (‏0.09−) ב-50% FLOPs / 57.6% פרמטרים נשמרו**; VGG-16 C10 93.96 ← 93.43 ב-46.5% FLOPs / 17.1% פרמטרים. |
+| **FPGM** | He, Liu, Wang, Hu, Yang — CVPR 2019 | גוזם את המסננים הקרובים ביותר לחציון הגיאומטרי של השכבה שלהם (הניתנים ביותר להחלפה) במקום את קטני-הנורמה, בצורה רכה במהלך האימון כך שמסננים גזומים יכולים להתאושש; דירוג FPGM הוא אחד הקריטריונים שלנו באותה לולאה. | גיזום רך פר-יעד במהלך האימון ← גיזום קשה ← כיוונון. | ResNet-56 C10 **93.59 ← 93.26 (‏0.33−) ב-1.70×** (*T1*; בטבלה שלהם: 93.49 מכוונן מרשת מאומנת ב-52.6% FLOPs שהוסרו). |
+| **ResRep** | Ding, Hao, Tan, Liu, Han, Guo, Ding — ICCV 2021 | גיזום «ללא הפסד» באמצעות רה-פרמטריזציה: קומפקטור (1×1) אחרי כל קונבולוציה סופג את בחירת הערוצים, מאומן עם קנס ו*איפוס גרדיאנטים* כך שהמשקולות המקוריות לא נגעו; הקומפקטור מקופל לאחר מכן. | אימון פר-יעד עם קומפקטורים ← קיפול ← כיוונון (קל). | ResNet-56 C10 **93.71 ← 93.71 (‏0.00) ב-2.12×** (‏52.9% FLOPs הוסרו). |
+| **C-SGD / Polar / SFP** (שורות מצוטטות) | Ding ושות׳ CVPR 2019 / Zhuang ושות׳ NeurIPS 2020 / He ושות׳ IJCAI 2018 | עוד שלוש סכימות אימון פר-יעד על אותו תא ResNet-56: SGD צנטריפטלי גורם למסננים להתכנס כך שכפילויות ניתנות להסרה; מרגל קיטוב על סקאלות BN מפריד ערוצים נשמרים מגזומים; גיזום מסננים רך מאפס מסננים באימון אבל מאפשר להם להתעדכן. | פר-יעד. | ResNet-56 C10: C-SGD 93.39 ← 93.44 (‏+0.05) ב-2.55×; Polar 93.80 ← 93.83 (‏+0.03) ב-1.88×; SFP 93.59 ← 93.36 (‏0.23−) ב-2.11× (*T1*). |
+| **PruningBench** | Li, Li, Xue, Fang, Zhou, Feng, Wang, Wang, Cheng, Song, Song — 2024 (arXiv 2406.12315; אונ׳ ג׳ג׳יאנג) | הבנצ׳מרק המאוחד הראשון של גיזום מבני: קיבוץ DepGraph, גיזום איטרטיבי ליעד FLOPs, כיוונון קבוע אחד לכולם, 16 קריטריוני חשיבות ומרגלי דלילות על ResNet-18/50 ו-VGG-19 (CIFAR-100), ResNet/ViT (ImageNet), YOLOv8 (COCO) — 645 מודלים גזומים, 13 טבלאות דירוג. ממצא: גודל L1/L2 פשוט בחמישייה הראשונה כמעט בכל מקום; מרגלים עוזרים רק ב-57% מהמקרים. | פרוטוקול בנצ׳מרק, לכל מודל גזום: גיזום ← **SGD 0.01, 100 אפוקים, דעיכת מדרגות** (בסיסי CIFAR-100 אומנו על ידם, 200 אפוקים). | VGG-19 C100 בסיס **73.87** (= התאום מהזו שלנו): 2× MagnitudeL2 73.88 (‏+0.01, 35.6% פרמטרים); 4× OBD-C 72.42 (‏1.45−, 11.1%), FPGM 71.79 (‏2.08−, 15.3%); 8× LAMP 69.91 (‏3.96−, 4.2%), MagnitudeL1 61.20 (‏12.67−). ResNet-50 C100 78.35 ← 78.68 (‏+0.33) ב-2×; ResNet-18 C100 75.61 ← 75.89 (‏+0.28) ב-2×. |
+| *Rethinking the Value of Network Pruning* | Liu, Sun, Zhou, Huang, Darrell — ICLR 2019 | לא גוזם: מראה שאימון ה*ארכיטקטורה* הגזומה מאפס לתקציב מלא משתווה או עולה על כיוונון המשקולות שנורשו — ההנחיה מאחורי הקריאה שלנו של החלפת שכבה (משקולות אקראיות הוגנות רק כשכל הרשת הקטנה מאומנת). | ניתוח. | — |
+
+**השורות שלנו על אותם תאים היום (אותה לולאה, בלי סוכן, מתכון A, 2 מעברים, 40/10):** R56·C10 על משקולות DepGraph: כלל 90% — 3.1− ב-66.1% פרמטרים / 66.2% FLOPs; L1 — 3.7− ב-57.5% / 48.2%. תאום הזו: 3.3− ב-66%; L1 5.1− ב-41.5%. VGG16·C10: 3.5− ב-65.7%; L1 3.5− ב-41.1% / 44.2% FLOPs. VGG19·C100 (תאום הזו): נבחרה הרשת הלא-גזומה. שורות סוכן קפוא: עדיין לא ניתנות לציטוט (הסוכנים שאומנו בלי הארכיטקטורות האלה עוד באימון או לא נבדקו).
+
+**משקולות ורשתות — מה יש לנו, מה מייבאים.** קיים ורץ: משקולות ResNet-56 C10 ו-VGG-19 C100 של DepGraph (קובץ ה-VGG-19 בפריסת המודולים של DepGraph וצריך טוען קטן, שנכתב בהמשך); תאומי זו ל-ResNet-20/32/44/56, VGG-11/13/16/19-BN על CIFAR-10 ו-CIFAR-100, MobileNet-v2, DenseNet-40 (C100), ShuffleNet-v2, RepVGG; ImageNet ResNet-50 / MobileNet-v2 / DenseNet-121 / VGG-16 / ShuffleNet. לייבוא לקטלוגי ה**החזקה** (לעולם לא לאימון): **ResNet-164 (BN) CIFAR-10/100** ו-**DenseNet-40 CIFAR-10** (הרשתות של Network Slimming; ב-pytorchcv יש את שתיהן), בסיסי **ResNet-18 / ResNet-50 CIFAR-100 של PruningBench** (מהשחרור שלהם), ו-**Plain-20** של AMC (רשת CIFAR פשוטה שאפשר לאמן פעם אחת). הבסיסים של OCSPruner נוצרים בתוך המחזור שלו, ולכן רק השורות המפורסמות שלו מצוטטות. GoogLeNet-CIFAR (‏HRank) לא מתוכנן.
+
+### 2. שחזור — «לזרוק את השכבה הגזומה» מועבר ל-CNN, ומשמעת האיפוס החכם
+
+**מה NEON עשה** (Hirsch & Katz 2022, סעיף 3, בתוך לולאת הגיזום, באימון ובמבחן): לייצר שכבה חדשה ברוחב היעד, לאתחל אקראית, להקפיא כל שכבה אחרת, לאמן את החדשה עד התכנסות; `action = 1` מדלג על שניהם. הקוד הציבורי גם בונה מחדש את השכבה הלינארית הבאה ו-BatchNorm חדש ומאמן את שלושת המודולים, עם סבלנות 10 על הפסד ה**אימון**.
+
+**המסלול החי של SPECTRA הוא החלופה שהמאמר דחה:** לשמור את המסננים ששרדו, לכוונן את כל הרשת (מתכון **A**). כל חלופה למטה היא מתג כבוי כברירת מחדל, שנבדק קודם **בלי סוכן** על אותו מסלול קבוע של 90% לצעד, על שלוש רשתות, מול מתכון A באותו גודל — כלל האיפוס החכם: שום דבר לא נכנס ללולאת האימון עד שהוא עובר את A על המסלול הקבוע, ומפסיד נמחק בכתב.
+
+| שחזור בכל חיתוך | ResNet-20 רזה | ResNet-56 רזה | ResNet-56 מלא (תאום זו) | פסק דין |
+|---|---|---|---|---|
+| **A** — שמור שורדים, כוונן הכל (חי) | 3.4− @ 53.6% | 6.6− @ 92.3% | 3.3− @ 66.1% (ריצה קודמת 3.9−) | ייחוס |
+| **C-G** — קבוצה חדשה אקראית, הקפא שאר, אמן קבוצה (NEON מילולי) | 0.9− @ 98.8% | 0.1− @ 99.9% | 0.5− @ 99.9% | בלי חיתוך אמיתי; נמחק |
+| **C-G+** — C-G ואז ליטוש קצר בקצב נמוך של כל הרשת | 10.3− @ 88.4% | 0.2− @ 99.9% | 1.0− @ 99.9% | נמחק |
+| **C-G, השכבה הגזומה בלבד** (הניסוח בעל-פה) | 0.7− @ 98.8% | ‏+0.0 @ 99.9% | לא הורץ שוב; הזוג הרזה תאם את היקף הקבוצה | נמחק |
+| **C-PCA** — שכבה *שנוצרה*: הכיוונים הראשיים של האקטיבציות הישנות, צרכנים מסובבים, זרמים שיוריים משתפים בסיס אחד | 6.0− @ 53.6% | 7.7− @ 97.5% | 5.2− @ 94.6% | גרוע בכל מקום; נמחק |
+| **A-LSQ** — שמור שורדים, התאמת ריבועים פחותים סגורה של כל קורא של הערוצים שנחתכו, ואז A | 4.1− @ 53.6% | **6.2− @ 92.3%** | 4.3− @ 66.1% | עדין יותר באחת משלוש; נכשל ב«‎≥ A בשתיהן»; נשמר כמתג כבוי |
+| **A + אמידת BatchNorm מחדש** (ביקורת ל-A-LSQ) | 4.1− @ 53.6% | 6.9− @ 92.3% | — | בלי רווח; כיתוב פנימי בלבד |
+
+האתחול בזרועות ההגרלה הוא Kaiming, הטיות אפס, BatchNorm מאופס לסקאלה 1 / הסטה 0; בדיקות יחידה מאשרות שמשקולות היצרנים משתנות, ובהיקף «השכבה הגזומה בלבד» משקולות הצרכנים לא. התוצאה הריקה היא הניסוי, לא הגרלה שנשכחה.
+
+**למה רשת צפופה סבלה את זה ו-CNN שיורי לא.** השכבה החדשה של NEON בעלת הפלט שלה; בלוק ResNet הוא `F(x) + x`, ו-`F` אקראי (או אפילו מוטל ב-PCA) מתווסף למסלול קפוא, ולכן הבלוק צריך ללמוד מחדש פונקציה שכבר הייתה למסננים ששרדו. הסתייגות אמיתית: הקבוצה-מאפס שלנו נעצרת בסבלנות ולידציה 6 (קבוצות נעצרות לרוב סביב אפוק 26 מתוך תקרה של 60), קשוח יותר מכלל הפסד-האימון של NEON; זה לא מסביר פס ריק בכל רשת, כולל זרוע הליטוש, כי שמירת השורדים משחזרת חיתוך תחת כיוונון *קצר יותר*. הספרות שמאתחלת משקולות CNN מחדש (Liu ושות׳, ICLR 2019) מאמנת את **כל** הארכיטקטורה הגזומה לתקציב מלא; היא לעולם לא שותלת שכבה אקראית אחת ברשת שיורית קפואה. התאמת ריבועים פחותים של הצרכנים (He, Zhang & Sun 2017; ThiNet) היא הדרך המפורסמת להתאים קוראים תוך שמירת שורדים — נמדדה עכשיו, למעלה.
+
+**נמחק:** החלפת שכבה — אקראית או מיוצרת — כשחזור ל-CNN; סוכן לומד שמאומן תחת כל מתכון החלפה. **נשמר:** מתכון A כשחזור של פרוטוקול ההערכה; A-LSQ ואמידת BN כמתגים כבויים מתועדים.
+
+### 3. מתכון כיוונון אחד לכל רשת, וקטלוג האימון
+
+דרשת שהשיטה לא תשתנה עם היעד. לכן מתכון השחזור הוא מתכון אחד לכל ארכיטקטורה ודאטהסט, ורשתות CIFAR-100 נכנסות לקטלוג האימון רק כשהמתכון האחד הזה משחזר אותן. שער: מועמד *מתקבל* כשאותו מסלול דו-מעברי של 90% מוצא נקודה בטווח ב-≤ 98% פרמטרים.
+
+| מתכון (12 אפוקים, סבלנות 4, בתוך האימון) | ביקורת CIFAR-10 רזה (חייבת להישאר בתוך 0.5 נק׳ מ-Adam 0.001) | מועמדי CIFAR-100 שהתקבלו (8) | פסק דין |
+|---|---|---|---|
+| Adam 0.001 (חי) | ייחוס ב-12 אפוקים: 5.3− @ 53.6% / 6.5− @ 93.3% | **0 / 8** | חי; CIFAR-10 בלבד |
+| Adam 0.0001 | נכשל (> נקודה גרוע יותר) | 4 / 8 | נמחק |
+| SGD 0.01, מומנטום, wd 5e-4 | נכשל | 2 / 8 | נמחק |
+| AdamW + חימום אפוק אחד + קוסינוס ל-1e-5 | נכשל (7.1− @ 53.6%; 7.8− @ 83.2%) | 0 / 8 | נמחק |
+| RAdam | נכשל (5.6− @ 65.5%; 8.2− @ 83.2%) | 2 / 8 (VGG-11 5.0− @ 81%, VGG-13 6.7− @ 84%) | נמחק |
+| **Adam, סבלנות 4, תקרה 40** — התקציב, לא הקצב, הוא המשתנה; התקרה נוגסת רק היכן ש-12 אפוקים קטעו (CIFAR-100) | רץ | רץ | **הזרוע הפתוחה** (ב-0.001 וב-0.0001) |
+
+הקריאה עד כה: מה שעוזר ל-CIFAR-100 ב-12 אפוקים פוגע בביקורת CIFAR-10 — המנוף שנותר הוא **התקציב**, מופעל אחיד. אם זרוע התקרה-40 עוברת את שני החצאים, רשתות CIFAR-100 נכנסות לקטלוג תחת אותו מתכון אחד; אם נכשלת, המתכון נשאר Adam 0.001 ו-CIFAR-100 נשאר דאטהסט למבחן בלבד, ונכתב כך.
+
+**קטלוג האימון מגוּון, לא נשאר CIFAR-10.** הקטלוג החי הנוכחי (תשע רשתות CIFAR-10 ממשפחות ResNet, VGG, MobileNet-v2 ו-DenseNet ועוד VGG אחת על SVHN) קיים כי זה הסט שהמתכון משחזר היום, וכי כל ארכיטקטורת מדידה נאלצה לצאת ממנו. עיצוב היעד הוא **קטלוג של 16 רשתות** — שמונה CIFAR-10 ושמונה CIFAR-100 שהתקבלו, מאוזנות בין משפחות — והוא נפלט אוטומטית משער הקבלה; דבר לא נבחר ביד. ההחזקות נשארות בחוץ מבנייה: שלושת תאי המדידה, סטי הכיסוי (רזה/דומה/שונה), Fashion-MNIST, ImageNet.
+
+**למה ImageNet לא בקטלוג האימון.** צעד גיזום אחד בלולאה שלנו הוא גיזום ← כיוונון ← חילוץ מאפיינים מחדש. ב-CIFAR אפוק כיוונון של ResNet-56 הוא פחות מדקה על GPU אחד; ב-ImageNet אפוק אחד של ResNet-50 הוא בסדר גודל של שעה על אותו כרטיס, ולכן אפיזודת סוכן אחת (30–100 חיתוכים, 12 אפוקים כל אחד) הופכת מדקות לימים, ואימון של כמה מאות אפיזודות הופך לשנה של GPU אחד. לפי ההנחיה שלך ImageNet הוא החזקת ה*דאטהסט*: הסוכן הקפוא שאומן על CIFAR מופעל על רשתות ImageNet (ResNet-50, MobileNet-v2, DenseNet-121, VGG-16, ShuffleNet) באותה לולאה, וההעברה הזאת היא טענת הגנריות החזקה ביותר שנוכל להעלות; היא גם המבחן היקר ביותר שאנחנו מריצים (מסלול אחד לרשת, עשרות שעות GPU), ולכן הוא רץ על סוכנים קפואים בלבד.
+
+### 4. הסוכן הנלמד — איפה הוא עומד ומה רץ
+
+**אבחון של «למה כל סוכן מעתיק את כלל ה-90%».** זוהו ארבעה חלקים נעים והם מוסרים אחד-אחד: (א) השורש השלישי שדחס את התגמול בטווח הפך את החיתוך המותר העדין ביותר לאופטימלי-סיכון — תוקן, האיבר בטווח ליניארי והסוכן הראשון שאומן איתו הוא זה שהגיע ל-75.6%; (ב) הציון שבחר איזה snapshot אימון לבדוק מדד רק עומק חיתוך והתרווה בעומק של כלל ה-90%, ולכן ה-snapshot הראשון שהעתיק את הכלל היה תמיד זה שנבדק — תוקן, הציון משקלל עומק ברווח הדיוק שנותר; (ג) הפעולה היא קצב שמירה פר-שכבה, ולכן «שמור 90%» אומר דבר אחר על stem של 16 ערוצים ועל שלב של 256 ערוצים — נבדק בסוכן מעוצב-העלות למטה; (ד) המצב הוא סדרת שכבות שצימוד הערוצים נכנס אליה רק כסקלר תשומת-לב נלמד אחד — נבדק בסוכן טוקן-הקבוצה למטה.
+
+| סוכן | השינוי האחד מול הביקורת שלו | מצב | נזרק אם |
+|---|---|---|---|
+| תגמול ליניארי-בטווח (מדיניות ה-75.6%) | תגמול | נבדק על הזוג האבחוני, שוחזר משני snapshots; **לא** ניתן לציטוט כהעברה (הקטלוג שלו עוד הכיל ResNet-56 ו-VGG-16) | — (מוחלף באימונים למטה על הקטלוג הנקי) |
+| אותו מתכון על הקטלוג ה**נקי**, ציון בחירה של שטח | קטלוג | אומן; ה-snapshots עוד לא נגזמו במסלול | המסלול שלו הוא היוריסטיקה בקצב קבוע באותו גודל |
+| ראש דו-החלטי (קצב שמירה × קריטריון דירוג) על הקטלוג הנקי | פירוק הפעולה | באימון (יום 6); ציוני הבחינה עדיין קטנים | כנ״ל |
+| **תקציב + עצירה** — פעולה = «הסר 1, 2 או 4% מ*כל הרשת* דרך הקבוצה הזאת» או «עצור»; הסוכן בוחר בעצמו את עומק הפעולה (עיצוב העלות של AMC ועוד עצירה מפורשת שאין ל-AMC) | סמנטיקת הפעולה | באימון | המסלול שלו תואם היוריסטיקה בקצב קבוע באותו גודל על ResNet-56 האבחוני |
+| **טוקן-קבוצה** — טוקן אחד ליחידת גיזום (הקבוצה המצומדת) במקום לשכבה, עם קשרי «מזין / מוזן» נלמדים בין יחידות; רוחב הטוקן והקשרים נעוצים בחוזה המדיניות | ייצוג המצב | יושם, נבדק ביחידות בסביבת הקלאסטר; בתור אחרי העבודות הרצות | המסלול שלו תואם את ביקורת טוקני-השכבה באותו גודל |
+| גזע משותף לשחקן ולמבקר | שיתוף מקודד | מתוכנן; תא נפרד מאוחר יותר, אחרי קריאת טוקן-הקבוצה | — |
+
+כל סוכן נבדק קודם על הזוג האבחוני הזול (ResNet-20 / ResNet-56 רזים), ואז, רק אם אינו העתק היוריסטיקה, על סט הכיסוי ועל שלושת תאי המדידה בשתי נקודות ההפעלה. **200 אפוקי SGD בתוך לולאת האימון** לא נעשים: זה מכפיל את האימון בסדר גודל ומערבב את תקציב הפותר לתוך הסוכן; כיוונון ארוך יחיד על תא גזום אחד נשאר אופציונלי לרף 3.
+
+### 5. מה נעשה כדי שזה יהיה מוצק
+
+נעשה:
+
+- פרוטוקול מדידה נעול וכתוב: שלושה תאים על המשקולות של התחום, שתי נקודות הפעלה, לולאה אחת לכל שיטה, שורת מטריקות, טבלת תקציב, שלושה רפים מסודרים.
+- משקולות ה-ResNet-56 של DepGraph נטענות בדיוק ונגזמו בשתי ההיוריסטיקות באותה לולאה; קובץ ה-VGG-19 של DepGraph בקלאסטר.
+- קטלוגי האימון נבנו מחדש להוציא כל ארכיטקטורת מדידה; בדיקה אוטומטית מאכפת זרוּת אימון/מבחן בכל קובץ קטלוג.
+- הבחירה מבוססת ולידציה ומדווחת על מבחן, מחוזה מדיניות נעוץ שכל הערכה חייבת לשחזר; שתי רשתות הבחינה וציון הבחירה תוקנו שניהם.
+- השחזור קובע לשמירת-שורדים בטבלה מבוקרת של 7 מתכונים × 3 רשתות; החלפת שכבה נמחקה עם מספרים.
+- התגמול תוקן (ליניארי בטווח); מדיניות ראשונה מעבר לכלל ה-90% בתוך הטווח, משוחזרת.
+- בדיקת מצב נגד-עובדתית מראה שהמקודד נקרא (38% / 53% מההחלטות משתנות).
+- סבב ספרות: DepGraph, OCSPruner, AMC, Network Slimming, GReg, HRank, FPGM, ResRep, C-SGD/Polar/SFP, PruningBench אומתו מול המאמרים וטובלו על התאים שלנו (סעיף 1.5).
+- 304 בדיקות יחידה עוברות בסביבת הקלאסטר; כל רעיון חדש הוא מתג כבוי כברירת מחדל.
+
+בתנועה (שורה אחת לכל אחד):
+
+- זרוע כיוונון תקציב-ולא-קצב (Adam, סבלנות 4, תקרה 40, ב-0.001 וב-0.0001): ביקורת CIFAR-10 ושמונה מועמדי CIFAR-100.
+- אימון סוכן תקציב + עצירה על הקטלוג הנקי.
+- אימון סוכן הראש הדו-החלטי על הקטלוג הנקי (יום 6).
+- סוכן טוקן-קבוצה בתור על הקטלוג הנקי.
+- snapshots של אימוני הקטלוג הנקי שהסתיימו מחכים למסלולי האבחון שלהם.
+- טוען VGG-19 CIFAR-100 של DepGraph, ואז ההיוריסטיקות באותה לולאה על המשקולות האלה.
+- ייבוא החזקות: ResNet-164, DenseNet-40 CIFAR-10, ResNet-18/50 CIFAR-100 של PruningBench, Plain-20.
+
+### 6. הדרך קדימה, לפי הסדר
+
+1. לסגור את שאלת המתכון עם זרוע התקרה-40; לפלוט את הקטלוג המגוון מהשער.
+2. לגזום את snapshots הקטלוג הנקי שהסתיימו על הזוג האבחוני; להשאיר רק סוכנים שאינם העתקי היוריסטיקה.
+3. לקרוא תקציב + עצירה וטוקן-קבוצה על אותו זוג; לאמץ את מה שמזיז את המסלול, שינוי אחד בכל פעם.
+4. סוכן ראשון שניתן לצטט כהעברה: סט הכיסוי, ואז שלושת תאי המדידה בשתי נקודות ההפעלה, מודפסים עם ההיוריסטיקות והשורות המפורסמות.
+5. טבלת תקציב מזמני עבודות נמדדים; מסלולי ImageNet של הסוכן הקפוא.
+6. אופציונלי, רק אם רף 2 מתקיים ושורת ה-ResNet-56 המותאמת-גודל קרובה: ריצה אחת עם הכיוונון הארוך של DepGraph על אותו תא יחיד.
+
+מה שלא נעשה: לטעון שניצחנו את DepGraph או OCSPruner בתאי הבית שלהם; לאמן את הסוכן על ImageNet; להכניס רשת מדידה לאימון.
+
+### 7. שאלות אליך
+
+1. האם טבלת השחזור (סעיף 2) מספיקה כדי להשאיר החלפת שכבה כשיטה לרשתות צפופות, עם שמירת-שורדים כשחזור ה-CNN — או שאתה רוצה ניסיון אחד תחת כלל העצירה של הפסד-האימון מקוד המקור לפני שסוגרים?
+2. האם שכבה שנבנית מהאקטיבציות הישנות (C-PCA) היא קריאה קבילה של «לייצר שכבה חדשה»? היא נמדדה עכשיו ומפסידה; אם הייתה לך בנייה אחרת בראש, זה הרגע לנקוב בה.
+3. שלושת הרפים בסדר הזה — תקציב, אותה לולאה בגודל מותאם תוך העברה, מודפס ליד המספר המפורסם — האם זה עדיין השקף?
+4. אם גם זרוע התקרה-40 נכשלת, האם אתה מסכים ש-CIFAR-100 הופך לדאטהסט מבחן-בלבד בתזה, כשקטלוג האימון מגוון בין משפחות על CIFAR-10 + SVHN?

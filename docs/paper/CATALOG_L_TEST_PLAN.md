@@ -2,6 +2,8 @@
 
 **Status:** Grok 4.6 proposal 19 Sep 2026 16:30 IDT; **§5 locked by Fable 21 Sep 18:10 IDT** (three tightenings, see §5 header); §6 = thesis §4.1 draft. Ido signs → file LOCKED for thesis §4.1. Thesis §4 evaluation / committee SOTA slide.
 
+**Cell labels renamed (Ido, 28 Sep 2026):** the cell ids "L1 / L2 / L3" used below collide with L1/L2 *pruning* and are retired. Read **L1 → R56·C10** (DepGraph ResNet-56 CIFAR-10), **L2 → VGG16·C10** (OCSPruner VGG-16 CIFAR-10), **L3 → VGG19·C100** (DepGraph VGG-19 CIFAR-100). "Catalog L" stays the name of the hold-out catalog. The Gilad-facing statement of this protocol is `docs/paper/GILAD_WEEK_27SEP.md` §1, which supersedes `GILAD_BENCHMARK_SETUP_21SEP.md`.
+
 Canonical companions: `docs/PROMPT_FABLE_V5.md` P7, `docs/paper/LOOP_ALGORITHMS.md` §7, `configs/catalog_l_map.json`, `docs/paper/GILAD_DIRECTIVES_18AUG.md`, 17 Sep oral in `docs/paper/GILAD_MEETING_17SEP.md`. Fable sitting: `docs/PROMPT_FABLE_CATALOG_L.md`.
 
 ---

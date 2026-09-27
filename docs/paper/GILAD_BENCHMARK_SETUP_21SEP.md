@@ -1,5 +1,7 @@
 # Note for Dr. Gilad Katz — the benchmarking setup for SPECTRA (reply to your 19 Sep comment)
 
+> **Superseded.** Every point of this note is merged into `docs/paper/GILAD_WEEK_27SEP.md` §1 (the formal status), with the counterparts table, the checkpoint inventory and the measured same-loop rows. The cell labels L1/L2/L3 used here are retired (they collide with L1/L2 pruning): R56·C10 / VGG16·C10 / VGG19·C100. Kept for the record; do not send.
+
 **From:** Ido Paretsky  
 **Date:** 21 September 2026  
 **What this is:** your comment on the list of networks I sent was right — a list is not an experimental setup. This note gives the setup in the three parts you asked for — (a) what we train on and what we test on, (b) the metrics, (c) the budgets — says what has already been done to make it solid, and what will be done in the coming weeks once we have an agent that beats the simple heuristics by a clear margin. The internal working version, with job numbers and file names, is `docs/paper/CATALOG_L_TEST_PLAN.md`; this note is the readable summary. Hebrew below.

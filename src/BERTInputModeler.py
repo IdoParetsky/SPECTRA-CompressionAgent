@@ -95,8 +95,12 @@ def action_cost_slot_dim(num_actions: Optional[int] = None) -> int:
 
 
 def token_feature_dim(num_actions: Optional[int] = None) -> int:
-    from src.fortify import fortify_token_dim
-    return TOKEN_BASE_DIM + fortify_token_dim() + action_cost_slot_dim(num_actions)
+    from src.fortify import fortify_token_dim, state_tokens
+    extra = 0
+    if state_tokens() == "groups":
+        from src.group_tokens import GROUP_TOKEN_EXTRA_DIM
+        extra = GROUP_TOKEN_EXTRA_DIM
+    return TOKEN_BASE_DIM + fortify_token_dim() + action_cost_slot_dim(num_actions) + extra
 
 
 # Back-compat alias used by Agent / tests; recomputed at import from StaticConf when present
@@ -343,6 +347,14 @@ class BERTInputModeler:
         }
         if action_costs is not None:
             state["action_costs"] = action_costs
+
+        from src.fortify import state_tokens
+        if state_tokens() == "groups":
+            # V8 group-as-token state: one token per prune unit + feeds/fed-by relations.
+            from src.group_tokens import group_token_state
+            with torch.no_grad():
+                state = group_token_state(state, model_with_rows.all_layers, dependency_groups,
+                                          slot_dim=action_cost_slot_dim())
 
         if STATE_ENCODER_KIND == "bert":
             self._ensure_bert()

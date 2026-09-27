@@ -1,8 +1,11 @@
 # V6 — CNN state representation: identify first, then one cell (Fable, 21 Sep 2026)
 
-**Status:** design + one default-off *identification* tool implemented (`SPECTRA_EVAL_COUNTERFACTUAL`,
-unit-tested, not yet on any scratch tree). No encoder GPU is locked by this document. Do not
-reopen BERT as the default (ledger §16). Do not overlay leap.
+**Status (28 Sep 2026, Fable):** both gates of §0 are closed and the one cell is **implemented and queued**.
+- §0.1 counterfactual probe: run on the in-band ep0095 actor — `state_used` **38 %** (r20-w2) / **53 %** (r56-w4), ledger §123 → the encoder is read; a richer state *can* matter.
+- §1 group-as-token: `SPECTRA_STATE_TOKENS=groups` (default `layers`), `src/group_tokens.py` (one token per coupling id = mean of member layer tokens, action-cost slots pooled by max, + 4 structure columns: member share, first/last position, prunable), `relations` G×G {none, feeds, fed-by} → learned per-relation attention bias in `SpectraStateEncoder` (`relation_bias`, index 0 pinned to zero), contract key `SPECTRA_STATE_TOKENS` (token width is pinned via `token_feature_dim`), `tests/test_v8_group_tokens.py` (6), full suite **304/304** on the cluster conda. Train **`v8-grouptoken` `21716380`** (profile `offline_train_v8_grouptoken`, tree_v8b, nice 30): one change vs the area train `21536396` (in-band linear × P5-B2 × area probe × fpgm menu × recipe A × 12/4). Starts when a QOS slot frees.
+- §2 shared actor/critic trunk: **separate later cell**, only after the group-token freeze is walked — so a read stays attributable to one change.
+- Read rule: thin TRAJ of its freeze vs `21536396`'s freeze at equal keep; ≡ control → cross off group tokens. `policy_config.json` `token_feature_dim` must be 4 larger than the control's (else the flag did not take).
+- Original 21 Sep status: design + one default-off *identification* tool implemented (`SPECTRA_EVAL_COUNTERFACTUAL`). Do not reopen BERT as the default (ledger §16). Do not overlay leap.
 
 ## 0. The question in the right order
 

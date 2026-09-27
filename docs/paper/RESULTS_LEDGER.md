@@ -2323,4 +2323,85 @@ No-agent L1, 2-pass, group-once, recipe A, from `tree_v7`. Same three nets. Job 
 
 ---
 
+## 126. A-LSQ recovery, no agent (thin **21703433**, Catalog L r56 twin **21703434**) — PRELIM, catalog COMPLETED
+
+Fable V8 sitting (27 Sep). Recipe **A-LSQ** = keep survivors + closed-form least-squares refit of every consumer of the cut channels (He, Zhang & Sun 2017; ridge 1e-5; 2 × 32 calibration images), BN re-estimated, then the usual whole-net fine-tune (40/10). 2-pass group-once mild, from `tree_v8`. Both jobs COMPLETED (2 h 59 m `cs-pheno-10`; 6 h 20 m `ise-pheno-03`), tracebacks 0. Quote `[eval] TRAJ val_best`.
+
+| Net | A-LSQ | recipe A control | Δ vs A |
+|---|---|---|---|
+| r20-w2 | **−4.1 @ 0.536/0.655** (0.648→0.607), val −4.53, step 40 | −3.4 @ 0.536/0.655 (§93) | 0.7 pp worse |
+| r56-w4 | **−6.2 @ 0.923/0.769** (0.888→0.827), val −9.04, step 38 | −6.6 @ 0.923/0.769 (§93) | 0.4 pp kinder |
+| r56 C10 twin (chenyaofo 94.37) | **−4.3 @ 0.661/0.662** (0.943→0.900), val −9.06, step 112 | −3.3 @ 0.661/0.662 (§124) | 1.0 pp worse |
+
+**Read.** Same walk, same keeps as the control on all three nets (the refit does not change which point the 10-pp rule selects). Accuracy at equal size is split: kinder on r56-w4, worse on r20-w2 and on the full-width twin. The V8 pass rule was "≥ A on **both** thin nets" → **A-LSQ does not pass**; it stays a default-off recipe, not a training-loop change. BN-recal alone (§128) explains none of the r56-w4 gain (−6.9 there), so the 0.4 pp is the refit, and it does not generalise. Do **not** lock. Do not edit the draft.
+
+---
+
+## 127. C-PCA replacement, no agent (thin **21703435**, Catalog L r56 twin **21703436**) — PRELIM, catalog COMPLETED
+
+Recipe **C-PCA** = the cut group is *replaced* by a layer of the new width whose filters are the principal directions of the old group's activations; consumers rotated to match; one shared basis per residual stream; group norms reset; depthwise groups skipped; BN re-estimated; same 40/10 fine-tune. 2-pass mild, `tree_v8`. COMPLETED (5 h 15 m `ise-pheno-05`; 2 h 41 m `cs-pheno-06`), tracebacks 0.
+
+| Net | C-PCA | recipe A control |
+|---|---|---|
+| r20-w2 | **−6.0 @ 0.536/0.655** (0.648→0.588), val −5.44, step 40 | −3.4 @ 0.536 (§93) |
+| r56-w4 | **−7.7 @ 0.975/0.845** (0.888→0.811), val −9.84, step 19 | −6.6 @ 0.923 (§93) |
+| r56 C10 twin | **−5.2 @ 0.946/0.858** (0.943→0.891), val −9.57, step 38 | −3.3 @ 0.661 (§124) |
+
+**Read.** Worse than A at equal or shallower size on every net: 2.6 pp worse on r20-w2 at the same keep, and on both ResNet-56s the walk leaves the band so early that the selected point is nearly the full net (0.975 / 0.946 kept). A generated layer built from the old activations recovers *less* than the surviving filters do — the third failure of "generate a new layer" on residual CNNs after C-G / C-G+ (§§100–108). Pass rule was "within ~1 pp of A at equal size" → **C-PCA does not pass**. Cross off layer replacement (random or informed) as the CNN recovery. Do **not** lock.
+
+---
+
+## 128. BN re-estimation alone on recipe A (thin **21703437**) — PRELIM, catalog COMPLETED, no-agent
+
+Control for §126: recipe A + `SPECTRA_FT_BN_RECAL=1` only. 2-pass mild, `tree_v8`, COMPLETED 5 h 15 m (`ise-pheno-05`), tracebacks 0.
+
+| Net | A + BN-recal | A (§93) |
+|---|---|---|
+| r20-w2 | **−4.1 @ 0.536/0.655** (0.648→0.607), val −4.85, step 40 | −3.4 @ 0.536 |
+| r56-w4 | **−6.9 @ 0.923/0.769** (0.888→0.819), val −9.65, step 38 | −6.6 @ 0.923 |
+
+**Read.** No gain on either net (0.3–0.7 pp worse, inside resampling noise of the fine-tune). BN re-estimation is a captioned internal detail, not a paper claim (Ido decision 4, 28 Sep).
+
+---
+
+## 129. One-recipe schedule gate — AdamW + warm-up + cosine (thin ctl **21703438**, C100 gate **21703439**) — PRELIM, catalog COMPLETED, no-agent
+
+`SPECTRA_FT_OPTIM=adamw SPECTRA_FT_SCHEDULE=warmcos` (wd 5e-4, 1 warm-up epoch, cosine to 1e-5) inside the same 12/4 fine-tune, 2-pass mild, recipe A. Pass rule: thin within 0.5 pp of Adam 1e-3 (§120) **and** ≥ 4/8 C100 admits. COMPLETED (47 m `cs-pheno-06`; 8 h 52 m `ise-pheno-03`), tracebacks 0.
+
+| Net | warmcos (12/4) | Adam 1e-3 12/4 reference (§120) |
+|---|---|---|
+| r20-w2 | **−7.1 @ 0.536/0.655** (0.648→0.577), val −7.36 | −5.3 @ 0.536 |
+| r56-w4 | **−7.8 @ 0.832/0.730** (0.888→0.810), val −9.79 | −6.5 @ 0.933 |
+| C100 candidates (8) | **0 / 8 admitted**: 6 select the unpruned net (step −1), r20-w13 −1.1 @ 0.999, DenseNet-40 −1.7 @ 0.989 | Adam 1e-3: 0/8 (§109) |
+
+**Read.** Fails both halves: the thin control is 1.8 pp worse on r20-w2 at the same keep and 1.3 pp worse on r56-w4 at a deeper-but-out-of-band-selected keep, and it admits nothing on CIFAR-100. The schedule is not the C100 lever. Cross off.
+
+---
+
+## 130. One-recipe schedule gate — RAdam (thin ctl **21703440**, C100 gate **21703441**) — PRELIM, catalog COMPLETED, no-agent
+
+`SPECTRA_FT_OPTIM=radam SPECTRA_FT_WARMUP_EPOCHS=0`, otherwise as §129. COMPLETED (43 m `cs-pheno-06`; 2 h 57 m `cs-pheno-06`), tracebacks 0.
+
+| Net | RAdam (12/4) | Adam 1e-3 12/4 reference (§120) |
+|---|---|---|
+| r20-w2 | **−5.6 @ 0.655/0.702** (0.648→0.592), val −6.57, step 35 | −5.3 @ 0.536 |
+| r56-w4 | **−8.2 @ 0.832/0.730** (0.888→0.806), val −9.85 | −6.5 @ 0.933 |
+| C100 candidates | **2 / 8 admitted**: VGG-11 **−5.0 @ 0.814/0.823**, VGG-13 **−6.7 @ 0.843/0.831**; the other six stay ≥ 0.986 kept | 0/8 |
+
+**Read.** Fails the thin half (shallower and 0.3 pp worse on r20-w2, 1.7 pp worse on r56-w4) and admits only the two plain VGGs on CIFAR-100. Same picture as Adam 1e-4 (§117/§118): whatever helps CIFAR-100 hurts the CIFAR-10 control **inside 12 epochs**. Cross off RAdam. Next lever is the *budget*, not the optimizer: Adam, patience 4, cap 40 (cap binds only where 12 epochs were truncating) — thin control + C100 gate at 1e-3 (`21715233`/`21715234`) and at 1e-4 (`21715235`/`21715236`), submitted 28 Sep 01:00.
+
+---
+
+## 131. Catalog L anchor — DepGraph's own ResNet-56 checkpoint, same-loop mild and L1 (**21703466** / **21703467**) — PRELIM, catalog COMPLETED, no-agent
+
+`resnet56_cifar10_dep_graph_93.53.pth` loads strict-clean into `resnet_chenyaofo.resnet56` (CPU probe `21703461`: 93.43 % on 3 000 test images; our TEST loader reads it as 0.932). Recipe A, 2-pass group-once, 40/10, `tree_v8`. COMPLETED (2 h 10 m `cs-pheno-06`; 3 h 11 m `ise-pheno-05`), tracebacks 0.
+
+| Walk | DepGraph anchor | chenyaofo twin |
+|---|---|---|
+| mild | **−3.1 @ 0.661/0.662** (0.932→0.901), val −8.56, step 112 | −3.3 @ 0.661/0.662 (§124) |
+| L1 | **−3.7 @ 0.575/0.482** (0.932→0.895), val −9.28, step 95 | −5.1 @ 0.415/0.413 (§125) |
+
+**Read.** The anchor behaves like the twin under mild (same keep, 0.2 pp kinder) and is kinder under L1 (−3.7 at 0.575 vs −5.1 at 0.415; the walk stops one pass shallower). These are the SPECTRA-loop τ-matched rows for the DepGraph ResNet-56 CIFAR-10 cell; the size-matched row (FLOPs ≈ 0.39, DepGraph 2.57×) is not run yet. DepGraph's published point on this checkpoint is 93.53 → 93.64 (+0.11) at 2.57× after sparsity learning + fine-tune on the target. Do **not** lock. Do not edit the draft.
+
+---
 

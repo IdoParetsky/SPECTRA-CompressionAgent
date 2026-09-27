@@ -1,108 +1,119 @@
-# Ops handoff — V8 cycle (Fable, 27 Sep 2026 ~05:30 IDT) — paste into "SPECTRA overnight operations"
+# Ops handoff — V8 cycle, second night (Fable, 28 Sep 2026 ~02:00 IDT) — paste into "SPECTRA overnight operations"
 
-You are the SPECTRA overnight ops agent (Grok 4.6). Fable reviewed and extended your 27 Sep
-implementation (A-LSQ, C-PCA, BN recalibration, Budget + STOP), added the one-recipe fine-tune
-schedule (AdamW + warm-up + cosine; RAdam alternate), ran the tests on the cluster conda, and
-enqueued the next cycle ranked. This file supersedes `PROMPT_OPS_V7_QUEUE.md`. Standing rules
-hold: quote `[eval] TRAJ val_best` only; skip r32; never wrap / `pass 1/1` / terminals over τ; do
-not edit `SPECTRA_draft.md`; do not scancel `21536398`; no C-G train; no BERT; no ImageNet DRL;
-canvases are files, not displays; ledger numbering continues from **§126**.
+You are the SPECTRA overnight ops agent (Grok 4.6). The first V8 night landed: eleven no-agent
+walks COMPLETED and are ledgered (**§126–§131**); the Budget + STOP train was re-submitted
+(see §0b — the first copy ran the wrong profile); four fine-tune-budget gate arms and the
+group-as-token train are queued. This file supersedes the 27 Sep version. Standing rules hold:
+quote `[eval] TRAJ val_best` only; skip r32; never wrap / `pass 1/1` / terminals over τ; do not
+edit `SPECTRA_draft.md`; do not scancel `21536398` or any train; no C-G / C-G+ train; no BERT;
+no ImageNet DRL; canvases are files, not displays; ledger numbering continues from **§132**.
+Cell names: say **R56·C10 / VGG16·C10 / VGG19·C100** — the old "L1/L2/L3" cell labels are retired
+(they collide with L1/L2 pruning). Job names that still carry `l1anchor` mean the *ranking*.
 
 ## 0. Where everything runs
 
 ```
-tree_v8 = /home/paretsky/scratch_audit/tree_v8       # tree_v7 + the 27 Sep code (A-LSQ, C-PCA, BN-recal, budget/STOP, warmcos)
-logs    : /home/paretsky/scratch_audit/tree_v8/runs/slurm_logs/spectra_<JOB>.out
-run dirs: /home/paretsky/scratch_audit/tree_v8/runs/job<JOB>/
+tree_v8  = /home/paretsky/scratch_audit/tree_v8    # 27 Sep code + the v7-profile gate fix; serves the budget train and the cap-40 gates
+tree_v8b = /home/paretsky/scratch_audit/tree_v8b   # tree_v8 + group tokens (src/group_tokens.py); serves v8-grouptoken only
+logs     : <tree>/runs/job<JOB>/logs/rank0.log      (stdout);  <tree>/runs/slurm_logs/spectra_<JOB>.out when present
+run dirs : <tree>/runs/job<JOB>/  (reward_trace.jsonl, run_records.jsonl, agent_checkpoints/policy_config.json)
 ```
 
-`tree_v7` still serves the factored train `21536398`; `tree`, `tree_v6_inband`, leap: untouched.
-**Do not modify tree_v8 while a job from it is PD/R.** Fable's dev copy is `tree_v6_dev` — never run from it.
-Git: the 27 Sep code is committed on `master` (`git log -3` on Ido's laptop) and pushed to origin.
+`tree_v7` still serves the factored train `21536398`; `tree`, `tree_v6_inband`, `tree_v6_dev` (Fable's dev copy), leap: untouched.
+**Do not modify tree_v8 / tree_v8b while a job from it is PD/R.** Git: 28 Sep code is on `master` and pushed.
 
-## 1. The queue (priority order). Read the ledger §§93, 112–125 for the controls.
+### 0b. What happened to `21703443` (read once, then forget the id)
 
-| # | Job name | What it tests | PASS (keep) | FAIL (cross off) | Control rows |
-|---|---|---|---|---|---|
-| 1 | `alsq-thin-mild` | **A-LSQ** (keep survivors + least-squares consumer refit + BN recal), 2-pass mild, 40/10 | r56-w4 `val_best` at least as kind as recipe A at equal keep (0.923 → −6.6 §93 / §120 family) or a deeper in-band keep | worse than A at equal keep on **both** nets → drop A-LSQ | §93 (thin A) |
-| 2 | `alsq-catl-r56-mild` | same on Catalog L ResNet-56 twin | ≥ as kind as −3.3 @ 0.661 (§124) | worse | §124 |
-| 3 | `pca-thin-mild` | **C-PCA** (generated layer = principal directions; consumers rotated; norms reset; BN recal), 2-pass mild, 40/10 | within ~1 pp of A at equal keep | > 1 pp worse or empty band → principal-direction replacement closed for CNNs (write into the Gilad note) | §93 |
-| 4 | `pca-catl-r56-mild` | same on the twin | within ~1 pp of §124 | worse | §124 |
-| 5 | `bnrecal-thin-mild` | **BN recalibration alone** on recipe A (attribution control for #1) | — (control) | — | §93 |
-| 6 | `warmcos-thin-ctl` | **one-recipe schedule**: AdamW wd 5e-4, 1-epoch warm-up, cosine → 1e-5, 12/4, BN recal; CIFAR-10 thin | r56/r20 within ~0.5 pp of Adam 1e-3 12/4 (§120: r56 −6.5 @ 0.933, r20 −5.3 @ 0.536) at equal keep | > 1 pp worse or shallower | §120 |
-| 7 | `warmcos-c100-gate` | same schedule on the 8 CIFAR-100 candidates | ≥ 4/8 admits (kept ≤ 0.98, val Δacc ≥ −10) | < 4 | §109/§117/§121 |
-| 8 | `radam-thin-ctl` | alternate: RAdam, no warm-up, cosine, 12/4, BN recal | as #6 | as #6 | §120 |
-| 9 | `radam-c100-gate` | alternate on CIFAR-100 | as #7 | as #7 | §117/§121 |
-| 9b | `ctl-l1anchor-r56-mild` `21703466` / `ctl-l1anchor-r56-l1` `21703467` | **Catalog L L1 on DepGraph's own checkpoint** (`resnet56_cifar10_dep_graph_93.53.pth`, loads strict-clean into `resnet_chenyaofo.resnet56`, CPU probe `21703461`: 93.43 % on 3000 test images): same-loop mild and L1, recipe A, 2-pass, 40/10 | — (controls: the τ-matched SPECTRA rows of L1 on the anchor; compare with the chenyaofo twin §124/§125) | Traceback → report | §124 / §125 |
-| 10 | `v7-budget-stop` `21703443` | **Budget + STOP agent**: actions = remove 1/2/4 % of the network through this group, or STOP; in-band linear; area score; 10-net Catalog-L-clean catalog; recipe A; L1 ranking | freezes whose thin TRAJ is not a fixed-rate walk at equal keep | argmax walk ≡ a fixed-rate heuristic at equal keep on r56-w4 → cross off cost-shaped actions | area train `21536396` (same catalog/reward/score) |
+The 27 Sep Budget + STOP job ran the **generic default** train branch: `tree_v8`'s sbatch lacked the
+`offline_train_v7_*` gate line, so it fell through to `compression_rates=[1.0,0.9,0.8]`, the old
+10-net leap database, 5-step episodes, no PPO, no budget menu. It was Fable's own job, mis-profiled,
+so Fable cancelled it at 00:55 (7.4 h lost; nothing else was affected) and re-submitted after fixing
+the tree. **Never quote anything from `21703443`.** The real cell is **`21715228`**, verified R at
+00:52 with `compression_rates=[1.0, 0.01, 0.02, 0.04, -1.0]`, `SPECTRA_ACTION_MENU=budget`,
+`SPECTRA_REWARD_SCALE=cbrt_cubes`, `SPECTRA_DATABASE=…/database_offline_v6_p5b2.json`,
+`SPECTRA_PROBE_SCORE=area`, `SPECTRA_STOP_REWARD_SCALE=100`, PPO updates firing, per-step
+`budget action: remove 0.0100 of the network through a group that owns 0.0891 -> keep rate 0.8877`,
+1 STOP in the first 26 episodes. Probe nets are `resnet56-width6,resnet20-width10` (same as the
+area control `21536396`).
 
-L3 (VGG-19 C100, DepGraph checkpoint) is a plain state_dict with DepGraph's own key layout (`block0.0…block4.10`, single `classifier`) — it needs a ~40-line factory before it can be walked; Fable writes it next sitting. It also needs a recipe that recovers CIFAR-100 (the schedule gate) before any row is valid.
+## 1. Live queue (28 Sep 01:20 IDT; QOS cap 4 R)
 
-**Job ids (submitted 27 Sep 05:08 IDT):** #1 `21703433` R, #2 `21703434` R, #3 `21703435` R,
-#4 `21703436`, #5 `21703437`, #6 `21703438`, #7 `21703439`, #8 `21703440`, #9 `21703441`,
-#10 `21703443` (all PD in that order; QOS cap **4**, factored `21536398` holds the fourth slot).
-First greps at 05:12: `ft_recipe=A-LSQ`, `A-LSQ: consumers refit 4, skipped 0`; `ft_recipe=C-PCA`,
-`C-PCA: producers 4, consumers 4, width 3, skipped 0`; BN recalibration firing; 0 Tracebacks.
+| # | Job | Tree | What it is | PASS / decision | FAIL | Control |
+|---|---|---|---|---|---|---|
+| A | `v6-inband-p5b2-area-factor` **21536398** R (day 6) | tree_v7 | two-decision head (rate × ranking), clean catalog | freeze → ping Ido, no auto-TEST | — | area `21536396` |
+| B | `v7-budget-stop` **21715228** R | tree_v8 | Budget + STOP agent (see 0b) | `Snapshot frozen` → ping Ido; TEST only on GO | argmax walk ≡ fixed-rate heuristic at equal keep on r56-w4 → cross off cost-shaped actions | `21536396`; 3-pass mild/L1 §114/§122; in-band §111/§123 |
+| C | `cap40-adam1e3-thin-ctl` **21715233** R / `cap40-adam1e3-c100-gate` **21715234** R | tree_v8 | **the open recipe arm**: Adam 1e-3, patience 4, **cap 40** (budget, not LR), recipe A, 2-pass mild | thin within 0.5 pp of §120 (12/4: r20 −5.3 @ 0.536, r56 −6.5 @ 0.933) at equal keep **and** ≥ 4/8 C100 admits (kept ≤ 0.98, val Δacc ≥ −10). First row already in (01:40): r20 **−4.5 @ 0.536** → thin half passing so far | either half fails → arm out | §120 / §93 / §109 |
+| D | `cap40-adam1e4-thin-ctl` **21715235** PD / `cap40-adam1e4-c100-gate` **21715236** PD | tree_v8 | same at 1e-4 (1e-4 admitted 4/8 in 12 epochs but broke the C10 control — does 40 epochs repair the control?) | same pair rule | same | §117 / §118 |
+| E | `v8-grouptoken` **21716380** PD (nice 30) | tree_v8b | **group-as-token** state: one token per coupled group + learned feeds/fed-by relation bias; everything else = area train `21536396` | freeze → ping; its thin TRAJ must differ from the layer-token control at equal keep | ≡ control → cross off group tokens (shared trunk stays a later cell) | `21536396` |
 
-The schedule gate is a
-**pair**: an arm passes only if its thin control (#6 / #8) **and** its CIFAR-100 gate (#7 / #9)
-both pass. Then that arm becomes the one training fine-tune recipe and CIFAR-100 may enter
-the catalog (`docs/V7_TRAIN_CATALOG.md` §4 emit rule, `--min-c100 4`). If neither passes,
-training stays Adam 1e-3 on CIFAR-10 and you write that in the ledger row.
+Order after a slot frees: D (nice 7/8) then E (nice 30). Do not add jobs; do not release JobHeldUser heuristics.
 
-## 2. Heartbeat greps
+**The recipe decision is a pair rule.** An arm passes only if its thin control **and** its C100
+gate both pass. If cap-40 at 1e-3 passes: it becomes the one training fine-tune recipe
+(`SPECTRA_TRAIN_FT_EPOCHS=40 SPECTRA_TRAIN_FT_PATIENCE=4`) and CIFAR-100 may enter the catalog via
+`scripts/build_v5_catalog.py --emit-admitted --intended configs/database_offline_v7_diverse.json
+--gate configs/v7_c100_gate.json --min-c100 4` (fill the gate json from the `val_best` rows first).
+If neither cap-40 arm passes, write in the ledger row: "recipe stays Adam 1e-3 12/4; CIFAR-100 is
+test-only" — and Ido decides (Gilad note §7 Q4).
+
+## 2. Ido's decisions (28 Sep 00:46) — binding
+
+1. **Budget + STOP train stays on recipe A** (no A-LSQ inside a train; A-LSQ failed its pass rule anyway, §126).
+2. **Pass rules stay as written, but you flag results the moment they land** — do not wait for the
+   morning wrap. When a gate pair or a train freeze lands: ledger row, ping Ido in chat with the
+   one-line verdict, and **trigger the next Fable development sitting** by writing the results block
+   of §4 into `docs/V8_STATUS_AND_TIMELINE_27SEP.md` §"Results feed" (that file is Fable's entry
+   point; cite it in the ping). Fable does not start from ops; Ido opens it.
+3. **VGG19·C100 recipe pending** — the cap-40 arms *are* the jobs progressing that angle (C100 gate =
+   8 candidates incl. VGG-11/13 C100 twins; VGG-19 C100 itself is a hold-out and is never in a gate).
+   DepGraph's VGG-19 file still needs its loader (Fable, next sitting) before an anchor walk.
+4. **BN recalibration is an internal caption only** (§128: no gain); it goes into the paper only if a
+   later result makes it significant. Do not quote it as a method.
+
+## 3. Heartbeat greps
 
 ```bash
-Q=/home/paretsky/scratch_audit/tree_v8/runs/slurm_logs
-squeue -u paretsky -h -S -p -o "%.9i %.26j %.2t %.6Q %.10M %R" | grep -v JobHeldUser
-for f in $Q/spectra_*.out; do
-  j=${f##*_}; j=${j%.out}; echo "== $j $(squeue -h -j $j -o '%j %T %M' 2>/dev/null)"
-  grep -m1 -oE 'ft_recipe=[^ ]+' $f; grep -m1 -oE 'Fine-tune recipe: optim=[a-z]+ lr=[0-9.e-]+ [^|]*schedule=[a-z]+ wd=[0-9.e-]+' $f
-  echo "edits: A-LSQ=$(grep -c '^.*A-LSQ: consumers refit' $f) C-PCA=$(grep -c 'C-PCA: producers' $f) BNrecal=$(grep -c 'BN recalibration:' $f) budget=$(grep -c 'budget action:' $f) TB=$(grep -c Traceback $f)"
-  grep -E '\[eval\] TRAJ (floor_hold|val_best|terminal)' $f | tail -3
-done
-# the train (once R)
-grep -E 'PPO update|PROBE ep|Snapshot frozen|REWIND|Traceback|stop=1' $Q/spectra_<TRAIN>.out | tail -4
+squeue -u paretsky -h -S -p -o "%.9i %.26j %.2t %.4y %.10M %R" | grep -v JobHeldUser
+for j in 21715233 21715234 21715235 21715236; do d=/home/paretsky/scratch_audit/tree_v8/runs/job$j; O=$d/logs/rank0.log
+  echo "== $j $(squeue -h -j $j -o '%j %T %M' 2>/dev/null)"; [[ -s $O ]] || continue
+  grep -m1 -oE 'Fine-tune recipe: optim=[a-z]+ lr=[0-9.e-]+[^|]*' $O
+  grep -E '\[eval\] TRAJ val_best' $O | sed -E 's/^.*\[eval\]/[eval]/' | cut -c1-200
+  echo "TB=$(grep -c Traceback $O)"; done
+# trains
+for j in 21715228 21716380; do O=$(ls /home/paretsky/scratch_audit/tree_v8*/runs/job$j/logs/rank0.log 2>/dev/null | head -1); [[ -s "$O" ]] || continue
+  echo "== $j"; grep -E 'PPO update|PROBE ep|Snapshot frozen|REWIND|Traceback' "$O" | tail -3
+  echo "episodes=$(grep -c 'DONE Episode' "$O") stops=$(grep -c 'STOP' "$O") budget_steps=$(grep -c 'budget action:' "$O")"; done
+grep -E 'PPO update|PROBE ep|Snapshot frozen|Traceback' /home/paretsky/scratch_audit/tree_v7/runs/slurm_logs/spectra_21536398.out | tail -3
 ```
 
-Must-see confirmations: #1/#2 `ft_recipe=A-LSQ` and `A-LSQ: consumers refit N, skipped 0` on
-every non-identity step (a `skipped > 0` on a ResNet walk is a bug — report it, do not turn the
-flag off); #3/#4 `ft_recipe=C-PCA`, `C-PCA: producers P, consumers C, width k, skipped 0`;
-#5 `BN recalibration: N BatchNorm module(s)` with `ft_recipe=A`; #6/#7 `optim=adamw … schedule=warmcos wd=0.0005`;
-#8/#9 `optim=radam … schedule=warmcos`; #10 FLAGS `SPECTRA_ACTION_MENU=budget`, `SPECTRA_REWARD_SCALE=cbrt_cubes`,
-`PROBE … kind=area`, per-step `budget action: remove 0.0x … -> keep rate …` lines, and STOP steps
-recorded with `stop=1` in the step records. A `Traceback` anywhere → paste the last 30 lines to Ido; do not patch trees.
+Must-see: cap-40 jobs print `optim=adam lr=0.001` (or `0.0001`) and `num_epochs=40`, patience 4 in
+the Namespace; `21716380` FLAGS must show `SPECTRA_STATE_TOKENS=groups` and its
+`policy_config.json` a `token_feature_dim` **4 larger** than `21536396`'s — if equal, the flag did
+not take: report, do not patch. A `Traceback` anywhere → paste the last 30 lines to Ido; do not patch trees.
 
-## 3. On COMPLETED
+## 4. On COMPLETED / freeze
 
-1. **Ledger** rows from **§126** in landing order. Heuristic rows: PRELIM, "no-agent 2-pass mild, recipe
-   <A-LSQ | C-PCA | A+BNrecal | A>, FT <budget> <optim lr schedule>", `val_best` per net, and the
-   control row it is compared with. Gate rows: the five-column table (net | arm | val_best kept | val Δacc | admit).
-2. **Gilad note** `docs/paper/GILAD_WEEK_27SEP.md`: §2b already describes these runs as *in flight*.
-   When A-LSQ **and** C-PCA have a `val_best` on both nets, add their two rows to the §1 throw-away
-   table (English and Hebrew) and change §2b's "no results yet" to the dated result. Ops updates; do not send.
-3. **Train `v7-budget-stop`**: on `Snapshot frozen` ping Ido; **do not auto-TEST**. Its TEST, when Ido
-   says GO, is `eval_c10_thin_traj` from `tree_v8` with the snapshot pins and
-   `SPECTRA_EVAL_COUNTERFACTUAL=1`, compared with 3-pass mild/L1 (§114/§122) and in-band §111/§123 at equal keep.
-4. **Ping Ido** when: #1–#4 land (the recipe decision), the schedule pair lands (the catalog decision),
-   any Traceback, the train's first freeze.
-
-## 4. What to hand Fable at the next development phase
+1. **Ledger** from **§132**, landing order. Gate rows: five-column table (net | arm | val_best kept | val Δacc | admit) + the thin-control pair vs §120.
+2. **Gilad note** `docs/paper/GILAD_WEEK_27SEP.md` is the formal status Ido sends: on a gate result,
+   fill the "running" cells of §3's recipe table (EN + HE) with the numbers and the verdict; on a
+   train freeze/TEST, fill the matching row of §4's agent table. Nothing else in that file moves.
+3. **Results feed** (decision 2): append to `docs/V8_STATUS_AND_TIMELINE_27SEP.md`:
 
 ```
-V8 CYCLE — RESULTS SUMMARY FOR FABLE  (ops, <date>)
-A. A-LSQ: thin r56 ___ @ ___ (A: −6.6 @ 0.923); Catalog L twin ___ @ ___ (A: −3.3 @ 0.661). skipped=0? Verdict: keep / drop.
-B. C-PCA: thin r56 ___ @ ___; twin ___ @ ___. Verdict: within 1 pp / closed.
-C. BN-recal alone: thin r56 ___ @ ___ → attribution of A-LSQ's gain: refit / stats / neither.
-D. Schedule gate: warmcos thin ___/___ (ref §120), C100 admits __/8; RAdam thin ___/___, admits __/8. Winning arm: ___ / none.
-E. Budget+STOP train: freezes (ep / area score) ___; STOP frequency ___; rewinds ___; TESTed? ___.
-F. Factored 21536398: final state ___; freeze TESTed? ___ (verdict vs area baseline).
-G. Concepts crossed off: ___. Confirmed: ___. Open Ido decisions: ___.
+V8 RESULTS FEED — <date time>
+C/D. cap-40 recipe: 1e-3 thin r20 ___ @ ___ / r56 ___ @ ___ (refs: §120 12/4 −5.3 @ 0.536 / −6.5 @ 0.933; §93 40/10 −3.4 @ 0.536 / −6.6 @ 0.923); C100 admits __/8 → pass/fail.
+     1e-4 thin ___/___; admits __/8 → pass/fail.  Winning arm: ___ / none.  Catalog emitted? ___
+B.  Budget+STOP 21715228: episodes ___, STOP freq ___, PPO updates ___, probe area ___ (ctrl 21536396 ___), freeze ep ___ → TEST on GO.
+E.  Group-token 21716380: started? token_feature_dim ___ vs ctrl ___; probe area ___; freeze ___.
+A.  Factored 21536398: state ___; freeze ___.
+Crossed off: ___.  Confirmed: ___.  Open Ido decisions: ___.
 ```
+
+4. **Ping Ido** when: a cap-40 pair lands (recipe/catalog decision), any freeze, any Traceback, and when `21536398` ends.
 
 ## 5. Never (this handoff)
 
-Scancel a running job. Start C-G / C-G+ DRL or a second factored train. TEST a freeze without GO.
-Touch `tree_v6_dev`, `tree_v7`, `tree`, `tree_v6_inband`, or leap `src/`. Emit
-`database_offline_v7_diverse_admitted.json` before the schedule pair passes. Read r20-w2 as a policy
-comparison. Caption a train probe score as a win.
+Scancel a running job. Start C-G / C-G+ DRL or a second factored / budget / group-token train.
+TEST a freeze without GO. Touch `tree_v6_dev`, `tree_v7`, `tree`, `tree_v6_inband`, or leap `src/`.
+Emit `database_offline_v7_diverse_admitted.json` before a cap-40 pair passes. Read r20-w2 as a
+policy comparison. Caption a train probe score as a win. Quote `21703443`.

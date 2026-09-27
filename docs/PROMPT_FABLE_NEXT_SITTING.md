@@ -142,3 +142,12 @@ ImageNet DRL. Another ranking menu. Group-as-token train. Restarting v3 or V4. T
 **§0b rewind:** left as is (flag on, no extension) — the budget train inherits the v3 governor unchanged. **§0c:** not crowned; none of the area freezes is TESTed. **§4:** Table 5 row untouched. **§6:** the Gilad note got a dated "in flight — no results yet" section (§2b, EN+HE) and an updated executive summary because Ido shares it on 28 Sep; the throw-away table rows will be added by ops when A-LSQ and C-PCA land.
 
 **Status of the 21 Sep designs and the timeline:** `docs/V8_STATUS_AND_TIMELINE_27SEP.md`.
+
+## 9. Fable 28 Sep 00:46–02:30 — second night (ops: use the rewritten `PROMPT_OPS_V8_QUEUE.md`)
+
+- **Results ledgered §126–§131**: A-LSQ fails "≥ A on both" (kinder only on r56-w4); C-PCA worse everywhere → layer replacement (random or generated) closed for CNNs; BN-recal no gain; warmcos and RAdam both fail the pair rule; DepGraph R56 anchor mild −3.1 @ 0.661, L1 −3.7 @ 0.575.
+- **`21703443` was mis-profiled** (tree_v8 lacked the `offline_train_v7_*` gate; generic default branch ran) → cancelled, tree fixed, real Budget+STOP re-submitted **`21715228`** and verified (budget menu, cbrt_cubes, p5b2, area, PPO, STOP seen).
+- **Cap-40 recipe arms** submitted (`21715233–36`): Adam patience 4 cap 40 at 1e-3 and 1e-4, thin control + C100 gate each.
+- **Group-as-token implemented** (`src/group_tokens.py`, relation bias in `SpectraStateEncoder`, `SPECTRA_STATE_TOKENS` contract key, `tests/test_v8_group_tokens.py`; suite 304/304 on cluster) and queued **`21716380`** from `tree_v8b` (profile `offline_train_v8_grouptoken`, one change vs `21536396`).
+- **Docs**: `GILAD_WEEK_27SEP.md` rewritten as the formal status (EN+HE; exec summary with wins/losses; benchmark setup merged with counterparts table + checkpoint inventory; recovery table with the new rows; recipe table; agent table; ImageNet paragraph; cells renamed R56·C10 / VGG16·C10 / VGG19·C100); `V8_STATUS_AND_TIMELINE_27SEP.md` §6–§9 (answers to Ido's V6/V7 questions + results feed); `V6_REPRESENTATION_DESIGN.md`, `V7_OVERHAUL_PROPOSAL.md`, `V7_TRAIN_CATALOG.md` status headers; glossary rows.
+- **Next sitting's cells** (in order): read cap-40 pair → emit catalog or close C100; DepGraph VGG-19 loader; deterministic-FT-seed A/A (1 h); Δacc surrogate (CPU); size-matched 2.57× rows on R56·C10 / VGG16·C10; hold-out imports (ResNet-164, DenseNet-40 C10, PruningBench R18/R50 C100, Plain-20 — ask Ido before installing pytorchcv into the shared env); walk Budget+STOP / group-token freezes on GO.

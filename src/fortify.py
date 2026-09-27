@@ -510,6 +510,20 @@ def probe_score_kind() -> str:
     return "area" if raw == "area" else "cut"
 
 
+def state_tokens() -> str:
+    """
+    What a state token is (``SPECTRA_STATE_TOKENS``, V8 representation cell):
+
+    * ``layers`` (default, every actor so far): one token per layer; channel coupling enters
+      only as a learned same-group attention scalar.
+    * ``groups``: one token per prune unit (coupling id) = mean of its member layer tokens +
+      four structure columns, with a learned feeds / fed-by relation bias
+      (``src/group_tokens.py``). Changes the token width → pinned in ``policy_config``.
+    """
+    raw = os.environ.get("SPECTRA_STATE_TOKENS", "layers").strip().lower()
+    return "groups" if raw == "groups" else "layers"
+
+
 def min_episodes(default: int) -> int:
     """Never stop on patience before this many episodes (``SPECTRA_MIN_EPISODES``)."""
     raw = os.environ.get("SPECTRA_MIN_EPISODES", "").strip()

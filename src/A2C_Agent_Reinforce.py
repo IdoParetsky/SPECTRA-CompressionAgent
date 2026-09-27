@@ -258,6 +258,8 @@ class A2CAgentReinforce:
         "SPECTRA_FT_REINIT_EDITED", "SPECTRA_FT_REINIT_THEN_POLISH", "SPECTRA_REFRESH_ALL_FEATURES",
         "SPECTRA_FT_REINIT_SELECT", "SPECTRA_FT_REINIT_SCOPE",
         "SPECTRA_FT_LSQ_CONSUMERS", "SPECTRA_FT_BN_RECAL", "SPECTRA_ACTION_MENU",
+        # V8 representation cell: group-as-token changes the token width and the attention bias.
+        "SPECTRA_STATE_TOKENS",
     )
     POLICY_INFO_KEYS = (
         "SPECTRA_FT_OPTIM", "SPECTRA_FT_SCHEDULE", "SPECTRA_FT_WD", "SPECTRA_FT_LR", "SPECTRA_FT_LR_MIN",

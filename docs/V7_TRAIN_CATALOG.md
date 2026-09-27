@@ -2,6 +2,10 @@
 
 **Files:** `configs/database_offline_v7_diverse.json` (16 nets, intended), `configs/v7_c100_gate.json` (8 CIFAR-100 rows, `pending_regate`), `configs/database_offline_v7_diverse_admitted.json` (emitted; today = the 8 CIFAR-10 nets), `configs/v7_c100_candidates_input.json` (the re-gate probe input). Disjointness + shape unit-tested (`tests/test_v5_catalog.py::test_v7_diverse_catalog_shape_and_holdouts`).
 
+**Standing 28 Sep (Fable).** The diverse 16-net catalog is the *design*; the live P5-B2 file (9 C10 + VGG-11 SVHN) is the set the one fine-tune recipe recovers today, not a goal. Gate history under the uniform 12-epoch recipe: Adam 1e-3 **0/8**, Adam 1e-4 4/8 (breaks the C10 control), SGD 0.01 2/8 (breaks it), AdamW warm-up + cosine 0/8 (breaks it), RAdam 2/8 (breaks it) — ledger §109, §117–§121, §129, §130. Every *rate/schedule* lever that helps CIFAR-100 hurts CIFAR-10 inside 12 epochs, so the open arm is the **budget**: Adam, patience 4, **cap 40**, at 1e-3 (`21715233/34`) and 1e-4 (`21715235/36`) — the C10 thin control and the 8 C100 candidates each. Pass = thin within 0.5 pp of §120 at equal keep **and** ≥ 4/8 admits → that recipe becomes `SPECTRA_TRAIN_FT_EPOCHS=40 SPECTRA_TRAIN_FT_PATIENCE=4` for every net and the catalog is emitted with `--min-c100 4`. If both arms fail, CIFAR-100 is an evaluation dataset only (captioned as a recipe limit) and the catalog is diversified across families on CIFAR-10 + SVHN — Gilad note §7 Q4.
+
+**Why ImageNet is a hold-out and not a training dataset.** One agent step = prune → fine-tune → re-extract features. A CIFAR ResNet-56 fine-tune epoch is < 1 min on one GPU; an ImageNet ResNet-50 epoch is ~1 h on the same card, so one episode (30–100 cuts × 12 epochs) is days, and a few hundred episodes is a GPU-year. Per Gilad's directive ImageNet is the *dataset* hold-out of the frozen CIFAR-trained agent (`input_offline_imagenet_*.json`, ≥ rtx_4090, frozen actors only). Cell labels L1/L2/L3 are retired → **R56·C10 / VGG16·C10 / VGG19·C100**.
+
 ## 1. What the catalog is for — and what it stopped being
 
 The thesis claim is a **frozen generic agent**: trained once on many architectures × datasets, then applied unchanged to networks and datasets it never saw. The 24-net catalog was a CIFAR-10 thin-ResNet width upsample (12/24 one class; 23/24 origins ≥ 90 %) — it trained a ResNet-width specialist and captioned it as diverse. P5-B3 tried to add CIFAR-100 and admitted nothing under the training fine-tune. V7 fixes the *shape* of the catalog and re-tests the *recipe* that kept CIFAR-100 out.
@@ -27,9 +31,9 @@ Held out for evaluation (never in any training file): **ImageNet** (frozen probe
 | MobileNet-v2 | ×0.5 (92.99), ×1.0 (93.79) | ×0.5 (70.88), ×1.0 (74.20) |
 | DenseNet-BC | DenseNet-40 (93.17) | DenseNet-40 (70.25) |
 
-ResNet share 6/16 (37 %), thin 4/16, every family on both datasets, origins 70–94 % (the CIFAR-100 half has room above origin — the gain arm stops being vacuous only there). Not in: VGG-16 C10 (L2), standard r56 (L1), VGG-19 (L3 / similar), r44 (similar), MobileNet ×0.75 (similar), any SVHN / Fashion-MNIST net, any ShuffleNet / RepVGG.
+ResNet share 6/16 (37 %), thin 4/16, every family on both datasets, origins 70–94 % (the CIFAR-100 half has room above origin — the gain arm stops being vacuous only there). Not in: VGG-16 C10 (VGG16·C10 cell), standard r56 (R56·C10 cell), VGG-19 (VGG19·C100 cell / similar), r44 (similar), MobileNet ×0.75 (similar), any SVHN / Fashion-MNIST net, any ShuffleNet / RepVGG.
 
-**Probes for the governor:** `vgg13_bn_cifar10_` and, once admitted, `vgg11_bn_cifar100_` (one non-ResNet per dataset); until then `resnet56-width6`. Selection score `SPECTRA_PROBE_SCORE=area` (see `V7_OVERHAUL_PROPOSAL.md` §1.1).
+**Probes for the governor:** `vgg13_bn_cifar10_` and, once admitted, `vgg11_bn_cifar100_` (one non-ResNet per dataset); while CIFAR-100 is not admitted the second probe is `resnet56-width6`. Selection score `SPECTRA_PROBE_SCORE=area` (see `V7_OVERHAUL_PROPOSAL.md` §1.1).
 
 **Fallbacks.** If the re-gate admits ≥ 4 CIFAR-100 nets → V7 as above (12–16 nets, two datasets). If it admits 1–3 → V7-lite: 8 C10 + the admitted C100 + **one** SVHN net (VGG-11 SVHN), Fashion-MNIST + ImageNet stay held out (the P5-B2 shape). If it admits none under both LR arms → the catalog stays CIFAR-10 + one SVHN (`database_offline_v6_p5b2.json`) and CIFAR-100 becomes an evaluation dataset only, captioned as an FT-recipe limit, not a transfer result.
 
@@ -55,7 +59,7 @@ Four GPU jobs, ~4 h each, heuristic only. They belong in the fill order right af
 
 | Role | File | Note |
 |---|---|---|
-| Catalog L (committee) | `input_catalog_l_twins.json` now; DepGraph ckpts after the loader check | L1–L3 |
+| Catalog L (committee) | `input_catalog_l_twins.json`; `input_catalog_l_depgraph_r56.json` (DepGraph R56 weights, walked §131); DepGraph VGG-19 after its loader | R56·C10 / VGG16·C10 / VGG19·C100 |
 | coverage similar / unlike | `input_offline_similar.json` (skip r32), `input_offline_novel.json` | unchanged |
 | skinny diagnostic | `input_c10_thin.json` | r20-w2 is a "does it cut" row only |
 | dataset hold-outs | `input_v5_holdout_svhn.json`, `input_v5_holdout_fmnist.json` | same skip-train TRAJ as C10 |

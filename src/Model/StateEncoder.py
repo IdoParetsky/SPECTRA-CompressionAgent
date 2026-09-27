@@ -119,6 +119,10 @@ class SpectraStateEncoder(SpectraTokenFront):
             dropout=dropout, batch_first=True, norm_first=True, activation="gelu",
         )
         self.block_affinity = nn.Parameter(torch.zeros(1))
+        # Group-as-token relation bias (SPECTRA_STATE_TOKENS=groups): one learned scalar per
+        # relation type {none, feeds, fed-by}; index 0 is pinned to zero so the layer-token
+        # state (no ``relations`` key) is unaffected.
+        self.relation_bias = nn.Parameter(torch.zeros(3))
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers,
                                              enable_nested_tensor=False)
         self.output_norm = nn.LayerNorm(d_model)
@@ -130,6 +134,13 @@ class SpectraStateEncoder(SpectraTokenFront):
         same_group = coupling_ids.unsqueeze(0) == coupling_ids.unsqueeze(1)
         attention_bias = torch.zeros(length, length, device=device)
         attention_bias = attention_bias.masked_fill(same_group, 1.0) * self.block_affinity
+        relations = state.get("relations")
+        if relations is not None and torch.is_tensor(relations) and relations.dim() == 2:
+            n = min(relations.size(0), length)
+            rel = torch.zeros(length, length, dtype=torch.long, device=device)
+            rel[:n, :n] = relations[:n, :n].to(device)
+            bias = torch.cat([self.relation_bias.new_zeros(1), self.relation_bias[1:]])
+            attention_bias = attention_bias + bias[rel.clamp(0, 2)]
 
         encoded = self.encoder(tokens.unsqueeze(0), mask=attention_bias)
         encoded = self.output_norm(encoded)
