@@ -35,7 +35,13 @@ Git: the 27 Sep code is committed on `master` (`git log -3` on Ido's laptop) and
 | 9 | `radam-c100-gate` | alternate on CIFAR-100 | as #7 | as #7 | §117/§121 |
 | 10 | `v7-budget-stop` | **Budget + STOP agent**: actions = remove 1/2/4 % of the network through this group, or STOP; in-band linear; area score; 10-net Catalog-L-clean catalog; recipe A; L1 ranking | freezes whose thin TRAJ is not a fixed-rate walk at equal keep | argmax walk ≡ a fixed-rate heuristic at equal keep on r56-w4 → cross off cost-shaped actions | area train `21536396` (same catalog/reward/score) |
 
-Job ids are printed by the enqueue run (`squeue -u paretsky -S -p`). The schedule gate is a
+**Job ids (submitted 27 Sep 05:08 IDT):** #1 `21703433` R, #2 `21703434` R, #3 `21703435` R,
+#4 `21703436`, #5 `21703437`, #6 `21703438`, #7 `21703439`, #8 `21703440`, #9 `21703441`,
+#10 `21703443` (all PD in that order; QOS cap **4**, factored `21536398` holds the fourth slot).
+First greps at 05:12: `ft_recipe=A-LSQ`, `A-LSQ: consumers refit 4, skipped 0`; `ft_recipe=C-PCA`,
+`C-PCA: producers 4, consumers 4, width 3, skipped 0`; BN recalibration firing; 0 Tracebacks.
+
+The schedule gate is a
 **pair**: an arm passes only if its thin control (#6 / #8) **and** its CIFAR-100 gate (#7 / #9)
 both pass. Then that arm becomes the one training fine-tune recipe and CIFAR-100 may enter
 the catalog (`docs/V7_TRAIN_CATALOG.md` §4 emit rule, `--min-c100 4`). If neither passes,
