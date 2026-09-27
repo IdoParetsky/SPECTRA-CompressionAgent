@@ -244,7 +244,7 @@ Thesis sentence: *"On the CIFAR test set of DepGraph (ResNet-56 / CIFAR-10, VGG-
 
 - `configs/catalog_l_map.json`: VGG-16 C10 → `hold out (L2)`; DenseNet-100 / ResNet-110 → `coverage, not Catalog L`. Done 21 Sep.
 - Next-cycle catalog: VGG-16 C10 → VGG-13 C10 in `database_offline_v5_p5b3*.json`; probe net `vgg13_bn_cifar10_`. Done 21 Sep.
-- **Loadability check of the two DepGraph checkpoints** (`init_catalog_l.py` / `v5_catalog_compat_check.py`, CPU): they are DepGraph `reproduce` objects and need their own instantiation entry before any TEST. HAVE ≠ loadable. Until then L1/L3 twin rows (chenyaofo) are the runnable inputs (`configs/input_catalog_l_twins.json`).
+- **Loadability check of the two DepGraph checkpoints — done 27 Sep (CPU `21703457`, `21703461`).** Both are plain state_dicts. **L1** `resnet56_cifar10_dep_graph_93.53.pth` loads strict-clean (0 missing / 0 unexpected) into `resnet_chenyaofo.resnet56` and scores 93.43 % on 3000 test images → runnable input `configs/input_catalog_l_depgraph_r56.json`; same-loop mild / L1 controls queued (`21703466/67`). **L3** `vgg19_cifar100_dep_graph_73.5.pth` uses DepGraph's own module names (`block0.0 … block4.10`, one `classifier` Linear) → needs a small factory before any walk (next sitting), and a recipe that recovers CIFAR-100 before any row is valid. Twin rows (chenyaofo, §124/§125) stay the runnable stand-ins meanwhile.
 - No Catalog L compute for any actor until bar 2 is met on the coverage cells.
 
 ---

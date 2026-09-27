@@ -1,0 +1,68 @@
+# V8 — what of the 21 Sep designs is implemented, what is not, and when (Fable, 27 Sep 2026 05:40 IDT)
+
+Ido's question: were `V6_REPRESENTATION_DESIGN.md`, `GILAD_BENCHMARK_SETUP_21SEP.md`, `V7_OVERHAUL_PROPOSAL.md`, `V7_TRAIN_CATALOG.md` implemented? Item by item, with the reason and a GPU-aware timeframe. QOS cap is **4**; the factored train `21536398` holds one slot until it ends (episode ~235 of 250 + patience; 1–3 days); the ten 27 Sep jobs (`PROMPT_OPS_V8_QUEUE.md`) hold the rest for the next ~24 h, then the Budget+STOP train holds one slot for 7 days.
+
+## 1. `V6_REPRESENTATION_DESIGN.md`
+
+| Item | State | Why / when |
+|---|---|---|
+| Counterfactual probe (`SPECTRA_EVAL_COUNTERFACTUAL`) | **done, run** | §123: `state_used` 38 % (r20) / 53 % (r56) → the encoder is read. Gate for the next row is **open**. |
+| Group-as-token + relational attention bias (`SPECTRA_STATE_TOKENS=groups`) | **not implemented** | It was gated on (a) the probe saying content is read — now true — and (b) the newest actor still not beating the heuristics at matched size — also true (no freeze of the area / PPO-8 / factored trains is TESTed). Cost ~400 lines + tests, one sitting. **Timeframe:** implement in the next development sitting (28 Sep). Its train needs a 7-day slot: the first one frees when `21536398` ends (28–30 Sep) → `v8-grouptoken` train enqueued then, in-band × area × 10-net, one change vs the area train. |
+| Shared actor/critic trunk | not implemented | second cell, after group tokens have a TEST. |
+| Full feature refresh under recipe A | flag exists (`SPECTRA_REFRESH_ALL_FEATURES`) | rides on the group-token train, not its own GPU. |
+| Probes VGG-13 + r56-w6 | done | in all v6/v7 profiles. |
+
+## 2. `GILAD_BENCHMARK_SETUP_21SEP.md` (the protocol note)
+
+| Item | State | Why / when |
+|---|---|---|
+| Protocol lock (a)(b)(c), three cells, two operating points | **done** | `CATALOG_L_TEST_PLAN.md` §5–6; Gilad note sent-ready. |
+| Train ∩ test = ∅, VGG-16 out of train, unit tests | **done** | `tests/test_v5_catalog.py`. |
+| Same-loop controls on the twins (mild, L1) | **done** | §124 / §125. VGG-19 C100 collapses under Adam 1e-3 for every method — L3 has no valid row until a recipe passes the C100 gate (§4 below). |
+| DepGraph checkpoint loadability (their `.pth` objects) | **done for L1** (`21703457`, `21703461`): both files are plain state_dicts; the ResNet-56 one loads strict-clean into `resnet_chenyaofo.resnet56` and scores 93.43 % on 3000 test images (paper 93.53) → `configs/input_catalog_l_depgraph_r56.json`; same-loop mild / L1 controls on it **queued** (`21703466/67`). **L3 pending**: VGG-19 C100 uses DepGraph's own key layout (`block0.0 … block4.10`, one `classifier`) → ~40-line factory next sitting, and no valid row until a recipe recovers CIFAR-100. |
+| Size-matched (2.57×) rows | not run | needs `SPECTRA_EVAL_MIN_FLOP_RATIO`/extra passes on the L cells — heuristic jobs, ~5 h each; run right after the DepGraph-checkpoint controls (same week). |
+| Frozen-agent rows on L1–L3 | not run, by design | waits for an actor that meets bar 2 on the coverage cells (no current freeze does). |
+| Budget table | not filled | slurm elapsed of one train + one TRAJ + their `reproduce` epoch counts × a measured CIFAR epoch — ops task, no GPU; can be written this week. |
+
+## 3. `V7_OVERHAUL_PROPOSAL.md`
+
+| § | Item | State | Why / when |
+|---|---|---|---|
+| 1.1 | `SPECTRA_PROBE_SCORE=area` | **done, used** by the area / PPO-8 / factored / budget trains | none of the area freezes is TESTed yet (Ido's GO). |
+| 1.2 | PPO 8×8 sample reuse | **done, ran** (`21536397`, freeze ep143 area 0.0675) | untested; ops §0c: do not crown PPO-8 from the probe. |
+| 1.2 | deterministic FT seed per step | not implemented | ~20 lines; a *variance* lever that does not change the recipe — candidate ride-along for the group-token train, or its own cheap no-agent A/A test (same walk twice) to measure the FT noise floor first (~1 h GPU). Next sitting. |
+| 1.2 | incremental credit (`SPECTRA_REWARD_INCREMENTAL`) | not implemented | reward change = new actor; only after Budget+STOP is read. October. |
+| 1.2 | Δacc surrogate from the ~25 k logged transitions | not implemented | **GPU-free** (CPU regression over `reward_trace.jsonl` + step records). Worth a CPU job this week as analysis; as a critic prior later. |
+| 1.3 | `SPECTRA_FT_LR`, re-gate | done, ran | both constants fail the thin control (§117–§121). |
+| 1.3 | BN recalibration | **done today** | control `21703437`; rides on A-LSQ / C-PCA / schedule arms. |
+| 1.3 | one-recipe schedule (AdamW warm-up cosine; RAdam) | **done today, gate queued** | `21703438–41`. |
+| 1.4 | in-band linear default | done | every new train. |
+| 1.5 | counterfactual probe | done, run | §123. |
+| 1.5 | standardizer OOD check on thin nets | not done | CPU, 30 min; next sitting. |
+| 2.3 | A-LSQ, C-PCA | **done today, running** | `21703433–36`. |
+| 2.3 | C-G-KD | not implemented | diagnosis only; skip unless Gilad asks. |
+| 3.1–3.2 | Budget + STOP | **done today, train queued** | `21703443`. |
+| 3.3–3.7 | pointer policy, batch-then-FT, hindsight τ, width-adaptive ladder, per-net normalisation | not implemented | after Budget+STOP and group tokens are read; each is a new actor (7-day slot). |
+| 5 | audit checklist A1–A10 | A1 done (fixed), A4 done (BN recal), A6 not checked, A2 not checked | A2/A6 are CPU checks; next sitting. |
+
+## 4. `V7_TRAIN_CATALOG.md`
+
+| Item | State | Why / when |
+|---|---|---|
+| 16-net diverse file + gate table + candidates input | **done** | `configs/database_offline_v7_diverse*.json`, `v7_c100_gate.json`. |
+| Constant-LR re-gate (Adam 1e-4, SGD 0.01) | **done, failed** | admits 4/8 and 2/8 but both lose the CIFAR-10 thin control (§117–§121). |
+| Schedule gate (the replacement) | **queued today** | `21703438–41`; pass = thin within 0.5 pp of §120 **and** ≥ 4/8 admits. |
+| V7 diverse train | **not started, gated** | starts only if a schedule arm passes both gates → emit with `--min-c100 4` → train `v7-inband-diverse-area` in the next free 7-day slot (needs a second slot after Budget+STOP; realistic start when `21536398` ends **or** after the group-token train, i.e. early October unless Ido re-prioritises). |
+| SVHN out of the train catalog (both cheap datasets truly held out) | not done | ops §0.6 asks for it once A-LSQ has a `val_best`; a 9-net C10-only file already exists (`database_offline_v5_p5b3_c10core.json`). One-line profile change; next sitting. |
+| Fallback used today | P5-B2 (10-net: 9 C10 + VGG-11 SVHN) | the live catalog of every 27 Sep train. |
+
+## 5. Recommended GPU order after today's ten jobs (Ido decides at 12:00)
+
+1. **Read A-LSQ / C-PCA** (thin lands within ~4 h; twins ~5 h). Decision: recipe for future heuristics and for the *next* train.
+2. **Read the schedule pair** (~6–8 h). Decision: CIFAR-100 in or out; if in, V7 diverse train becomes the next 7-day job.
+3. **Budget+STOP** starts on its own when a walk frees a slot (tonight). Its first freeze is TESTed only on GO.
+4. When `21536398` ends: the freed slot goes to **group-as-token** (if implemented by then) or to the V7 diverse train (if the schedule passed) — Ido's call; my recommendation: group-as-token first (novelty gate is open), V7 diverse second.
+5. Heuristic holes (≤ 5 h each, any time): DepGraph-checkpoint twin controls; size-matched (2.57×) rows on L1/L2; FT-noise A/A pair.
+6. CPU, no slot needed: Δacc surrogate over the logged transitions; standardizer OOD check; budget table.
+
+Not this cycle: C-G DRL, a second factored train, another ranking menu, BERT, ImageNet DRL, 200-epoch SGD inside training.

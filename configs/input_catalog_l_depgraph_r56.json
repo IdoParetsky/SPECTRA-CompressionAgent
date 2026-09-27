@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet56_cifar10_dep_graph_93.53.pth": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/resnet_chenyaofo.py",
+    "cifar-10"
+  ]
+}

@@ -124,3 +124,21 @@ Both rows are real. The FLOPs column is percent **remaining** (their VGG prose: 
 ## 7. Out of scope
 
 ImageNet DRL. Another ranking menu. Group-as-token train. Restarting v3 or V4. The university letter. The draft. A push. A scancel. A filler agent for the free GPUs.
+
+---
+
+## 8. Fable 27 Sep 04:30–05:40 — what was done with this brief (ops: read, then use `PROMPT_OPS_V8_QUEUE.md`)
+
+**Code reviewed and extended (298/298 green on the cluster conda, `21703424`; committed `7834af2`, pushed on Ido's instruction):**
+- A-LSQ: calibration was 2 images (underdetermined for any consumer at ≤ 8×8); now `SPECTRA_FT_CALIB_IMAGES` (32) × 2 batches, ridge-regularised normal equations in float64, random row subsample, Linear-after-flatten consumers refit, concat consumers refit by construction. Verified on a residual stream: `consumers refit 4, skipped 0`.
+- C-PCA: one basis per stream (as drafted); **added** reset of the group BatchNorms (their sliced γ/β/stats described the old channels), group-slice rotation for concat consumers, and a whole-group skip when an owner is depthwise. Approximate wherever BN/ReLU sit between producer and consumer — written into the docstring and the Gilad note.
+- Budget + STOP: the mapping lived only in `step()`; the legal mask judged the raw 0.01 as a keep rate and the action-cost slots priced it as "remove 99 %". One `fortify.effective_rates` now feeds step, mask and slots; a request the group cannot pay for, or whose single channel overshoots 1.5× the ask, is **masked** (never rounded to a one-channel cut); STOP is paid the slack-weighted area **×100** so it lives in the per-step units (`SPECTRA_STOP_REWARD_SCALE`).
+- §3 schedule implemented: `SPECTRA_FT_OPTIM=adamw|radam`, `SPECTRA_FT_SCHEDULE=warmcos` (1-epoch linear warm-up, per-batch cosine to `SPECTRA_FT_LR_MIN`=1e-5), `SPECTRA_FT_WD` 5e-4 for the adaptive arms; clip 1.0 already existed. `SPECTRA_FT_RECIPE=alsq|pca` aliases in the sbatch. Profile `offline_train_v7_budget`.
+
+**Jobs (all from `tree_v8`; nothing cancelled):** tier 1 A-LSQ thin/twin `21703433/34`, C-PCA thin/twin `21703435/36`, BN-recal-alone control `21703437`; tier 2 schedule gate warmcos `21703438/39`, RAdam `21703440/41`; tier 3 Budget+STOP train `21703443` (nice 20). Three walks started 05:08.
+
+**Deviations from this brief, on Ido's 04:29 instruction ("submit to open slots immediately"):** (i) the Budget+STOP train is **queued now on recipe A**, not held for A-LSQ's `val_best` — it starts when a walk frees a slot; if A-LSQ passes, an A-LSQ-recovery train is a later separate cell (one change per train). Ido may cancel-and-resubmit at 12:00 while it is PD. (ii) The RAdam alternate runs **in parallel** with warmcos rather than after it (two cheap heuristic pairs). (iii) A BN-recal-alone control was added so A-LSQ's gain can be attributed.
+
+**§0b rewind:** left as is (flag on, no extension) — the budget train inherits the v3 governor unchanged. **§0c:** not crowned; none of the area freezes is TESTed. **§4:** Table 5 row untouched. **§6:** the Gilad note got a dated "in flight — no results yet" section (§2b, EN+HE) and an updated executive summary because Ido shares it on 28 Sep; the throw-away table rows will be added by ops when A-LSQ and C-PCA land.
+
+**Status of the 21 Sep designs and the timeline:** `docs/V8_STATUS_AND_TIMELINE_27SEP.md`.

@@ -33,7 +33,10 @@ Git: the 27 Sep code is committed on `master` (`git log -3` on Ido's laptop) and
 | 7 | `warmcos-c100-gate` | same schedule on the 8 CIFAR-100 candidates | ≥ 4/8 admits (kept ≤ 0.98, val Δacc ≥ −10) | < 4 | §109/§117/§121 |
 | 8 | `radam-thin-ctl` | alternate: RAdam, no warm-up, cosine, 12/4, BN recal | as #6 | as #6 | §120 |
 | 9 | `radam-c100-gate` | alternate on CIFAR-100 | as #7 | as #7 | §117/§121 |
-| 10 | `v7-budget-stop` | **Budget + STOP agent**: actions = remove 1/2/4 % of the network through this group, or STOP; in-band linear; area score; 10-net Catalog-L-clean catalog; recipe A; L1 ranking | freezes whose thin TRAJ is not a fixed-rate walk at equal keep | argmax walk ≡ a fixed-rate heuristic at equal keep on r56-w4 → cross off cost-shaped actions | area train `21536396` (same catalog/reward/score) |
+| 9b | `ctl-l1anchor-r56-mild` `21703466` / `ctl-l1anchor-r56-l1` `21703467` | **Catalog L L1 on DepGraph's own checkpoint** (`resnet56_cifar10_dep_graph_93.53.pth`, loads strict-clean into `resnet_chenyaofo.resnet56`, CPU probe `21703461`: 93.43 % on 3000 test images): same-loop mild and L1, recipe A, 2-pass, 40/10 | — (controls: the τ-matched SPECTRA rows of L1 on the anchor; compare with the chenyaofo twin §124/§125) | Traceback → report | §124 / §125 |
+| 10 | `v7-budget-stop` `21703443` | **Budget + STOP agent**: actions = remove 1/2/4 % of the network through this group, or STOP; in-band linear; area score; 10-net Catalog-L-clean catalog; recipe A; L1 ranking | freezes whose thin TRAJ is not a fixed-rate walk at equal keep | argmax walk ≡ a fixed-rate heuristic at equal keep on r56-w4 → cross off cost-shaped actions | area train `21536396` (same catalog/reward/score) |
+
+L3 (VGG-19 C100, DepGraph checkpoint) is a plain state_dict with DepGraph's own key layout (`block0.0…block4.10`, single `classifier`) — it needs a ~40-line factory before it can be walked; Fable writes it next sitting. It also needs a recipe that recovers CIFAR-100 (the schedule gate) before any row is valid.
 
 **Job ids (submitted 27 Sep 05:08 IDT):** #1 `21703433` R, #2 `21703434` R, #3 `21703435` R,
 #4 `21703436`, #5 `21703437`, #6 `21703438`, #7 `21703439`, #8 `21703440`, #9 `21703441`,
