@@ -1,0 +1,17 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet56_cifar10_chenyaofo_94.37_0.86_251.5.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/resnet_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg16_bn_cifar10_chenyaofo_94.16_15.25_627.46.pt": [
+    "vgg16_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-10"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg19_bn_cifar100_chenyaofo_73.87_20.61_797.42.pt": [
+    "vgg19_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-100"
+  ]
+}

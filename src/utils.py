@@ -153,6 +153,25 @@ def extract_args_from_cmd():
         )
     )
 
+    parser.add_argument(
+        '--action_rankings', type=str, nargs='+', default=None,
+        help=(
+            "Optional filter-importance criterion per action, parallel to --compression_rates "
+            "(e.g. --compression_rates 1.0 0.9 0.8 0.9 0.8 --action_rankings l1 l1 l1 fpgm fpgm). "
+            "Makes the action a (rate, ranking) pair so the policy chooses *which* filters die, "
+            "not only how many. Omitted (default): every action uses SPECTRA_FILTER_IMPORTANCE."
+        )
+    )
+
+    parser.add_argument(
+        '--ranking_menu', type=str, nargs='+', default=None,
+        help=(
+            "V4-1 factored policy (requires SPECTRA_FACTORED_HEAD=1): the ranking head's menu, "
+            "e.g. --ranking_menu l1 fpgm bn_scale svd taylor. The rate head is --compression_rates. "
+            "Omitted (default): single-head policy exactly as before."
+        )
+    )
+
     parser.add_argument('--train_compressed_layer_only', type=str2bool, default=False,
                         help="Whether to train only the rewritten layers after compression. "
                              "Default False (full-net FT); True is the NEON dense-DNN freeze "
@@ -167,8 +186,11 @@ def extract_args_from_cmd():
     parser.add_argument('--discount_factor', type=float, default=0.99,
                         help="Discount Factor, a.k.a Gamma, controls the weight of the agent's future rewards.")
 
-    parser.add_argument('--learning_rate', type=float, default=1e-3,
-                        help="Learning rate for the agent's optimizer. Controls the step size in gradient descent.")
+    parser.add_argument('--learning_rate', type=float,
+                        default=float(os.environ.get("SPECTRA_FT_LR", "") or 1e-3),
+                        help="Adam learning rate of the post-prune fine-tune (the agent has its own "
+                             "SPECTRA_AGENT_LR). Env override SPECTRA_FT_LR (V7: 1e-4 is the C100 "
+                             "re-gate arm; 1e-3 is the historical value that recovers CIFAR-10).")
 
     parser.add_argument('--rollout_limit', type=int, default=None,
                         help="Ensures that the agent's rollout trajectory does not exceed a predefined number of steps (optional).")
@@ -764,11 +786,49 @@ def parse_compression_rates(compression_rates):
     return {i: rate for i, rate in enumerate(compression_rates)}
 
 
+def parse_action_rankings(action_rankings, compression_rates_dict):
+    """
+    ``{action_index: ranking or None}`` parallel to ``compression_rates_dict``.
+
+    ``None`` means "environment default" (``SPECTRA_FILTER_IMPORTANCE``), which is what every
+    frozen actor was trained with. Identity actions never carry a ranking.
+    """
+    n = len(compression_rates_dict)
+    if not action_rankings:
+        return {i: None for i in range(n)}
+    if len(action_rankings) != n:
+        raise ValueError(
+            f"--action_rankings has {len(action_rankings)} entries but --compression_rates has {n}")
+    import src.pruning as pruning
+    out = {}
+    for i in range(n):
+        rate = float(compression_rates_dict[i])
+        raw = str(action_rankings[i]).strip().lower()
+        if abs(rate - 1.0) < 1e-9 or raw in ("", "none", "default", "env"):
+            out[i] = None
+        else:
+            out[i] = pruning.normalize_importance_mode(raw)
+    return out
+
+
+def parse_ranking_menu(ranking_menu):
+    """Canonical ranking names for the factored head; None/empty → no ranking head."""
+    if not ranking_menu:
+        return []
+    import src.pruning as pruning
+    out = []
+    for raw in ranking_menu:
+        name = pruning.normalize_importance_mode(str(raw))
+        if name not in out:
+            out.append(name)
+    return out
+
+
 def init_conf_values(test_name, input_dict, compression_rates_dict, train_compressed_layer_only,
                      allowed_acc_reduction, discount_factor, learning_rate, rollout_limit, passes, prune,
                      seed, num_epochs, runtime_limit, n_splits, train_split, val_split, database_dict,
                      actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts,
-                     dataloaders_dict=None):
+                     dataloaders_dict=None, action_rankings_dict=None, ranking_menu=None):
     """
     Initialize configuration values for the A2C Agent.
 
@@ -837,7 +897,9 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
         actor_checkpoint_path=actor_checkpoint_path,
         critic_checkpoint_path=critic_checkpoint_path,
         save_pruned_checkpoints=save_pruned_checkpoints,
-        test_ts=test_ts
+        test_ts=test_ts,
+        action_rankings_dict=action_rankings_dict,
+        ranking_menu=ranking_menu,
     )
     StaticConf(cv)
 
@@ -1088,8 +1150,42 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
     return train_loader, val_loader, test_loader
 
 
+def _pct_cut(before, after):
+    """Realized percent removed; None if the pair is missing."""
+    if before is None or after is None or float(before) <= 0:
+        return None
+    return max(0.0, (1.0 - float(after) / float(before)) * 100.0)
+
+
+def unified_eps() -> float:
+    """Denominator floor for F1 over-budget ``o² / (ρ + ε)``. Default 1.0 (pp units)."""
+    raw = os.environ.get("SPECTRA_UNIFIED_EPS", "1").strip()
+    try:
+        return max(1e-6, float(raw or "1"))
+    except ValueError:
+        return 1.0
+
+
+def unified_rho(nominal, params_before=None, params_after=None,
+                flops_before=None, flops_after=None):
+    """
+    Reduction index for ``structural_unified``: mix of realized weight and FLOP
+    cuts (½ + ½). Falls back to weights, then to nominal, if a probe is missing.
+    Identity / no-op stays 0 when both realized cuts are 0 and nominal is 0.
+    """
+    rho_w = _pct_cut(params_before, params_after)
+    if rho_w is None:
+        rho_w = float(nominal)
+    rho_f = _pct_cut(flops_before, flops_after)
+    rho = rho_w if rho_f is None else (0.5 * rho_w + 0.5 * rho_f)
+    if rho < 1e-9:
+        rho = float(nominal)
+    return rho
+
+
 def compute_reward(new_acc, prev_acc, compression_rate, *,
-                   params_before=None, params_after=None):
+                   params_before=None, params_after=None,
+                   flops_before=None, flops_after=None, tau=None):
     """
     Preference-aware step reward (NEON lineage).
 
@@ -1122,23 +1218,46 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
           (ledger §52.1). Grading by overshoot keeps the trichotomy, keeps in-budget
           strictly better than any violation, and additionally prefers the *larger* of
           two equally damaging cuts — which is the Pareto-correct ordering.
+      structural_unified
+          F1 hard-τ combine. Slack ``u = max(0, τ + Δ)``, overshoot
+          ``o = max(0, −Δ − τ)``, reduction ``ρ = ½ ρ_w + ½ ρ_f`` (realized).
+          ``R = ρ · (u / τ) − 1(o>0) · o² / (ρ + ε)``. In-budget, overshoot is
+          off and slack tapers credit to 0 at the wall. Over-budget, size
+          credit is off and illegal cuts rank by harm per byte. No cubes, no
+          cube-root (this mode ignores ``SPECTRA_REWARD_SCALE``). Hard τ:
+          identity still wins on a fully empty band.
+      structural_prefer
+          Same over-budget arm and ρ mix as F1, but in-budget credit is ``ρ``
+          (no slack taper). F1's ``ρ·u/τ`` prefers a timid cut that leaves
+          slack over a larger legal cut that spends the budget; the policy
+          gradient then fights the in-budget checkpoint. Prefer aligns the
+          step reward with "compress as much as τ allows". Still hard τ.
 
     Scale (``SPECTRA_REWARD_SCALE``):
       raw (default)
           Reward as computed above.
       cbrt
-          ``cbrt(reward)``. A strictly monotone map, so the per-step preference
-          ordering is exactly NEON's; only the magnitude changes. Percentage-cubed
-          returns reach ~1e5–1e6, which the critic (Smooth-L1, β=100) cannot regress,
-          leaving A2C with a useless baseline. Cube root puts the signal back in
-          percentage-point units.
+          ``cbrt(reward)`` on **every** arm. A strictly monotone map, so the per-step
+          preference ordering is exactly NEON's; only the magnitude changes.
+          Percentage-cubed returns reach ~1e5–1e6, which the critic (Smooth-L1, β=100)
+          cannot regress. Cube root puts the cubed arms back in percentage-point units
+          — and also shrinks the already-linear in-band arm to ``ρ^{1/3}``. Live v2/v3/V4
+          default. Under this map a 20-point in-band cut is worth ~2.7 and a 20-point
+          miss is −20, so ~18 legal cuts pay for one miss (mild cloning).
+      cbrt_cubes
+          Cube-root **only the cubed arms** (accuracy-gain ``+ρ³`` and over-budget
+          ``−ρ³``). The in-band arm stays linear ``+ρ``. Default **off**. Isolated
+          cell vs ``cbrt``: a 20-point in-band cut is +20, a miss is −20, so one
+          legal cut pays for one miss. Fresh actor; do not overlay onto a live train.
 
     The NEON body is preserved verbatim under ``neon``; other modes are explicit
     gated ablations for A/B experiments.
     """
     import os
     mode = os.environ.get("SPECTRA_REWARD_MODE", "neon").strip().lower()
-    tau = float(StaticConf.get_instance().conf_values.allowed_acc_reduction)
+    # ``tau`` lets the environment pass a train-only band (SPECTRA_TRAIN_TAU); default is the
+    # configured --allowed_acc_reduction, exactly as before.
+    tau = float(StaticConf.get_instance().conf_values.allowed_acc_reduction) if tau is None else float(tau)
     delta_acc = (new_acc - prev_acc) * 100
 
     nominal = (1.0 - float(compression_rate)) * 100.0
@@ -1165,62 +1284,73 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
     if mode in ("neon", "structural", "structural_guard"):
         # NEON trichotomy (Hirsch & Katz 2022), magnitude = reduction
         if delta_acc < -tau:
-            reward = -reduction ** 3
-        elif delta_acc > 0:
-            reward = reduction ** 3
-        else:
-            reward = reduction
-        return apply_reward_scale(reward)
+            return apply_reward_scale(-reduction ** 3, cubed=True)
+        if delta_acc > 0:
+            return apply_reward_scale(reduction ** 3, cubed=True)
+        return apply_reward_scale(reduction, cubed=False)
 
     if mode == "structural_band":
         # NEON trichotomy; only the over-budget magnitude changes (see docstring).
         if delta_acc < -tau:
-            reward = -((-delta_acc - tau) ** 3)
-        elif delta_acc > 0:
-            reward = reduction ** 3
-        else:
-            reward = reduction
-        return apply_reward_scale(reward)
+            return apply_reward_scale(-((-delta_acc - tau) ** 3), cubed=True)
+        if delta_acc > 0:
+            return apply_reward_scale(reduction ** 3, cubed=True)
+        return apply_reward_scale(reduction, cubed=False)
 
     if mode == "structural_shaped":
         # Soft preference shaping (still preference-aware; not AMC's -Error·log FLOPs).
         if delta_acc < -tau:
             overshoot = (-delta_acc - tau) / max(tau, 1e-6)
-            reward = -(reduction ** 3) * (1.0 + overshoot)
-        elif delta_acc > 0:
-            reward = (reduction ** 3) * (1.0 + 0.1 * delta_acc)
-        else:
-            # Mild loss inside budget: taper toward 0 as we approach the cliff
-            soften = ((tau + delta_acc) / max(tau, 1e-6)) ** 2
-            reward = reduction * soften
-        return apply_reward_scale(reward)
+            return apply_reward_scale(-(reduction ** 3) * (1.0 + overshoot), cubed=True)
+        if delta_acc > 0:
+            return apply_reward_scale((reduction ** 3) * (1.0 + 0.1 * delta_acc), cubed=True)
+        # Mild loss inside budget: taper toward 0 as we approach the cliff
+        soften = ((tau + delta_acc) / max(tau, 1e-6)) ** 2
+        return apply_reward_scale(reduction * soften, cubed=False)
+
+    if mode in ("structural_unified", "structural_prefer"):
+        # Hard-τ combine. No cubes, no cbrt. Prefer drops the F1 slack taper.
+        rho = unified_rho(nominal, params_before, params_after,
+                          flops_before, flops_after)
+        overshoot = max(0.0, -delta_acc - tau)
+        if overshoot > 0:
+            return -(overshoot * overshoot) / (rho + unified_eps())
+        if mode == "structural_prefer":
+            return rho
+        slack = max(0.0, tau + delta_acc)
+        return rho * (slack / max(tau, 1e-6))
 
     # Unknown mode → NEON fallback
     if delta_acc < -tau:
-        return apply_reward_scale(-nominal ** 3)
+        return apply_reward_scale(-nominal ** 3, cubed=True)
     if delta_acc > 0:
-        return apply_reward_scale(nominal ** 3)
-    return apply_reward_scale(nominal)
+        return apply_reward_scale(nominal ** 3, cubed=True)
+    return apply_reward_scale(nominal, cubed=False)
 
 
 def reward_scale_name() -> str:
-    """``raw`` (default) or ``cbrt``. See ``compute_reward``."""
+    """``raw`` (default), ``cbrt`` (all arms), or ``cbrt_cubes`` (cubed arms only)."""
     return os.environ.get("SPECTRA_REWARD_SCALE", "raw").strip().lower() or "raw"
 
 
-def apply_reward_scale(reward):
+def apply_reward_scale(reward, *, cubed=True):
     """
     Monotone rescaling of the step reward for the learning signal.
 
-    ``cbrt`` inverts the trichotomy's cube, so the ordering over steps is unchanged
-    while the magnitude drops from ~1e5 to ~1e2. Nothing else in the pipeline is
-    scale-free: the critic regresses raw returns and the entropy bonus is compared
-    against the policy-gradient term.
+    ``cbrt`` inverts the trichotomy's cube on **every** arm (live v2/v3/V4 default).
+    ``cbrt_cubes`` inverts it only when ``cubed=True`` (gain / over-budget); the
+    in-band arm stays linear. Ordering among cubed arms is unchanged; in-band vs
+    miss becomes 1:1 at equal ρ instead of ρ^{1/3} vs ρ.
     """
-    if reward_scale_name() != "cbrt":
+    scale = reward_scale_name()
+    if scale in ("", "raw"):
         return reward
-    value = float(reward)
-    return math.copysign(abs(value) ** (1.0 / 3.0), value)
+    if scale == "cbrt_cubes" and not cubed:
+        return reward
+    if scale in ("cbrt", "cbrt_cubes"):
+        value = float(reward)
+        return math.copysign(abs(value) ** (1.0 / 3.0), value)
+    return reward
 
 
 def reward_branch(delta_acc, tau):

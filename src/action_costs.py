@@ -85,6 +85,64 @@ def group_removal_cost(group, removed: int, macs: Dict[int, float]) -> (int, flo
     return params, flops
 
 
+GROUPCOST_FEATURE_DIM = 4  # param share, MAC share, owner-count share, cuts this episode
+
+
+def group_cost_features(model: nn.Module, layers: Sequence[nn.Module], input_shape,
+                        groups: Optional[List] = None, device=None,
+                        episode_cuts: Optional[Dict[frozenset, int]] = None,
+                        macs: Optional[Dict[int, float]] = None) -> torch.Tensor:
+    """
+    Per-layer **group cost** tokens (``SPECTRA_STATE_GROUPCOST``), one row per ``layers`` entry.
+
+    Columns: fraction of the whole network's parameters that scale with the layer's group
+    width (all producers + the slices every consumer/norm reads), the same for MACs, the
+    group's owner count over the largest owner count in the net, and structural cuts
+    already applied to that group this episode (``min(1, n / 2)``). Layers that do not
+    *own* a channel dimension (norms, activations, blocked groups) get zeros. Fractions are
+    of the whole net so they are comparable across architectures, like the action slots.
+    """
+    model = pruning.ddp_unwrap(model)
+    device = device or next(model.parameters()).device
+    out = torch.zeros(len(layers), GROUPCOST_FEATURE_DIM, device=device)
+    total_params = sum(p.numel() for p in model.parameters())
+    if total_params == 0 or not layers:
+        return out
+    if macs is None:
+        try:
+            macs = utils.per_module_macs(model, input_shape, device)
+        except Exception:
+            macs = {}
+    total_macs = sum(macs.values()) or 1.0
+    if groups is None:
+        try:
+            groups = channel_groups.build_channel_groups(model) or []
+        except Exception:
+            groups = []
+    index_of = {id(layer): i for i, layer in enumerate(layers)}
+    max_owners = 1
+    per_group = []
+    for group in groups:
+        owners = list(group.producers) + list(group.depthwise)
+        if not owners or not group.prunable or group.width <= 0:
+            continue
+        params, flops = group_removal_cost(group, group.width, macs)
+        key = frozenset(index_of[id(m)] for m in owners if id(m) in index_of)
+        cuts = int((episode_cuts or {}).get(key, 0))
+        per_group.append((owners, params / total_params, flops / total_macs, len(owners), cuts))
+        max_owners = max(max_owners, len(owners))
+    for owners, p_share, m_share, n_owners, cuts in per_group:
+        for module in owners:
+            i = index_of.get(id(module))
+            if i is None:
+                continue
+            out[i, 0] = min(1.0, float(p_share))
+            out[i, 1] = min(1.0, float(m_share))
+            out[i, 2] = n_owners / max_owners
+            out[i, 3] = min(1.0, cuts / 2.0)
+    return out
+
+
 def estimate_action_costs(model: nn.Module, target_layer: nn.Module,
                           compression_rates: Sequence[float], input_shape,
                           groups: Optional[List] = None,

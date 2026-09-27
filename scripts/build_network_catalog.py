@@ -311,6 +311,23 @@ def discover_competent(ckpt_root: Path):
             entries.append(_entry(name, arch, "thin_res_net.py", DATASET_JSON[ds]))
             continue
 
+        acc_extra = re.search(r"_(?:wide-resnet|preact-resnet|densenet-cifar)_(\d+(?:\.\d+)?)_", name)
+        acc2 = float(acc_extra.group(1)) if acc_extra else acc
+        m = re.match(r"(wrn_\d+_\d+)_(cifar10|cifar100)_wide-resnet_", name)
+        if m:
+            if acc2 is not None and ((m.group(2) == "cifar10" and acc2 < 88) or (m.group(2) == "cifar100" and acc2 < 60)):
+                continue
+            entries.append(_entry(name, m.group(1), "wide_resnet.py", DATASET_JSON[m.group(2)]))
+            continue
+        m = re.match(r"(preact_resnet\d+)_(cifar10|cifar100)_preact-resnet_", name)
+        if m:
+            entries.append(_entry(name, m.group(1), "preact_resnet.py", DATASET_JSON[m.group(2)]))
+            continue
+        m = re.match(r"(densenet\d+)_(cifar10|cifar100)_densenet-cifar_", name)
+        if m:
+            entries.append(_entry(name, m.group(1), "densenet_cifar.py", DATASET_JSON[m.group(2)]))
+            continue
+
         if "_chenyaofo_" not in name:
             continue
         m = re.match(r"(resnet\d+)_(cifar10|cifar100)_chenyaofo_", name)
@@ -333,6 +350,11 @@ def discover_competent(ckpt_root: Path):
         if m:
             arch = "shufflenetv2x" + _scale_token(m.group(1))
             entries.append(_entry(name, arch, "shufflenetv2_chenyaofo.py", DATASET_JSON[m.group(2)]))
+            continue
+        m = re.match(r"(repvgg_a\d+|repvgga\d+)_(cifar10|cifar100)_chenyaofo_", name)
+        if m:
+            arch = m.group(1).replace("repvgga", "repvgg_a")
+            entries.append(_entry(name, arch, "repvgg_chenyaofo.py", DATASET_JSON[m.group(2)]))
             continue
     return entries
 

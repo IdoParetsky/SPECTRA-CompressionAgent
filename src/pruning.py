@@ -76,9 +76,9 @@ def layer_width(layer: nn.Module) -> int:
     return layer.out_channels if isinstance(layer, nn.Conv2d) else layer.out_features
 
 
-def filter_importance_mode() -> str:
-    """See module docstring. Unknown values fall back to L1 so a typo cannot silent-skip prune."""
-    raw = os.environ.get("SPECTRA_FILTER_IMPORTANCE", "l1").strip().lower()
+def normalize_importance_mode(raw) -> str:
+    """Canonical ranking name; unknown values fall back to L1 so a typo cannot silent-skip prune."""
+    raw = (raw or "l1").strip().lower()
     if raw in ("l2", "frobenius", "euclidean"):
         return "l2"
     if raw in ("svd", "nuclear", "spectral"):
@@ -87,7 +87,90 @@ def filter_importance_mode() -> str:
         return "fpgm"
     if raw in ("bn_scale", "bn-scale", "bn", "slimming", "network_slimming"):
         return "bn_scale"
+    if raw in ("taylor", "taylor_fo", "first_order", "molchanov"):
+        return "taylor"
     return "l1"
+
+
+_TAYLOR_SCORES: Dict[int, torch.Tensor] = {}
+
+
+def bind_taylor_scores(model: nn.Module, loader, device=None, n_batches: int = 1,
+                       loss_fn: Optional[nn.Module] = None) -> int:
+    """
+    First-order Taylor filter importance (Molchanov et al., ICLR 2017 / CVPR 2019 variant on
+    weights): per output filter, ``|Σ_w w · ∂L/∂w|`` accumulated over ``n_batches`` mini-batches
+    of ``loader`` — the first-order estimate of the loss change from removing that filter.
+
+    Data-dependent, unlike L1/L2/SVD/FPGM/BN-scale; costs one forward+backward per bound batch.
+    Call right before ranking with that criterion (``NetworkEnv.step`` does so when the chosen
+    ranking is ``taylor``); scores are keyed by ``id(layer)`` and cleared on every call, so a
+    resized model never reads stale scores. Returns the number of layers bound.
+    """
+    _TAYLOR_SCORES.clear()
+    if model is None or loader is None:
+        return 0
+    model = ddp.unwrap(model)
+    device = device or next(model.parameters()).device
+    loss_fn = loss_fn or nn.CrossEntropyLoss()
+    was_training = model.training
+    model.eval()  # BN uses running stats; gradients still flow to weights
+    grads: Dict[int, torch.Tensor] = {}
+    params = [(m, m.weight) for m in model.modules()
+              if isinstance(m, PRUNABLE_TYPES) and getattr(m, "weight", None) is not None]
+    for _, w in params:
+        w.requires_grad_(True)
+    seen = 0
+    try:
+        for x, y in loader:
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
+            if y.dim() > 1 and y.shape[1] > 1:
+                y = torch.argmax(y, dim=1)
+            model.zero_grad(set_to_none=True)
+            out = model(x)
+            loss = loss_fn(out, y.long())
+            loss.backward()
+            for m, w in params:
+                if w.grad is None:
+                    continue
+                contrib = (w.detach() * w.grad.detach()).reshape(w.size(0), -1).sum(dim=1)
+                grads[id(m)] = grads.get(id(m), 0) + contrib
+            seen += 1
+            if seen >= max(1, int(n_batches)):
+                break
+    finally:
+        model.zero_grad(set_to_none=True)
+        model.train(was_training)
+    for m, _ in params:
+        if id(m) in grads:
+            _TAYLOR_SCORES[id(m)] = grads[id(m)].abs()
+    return len(_TAYLOR_SCORES)
+
+
+def _taylor_per_filter(layer: nn.Module, weight: torch.Tensor) -> torch.Tensor:
+    """Bound Taylor score; L1 fallback when no score is bound for this layer. Dead filters 0."""
+    score = _TAYLOR_SCORES.get(id(layer))
+    cout = int(weight.size(0))
+    dead = weight.reshape(cout, -1).abs().sum(dim=1) <= 0
+    if score is None or int(score.numel()) != cout:
+        scores = weight.reshape(cout, -1).abs().sum(dim=1)
+    else:
+        scores = score.to(device=weight.device, dtype=weight.dtype)
+    scores = scores.clone()
+    scores[dead] = 0
+    return scores
+
+
+def filter_importance_mode(mode: Optional[str] = None) -> str:
+    """
+    Ranking in force: an explicit ``mode`` (the agent's *action* may carry one when the
+    action menu is ``(rate, ranking)`` pairs — ``--action_rankings``), else the environment
+    default ``SPECTRA_FILTER_IMPORTANCE``.
+    """
+    if mode:
+        return normalize_importance_mode(mode)
+    return normalize_importance_mode(os.environ.get("SPECTRA_FILTER_IMPORTANCE", "l1"))
 
 
 _BN_ABS_GAMMA: Dict[int, torch.Tensor] = {}
@@ -118,17 +201,18 @@ def bind_bn_scales(model: Optional[nn.Module]) -> None:
                 break
 
 
-def filter_importance(layer: nn.Module) -> torch.Tensor:
+def filter_importance(layer: nn.Module, mode: Optional[str] = None) -> torch.Tensor:
     """
     Per-output-filter score; higher = more likely to survive.
 
     Default is L1 magnitude (Li et al. 2017). ``l2`` / ``svd`` / ``fpgm`` are drop-in
     weight-only criteria at group level (SPA 2024). ``bn_scale`` uses the following BN's
     ``|γ|`` when ``bind_bn_scales`` has paired it. All of these are zero iff the filter is
-    all zeros, so ``alive_filters`` stays well-defined.
+    all zeros, so ``alive_filters`` stays well-defined. ``mode`` overrides the environment
+    default for one call (ranking chosen by the action).
     """
     weight = layer.weight.detach()
-    mode = filter_importance_mode()
+    mode = filter_importance_mode(mode)
     if mode == "l2":
         return weight.reshape(weight.size(0), -1).pow(2).sum(dim=1).sqrt()
     if mode == "svd":
@@ -137,6 +221,8 @@ def filter_importance(layer: nn.Module) -> torch.Tensor:
         return _fpgm_per_filter(weight)
     if mode == "bn_scale":
         return _bn_scale_per_filter(layer, weight)
+    if mode == "taylor":
+        return _taylor_per_filter(layer, weight)
     return weight.reshape(weight.size(0), -1).abs().sum(dim=1)
 
 
@@ -200,14 +286,15 @@ def target_width(alive_count: int, compression_rate: float) -> int:
     return max(1, min(target, alive_count - 1))
 
 
-def select_surviving_filters(layer: nn.Module, compression_rate: float) -> torch.Tensor:
+def select_surviving_filters(layer: nn.Module, compression_rate: float,
+                             mode: Optional[str] = None) -> torch.Tensor:
     """
     Choose which output filters to keep.
 
     The target width is a fraction of the filters that are still alive, so repeated
     compression of the same layer compounds as the caller expects.
     """
-    importance = filter_importance(layer)
+    importance = filter_importance(layer, mode)
     alive = torch.nonzero(importance > 0, as_tuple=False).flatten()
     if alive.numel() == 0:  # fully masked already; keep one filter to stay runnable
         return torch.zeros(1, dtype=torch.long, device=importance.device)
@@ -375,7 +462,7 @@ def surviving_input_channels(ref, group_width: int, keep_idx: torch.Tensor) -> t
     return torch.tensor(kept, dtype=torch.long, device=keep_idx.device)
 
 
-def group_importance(group) -> Optional[torch.Tensor]:
+def group_importance(group, mode: Optional[str] = None) -> Optional[torch.Tensor]:
     """
     Importance of each channel position of a coupled group.
 
@@ -389,7 +476,7 @@ def group_importance(group) -> Optional[torch.Tensor]:
     """
     votes = []
     for producer in list(group.producers) + list(group.depthwise):
-        importance = filter_importance(producer)
+        importance = filter_importance(producer, mode)
         if importance.numel() != group.width:
             return None
         votes.append(importance / importance.max().clamp(min=1e-12))
@@ -398,9 +485,10 @@ def group_importance(group) -> Optional[torch.Tensor]:
     return torch.stack(votes).sum(dim=0)
 
 
-def select_group_survivors(group, compression_rate: float) -> Optional[torch.Tensor]:
+def select_group_survivors(group, compression_rate: float,
+                           mode: Optional[str] = None) -> Optional[torch.Tensor]:
     """Channel indices to retain for a whole coupled group."""
-    importance = group_importance(group)
+    importance = group_importance(group, mode)
     if importance is None:
         return None
 
@@ -426,8 +514,8 @@ def _replay_consumer_indices(old_units, new_units, device):
     return torch.tensor(kept, dtype=torch.long, device=device)
 
 
-def _survivors_of_width(group, k: int, device) -> Optional[torch.Tensor]:
-    importance = group_importance(group)
+def _survivors_of_width(group, k: int, device, mode: Optional[str] = None) -> Optional[torch.Tensor]:
+    importance = group_importance(group, mode)
     if importance is None:
         return None
     alive = torch.nonzero(importance > 0, as_tuple=False).flatten()
@@ -445,7 +533,8 @@ def _producer_keep_dict(group, keep_idx):
     return {id(module): kept for module in list(group.producers) + list(group.depthwise)}
 
 
-def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> bool:
+def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor,
+                             mode: Optional[str] = None) -> bool:
     """
     Shrink every layer tied to a coupled channel group in one consistent edit.
 
@@ -483,7 +572,7 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
         for k in [target_k] + [k for delta in range(1, 9) for k in (target_k + delta, target_k - delta)]:
             if k < 1 or k >= group.width:
                 continue
-            trial = keep_idx if k == target_k else _survivors_of_width(group, k, keep_idx.device)
+            trial = keep_idx if k == target_k else _survivors_of_width(group, k, keep_idx.device, mode)
             if trial is None:
                 continue
             flag, units = [], {}
@@ -533,6 +622,7 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
                 return False
 
     norm_edits = []
+    norm_slices = {}
     for ref in group.norms:
         norm = ref.module
         if norm.num_features != ref.total or id(norm) not in index_of:
@@ -541,6 +631,9 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
         if kept is None:
             kept = surviving_input_channels(ref, group.width, keep_idx)
         norm_edits.append((index_of[id(norm)], _clone_norm(norm, kept)))
+        group_channels = set(int(p) for p in ref.positions)
+        norm_slices[index_of[id(norm)]] = [
+            j for j, old in enumerate(kept.detach().cpu().tolist()) if int(old) in group_channels]
 
     depthwise_ids = {id(m) for m in group.depthwise}
     replacements = []
@@ -557,11 +650,150 @@ def prune_group_structurally(model_with_rows, group, keep_idx: torch.Tensor) -> 
                                        in_idx)
         replacements.append((index_of[module_id], new_module))
 
+    # P8 bookkeeping: which all_layers indices were rewritten and, for every consumer, which
+    # positions of its *new* input read the group's surviving channels. reinit_group_edit
+    # uses this to install NEON's "new layer" (fresh producers, reset norms, fresh consumer
+    # input slices) instead of the surviving pretrained filters.
+    consumer_slices = {}
+    for ref in group.consumers:
+        consumer = ref.module
+        if id(consumer) not in edits:
+            continue
+        in_idx = edits[id(consumer)][1]
+        if in_idx is None:
+            continue
+        group_inputs = set(int(p) for p in ref.positions)
+        if not isinstance(consumer, nn.Conv2d) and consumer.in_features != ref.total:
+            expanded = _expand_indices_for_flatten(
+                torch.tensor(sorted(group_inputs), dtype=torch.long), ref.total, consumer.in_features)
+            group_inputs = set(int(p) for p in expanded.tolist()) if expanded is not None else set()
+        positions = [j for j, old in enumerate(in_idx.detach().cpu().tolist()) if int(old) in group_inputs]
+        consumer_slices[index_of[id(consumer)]] = positions
+    group_edit = {
+        "producers": sorted(index_of[id(m)] for m in group.producers if id(m) in edits),
+        "depthwise": sorted(index_of[id(m)] for m in group.depthwise if id(m) in edits),
+        "norms": norm_slices,
+        "consumers": consumer_slices,
+        "new_width": int(keep_idx.numel()),
+    }
+
     edited_param_ids = []
     for idx, new_layer in replacements + norm_edits:
         model_with_rows.replace_layer(idx, new_layer)
         edited_param_ids.extend(id(param) for param in new_layer.parameters())
     model_with_rows.last_edited_param_ids = edited_param_ids
+    model_with_rows.last_group_edit = group_edit
     return True
+
+
+# --------------------------------------------------------------------------- P8: NEON layer replacement
+
+def _kaiming_like(weight: torch.Tensor) -> torch.Tensor:
+    """A fresh tensor shaped like ``weight`` drawn the way PyTorch would for a new layer."""
+    fresh = torch.empty_like(weight)
+    if weight.dim() >= 2:
+        nn.init.kaiming_normal_(fresh, mode="fan_out" if weight.dim() == 4 else "fan_in",
+                                nonlinearity="relu")
+    else:
+        fresh.zero_()
+    return fresh
+
+
+def reinit_group_edit(model_with_rows, edit: Optional[dict], scope: str = "group") -> dict:
+    """
+    NEON "layer replacement" on the group that ``prune_group_structurally`` just resized.
+
+    ``scope="group"`` (NEON-source-literal) re-draws producers, norms and consumer input
+    slices; ``scope="producers"`` (Gilad's oral wording) re-draws producers and norms only and
+    leaves the consumers' surviving input slices to adapt by training.
+
+    The structural prune installed modules that *keep* the surviving pretrained filters —
+    the neuron-removal NEON explicitly rejected (Hirsch & Katz 2022, Sec. 3). This throws
+    those weights away and leaves a randomly initialised layer of the new width in place:
+
+    * producers / depthwise owners: full re-initialisation (kaiming, zero bias) — this is
+      NEON's ``nn.Linear(in, new_size)``;
+    * group norms: affine reset to (1, 0), running stats reset — NEON's fresh ``BatchNorm1d``;
+    * consumers: the input slice that reads the group's channels is re-drawn (kaiming scale
+      of the whole weight). When the consumer reads *only* this group (plain chains, residual
+      streams) that is the whole weight — NEON's ``nn.Linear(new_size, out)``. A concat
+      consumer (DenseNet) keeps the slices that read other groups.
+
+    Returns a summary dict (counts) for the step record. No-op on ``None`` (masked / identity).
+    """
+    summary = {"reinit": False, "producers": 0, "norms": 0, "consumers_full": 0,
+               "consumers_slice": 0, "params_reinit": 0, "scope": scope}
+    if not edit:
+        return summary
+    consumer_items = (edit.get("consumers") or {}).items() if scope != "producers" else ()
+    layers = model_with_rows.all_layers
+    with torch.no_grad():
+        for idx in list(edit.get("producers", [])) + list(edit.get("depthwise", [])):
+            module = layers[idx]
+            if not isinstance(module, (nn.Conv2d, nn.Linear)):
+                continue
+            module.weight.copy_(_kaiming_like(module.weight))
+            summary["params_reinit"] += module.weight.numel()
+            if module.bias is not None:
+                module.bias.zero_()
+                summary["params_reinit"] += module.bias.numel()
+            summary["producers"] += 1
+        norms = edit.get("norms") or {}
+        norm_items = norms.items() if isinstance(norms, dict) else ((i, None) for i in norms)
+        for idx, positions in norm_items:
+            norm = layers[int(idx)]
+            n_feat = int(getattr(norm, "num_features", 0) or 0)
+            full = positions is None or len(positions) >= n_feat
+            if full:
+                if hasattr(norm, "reset_running_stats"):
+                    norm.reset_running_stats()
+                if getattr(norm, "affine", False):
+                    norm.weight.fill_(1.0)
+                    norm.bias.zero_()
+                    summary["params_reinit"] += norm.weight.numel() + norm.bias.numel()
+            else:
+                # A norm over a concat sees this group as one slice; the other branches keep
+                # their statistics (only the replaced channels are fresh).
+                if not positions:
+                    continue
+                pos = torch.tensor(sorted(int(p) for p in positions), dtype=torch.long,
+                                   device=norm.weight.device if getattr(norm, "affine", False)
+                                   else norm.running_mean.device)
+                if getattr(norm, "track_running_stats", False) and norm.running_mean is not None:
+                    norm.running_mean[pos] = 0.0
+                    norm.running_var[pos] = 1.0
+                if getattr(norm, "affine", False):
+                    norm.weight[pos] = 1.0
+                    norm.bias[pos] = 0.0
+                    summary["params_reinit"] += 2 * int(pos.numel())
+            summary["norms"] += 1
+        for idx, positions in consumer_items:
+            module = layers[int(idx)]
+            if not isinstance(module, (nn.Conv2d, nn.Linear)) or not positions:
+                continue
+            in_dim = module.weight.size(1)
+            grouped = isinstance(module, nn.Conv2d) and module.groups > 1
+            if grouped and len(positions) < module.in_channels:
+                # weight dim 1 of a grouped conv is per-group; a partial input slice has no
+                # column-wise image there. Leave the surviving weights (recipe-A behaviour
+                # for this consumer) and say so.
+                summary["consumers_skipped"] = summary.get("consumers_skipped", 0) + 1
+                continue
+            fresh = _kaiming_like(module.weight)
+            if len(positions) >= in_dim or grouped:
+                module.weight.copy_(fresh)
+                if module.bias is not None:
+                    module.bias.zero_()
+                    summary["params_reinit"] += module.bias.numel()
+                summary["consumers_full"] += 1
+                summary["params_reinit"] += module.weight.numel()
+            else:
+                pos = torch.tensor(sorted(int(p) for p in positions), dtype=torch.long,
+                                   device=module.weight.device)
+                module.weight[:, pos] = fresh[:, pos]
+                summary["consumers_slice"] += 1
+                summary["params_reinit"] += module.weight[:, pos].numel()
+    summary["reinit"] = summary["producers"] + summary["norms"] + summary["consumers_full"] + summary["consumers_slice"] > 0
+    return summary
 
 

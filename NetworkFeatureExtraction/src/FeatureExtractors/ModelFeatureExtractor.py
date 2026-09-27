@@ -66,7 +66,8 @@ class FeatureExtractor:
         return feature_maps
 
     def encode_to_bert_input(self, model_with_rows, curr_layer_idx, update_indices=None,
-                             dependency_groups=None, param_ratio=None):
+                             dependency_groups=None, param_ratio=None, extras=None,
+                             episode_cuts=None):
         """
         Converts the extracted CNN features into the agent's state representation.
 
@@ -78,17 +79,34 @@ class FeatureExtractor:
             dependency_groups (list, optional):   Channel groups already computed for this
                                     model, reused to avoid a second symbolic trace.
             param_ratio (float, optional): Remaining-parameter fraction for SPECTRA_BUDGET_IN_STATE.
+            extras (list, optional): ``[accuracy_slack, pass_progress]`` for SPECTRA_STATE_SLACK.
+            episode_cuts (dict, optional): ``{frozenset(owner layer indices): n_cuts}`` this
+                                    episode, for the SPECTRA_STATE_GROUPCOST channel.
 
         Returns:
             Dict[str, torch.Tensor]: The agent state.
         """
         feature_maps = self.extract_features(model_with_rows, update_indices)
         costs = self._action_costs(model_with_rows, curr_layer_idx, dependency_groups)
+        layer_extras = self._group_costs(model_with_rows, dependency_groups, episode_cuts)
         state = self.state_builder.encode_model_to_bert_input(
             model_with_rows, feature_maps, curr_layer_idx,
             dependency_groups=dependency_groups, action_costs=costs,
-            param_ratio=param_ratio)
+            param_ratio=param_ratio, extras=extras, layer_extras=layer_extras)
         return state
+
+    def _group_costs(self, model_with_rows, dependency_groups, episode_cuts):
+        """Per-layer group-cost rows when SPECTRA_STATE_GROUPCOST is on; else None."""
+        from src.fortify import state_groupcost
+        if not state_groupcost():
+            return None
+        try:
+            return action_costs.group_cost_features(
+                model_with_rows.model, model_with_rows.all_layers, self.input_shape,
+                groups=dependency_groups, device=self.device, episode_cuts=episode_cuts)
+        except Exception as error:
+            utils.print_flush(f"Group-cost features unavailable ({error}); falling back to zeros")
+            return None
 
     def _action_costs(self, model_with_rows, curr_layer_idx, dependency_groups):
         """

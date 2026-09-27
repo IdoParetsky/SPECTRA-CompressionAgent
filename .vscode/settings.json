@@ -4,5 +4,28 @@
   "terminal.integrated.env.linux": {
     "SPECTRA_PYTHON": "/home/paretsky/.conda/envs/spectra/bin/python",
     "SPECTRA_REPO": "/home/paretsky/SPECTRA-CompressionAgent"
-  }
+  },
+  "files.watcherExclude": {
+    "**/runs/**": true,
+    "**/__pycache__/**": true,
+    "**/.pytest_cache/**": true,
+    "**/checkpoints/**": true,
+    "**/*.pt": true,
+    "**/*.pth": true,
+    "**/wandb/**": true,
+    "**/*.out": true,
+    "**/*.log": true,
+    "**/*.jsonl": true,
+    "**/slurm_logs/**": true,
+    "**/agent-transcripts/**": true,
+    "**/terminals/**": true
+  },
+  "search.exclude": {
+    "**/runs/**": true,
+    "**/*.pt": true,
+    "**/*.pth": true,
+    "**/*.out": true,
+    "**/*.jsonl": true
+  },
+  "files.maxMemoryForLargeFilesMB": 16
 }

@@ -88,7 +88,7 @@ NEON’s extra baselines (AMC per-net DRL, ADMM unstructured) are lineage, not t
 ## 4. ImageNet (Gilad agreed)
 
 - **No ImageNet DRL training.**
-- **Claiming transferability to ImageNet** from an agent trained on CIFAR-10 and CIFAR-100 would be great (frozen eval, e.g. VGG and other catalog CNNs).
+- **Claiming transferability to ImageNet** from an agent trained on CIFAR-10 **and** CIFAR-100 would be great (frozen eval, e.g. VGG and other catalog CNNs). C100 is an *in-train* dataset in that sentence, not the held-out TEST of a C10-only actor. Ido 17 Sep 14:45: C9 as C10→C100 transfer was never the claim. Keep ledger §21 as a C10-only-actor measurement.
 - Overnight ImageNet fine-tune of the CNN stays out.
 - Frozen ImageNet eval is a **probe / transfer sentence**, not a home-court SOTA fight.
 

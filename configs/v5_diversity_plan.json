@@ -1,0 +1,207 @@
+{
+ "stamped": "2026-09-18T00:31:00+03:00",
+ "purpose": "V5 catalog split. Assigned P5-B3. Not a live --database. Do not point a train job at this file.",
+ "claim": "Diverse train (architectures x datasets, recoverable C100 in-pool) preparing more diverse TEST. Not C10-to-C100 transfer of a C10-only actor. Dataset transfer uses SVHN + Fashion-MNIST skip-train TRAJ plus ImageNet frozen probe — one hold-out dataset is not enough.",
+ "assigned": "P5-B3",
+ "constraints": [
+  "Do not overlay leap src/ while v3/V4 are R/PD",
+  "No ImageNet DRL",
+  "No ImageNet-stem EfficientNet/ConvNeXt/MobileNetV3 on 32x32",
+  "Never database_c100_wide.json or database_offline_train_with_c100.json",
+  "Never skinny r20-w2 / r56-w4 in train",
+  "Do not grow 24-net by adding more C10 thin-ResNet widths",
+  "Band-screen new C100 nets under V5 train FT before DRL",
+  "Do not steal v3/V4 GPUs for fetch or pretrain",
+  "P5-B3: SVHN and Fashion-MNIST are TEST hold-outs, not train",
+  "Fashion-MNIST not MNIST",
+  "Catalog L prefixes never in --database",
+  "IEEE Xplore skipped after 418; do not retry from ops"
+ ],
+ "instantiation": {
+  "leap": "/home/paretsky/spectra_models_instantiation",
+  "repo": "spectra_models_instantiation",
+  "new_factories": [
+   "wide_resnet.py",
+   "preact_resnet.py"
+  ],
+  "already_had": [
+   "resnet_chenyaofo.py",
+   "vgg_chenyaofo.py",
+   "mobilenetv2_chenyaofo.py",
+   "shufflenetv2_chenyaofo.py",
+   "repvgg_chenyaofo.py",
+   "densenet_cifar.py",
+   "thin_res_net.py"
+  ]
+ },
+ "hub_fetch": {
+  "script": "scripts/fetch_chenyaofo_hub.py",
+  "repo": "chenyaofo/pytorch-cifar-models",
+  "priority_missing_widths": [
+   "cifar10_shufflenetv2_x0_5",
+   "cifar10_shufflenetv2_x2_0",
+   "cifar10_repvgg_a2",
+   "cifar100_shufflenetv2_x0_5",
+   "cifar100_shufflenetv2_x1_5",
+   "cifar100_shufflenetv2_x2_0",
+   "cifar100_repvgg_a2",
+   "cifar100_mobilenetv2_x0_75",
+   "cifar10_resnet44"
+  ],
+  "skip_if_spectra_ckpt_exists": true,
+  "vpn_pass_16:31": "ALL of priority_missing_widths already have SPECTRA ckpts on leap. Do not GPU-fetch. ResNet-110 C10 is on disk via akamaster/gnn_rl, not chenyaofo."
+ },
+ "from_scratch_pretrain": {
+  "script": "scripts/pretrain_v5_diversity.sh",
+  "wave_a": [
+   {
+    "arch": "wrn_16_4",
+    "script": "wide_resnet.py",
+    "dataset": "cifar-10",
+    "source": "wide-resnet"
+   },
+   {
+    "arch": "wrn_16_4",
+    "script": "wide_resnet.py",
+    "dataset": "cifar-100",
+    "source": "wide-resnet"
+   },
+   {
+    "arch": "preact_resnet20",
+    "script": "preact_resnet.py",
+    "dataset": "cifar-10",
+    "source": "preact-resnet"
+   },
+   {
+    "arch": "preact_resnet20",
+    "script": "preact_resnet.py",
+    "dataset": "cifar-100",
+    "source": "preact-resnet"
+   },
+   {
+    "arch": "densenet100",
+    "script": "densenet_cifar.py",
+    "dataset": "cifar-100",
+    "source": "densenet-cifar"
+   },
+   {
+    "arch": "wrn_28_2",
+    "script": "wide_resnet.py",
+    "dataset": "cifar-10",
+    "source": "wide-resnet"
+   },
+   {
+    "arch": "preact_resnet56",
+    "script": "preact_resnet.py",
+    "dataset": "cifar-10",
+    "source": "preact-resnet"
+   }
+  ]
+ },
+ "holdout_p5b3": {
+  "train_datasets": [
+   "cifar-10",
+   "cifar-100-recoverable"
+  ],
+  "cheap_heldout_datasets": [
+   "svhn",
+   "fashion-mnist"
+  ],
+  "expensive_heldout": "imagenet frozen probe, never DRL",
+  "why_not_imagenet_only": "One held-out dataset is an anecdote plus a protocol change. SVHN and Fashion-MNIST use the same skip-train TRAJ as C10. ImageNet is also Gilad 18 Aug no-DRL, not only wall-time.",
+  "fallback_p5b2": "Keep one SVHN net in train; still hold Fashion-MNIST + ImageNet. Do not keep both SVHN and FMNIST in train.",
+  "input_svhn": "configs/input_v5_holdout_svhn.json",
+  "input_fmnist": "configs/input_v5_holdout_fmnist.json"
+ },
+ "train_p5b_intended": {
+  "shape": "P5-B3: rebalanced C10 core (no SVHN, no FMNIST, no Catalog L) UNION database_c100_recoverable.json. Optional C10 ShuffleNet/RepVGG only after P5-C.",
+  "keep_existing": [
+   "resnet20-width8_cifar10_thin-res-net",
+   "resnet20-width10_cifar10_thin-res-net",
+   "resnet56-width6_cifar10_thin-res-net",
+   "resnet32_cifar10_chenyaofo",
+   "vgg11_bn_cifar10_chenyaofo",
+   "vgg13_bn_cifar10_chenyaofo",
+   "mobilenet-v2x0.5_cifar10_chenyaofo",
+   "mobilenet-v2x1_cifar10_chenyaofo",
+   "densenet40_cifar10_densenet-cifar"
+  ],
+  "c100_candidates_gated": [
+   "vgg11_bn_cifar100_chenyaofo",
+   "vgg13_bn_cifar100_chenyaofo",
+   "mobilenet-v2x1_cifar100_chenyaofo",
+   "densenet40_cifar100_densenet-cifar",
+   "resnet32_cifar100_chenyaofo"
+  ],
+  "fable_18sep_correction": "database_c100_recoverable.json is NOT usable as the P5-B C100 slice: vgg16_bn_cifar100 and shufflenetv2x1_cifar100 are both rows of input_offline_c100.json (C9 TEST), and ShuffleNet is the unlike TEST family (input_offline_novel.json). Putting them in train would spend C9 and the unlike cell. The C100 slice is the gated candidate list above (configs/v5_p5b3_c100_gate.json); admission needs the no-agent recovery probe under the V5 train FT. Live files: configs/database_offline_v5_p5b3_c10core.json (P5-A control), configs/database_offline_v5_p5b3.json (intended), database_offline_v5_p5b3_admitted.json (emitted by scripts/build_v5_catalog.py --emit-admitted).",
+  "moved_to_holdout_p5b3": [
+   "resnet20-width16_svhn_thin-res-net",
+   "vgg11-bn_svhn_vgg-chenyaofo",
+   "resnet20-width16_fashionmnist_thin-res-net",
+   "vgg11-bn_fashionmnist_vgg-chenyaofo"
+  ],
+  "drop_from_24net": [
+   "resnet20-width8",
+   "resnet20-width9",
+   "resnet20-width12",
+   "resnet20-width14",
+   "resnet56-width7",
+   "resnet56-width8",
+   "resnet56-width12",
+   "resnet56-width14"
+  ],
+  "add_when_ckpt_ready": [
+   {
+    "arch": "wrn_16_4",
+    "dataset": "cifar-10",
+    "role": "optional train if unlike TEST uses PreAct instead"
+   },
+   {
+    "arch": "densenet100",
+    "dataset": "cifar-100",
+    "role": "only after train-FT recoverability probe"
+   }
+  ],
+  "probes": [
+   "vgg13_bn cifar-10",
+   "resnet56-width6 cifar-10 (until a non-ResNet second probe is argued)"
+  ],
+  "never_in_train": [
+   "Catalog L: standard ResNet-56 C10 (any source), VGG-16 C10, VGG-19 C10/C100",
+   "DenseNet-100 / ResNet-110 (coverage)",
+   "thin r20-w2 / r56-w4",
+   "Fashion-MNIST",
+   "ImageNet",
+   "unrecovered CIFAR-100 (gate 0 admits, ledger 109)",
+   "ShuffleNet / RepVGG (unlike cell)"
+  ]
+ },
+ "test_holdouts": {
+  "thin": [
+   "resnet20-width2_cifar10",
+   "resnet56-width4_cifar10"
+  ],
+  "similar": "configs/input_offline_similar.json (skip r32)",
+  "unlike_current": "configs/input_offline_novel.json (ShuffleNet + RepVGG C10)",
+  "unlike_new_after_p5c": [
+   {
+    "arch": "preact_resnet20",
+    "dataset": "cifar-10"
+   },
+   {
+    "arch": "wrn_16_4",
+    "dataset": "cifar-10"
+   },
+   {
+    "arch": "wrn_28_2",
+    "dataset": "cifar-10"
+   }
+  ],
+  "dataset_svhn": "configs/input_v5_holdout_svhn.json",
+  "dataset_fmnist": "configs/input_v5_holdout_fmnist.json",
+  "catalog_l": "configs/catalog_l_map.json",
+  "c100_residuals": "configs/input_offline_c100_residuals.json",
+  "imagenet": "frozen probe only, never DRL train"
+ },
+ "catalog_l_lock_21sep": "docs/paper/CATALOG_L_TEST_PLAN.md section 5 (Fable). L1 dep_graph R56 C10, L2 chenyaofo VGG-16 C10, L3 dep_graph VGG-19 C100."
+}

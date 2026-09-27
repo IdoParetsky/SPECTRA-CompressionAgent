@@ -163,14 +163,21 @@ class SpectraSetEncoder(SpectraTokenFront):
 
 
 def build_state_encoder(kind: str, feature_dim: int) -> nn.Module:
-    """Factory for ``SPECTRA_STATE_ENCODER`` trainable variants."""
+    """Factory for ``SPECTRA_STATE_ENCODER`` trainable variants.
+
+    Dropout comes from ``SPECTRA_ENCODER_DROPOUT`` (default 0.1, the historical value).
+    A policy trained from a few hundred episodes gains nothing from dropout and pays a
+    train/eval mismatch for it; new recipes pin 0.
+    """
+    from src.fortify import encoder_dropout
     key = (kind or "transformer").strip().lower()
+    p = float(encoder_dropout())
     if key == "transformer":
-        return SpectraStateEncoder(feature_dim=feature_dim)
+        return SpectraStateEncoder(feature_dim=feature_dim, dropout=p)
     if key in ("transformer_wide", "transformer_deep"):
         return SpectraStateEncoder(feature_dim=feature_dim, d_model=512, nhead=8,
-                                   num_layers=6, dropout=0.1)
+                                   num_layers=6, dropout=p)
     if key in ("set", "mlp"):
-        return SpectraSetEncoder(feature_dim=feature_dim)
+        return SpectraSetEncoder(feature_dim=feature_dim, dropout=p)
     raise ValueError(
         f"Unknown trainable encoder {kind!r}. Expected one of {TRAINABLE_ENCODER_KINDS}")

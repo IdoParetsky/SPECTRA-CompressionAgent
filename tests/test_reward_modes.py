@@ -130,6 +130,41 @@ def test_cbrt_scale_is_monotone_and_off_by_default(monkeypatch):
     assert abs(compute_reward(0.85, 1.0, 0.9) - (-10.0)) < 1e-6
 
 
+def test_cbrt_cubes_keeps_inband_linear(monkeypatch):
+    """Fable V5 / Ido 19 Sep: cbrt on cubed arms only. ρ=20 → in-band +20, miss −20, gain +20."""
+    _init_static_conf(10)
+    from src.utils import compute_reward
+
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural")
+    monkeypatch.setenv("SPECTRA_REWARD_SCALE", "cbrt_cubes")
+    kwargs = dict(params_before=1000, params_after=800)
+
+    in_band = compute_reward(0.95, 1.0, 0.8, **kwargs)   # Δacc −5, ρ=20
+    miss = compute_reward(0.80, 1.0, 0.8, **kwargs)      # Δacc −20
+    gain = compute_reward(1.01, 1.0, 0.8, **kwargs)      # Δacc +1
+    assert abs(in_band - 20.0) < 1e-9
+    assert abs(miss + 20.0) < 1e-6
+    assert abs(gain - 20.0) < 1e-6
+    # One legal cut pays for one miss (live cbrt: ~2.7 vs −20)
+    assert abs(in_band + miss) < 1e-6
+
+    monkeypatch.setenv("SPECTRA_REWARD_SCALE", "cbrt")
+    in_band_cbrt = compute_reward(0.95, 1.0, 0.8, **kwargs)
+    assert abs(in_band_cbrt - (20.0 ** (1.0 / 3.0))) < 1e-9
+    assert in_band_cbrt < 3.0 < in_band
+
+
+def test_cbrt_default_unchanged_on_inband(monkeypatch):
+    """Live v3/V4 keep shrinking the in-band arm. Do not change the default."""
+    _init_static_conf(10)
+    from src.utils import compute_reward, reward_scale_name
+
+    monkeypatch.delenv("SPECTRA_REWARD_SCALE", raising=False)
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural")
+    assert reward_scale_name() == "raw"
+    assert abs(compute_reward(0.95, 1.0, 0.8, params_before=1000, params_after=800) - 20.0) < 1e-9
+
+
 def test_reward_branch_labels_the_trichotomy():
     from src.utils import reward_branch
 
@@ -168,6 +203,181 @@ def test_reward_trace_is_off_by_default(monkeypatch, tmp_path):
 
     trace_reward("vgg16_bn_cifar10_chenyaofo.pt", 0.9, 0.93, 0.94, 10.0)
     assert not (tmp_path / "reward_trace.jsonl").exists()
+
+
+def test_structural_unified_identity_and_in_budget(monkeypatch):
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_unified")
+    monkeypatch.setenv("SPECTRA_REWARD_SCALE", "cbrt")  # must be ignored
+    monkeypatch.setenv("SPECTRA_UNIFIED_EPS", "1")
+    _init_static_conf(10)
+    from src.utils import compute_reward
+
+    identity = compute_reward(0.99, 1.0, 1.0, params_before=1000, params_after=1000)
+    assert abs(identity) < 1e-9
+
+    # Δ = -5 pp, ρ_w = 10, u = 5 → R = 10 * 5/10 = 5 (not cubed, not cbrt)
+    in_budget = compute_reward(0.95, 1.0, 0.9, params_before=1000, params_after=900)
+    assert abs(in_budget - 5.0) < 1e-9
+
+    # Continuity at τ: Δ = -10, u = 0, o = 0 → R = 0
+    at_wall = compute_reward(0.90, 1.0, 0.9, params_before=1000, params_after=900)
+    assert abs(at_wall) < 1e-9
+
+    # Accuracy gain: u = τ+Δ = 11, R = 10 * 11/10 = 11
+    gain = compute_reward(1.01, 1.0, 0.9, params_before=1000, params_after=900)
+    assert abs(gain - 11.0) < 1e-9
+
+
+def test_structural_unified_overshoot_ranks_harm_per_byte(monkeypatch):
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_unified")
+    monkeypatch.delenv("SPECTRA_REWARD_SCALE", raising=False)
+    monkeypatch.setenv("SPECTRA_UNIFIED_EPS", "1")
+    _init_static_conf(10)
+    from src.utils import compute_reward
+
+    # Same 15 pp drop (o = 5). Larger cut is less negative: -o²/(ρ+ε)
+    small = compute_reward(0.85, 1.0, 0.9, params_before=1000, params_after=990)  # ρ=1
+    large = compute_reward(0.85, 1.0, 0.9, params_before=1000, params_after=600)  # ρ=40
+    assert abs(small - (-25.0 / 2.0)) < 1e-9
+    assert abs(large - (-25.0 / 41.0)) < 1e-9
+    assert large > small
+
+    worse = compute_reward(0.75, 1.0, 0.9, params_before=1000, params_after=990)  # o=15
+    assert worse < small
+
+    identity = compute_reward(0.99, 1.0, 1.0, params_before=1000, params_after=1000)
+    in_budget = compute_reward(0.95, 1.0, 0.9, params_before=1000, params_after=900)
+    assert worse < small < 0 <= identity < in_budget
+    assert large < 0 <= identity
+
+
+def test_structural_unified_mixes_weights_and_flops(monkeypatch):
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_unified")
+    monkeypatch.setenv("SPECTRA_UNIFIED_EPS", "1")
+    _init_static_conf(10)
+    from src.utils import compute_reward, unified_rho
+
+    rho = unified_rho(10.0, 1000, 900, 200, 100)
+    assert abs(rho - 30.0) < 1e-9  # ½·10 + ½·50
+    # Δ = -5, u = 5 → R = 30 * 0.5 = 15
+    r = compute_reward(
+        0.95, 1.0, 0.9,
+        params_before=1000, params_after=900,
+        flops_before=200, flops_after=100)
+    assert abs(r - 15.0) < 1e-9
+
+
+def test_structural_prefer_credits_full_rho_inside_tau(monkeypatch):
+    """F1 slack taper prefers timid cuts; prefer pays ρ whenever the cut is legal."""
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_prefer")
+    monkeypatch.setenv("SPECTRA_REWARD_SCALE", "cbrt")  # must be ignored
+    monkeypatch.setenv("SPECTRA_UNIFIED_EPS", "1")
+    _init_static_conf(10)
+    from src.utils import compute_reward
+
+    identity = compute_reward(0.99, 1.0, 1.0, params_before=1000, params_after=1000)
+    assert abs(identity) < 1e-9
+
+    # Δ = -5, ρ = 10 → R = 10 (F1 would have paid 10 * 5/10 = 5)
+    in_budget = compute_reward(0.95, 1.0, 0.9, params_before=1000, params_after=900)
+    assert abs(in_budget - 10.0) < 1e-9
+
+    # Near the wall a large legal cut still gets full ρ (F1 tapers to ~0)
+    near_wall = compute_reward(0.91, 1.0, 0.8, params_before=1000, params_after=800)
+    assert abs(near_wall - 20.0) < 1e-9
+    timid = compute_reward(0.99, 1.0, 0.9, params_before=1000, params_after=950)
+    assert near_wall > timid
+
+    # Over-budget arm matches F1 (harm per byte)
+    small = compute_reward(0.85, 1.0, 0.9, params_before=1000, params_after=990)
+    large = compute_reward(0.85, 1.0, 0.9, params_before=1000, params_after=600)
+    assert large > small
+    assert small < 0 <= identity < in_budget
+
+
+def test_train_floor_flag_and_truncated_inbudget(monkeypatch):
+    from src.fortify import train_respects_size_floor, inbudget_checkpoint_score, INBUDGET_OVER_PENALTY
+
+    monkeypatch.delenv("SPECTRA_TRAIN_RESPECT_FLOOR", raising=False)
+    assert train_respects_size_floor() is False
+    monkeypatch.setenv("SPECTRA_TRAIN_RESPECT_FLOOR", "1")
+    assert train_respects_size_floor() is True
+    assert -INBUDGET_OVER_PENALTY < inbudget_checkpoint_score(12.0, 0.0, False)
+
+
+def test_state_align_and_skip_eval_flags(monkeypatch):
+    from src.fortify import state_align_next, skip_eval, reward_needs_flops
+
+    monkeypatch.delenv("SPECTRA_STATE_ALIGN", raising=False)
+    assert state_align_next() is False
+    monkeypatch.setenv("SPECTRA_STATE_ALIGN", "next")
+    assert state_align_next() is True
+
+    monkeypatch.delenv("SPECTRA_SKIP_EVAL", raising=False)
+    assert skip_eval() is False
+    monkeypatch.setenv("SPECTRA_SKIP_EVAL", "1")
+    assert skip_eval() is True
+
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_prefer")
+    assert reward_needs_flops() is True
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "neon")
+    assert reward_needs_flops() is False
+
+
+def test_actor_skip_overbudget_flag(monkeypatch):
+    from src.fortify import actor_skip_overbudget, policy_gradient_advantages
+
+    monkeypatch.delenv("SPECTRA_ACTOR_SKIP_OVERBUDGET", raising=False)
+    assert actor_skip_overbudget() is False
+    monkeypatch.setenv("SPECTRA_ACTOR_SKIP_OVERBUDGET", "1")
+    assert actor_skip_overbudget() is True
+
+    adv = torch.tensor([[2.0], [4.0], [-10.0]])
+    out, kind = policy_gradient_advantages(adv, [False, False, True], True)
+    assert kind == "masked"
+    assert float(out[2]) == 0.0
+    assert abs(float(out[0]) + float(out[1])) < 1e-5  # kept-only standardize, mean 0
+    _, skip_kind = policy_gradient_advantages(adv, [True, True, True], True)
+    assert skip_kind == "skip"
+    _, full_kind = policy_gradient_advantages(adv, [False, True, False], False)
+    assert full_kind == "full"
+
+
+def test_truncated_returns_bootstrap(monkeypatch):
+    import torch
+    from src.utils import compute_returns
+
+    rewards = [torch.tensor([[1.0]]), torch.tensor([[1.0]])]
+    masks = [torch.tensor([[1.0]]), torch.tensor([[1.0]])]  # truncated, not done
+    boot = torch.tensor([[10.0]])
+    ret = compute_returns(boot, rewards, masks, 0.5)
+    # R1 = 1 + 0.5*10 = 6; R0 = 1 + 0.5*6 = 4
+    assert abs(float(ret[1]) - 6.0) < 1e-6
+    assert abs(float(ret[0]) - 4.0) < 1e-6
+    dead = compute_returns(boot, rewards, [torch.tensor([[1.0]]), torch.tensor([[0.0]])], 0.5)
+    assert abs(float(dead[1]) - 1.0) < 1e-6
+
+
+def test_inbudget_checkpoint_prefers_compression_over_return(monkeypatch):
+    from src.fortify import inbudget_checkpoint_score, inbudget_checkpointing
+
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_unified")
+    monkeypatch.delenv("SPECTRA_CHECKPOINT", raising=False)
+    assert inbudget_checkpointing() is True
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_prefer")
+    assert inbudget_checkpointing() is True
+    monkeypatch.setenv("SPECTRA_CHECKPOINT", "return")
+    assert inbudget_checkpointing() is False
+    monkeypatch.delenv("SPECTRA_CHECKPOINT", raising=False)
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural")
+    monkeypatch.setenv("SPECTRA_ACTOR_SKIP_OVERBUDGET", "1")
+    assert inbudget_checkpointing() is True
+
+    identity = inbudget_checkpoint_score(0.0, 0.0, False)
+    mild = inbudget_checkpoint_score(12.0, 0.0, False)
+    over = inbudget_checkpoint_score(40.0, 8.0, True)
+    assert over < identity < mild
+    assert inbudget_checkpoint_score(1.0, 0.0, False) > over
 
 
 def test_masked_noop_does_not_get_neon_compression_credit():

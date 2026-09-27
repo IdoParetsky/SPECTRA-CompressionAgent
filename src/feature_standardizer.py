@@ -121,7 +121,59 @@ class FeatureStandardizer:
         utils.print_flush(f"FeatureStandardizer loaded from {path} (n={self.count})")
 
 
-def ensure_fitted(database_dict, device, token_base_dim: int) -> FeatureStandardizer:
+def cache_path_from_actor(actor_path: str) -> str:
+    """
+    Standardizer cache that belongs to an actor checkpoint.
+
+    Preference: ``<ckpt dir>/standardizer.pt`` (written next to every ``latest_best_*``
+    since 13 Sep, and carried by ``freeze_snapshot`` copies and manual snapshot dirs), then
+    the historical ``<run>/standardizer.pt`` one level up. A snapshot copied without the
+    cache used to resolve to a *wrong* directory and silently fall back to log1p (ledger §71).
+    """
+    if not actor_path:
+        return ""
+    ckpt_dir = os.path.dirname(os.path.abspath(actor_path))
+    beside = os.path.join(ckpt_dir, "standardizer.pt")
+    if os.path.isfile(beside):
+        return beside
+    run = os.path.dirname(ckpt_dir)
+    if not run:
+        return ""
+    # Historical location (also the write target when nothing exists yet).
+    return os.path.join(run, "standardizer.pt")
+
+
+def resolve_standardizer_path(*, for_write: bool = False) -> str:
+    """
+    Env path, then the training run next to the loaded actor, then this job's run dir.
+
+    Eval-only jobs used to skip ``ensure_fitted``, so TEST tokens fell back to log1p
+    while training used z-scores. Prefer the actor's run cache so chained thin evals
+    see the same features the policy was trained on.
+    """
+    env_path = os.environ.get("SPECTRA_STANDARDIZER_PATH", "").strip()
+    if env_path and (for_write or os.path.isfile(env_path)):
+        return env_path
+    actor = os.environ.get("SPECTRA_ACTOR_CHECKPOINT_PATH", "").strip()
+    inferred = cache_path_from_actor(actor)
+    if inferred and (for_write or os.path.isfile(inferred)):
+        return inferred
+    if env_path:
+        return env_path
+    try:
+        import src.logging_utils as logging_utils
+        rd = logging_utils.run_dir()
+        if rd:
+            candidate = os.path.join(rd, "standardizer.pt")
+            if for_write or os.path.isfile(candidate):
+                return candidate
+    except Exception:
+        pass
+    return inferred
+
+
+def ensure_fitted(database_dict, device, token_base_dim: int, *,
+                  load_only: bool = False) -> FeatureStandardizer:
     """
     Fit (or load) the database-wide standardiser before RL training begins.
 
@@ -129,6 +181,8 @@ def ensure_fitted(database_dict, device, token_base_dim: int) -> FeatureStandard
         database_dict: ``{path: (model, (train, val, test))}`` as produced by preload.
         device:        Torch device for the activation probes.
         token_base_dim: Width of the base layer token (excluding action-cost slots).
+        load_only:     Eval-only: load a cache, never fit the eval catalog (thin
+                       held-out nets are the wrong population).
     """
     std = FeatureStandardizer.instance(token_base_dim)
 
@@ -139,12 +193,19 @@ def ensure_fitted(database_dict, device, token_base_dim: int) -> FeatureStandard
         std._frozen = True
         return std
 
-    cache_path = os.environ.get("SPECTRA_STANDARDIZER_PATH", "").strip()
+    cache_path = resolve_standardizer_path(for_write=False)
     if cache_path and os.path.isfile(cache_path):
         std.load(cache_path)
         return std
 
     if std.is_fitted:
+        return std
+
+    if load_only:
+        utils.print_flush(
+            "FeatureStandardizer: eval-only with no cache at "
+            f"{cache_path or '(unset)'}; log1p fallback "
+            "(train z-score / eval log1p mismatch)")
         return std
 
     if not database_dict:
@@ -172,6 +233,17 @@ def ensure_fitted(database_dict, device, token_base_dim: int) -> FeatureStandard
             utils.print_flush(f"FeatureStandardizer: skipped {net_path} ({error})")
 
     std.finalize()
-    if cache_path:
-        std.save(cache_path)
+    save_path = resolve_standardizer_path(for_write=True)
+    if save_path:
+        std.save(save_path)
+        # Second copy next to the checkpoints, so any copy of ``agent_checkpoints/`` (snapshots,
+        # continue-train seeds) carries the feature scale the policy was trained with.
+        try:
+            import src.logging_utils as logging_utils
+            ckpt_dir = os.path.join(logging_utils.run_dir(), "agent_checkpoints")
+            beside = os.path.join(ckpt_dir, "standardizer.pt")
+            if os.path.abspath(beside) != os.path.abspath(save_path):
+                std.save(beside)
+        except Exception:
+            pass
     return std

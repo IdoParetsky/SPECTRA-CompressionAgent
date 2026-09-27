@@ -1,21 +1,22 @@
 ---
-description: Open SPECTRA canvases beside chat; Windows markdown links must be clickable
+description: SPECTRA canvases — update files, do not keep them on display
 alwaysApply: true
 ---
 
-# SPECTRA canvases — open them; do not rely on a click
+# SPECTRA canvases — disk is the board; display is on request
 
-On this Windows workspace, a markdown link with `C:\...` **does not open**. Backslashes break the link. The user has asked repeatedly to pop canvases beside the chat.
+On this Windows workspace, a markdown link with `C:\...` **does not open**. Backslashes break the link. Chat links use **POSIX forward slashes**.
 
-Whenever you create, update, or mention a `.canvas.tsx`:
+Canvases live only in `canvases/` (Cursor-managed). Do not put `.canvas.tsx` in the git repo. Live ops board cap ~400 lines / ~30 KB. Never append history; restamp **replaces**. August one-off briefs are archived at `C:\Users\User\.spectra\canvas-archive\` so they are not compiled on workspace load. Keep in `canvases/` only live ops + paper boards (current-affairs, Pareto, coverage, literature-survey). Two-week GPU plan is **stopped** (Ido 21 Sep: not helpful). Pareto is ~1285 lines — do not leave it on display.
 
-1. **Call `open_resource`** (cursor-app-control) with
-   `file:///C:/Users/User/.cursor/projects/c-SPECTRA-CompressionAgent/canvases/<file>.canvas.tsx`
-   Do not wait for the user to click.
-2. In chat, link with **forward slashes** (POSIX), never a `C:\` path:
+## Display vs update (Ido 5 Sep 12:23; two-week dropped 21 Sep)
+
+**Do not keep canvases on display** while Ido is not looking. Do **not** call `open_resource` after a restamp, heartbeat, or TEST write.
+
+1. **Update `spectra-current-affairs.canvas.tsx`** on the 09:30 / 16:00 / 23:00 stamps, when a TEST lands, or when Ido asks. That is the memory — do not memorize canvas contents in chat. **Do not restamp the two-week GPU plan** unless Ido asks.
+2. **Open** (`open_resource` + POSIX chat link) only when Ido **explicitly asks to view** a board.
+3. After opening for a view, do not leave Pareto / coverage / meeting-pack open overnight. Ops boards (current-affairs, two-week, noon brief) also stay closed unless he is looking.
 
 ```
-[Gilad brief](/Users/User/.cursor/projects/c-SPECTRA-CompressionAgent/canvases/spectra-gilad-brief.canvas.tsx)
+[noon brief](/Users/User/.cursor/projects/c-SPECTRA-CompressionAgent/canvases/spectra-noon-brief-5sep.canvas.tsx)
 ```
-
-Canvases live only in that `canvases/` directory (Cursor-managed). Do not put `.canvas.tsx` in the git repo.

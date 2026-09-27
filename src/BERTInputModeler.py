@@ -241,8 +241,10 @@ class BERTInputModeler:
 
     def _build_layer_tokens(self, feature_maps, curr_layer_idx,
                             action_costs=None, coupling_ids=None,
-                            param_ratio=None) -> torch.Tensor:
-        from src.fortify import fortify_enabled, build_fortify_features, budget_in_state
+                            param_ratio=None, extras=None, layer_extras=None) -> torch.Tensor:
+        from src.fortify import (fortify_enabled, build_fortify_features, budget_in_state,
+                                 state_slack, STATE_SLACK_DIM, state_groupcost,
+                                 STATE_GROUPCOST_DIM)
 
         maps = dict(feature_maps)
         maps["Topology"] = spoof_classifier_topology(list(feature_maps.get("Topology") or []))
@@ -258,6 +260,23 @@ class BERTInputModeler:
             ratio = min(1.0, max(0.0, ratio))
             col = torch.full((base.size(0), 1), ratio, device=base.device, dtype=base.dtype)
             base = torch.cat([base, col], dim=1)
+        if state_slack() and base.size(0):
+            # Global episode context broadcast to every token: accuracy slack in the τ band
+            # (1 = untouched, 0 = at τ, −1 = far over) and pass progress in [0, 1].
+            vals = list(extras) if extras is not None else []
+            vals = (vals + [1.0, 0.0])[:STATE_SLACK_DIM]
+            vals = [min(1.0, max(-1.0, float(v))) for v in vals]
+            cols = torch.tensor(vals, device=base.device, dtype=base.dtype).expand(base.size(0), -1)
+            base = torch.cat([base, cols], dim=1)
+        if state_groupcost() and base.size(0):
+            # Per-layer group cost (action_costs.group_cost_features); zeros when unavailable.
+            L = base.size(0)
+            gc = torch.zeros(L, STATE_GROUPCOST_DIM, device=base.device, dtype=base.dtype)
+            if layer_extras is not None and torch.is_tensor(layer_extras) and layer_extras.dim() == 2:
+                n = min(L, layer_extras.size(0))
+                d = min(STATE_GROUPCOST_DIM, layer_extras.size(1))
+                gc[:n, :d] = layer_extras[:n, :d].to(device=base.device, dtype=base.dtype)
+            base = torch.cat([base, gc], dim=1)
         target = min(curr_layer_idx, base.size(0) - 1) if base.size(0) else 0
         return self._attach_action_cost_slots(base, target, action_costs)
 
@@ -284,12 +303,16 @@ class BERTInputModeler:
     def encode_model_to_bert_input(self, model_with_rows, feature_maps, curr_layer_idx,
                                    dependency_groups=None,
                                    action_costs=None,
-                                   param_ratio=None) -> Dict[str, torch.Tensor]:
+                                   param_ratio=None,
+                                   extras=None,
+                                   layer_extras=None) -> Dict[str, torch.Tensor]:
         """
         Package CNN features as an agent state.
 
         Always returns encoder-agnostic fields consumed by ``SpectraStateEncoder``. When
         ``SPECTRA_STATE_ENCODER=bert``, also fills a ``bert`` entry for the frozen ablation.
+        ``extras`` = ``[accuracy_slack, pass_progress]`` (used under ``SPECTRA_STATE_SLACK``);
+        ``layer_extras`` = per-layer group-cost rows (``SPECTRA_STATE_GROUPCOST``).
         """
         with torch.no_grad():
             topology = spoof_classifier_topology(feature_maps["Topology"])
@@ -302,7 +325,7 @@ class BERTInputModeler:
 
             layer_tokens = self._build_layer_tokens(
                 feature_maps, curr_layer_idx, action_costs, coupling_ids=coupling,
-                param_ratio=param_ratio)
+                param_ratio=param_ratio, extras=extras, layer_extras=layer_extras)
             coupling = coupling[: layer_tokens.size(0)]
             layer_types = torch.tensor(
                 [int(row[0]) if row else 0 for row in topology],

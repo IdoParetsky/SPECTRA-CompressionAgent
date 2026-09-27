@@ -63,6 +63,154 @@ def _print_traj_summary(net_path, picked):
             f"FLOPs x{point['flop']:.3f} | val Δacc {point['val_dacc_pp']:+.2f} pp")
 
 
+def apply_policy_config(args):
+    """
+    Replay a trained actor under the state/action contract it was trained with.
+
+    Trainers write ``agent_checkpoints/policy_config.json`` (A2CAgentReinforce.write_policy_config).
+    When ``--actor_checkpoint_path`` points into such a directory (or a snapshot copy of it),
+    the contract keys (state alignment, group-once, slack/budget channels, encoder kind and
+    dropout, ranking default, rate menu, per-action rankings) are pinned here — *before*
+    ``StaticConf`` exists — and every difference is printed. ``SPECTRA_POLICY_CONFIG=0``
+    disables the pinning (explicit A/B against the training contract). Frozen legacy actors
+    have no such file and are untouched.
+    """
+    import json
+    if os.environ.get("SPECTRA_POLICY_CONFIG", "auto").strip().lower() in ("0", "off", "false", "no"):
+        return None
+    actor = getattr(args, "actor_checkpoint_path", None)
+    if not actor:
+        return None
+    path = os.path.join(os.path.dirname(os.path.abspath(actor)), "policy_config.json")
+    if not os.path.isfile(path):
+        return None
+    with open(path, "r", encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    changed = []
+    for key, value in (cfg.get("env") or {}).items():
+        if value is None:
+            continue
+        current = os.environ.get(key)
+        if current != str(value):
+            os.environ[key] = str(value)
+            changed.append(f"{key}: {current!r} -> {value!r}")
+    rates = cfg.get("compression_rates")
+    if rates and [float(x) for x in rates] != [float(x) for x in args.compression_rates]:
+        changed.append(f"compression_rates: {args.compression_rates} -> {rates}")
+        args.compression_rates = [float(x) for x in rates]
+    ranks = cfg.get("action_rankings")
+    if ranks is not None:
+        wanted = [str(r) if r else "none" for r in ranks]
+        current = [str(r) for r in (args.action_rankings or [])]
+        if not args.action_rankings and all(r == "none" for r in wanted):
+            wanted = None
+        if wanted is not None and current != wanted:
+            changed.append(f"action_rankings: {args.action_rankings} -> {wanted}")
+            args.action_rankings = wanted
+    # V4-1 factored head: ranking menu of the second policy head.
+    menu = cfg.get("ranking_menu")
+    if cfg.get("factored_head") and menu:
+        wanted_menu = [str(m) for m in menu]
+        if [str(m) for m in (args.ranking_menu or [])] != wanted_menu:
+            changed.append(f"ranking_menu: {args.ranking_menu} -> {wanted_menu}")
+            args.ranking_menu = wanted_menu
+    # Passes: v3 actors train with --passes 2 (band-edge exposure). Replay with the same
+    # number of passes unless the submitter pinned SPECTRA_EVAL_PASSES explicitly.
+    passes = cfg.get("passes")
+    if (passes is not None and not os.environ.get("SPECTRA_EVAL_PASSES", "").strip()
+            and int(passes) != int(getattr(args, "passes", passes))):
+        changed.append(f"passes: {args.passes} -> {int(passes)}")
+        args.passes = int(passes)
+    # P8: a NEON-C actor (trained with layer replacement) must be replayed with it. The env
+    # pins above already copied SPECTRA_FT_REINIT_* when the trainer exported them; an actor
+    # whose config predates P8 has no such key and stays on the recipe the submitter chose.
+    recipe = cfg.get("ft_recipe")
+    if recipe:
+        changed.append(f"ft_recipe (trained): {recipe}")
+    utils.print_flush(f"[policy_config] {path}: "
+                      + ("; ".join(changed) if changed else "matches the current flags"))
+    return path
+
+
+def _counterfactual_states(state):
+    """
+    Three content-perturbed copies of an encoder state dict (V6 representation probe).
+
+    ``zero_layers``: layer feature rows zeroed (types, positions, target marker, action tokens
+    kept) — does the policy read layer *content*? ``shuffle_layers``: feature rows and types
+    permuted across positions with a fixed seed — does *which layer has which statistics*
+    matter, or only the sequence as a bag? ``blind``: layer features and action-cost tokens
+    zeroed — the policy sees only depth, layer types and the marker.
+    """
+    feats = state["layer_features"]
+    n = int(feats.size(0))
+    zero = dict(state)
+    zero["layer_features"] = torch.zeros_like(feats)
+    gen = torch.Generator(device="cpu").manual_seed(7919 * n + 17)
+    perm = torch.randperm(n, generator=gen).to(feats.device)
+    shuffled = dict(state)
+    shuffled["layer_features"] = feats[perm]
+    if "layer_types" in state and state["layer_types"] is not None and state["layer_types"].numel() == n:
+        shuffled["layer_types"] = state["layer_types"][perm]
+    blind = dict(zero)
+    costs = state.get("action_costs")
+    if costs is not None and torch.is_tensor(costs) and costs.numel():
+        blind["action_costs"] = torch.zeros_like(costs)
+    return {"zero_layers": zero, "shuffle_layers": shuffled, "blind": blind}
+
+
+def counterfactual_probe(agent, state, legal, real_rate_idx, conf, fortify_mod):
+    """
+    ``SPECTRA_EVAL_COUNTERFACTUAL=1``: argmax of the frozen actor on the counterfactual states
+    under the same legal mask, plus the real policy's max probability. Returns None when the
+    flag is off or the state is not an encoder dict (legacy BERT tensor states).
+    """
+    if not fortify_mod.eval_counterfactual():
+        return None
+    if not isinstance(state, dict) or "layer_features" not in state:
+        return None
+    out = {"real": int(real_rate_idx)}
+    with torch.no_grad():
+        dist = agent.actor_model(state)
+        masked = fortify_mod.mask_policy(dist, legal)
+        probs = masked.rate.probs if fortify_mod.is_factored_dist(masked) else masked.probs
+        out["pmax"] = round(float(probs.max().item()), 4)
+        for name, variant in _counterfactual_states(state).items():
+            rate_idx, _, _ = fortify_mod.pick_action(
+                agent.actor_model(variant), legal, deterministic=True, device=conf.device)
+            out[name] = int(rate_idx)
+    out["content_used"] = int(out["zero_layers"] != out["real"] or out["shuffle_layers"] != out["real"])
+    out["state_used"] = int(out["blind"] != out["real"])
+    utils.print_flush(
+        f"[cf] act={out['real']} zero={out['zero_layers']} shuf={out['shuffle_layers']} "
+        f"blind={out['blind']} pmax={out['pmax']} content_used={out['content_used']} "
+        f"state_used={out['state_used']}")
+    try:
+        import src.run_recorder as _recorder
+        _recorder.record("counterfactual", **out)
+    except Exception:
+        pass
+    return out
+
+
+def _actor_action(agent, state, legal, conf, fortify_mod):
+    """(rate action tensor, ranking index or None) from the frozen policy, plain or factored."""
+    with torch.no_grad():
+        dist = agent.actor_model(state)
+    rate_idx, rank_idx, _ = fortify_mod.pick_action(
+        dist, legal, deterministic=fortify_mod.eval_deterministic(), device=conf.device)
+    counterfactual_probe(agent, state, legal, rate_idx, conf, fortify_mod)
+    return torch.tensor([rate_idx], device=conf.device), rank_idx
+
+
+def _ranking_for(conf, fortify_mod, rate_idx, rank_idx):
+    """Ranking to apply: factored head -> menu entry (None on identity), else per-action table."""
+    menu = list(getattr(conf, "ranking_menu", None) or [])
+    if fortify_mod.factored_head() and menu:
+        return None if rank_idx is None else menu[int(rank_idx) % len(menu)]
+    return conf.action_rankings_dict.get(int(rate_idx))
+
+
 def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A"):
     """
     Evaluate models using intra-model (train/test) and inter-model (cross-validation).
@@ -124,7 +272,15 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         f"traj={int(traj)} "
                         f"min_param={fortify_mod.eval_min_param_ratio():.2f} "
                         f"min_flop={fortify_mod.eval_min_flop_ratio():.2f} "
-                        f"align={'next' if fortify_mod.state_align_next() else 'prev'}")
+                        f"align={'next' if fortify_mod.state_align_next() else 'prev'} "
+                        f"group_once={int(fortify_mod.group_once_per_pass())} "
+                        f"slack={int(fortify_mod.state_slack())} "
+                        f"groupcost={int(fortify_mod.state_groupcost())} passes={conf.passes} "
+                        f"factored={int(bool(fortify_mod.factored_head() and getattr(conf, 'ranking_menu', None)))} "
+                        f"ranking_menu={list(getattr(conf, 'ranking_menu', None) or [])} "
+                        f"rankings={[conf.action_rankings_dict.get(i) for i in sorted(conf.action_rankings_dict)]} "
+                        f"ft_recipe={fortify_mod.ft_recipe(bool(conf.train_compressed_layer_only))} "
+                        f"refresh_all={int(fortify_mod.refresh_all_features())}")
                 # Paper TEST walks every remaining prunable row. The size floor
                 # identity-pads unless SPECTRA_EVAL_TRAJECTORY=1, which labels a
                 # ~0.70 hold then continues. Train rollout_limit must not apply
@@ -139,6 +295,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                     traj_points.append(
                         _traj_capture(env, -1, 1.0, test_new, test_orig))
                 while not done:
+                    chosen_rank = None  # factored head: ranking index chosen with the rate
                     legal = env.legal_action_mask(device=conf.device)
                     min_ratio = fortify_mod.eval_min_param_ratio()
                     at_budget, floor_kind = fortify_mod.eval_at_size_floor(env)
@@ -148,8 +305,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                                 legal, conf.compression_rates_dict,
                                 policy=eval_policy, device=conf.device)
                         else:
-                            action = fortify_mod.policy_action(
-                                agent.actor_model(state), legal, device=conf.device)
+                            action, chosen_rank = _actor_action(agent, state, legal, conf, fortify_mod)
                         if not traj_phase_b:
                             before = int(action.item())
                             guarded = fortify_mod.action_respecting_param_floor(
@@ -191,8 +347,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             legal, conf.compression_rates_dict,
                             policy=eval_policy, device=conf.device)
                     else:
-                        action = fortify_mod.policy_action(
-                            agent.actor_model(state), legal, device=conf.device)
+                        action, chosen_rank = _actor_action(agent, state, legal, conf, fortify_mod)
 
                     if (not traj
                             and fortify_mod.eval_lookahead_enabled()
@@ -224,7 +379,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                                 f"{conf.compression_rates_dict[before]} -> "
                                 f"{conf.compression_rates_dict[int(action.item())]}")
                     compression_rate = conf.compression_rates_dict[int(action.item())]
-                    next_state, reward, done = env.step(compression_rate)
+                    ranking = _ranking_for(conf, fortify_mod, int(action.item()), chosen_rank)
+                    next_state, reward, done = env.step(compression_rate, ranking=ranking)
                     if traj and mode == EVAL_TEST:
                         if abs(float(compression_rate) - 1.0) >= 1e-9:
                             test_new, test_orig, _ = env.score_test_loader()
@@ -354,6 +510,7 @@ if __name__ == "__main__":
     warnings.filterwarnings("ignore", message="xindex is not in var_ranges")
 
     args = utils.extract_args_from_cmd()
+    apply_policy_config(args)
     utils.print_flush(args)
 
     assert args.train_split + args.val_split < 1, f"{args.train_split=} + {args.val_split=} >= 1"
@@ -382,6 +539,9 @@ if __name__ == "__main__":
         actor_checkpoint_path=args.actor_checkpoint_path,
         critic_checkpoint_path=args.critic_checkpoint_path,
         compression_rates_dict=utils.parse_compression_rates(args.compression_rates),
+        action_rankings_dict=utils.parse_action_rankings(
+            args.action_rankings, utils.parse_compression_rates(args.compression_rates)),
+        ranking_menu=utils.parse_ranking_menu(args.ranking_menu),
         train_compressed_layer_only=args.train_compressed_layer_only,
         allowed_acc_reduction=args.allowed_acc_reduction,
         discount_factor=args.discount_factor,

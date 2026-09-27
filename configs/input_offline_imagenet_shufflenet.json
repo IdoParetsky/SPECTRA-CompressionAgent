@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/shufflenet-v2-x1-0_imagenet1kv1_torchvision_69.36_2.28.pth": [
+    "shufflenet_v2_x1_0",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ]
+}

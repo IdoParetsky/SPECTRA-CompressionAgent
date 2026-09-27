@@ -108,7 +108,7 @@ def instantiate(arch, script, num_classes, width):
     spec = importlib.util.spec_from_file_location(script.stem, script)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    fn = getattr(module, arch)
+    fn, _ = utils.resolve_instantiation_func(module, arch)
     kwargs = {"num_classes": num_classes, "large_input": False}
     if width is not None:
         kwargs["width"] = width

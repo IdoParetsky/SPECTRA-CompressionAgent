@@ -106,6 +106,50 @@ case "$PROFILE" in
     export SPECTRA_WARMUP_FLOOR="${SPECTRA_WARMUP_FLOOR:-4}"
     EXTRA_ARGS=(--runtime_limit 900 --allowed_acc_reduction 5)
     ;;
+  smoke_v2)
+    # Minutes-long integration gate for the 13 Sep v2 recipe (PPO + slack state + group-once
+    # + (rate, ranking) actions + train-FT cap). Chain the long v2 arms afterok this job.
+    export SPECTRA_INPUT="${SPECTRA_INPUT:-/home/paretsky/single_input.json}"
+    export SPECTRA_DATABASE="${SPECTRA_DATABASE:-/home/paretsky/single_database.json}"
+    export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
+    export SPECTRA_PASSES=1
+    export SPECTRA_ROLLOUT_LIMIT=6
+    export SPECTRA_N_SPLITS=0
+    export SPECTRA_NUM_EPOCHS=1
+    export SPECTRA_SAVE_PRUNED=False
+    export SPECTRA_SKIP_STANDARDIZER=0
+    export SPECTRA_FORTIFY=1
+    export SPECTRA_ALGO=ppo
+    export SPECTRA_PPO_EPISODES=2
+    export SPECTRA_PPO_EPOCHS=2
+    export SPECTRA_PPO_WARMUP_EPISODES=0
+    export SPECTRA_AGENT_LR=3e-4
+    export SPECTRA_ENTROPY_COEF=0.01
+    export SPECTRA_ENCODER_DROPOUT=0
+    export SPECTRA_POLICY_HEAD_ZERO_INIT=1
+    export SPECTRA_STATE_ALIGN=next
+    export SPECTRA_STATE_SLACK=1
+    export SPECTRA_BUDGET_IN_STATE=1
+    export SPECTRA_GROUP_ONCE_PER_PASS=1
+    export SPECTRA_TRAIN_FT_EPOCHS=1
+    export SPECTRA_CHECKPOINT=val_best
+    export SPECTRA_SNAPSHOT_BASELINE=0
+    export SPECTRA_REWARD_MODE=structural
+    export SPECTRA_REWARD_SCALE=cbrt
+    export SPECTRA_REWARD_TRACE=1
+    export SPECTRA_EVAL_DETERMINISTIC=1
+    export SPECTRA_EVAL_TRAJECTORY=1
+    export SPECTRA_EVAL_LOOKAHEAD=0
+    export SPECTRA_SKIP_EVAL_TRAIN=1
+    export SPECTRA_EVAL_MIN_PARAM_RATIO=0.70
+    unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN
+    export SPECTRA_CONTINUE_TRAIN=0
+    export SPECTRA_SKIP_TRAIN=0
+    EXTRA_ARGS=(--runtime_limit 600 --allowed_acc_reduction 10
+                --train_compressed_layer_only False
+                --compression_rates 1.0 0.9 0.8 0.9 0.8
+                --action_rankings l1 l1 l1 fpgm fpgm)
+    ;;
   medium)
     # 20 fine-tune epochs (early-stop patience 10) + 20x network-count warmup. Enough for the
     # agent to see recoverable compressions, without the full 40-epoch / 2-pass budget.
@@ -625,9 +669,13 @@ case "$PROFILE" in
                   --compression_rates 1.0 0.9 0.8)
     fi
     ;;
-  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full)
+  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
+    if [[ "$PROFILE" == offline_train_v5_p5b3* ]]; then
+      # P5-B3 trains on CIFAR-10 + recoverable CIFAR-100 only (SVHN / Fashion-MNIST are TEST hold-outs).
+      export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 cifar-100}"
+    fi
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10 svhn fashion-mnist}"
     export SPECTRA_PASSES=1
     export SPECTRA_ROLLOUT_LIMIT=5
@@ -753,7 +801,7 @@ case "$PROFILE" in
       else
         export SPECTRA_CONTINUE_TRAIN=1
       fi
-    elif [[ "$PROFILE" == "offline_train_neon_full" ]]; then
+    elif [[ "$PROFILE" == "offline_train_neon_full" || "$PROFILE" == "offline_train_gonce_cold" ]]; then
       # Original NEON trichotomy on *realized* CNN cuts, cube-root critic scale.
       # In-budget checkpoint; empty-band walks skip the actor; mixed walks mask
       # only the violating steps so cubes cannot fold latest_best to identity.
@@ -770,14 +818,250 @@ case "$PROFILE" in
       export SPECTRA_SKIP_EVAL=1
       unset SPECTRA_SKIP_EVAL_TRAIN
       export SPECTRA_SKIP_TRAIN=0
-      if [[ -z "${SPECTRA_RESUME_PATH:-}" && "${SPECTRA_CONTINUE_TRAIN:-}" != "1" ]]; then
+      if [[ "$PROFILE" == "offline_train_gonce_cold" ]]; then
+        # ONE lever on the frozen neon_full recipe (control: cold 21168838 lineage):
+        # each coupled group is cut at most once per pass. Always a cold actor — a
+        # warm-start from a near-uniform policy (job20158274 family) is not a new MDP.
+        # SPECTRA_SNAPSHOT_BASELINE freezes a TESTable copy whenever latest_best
+        # clears it (default: any completed in-budget episode).
+        export SPECTRA_GROUP_ONCE_PER_PASS=1
+        export SPECTRA_SNAPSHOT_BASELINE="${SPECTRA_SNAPSHOT_BASELINE:-0}"
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN
+        # The continue-train prologue above may already have seeded this run dir.
+        rm -f "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" \
+              "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_actor.pt" \
+              "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_critic.pt"
+        export SPECTRA_CONTINUE_TRAIN=0
+      elif [[ -z "${SPECTRA_RESUME_PATH:-}" && "${SPECTRA_CONTINUE_TRAIN:-}" != "1" ]]; then
         unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH
         export SPECTRA_CONTINUE_TRAIN=0
       else
         export SPECTRA_CONTINUE_TRAIN=1
       fi
     fi
-    if [[ "$PROFILE" == "offline_train_prefer" || "$PROFILE" == "offline_train_unified_full" || "$PROFILE" == "offline_train_prefer_floor" || "$PROFILE" == "offline_train_neon_full" || "$PROFILE" == "offline_train_band_cbrt" ]]; then
+    if [[ "$PROFILE" == offline_train_v2* ]]; then
+      # ---- v2 (13 Sep audit): the recipe that can actually move a policy off uniform.
+      # One optimiser (PPO over 4-episode batches, GAE, return scaling, clipped surrogate),
+      # a state that can see the τ band (accuracy slack + progress + kept ratio), a walk
+      # that cuts each stream once per pass (group-once), a cold zero-init policy head,
+      # no encoder dropout, next-row marker, and a shorter recovery only during policy
+      # training (TEST keeps --num_epochs 40 for every method). Arms:
+      #   v2a: 3 rates, structural + cbrt (NEON trichotomy on realised cut)
+      #   v2b: v2a + (rate, ranking) actions: 1.0 | 0.9/0.8 x {l1, fpgm}  (5 actions)
+      #   v2c: v2a with the original NEON reward on the nominal rate, raw scale
+      export SPECTRA_ALGO=ppo
+      export SPECTRA_PPO_EPISODES="${SPECTRA_PPO_EPISODES:-4}"
+      export SPECTRA_PPO_EPOCHS="${SPECTRA_PPO_EPOCHS:-4}"
+      export SPECTRA_PPO_CLIP="${SPECTRA_PPO_CLIP:-0.2}"
+      export SPECTRA_PPO_GAE_LAMBDA="${SPECTRA_PPO_GAE_LAMBDA:-0.95}"
+      export SPECTRA_PPO_TARGET_KL="${SPECTRA_PPO_TARGET_KL:-0.03}"
+      export SPECTRA_PPO_WARMUP_EPISODES="${SPECTRA_PPO_WARMUP_EPISODES:-0}"
+      export SPECTRA_AGENT_LR="${SPECTRA_AGENT_LR:-3e-4}"
+      # The shared arm header above already exported SPECTRA_ENTROPY_COEF=0.05 (A2C value),
+      # so a plain ":-" default would keep it. PPO uses 0.01 unless SPECTRA_V2_ENTROPY_COEF.
+      export SPECTRA_ENTROPY_COEF="${SPECTRA_V2_ENTROPY_COEF:-0.01}"
+      export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_V2_ENTROPY_ANNEAL_HORIZON:-200}"
+      export SPECTRA_ENTROPY_MIN="${SPECTRA_V2_ENTROPY_MIN:-0.002}"
+      export SPECTRA_ENCODER_DROPOUT=0
+      export SPECTRA_POLICY_HEAD_ZERO_INIT=1
+      export SPECTRA_STATE_ALIGN=next
+      export SPECTRA_STATE_SLACK=1
+      export SPECTRA_BUDGET_IN_STATE=1
+      export SPECTRA_GROUP_ONCE_PER_PASS=1
+      export SPECTRA_TRAIN_FT_EPOCHS="${SPECTRA_TRAIN_FT_EPOCHS:-12}"
+      export SPECTRA_TRAIN_FT_PATIENCE="${SPECTRA_TRAIN_FT_PATIENCE:-4}"
+      export SPECTRA_ROLLOUT_LIMIT=128
+      export SPECTRA_CHECKPOINT=val_best
+      export SPECTRA_SNAPSHOT_BASELINE="${SPECTRA_SNAPSHOT_BASELINE:-0.05}"
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_SKIP_EVAL=1
+      unset SPECTRA_ACTOR_SKIP_OVERBUDGET SPECTRA_TRAIN_RESPECT_FLOOR SPECTRA_SKIP_EVAL_TRAIN
+      unset SPECTRA_FILTER_IMPORTANCE
+      if [[ "$PROFILE" == "offline_train_v2c" ]]; then
+        export SPECTRA_REWARD_MODE=neon
+        export SPECTRA_REWARD_SCALE=raw
+      else
+        export SPECTRA_REWARD_MODE=structural
+        export SPECTRA_REWARD_SCALE=cbrt
+      fi
+      # Always cold: a warm-start from a near-uniform policy is not a new MDP.
+      unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN
+      rm -f "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" \
+            "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_actor.pt" \
+            "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_critic.pt"
+      export SPECTRA_CONTINUE_TRAIN=0
+      export SPECTRA_SKIP_TRAIN=0
+    fi
+    if [[ "$PROFILE" == offline_train_v3_* || "$PROFILE" == offline_train_v4_* || "$PROFILE" == offline_train_v5_* || "$PROFILE" == offline_train_v6_* ]]; then
+      # ---- v3 (16 Sep last train). Everything v2a/v2b had, plus what the v2 traces showed
+      # was missing: (1) band-edge exposure — B saw the τ edge on 2.5 % of steps, so "stop
+      # from slack" had no signal → --passes 2 in training (TEST replays 2 passes via
+      # policy_config); (2) per-layer group cost in the state (SPECTRA_STATE_GROUPCOST);
+      # (3) a learning governor: deterministic fixed-probe selection score (two thin train
+      # ResNets, argmax walks), min lifetime 250, patience 150 on the probe, and Ido's
+      # probe-gated rewind to the elite with an entropy bump (SPECTRA_REWIND_BEST);
+      # (4) entropy floor 0.005 so a late peaked policy can still explore.
+      # Arms differ only in RANK (5-action menu 1.0 | 0.9/0.8 x {l1, RANK}) and, for the
+      # 4th, the reward scale. v2 profiles above are untouched (byte-identical replays).
+      # Catalog: the 24-net wide train (superset of the 10-net set; adds thin ResNets at
+      # widths 7-14 that sit between the train widths and the held-out r20-w2 / r56-w4,
+      # zero overlap with similar / unlike / thin / C100 / ImageNet hold-outs — checked
+      # 16 Sep). Override with SPECTRA_V3_DATABASE=.../database_offline_train.json for 10.
+      export SPECTRA_DATABASE="${SPECTRA_V3_DATABASE:-${REPO_DIR}/configs/database_offline_wide.json}"
+      export SPECTRA_ALGO=ppo
+      export SPECTRA_PPO_EPISODES="${SPECTRA_PPO_EPISODES:-4}"
+      export SPECTRA_PPO_EPOCHS="${SPECTRA_PPO_EPOCHS:-4}"
+      export SPECTRA_PPO_CLIP="${SPECTRA_PPO_CLIP:-0.2}"
+      export SPECTRA_PPO_GAE_LAMBDA="${SPECTRA_PPO_GAE_LAMBDA:-0.95}"
+      export SPECTRA_PPO_TARGET_KL="${SPECTRA_PPO_TARGET_KL:-0.03}"
+      export SPECTRA_PPO_WARMUP_EPISODES="${SPECTRA_PPO_WARMUP_EPISODES:-0}"
+      export SPECTRA_AGENT_LR="${SPECTRA_AGENT_LR:-3e-4}"
+      export SPECTRA_ENTROPY_COEF="${SPECTRA_V3_ENTROPY_COEF:-0.01}"
+      export SPECTRA_ENTROPY_ANNEAL_HORIZON="${SPECTRA_V3_ENTROPY_ANNEAL_HORIZON:-300}"
+      export SPECTRA_ENTROPY_MIN="${SPECTRA_V3_ENTROPY_MIN:-0.005}"
+      export SPECTRA_ENCODER_DROPOUT=0
+      export SPECTRA_POLICY_HEAD_ZERO_INIT=1
+      export SPECTRA_STATE_ALIGN=next
+      export SPECTRA_STATE_SLACK=1
+      export SPECTRA_BUDGET_IN_STATE=1
+      export SPECTRA_STATE_GROUPCOST=1
+      export SPECTRA_GROUP_ONCE_PER_PASS=1
+      export SPECTRA_TRAIN_FT_EPOCHS="${SPECTRA_TRAIN_FT_EPOCHS:-12}"
+      export SPECTRA_TRAIN_FT_PATIENCE="${SPECTRA_TRAIN_FT_PATIENCE:-4}"
+      export SPECTRA_ROLLOUT_LIMIT=128
+      export SPECTRA_PASSES=2
+      export SPECTRA_CHECKPOINT=val_best
+      export SPECTRA_SNAPSHOT_BASELINE="${SPECTRA_SNAPSHOT_BASELINE:-0.05}"
+      export SPECTRA_PROBE_EVERY="${SPECTRA_PROBE_EVERY:-12}"
+      export SPECTRA_PROBE_NETS="${SPECTRA_PROBE_NETS:-resnet56-width6,resnet20-width10}"
+      export SPECTRA_MIN_EPISODES="${SPECTRA_MIN_EPISODES:-250}"
+      export SPECTRA_PATIENCE_EPISODES="${SPECTRA_PATIENCE_EPISODES:-150}"
+      export SPECTRA_REWIND_BEST="${SPECTRA_REWIND_BEST:-1}"
+      export SPECTRA_REWIND_PATIENCE="${SPECTRA_REWIND_PATIENCE:-50}"
+      export SPECTRA_REWIND_MAX="${SPECTRA_REWIND_MAX:-3}"
+      export SPECTRA_REWIND_ENTROPY="${SPECTRA_REWIND_ENTROPY:-0.02}"
+      export SPECTRA_REWIND_ENTROPY_EPISODES="${SPECTRA_REWIND_ENTROPY_EPISODES:-30}"
+      export SPECTRA_EVAL_DETERMINISTIC=1
+      export SPECTRA_REWARD_TRACE=1
+      export SPECTRA_SKIP_EVAL=1
+      unset SPECTRA_ACTOR_SKIP_OVERBUDGET SPECTRA_TRAIN_RESPECT_FLOOR SPECTRA_SKIP_EVAL_TRAIN
+      unset SPECTRA_FILTER_IMPORTANCE SPECTRA_TRAIN_TAU
+      case "$PROFILE" in
+        offline_train_v3_fpgm_neonraw)
+          # The B-menu x original-NEON cell v2 never ran: nominal-rate trichotomy, no cube-root.
+          export SPECTRA_REWARD_MODE=neon; export SPECTRA_REWARD_SCALE=raw ;;
+        offline_train_v3_fpgm_structraw)
+          # Fallback if neonraw collapses like v2c: NEON trichotomy on the realised cut, no cube-root.
+          export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=raw ;;
+        offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
+          # Ido 19 Sep GO: cbrt on cubed arms only; in-band stays linear +ρ.
+          # Isolated vs live v3-fpgm 21385158 (same 24-net, same PPO, same fpgm menu).
+          export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=cbrt_cubes ;;
+        *)
+          export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=cbrt ;;
+      esac
+      case "$PROFILE" in
+        offline_train_v3_svd) V3_RANK=svd ;;
+        offline_train_v3_bnscale) V3_RANK=bn_scale ;;
+        *) V3_RANK=fpgm ;;
+      esac
+      if [[ "$PROFILE" == "offline_train_v6_inband_p5b2" || "$PROFILE" == "offline_train_v6_inband_p5b2_factored" ]]; then
+        # ---- V6 next-cycle thesis actor (Fable 21 Sep, Catalog L lock). In-band linear reward
+        # (the only reward whose frozen actor left the 90% keep on r56-w4, ledger §111) on the
+        # Catalog-L-clean catalog: 9-net C10 core (VGG-13, not VGG-16) + one SVHN net (P5-B2;
+        # CIFAR-100 admitted nothing, §109). Train ∩ {L1, L2, L3, thin, similar, unlike, FMNIST,
+        # ImageNet} = ∅ (tests/test_v5_catalog.py). Probes: VGG-13 C10 + r56-w6. Train FT stays
+        # 12/4 unless the ft40 TRAJ (21535193) says 40/10 walks differently — then submit with
+        # SPECTRA_TRAIN_FT_EPOCHS=40 SPECTRA_TRAIN_FT_PATIENCE=10 and caption it.
+        export SPECTRA_DATABASE="${SPECTRA_V6_DATABASE:-${REPO_DIR}/configs/database_offline_v6_p5b2.json}"
+        export SPECTRA_DATASET_NAMES="cifar-10 svhn"
+        export SPECTRA_PROBE_NETS="${SPECTRA_PROBE_NETS:-vgg13_bn_cifar10_,resnet56-width6}"
+        if [[ ! -s "$SPECTRA_DATABASE" ]]; then
+          echo "offline_train_v6_inband_p5b2: ${SPECTRA_DATABASE} missing" >&2; exit 1
+        fi
+        export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0
+      fi
+      if [[ "$PROFILE" == offline_train_v5_* ]]; then
+        # ---- V5 (18 Sep, Fable sitting). One cell per profile on the v3-fpgm recipe
+        # (5-action fpgm menu, structural+cbrt, 2 passes, group-cost, rewind governor).
+        #   offline_train_v5_p5b3      P5-B3 catalog only: rebalanced C10 core U *admitted*
+        #                              recoverable C100 (configs/database_offline_v5_p5b3_admitted.json,
+        #                              emitted by scripts/build_v5_catalog.py --emit-admitted from the
+        #                              recovery-probe gate table). Probes: a C10 non-ResNet and a C100 net.
+        #                              FT recipe A. Control = v3-fpgm 21385158 on the 24-net.
+        #   offline_train_v5_p5b3_cgp  P5-B3 catalog + P8 C-G+ recipe (only after the no-agent
+        #                              recovery probe lands and the group budget is set from it).
+        #   offline_train_v5_ft40      Isolated FT A/B: the live v3-fpgm 24-net recipe with the TEST
+        #                              recovery budget (40/10) instead of 12/4. Nothing else changes.
+        case "$PROFILE" in
+          offline_train_v5_ft40)
+            export SPECTRA_TRAIN_FT_EPOCHS=40
+            export SPECTRA_TRAIN_FT_PATIENCE=10
+            ;;
+          offline_train_v5_p5b3|offline_train_v5_p5b3_cgp)
+            export SPECTRA_DATABASE="${SPECTRA_V5_DATABASE:-${REPO_DIR}/configs/database_offline_v5_p5b3_admitted.json}"
+            if [[ ! -s "$SPECTRA_DATABASE" ]]; then
+              echo "offline_train_v5_p5b3: ${SPECTRA_DATABASE} is missing or empty." >&2
+              echo "Run scripts/build_v5_catalog.py --emit-admitted after the C100 recovery probe (gate table configs/v5_p5b3_c100_gate.json)." >&2
+              exit 1
+            fi
+            # P5-B3 gate: every C100 net in the database must be 'admitted' in the gate table.
+            "$PYTHON" "${REPO_DIR}/scripts/build_v5_catalog.py" --check-admitted "$SPECTRA_DATABASE" || exit 1
+            # Catalog L lock (21 Sep): VGG-16 C10 is L2 and left the core; the non-ResNet probe is VGG-13.
+            # C100 admitted nothing (ledger 109) -> second probe stays an in-core thin ResNet.
+            export SPECTRA_PROBE_NETS="${SPECTRA_PROBE_NETS:-vgg13_bn_cifar10_,resnet56-width6}"
+            ;;
+        esac
+        if [[ "$PROFILE" == "offline_train_v5_p5b3_cgp" ]]; then
+          export SPECTRA_FT_REINIT_EDITED=1
+          export SPECTRA_FT_REINIT_THEN_POLISH=1
+          export SPECTRA_REFRESH_ALL_FEATURES=1
+          # Group-training budget for policy training: set from the recovery probe's
+          # finetune epochs_ran (docs/V5_P8_RECOVERY_PROBE.md). Defaults are placeholders.
+          export SPECTRA_FT_REINIT_EPOCHS="${SPECTRA_FT_REINIT_EPOCHS:-24}"
+          export SPECTRA_FT_REINIT_PATIENCE="${SPECTRA_FT_REINIT_PATIENCE:-4}"
+          export SPECTRA_FT_POLISH_EPOCHS="${SPECTRA_FT_POLISH_EPOCHS:-4}"
+          export SPECTRA_FT_POLISH_PATIENCE="${SPECTRA_FT_POLISH_PATIENCE:-2}"
+        else
+          export SPECTRA_FT_REINIT_EDITED=0
+          export SPECTRA_FT_REINIT_THEN_POLISH=0
+          export SPECTRA_REFRESH_ALL_FEATURES="${SPECTRA_REFRESH_ALL_FEATURES:-0}"
+        fi
+      fi
+      # Always cold (group-cost changes the token width; no v2 checkpoint can be loaded).
+      unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN
+      rm -f "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" \
+            "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_actor.pt" \
+            "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_critic.pt"
+      export SPECTRA_CONTINUE_TRAIN=0
+      export SPECTRA_SKIP_TRAIN=0
+      if [[ "$PROFILE" == offline_train_v4_* || "$PROFILE" == "offline_train_v6_inband_p5b2_factored" ]]; then
+        # ---- V4-1: factored (rate x ranking) policy on the v3 recipe. Two heads: rate over
+        # {1.0, 0.9, 0.8}, ranking over {l1, fpgm, bn_scale, svd, taylor}; the ranking head is
+        # inactive on identity. Grows the criterion menu without a 13-way softmax. Taylor is
+        # first-order |w*grad| on one train batch, bound right before each cut (data-dependent).
+        # v4_factored_tau6 adds the train-only tau curriculum (SPECTRA_TRAIN_TAU=6).
+        export SPECTRA_FACTORED_HEAD=1
+        if [[ "$PROFILE" == "offline_train_v4_factored_tau6" ]]; then export SPECTRA_TRAIN_TAU=6; fi
+        # Colon-separated so the value survives sbatch --export (no spaces / commas).
+        IFS=':' read -r -a V4_MENU <<< "${SPECTRA_V4_RANKING_MENU:-l1:fpgm:bn_scale:svd:taylor}"
+        EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
+                    --train_compressed_layer_only False
+                    --compression_rates 1.0 0.9 0.8
+                    --ranking_menu "${V4_MENU[@]}")
+      else
+        EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
+                    --train_compressed_layer_only False
+                    --compression_rates 1.0 0.9 0.8 0.9 0.8
+                    --action_rankings l1 l1 l1 "$V3_RANK" "$V3_RANK")
+      fi
+    elif [[ "$PROFILE" == "offline_train_v2b" ]]; then
+      EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
+                  --train_compressed_layer_only False
+                  --compression_rates 1.0 0.9 0.8 0.9 0.8
+                  --action_rankings l1 l1 l1 fpgm fpgm)
+    elif [[ "$PROFILE" == "offline_train_prefer" || "$PROFILE" == "offline_train_unified_full" || "$PROFILE" == "offline_train_prefer_floor" || "$PROFILE" == "offline_train_neon_full" || "$PROFILE" == "offline_train_band_cbrt" || "$PROFILE" == "offline_train_gonce_cold" || "$PROFILE" == offline_train_v2* ]]; then
       # Wall is a fuse. Stop is min_episodes (130) + 100-ep in-budget patience.
       # 36h/48h runtime_limit truncated actor learning. 6d fits a 4090 160-ep run.
       EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
@@ -1256,13 +1540,17 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale|eval_c10_thin_traj)
+  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale|eval_c10_thin_traj|eval_c10_thin_traj_gonce)
     # Plain C10-thin held-out eval (easy r20-w2, hard r56-w4) for one frozen actor:
     # param floor 0.70, no FLOP floor. Look-ahead is on so a 0.8 cut cannot jump
     # past 0.70 to ~0.60 (leaky Path 3 TESTs: set SPECTRA_EVAL_LOOKAHEAD=0).
     # eval_c10_thin_traj: no identity-pad; Phase-A look-ahead labels ~0.70 then
     # continues; quote floor_hold / val_best / terminal. Determinism A/B: submit
     # twice, once with SPECTRA_EVAL_DETERMINISTIC=1.
+    # eval_c10_thin_traj_gonce: same frozen actor and TRAJ protocol, plus
+    # SPECTRA_GROUP_ONCE_PER_PASS=1 — each residual stream is cut at most once per
+    # pass (13 Sep audit: Path 3 walked the r56-w4 stage-2 stream 8->2 on six owning
+    # rows). Compare its [eval] TRAJ lines to 21233223 (same actor, flag off).
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_c10_thin.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_thin.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
@@ -1293,26 +1581,36 @@ case "$PROFILE" in
       export SPECTRA_EVAL_DETERMINISTIC=1
       export SPECTRA_FILTER_IMPORTANCE=bn_scale
     fi
-    if [[ "$PROFILE" == "eval_c10_thin_traj" ]]; then
+    if [[ "$PROFILE" == "eval_c10_thin_traj" || "$PROFILE" == "eval_c10_thin_traj_gonce" ]]; then
       export SPECTRA_EVAL_DETERMINISTIC=1
       export SPECTRA_EVAL_TRAJECTORY=1
       export SPECTRA_EVAL_LOOKAHEAD=0
       export SPECTRA_SKIP_EVAL_TRAIN=1
     fi
+    if [[ "$PROFILE" == "eval_c10_thin_traj_gonce" ]]; then
+      export SPECTRA_GROUP_ONCE_PER_PASS=1
+    fi
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction "${SPECTRA_ALLOWED_ACC_REDUCTION:-10}"
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  baseline_c10_l1|baseline_c10_mild|baseline_c10_random)
+  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce)
     # Same-loop structured baselines vs DRL: same rates, FT, fortify, floor 0.70.
     # Env still L1-ranks filters; these policies only pick the compression rate.
+    # *_traj: unconstrained TRAJ protocol (quote [eval] TRAJ). *_gonce: plus
+    # SPECTRA_GROUP_ONCE_PER_PASS=1. Path 3 argmax on the thin nets is "0.9 on every
+    # legal row" (20945568 step records), i.e. the mild picker: baseline_c10_mild_traj
+    # is the same-loop control for eval_c10_thin_traj, and the _gonce pair isolates
+    # the group-once lever from the actor.
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_c10_thin.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_c10_thin.json}"
     export SPECTRA_DATASET_NAMES="${SPECTRA_DATASET_NAMES:-cifar-10}"
     export SPECTRA_PASSES=1
     export SPECTRA_ROLLOUT_LIMIT=5
     export SPECTRA_N_SPLITS=0
-    export SPECTRA_NUM_EPOCHS=40
+    # 40 is the TEST recovery budget. The P5-B3 C100 gate probe replays the same walk under the
+    # *train* budget (SPECTRA_NUM_EPOCHS=12 SPECTRA_FINETUNE_PATIENCE=4); everything else keeps 40.
+    export SPECTRA_NUM_EPOCHS="${SPECTRA_NUM_EPOCHS:-40}"
     export SPECTRA_SAVE_PRUNED=False
     export SPECTRA_FORTIFY="${SPECTRA_FORTIFY:-1}"
     export SPECTRA_EVAL_MIN_PARAM_RATIO="${SPECTRA_EVAL_MIN_PARAM_RATIO:-0.70}"
@@ -1321,12 +1619,18 @@ case "$PROFILE" in
     export SPECTRA_CONTINUE_TRAIN=0
     export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
     export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
-    if [[ "$PROFILE" == "baseline_c10_mild" ]]; then
-      export SPECTRA_EVAL_POLICY=mild
-    elif [[ "$PROFILE" == "baseline_c10_random" ]]; then
-      export SPECTRA_EVAL_POLICY=random
-    else
-      export SPECTRA_EVAL_POLICY=l1
+    case "$PROFILE" in
+      baseline_c10_mild|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce) export SPECTRA_EVAL_POLICY=mild ;;
+      baseline_c10_random) export SPECTRA_EVAL_POLICY=random ;;
+      *) export SPECTRA_EVAL_POLICY=l1 ;;
+    esac
+    if [[ "$PROFILE" == *_traj || "$PROFILE" == *_traj_gonce ]]; then
+      export SPECTRA_EVAL_TRAJECTORY=1
+      export SPECTRA_EVAL_LOOKAHEAD=0
+      export SPECTRA_SKIP_EVAL_TRAIN=1
+    fi
+    if [[ "$PROFILE" == *_gonce ]]; then
+      export SPECTRA_GROUP_ONCE_PER_PASS=1
     fi
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction 10
                 --train_compressed_layer_only False
@@ -1338,11 +1642,45 @@ case "$PROFILE" in
     ;;
 esac
 
+# P8 recovery recipe for eval / heuristic-control profiles (SPECTRA_FT_RECIPE=a|cg|cgp).
+# The no-agent recovery probe (docs/V5_P8_RECOVERY_PROBE.md) submits the *same* baseline
+# TRAJ profile three times with a different recipe; a frozen NEON-C actor pins its recipe
+# through policy_config.json instead. Train profiles set the flags themselves above.
+case "${SPECTRA_FT_RECIPE:-}" in
+  cg)
+    export SPECTRA_FT_REINIT_EDITED=1 SPECTRA_FT_REINIT_THEN_POLISH=0 SPECTRA_REFRESH_ALL_FEATURES=1 ;;
+  cgp)
+    export SPECTRA_FT_REINIT_EDITED=1 SPECTRA_FT_REINIT_THEN_POLISH=1 SPECTRA_REFRESH_ALL_FEATURES=1 ;;
+  a)
+    export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0 ;;
+  "") : ;;
+  *)
+    echo "Unknown SPECTRA_FT_RECIPE='${SPECTRA_FT_RECIPE}' (use a | cg | cgp)" >&2
+    exit 1 ;;
+esac
+if [[ "${SPECTRA_FT_REINIT_EDITED:-0}" == "1" ]]; then
+  # TEST-scale group budget: NEON trained the new layer until convergence (num_epoch 100,
+  # patience 10 on the train loss). 60 / 6 on val is the eval default; polish 8 / 3 at 0.1x lr.
+  export SPECTRA_FT_REINIT_EPOCHS="${SPECTRA_FT_REINIT_EPOCHS:-60}"
+  export SPECTRA_FT_REINIT_PATIENCE="${SPECTRA_FT_REINIT_PATIENCE:-6}"
+  export SPECTRA_FT_REINIT_SELECT="${SPECTRA_FT_REINIT_SELECT:-val}"
+  # group = NEON-source-literal (producers + consumer slices + norms); producers = Gilad's oral wording.
+  export SPECTRA_FT_REINIT_SCOPE="${SPECTRA_FT_REINIT_SCOPE:-group}"
+  export SPECTRA_FT_POLISH_EPOCHS="${SPECTRA_FT_POLISH_EPOCHS:-8}"
+  export SPECTRA_FT_POLISH_PATIENCE="${SPECTRA_FT_POLISH_PATIENCE:-3}"
+  export SPECTRA_FT_POLISH_LR_MULT="${SPECTRA_FT_POLISH_LR_MULT:-0.1}"
+fi
+
 # Eval-only jobs: skip the duplicated train-loader prune+FT walk. Paper quotes
 # eval_test only. Train profiles leave this unset (default off in code). Override
 # with SPECTRA_SKIP_EVAL_TRAIN=0 on an eval profile if a walk must keep both.
 if [[ "${SPECTRA_SKIP_TRAIN:-0}" == "1" ]]; then
   export SPECTRA_SKIP_EVAL_TRAIN="${SPECTRA_SKIP_EVAL_TRAIN:-1}"
+fi
+# Eval-only jobs: SPECTRA_EVAL_PASSES overrides the profile's --passes (v3 actors train with
+# 2 passes and their policy_config replays 2; heuristic controls need the same walk length).
+if [[ "${SPECTRA_SKIP_TRAIN:-0}" == "1" && -n "${SPECTRA_EVAL_PASSES:-}" ]]; then
+  export SPECTRA_PASSES="${SPECTRA_EVAL_PASSES}"
 fi
 
 if [[ "${RUN_KIND:-agent}" == "probe" ]]; then

@@ -31,7 +31,13 @@
       "role": "c100-drl-train-after-recovery",
       "n": 6,
       "use_now": false,
-      "note": "Start only after a recipe probe cell is inside -10 pp (afterok)."
+      "note": "Start only after a recipe probe cell is inside -10 pp (afterok). Mixes unrecovered residuals — do not use for the RC matched-VGG arm."
+    },
+    "database_c10_c100_matched_vgg.json": {
+      "role": "c100-rc-matched-vgg-train",
+      "n": 2,
+      "use_now": true,
+      "note": "Same VGG-16 BN on CIFAR-10 and CIFAR-100. Isolates 10-way vs 100-way. Held-out eval is C100 residuals."
     },
     "database_offline_train.json": {
       "role": "agent-train-now",

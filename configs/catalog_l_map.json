@@ -1,0 +1,156 @@
+{
+ "stamped": "2026-09-18T00:30:00+03:00",
+ "purpose": "Literature-home TEST map (Catalog L). Do not put these prefixes in a V5 --database. Do not GPU-fetch; files are already on leap unless role=missing.",
+ "ckpt_root": "/home/paretsky/spectra_pretrained_networks",
+ "claim": "Committee SOTA slide on nets the field already chose. Frozen SPECTRA vs same-loop heuristics. Not a claim we beat DepGraph on its home cell.",
+ "rows": [
+  {
+   "cell": "CIFAR-10 ResNet-56",
+   "papers": [
+    "Li 2017",
+    "SFP",
+    "FPGM",
+    "HRank",
+    "DepGraph",
+    "ResRep",
+    "GReg",
+    "OCSPruner",
+    "AMC"
+   ],
+   "prefer": "resnet56_cifar10_chenyaofo_94.37_0.86_251.5.pt",
+   "also_on_disk": [
+    "resnet56_cifar10_dep_graph_93.53.pth",
+    "resnet56_cifar10_akamaster_93.39_0.85.th",
+    "resnet56_cifar10_gnn_rl_93.39_0.85_127.62.th"
+   ],
+   "factory": "resnet_chenyaofo.py / resnet56",
+   "v5_train": "hold out (L1). Headline ckpt = resnet56_cifar10_dep_graph_93.53.pth (loadability check pending); chenyaofo 94.37 = origin twin",
+   "note": "Standard-width ~93.5–94.4%. Thin r56-w4 is NOT this cell.",
+   "catalog_l": "L1"
+  },
+  {
+   "cell": "CIFAR-10 VGG-19 BN",
+   "papers": [
+    "DepGraph-class VGG tables",
+    "similar hold-out vs VGG-16 in train"
+   ],
+   "prefer": "vgg19_bn_cifar10_chenyaofo_93.91_20.57_797.32.pt",
+   "factory": "vgg_chenyaofo.py / vgg19_bn",
+   "v5_train": "hold out (coverage: similar). Not Catalog L.",
+   "note": "Already on leap. Do not re-fetch.",
+   "catalog_l": "coverage"
+  },
+  {
+   "cell": "CIFAR-10 VGG-16 BN",
+   "papers": [
+    "Li 2017",
+    "Slimming",
+    "OCSPruner",
+    "SACP"
+   ],
+   "prefer": "vgg16_bn_cifar10_chenyaofo_94.16_15.25_627.46.pt",
+   "factory": "vgg_chenyaofo.py / vgg16_bn",
+   "v5_train": "hold out (L2, OCS C10 cell) — Fable 21 Sep; next-cycle probe net is VGG-13",
+   "catalog_l": "L2"
+  },
+  {
+   "cell": "CIFAR-10 DenseNet-100",
+   "papers": [
+    "similar connectivity vs DenseNet-40 in train"
+   ],
+   "prefer": "densenet100_cifar10_densenet-cifar_94.88_0.769_296.51.pt",
+   "factory": "densenet_cifar.py / densenet100",
+   "v5_train": "hold out (coverage). Dropped from Catalog L 21 Sep — not a DepGraph/OCS CIFAR cell.",
+   "catalog_l": "coverage"
+  },
+  {
+   "cell": "CIFAR-10 DenseNet-40",
+   "papers": [
+    "Slimming",
+    "HRank"
+   ],
+   "prefer": "densenet40_cifar10_densenet-cifar_93.17_0.176_74.43.pt",
+   "factory": "densenet_cifar.py / densenet40",
+   "v5_train": "stays in the next-cycle train core",
+   "catalog_l": "no"
+  },
+  {
+   "cell": "CIFAR-10 ResNet-110",
+   "papers": [
+    "Li 2017",
+    "FPGM",
+    "HRank",
+    "ResRep"
+   ],
+   "prefer": "resnet110_cifar10_gnn_rl_93.68_1.73_257.08.th",
+   "also_on_disk": [
+    "resnet110_cifar10_akamaster_93.68_1.7.th"
+   ],
+   "factory": "resnet_gnn_rl.py / resnet_akamaster.py (NOT chenyaofo)",
+   "v5_train": "hold out (coverage). Dropped from Catalog L 21 Sep — not a DepGraph/OCS CIFAR cell.",
+   "note": "Band-screen origin_acc. Skip akamaster ResNet-32. Not chenyaofo.",
+   "catalog_l": "coverage"
+  },
+  {
+   "cell": "CIFAR-100 VGG-19 BN",
+   "papers": [
+    "DepGraph Table 1",
+    "OCSPruner",
+    "GReg",
+    "PruningBench",
+    "SPA"
+   ],
+   "prefer": "vgg19_bn_cifar100_chenyaofo_73.87_20.61_797.42.pt",
+   "also_on_disk": [
+    "vgg19_cifar100_dep_graph_73.5.pth",
+    "vgg19_cifar100_pruning_bench_73.49_20.09_512.73.pth",
+    "vgg19_cifar100_dfpc_pre_72.02_45.61_423.71.pth"
+   ],
+   "factory": "vgg_chenyaofo.py / vgg19_bn",
+   "v5_train": "hold out (L3). Headline ckpt = vgg19_cifar100_dep_graph_73.5.pth (loadability check pending); chenyaofo 73.87 = twin",
+   "note": "Committee C100 cell. Do not quote VGG-16 C100 as this row.",
+   "catalog_l": "L3"
+  },
+  {
+   "cell": "CIFAR-100 VGG-16 BN",
+   "papers": [
+    "recoverable C100 train trio"
+   ],
+   "prefer": "vgg16_bn_cifar100_chenyaofo_74_15.3_627.54.pt",
+   "v5_train": "not in train (C100 gate 0 admits, ledger 109); C9 TEST row",
+   "catalog_l": "no"
+  },
+  {
+   "cell": "ImageNet ResNet-50 / MobileNet-v2 / VGG-19",
+   "papers": [
+    "DepGraph",
+    "OCS",
+    "AMC",
+    "PruningBench",
+    "ATO"
+   ],
+   "prefer": "frozen probe only",
+   "v5_train": "never",
+   "note": "No ImageNet DRL. torchvision ImageNet ckpts on leap are probe-only."
+  },
+  {
+   "cell": "CIFAR GoogLeNet / Inception",
+   "papers": [
+    "HRank GoogLeNet"
+   ],
+   "prefer": null,
+   "role": "missing_cifar_native",
+   "note": "Leap only has ImageNet torchvision GoogLeNet/Inception. Do not dump ImageNet-stem onto 32x32."
+  },
+  {
+   "cell": "WRN / PreAct CIFAR",
+   "papers": [
+    "unlike-new after P6"
+   ],
+   "prefer": null,
+   "role": "ckpt_pending_pretrain",
+   "note": "Factories exist. Pretrain waits for a QOS hole. Do not steal v3/V4 GPU."
+  }
+ ],
+ "fable_lock_21sep": "Catalog L = DepGraph CIFAR test set (L1 R56 C10 dep_graph 93.53, L3 VGG-19 C100 dep_graph 73.5) + OCS L2 (VGG-16 C10 chenyaofo 94.16). DenseNet-100 / ResNet-110 -> coverage. VGG-16 C10 leaves the next train (probe -> VGG-13). See docs/paper/CATALOG_L_TEST_PLAN.md section 5."
+}

@@ -598,6 +598,52 @@ def test_filter_importance_bn_scale_uses_gamma_else_l1(monkeypatch):
     assert torch.allclose(fallback, l1)
 
 
+def _assert_factory_prunes(factory, num_classes=10):
+    from src.NetworkEnv import prune_current_model
+
+    sample = torch.randn(1, 3, 32, 32)
+    template = factory(num_classes=num_classes, large_input=False).eval()
+    groups = channel_groups.build_channel_groups(template)
+    assert groups is not None
+    prunable = [g for g in groups if g.prunable]
+    assert prunable, f"{factory.__name__}: no prunable groups"
+    model = factory(num_classes=num_classes, large_input=False).eval()
+    params_before = sum(p.numel() for p in model.parameters())
+    model_with_rows = ModelWithRows(model)
+    structural = 0
+    for row_idx in range(min(len(model_with_rows.row_to_main_layer), 8)):
+        prune_current_model(
+            model_with_rows, 0.8, row_idx, quiet=True, record=False,
+            input_shape=(3, 32, 32))
+        model_with_rows.model.eval()
+        assert model_with_rows.model(sample).shape == (1, num_classes)
+        if model_with_rows.last_prune_outcome.get("mode") == "structural":
+            structural += 1
+            assert sum(p.numel() for p in model_with_rows.model.parameters()) < params_before
+            break
+    assert structural >= 1, f"{factory.__name__} never took a structural prune"
+
+
+def test_wrn_16_4_group_prunes_and_forwards():
+    from spectra_models_instantiation.wide_resnet import wrn_16_4
+    from src.utils import resolve_instantiation_func
+    import spectra_models_instantiation.wide_resnet as wrn_mod
+    fn, name = resolve_instantiation_func(wrn_mod, "wrn-16-4")
+    assert name == "wrn_16_4" and fn is wrn_16_4
+    _assert_factory_prunes(wrn_16_4, 10)
+    net = wrn_16_4(num_classes=100, large_input=False).eval()
+    y = net(torch.randn(2, 3, 32, 32))
+    assert tuple(y.shape) == (2, 100)
+
+
+def test_preact_resnet20_group_prunes_and_forwards():
+    from spectra_models_instantiation.preact_resnet import preact_resnet20
+    _assert_factory_prunes(preact_resnet20, 10)
+    net = preact_resnet20(num_classes=100, large_input=False).eval()
+    y = net(torch.randn(2, 3, 32, 32))
+    assert tuple(y.shape) == (2, 100)
+
+
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

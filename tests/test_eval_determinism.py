@@ -18,6 +18,14 @@ def _dist(probs):
     return Categorical(probs=torch.tensor([probs], dtype=torch.float32))
 
 
+def test_skip_eval_train_is_off_by_default(monkeypatch):
+    """Already-running jobs keep the duplicated eval_train walk unless opted in."""
+    monkeypatch.delenv("SPECTRA_SKIP_EVAL_TRAIN", raising=False)
+    assert fortify.skip_eval_train() is False
+    monkeypatch.setenv("SPECTRA_SKIP_EVAL_TRAIN", "1")
+    assert fortify.skip_eval_train() is True
+
+
 def test_eval_is_stochastic_by_default(monkeypatch):
     """Already-quoted TEST rows were produced by sampling; do not change them silently."""
     monkeypatch.delenv("SPECTRA_EVAL_DETERMINISTIC", raising=False)

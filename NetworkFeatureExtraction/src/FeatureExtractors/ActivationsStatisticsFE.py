@@ -83,9 +83,16 @@ class ActivationsStatisticsFE(BaseFE):
                 hooks.append(layer.register_forward_hook(get_activation_hook(idx)))
 
         self._ensure_probe_batches()
-        with torch.no_grad():
-            for batch_x in self._probe_batches:
-                model_with_rows.model(batch_x.to(self.device, non_blocking=True))
+        model = model_with_rows.model
+        was_training = model.training
+        model.eval()
+        try:
+            with torch.no_grad():
+                for batch_x in self._probe_batches:
+                    model(batch_x.to(self.device, non_blocking=True))
+        finally:
+            if was_training:
+                model.train()
 
         for hook in hooks:
             hook.remove()

@@ -7,12 +7,18 @@ class ConfigurationValues:
                  train_compressed_layer_only, allowed_acc_reduction, discount_factor, learning_rate,
                  rollout_limit, passes, prune, seed, n_splits, train_split, val_split, database_dict,
                  actor_checkpoint_path, critic_checkpoint_path, save_pruned_checkpoints, test_ts,
-                 dataloaders_dict=None) -> None:
+                 dataloaders_dict=None, action_rankings_dict=None, ranking_menu=None) -> None:
         # NB: a stray trailing comma used to make this a 1-tuple, which leaked into every
         # TensorBoard run directory and results filename built from it.
         self.test_name = test_name
         self.input_dict = input_dict
         self.compression_rates_dict = compression_rates_dict
+        # Optional per-action filter ranking (None = environment default). Parallel to
+        # compression_rates_dict; see utils.parse_action_rankings.
+        self.action_rankings_dict = (action_rankings_dict if action_rankings_dict is not None
+                                     else {i: None for i in compression_rates_dict})
+        # V4-1 factored head: ranking menu of the second policy head ([] = single-head policy).
+        self.ranking_menu = list(ranking_menu or [])
         self.device = device
         self.num_epochs = num_epochs
         self.num_actions = len(compression_rates_dict)

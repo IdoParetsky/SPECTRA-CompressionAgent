@@ -34,6 +34,454 @@ def budget_in_state() -> bool:
     return raw in ("1", "true", "yes", "on")
 
 
+def _flag(name: str, default: str = "0") -> bool:
+    return os.environ.get(name, default).strip().lower() in ("1", "true", "yes", "on")
+
+
+def state_slack() -> bool:
+    """
+    Two extra token channels (default off): **accuracy slack** and **pass progress**.
+
+    The NEON trichotomy is scored on the *cumulative* val Δacc against the origin
+    (``NetworkEnv.step`` → ``compute_reward(new_acc, original_acc, …)``), so the optimal
+    policy is "cut while the τ band has room, stop when it is spent". Until 13 Sep the
+    state carried no trace of how much of the band was used, so no policy could implement
+    that rule — the only state-free safe schedule is a mild one. Slack is
+    ``clip((τ + Δacc_pp) / τ, −1, 1)`` (1 = untouched band, 0 = at τ, <0 = over); progress
+    is ``actions_taken / (rows · passes)``. Pin ``SPECTRA_STATE_SLACK=1`` (new actors
+    only: token width changes).
+    """
+    return _flag("SPECTRA_STATE_SLACK")
+
+
+def accuracy_slack(delta_acc_pp: float, tau_pp: float) -> float:
+    tau = max(float(tau_pp), 1e-6)
+    return max(-1.0, min(1.0, (tau + float(delta_acc_pp)) / tau))
+
+
+def algo() -> str:
+    """``SPECTRA_ALGO``: ``a2c`` (historical one-episode-per-update) or ``ppo``."""
+    raw = os.environ.get("SPECTRA_ALGO", "a2c").strip().lower()
+    return "ppo" if raw == "ppo" else "a2c"
+
+
+def ppo_episodes_per_update() -> int:
+    return max(1, int(os.environ.get("SPECTRA_PPO_EPISODES", "4")))
+
+
+def ppo_epochs() -> int:
+    return max(1, int(os.environ.get("SPECTRA_PPO_EPOCHS", "4")))
+
+
+def ppo_clip() -> float:
+    return float(os.environ.get("SPECTRA_PPO_CLIP", "0.2"))
+
+
+def ppo_gae_lambda() -> float:
+    return float(os.environ.get("SPECTRA_PPO_GAE_LAMBDA", "0.95"))
+
+
+def ppo_target_kl() -> float:
+    """Stop the PPO epoch loop early once approx-KL exceeds this (0 disables)."""
+    return float(os.environ.get("SPECTRA_PPO_TARGET_KL", "0.03"))
+
+
+def ppo_value_coef() -> float:
+    return float(os.environ.get("SPECTRA_PPO_VALUE_COEF", "0.5"))
+
+
+def ppo_warmup_episodes() -> int:
+    """Uniform-action episodes before the first PPO update (critic / return-scale warm-up)."""
+    return max(0, int(os.environ.get("SPECTRA_PPO_WARMUP_EPISODES", "0")))
+
+
+def agent_lr(default: float) -> float:
+    """
+    Optimiser lr for the actor/critic. ``--learning_rate`` also sets the fine-tune Adam lr
+    (ClassificationHandler), so the agent gets its own knob: ``SPECTRA_AGENT_LR``.
+    """
+    raw = os.environ.get("SPECTRA_AGENT_LR", "").strip()
+    return float(raw) if raw else float(default)
+
+
+def encoder_dropout() -> float:
+    """Dropout inside the trainable state encoder (``SPECTRA_ENCODER_DROPOUT``, default 0.1)."""
+    raw = os.environ.get("SPECTRA_ENCODER_DROPOUT", "").strip()
+    return float(raw) if raw else 0.1
+
+
+def policy_head_zero_init() -> bool:
+    """Zero the actor's last Linear so the initial policy is exactly uniform (default off)."""
+    return _flag("SPECTRA_POLICY_HEAD_ZERO_INIT")
+
+
+def train_ft_epochs():
+    """
+    Fine-tune epoch cap used **only** in ``AGENT_TRAIN`` mode (``SPECTRA_TRAIN_FT_EPOCHS``).
+
+    TEST keeps ``--num_epochs`` (40) for every method. A shorter recovery during policy
+    training buys 3–4× more episodes per GPU-day; it is pessimistic w.r.t. TEST (the policy
+    sees less recovery than it will get), which errs on the conservative side.
+    """
+    raw = os.environ.get("SPECTRA_TRAIN_FT_EPOCHS", "").strip()
+    return int(raw) if raw else None
+
+
+def train_ft_patience():
+    raw = os.environ.get("SPECTRA_TRAIN_FT_PATIENCE", "").strip()
+    return int(raw) if raw else None
+
+
+# ---------------------------------------------------------------- v3 (16 Sep): state group-cost
+
+STATE_GROUPCOST_DIM = 4  # group param share, group MAC share, owner-count share, cuts this episode
+
+
+def state_groupcost() -> bool:
+    """
+    Four extra token channels per layer (default off): the **group cost** of cutting it.
+
+    A residual/concat/depthwise tie makes several layers share one channel dimension; on a
+    CIFAR ResNet one stream is owned by 9–10 rows. Two layers with identical local statistics
+    can differ by an order of magnitude in what pruning them actually removes from the whole
+    net. v2 exposed that only for the *target* row (action-cost slots). Per layer this adds:
+    param share of the layer's group (all producers + consumers' slices), MAC share of the
+    group, owner count / max owner count, and cuts already applied to that group this
+    episode (``min(1, n/2)``). Pin ``SPECTRA_STATE_GROUPCOST=1`` (new actors only).
+    """
+    return _flag("SPECTRA_STATE_GROUPCOST")
+
+
+def train_tau(default: float) -> float:
+    """
+    τ used for the reward and the slack channel **in AGENT_TRAIN mode only**
+    (``SPECTRA_TRAIN_TAU``). Both are τ-relative, so a stricter training band is a curriculum
+    that makes the band edge reachable on robust train nets (v2: 2.5 % of steps over budget).
+    Default off = ``--allowed_acc_reduction``.
+    """
+    raw = os.environ.get("SPECTRA_TRAIN_TAU", "").strip()
+    return float(raw) if raw else float(default)
+
+
+# ---------------------------------------------------------------- v4-1 (16 Sep): factored rate x ranking head
+
+def factored_head() -> bool:
+    """
+    ``SPECTRA_FACTORED_HEAD=1`` (V4-1): the actor carries two heads — rate over
+    ``--compression_rates`` and ranking over ``--ranking_menu`` — and an action is the pair.
+    Grows the criterion menu (L1, FPGM, BN-scale, SVD, Taylor) without a 13-way softmax: each
+    head sees every sample and correlated criteria stop diluting credit. Off = v2/v3 actors
+    unchanged (single Categorical over ``(rate, ranking)`` pairs or rates).
+    """
+    return _flag("SPECTRA_FACTORED_HEAD")
+
+
+def is_factored_dist(dist) -> bool:
+    return hasattr(dist, "rate") and hasattr(dist, "rank") and hasattr(dist, "log_prob")
+
+
+# ---------------------------------------------------------------- v5 P8 (18 Sep): NEON layer replacement
+#
+# Hirsch & Katz 2022, Sec. 3 "Layer replacement": rather than removing neurons, NEON generated
+# a *new* layer of the desired width (l'_i = a_t * W_{l_i}), initialised randomly, installed
+# it, froze every other layer and trained the new module until convergence, then refreshed
+# the feature maps before the next state. Upstream NEON_NetworkEnv.py: --prune False built a
+# fresh nn.Linear(in, new_size) *and* a fresh nn.Linear(new_size, out) for the consumer, plus a
+# fresh BatchNorm1d; is_learn_new_layers_only kept exactly those modules trainable
+# (build_parameters_to_freeze returns the *trainable* ids — the name is inverted) and
+# train_model ran up to num_epoch with patience 10 on the train loss, restoring the best
+# state. SPECTRA's live --prune keeps the surviving filters (the method NEON rejected) and
+# fine-tunes the full net (recipe A). The flags below put NEON-C back for CNN *groups*:
+#
+#   recipe A    keep remaining filters, full-net FT                      (live default)
+#   recipe B    keep remaining filters, edited group only                (--train_compressed_layer_only=True; 0/32 OK, §12)
+#   recipe C-G  SPECTRA_FT_REINIT_EDITED=1: reinit the edited group (producers at the new width,
+#               group BN reset, consumers' input slices for the group's channels), freeze the
+#               rest, train the edited set until the *val* accuracy plateaus  (Gilad-literal)
+#   recipe C-G+ SPECTRA_FT_REINIT_THEN_POLISH=1: C-G, then a short full-net low-LR polish
+#               (assigned SPECTRA CNN method; residual adds and BN make the frozen rest not
+#               independent of the fresh group the way a dense stem is)
+#
+# All default off; v2/v3/V4 replays are byte-identical. Identity (rate 1.0) skips prune and FT
+# under every recipe. Masked fallbacks (no structural edit) have no new module to reinit and
+# fall back to recipe A for that step (recorded as reinit=False).
+
+FT_RECIPES = ("A", "B", "C-G", "C-G+")
+
+
+def ft_reinit_edited() -> bool:
+    """``SPECTRA_FT_REINIT_EDITED=1`` — NEON-C on CNN groups (recipe C-G), default off."""
+    return _flag("SPECTRA_FT_REINIT_EDITED")
+
+
+def ft_reinit_then_polish() -> bool:
+    """``SPECTRA_FT_REINIT_THEN_POLISH=1`` — C-G followed by a short full-net polish (C-G+)."""
+    return _flag("SPECTRA_FT_REINIT_THEN_POLISH")
+
+
+def ft_recipe(train_compressed_layer_only: bool = False) -> str:
+    """Name of the fine-tune recipe in force; polish implies reinit."""
+    if ft_reinit_then_polish():
+        return "C-G+"
+    if ft_reinit_edited():
+        return "C-G"
+    return "B" if train_compressed_layer_only else "A"
+
+
+def _env_int_or(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    try:
+        return int(raw) if raw else int(default)
+    except ValueError:
+        return int(default)
+
+
+def _env_float_or(name: str, default: float) -> float:
+    raw = os.environ.get(name, "").strip()
+    try:
+        return float(raw) if raw else float(default)
+    except ValueError:
+        return float(default)
+
+
+def ft_reinit_epochs(default: int = 60) -> int:
+    """
+    Epoch cap for training the reinitialised group (``SPECTRA_FT_REINIT_EPOCHS``, default 60).
+    NEON's "until convergence" was num_epoch=100 with patience 10 on the train loss; a CNN
+    group trained from scratch needs more than the 12-epoch policy-training budget, so this
+    cap is separate from ``SPECTRA_TRAIN_FT_EPOCHS`` and ``--num_epochs``. Stops early on
+    ``ft_reinit_patience`` epochs without a val improvement.
+    """
+    return _env_int_or("SPECTRA_FT_REINIT_EPOCHS", default)
+
+
+def ft_reinit_patience(default: int = 6) -> int:
+    """Val-plateau patience for the reinitialised group (``SPECTRA_FT_REINIT_PATIENCE``, default 6)."""
+    return _env_int_or("SPECTRA_FT_REINIT_PATIENCE", default)
+
+
+def ft_reinit_scope() -> str:
+    """
+    Which tensors of the edited group are re-drawn (``SPECTRA_FT_REINIT_SCOPE``):
+
+    * ``group`` (default, NEON-source-literal): producers **and** consumer input slices and the
+      group norms — upstream rebuilt ``Linear(in, new)``, ``Linear(new, out)`` and the BN.
+    * ``producers`` (Gilad's oral wording, "the remaining filters of the newly-pruned layer"):
+      producers and the group norms only; consumers keep their surviving input slices and
+      adapt by training. On a residual stream this re-draws one stage's conv2s, not its conv1s.
+
+    Both keep the same trainable set (the whole edited group). Part of the policy contract.
+    """
+    raw = os.environ.get("SPECTRA_FT_REINIT_SCOPE", "group").strip().lower()
+    return "producers" if raw in ("producers", "producer", "owners") else "group"
+
+
+def ft_reinit_select() -> str:
+    """
+    Model selection inside the group training: ``val`` (default; the reward is post-FT val
+    Δacc, and the paper flow says train the new layer *until convergence*) or ``train``
+    (NEON upstream: best train loss, patience on the train loss).
+    """
+    raw = os.environ.get("SPECTRA_FT_REINIT_SELECT", "val").strip().lower()
+    return "train" if raw == "train" else "val"
+
+
+def ft_polish_epochs(default: int = 8) -> int:
+    """Epoch cap for the C-G+ full-net polish (``SPECTRA_FT_POLISH_EPOCHS``, default 8)."""
+    return _env_int_or("SPECTRA_FT_POLISH_EPOCHS", default)
+
+
+def ft_polish_patience(default: int = 3) -> int:
+    """Val patience for the polish (``SPECTRA_FT_POLISH_PATIENCE``, default 3)."""
+    return _env_int_or("SPECTRA_FT_POLISH_PATIENCE", default)
+
+
+def ft_polish_lr_mult(default: float = 0.1) -> float:
+    """Polish learning-rate multiplier on the FT lr (``SPECTRA_FT_POLISH_LR_MULT``, default 0.1)."""
+    return _env_float_or("SPECTRA_FT_POLISH_LR_MULT", default)
+
+
+def eval_counterfactual() -> bool:
+    """
+    ``SPECTRA_EVAL_COUNTERFACTUAL=1`` (V6, default off) — at every actor step of an eval walk,
+    also ask the frozen actor what it would do on three *counterfactual* states built from the
+    real one (layer features zeroed; layer features shuffled across positions; everything but
+    the positional/type/marker channels zeroed) and log whether the argmax changes. One extra
+    forward per variant, no extra FT. Fraction of steps whose action depends on the content is
+    the cheapest identification of "does the policy read the state at all" — the question that
+    must be answered before any encoder GPU (ledger §16 was measured under a uniform policy).
+    """
+    return _flag("SPECTRA_EVAL_COUNTERFACTUAL")
+
+
+def refresh_all_features() -> bool:
+    """
+    ``SPECTRA_REFRESH_ALL_FEATURES=1`` — NEON "feature-maps update": after a structural edit,
+    re-extract the activation moments of *every* layer before the next state (upstream
+    rebuilt the FeatureExtractor each step). Default off keeps the live behaviour (only the
+    edited row's span is refreshed; downstream moments stay cached from before the edit).
+    The P8 profiles turn it on; it is part of the policy contract.
+    """
+    return _flag("SPECTRA_REFRESH_ALL_FEATURES")
+
+
+def mask_policy(dist, legal: torch.Tensor):
+    """Apply the legal-rate mask to a plain Categorical or to the rate head of a factored one."""
+    if is_factored_dist(dist):
+        return dist.with_rate(apply_action_mask(dist.rate, legal))
+    return apply_action_mask(dist, legal)
+
+
+def pick_action(dist, legal: torch.Tensor, *, deterministic: bool, device):
+    """
+    ``(rate_idx: int, rank_idx: int | None, logp: float)`` from a masked policy.
+    Ranking index is None for a plain Categorical (the caller maps rate index → ranking via
+    ``action_rankings_dict``) and for identity under a factored head.
+    """
+    masked = mask_policy(dist, legal)
+    if is_factored_dist(masked):
+        if deterministic:
+            r, k = masked.argmax()
+        else:
+            r, k = masked.sample()
+        r_i, k_i = int(r.item()), int(k.item())
+        logp = float(masked.log_prob(r_i, k_i).item())
+        if r_i == masked.identity_index:
+            return r_i, None, logp
+        return r_i, k_i, logp
+    if deterministic:
+        probs = masked.probs
+        while probs.dim() > 1:
+            probs = probs[0]
+        r = probs.argmax().reshape(1)
+    else:
+        r = masked.sample().reshape(1)
+    return int(r.item()), None, float(masked.log_prob(r.to(masked.probs.device)).reshape(-1)[0].item())
+
+
+# ---------------------------------------------------------------- v3 (16 Sep): keep-learning governor
+
+def probe_every() -> int:
+    """Deterministic fixed-probe evaluation every N on-policy episodes (0 = off)."""
+    return max(0, int(os.environ.get("SPECTRA_PROBE_EVERY", "0") or 0))
+
+
+def probe_net_patterns():
+    """Substrings of catalog paths that form the probe set (``SPECTRA_PROBE_NETS``, comma list)."""
+    raw = os.environ.get("SPECTRA_PROBE_NETS", "").strip()
+    return [p.strip() for p in raw.split(",") if p.strip()]
+
+
+def probe_score_kind() -> str:
+    """
+    What the fixed probe measures (``SPECTRA_PROBE_SCORE``):
+
+    * ``cut`` (default, v3–V6): mean ``1 − kept`` at the deepest in-band point of the argmax
+      walk. Saturates at the deepest *legal* walk — on thin probe nets that is the mild clone —
+      and is blind to Δacc, so a kinder policy at equal depth cannot score higher. Every 12/4
+      arm froze at the same 0.262 for this reason (V7 diagnosis, 21 Sep).
+    * ``area``: mean slack-weighted in-band cut area (``NetworkEnv.episode_inband_area``):
+      Σ_in-band steps (size removed) × (remaining slack / τ). Deeper-in-band and
+      kinder-at-equal-depth both raise it; an over-budget walk earns nothing past the band.
+    """
+    raw = os.environ.get("SPECTRA_PROBE_SCORE", "cut").strip().lower()
+    return "area" if raw == "area" else "cut"
+
+
+def min_episodes(default: int) -> int:
+    """Never stop on patience before this many episodes (``SPECTRA_MIN_EPISODES``)."""
+    raw = os.environ.get("SPECTRA_MIN_EPISODES", "").strip()
+    return int(raw) if raw else int(default)
+
+
+def patience_episodes(default: int) -> int:
+    """Episodes without a selection-score improvement before stopping (``SPECTRA_PATIENCE_EPISODES``)."""
+    raw = os.environ.get("SPECTRA_PATIENCE_EPISODES", "").strip()
+    return int(raw) if raw else int(default)
+
+
+def rewind_best() -> bool:
+    """
+    ``SPECTRA_REWIND_BEST=1`` (Ido 15 Sep): when the **probe** score has not improved for
+    ``SPECTRA_REWIND_PATIENCE`` episodes, reload the best snapshot's actor+critic, reset Adam,
+    bump the entropy coefficient for ``SPECTRA_REWIND_ENTROPY_EPISODES`` episodes and continue
+    (PBT "exploit" / Go-Explore "return, then explore"). Never on the raw 4-net batch max.
+    """
+    return _flag("SPECTRA_REWIND_BEST")
+
+
+def rewind_patience() -> int:
+    return max(1, int(os.environ.get("SPECTRA_REWIND_PATIENCE", "50")))
+
+
+def rewind_max() -> int:
+    return max(0, int(os.environ.get("SPECTRA_REWIND_MAX", "3")))
+
+
+def rewind_entropy() -> float:
+    return float(os.environ.get("SPECTRA_REWIND_ENTROPY", "0.02"))
+
+
+def rewind_entropy_episodes() -> int:
+    return max(1, int(os.environ.get("SPECTRA_REWIND_ENTROPY_EPISODES", "30")))
+
+
+class LearningGovernor:
+    """
+    Decides *when a train stops*, *what counts as improvement* and *when to rewind*.
+
+    v2 stopped when the 4-episode ``batch_score`` had not beaten its historical max for
+    ``max(n_nets, 100)`` episodes. That max is a biased order statistic of a noisy,
+    composition-dependent score (audit H3): B died at episode 116 with a still-mixed
+    policy, A at 256 while its train-best never moved TEST. Here the score that is
+    patience'd is the caller's *selection score* (a deterministic fixed probe when
+    ``SPECTRA_PROBE_EVERY`` is on), there is a minimum on-policy lifetime, and an optional
+    probe-gated rewind to the elite weights. Pure bookkeeping — no torch — so it is unit
+    testable; the trainer performs the actual reload.
+    """
+
+    def __init__(self, *, min_episodes: int, patience: int, rewind: bool,
+                 rewind_patience: int, rewind_max: int, best_score: float = float("-inf"),
+                 since_improvement: int = 0):
+        self.min_episodes = int(min_episodes)
+        self.patience = int(patience)
+        self.rewind = bool(rewind)
+        self.rewind_patience = int(rewind_patience)
+        self.rewind_max = int(rewind_max)
+        self.best_score = float(best_score)
+        self.since_improvement = int(since_improvement)
+        self.since_rewind_or_improvement = 0
+        self.rewinds = 0
+        self.has_elite = best_score > float("-inf")
+
+    def observe(self, score, episodes_added: int) -> dict:
+        """
+        Register a selection score after ``episodes_added`` new on-policy episodes.
+        ``score`` may be None (no new probe this round): only the counters advance.
+        Returns ``{"new_best", "rewind", "since"}``.
+        """
+        new_best = False
+        if score is not None and float(score) > self.best_score:
+            self.best_score = float(score)
+            self.since_improvement = 0
+            self.since_rewind_or_improvement = 0
+            self.has_elite = True
+            new_best = True
+        else:
+            self.since_improvement += int(episodes_added)
+            self.since_rewind_or_improvement += int(episodes_added)
+        do_rewind = (self.rewind and self.has_elite and not new_best
+                     and self.rewinds < self.rewind_max
+                     and self.since_rewind_or_improvement >= self.rewind_patience)
+        if do_rewind:
+            self.rewinds += 1
+            self.since_rewind_or_improvement = 0
+        return {"new_best": new_best, "rewind": do_rewind, "since": self.since_improvement}
+
+    def should_stop(self, episode_idx: int) -> bool:
+        return int(episode_idx) >= self.min_episodes and self.since_improvement >= self.patience
+
+
 INBUDGET_OVER_PENALTY = 1_000_000.0
 
 
@@ -61,6 +509,20 @@ def inbudget_checkpointing() -> bool:
             "neon", "structural", "structural_guard", "structural_band"):
         return True
     return False
+
+
+def checkpoint_criterion() -> str:
+    """
+    ``return`` (discounted return), ``inbudget`` (F1 ρ-sum with a −1e6 over-budget penalty)
+    or ``val_best`` (``1 − kept`` at the deepest in-band point of the episode — the
+    training-side twin of the TRAJ ``val_best`` TEST point, bounded in [0, 1) and comparable
+    across nets; ``SPECTRA_CHECKPOINT=val_best``). PPO batches average this per-episode
+    score; the F1 penalty would let one over-budget episode sink a whole batch.
+    """
+    raw = os.environ.get("SPECTRA_CHECKPOINT", "").strip().lower()
+    if raw in ("val_best", "valbest", "inband_kept"):
+        return "val_best"
+    return "inbudget" if inbudget_checkpointing() else "return"
 
 
 def inbudget_checkpoint_score(rho_sum: float, overshoot_sum: float, any_over: bool) -> float:
@@ -100,10 +562,17 @@ def entropy_coef(episode_idx: int, warmup_len: int, base: float) -> float:
     return base + (lo - base) * t
 
 
+STATE_SLACK_DIM = 2  # accuracy slack, pass progress
+
+
 def fortify_token_dim() -> int:
     n = FORTIFY_TOKEN_DIM if fortify_enabled() else 0
     if budget_in_state():
         n += 1
+    if state_slack():
+        n += STATE_SLACK_DIM
+    if state_groupcost():
+        n += STATE_GROUPCOST_DIM
     return n
 
 
@@ -153,12 +622,54 @@ def build_fortify_features(
     return torch.stack([depths, stem, coupled, width_norm], dim=1)
 
 
+def group_once_per_pass() -> bool:
+    """
+    A coupled channel group may be structurally cut at most once per pass (default off).
+
+    The row walk visits every Conv/Linear once per pass, but a residual stream is *owned*
+    by many rows: in a CIFAR ResNet stage every block's ``conv2`` (plus the shortcut conv)
+    produces the same channel dimension, so a stage of 9 blocks exposes its stream to 9–10
+    rate decisions per pass while each block-internal ``conv1`` is exposed once. Because
+    ``target_width`` is applied to the *alive* width, repeated visits compound:
+    Path 3 argmax on r56-w4 (job 20945568) took 0.9 on six consecutive owning rows and
+    walked the stage-2 stream 8→7→6→5→4→3→2 (75 % of that stream) while the conv1s lost one
+    channel each; that is the −25 pp cliff at 0.667 params.
+
+    When this is on, ``NetworkEnv`` remembers the layer indices of every group it has
+    structurally pruned in the current pass and ``legal_action_mask`` forces identity on
+    later rows whose main layer belongs to such a group. Rate semantics are unchanged: a
+    0.8 on a stream is one 20 % cut of that stream per pass. Frozen Path 3 replays (flag
+    unset) are untouched. Pin with ``SPECTRA_GROUP_ONCE_PER_PASS=1``.
+    """
+    raw = os.environ.get("SPECTRA_GROUP_ONCE_PER_PASS", "0").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def snapshot_baseline():
+    """
+    ``SPECTRA_SNAPSHOT_BASELINE=<float>``: when a new ``latest_best`` beats this score,
+    the trainer freezes a copy under ``runs/<job>/snapshots/`` and drops a
+    ``SNAPSHOT_READY.json`` marker so an ops watcher can fork ``eval_c10_thin_traj``
+    without stopping the train. Unset (default) disables the hook. ``latest_best`` alone
+    is not a scientific checkpoint: it is the episode with the best *train* score, which
+    for the frozen s42 actor was warm-up episode 34 (a uniform-random walk).
+    """
+    raw = os.environ.get("SPECTRA_SNAPSHOT_BASELINE", "").strip()
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return None
+
+
 def legal_action_mask(
     compression_rates: Dict[int, float],
     *,
     row_index: int,
     alive_count: int,
     device,
+    force_identity: bool = False,
 ) -> torch.Tensor:
     """
     Bool mask over discrete actions.
@@ -170,11 +681,14 @@ def legal_action_mask(
     When fortify is enabled (default) additionally:
       * stem rows → only rate == 1.0
       * narrow layers (alive <= min_width) → only rate == 1.0
+
+    ``force_identity`` is the caller's own reason to allow identity only (e.g. the row's
+    coupled group was already cut this pass under ``SPECTRA_GROUP_ONCE_PER_PASS``).
     """
     n = len(compression_rates)
     mask = torch.ones(n, dtype=torch.bool, device=device)
 
-    force_identity = alive_count <= 1
+    force_identity = bool(force_identity) or alive_count <= 1
     if fortify_enabled():
         force_identity = force_identity or (row_index < stem_rows()) or (
             alive_count <= min_width_for_prune())

@@ -100,7 +100,8 @@ class ClassificationHandler(BasicHandler):
         utils.print_flush(f"Average Loss: {(total_loss / n_batches) if n_batches else 0.0:.3f}")
         return accuracy
 
-    def train_model(self, train_loader, allow_reinit_retry=True):
+    def train_model(self, train_loader, allow_reinit_retry=True, max_epochs=None, patience=None,
+                    val_loader=None, lr_mult=1.0, tag=""):
         """
          Fine-tunes the model after a compression step, keeping the best-loss weights.
 
@@ -111,9 +112,21 @@ class ClassificationHandler(BasicHandler):
                  to call train_model unconditionally, so any configuration that produced no
                  epoch loss at all (e.g. num_epochs == 0, or an empty loader) recursed until
                  the interpreter hit its recursion limit.
+             max_epochs (int, optional): Epoch budget for this call instead of
+                 ``conf.num_epochs`` (policy-training recovery, SPECTRA_TRAIN_FT_EPOCHS).
+             patience (int, optional): Early-stop patience for this call instead of
+                 ``SPECTRA_FINETUNE_PATIENCE``.
+             val_loader (DataLoader, optional): P8 (NEON layer replacement). When given, the
+                 epoch selection and the patience run on **val accuracy** ("train the new
+                 layer until convergence") instead of the train loss; the best-val state is
+                 restored. Default None keeps the live train-loss selection byte-identical.
+             lr_mult (float): Multiplier on the fine-tune learning rate (C-G+ polish uses 0.1).
+             tag (str): Log prefix for multi-phase recipes (``"C-G group"`` / ``"C-G+ polish"``).
          """
         conf = StaticConf.get_instance().conf_values
         device = conf.device
+        select_on_val = val_loader is not None
+        log_tag = f"[{tag}] " if tag else ""
         self.model.float().to(device)
         self.model.train()
         use_cuda = getattr(device, "type", str(device)) == "cuda"
@@ -125,7 +138,7 @@ class ClassificationHandler(BasicHandler):
             utils.print_flush(
                 f"Fine-tune speed flags: AMP={int(use_amp)} channels_last={int(use_channels_last)}")
 
-        num_epochs = conf.num_epochs
+        num_epochs = int(max_epochs) if max_epochs is not None else conf.num_epochs
         if num_epochs <= 0:
             utils.print_flush("num_epochs <= 0; skipping post-compression fine-tuning.")
             return
@@ -137,7 +150,8 @@ class ClassificationHandler(BasicHandler):
         # to 5 for short correctness runs and then starved recovery under a 1-epoch budget.
         # Override with SPECTRA_FINETUNE_PATIENCE. The epoch *budget* is conf.num_epochs
         # (40 by default, matching the SPECTRA argparse / NEON→40 comment).
-        MAX_EPOCHS_PATIENCE = int(os.environ.get("SPECTRA_FINETUNE_PATIENCE", "10"))
+        MAX_EPOCHS_PATIENCE = (int(patience) if patience is not None
+                               else int(os.environ.get("SPECTRA_FINETUNE_PATIENCE", "10")))
         EPSILON = 1e-4
 
         # Recreate optimizer with current model parameters
@@ -175,16 +189,17 @@ class ClassificationHandler(BasicHandler):
             if use_channels_last:
                 self.kd_teacher.to(memory_format=torch.channels_last)
 
+        lr_mult = float(lr_mult) if lr_mult else 1.0
         if optim_name == "sgd":
-            sgd_lr = _ft_float("SPECTRA_FT_SGD_LR", "0.01")
+            sgd_lr = _ft_float("SPECTRA_FT_SGD_LR", "0.01") * lr_mult
             momentum = _ft_float("SPECTRA_FT_MOMENTUM", "0.9")
             weight_decay = _ft_float("SPECTRA_FT_WD", "5e-4")
             self.optimizer = torch.optim.SGD(
                 trainable_params, lr=sgd_lr, momentum=momentum, weight_decay=weight_decay)
             shown_lr = sgd_lr
         else:
-            self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate)
-            shown_lr = conf.learning_rate
+            self.optimizer = torch.optim.Adam(trainable_params, lr=conf.learning_rate * lr_mult)
+            shown_lr = conf.learning_rate * lr_mult
         self.optimizer.state.clear()
         scaler = torch.cuda.amp.GradScaler(enabled=True) if use_amp else None
         if use_cosine:
@@ -193,10 +208,13 @@ class ClassificationHandler(BasicHandler):
         else:
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.optimizer, mode='min', factor=0.5, patience=2)
+        best_val = -np.inf
+        n_trainable = sum(p.numel() for p in trainable_params)
         utils.print_flush(
-            f"Fine-tune recipe: optim={optim_name} lr={shown_lr:g} cosine={int(use_cosine)} "
+            f"{log_tag}Fine-tune recipe: optim={optim_name} lr={shown_lr:g} cosine={int(use_cosine)} "
             f"mixup={mixup_alpha:g} smooth={label_smooth:g} kd={int(use_kd)} "
-            f"patience={MAX_EPOCHS_PATIENCE} epochs={num_epochs}")
+            f"patience={MAX_EPOCHS_PATIENCE} epochs={num_epochs} "
+            f"select={'val' if select_on_val else 'train_loss'} trainable={n_trainable}")
 
         for epoch in range(num_epochs):  # 100 in NEON -> 40
             epoch_losses = []
@@ -255,8 +273,25 @@ class ClassificationHandler(BasicHandler):
             else:
                 scheduler.step(avg_loss)
 
-            if avg_loss < best_loss - EPSILON:
-                best_loss = avg_loss
+            if select_on_val:
+                # P8: "train the new layer until convergence" — measured where the reward is
+                # measured. evaluate_model flips eval(); restore train mode for the frozen-BN
+                # bookkeeping (trainable modules back to train, frozen norms stay in eval).
+                val_acc = float(self._quiet_val_accuracy(val_loader, device))
+                self.model.train()
+                for module in frozen_norms:
+                    module.eval()
+                improved = val_acc > best_val + EPSILON
+                if improved:
+                    best_val = val_acc
+                if avg_loss < best_loss:
+                    best_loss = avg_loss
+            else:
+                val_acc = None
+                improved = avg_loss < best_loss - EPSILON
+                if improved:
+                    best_loss = avg_loss
+            if improved:
                 # Clone on-device; pickling to BytesIO every improving epoch was a CPU stall.
                 best_state_buffer = {k: v.detach().clone() for k, v in self.model.state_dict().items()}
                 epochs_not_improved = 0
@@ -265,19 +300,22 @@ class ClassificationHandler(BasicHandler):
 
             # Full epoch traces at DEBUG; a short progress line every few epochs at INFO so a
             # 40-epoch fine-tune does not drown the run log in identical lines.
+            val_note = f", val_acc = {val_acc:.4f}" if val_acc is not None else ""
             if epoch == 0 or (epoch + 1) % 5 == 0 or epochs_not_improved == MAX_EPOCHS_PATIENCE:
                 utils.print_flush(
-                    f"Epoch {epoch + 1}/{num_epochs}: Loss = {avg_loss:.5f}, "
+                    f"{log_tag}Epoch {epoch + 1}/{num_epochs}: Loss = {avg_loss:.5f}{val_note}, "
                     f"LR = {self.optimizer.param_groups[0]['lr']:.5f}")
             else:
                 logging_utils.debug(
-                    f"Epoch {epoch + 1}/{num_epochs}: Loss = {avg_loss:.5f}, "
+                    f"{log_tag}Epoch {epoch + 1}/{num_epochs}: Loss = {avg_loss:.5f}{val_note}, "
                     f"LR = {self.optimizer.param_groups[0]['lr']:.5f}")
 
             if epochs_not_improved == MAX_EPOCHS_PATIENCE:
+                best_note = (f"best_val={best_val:.4f}" if select_on_val
+                             else f"best_loss={best_loss:.5f}")
                 utils.print_flush(
-                    f"Early stopping at epoch {epoch + 1}/{num_epochs} "
-                    f"(no improvement for {MAX_EPOCHS_PATIENCE} epochs; best_loss={best_loss:.5f})")
+                    f"{log_tag}Early stopping at epoch {epoch + 1}/{num_epochs} "
+                    f"(no improvement for {MAX_EPOCHS_PATIENCE} epochs; {best_note})")
                 break
 
         # `epoch` is defined after any non-empty training loop; empty-loader break leaves it unset
@@ -287,7 +325,7 @@ class ClassificationHandler(BasicHandler):
             epochs_ran = 0
 
         if best_state_buffer is not None and epochs_ran > 0 and epochs_not_improved < MAX_EPOCHS_PATIENCE:
-            utils.print_flush(f"Fine-tune finished all {epochs_ran} epochs; best_loss={best_loss:.5f}")
+            utils.print_flush(f"{log_tag}Fine-tune finished all {epochs_ran} epochs; best_loss={best_loss:.5f}")
 
         try:
             import src.run_recorder as _recorder
@@ -298,17 +336,18 @@ class ClassificationHandler(BasicHandler):
                 early_stopped=epochs_not_improved >= MAX_EPOCHS_PATIENCE,
                 best_loss=None if best_loss == np.inf else round(float(best_loss), 6),
                 patience=MAX_EPOCHS_PATIENCE,
+                select="val" if select_on_val else "train_loss",
+                best_val=None if best_val == -np.inf else round(float(best_val), 5),
+                phase=tag or None,
+                trainable_params=n_trainable,
             )
         except Exception:
             pass
 
-        # If training fails to converge - reinitializing weights and retraining (at most once)
+        # Empty loader used to Xavier-reinit the whole CNN and destroy the pruned net.
         if best_loss == np.inf:
-            if allow_reinit_retry:
-                utils.print_flush("Model failed to converge. Reinitializing weights and retrying once.")
-                self.reinitialize_weights()
-                return self.train_model(train_loader, allow_reinit_retry=False)
-            utils.print_flush("Model failed to converge after a reinitialisation retry; keeping current weights.")
+            utils.print_flush(
+                "Fine-tune produced no loss (empty loader); keeping pruned weights.")
         elif best_state_buffer is not None:
             self.model.load_state_dict(best_state_buffer)
 
@@ -318,6 +357,22 @@ class ClassificationHandler(BasicHandler):
         if not utils.env_flag("SPECTRA_SKIP_FT_GC"):
             torch.cuda.empty_cache()
             gc.collect()
+
+    def _quiet_val_accuracy(self, loader, device) -> float:
+        """Val accuracy without the per-call log lines (per-epoch selection inside train_model)."""
+        self.model.eval()
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            for x_batch, y_batch in loader:
+                x_batch = x_batch.to(device, non_blocking=True)
+                y_batch = y_batch.to(device, non_blocking=True)
+                if y_batch.dim() > 1 and y_batch.shape[1] > 1:
+                    y_batch = torch.argmax(y_batch, dim=1)
+                preds = torch.argmax(self.model(x_batch), dim=1)
+                correct += int((preds == y_batch.long()).sum().item())
+                total += int(y_batch.numel())
+        return (correct / total) if total else 0.0
 
     def reinitialize_weights(self):
         """

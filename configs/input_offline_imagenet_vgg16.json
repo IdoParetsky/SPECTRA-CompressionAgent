@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/vgg16-bn_imagenet1k_torchvision_73.36_138.358.pth": [
+    "vgg16_bn",
+    "/home/paretsky/spectra_models_instantiation/torchvision_instantiation.py",
+    "imagenet1k"
+  ]
+}

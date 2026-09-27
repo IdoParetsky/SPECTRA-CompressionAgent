@@ -1,0 +1,20 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet20-width16_fashionmnist_thin-res-net_94.91_0.272_41.03.pt": [
+    "resnet20",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ],
+  "/home/paretsky/spectra_pretrained_networks/vgg11-bn_fashionmnist_vgg-chenyaofo_94.40_9.756_153.60.pt": [
+    "vgg11_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ]
+}

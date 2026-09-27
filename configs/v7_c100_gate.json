@@ -1,0 +1,77 @@
+{
+  "stamped": "2026-09-21T19:30 IDT (Fable V7 catalog)",
+  "purpose": "V7 diverse training catalog gate. CIFAR-100 rows enter database_offline_v7_diverse_admitted.json only when status == 'admitted'. Admission = the no-agent mild 2-pass walk under the *V7 train FT* (12/4 with SPECTRA_FT_LR=1e-4, or SGD 0.01 \u2014 whichever the C10 control also recovers under) reaches TRAJ val_best with kept <= 0.98 and val dacc >= -tau. The 18-20 Sep gate (ledger 109) used Adam 1e-3 12/4 and admitted nothing; hypothesis: the FT LR, not the nets, is what fails on CIFAR-100.",
+  "admit_rule": {
+    "max_kept_at_val_best": 0.98,
+    "min_val_delta_pp": -10.0,
+    "probe_recipe": "mild 2-pass group-once, recipe A, train budget 12/4, FT LR arm chosen by the C10 control"
+  },
+  "c10_core": [
+    "resnet20-width10_cifar10_thin-res-net_91.90_0.107_16.55.pt",
+    "resnet56-width6_cifar10_thin-res-net_92.88_0.122_18.60.pt",
+    "resnet32_cifar10_chenyaofo_93.53_047_138.24.pt",
+    "vgg11_bn_cifar10_chenyaofo_92.79_9.76_306.58.pt",
+    "vgg13_bn_cifar10_chenyaofo_94_9.94_457.58.pt",
+    "mobilenet-v2x0.5_cifar10_chenyaofo_92.99_0.7_55.94.pt",
+    "mobilenet-v2x1_cifar10_chenyaofo_93.79_2.24_175.96.pt",
+    "densenet40_cifar10_densenet-cifar_93.17_0.176_74.43.pt"
+  ],
+  "c100": {
+    "resnet20-width13_cifar100_thin-res-net_69.95_0.185_27.67.pt": {
+      "status": "pending_regate",
+      "why_candidate": "thin C100 residual; was in the failed c100_wide mix under Adam 1e-3 \u2014 re-gate under 1e-4 / SGD",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    },
+    "resnet56-width9_cifar100_thin-res-net_73.05_0.275_41.13.pt": {
+      "status": "pending_regate",
+      "why_candidate": "thin C100 residual; same history",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    },
+    "resnet32_cifar100_chenyaofo_70.16_0.47_138.26.pt": {
+      "status": "pending_regate",
+      "why_candidate": "standard-width residual; r44 avoided (similar r44 C10)",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    },
+    "vgg11_bn_cifar100_chenyaofo_70.78_9.8_306.68.pt": {
+      "status": "pending_regate",
+      "why_candidate": "C6 precedent under 160-ep SGD; identity under Adam 1e-3 12/4 (ledger 109)",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    },
+    "vgg13_bn_cifar100_chenyaofo_74.63_9.99_557.68.pt": {
+      "status": "pending_regate",
+      "why_candidate": "second VGG C100; VGG-16 C100 = C9 TEST, VGG-19 C100 = Catalog L",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    },
+    "mobilenet-v2x0.5_cifar100_chenyaofo_70.88_0.82_56.16.pt": {
+      "status": "pending_regate",
+      "why_candidate": "harder MobileNet; x0.75 is the similar hold-out width",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    },
+    "mobilenet-v2x1_cifar100_chenyaofo_74.2_2.35_176.18.pt": {
+      "status": "pending_regate",
+      "why_candidate": "identity under Adam 1e-3 12/4 (ledger 109)",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    },
+    "densenet40_cifar100_densenet-cifar_70.25_0.188_74.44.pt": {
+      "status": "pending_regate",
+      "why_candidate": "the only C100 candidate that cut at all under Adam 1e-3 12/4 (-2.6 @ 0.989, ledger 109)",
+      "probe_job": null,
+      "val_best_kept": null,
+      "val_best_delta_pp": null
+    }
+  }
+}

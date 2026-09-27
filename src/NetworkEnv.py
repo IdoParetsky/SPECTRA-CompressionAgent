@@ -132,6 +132,9 @@ class NetworkEnv:
         # look-ahead, Δparams/ΔFLOPs preference), and each miss is a deepcopy + prune or
         # a hooked forward pass. See _ratio_cache_enabled.
         self._ratio_cache = {}
+        # all_layers indices of every coupled group structurally cut in the current pass
+        # (fortify.group_once_per_pass). Empty unless that switch is on.
+        self._pass_locked_layers = set()
 
         # EVAL_TRAIN / EVAL_TEST when called from a2c_agent_reinforce_runner.py's evaluate_model(),
         # used for accuracy calculation in NetworkEnv's compute_and_log_results().
@@ -172,11 +175,37 @@ class NetworkEnv:
         self.episode_overshoot_sum = 0.0
         self.episode_any_over = False
         self.episode_step_over = []
+        # Smallest kept-parameter fraction reached while the cumulative val Δacc was still
+        # inside the τ band — the training-side twin of the TRAJ ``val_best`` point.
+        self.episode_best_inband_kept = 1.0
+        # V7 probe score "area": Σ over in-band steps of (size removed by the step, as a fraction
+        # of the origin) × (remaining slack / τ). Deeper-in-band and kinder-at-equal-depth both
+        # score higher; the legacy ``1 − kept`` saturates at the deepest legal walk (the mild
+        # clone) and is blind to Δacc — every 12/4 arm froze at the same 0.262 for that reason.
+        self._episode_inband_area = 0.0
+        self._area_prev_kept = 1.0
+
+    def episode_inband_area(self) -> float:
+        """Slack-weighted in-band cut area of this episode (``SPECTRA_PROBE_SCORE=area``)."""
+        return float(self._episode_inband_area)
+
+    def _account_inband_point(self, kept_now: float, delta_pp: float, tau: float) -> None:
+        """Book an in-band step: deepest in-band kept (legacy score) and the slack-weighted area."""
+        kept_now = float(kept_now)
+        self.episode_best_inband_kept = min(self.episode_best_inband_kept, kept_now)
+        removed = max(0.0, float(self._area_prev_kept) - kept_now)
+        slack_frac = max(0.0, min(1.0, (float(tau) + float(delta_pp)) / max(float(tau), 1e-6)))
+        self._episode_inband_area += removed * slack_frac
+        self._area_prev_kept = min(float(self._area_prev_kept), kept_now)
 
     def episode_checkpoint_score(self) -> float:
         """In-budget compression (F1) vs discounted return. See fortify.inbudget_checkpointing."""
         return fortify.inbudget_checkpoint_score(
             self.episode_rho_sum, self.episode_overshoot_sum, self.episode_any_over)
+
+    def episode_val_best_compression(self) -> float:
+        """``1 − kept`` at the deepest in-band point of this episode (0 when nothing was cut in band)."""
+        return max(0.0, 1.0 - float(self.episode_best_inband_kept))
 
     def reset(self, test_net_path=None, test_model=None, test_loaders=None):
         """ Reset environment with a new CNN model & dataset """
@@ -191,6 +220,8 @@ class NetworkEnv:
         self.row_idx = 1  # The first row to be a candidate for pruning is self.row_idx - 1 -> index 0
         self.actions_history = []
         self._ratio_cache = {}
+        self._pass_locked_layers = set()
+        self._episode_group_cuts = {}
         self._reset_episode_reward_stats()
 
         # If a specific network is requested, use it directly (evaluation / cross-validation).
@@ -247,7 +278,7 @@ class NetworkEnv:
             fm = self.feature_extractor.encode_to_bert_input(
                 model_with_rows, model_with_rows.row_to_main_layer[self.row_idx - 1],
                 dependency_groups=self._dependency_groups(model_with_rows),
-                param_ratio=1.0)
+                param_ratio=1.0, extras=[1.0, 0.0], episode_cuts={})
 
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
@@ -438,15 +469,147 @@ class NetworkEnv:
             row_index=row,
             alive_count=alive,
             device=dev,
+            force_identity=self.group_locked(layer_idx),
         )
 
-    def step(self, compression_rate, is_to_train=True):
+    def group_locked(self, layer_idx: int) -> bool:
+        """True when ``layer_idx`` owns a group already cut this pass (group-once switch)."""
+        if not fortify.group_once_per_pass():
+            return False
+        return int(layer_idx) in (getattr(self, "_pass_locked_layers", None) or set())
+
+    def tau(self) -> float:
+        """τ in force: ``SPECTRA_TRAIN_TAU`` in AGENT_TRAIN mode, else ``--allowed_acc_reduction``."""
+        base = float(self.conf.allowed_acc_reduction)
+        if self.mode == AGENT_TRAIN:
+            return fortify.train_tau(base)
+        return base
+
+    def _register_group_lock(self, prune_outcome) -> None:
+        """
+        Remember the layers of a group that was just structurally cut.
+
+        Always counts the cut for this episode (group-cost channel, ``episode_group_cuts``);
+        locks the owner rows for the rest of the pass only under ``SPECTRA_GROUP_ONCE_PER_PASS``.
+        """
+        outcome = prune_outcome or {}
+        if outcome.get("mode") != "structural":
+            return
+        indices = [int(i) for i in (outcome.get("group_layer_indices") or [])]
+        if indices:
+            cuts = getattr(self, "_episode_group_cuts", None)
+            if cuts is None:
+                cuts = self._episode_group_cuts = {}
+            key = frozenset(indices)
+            cuts[key] = cuts.get(key, 0) + 1
+        if not fortify.group_once_per_pass():
+            return
+        locked = getattr(self, "_pass_locked_layers", None)
+        if locked is None:
+            locked = self._pass_locked_layers = set()
+        locked.update(indices)
+
+    def episode_group_cuts(self) -> dict:
+        """``{frozenset(owner layer indices): structural cuts this episode}``."""
+        return dict(getattr(self, "_episode_group_cuts", None) or {})
+
+    def _end_of_pass_reset(self, num_actions: int, num_rows: int) -> bool:
+        """Clear per-pass state at a pass boundary; returns True when a pass just ended."""
+        if num_rows <= 0 or num_actions % num_rows != 0:
+            return False
+        if getattr(self, "_pass_locked_layers", None):
+            self._pass_locked_layers.clear()
+        return True
+
+    def _recover_after_prune(self, handler, model_with_rows, prune_outcome, is_to_train):
+        """
+        Post-prune recovery under the recipe in force (``fortify.ft_recipe``).
+
+        * **A** (live default): every parameter trainable, keep the surviving filters,
+          ``train_model`` on the train loss (policy training may cap the budget with
+          ``SPECTRA_TRAIN_FT_EPOCHS``; eval walks use ``--num_epochs``).
+        * **B** (``--train_compressed_layer_only=True``): keep the surviving filters, train
+          only the rewritten group (0/32 OK on ResNets, ledger §12).
+        * **C-G** (``SPECTRA_FT_REINIT_EDITED=1``, P8): NEON layer replacement — the group the
+          structural prune just resized is re-initialised at its new width
+          (``pruning.reinit_group_edit``), everything else is frozen (BN-safe), and the new
+          group is trained until the **val** accuracy plateaus. Gilad-literal NEON-C.
+        * **C-G+** (``SPECTRA_FT_REINIT_THEN_POLISH=1``): C-G, then every parameter is
+          unfrozen for a short low-LR full-net polish, also val-selected.
+
+        A masked fallback rewrites no module, so there is nothing to replace: that step takes
+        recipe A and is recorded as ``ft_recipe="A"`` / ``reinit=False``. Identity steps never
+        reach this method. The handler is left frozen the way the last phase left it; ``step``
+        unfreezes everything before handing the model on.
+        """
+        recipe = fortify.ft_recipe(bool(self.conf.train_compressed_layer_only))
+        group_edit = getattr(model_with_rows, "last_group_edit", None)
+        if recipe in ("C-G", "C-G+") and prune_outcome.get("mode") == "structural" and group_edit:
+            reinit_summary = pruning.reinit_group_edit(model_with_rows, group_edit,
+                                                       scope=fortify.ft_reinit_scope())
+            prune_outcome["reinit"] = reinit_summary
+            prune_outcome["ft_recipe"] = recipe
+            utils.print_flush(
+                f"P8 {recipe} (scope={reinit_summary['scope']}): layer replacement — "
+                f"{reinit_summary['producers']} producer(s) "
+                f"re-drawn at width {group_edit.get('new_width')}, {reinit_summary['norms']} norm(s) "
+                f"reset, consumers full={reinit_summary['consumers_full']} "
+                f"slice={reinit_summary['consumers_slice']}, "
+                f"{reinit_summary['params_reinit']} params from scratch")
+            edited = list(getattr(model_with_rows, "last_edited_param_ids", None) or [])
+            handler.freeze_all_layers_but_pruned(edited)
+            if is_to_train:
+                with logging_utils.stage("step.finetune", level=logging.DEBUG):
+                    select_val = self.val_loader if fortify.ft_reinit_select() == "val" else None
+                    handler.train_model(
+                        self.train_loader, max_epochs=fortify.ft_reinit_epochs(),
+                        patience=fortify.ft_reinit_patience(), val_loader=select_val,
+                        tag=f"{recipe} group")
+                    if recipe == "C-G+":
+                        handler.unfreeze_all_layers()
+                        handler.train_model(
+                            self.train_loader, max_epochs=fortify.ft_polish_epochs(),
+                            patience=fortify.ft_polish_patience(), val_loader=self.val_loader,
+                            lr_mult=fortify.ft_polish_lr_mult(), tag="C-G+ polish")
+            return recipe
+
+        if recipe in ("C-G", "C-G+"):
+            prune_outcome["ft_recipe"] = "A"  # no structural edit to replace this step
+            prune_outcome["reinit"] = {"reinit": False}
+        # Freeze/unfreeze layers based on config. Prefer the modules actually rewritten by
+        # the last structural group prune (producers + consumers + norms); the old
+        # "pruned row + next layer" rule left resized consumers frozen and made mild
+        # compressions unrecoverable under the -5 pp reward cliff (see recovery probes).
+        if self.conf.train_compressed_layer_only:
+            edited = getattr(model_with_rows, "last_edited_param_ids", None)
+            params_to_keep_trainable = (
+                edited if edited
+                else build_param_names_to_keep_trainable(model_with_rows, self.row_idx - 1))
+            handler.freeze_all_layers_but_pruned(params_to_keep_trainable)
+        else:
+            handler.unfreeze_all_layers()
+
+        if is_to_train:
+            with logging_utils.stage("step.finetune", level=logging.DEBUG):
+                # Policy-training episodes may use a shorter recovery budget
+                # (SPECTRA_TRAIN_FT_EPOCHS); eval walks always use --num_epochs.
+                ft_kwargs = {}
+                if self.mode == AGENT_TRAIN and fortify.train_ft_epochs() is not None:
+                    ft_kwargs = {"max_epochs": fortify.train_ft_epochs(),
+                                 "patience": fortify.train_ft_patience()}
+                handler.train_model(self.train_loader, **ft_kwargs)
+        return "B" if self.conf.train_compressed_layer_only else "A"
+
+    def step(self, compression_rate, is_to_train=True, ranking=None):
         """
         Compress the network, then move to the next state.
 
         Args:
             compression_rate (float): Factor to reduce layer size.
             is_to_train (bool): Whether to train after compression.
+            ranking (str, optional): Filter-importance criterion chosen by the *action*
+                (``--action_rankings``); ``None`` keeps the environment default
+                (``SPECTRA_FILTER_IMPORTANCE``, L1).
 
         Returns:
             Tuple: Next state, reward, and done flag.
@@ -479,34 +642,26 @@ class NetworkEnv:
         else:
             # Modify the model in-place
             with logging_utils.stage("step.prune", level=logging.DEBUG):
+                if pruning.normalize_importance_mode(ranking) == "taylor" and ranking:
+                    # Data-dependent criterion: one forward+backward on a train batch, bound
+                    # right before ranking so a resized model never reads stale scores.
+                    pruning.bind_taylor_scores(self.current_model, self.train_loader, self.conf.device)
                 if self.conf.prune:
                     model_with_rows = prune_current_model(
                         model_with_rows, compression_rate, self.row_idx - 1,
-                        input_shape=self._input_shape())
+                        input_shape=self._input_shape(), importance=ranking)
                 else:
                     model_with_rows = create_new_model_with_new_weights(model_with_rows, compression_rate,
                                                                         self.row_idx - 1)
             prune_outcome = dict(getattr(model_with_rows, "last_prune_outcome", {}) or {})
+            # Group-once: later rows owning this group are identity-only for the rest of
+            # the pass (fortify.group_once_per_pass; no-op when the switch is off).
+            self._register_group_lock(prune_outcome)
 
             # Prepare model handler
             learning_handler_new_model = self.create_learning_handler(model_with_rows.model)
-
-            # Freeze/unfreeze layers based on config. Prefer the modules actually rewritten by
-            # the last structural group prune (producers + consumers + norms); the old
-            # "pruned row + next layer" rule left resized consumers frozen and made mild
-            # compressions unrecoverable under the -5 pp reward cliff (see recovery probes).
-            if self.conf.train_compressed_layer_only:
-                edited = getattr(model_with_rows, "last_edited_param_ids", None)
-                params_to_keep_trainable = (
-                    edited if edited
-                    else build_param_names_to_keep_trainable(model_with_rows, self.row_idx - 1))
-                learning_handler_new_model.freeze_all_layers_but_pruned(params_to_keep_trainable)
-            else:
-                learning_handler_new_model.unfreeze_all_layers()
-
-            if is_to_train:
-                with logging_utils.stage("step.finetune", level=logging.DEBUG):
-                    learning_handler_new_model.train_model(self.train_loader)
+            self._recover_after_prune(learning_handler_new_model, model_with_rows, prune_outcome,
+                                      is_to_train)
 
         # Evaluate the compressed model
         learning_handler_new_model.model.eval()
@@ -519,17 +674,17 @@ class NetworkEnv:
         if need_flops and compression_rate != 1:
             flops_after = utils.calc_flops(
                 learning_handler_new_model.model, self._input_shape())
+        tau = self.tau()
         reward_rate = reward_compression_rate(
             prune_outcome, compression_rate, params_before, params_after,
-            new_acc, self.original_acc, self.conf.allowed_acc_reduction)
+            new_acc, self.original_acc, tau)
         reward = utils.compute_reward(
             new_acc, self.original_acc, reward_rate,
             params_before=params_before, params_after=params_after,
-            flops_before=flops_before, flops_after=flops_after)
+            flops_before=flops_before, flops_after=flops_after, tau=tau)
         utils.trace_reward(
             self.selected_net_path, reward_rate, new_acc, self.original_acc, reward,
             params_before=params_before, params_after=params_after)
-        tau = float(self.conf.allowed_acc_reduction)
         delta_pp = (new_acc - self.original_acc) * 100.0
         nominal = (1.0 - float(reward_rate)) * 100.0
         rho_step = utils.unified_rho(
@@ -540,6 +695,9 @@ class NetworkEnv:
         if overshoot > 0:
             self.episode_any_over = True
         self.episode_step_over.append(overshoot > 0)
+        if overshoot <= 0 and self.original_params:
+            kept_now = params_after / max(float(self.original_params), 1.0)
+            self._account_inband_point(kept_now, delta_pp, tau)
 
         # Move to next state
         self.row_idx += 1
@@ -564,6 +722,8 @@ class NetworkEnv:
         # As self.row_idx - 1 is the current appraised row, the index should not drop below 1
         self.row_idx = max(1, self.row_idx % (num_rows + 1))
         done = num_actions >= num_rows * self.conf.passes
+        # A completed pass releases the group-once locks so the next pass may cut again.
+        self._end_of_pass_reset(num_actions, num_rows)
         encode_idx = current_layer_idx
         if fortify.state_align_next() and (not done) and num_rows > 0:
             encode_idx = model_with_rows.row_to_main_layer[self.row_idx - 1]
@@ -574,10 +734,18 @@ class NetworkEnv:
         # when SPECTRA_STATE_ALIGN=next.
         with logging_utils.stage("step.feature_extraction", level=logging.DEBUG):
             kept = utils.calc_num_parameters(self.current_model) / max(self.original_params, 1e-9)
+            total_steps = max(1, num_rows * int(self.conf.passes))
+            extras = [fortify.accuracy_slack(delta_pp, tau),
+                      min(1.0, num_actions / total_steps)]
+            # NEON "feature-maps update" (P8, SPECTRA_REFRESH_ALL_FEATURES): after a non-identity
+            # step every layer's activation moments are re-extracted — the edit changed the
+            # input of every downstream layer, not only the edited row's span.
+            refresh = None if (fortify.refresh_all_features() and compression_rate != 1) else update_indices
             fm = self.feature_extractor.encode_to_bert_input(
-                model_with_rows, encode_idx, update_indices,
+                model_with_rows, encode_idx, refresh,
                 dependency_groups=self._dependency_groups(model_with_rows),
-                param_ratio=min(1.0, max(0.0, kept)))
+                param_ratio=min(1.0, max(0.0, kept)), extras=extras,
+                episode_cuts=self.episode_group_cuts())
 
         step_timer.__exit__(None, None, None)
         # One record per transition: enough to reconstruct the trajectory, the policy's
@@ -589,6 +757,7 @@ class NetworkEnv:
             layer_index=current_layer_idx,
             layer_type=type(target_layer).__name__,
             compression_rate=compression_rate,
+            ranking=ranking,
             reward=round(float(reward), 4),
             reward_mode=__import__("os").environ.get("SPECTRA_REWARD_MODE", "neon"),
             baseline_acc=round(float(self.original_acc), 5),
@@ -599,6 +768,8 @@ class NetworkEnv:
             param_reduction=round(1 - params_after / max(params_before, 1), 5),
             prune_mode=prune_outcome.get("mode"),
             prune_reason=prune_outcome.get("reason"),
+            ft_recipe=prune_outcome.get("ft_recipe"),
+            reinit_params=(prune_outcome.get("reinit") or {}).get("params_reinit"),
             old_width=prune_outcome.get("old_width"),
             new_width=prune_outcome.get("new_width"),
             # Requested vs. applied: a rate the layer's width cannot express (0.9 of 6
@@ -655,6 +826,17 @@ class NetworkEnv:
 
         input_shape = utils.get_input_shape(dataset_loader)
 
+        # Exact counts. The ``(M)`` columns below are rounded to 3 decimals for display;
+        # ratios must not be formed from them: thin r20-w2 has 4 556 parameters, so
+        # ``round(n / 1e6, 3)`` quantises its kept fraction to steps of 0.2 (the ledger's
+        # ``params x0.600`` on that net means anything in [0.55, 0.77)). The TRAJ counter
+        # (``param_ratio``) was always exact; this makes ``pass k/K`` agree with it.
+        new_params = int(utils.calc_num_parameters(compressed_model))
+        origin_params = int(utils.calc_num_parameters(original_model))
+        new_effective = int(pruning.count_effective_parameters(compressed_model))
+        new_flops = float(utils.calc_flops(compressed_model, input_shape))
+        origin_flops = float(utils.calc_flops(original_model, input_shape))
+
         # Store results
         result_entry = {
             'model': self.selected_net_path,
@@ -663,11 +845,13 @@ class NetworkEnv:
             'fold': fold_str,
             'new_acc': round(new_lh.evaluate_model(dataset_loader), 3),
             'origin_acc': round(origin_lh.evaluate_model(dataset_loader), 3),
-            'new_param (M)': round(utils.calc_num_parameters(compressed_model) / 1e6, 3),
-            'origin_param (M)': round(utils.calc_num_parameters(original_model) / 1e6, 3),
-            'new_effective_param (M)': round(pruning.count_effective_parameters(compressed_model) / 1e6, 3),
-            'new_flops (M)': round(utils.calc_flops(compressed_model, input_shape) / 1e6, 3),
-            'origin_flops (M)': round(utils.calc_flops(original_model, input_shape) / 1e6, 3),
+            'new_param (M)': round(new_params / 1e6, 3),
+            'origin_param (M)': round(origin_params / 1e6, 3),
+            'new_effective_param (M)': round(new_effective / 1e6, 3),
+            'new_flops (M)': round(new_flops / 1e6, 3),
+            'origin_flops (M)': round(origin_flops / 1e6, 3),
+            'new_param': new_params,
+            'origin_param': origin_params,
             'new_model_arch': utils.get_model_layers_str(compressed_model),
             'origin_model_arch': utils.get_model_layers_str(original_model),
             'evaluation_time': t_curr - self.t_start if self.t_start else None
@@ -694,10 +878,9 @@ class NetworkEnv:
         # The same record as a structured event, so summaries do not have to parse CSVs whose
         # columns include multi-line architecture strings
         acc_delta = result_entry['new_acc'] - result_entry['origin_acc']
-        param_ratio = result_entry['new_param (M)'] / max(result_entry['origin_param (M)'], 1e-9)
-        flops_ratio = result_entry['new_flops (M)'] / max(result_entry['origin_flops (M)'], 1e-9)
-        effective_ratio = (result_entry['new_effective_param (M)']
-                           / max(result_entry['origin_param (M)'], 1e-9))
+        param_ratio = new_params / max(origin_params, 1)
+        flops_ratio = new_flops / max(origin_flops, 1e-9)
+        effective_ratio = new_effective / max(origin_params, 1)
         recorder.record(
             "eval",
             network=self.selected_net_path,
@@ -709,6 +892,8 @@ class NetworkEnv:
             delta_acc=round(acc_delta, 5),
             new_param_m=result_entry['new_param (M)'],
             origin_param_m=result_entry['origin_param (M)'],
+            new_param=new_params,
+            origin_param=origin_params,
             new_effective_param_m=result_entry['new_effective_param (M)'],
             param_ratio=round(param_ratio, 5),
             effective_param_ratio=round(effective_ratio, 5),
@@ -831,6 +1016,20 @@ def _rebind_model(model_with_rows, model):
         model_with_rows.split_and_map_layers_to_rows())
 
 
+def group_owner_indices(model_with_rows, group):
+    """
+    ``all_layers`` indices of the layers that *produce* ``group``'s channel dimension.
+
+    Producers and depthwise members own the dimension; consumers and norms only read it
+    and are not rows that could cut it again. Empty for ``None`` / unresolved groups.
+    """
+    if group is None:
+        return []
+    owners = list(getattr(group, "producers", [])) + list(getattr(group, "depthwise", []))
+    index_of = {id(layer): idx for idx, layer in enumerate(model_with_rows.all_layers)}
+    return sorted({index_of[id(m)] for m in owners if id(m) in index_of})
+
+
 def dummy_forward_ok(model, input_shape=None):
     """
     True if a dummy batch runs. ShuffleNet grouped-conv mismatches raise here
@@ -867,7 +1066,7 @@ def dummy_forward_ok(model, input_shape=None):
 
 
 def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
-                        *, quiet=False, record=True, input_shape=None):
+                        *, quiet=False, record=True, input_shape=None, importance=None):
     """
     Compress the target layer by removing its least important output filters.
 
@@ -882,6 +1081,8 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
         record (bool):                    Skip run_recorder writes (eval look-ahead dry-run).
         input_shape (tuple, optional):    NCHW spatial shape for the grouped-conv dummy
             forward (CIFAR 32, ImageNet 224). Tried 32/224/28 if omitted.
+        importance (str, optional):       Ranking for this cut (``l1``/``fpgm``/…); ``None``
+            keeps ``SPECTRA_FILTER_IMPORTANCE``.
 
     Returns:
         pruned_model_with_rows (ModelWithRows): The pruned model
@@ -905,10 +1106,14 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
     group = channel_groups.group_of(groups, layer_to_prune) if groups else None
     backup = copy.deepcopy(model_with_rows.model) if (group is not None and group.prunable) else None
     rolled_back_grouped = False
+    # Rows that own this group's channel dimension (producers + depthwise), as all_layers
+    # indices. Captured *before* the edit: the structural prune replaces those modules.
+    group_layer_indices = group_owner_indices(model_with_rows, group)
 
     if group is not None and group.prunable:
-        keep_idx = pruning.select_group_survivors(group, compression_rate)
-        if keep_idx is not None and pruning.prune_group_structurally(model_with_rows, group, keep_idx):
+        keep_idx = pruning.select_group_survivors(group, compression_rate, mode=importance)
+        if keep_idx is not None and pruning.prune_group_structurally(
+                model_with_rows, group, keep_idx, mode=importance):
             if not dummy_forward_ok(model_with_rows.model, input_shape):
                 if not quiet:
                     utils.print_flush(
@@ -929,6 +1134,7 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
                     "new_width": int(keep_idx.numel()), "coupled_layers": coupled,
                     "consumers_resized": len(group.consumers),
                     "trainable_param_count": len(edited_ids),
+                    "group_layer_indices": group_layer_indices,
                 }
                 if record:
                     recorder.record("prune", mode="structural", layer_index=layer_to_prune_idx,
@@ -953,7 +1159,7 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
     else:
         reason = "structural edit rejected (target width equals current width)"
 
-    keep_idx = pruning.select_surviving_filters(layer_to_prune, compression_rate)
+    keep_idx = pruning.select_surviving_filters(layer_to_prune, compression_rate, mode=importance)
     pruning.mask_layer_filters(layer_to_prune, keep_idx)
     if not quiet:
         utils.print_flush(f"Layer {layer_to_prune_idx}: masked {old_width - keep_idx.numel()}/{old_width} "
@@ -979,6 +1185,7 @@ def prune_current_model(model_with_rows, compression_rate, row_to_prune_idx,
     }
     # Masked / floor edits do not rewrite a dependency group; fall back to the row-local rule.
     model_with_rows.last_edited_param_ids = None
+    model_with_rows.last_group_edit = None  # nothing for P8 to re-initialise
     if record:
         recorder.issue(kind, reason, layer_index=layer_to_prune_idx,
                        layer_type=type(layer_to_prune).__name__, rate=compression_rate)

@@ -10,6 +10,10 @@ matrix) are for live ops; they go stale and they are not in git.
 | [PAPER_SKELETON.md](PAPER_SKELETON.md) | First write-against outline: NEON chapter map, figure/table analogs (Fig. 1–9 → SPECTRA F1–F10), what to write tonight vs wait for argmax `20945568`. |
 | [SPECTRA_draft.md](SPECTRA_draft.md) | Paper in **NEON’s section order**. Prose + tables that point at the ledger. Bibliography **[1]–[78]** = thesis proposal; **[79]–[92]** = Aug 2026 literature survey; **[93]–[96]** = 18 Aug Scholar pass. Fill blanks; do not invent numbers. |
 | [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md) | Advisor minutes 18 Aug 2026. Comparison posture, NEON-style Pareto (does **not** replace coverage), heuristics, ImageNet = frozen transfer, NAP2 pending. Act in this light until the next meeting. |
+| [GILAD_MEETING_17SEP.md](GILAD_MEETING_17SEP.md) | 17 Sep meeting brief (EN+HE). Path 3→V4, overnight TESTs, **two clocks**: working **30 Oct** + university **mid-December**. Supersedes the 16 Sep executive note. |
+| [LOOP_ALGORITHMS.md](LOOP_ALGORITHMS.md) | Human-readable train / eval / TEST loop per stage (Path 3, v2a/b/c, v3, V4, V5). One-liners + why. For Gilad+Ido markup. Fable rewrites (V5 P9). |
+| [CATALOG_L_TEST_PLAN.md](CATALOG_L_TEST_PLAN.md) | Committee SOTA-slide **protocol** (Gilad 19 Sep: not a grocery list). Train vs test, metrics, budgets. Reproduce DepGraph’s CIFAR test set. **Not locked** until Fable fills §5. |
+| [GILAD_LAYER_REPLACEMENT_19SEP.md](GILAD_LAYER_REPLACEMENT_19SEP.md) | Short EN+HE note on throw-away vs keep-leftover (no-agent TESTs). Fable 19 Sep slots still blank. |
 
 ## Status tags (used in both files)
 

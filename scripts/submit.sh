@@ -37,6 +37,9 @@ REPO_DIR="${SPECTRA_REPO_DIR:-/home/paretsky/SPECTRA-CompressionAgent}"
 case "$PROFILE" in
   smoke)
     GPUS="${GPU_COUNT:-1}"; TIME="0-01:00:00"; CPUS=4; TRAIN_SEC=900 ;;
+  smoke_v2)
+    # Integration gate for the v2 recipe; chain offline_train_v2* afterok this job.
+    GPUS="${GPU_COUNT:-1}"; TIME="0-01:30:00"; CPUS=4; TRAIN_SEC=600 ;;
   medium)
     GPUS="${GPU_COUNT:-1}"; TIME="0-10:00:00"; CPUS=6; TRAIN_SEC=25200 ;;
   full)
@@ -178,7 +181,7 @@ case "$PROFILE" in
   offline_train|offline_train_cbrt|offline_train_unified)
     # 10-net leap catalog (C10 families + SVHN + Fashion-MNIST). Floor-constrained eval.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
-  offline_train_band_cbrt|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full)
+  offline_train_band_cbrt|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
     # Wall=7d (submit.sh default). Python runtime 6d fuse; patience is the stop.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=6; TRAIN_SEC=518400 ;;
   eval_offline_similar|eval_offline_similar_det|eval_offline_novel)
@@ -198,12 +201,13 @@ case "$PROFILE" in
   eval_c10_thin_flop_floor)
     # Eval-only FLOP floor 0.70 + look-ahead on C10-thin; frozen 10-net s42 actor.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
-  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale|eval_c10_thin_traj)
+  eval_c10_thin|eval_c10_thin_det|eval_c10_thin_fpgm|eval_c10_thin_bnscale|eval_c10_thin_traj|eval_c10_thin_traj_gonce)
     # Plain C10-thin held-out eval (no FLOP floor) — the §17 r20-w2 / r56-w4 comparison.
-    # _traj is the unconstrained curve (floor-hold then continue).
+    # _traj is the unconstrained curve (floor-hold then continue); _gonce adds group-once.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
-  baseline_c10_l1|baseline_c10_mild|baseline_c10_random)
+  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce)
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
+    # *_traj / *_traj_gonce: TRAJ protocol, optionally with group-once.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   diag_reward_band)
     # Crossed dataset x outcome reward-band trace. Short wall so it hands the GPU back.
@@ -213,7 +217,7 @@ case "$PROFILE" in
     # _shaped pins SPECTRA_REWARD_MODE=structural_shaped in sbatch.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=129600 ;;
   *)
-    echo "usage: $0 {smoke|...|c100_*|c10_c100_matched_vgg_drl|eval_c100_spoof_classes|eval_c100_residuals_sgd|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|eval_offline_c100|eval_imagenet_short|eval_c10_thin|eval_c10_thin_flop_floor|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|c100_recoverable_drl|c100_recoverable_drl_fine|diag_reward_band|reward_band_ab|baseline_c10_*}" >&2
+    echo "usage: $0 {smoke|...|c100_*|c10_c100_matched_vgg_drl|eval_c100_spoof_classes|eval_c100_residuals_sgd|careful_fortify_cifar10*|encoder_c10_*|generic_c10_fortify|offline_train|offline_train_gonce_cold|offline_wide|eval_offline_*|probe_c100*|eval_*|eval_only|eval_offline_c100|eval_imagenet_short|eval_c10_thin|eval_c10_thin_traj|eval_c10_thin_traj_gonce|eval_c10_thin_flop_floor|careful_fortify_cifar10_fast|c10_width_skinny_train|c10_budget_state|probe_c100_aug|probe_c100_recipe|probe_c100_kd|c100_wide_drl|c100_recoverable_drl|c100_recoverable_drl_fine|diag_reward_band|reward_band_ab|baseline_c10_*|baseline_c10_*_traj|baseline_c10_*_traj_gonce}" >&2
     exit 1
     ;;
 esac
@@ -228,7 +232,7 @@ fi
 # Slurm always needs --time (partition MaxTime=7-00:00:00). Default to that so a
 # slow eval cannot be hard-killed. Training still stops at TRAIN_SEC. Override:
 #   SPECTRA_WALL=0-12:00:00   or   SPECTRA_KEEP_PROFILE_WALL=1
-if [[ "${SPECTRA_KEEP_PROFILE_WALL:-}" != "1" && "$PROFILE" != "smoke" ]]; then
+if [[ "${SPECTRA_KEEP_PROFILE_WALL:-}" != "1" && "$PROFILE" != "smoke" && "$PROFILE" != "smoke_v2" ]]; then
   TIME="${SPECTRA_WALL:-7-00:00:00}"
 fi
 
@@ -333,7 +337,7 @@ else
     eval_imagenet_short)
       _strong="$(_pick_gpu rtx_4090 || true)"
       GPU_GRES="${_strong:-rtx_4090}:${GPUS}" ;;
-    offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full)
+    offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored)
       _strong="$(_pick_gpu || true)"
       if [[ -n "${_strong:-}" ]]; then
         GPU_GRES="${_strong}:${GPUS}"
@@ -391,7 +395,19 @@ for _k in SPECTRA_EVAL_DETERMINISTIC SPECTRA_REWARD_MODE SPECTRA_REWARD_SCALE \
           SPECTRA_STANDARDIZER_PATH SPECTRA_TRAIN_RESPECT_FLOOR \
           SPECTRA_BUDGET_IN_STATE SPECTRA_EVAL_LOOKAHEAD SPECTRA_ACTOR_SKIP_OVERBUDGET \
           SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN SPECTRA_RUNTIME_LIMIT \
-          SPECTRA_EVAL_TRAJECTORY; do
+          SPECTRA_EVAL_TRAJECTORY SPECTRA_GROUP_ONCE_PER_PASS SPECTRA_SNAPSHOT_BASELINE \
+          SPECTRA_ALGO SPECTRA_AGENT_LR SPECTRA_TRAIN_FT_EPOCHS SPECTRA_TRAIN_FT_PATIENCE \
+          SPECTRA_STATE_SLACK SPECTRA_ENCODER_DROPOUT SPECTRA_POLICY_CONFIG \
+          SPECTRA_PPO_EPISODES SPECTRA_PPO_EPOCHS SPECTRA_ENTROPY_COEF SPECTRA_ENTROPY_MIN \
+          SPECTRA_EVAL_PASSES SPECTRA_STATE_GROUPCOST SPECTRA_TRAIN_TAU \
+          SPECTRA_PROBE_EVERY SPECTRA_PROBE_NETS SPECTRA_MIN_EPISODES SPECTRA_PATIENCE_EPISODES \
+          SPECTRA_REWIND_BEST SPECTRA_REWIND_PATIENCE SPECTRA_REWIND_MAX SPECTRA_REWIND_ENTROPY \
+          SPECTRA_V3_ENTROPY_COEF SPECTRA_V3_ENTROPY_MIN SPECTRA_FACTORED_HEAD SPECTRA_V4_RANKING_MENU \
+          SPECTRA_FT_RECIPE SPECTRA_FT_REINIT_EDITED SPECTRA_FT_REINIT_THEN_POLISH SPECTRA_REFRESH_ALL_FEATURES \
+          SPECTRA_FT_REINIT_EPOCHS SPECTRA_FT_REINIT_PATIENCE SPECTRA_FT_REINIT_SELECT SPECTRA_FT_REINIT_SCOPE \
+          SPECTRA_FT_POLISH_EPOCHS SPECTRA_FT_POLISH_PATIENCE SPECTRA_FT_POLISH_LR_MULT \
+          SPECTRA_V5_DATABASE SPECTRA_INPUT SPECTRA_DATABASE SPECTRA_NUM_EPOCHS SPECTRA_FINETUNE_PATIENCE \
+          SPECTRA_DATASET_NAMES SPECTRA_EVAL_COUNTERFACTUAL SPECTRA_PROBE_SCORE SPECTRA_FT_LR SPECTRA_FT_OPTIM SPECTRA_FT_SGD_LR; do
   _v="${!_k-}"
   if [[ -n "$_v" ]]; then
     SBATCH_EXPORT+=",${_k}=${_v}"

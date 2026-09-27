@@ -22,6 +22,49 @@ class Flatten(nn.Module):
         return x.view(x.size()[0], -1)
 
 
+class FactoredCategorical:
+    """
+    Joint policy over (rate, ranking) with two independent heads (``SPECTRA_FACTORED_HEAD=1``).
+
+    ``rate`` and ``rank`` are ``torch.distributions.Categorical`` over the rate menu and the
+    ranking menu. An action is a pair ``(rate_idx, rank_idx)``. The ranking head is *inactive*
+    on the identity rate: its log-probability is not added and its choice is irrelevant, so
+    the policy gradient for "which filters" only flows through steps that actually cut.
+    Entropy is the sum of the two heads' entropies (both regularised).
+    """
+
+    def __init__(self, rate: Categorical, rank: Categorical, identity_index: int = 0):
+        self.rate = rate
+        self.rank = rank
+        self.identity_index = int(identity_index)
+
+    @property
+    def probs(self):
+        """Rate-head probabilities (what masks, telemetry and argmax-of-rate read)."""
+        return self.rate.probs
+
+    def with_rate(self, rate: Categorical) -> "FactoredCategorical":
+        return FactoredCategorical(rate, self.rank, self.identity_index)
+
+    def sample(self):
+        return self.rate.sample().reshape(-1)[0], self.rank.sample().reshape(-1)[0]
+
+    def argmax(self):
+        r = self.rate.probs.flatten().argmax()
+        k = self.rank.probs.flatten().argmax()
+        return r, k
+
+    def log_prob(self, rate_idx, rank_idx):
+        r = torch.as_tensor(rate_idx, device=self.rate.probs.device).reshape(1)
+        k = torch.as_tensor(rank_idx, device=self.rank.probs.device).reshape(1)
+        lp = self.rate.log_prob(r).reshape(-1)[0]
+        active = (r.reshape(-1)[0] != self.identity_index).to(lp.dtype)
+        return lp + active * self.rank.log_prob(k).reshape(-1)[0]
+
+    def entropy(self):
+        return self.rate.entropy().reshape(-1)[0] + self.rank.entropy().reshape(-1)[0]
+
+
 class Agent(nn.Module):
     def __init__(self, device, num_outputs, encoder=None):
         super(Agent, self).__init__()
@@ -70,6 +113,51 @@ class Agent(nn.Module):
             nn.ReLU(),
             nn.Linear(300, 1),
         )
+
+        # V4-1: factored (rate × ranking) policy. The rate head is ``self.actor``; a second
+        # head chooses the filter-importance criterion from ``conf.ranking_menu``. Off unless
+        # SPECTRA_FACTORED_HEAD=1 *and* a ranking menu is configured, so every earlier actor
+        # loads and behaves exactly as before.
+        from src.fortify import policy_head_zero_init, factored_head
+        self.ranking_menu = []
+        self.ranker = None
+        if factored_head():
+            menu = self._configured_ranking_menu()
+            if len(menu) >= 2:
+                self.ranking_menu = list(menu)
+                self.ranker = nn.Sequential(
+                    nn.Linear(self.embedding_dim, 300),
+                    nn.ReLU(),
+                    nn.Linear(300, 300),
+                    nn.ReLU(),
+                    nn.Linear(300, len(menu)),
+                    nn.Softmax(dim=1),
+                )
+
+        # SPECTRA_POLICY_HEAD_ZERO_INIT=1: start from an exactly uniform policy so the first
+        # updates are driven by state features, not by the random bias of the last Linear
+        # (the frozen s42 actor's argmax was its bias vector; audit 13 Sep F3).
+        if policy_head_zero_init():
+            last = self.actor[4]
+            nn.init.zeros_(last.weight)
+            nn.init.zeros_(last.bias)
+            if self.ranker is not None:
+                nn.init.zeros_(self.ranker[4].weight)
+                nn.init.zeros_(self.ranker[4].bias)
+
+    @staticmethod
+    def _configured_ranking_menu():
+        try:
+            from src.Configuration.StaticConf import StaticConf
+            conf = StaticConf.get_instance()
+            menu = getattr(conf.conf_values, "ranking_menu", None) if conf is not None else None
+            return list(menu or [])
+        except Exception:
+            return []
+
+    @property
+    def is_factored(self) -> bool:
+        return self.ranker is not None
 
         # Original NEON feature processing pipelines (legacy). These hold ~10M parameters
         # per agent and are unreachable unless they are the selected encoder, yet they used
@@ -171,6 +259,12 @@ class Agent(nn.Module):
 
         if self.is_actor and not self.is_critic:
             probs = self.actor(embeddings)
+            if self.ranker is not None:
+                from src.fortify import identity_action_index
+                from src.Configuration.StaticConf import StaticConf
+                rates = StaticConf.get_instance().conf_values.compression_rates_dict
+                return FactoredCategorical(Categorical(probs), Categorical(self.ranker(embeddings)),
+                                           identity_index=identity_action_index(rates))
             return Categorical(probs)
         elif self.is_critic and not self.is_actor:
             return self.critic(embeddings)
