@@ -267,7 +267,24 @@ env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_EVAL_FINAL_FT_EPOCHS=
 for j in 21726335 21726336 21726337 21726338 21726340 21726341; do scontrol update JobId=$j Dependency=afterok:<NEW>; done
 ```
 
-A running cell killed by the shutdown is simply requeued or resubmitted with its §10.6 line. Its dependency on a COMPLETED smoke is already satisfied.
+A running cell killed by the shutdown (no Traceback) is requeued, or resubmitted with its exact line below. Drop `SPECTRA_DEPENDENCY` once the smoke has COMPLETED.
+
+```
+cd /home/paretsky/scratch_audit/tree_v9b && export SPECTRA_REPO_DIR=$PWD SPECTRA_EVAL_DETERMINISTIC=1
+P="SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_SAVE_TRAJ_MODELS=1"
+F12="SPECTRA_NUM_EPOCHS=12 SPECTRA_FINETUNE_PATIENCE=4"; C=$PWD/configs/input_c100_canary_vgg11.json
+TW=$PWD/configs/input_catalog_l_twins.json; D=$PWD/configs/input_catalog_l_depgraph_r56.json; V=$PWD/configs/input_catalog_l_depgraph_vgg19_c100.json
+env $P SPECTRA_SEED=42 SPECTRA_EVAL_PASSES=2 SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6 SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-14:00:00 SPECTRA_JOB_NAME=v9b-p-thin-s42 SPECTRA_NICE=1 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $P $F12 SPECTRA_EVAL_PASSES=2 SPECTRA_EVAL_SIZE_POINTS=param:0.9,0.8 SPECTRA_DATASET_NAMES=cifar-100 SPECTRA_INPUT=$C SPECTRA_DATABASE=$C SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-08:00:00 SPECTRA_JOB_NAME=v9b-p-canary-c100 SPECTRA_NICE=1 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $P SPECTRA_EVAL_PASSES=2 SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.7 "SPECTRA_DATASET_NAMES=cifar-10 cifar-100" SPECTRA_INPUT=$TW SPECTRA_WALL=0-20:00:00 SPECTRA_JOB_NAME=v9b-p-twins SPECTRA_NICE=2 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $P SPECTRA_EVAL_ROLLBACK=1 SPECTRA_EVAL_PASSES=3 SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6 SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-16:00:00 SPECTRA_JOB_NAME=v9b-p-n4-rollback SPECTRA_NICE=3 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env SPECTRA_BATCH_SIZE=256 $F12 SPECTRA_EVAL_PASSES=2 SPECTRA_EVAL_SIZE_POINTS=param:0.9,0.8 SPECTRA_DATASET_NAMES=cifar-100 SPECTRA_INPUT=$C SPECTRA_DATABASE=$C SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-06:00:00 SPECTRA_JOB_NAME=v9b-legacy-canary-c100 SPECTRA_NICE=5 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $P SPECTRA_EVAL_PASSES=5 SPECTRA_EVAL_SIZE_POINTS=flop:0.6,0.39 SPECTRA_INPUT=$D SPECTRA_WALL=0-20:00:00 SPECTRA_JOB_NAME=v9b-p-dg-r56 SPECTRA_NICE=6 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $P SPECTRA_EVAL_PASSES=3 SPECTRA_EVAL_SIZE_POINTS=param:0.7,0.5 SPECTRA_DATASET_NAMES=cifar-100 SPECTRA_INPUT=$V SPECTRA_DATABASE=$V SPECTRA_WALL=0-20:00:00 SPECTRA_JOB_NAME=v9b-p-dg-vgg19 SPECTRA_NICE=7 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+# from tree_v9 instead (legacy N0 at batch 256):
+cd /home/paretsky/scratch_audit/tree_v9 && export SPECTRA_REPO_DIR=$PWD
+env SPECTRA_BATCH_SIZE=256 SPECTRA_SEED=42 SPECTRA_EVAL_PASSES=2 SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-14:00:00 SPECTRA_JOB_NAME=v9-n0-mild-s42-b256 SPECTRA_NICE=3 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+```
 
 **Flag to Ido as soon as they land (in this order):**
 
