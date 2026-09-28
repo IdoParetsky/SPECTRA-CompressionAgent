@@ -303,6 +303,9 @@ class A2CAgentReinforce:
         "SPECTRA_FT_COSINE", "SPECTRA_FT_MIXUP", "SPECTRA_FT_LABEL_SMOOTH", "SPECTRA_FT_KD",
         "SPECTRA_FT_KD_T", "SPECTRA_FT_KD_ALPHA", "SPECTRA_FT_GROUP_FIRST_PATIENCE",
         "SPECTRA_PROBE_SET",
+        # The reward's val split and the fine-tune batch: memorised val and a GPU-dependent batch
+        # both changed what a train measured (V9b).
+        "SPECTRA_VAL_FROM_TEST", "SPECTRA_VAL_TEST_FRACTION", "SPECTRA_SPLIT_SEED", "SPECTRA_BATCH_SIZE",
     )
 
     def write_policy_config(self):

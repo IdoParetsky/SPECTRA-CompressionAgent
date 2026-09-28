@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 import numpy as np
@@ -49,21 +50,136 @@ def _traj_capture(env, step_index, rate, test_new, test_orig):
     }
 
 
+def _print_traj_point(key, name, point):
+    if not point:
+        utils.print_flush(f"[eval] TRAJ {key} {name} NONE")
+        return
+    utils.print_flush(
+        f"[eval] TRAJ {key} {name} step={point['step']} | "
+        f"acc {point['test_origin']:.3f} -> {point['test_acc']:.3f} "
+        f"({point['test_dacc_pp'] / 100.0:+.3f}) | params x{point['param']:.3f} | "
+        f"FLOPs x{point['flop']:.3f} | val Δacc {point['val_dacc_pp']:+.2f} pp")
+
+
 def _print_traj_summary(net_path, picked):
     name = os.path.basename(net_path)
     keys = ("floor_hold", "floor_cross", "val_best", "terminal")
     if "size_match" in picked:
         keys = keys + ("size_match",)
     for key in keys:
-        point = picked.get(key)
-        if not point:
-            utils.print_flush(f"[eval] TRAJ {key} {name} NONE")
-            continue
+        _print_traj_point(key, name, picked.get(key))
+
+
+def _keep_final_ft_candidates(env, point, candidates, size_points, tau_pp):
+    """
+    Copy the pruned net when ``point`` becomes the running ``val_best`` (same key and tie order as
+    ``fortify.select_trajectory_points``) or first reaches a size point. Returns the new labels.
+    """
+    from src import fortify as fortify_mod
+    labels = []
+    key = (float(point["param"]), float(point["flop"]), -float(point["val_dacc_pp"]))
+    held = candidates.get("val_best")
+    if (int(point["step"]) >= 0 and float(point["val_dacc_pp"]) + 1e-12 >= -float(tau_pp)
+            and (held is None or key < held["key"])):
+        labels.append("val_best")
+    for kind, target in size_points:
+        label = fortify_mod.size_point_label(kind, target)
+        if label not in candidates and float(point[kind]) <= float(target) + 1e-12:
+            labels.append(label)
+    if labels:
+        model = copy.deepcopy(env.current_model).cpu()
+        for label in labels:
+            candidates[label] = {"point": dict(point), "model": model, "key": key}
+    return labels
+
+
+_FINAL_FT_ENV_KEYS = ("SPECTRA_FT_OPTIM", "SPECTRA_FT_SGD_LR", "SPECTRA_FT_MOMENTUM", "SPECTRA_FT_WD",
+                      "SPECTRA_FT_COSINE", "SPECTRA_FT_SCHEDULE", "SPECTRA_FT_MIXUP",
+                      "SPECTRA_FT_LABEL_SMOOTH", "SPECTRA_FT_KD")
+
+
+def _final_ft(env, net_path, label, candidate, epochs, save_dir=None):
+    """Fine-tune a copy of one candidate with the fixed final recipe; print and record TEST/val."""
+    from src import fortify as fortify_mod
+    name = os.path.basename(net_path)
+    point = candidate["point"]
+    model = copy.deepcopy(candidate["model"])
+    for param in model.parameters():
+        param.requires_grad = True
+    lr = fortify_mod.eval_final_ft_lr()
+    kd = fortify_mod.eval_final_ft_kd()
+    loader, aug = utils.final_ft_train_loader(env.train_loader, fortify_mod.eval_final_ft_batch())
+    recipe = dict(zip(_FINAL_FT_ENV_KEYS, ("sgd", f"{lr:g}", "0.9", "5e-4", "1", "", "0", "0",
+                                           "1" if kd else "0")))
+    saved = {k: os.environ.get(k) for k in _FINAL_FT_ENV_KEYS}
+    t0 = time.perf_counter()
+    try:
+        os.environ.update(recipe)
+        env.create_learning_handler(model).train_model(
+            loader, allow_reinit_retry=False, max_epochs=epochs, patience=epochs + 1,
+            tag=f"final FT {label}")
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    handler = env.create_learning_handler(model)
+    test_acc = float(handler.evaluate_model(env.test_loader))
+    val_acc = float(handler.evaluate_model(env.val_loader))
+    minutes = (time.perf_counter() - t0) / 60.0
+    test_origin, val_origin = float(point["test_origin"]), float(point["val_origin"])
+    utils.print_flush(
+        f"[eval] TRAJ final_ft {label} {name} step={point['step']} | "
+        f"acc {test_origin:.3f} -> {test_acc:.3f} ({test_acc - test_origin:+.3f}) | "
+        f"params x{point['param']:.3f} | FLOPs x{point['flop']:.3f} | "
+        f"val Δacc {(val_acc - val_origin) * 100.0:+.2f} pp | walk acc {float(point['test_acc']):.3f} | "
+        f"sgd lr={lr:g} m=0.9 wd=5e-4 cos e{epochs} bs={loader.batch_size} aug={aug} kd={int(kd)} "
+        f"| {minutes:.1f} min")
+    run_recorder.record(
+        "eval_traj_final_ft", network=net_path, label=label, step=int(point["step"]),
+        param=float(point["param"]), flop=float(point["flop"]),
+        test_origin=test_origin, test_walk=float(point["test_acc"]), test_final=test_acc,
+        val_origin=val_origin, val_walk=float(point["val_acc"]), val_final=val_acc,
+        epochs=int(epochs), lr=float(lr), batch=int(loader.batch_size), aug=aug, kd=bool(kd),
+        minutes=round(minutes, 2))
+    if save_dir:
+        torch.save(model.cpu(), os.path.join(save_dir, f"{name}__{label}__step{point['step']}__ft{epochs}.pt"))
+    return test_acc
+
+
+def _run_final_ft(env, net_path, picked, candidates, epochs):
+    """``SPECTRA_EVAL_FINAL_FT_EPOCHS`` / ``SPECTRA_EVAL_SAVE_TRAJ_MODELS`` after one TRAJ walk."""
+    from src import fortify as fortify_mod
+    name = os.path.basename(net_path)
+    best, held = picked.get("val_best"), candidates.get("val_best")
+    if held is not None and (best is None or int(held["point"]["step"]) != int(best["step"])):
         utils.print_flush(
-            f"[eval] TRAJ {key} {name} step={point['step']} | "
-            f"acc {point['test_origin']:.3f} -> {point['test_acc']:.3f} "
-            f"({point['test_dacc_pp'] / 100.0:+.3f}) | params x{point['param']:.3f} | "
-            f"FLOPs x{point['flop']:.3f} | val Δacc {point['val_dacc_pp']:+.2f} pp")
+            f"[eval] TRAJ final_ft {name}: kept val_best copy is step {held['point']['step']}, "
+            f"selection says {best['step'] if best else None}; dropping the copy")
+        candidates.pop("val_best")
+    if fortify_mod.eval_final_ft_origin() and picked.get("origin") is not None:
+        origin_model = env.data_dict[env.selected_net_path][0]
+        candidates["origin"] = {"point": dict(picked["origin"]),
+                                "model": copy.deepcopy(origin_model).cpu(), "key": None}
+    save_dir = None
+    if fortify_mod.eval_save_traj_models():
+        save_dir = os.path.join(run_recorder.recorder().run_dir, "traj_models")
+        os.makedirs(save_dir, exist_ok=True)
+        for label, cand in candidates.items():
+            torch.save(cand["model"], os.path.join(
+                save_dir, f"{name}__{label}__step{cand['point']['step']}.pt"))
+    if epochs <= 0:
+        return
+    done_steps = {}
+    for label, cand in candidates.items():
+        step = int(cand["point"]["step"])
+        if step in done_steps:
+            utils.print_flush(f"[eval] TRAJ final_ft {label} {name} step={step} | same point as "
+                              f"{done_steps[step]}; not fine-tuned twice")
+            continue
+        _final_ft(env, net_path, label, cand, epochs, save_dir=save_dir)
+        done_steps[step] = label
 
 
 def apply_policy_config(args):
@@ -294,9 +410,20 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         f"protect_streams={int(fortify_mod.protect_streams())} "
                         f"rollback={int(fortify_mod.eval_rollback())} "
                         f"size_match={fortify_mod.eval_size_match() or 'off'} "
-                        f"group_first={fortify_mod.ft_group_first_epochs()}")
+                        f"group_first={fortify_mod.ft_group_first_epochs()} "
+                        f"val_from_test={utils.val_from_test_fraction():g} "
+                        f"batch={env.train_loader.batch_size} "
+                        f"size_points={','.join(f'{k}:{t:g}' for k, t in fortify_mod.eval_size_points()) or 'off'} "
+                        f"final_ft={fortify_mod.eval_final_ft_epochs()}"
+                        f"{'+origin' if fortify_mod.eval_final_ft_origin() else ''}"
+                        f"{'+kd' if fortify_mod.eval_final_ft_kd() else ''}")
                 size_match = fortify_mod.eval_size_match() if traj else None
                 rollback = traj and fortify_mod.eval_rollback() and eval_policy not in ("actor",)
+                size_points = fortify_mod.eval_size_points() if traj else ()
+                final_ft_epochs = fortify_mod.eval_final_ft_epochs() if traj and mode == EVAL_TEST else 0
+                keep_models = traj and mode == EVAL_TEST and (
+                    final_ft_epochs > 0 or fortify_mod.eval_save_traj_models())
+                candidates = {}
                 # Paper TEST walks every remaining prunable row. The size floor
                 # identity-pads unless SPECTRA_EVAL_TRAJECTORY=1, which labels a
                 # ~0.70 hold then continues. Train rollout_limit must not apply
@@ -420,6 +547,9 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             traj_points.append(
                                 _traj_capture(env, step_i, compression_rate,
                                               test_new, test_orig))
+                            if keep_models:
+                                _keep_final_ft_candidates(env, traj_points[-1], candidates, size_points,
+                                                          float(conf.allowed_acc_reduction))
                         elif done and last_test is not None:
                             traj_points.append(
                                 _traj_capture(env, step_i, compression_rate,
@@ -439,6 +569,9 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         tau_pp=float(conf.allowed_acc_reduction),
                         size_match=size_match)
                     _print_traj_summary(net_path, picked)
+                    sized = fortify_mod.select_size_points(traj_points, size_points)
+                    for label, point in sized.items():
+                        _print_traj_point(label, os.path.basename(net_path), point)
                     run_recorder.record(
                         "eval_traj_summary",
                         network=net_path,
@@ -447,7 +580,11 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         val_best=picked.get("val_best"),
                         terminal=picked.get("terminal"),
                         size_match=picked.get("size_match"),
+                        size_points=sized or None,
                         points=traj_points)
+                    if keep_models:
+                        _run_final_ft(env, net_path, picked, candidates, final_ft_epochs)
+                        candidates.clear()
         except Exception as error:
             logging_utils.exception(f"Evaluation of {net_path} failed; continuing with the rest")
             run_recorder.issue("eval_network_failed", f"{type(error).__name__}: {error}",

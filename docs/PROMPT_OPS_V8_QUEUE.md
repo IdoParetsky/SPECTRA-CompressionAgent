@@ -134,8 +134,11 @@ policy comparison. Caption a train probe score as a win. Quote `21703443`.
 
 ## 6. V9 fine-menu kill table (28 Sep sitting) — submit on Ido GO (D1) or after 1 Oct
 
-**Ido 28 Sep ~22:00: GO N0 (seed 43 and seed 44) + N4 tonight** with the 4 h wall below; the rest waits for 1 Oct.
+**Ido 28 Sep ~22:00: GO N0 (seed 43 and seed 44) + N4 tonight**; the rest waits for 1 Oct.
 **`21716380` stays held; decide after 1 Oct** (no resume, no release, no scancel).
+**Submitted:** N0 s43 **21726098**, N0 s44 **21726099** (10 h walls), N4 **21726100** (14 h, untyped); the 4 h
+wall below was too short (§114's 3-pass took 4 h 02 m). All three landed on **RTX 3090s, so batch 256**.
+§93 ran on a GTX 1080 (batch 64), so **N0 vs §93 is seed and batch together**. See §7 before reading N0.
 
 Design, kills and reasons: `docs/PROMPT_FABLE_NEXT_SITTING.md` §9. No agent in any cell.
 `tree_v9 = /home/paretsky/scratch_audit/tree_v9` (tree_v8b + the V9 default-off flags; full suite
@@ -209,3 +212,80 @@ in the ledger read. (r20-w2 halves already printed: both step 40 at mild's 0.536
 F → §120; S → DepGraph quote-only; V1 → §124 VGG-19 twin). N0 goes first in the row text: if either
 seed selects ≤ 0.83 on r56-w4, write "band-edge noise" in the read and do not call any r56-w4 keep
 difference a policy effect until a two-seed read exists.
+
+## 7. V9b protocol queue (28 Sep ~23:50, Opus 5.5 sitting; Ido authorized the submits) — ops manages
+
+Why, in three lines (full evidence in `docs/PROMPT_FABLE_NEXT_SITTING.md` §10):
+
+1. **val is memorized.** The legacy val is carved from the CIFAR train split the zoo nets were trained on. Unpruned val reads 1.000 / 1.000 / 0.999 on the chenyaofo R56·C10 / VGG16·C10 / VGG19·C100 twins, against TEST 0.943 / 0.936 / 0.739. The §124 VGG-19 C100 walk sat at TEST −8.8 with val −30.9.
+2. **The fine-tune batch follows the GPU model**: 64 on a 1080 up to 512. §93 ran at 64; most other rows ran at 256.
+3. **`val_best` is a lottery at a flat band edge.**
+
+New code, all default off: `tree_v9b = /home/paretsky/scratch_audit/tree_v9b` (tree_v9 + V9b; CPU pytest 343/343). **Frozen now**, like every tree with PD/R jobs. `tree_v9` stays frozen too (21726098/99/100/42).
+
+| Job | Name | Tree | Wall / nice | Depends | Read against |
+|---|---|---|---|---|---|
+| **21726334** | v9b-smoke | v9b | 1.5 h / 0 | — | gate for every afterok job |
+| 21726335 | v9b-p-thin-s42 | v9b | 14 h / 1 | afterok smoke | 21726342 (val effect) |
+| 21726336 | v9b-p-canary-c100 | v9b | 8 h / 1 | afterok smoke | 21726339 |
+| 21726337 | v9b-p-twins | v9b | 20 h / 2 | afterok smoke | §124 `21536393` |
+| 21726338 | v9b-p-n4-rollback | v9b | 16 h / 3 | afterok smoke | P-thin; legacy N4 21726100 |
+| 21726342 | v9-n0-mild-s42-b256 | **v9** | 14 h / 3 | — | §93 (batch effect); 21726098/99 (seeds) |
+| 21726339 | v9b-legacy-canary-c100 | v9b | 6 h / 5 | — | 21726336 |
+| 21726340 | v9b-p-dg-r56 | v9b | 20 h / 6 | afterok smoke | DepGraph R56 quote (FLOPs 0.39 = 2.57×) |
+| 21726341 | v9b-p-dg-vgg19 | v9b | 20 h / 7 | afterok smoke | DepGraph VGG-19 C100 quote; §124 twin |
+
+The cluster GPU cap read **4** at 23:50 (`gpu-part MaxTRESPU gres/gpu=4`), so jobs start as slots free, by priority. Do not add jobs to chase the old 6. Do not bypass.
+
+**"P"** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`.
+
+**Greps, every V9b cell:**
+
+```
+grep -E "Val from test|\[eval\] policy=|\[eval\] TRAJ (val_best|terminal|size_|final_ft)|\[eval\] rollback|Traceback" <tree>/runs/job<ID>/logs/rank0.log
+python scripts/traj_readout.py <tree>/runs/job<ID> --taus 10,5,2 --sizes param:0.9,0.8,0.7,0.6,0.5   # offline; login node is fine
+```
+
+**Smoke 21726334 must show** (flag at once, either way):
+
+- `Val from test on cifar-10: n_train=50000 (whole train split), n_val=5000, n_test=5000`;
+- a header ending `val_from_test=0.5 batch=256 size_points=param:0.9 final_ft=1+origin`;
+- `[eval] TRAJ size_param0.90` for each net;
+- `[eval] TRAJ final_ft val_best …`, `… size_param0.90 …` (or `same point as val_best`), and `… origin …` for each net;
+- `runs/job21726334/traj_models/*.pt`.
+
+The smoke is a plumbing check: never ledger it. If it fails, its afterok children sit in `DependencyNeverSatisfied`. Leave them there, report the Traceback, and wait for the next science sitting. Do not patch `tree_v9b`.
+
+**Flag to Ido as soon as they land (in this order):**
+
+1. **P twins 21726337.**
+   - Unpruned val within ~1.5 pp of unpruned TEST on all three nets. If not, the split is wrong: stop and flag.
+   - VGG-19 C100 `val_best` off unpruned: the headline.
+   - The `final_ft` rows and the `origin` rows.
+2. **P canary 21726336 vs legacy canary 21726339.** Admitted = kept ≤ 0.98 with val ≥ −10 under the train FT 12/4. Admit under P and not under legacy means the C100 block was the memorized val.
+3. **Final fine-tune gain**, per net and label: `final_ft` TEST − `walk acc`, and the same for `origin`. The honest gain is the first minus the second.
+4. **N0 set at batch 256** (21726098 / 99 / 42).
+   - r56-w4 selected keep per seed. ≤ 0.83 on any seed means band-edge noise (legacy rule).
+   - r20 step 40 of s42-b256 vs §93 (identical widths): that is the batch effect.
+5. **P thin 21726335 vs N0 s42-b256.** Same seed and batch, legacy vs clean val.
+6. N4 legacy 21726100 and P N4 21726338: which rows roll back.
+7. DepGraph cells: size-point and `final_ft` rows next to the DepGraph quotes (quote only; never "beats").
+
+**Ledger rules for V9b rows.**
+
+- PRELIM, next free §.
+- Name the protocol in the row: `P (clean val, batch 256, final FT 100)` or `legacy (train-split val, batch <n>)`.
+- TEST in P rows is on the **5k TEST half**. Quote the Δ against the same half's unpruned accuracy (the log's `acc a -> b`), never against the 10k number.
+- `size_*` rows are pre-registered readouts. Caption them "size-matched, quoted even if val left τ".
+- `final_ft` rows are captioned "after a 100-epoch SGD final fine-tune", with the `origin` control beside them.
+- Add one provenance paragraph once (like §54): pre-V9b rows used memorized val and a GPU-dependent batch (§10.1–10.2 of the sitting doc).
+- Do not re-grade old rows.
+- Do not edit `SPECTRA_draft.md`.
+
+**Never (V9b additions):**
+
+- Resubmit a V9b cell from a patched tree.
+- Mix P and legacy rows in one comparison without naming both.
+- Quote the smoke.
+- Quote a `final_ft` row without its `origin` control.
+- Pick any point on TEST.

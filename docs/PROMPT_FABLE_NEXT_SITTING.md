@@ -295,3 +295,139 @@ Order if GPUs open before 1 Oct: **N0 → N4 → N1 → N2**, then F1–F3, then
 ### 9.8 Honest scope
 
 The thin TRAJ screen is **two C10 nets** (r20-w2, r56-w4). It is the right kill for "this recipe is not a product on the known-hard skinny pair", and it says nothing about VGG, DenseNet, MobileNet, C100, ImageNet or full-width r56. This sitting added **no accuracy number**: every value in §9.3 is geometry. The one accuracy-relevant finding, that the actor and mild walks are the same geometry on r56-w4, comes from the logs of finished TRAJs. N0 is what turns it into evidence. On r20-w2, 0.95 and the ladder cannot change anything; any r20 difference in N1 is noise by construction.
+
+---
+
+## 10. V9b — the lever is the protocol, not a finer cut (28 Sep ~23:55 IDT, Opus 5.5 MAX)
+
+Ido 23:01: if 0.95 is not the way past the flakiness, what would make SPECTRA prune more accurately, compress more, stay safer and transfer better? Implement the recommended options, queue them, hand ops the queue.
+
+**Short answer.** 0.95 cannot help where the flakiness lives. 0.9 already removes exactly one channel from every group narrower than 16, the smallest possible structured cut. The thin-screen and zoo numbers are flaky because of **how the walk measures**, not how finely it cuts. Three defects, all confirmed from finished logs:
+
+### 10.1 Defect 1 — val is memorized training data (largest effect)
+
+The legacy loader carves val out of the CIFAR **train** split (`utils.load_cnn_dataset`, `random_split`). Every zoo checkpoint was trained on all 50k train images. Unpruned val vs TEST, read from `reset` in the logs:
+
+| Net (job) | val | TEST | gap |
+|---|---|---|---|
+| chenyaofo ResNet-56 C10 (§124 `21536393`) | **1.000** | 0.943 | 5.7 pp |
+| chenyaofo VGG-16 C10 (§124) | **1.000** | 0.936 | 6.4 pp |
+| chenyaofo VGG-19 C100 (§124) | **0.999** | 0.739 | **26.0 pp** |
+| thin r56-w4 (§114 `21536384`) | 0.926 | 0.888 | 3.8 pp |
+| thin r20-w2 (§114) | 0.658 | 0.648 | 1.0 pp |
+
+Each per-step fine-tune on the other 45k images makes the net forget the memorized 5k, so val Δacc ≈ TEST Δacc − (the gap). The §124 VGG-19 C100 walk reached **0.657 params at TEST −8.8 pp** (inside τ = 10 on TEST) while val read **−30.9**, so `val_best` = unpruned. On full-width C10 the band stopped at val −8.2 with TEST −3.3 (r56) / −3.5 (VGG-16).
+
+Consequences:
+
+- τ is a different band on every net. Roughly TEST −4 on full-width C10; unreachable on C100.
+- **Every train's reward read this val** (`NetworkEnv.py` 290 / 812). The agent was punished for forgetting, which favours timid, mild-like policies.
+- Much of the long-standing "C100 is unrecoverable" story is this offset. §7.1 already wrote "val still drops ~3 pp; quote TEST".
+- r20-w2 is nearly clean. That is why the thin screen "works" on r20-w2 and not on r56-w4.
+
+**Fix:** `SPECTRA_VAL_FROM_TEST=1`. Val is half of the CIFAR test split (a fixed permutation, `SPECTRA_SPLIT_SEED`), TEST is the other half, and fine-tuning uses all 50k train images. Neither val nor TEST was seen in pretraining, and selection still never reads TEST. The 5k TEST half has a standard error of ≈ 0.4 pp at 90 %.
+
+### 10.2 Defect 2 — the fine-tune batch follows the GPU model
+
+`get_adaptive_batch_size()` gives: 1080 → 64, 2080 → 128, 3090/4090 → 256, rtx_6000/A100 → 384, >40 GB → 512. The learning rate and epoch budget stay fixed. No CIFAR profile pins `SPECTRA_BATCH_SIZE`, and `submit.sh` picks whatever card is free.
+
+- **§93, the mild yardstick for every actor, ran on a GTX 1080 (batch 64).**
+- §111, §112, §114, §120, §124, GO A area and N0 ran on 3090s (batch 256).
+- GO A factored runs on a 2080 Ti (batch 128).
+
+At r20-w2's identical step-40 widths the GO A ordering follows the batch: mild (64) −3.4, factored (128) −3.7, area (256) −5.1. That is three points and confounded with the policy, so it is not proof; N0 s42-b256 vs §93 measures it.
+
+**Fix:** pin `SPECTRA_BATCH_SIZE=256` in every new cell, the value most ledger rows ran at. The final fine-tune has its own fixed batch (128).
+
+### 10.3 Defect 3 — `val_best` is a maximum over noisy draws at a flat band edge
+
+`val_best` is the most compressed point with val ≥ −τ **anywhere** on the walk. On r56-w4, val sits within about 1 pp of −10 from step ~30 to ~60 (the staircase, §9), so the selected keep depends on which late point happens to pop above −10. The rule is also optimistic (winner's curse).
+
+**Fix:** pre-registered size points (`SPECTRA_EVAL_SIZE_POINTS`) as the second readout. `scripts/traj_readout.py` recomputes the selection from the recorded points of tree_v9+ runs: `val_best` at several τ, `first_exit`, a 3-point-median smoothed selection, the test−val gap, and how many points sit at the band edge.
+
+### 10.4 Alternatives, ranked by expected value per GPU-hour
+
+| # | Lever | Targets | Status |
+|---|---|---|---|
+| 1 | **Clean val** (`SPECTRA_VAL_FROM_TEST`) | compression at equal honest τ; safety (τ means TEST); C100 and zoo transfer; the reward | implemented; P cells queued |
+| 2 | **Batch pin** | every A/B's reproducibility | env pin in every new cell |
+| 3 | **Search short, finish long**: 100-epoch final fine-tune (SGD m 0.9, lr 0.01, wd 5e-4, cosine, crop+flip, batch 128) of `val_best` and the size points, plus the unpruned net as a control | accuracy; SOTA comparability (DepGraph and PruningBench numbers include ~100 FT epochs; SPECTRA's TRAJ rows never did) | implemented |
+| 4 | Size points + robust readouts | flaky conclusions | implemented |
+| 5 | Rollback (N4) | safety; headroom | legacy N4 R; P version queued |
+| 6 | Stream protection (N2) | compression on residual families | re-run under P after P-thin |
+| 7 | KD from the original (F3) | recovery | low: the teacher memorized the train split, so its soft targets on train images are near one-hot. Cheaper test: final-FT KD on the **saved** models |
+| 8 | Zero-shot (pre-FT) val per cut, then sensitivity-guided allocation or a state feature | *which* groups to cut on narrow nets | design only |
+| 9 | 0.95 / ladder | full-width gradualness only (N1b) | kept, low priority |
+| 10 | Next train: reward on clean val, batch pinned, C100 in the pool if the P canary admits | the agent's objective and transfer | after the P cells; it is the one change for the next train |
+
+### 10.5 Implemented (all default off; `tree_v9b`; CPU pytest 343/343)
+
+`tree_v9b = /home/paretsky/scratch_audit/tree_v9b` is `tree_v9` plus:
+
+- `src/utils.py`: `val_from_test_fraction`, `_split_held_out` (all three loader branches), `final_ft_train_loader` (same images, crop+flip, fixed batch).
+- `src/fortify.py`: `eval_size_points` / `select_size_points`, `eval_final_ft_{epochs,lr,batch,kd,origin}`, `eval_save_traj_models`.
+- The runner: running `val_best` and size-point copies (same key as `select_trajectory_points`, asserted), `_run_final_ft`, header fields `val_from_test= batch= size_points= final_ft=`.
+- `policy_config` info keys, so trained actors record their val source and batch.
+- New: `scripts/traj_readout.py`, `tests/test_v9b_protocol.py` (13 tests).
+
+| Flag | Meaning |
+|---|---|
+| `SPECTRA_VAL_FROM_TEST=1` (`SPECTRA_VAL_TEST_FRACTION=0.5`, `SPECTRA_SPLIT_SEED`) | val and TEST = disjoint halves of the held-out split; FT on the whole train split |
+| `SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6` (or `flop:`) | `[eval] TRAJ size_param0.80 …`; the walk does not stop |
+| `SPECTRA_EVAL_FINAL_FT_EPOCHS=100` (`_LR` 0.01, `_BATCH` 128, `_KD`, `_ORIGIN`) | `[eval] TRAJ final_ft <label> <net> step=S \| acc a -> b (Δ) \| params \| FLOPs \| val Δacc \| walk acc w \| recipe \| min` |
+| `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` | `runs/job*/traj_models/<net>__<label>__step<S>[__ft100].pt`: re-fine-tune later without re-walking |
+
+"P" below means `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`. All cells are no-agent, 2-pass group-once mild, TEST FT 40/10, `det=1`, unless stated.
+
+### 10.6 Queue (submitted 28 Sep ~23:50; the GPU cap is now **4**, not 6)
+
+| Job | Name | Tree | Cell | Pairs with | Wall / nice |
+|---|---|---|---|---|---|
+| **21726334** | v9b-smoke | v9b | thin, 1 pass, 1-epoch FTs, P with final FT 1 epoch, size param:0.9 | gates everything below marked afterok | 1.5 h / 0 |
+| 21726335 | v9b-p-thin-s42 | v9b | thin, P, size param:0.8,0.6 (afterok smoke) | N0 s42-b256 (same seed, same batch, legacy val) | 14 h / 1 |
+| 21726336 | v9b-p-canary-c100 | v9b | VGG-11 C100, **train FT 12/4**, P, size param:0.9,0.8 (afterok) | 21726339 | 8 h / 1 |
+| 21726337 | v9b-p-twins | v9b | Catalog L twins (R56·C10, VGG16·C10, VGG19·C100 chenyaofo), P, size param:0.8,0.7 (afterok) | §124 `21536393` (3090 = batch 256, seed 42, legacy val) | 20 h / 2 |
+| 21726338 | v9b-p-n4-rollback | v9b | thin, 3 passes, rollback, P, size param:0.8,0.6 (afterok) | P-thin; legacy N4 21726100 | 16 h / 3 |
+| 21726342 | v9-n0-mild-s42-b256 | **v9** | legacy protocol, seed 42, batch 256 | §93 (seed 42, batch 64): the **batch effect**; P-thin: the **val effect** | 14 h / 3 |
+| 21726339 | v9b-legacy-canary-c100 | v9b | the canary walk, legacy val, batch 256 | 21726336 | 6 h / 5 |
+| 21726340 | v9b-p-dg-r56 | v9b | DepGraph R56·C10, 5 passes, P, size flop:0.6,0.39 (0.39 = DepGraph 2.57×) (afterok) | DepGraph quote only | 20 h / 6 |
+| 21726341 | v9b-p-dg-vgg19 | v9b | DepGraph VGG19·C100, 3 passes, P, size param:0.7,0.5 (afterok) | DepGraph quote only; §124 VGG-19 twin | 20 h / 7 |
+
+Already running from `tree_v9`, all on RTX 3090s (so batch 256):
+
+- N0 s43 **21726098**;
+- N0 s44 **21726099** (started before its batch-pinned replacement, which was cancelled as a duplicate);
+- legacy N4 **21726100**.
+
+With 21726342 that makes a **3-seed batch-256 legacy mild reference**. N0 against §93 is seed **and** batch; say so in the ledger read.
+
+### 10.7 What the results decide
+
+- **Smoke 21726334.** The log must show:
+  - `Val from test on cifar-10: n_train=50000 (whole train split), n_val=5000, n_test=5000`;
+  - a header ending `val_from_test=0.5 batch=256 size_points=param:0.9 final_ft=1+origin`;
+  - `[eval] TRAJ size_param0.90`;
+  - `[eval] TRAJ final_ft val_best|size_param0.90|origin` lines;
+  - `traj_models/*.pt` files.
+
+  A Traceback leaves every afterok child in `DependencyNeverSatisfied`. Flag it and do not resubmit from a patched `tree_v9b`.
+- **The headline (P twins).**
+  - On all three nets, the unpruned val must be within about 1.5 pp of the unpruned TEST.
+  - VGG-19 C100 `val_best` must move off unpruned.
+  - R56 and VGG-16 `val_best` should land deeper than §124's 0.661 / 0.657 at TEST ≥ −10. §124's 2-pass walk ends at 0.66, so with 2 passes "deeper" can only show on VGG-19; the terminal is the ceiling.
+  - If unpruned val is still ≫ TEST, the split is wrong: flag it.
+- **Final fine-tune gain** = `final_ft` TEST − walk TEST at the same point, minus the `origin` control's change. At ≥ 2 pp, SOTA tables use `final_ft` rows (captioned). Below 0.5 pp, the long recipe is not the lever.
+- **P canary.** Admitted means kept ≤ 0.98 with val ≥ −10 under the train FT 12/4. Compare the legacy canary.
+  - Admit under P but not under legacy: the C100 train-pool block was the memorized val.
+- **N0 (3 seeds at batch 256)**, legacy rule: any seed selecting ≤ 0.83 on r56-w4 means band-edge noise. Also read s42-b256 against §93 at r20 step 40 (identical widths): that difference is the batch effect.
+- **P thin vs N0 s42-b256** (same seed and batch): the val effect on the thin pair. Expect small on r20-w2 (gap 1 pp) and a deeper r56-w4 selection (gap 3.8 pp).
+
+### 10.8 Way ahead (after the queue)
+
+1. P passes the smoke and the twins headline: **adopt P as the TEST protocol**. The τ-matched `val_best` (clean val), the size points and the `final_ft` rows go into the Pareto and SOTA rows. Ledger rows before V9b carry a provenance note (memorized val, GPU-dependent batch), in the style of §54.
+2. Re-run the kill-table survivors under P (N2 streams, N1b, F1 / F3), not under the legacy protocol. Final-FT KD first, as a re-fine-tune of the saved `traj_models`.
+3. **Next train, one change:** reward on clean val with the batch pinned (C100 joins the pool if the P canary admits). Not `SPECTRA_PROBE_SET=v7` and a geometry change as well. Frozen actors trained on memorized-val rewards can be replayed under P, but that is a new measurement (their slack channel reads val), not a re-TEST.
+4. Unpruned val still ≫ TEST under P, or the smoke fails: stop and fix the split before anything else.
+5. Group-token resume: Ido, after 1 Oct (D3 unchanged).
+
+**Honest scope.** No V9b accuracy number exists yet. The memorization offset is **measured**: unpruned val vs TEST in finished logs, and TEST vs val at the §124 points. The batch effect is **suggestive** (three points) until N0 s42-b256 lands. The final fine-tune is a standard recipe, not tuned. The saved models allow a KD or longer re-fine-tune later without re-walking.

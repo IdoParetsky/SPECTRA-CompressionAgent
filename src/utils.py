@@ -50,6 +50,34 @@ def env_flag(name: str, default: str = "0") -> bool:
     """Parse a SPECTRA_* on/off environment flag. Default is off unless ``default`` says otherwise."""
     return os.environ.get(name, default).strip().lower() in {"1", "true", "yes", "on"}
 
+
+def val_from_test_fraction() -> float:
+    """
+    ``SPECTRA_VAL_FROM_TEST=1`` (default off): take val from the held-out test split — a fixed
+    ``SPECTRA_VAL_TEST_FRACTION`` share (0.5), permuted by ``SPECTRA_SPLIT_SEED`` — and fine-tune
+    on the whole train split. Returns that share, or 0.0 for the legacy carve.
+
+    The legacy carve takes val from the train split, which every zoo checkpoint was trained on:
+    unpruned val reads 1.000 on chenyaofo ResNet-56 C10 (test 0.943) and 0.999 on VGG-19 C100
+    (test 0.739). val Δacc then measures forgetting of memorised images, not generalisation, and
+    the τ band, the reward and ``val_best`` all inherit that offset.
+    """
+    if not env_flag("SPECTRA_VAL_FROM_TEST"):
+        return 0.0
+    try:
+        share = float(os.environ.get("SPECTRA_VAL_TEST_FRACTION", "0.5").strip() or "0.5")
+    except ValueError:
+        share = 0.5
+    return min(0.9, max(0.1, share))
+
+
+def _split_held_out(test_data, share: float):
+    """``(val, test)`` Subsets of one held-out split; the permutation depends only on SPECTRA_SPLIT_SEED."""
+    g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
+    perm = torch.randperm(len(test_data), generator=g).tolist()
+    n_val = int(round(len(test_data) * share))
+    return Subset(test_data, perm[:n_val]), Subset(test_data, perm[n_val:])
+
 # Possible instantiation functions' parameters
 NUM_CLASSES = "num_classes"
 LARGE_INPUT = "large_input"
@@ -1078,6 +1106,7 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
         (env_flag("SPECTRA_FT_AUG") or env_flag("SPECTRA_FT_AUTOAUG"))
         and canonical in _FT_AUG_DATASETS
     )
+    held_out = val_from_test_fraction()
 
     if canonical in DATASET_BUILDERS:
         if use_aug:
@@ -1088,11 +1117,15 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
             train_aug = factory(root=SPECTRA_DATASETS, train=True, download=True, transform=train_tf)
             train_eval = factory(root=SPECTRA_DATASETS, train=True, download=True, transform=eval_tf)
             test_data = factory(root=SPECTRA_DATASETS, train=False, download=True, transform=eval_tf)
-            train_len = int(len(train_eval) * train_split / (train_split + val_split))
-            g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
-            perm = torch.randperm(len(train_eval), generator=g).tolist()
-            train_data = Subset(train_aug, perm[:train_len])
-            val_data = Subset(train_eval, perm[train_len:])
+            if held_out > 0:
+                train_data = train_aug
+                val_data, test_data = _split_held_out(test_data, held_out)
+            else:
+                train_len = int(len(train_eval) * train_split / (train_split + val_split))
+                g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
+                perm = torch.randperm(len(train_eval), generator=g).tolist()
+                train_data = Subset(train_aug, perm[:train_len])
+                val_data = Subset(train_eval, perm[train_len:])
             bits = []
             if env_flag("SPECTRA_FT_AUG"):
                 bits.append("RandomCrop+Flip")
@@ -1105,13 +1138,17 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
             train_tf = build_transform(name_or_path, options, train=True)
             eval_tf = build_transform(name_or_path, options, train=False)
             train_aug = _large_spatial_split(canonical, "train", train_tf)
-            train_eval = _large_spatial_split(canonical, "train", eval_tf)
             test_data = _large_spatial_split(canonical, "val", eval_tf)
-            train_len = int(len(train_eval) * train_split / (train_split + val_split))
-            g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
-            perm = torch.randperm(len(train_eval), generator=g).tolist()
-            train_data = Subset(train_aug, perm[:train_len])
-            val_data = Subset(train_eval, perm[train_len:])
+            if held_out > 0:
+                train_data = train_aug
+                val_data, test_data = _split_held_out(test_data, held_out)
+            else:
+                train_eval = _large_spatial_split(canonical, "train", eval_tf)
+                train_len = int(len(train_eval) * train_split / (train_split + val_split))
+                g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
+                perm = torch.randperm(len(train_eval), generator=g).tolist()
+                train_data = Subset(train_aug, perm[:train_len])
+                val_data = Subset(train_eval, perm[train_len:])
             print_flush(
                 f"{canonical}: RandomResizedCrop(224) train / "
                 f"Resize(256)+CenterCrop(224) val-test "
@@ -1120,9 +1157,17 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
             transform = build_transform(name_or_path, options)
             train_data, test_data = DATASET_BUILDERS[canonical](transform)
 
-            train_len = int(len(train_data) * train_split / (train_split + val_split))
-            val_len = len(train_data) - train_len
-            train_data, val_data = random_split(train_data, [train_len, val_len])
+            if held_out > 0:
+                val_data, test_data = _split_held_out(test_data, held_out)
+            else:
+                train_len = int(len(train_data) * train_split / (train_split + val_split))
+                val_len = len(train_data) - train_len
+                train_data, val_data = random_split(train_data, [train_len, val_len])
+        if held_out > 0:
+            print_flush(
+                f"Val from test on {canonical}: n_train={len(train_data)} (whole train split), "
+                f"n_val={len(val_data)}, n_test={len(test_data)} "
+                f"(split_seed={os.environ.get('SPECTRA_SPLIT_SEED', '0')})")
     elif os.path.exists(name_or_path):  # Custom dataset path
         transform = build_transform(name_or_path, options)
         dataset = datasets.ImageFolder(Path(name_or_path), transform=transform)
@@ -1148,6 +1193,42 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, **worker_kwargs)
 
     return train_loader, val_loader, test_loader
+
+
+def final_ft_train_loader(train_loader, batch_size=None):
+    """
+    ``(loader, aug)`` for the TRAJ final fine-tune: the same train images as ``train_loader`` with
+    CIFAR RandomCrop(32, pad 4)+Flip in front of their own transform — the recipe the zoo
+    checkpoints were trained with — at ``batch_size`` (default: the loader's). The walk's batch
+    follows the GPU model (:func:`get_adaptive_batch_size`); a fixed final recipe must not. A
+    loader that already augments keeps its images and transform (``aug="loader"``); non-CIFAR or
+    resized inputs are not augmented (``aug="none"``).
+    """
+    import copy as _copy
+
+    batch = int(batch_size or train_loader.batch_size)
+    dataset, indices = train_loader.dataset, None
+    while isinstance(dataset, Subset):
+        outer = list(dataset.indices)
+        indices = outer if indices is None else [outer[i] for i in indices]
+        dataset = dataset.dataset
+    steps = list(getattr(getattr(dataset, "transform", None), "transforms", None) or [])
+    aug = "none"
+    if isinstance(dataset, datasets.CIFAR10) and steps:
+        if any(isinstance(s, (transforms.RandomCrop, transforms.RandomHorizontalFlip,
+                              transforms.AutoAugment)) for s in steps):
+            aug = "loader"
+        elif not any(isinstance(s, (transforms.Resize, transforms.CenterCrop)) for s in steps):
+            dataset = _copy.copy(dataset)
+            dataset.transform = transforms.Compose(
+                [transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(), *steps])
+            aug = "crop+flip"
+    if aug != "crop+flip" and batch == train_loader.batch_size:
+        return train_loader, aug
+    data = dataset if indices is None else Subset(dataset, indices)
+    loader = DataLoader(data, batch_size=batch, shuffle=True,
+                        num_workers=train_loader.num_workers, pin_memory=True)
+    return loader, aug
 
 
 def _pct_cut(before, after):

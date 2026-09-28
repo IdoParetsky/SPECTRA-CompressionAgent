@@ -447,6 +447,82 @@ def eval_size_match() -> Optional[Tuple[str, float]]:
     return (kind, target) if 0.0 < target < 1.0 else None
 
 
+def eval_size_points() -> Tuple[Tuple[str, float], ...]:
+    """
+    ``SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6`` (or ``flop:``; TRAJ only; default off): label the
+    first trajectory point at or below each fraction kept as ``size_param0.80`` … without ending
+    the walk. A readout fixed before the run, so it does not move with where a flat, noisy val
+    curve happens to cross −τ; quoted even when val has left the band, and captioned so.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_SIZE_POINTS", "").strip().lower()
+    if ":" not in raw:
+        return ()
+    kind, _, values = raw.partition(":")
+    kind = {"flops": "flop", "mac": "flop", "macs": "flop",
+            "params": "param", "parameters": "param"}.get(kind.strip(), kind.strip())
+    if kind not in ("flop", "param"):
+        return ()
+    targets = []
+    for value in values.split(","):
+        try:
+            target = float(value)
+        except ValueError:
+            continue
+        if 0.0 < target < 1.0 and target not in targets:
+            targets.append(target)
+    return tuple((kind, t) for t in sorted(targets, reverse=True))
+
+
+def size_point_label(kind: str, target: float) -> str:
+    return f"size_{kind}{float(target):.2f}"
+
+
+def select_size_points(points, targets) -> Dict[str, Optional[dict]]:
+    """First recorded point at or below each ``(kind, target)``; ``None`` if the walk never got there."""
+    pts = list(points or [])
+    return {size_point_label(kind, target): next(
+        (p for p in pts if float(p[kind]) <= float(target) + 1e-12), None)
+        for kind, target in targets}
+
+
+def eval_final_ft_epochs() -> int:
+    """
+    ``SPECTRA_EVAL_FINAL_FT_EPOCHS=<E>`` (TRAJ TEST; default 0 = off): after the walk, fine-tune a
+    copy of ``val_best`` and of every ``SPECTRA_EVAL_SIZE_POINTS`` point for ``E`` epochs with one
+    fixed recipe — SGD momentum 0.9, lr :func:`eval_final_ft_lr`, wd 5e-4, cosine to 0, CIFAR
+    crop+flip, no early stop — and print ``[eval] TRAJ final_ft``. The walk still recovers every
+    cut with its short per-step recipe; published CIFAR pruning numbers include this long final
+    fine-tune (DepGraph, PruningBench: ~100 SGD epochs), SPECTRA's TRAJ rows so far did not.
+    """
+    return max(0, _env_int_or("SPECTRA_EVAL_FINAL_FT_EPOCHS", 0))
+
+
+def eval_final_ft_lr() -> float:
+    return max(1e-6, _env_float_or("SPECTRA_EVAL_FINAL_FT_LR", 0.01))
+
+
+def eval_final_ft_batch() -> int:
+    """``SPECTRA_EVAL_FINAL_FT_BATCH`` (128): fixed, so the final recipe does not follow the GPU model."""
+    return max(2, _env_int_or("SPECTRA_EVAL_FINAL_FT_BATCH", 128))
+
+
+def eval_final_ft_kd() -> bool:
+    """``SPECTRA_EVAL_FINAL_FT_KD=1``: the final fine-tune distils from the unpruned original (KD T/α as the walk)."""
+    return _flag("SPECTRA_EVAL_FINAL_FT_KD")
+
+
+def eval_final_ft_origin() -> bool:
+    """``SPECTRA_EVAL_FINAL_FT_ORIGIN=1``: also fine-tune the unpruned net with the same recipe — the
+    control that separates "the long recipe helps any net" from "it recovers the pruned one"."""
+    return _flag("SPECTRA_EVAL_FINAL_FT_ORIGIN")
+
+
+def eval_save_traj_models() -> bool:
+    """``SPECTRA_EVAL_SAVE_TRAJ_MODELS=1``: ``torch.save`` the final-FT candidates (before and after the
+    final fine-tune) under ``<run_dir>/traj_models/`` so a later recipe needs no new walk."""
+    return _flag("SPECTRA_EVAL_SAVE_TRAJ_MODELS")
+
+
 def ft_group_first_epochs() -> int:
     """
     ``SPECTRA_FT_GROUP_FIRST_EPOCHS=<n>`` (recipe A only; default 0 = off): after a structural
