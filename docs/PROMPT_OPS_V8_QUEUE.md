@@ -134,6 +134,9 @@ policy comparison. Caption a train probe score as a win. Quote `21703443`.
 
 ## 6. V9 fine-menu kill table (28 Sep sitting) — submit on Ido GO (D1) or after 1 Oct
 
+**Ido 28 Sep ~22:00: GO N0 (seed 43 and seed 44) + N4 tonight** with the 4 h wall below; the rest waits for 1 Oct.
+**`21716380` stays held; decide after 1 Oct** (no resume, no release, no scancel).
+
 Design, kills and reasons: `docs/PROMPT_FABLE_NEXT_SITTING.md` §9. No agent in any cell.
 `tree_v9 = /home/paretsky/scratch_audit/tree_v9` (tree_v8b + the V9 default-off flags; full suite
 green on the cluster conda). Nothing runs from it yet. After the first submit it is frozen like

@@ -274,9 +274,9 @@ Order if GPUs open before 1 Oct: **N0 → N4 → N1 → N2**, then F1–F3, then
 
 ### 9.6 Decision points (Ido)
 
-- **D1. GPU tonight.** QOS has two free slots and non-reserved nodes remain (pheno nodes are outside `root_19` / `root_20`). GO N0 + N4 tonight with `SPECTRA_WALL=0-04:00:00`, or hold everything to 1 Oct?
+- **D1. GPU tonight. Decided 28 Sep ~22:00: GO N0 (seeds 43 and 44) + N4 tonight**, 4 h walls, ops submits (`PROMPT_OPS_V8_QUEUE.md` §6). Everything else waits for 1 Oct.
 - **D2. The next train's single change:** `SPECTRA_PROBE_SET=v7` (fix what the governor sees) **or** one action-geometry change that N1 / N2 pass (streams, 0.95 or ladder). Not both.
-- **D3. Group-token resume.** Stay held, or GO a new job from `tree_v9` with `SPECTRA_RESUME_TRAIN=1` (line in the ops doc §6; the governor restarts). Never release `21716380`; its scancel is your call.
+- **D3. Group-token resume. Decided 28 Sep ~22:00: stay held; decide after 1 Oct.** The resume line is ready in the ops doc §6 (new job from `tree_v9`, `SPECTRA_RESUME_TRAIN=1`; the governor restarts). Never release `21716380`.
 - **D4. FT arm order.** F1 (cosine) is cheapest; F2 (group-first) is the one aimed at skinny groups.
 - **D5. Size-match passes:** S1 at 3 and S2 at 5, or drop S2.
 - **D6. VGG-19 C100 walks** now (quote the unpruned row) or after a recipe passes C.
