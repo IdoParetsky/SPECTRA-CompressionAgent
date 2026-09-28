@@ -131,3 +131,72 @@ Scancel a running job. Start C-G / C-G+ DRL or a second factored / budget / grou
 TEST a freeze without GO. Touch `tree_v6_dev`, `tree_v7`, `tree`, `tree_v6_inband`, or leap `src/`.
 Emit `database_offline_v7_diverse_admitted.json` before a cap-40 pair passes. Read r20-w2 as a
 policy comparison. Caption a train probe score as a win. Quote `21703443`.
+
+## 6. V9 fine-menu kill table (28 Sep sitting) — submit on Ido GO (D1) or after 1 Oct
+
+Design, kills and reasons: `docs/PROMPT_FABLE_NEXT_SITTING.md` §9. No agent in any cell.
+`tree_v9 = /home/paretsky/scratch_audit/tree_v9` (tree_v8b + the V9 default-off flags; full suite
+green on the cluster conda). Nothing runs from it yet. After the first submit it is frozen like
+the other trees. **Never `scontrol release 21716380`**: its requeue deletes its own `train_resume.pt`.
+
+```
+cd /home/paretsky/scratch_audit/tree_v9 && mkdir -p runs/slurm_logs && export SPECTRA_REPO_DIR=$PWD
+export SPECTRA_EVAL_DETERMINISTIC=1
+W="SPECTRA_WALL=0-04:00:00"          # while root_19 / root_20 are on the calendar; drop after 1 Oct
+# N0 — seed replicates of §93 (2-pass mild, 40/10). FIRST: decides how every r56-w4 number is read.
+env $W SPECTRA_SEED=43 SPECTRA_EVAL_PASSES=2 SPECTRA_JOB_NAME=v9-n0-mild-s43 SPECTRA_NICE=0 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $W SPECTRA_SEED=44 SPECTRA_EVAL_PASSES=2 SPECTRA_JOB_NAME=v9-n0-mild-s44 SPECTRA_NICE=1 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+# N4 — rollback headroom diagnostic (3 passes)
+env $W SPECTRA_EVAL_ROLLBACK=1 SPECTRA_EVAL_PASSES=3 SPECTRA_JOB_NAME=v9-n4-mild-rollback SPECTRA_NICE=2 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+# N1 — 0.95 where it differs (groups >= 16 wide); dedupe is pinned by the profile
+env $W SPECTRA_EVAL_PASSES=2 SPECTRA_JOB_NAME=v9-n1-mildest95 SPECTRA_NICE=3 bash scripts/submit.sh baseline_c10_mildest95_traj_gonce
+# N2 — stream protection (3 passes)
+env $W SPECTRA_PROTECT_STREAMS=1 SPECTRA_EVAL_PASSES=3 SPECTRA_JOB_NAME=v9-n2-mild-streams SPECTRA_NICE=4 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+# N3 — no cuts on groups <= 4 wide
+env $W SPECTRA_MIN_WIDTH_FOR_PRUNE=4 SPECTRA_EVAL_PASSES=2 SPECTRA_JOB_NAME=v9-n3-mild-minw4 SPECTRA_NICE=5 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+```
+
+After 1 Oct (default wall), same preamble:
+
+```
+T=SPECTRA_EVAL_PASSES=2; F="SPECTRA_NUM_EPOCHS=12 SPECTRA_FINETUNE_PATIENCE=4"      # §120 reference budget
+# N1b — equal-size granularity on the full-width twin (r56 only in the file; 4 passes of 0.95 vs §124's 2 of 0.9)
+SPECTRA_EVAL_PASSES=4 SPECTRA_INPUT=$PWD/configs/input_catalog_l_c10_r56.json SPECTRA_JOB_NAME=v9-n1b-twin-mildest95 SPECTRA_NICE=6 bash scripts/submit.sh baseline_c10_mildest95_traj_gonce
+# F1-F3 — one-recipe FT hypotheses, thin, 12/4, vs §120
+env $T $F SPECTRA_FT_COSINE=1 SPECTRA_JOB_NAME=v9-f1-cosine SPECTRA_NICE=10 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $T $F SPECTRA_FT_GROUP_FIRST_EPOCHS=4 SPECTRA_JOB_NAME=v9-f2-groupfirst SPECTRA_NICE=11 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+env $T $F SPECTRA_FT_KD=1 SPECTRA_JOB_NAME=v9-f3-kd SPECTRA_NICE=12 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+# C — canary for the F winner only (replace <FLAG>=1): VGG-11 C100, same walk
+C=$PWD/configs/input_c100_canary_vgg11.json
+env $T $F <FLAG>=1 SPECTRA_DATASET_NAMES=cifar-100 SPECTRA_INPUT=$C SPECTRA_DATABASE=$C SPECTRA_JOB_NAME=v9-c-canary SPECTRA_NICE=13 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+# S1 / S2 — size-matched R56·C10 rows on DepGraph's own checkpoint (FLOPs 0.39 = DepGraph 2.57x)
+D=$PWD/configs/input_catalog_l_depgraph_r56.json
+SPECTRA_EVAL_PASSES=3 SPECTRA_EVAL_SIZE_MATCH=flop:0.39 SPECTRA_INPUT=$D SPECTRA_JOB_NAME=v9-s1-l1-flop39 SPECTRA_NICE=20 bash scripts/submit.sh baseline_c10_l1_traj_gonce
+SPECTRA_EVAL_PASSES=5 SPECTRA_EVAL_SIZE_MATCH=flop:0.39 SPECTRA_INPUT=$D SPECTRA_JOB_NAME=v9-s2-mild-flop39 SPECTRA_NICE=21 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+# V1 — DepGraph VGG-19 C100 (expected val_best = unpruned until a recipe recovers C100)
+V=$PWD/configs/input_catalog_l_depgraph_vgg19_c100.json
+SPECTRA_EVAL_PASSES=2 SPECTRA_DATASET_NAMES=cifar-100 SPECTRA_INPUT=$V SPECTRA_DATABASE=$V SPECTRA_JOB_NAME=v9-v1-vgg19dg-mild SPECTRA_NICE=22 bash scripts/submit.sh baseline_c10_mild_traj_gonce
+SPECTRA_EVAL_PASSES=2 SPECTRA_DATASET_NAMES=cifar-100 SPECTRA_INPUT=$V SPECTRA_DATABASE=$V SPECTRA_JOB_NAME=v9-v1-vgg19dg-l1 SPECTRA_NICE=23 bash scripts/submit.sh baseline_c10_l1_traj_gonce
+```
+
+**Group-token resume (D3; only on Ido GO).** A new job from `tree_v9` continues `21716380` from the
+19:56 bundle (weights, optimizers, episode index); the governor restarts. Untyped GPU (no SKU floor).
+
+```
+B=/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints
+SPECTRA_RESUME_TRAIN=1 SPECTRA_RESUME_PATH=$B/train_resume.pt \
+  SPECTRA_PARENT_RUN=/home/paretsky/scratch_audit/tree_v8b/runs/job21716380 \
+  SPECTRA_GPU_GRES=1 SPECTRA_JOB_NAME=v8-grouptoken-resume SPECTRA_NICE=30 bash scripts/submit.sh offline_train_v8_grouptoken
+```
+
+**Greps.** Every cell: `grep -E "\[eval\] (TRAJ (val_best|size_match)|rollback)|Traceback|FLAGS" <log>`.
+N1: `Compression Rate: 0.95` appears only on r56-w4's 16-wide stage-3 rows; on narrower groups the
+log says `0.8`, which is the deduped label of the same one-channel cut mild makes (the `width a -> b`
+line is what counts). N2 must show identity on every conv2 / downsample row; the resume must print `resume: keeping …train_resume.pt` in the
+slurm log and `Resumed training from … at episode=16` in `rank0.log`. Points for the fixed-step
+readout are in `run_records.jsonl` → `eval_traj_summary.points`.
+
+**Ledger.** One row per cell from the next free § number, PRELIM, yardstick in the row (N0/N1/N2/N3/N4 → §93;
+F → §120; S → DepGraph quote-only; V1 → §124 VGG-19 twin). N0 goes first in the row text: if either
+seed selects ≤ 0.83 on r56-w4, write "band-edge noise" in the read and do not call any r56-w4 keep
+difference a policy effect until a two-seed read exists.

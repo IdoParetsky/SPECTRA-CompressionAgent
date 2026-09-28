@@ -198,6 +198,11 @@ def estimate_action_costs(model: nn.Module, target_layer: nn.Module,
                                          group_width=width)
         # Infeasible requests are masked for the actor; price them as "nothing removed".
         keep_rates = [mapped[i][0] if mapped[i][2] else 1.0 for i in range(len(compression_rates))]
+    elif fortify.action_dedupe() and group is not None and group.prunable:
+        # Width ladder / dedupe: price the channel count the env will remove; duplicates are masked.
+        mapped = fortify.effective_rates({i: r for i, r in enumerate(compression_rates)}, 0.0,
+                                         group_width=int(group.width))
+        keep_rates = [mapped[i][0] if mapped[i][2] else 1.0 for i in range(len(compression_rates))]
 
     for index, rate in enumerate(keep_rates):
         if float(rate) >= 1.0:

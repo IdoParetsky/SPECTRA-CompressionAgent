@@ -934,6 +934,14 @@ case "$PROFILE" in
       export SPECTRA_CHECKPOINT=val_best
       export SPECTRA_SNAPSHOT_BASELINE="${SPECTRA_SNAPSHOT_BASELINE:-0.05}"
       export SPECTRA_PROBE_EVERY="${SPECTRA_PROBE_EVERY:-12}"
+      # This default fires before the v5/v6 blocks below, so every v3–V8 actor was selected on
+      # the two thin ResNets (audit 28 Sep), never on the VGG-13 + r56-w6 set V7 §1.1 asked for.
+      # SPECTRA_PROBE_SET=v7 switches to that set — the one change of a new train, never mid-run.
+      case "${SPECTRA_PROBE_SET:-}" in
+        v7) export SPECTRA_PROBE_NETS="vgg13_bn_cifar10_,resnet56-width6" ;;
+        ""|thin) ;;
+        *) echo "unknown SPECTRA_PROBE_SET=${SPECTRA_PROBE_SET} (v7|thin)" >&2; exit 1 ;;
+      esac
       export SPECTRA_PROBE_NETS="${SPECTRA_PROBE_NETS:-resnet56-width6,resnet20-width10}"
       export SPECTRA_MIN_EPISODES="${SPECTRA_MIN_EPISODES:-250}"
       export SPECTRA_PATIENCE_EPISODES="${SPECTRA_PATIENCE_EPISODES:-150}"
@@ -971,12 +979,12 @@ case "$PROFILE" in
         # (the only reward whose frozen actor left the 90% keep on r56-w4, ledger §111) on the
         # Catalog-L-clean catalog: 9-net C10 core (VGG-13, not VGG-16) + one SVHN net (P5-B2;
         # CIFAR-100 admitted nothing, §109). Train ∩ {L1, L2, L3, thin, similar, unlike, FMNIST,
-        # ImageNet} = ∅ (tests/test_v5_catalog.py). Probes: VGG-13 C10 + r56-w6. Train FT stays
+        # ImageNet} = ∅ (tests/test_v5_catalog.py). Probes: the thin pair from the v3 default
+        # above (VGG-13 + r56-w6 only with SPECTRA_PROBE_SET=v7). Train FT stays
         # 12/4 unless the ft40 TRAJ (21535193) says 40/10 walks differently — then submit with
         # SPECTRA_TRAIN_FT_EPOCHS=40 SPECTRA_TRAIN_FT_PATIENCE=10 and caption it.
         export SPECTRA_DATABASE="${SPECTRA_V6_DATABASE:-${REPO_DIR}/configs/database_offline_v6_p5b2.json}"
         export SPECTRA_DATASET_NAMES="cifar-10 svhn"
-        export SPECTRA_PROBE_NETS="${SPECTRA_PROBE_NETS:-vgg13_bn_cifar10_,resnet56-width6}"
         if [[ ! -s "$SPECTRA_DATABASE" ]]; then
           echo "offline_train_v6_inband_p5b2: ${SPECTRA_DATABASE} missing" >&2; exit 1
         fi
@@ -1008,9 +1016,8 @@ case "$PROFILE" in
             fi
             # P5-B3 gate: every C100 net in the database must be 'admitted' in the gate table.
             "$PYTHON" "${REPO_DIR}/scripts/build_v5_catalog.py" --check-admitted "$SPECTRA_DATABASE" || exit 1
-            # Catalog L lock (21 Sep): VGG-16 C10 is L2 and left the core; the non-ResNet probe is VGG-13.
-            # C100 admitted nothing (ledger 109) -> second probe stays an in-core thin ResNet.
-            export SPECTRA_PROBE_NETS="${SPECTRA_PROBE_NETS:-vgg13_bn_cifar10_,resnet56-width6}"
+            # Catalog L lock (21 Sep): VGG-16 C10 is L2 and left the core; the non-ResNet probe
+            # VGG-13 needs SPECTRA_PROBE_SET=v7 (the v3 default above already set the thin pair).
             ;;
         esac
         if [[ "$PROFILE" == "offline_train_v5_p5b3_cgp" ]]; then
@@ -1029,11 +1036,31 @@ case "$PROFILE" in
           export SPECTRA_REFRESH_ALL_FEATURES="${SPECTRA_REFRESH_ALL_FEATURES:-0}"
         fi
       fi
-      # Always cold (group-cost changes the token width; no v2 checkpoint can be loaded).
-      unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN
-      rm -f "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" \
-            "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_actor.pt" \
-            "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_critic.pt"
+      # Always cold (group-cost changes the token width; no v2 checkpoint can be loaded) —
+      # unless SPECTRA_RESUME_TRAIN=1 continues a run of this same profile and tree: then the
+      # bundle the prologue copied from SPECTRA_RESUME_PATH stays, and the parent's feature
+      # standardizer is reused. Weights, optimizers and the episode index resume; the governor
+      # (best probe, rewinds) restarts, so the first probe after resume can freeze again.
+      # A requeue of the same job id without the switch deletes its own train_resume.pt here.
+      if [[ "${SPECTRA_RESUME_TRAIN:-0}" == "1" && -s "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" ]]; then
+        if [[ -n "${SPECTRA_PARENT_RUN:-}" ]]; then
+          for _std in "${SPECTRA_PARENT_RUN}/standardizer.pt" "${SPECTRA_PARENT_RUN}/agent_checkpoints/standardizer.pt"; do
+            if [[ -s "$_std" ]]; then
+              cp -f "$_std" "${SPECTRA_RUN_DIR}/standardizer.pt"
+              cp -f "$_std" "${SPECTRA_RUN_DIR}/agent_checkpoints/standardizer.pt"
+              echo "resume: standardizer from ${_std}"
+              break
+            fi
+          done
+        fi
+        echo "resume: keeping ${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt"
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN
+      else
+        unset SPECTRA_ACTOR_CHECKPOINT_PATH SPECTRA_CRITIC_CHECKPOINT_PATH SPECTRA_RESUME_PATH SPECTRA_PARENT_RUN
+        rm -f "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" \
+              "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_actor.pt" \
+              "${SPECTRA_RUN_DIR}/agent_checkpoints/latest_best_critic.pt"
+      fi
       export SPECTRA_CONTINUE_TRAIN=0
       export SPECTRA_SKIP_TRAIN=0
       if [[ "$PROFILE" == "offline_train_v7_budget" ]]; then
@@ -1620,7 +1647,7 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce)
+  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce|baseline_c10_mildest95_traj_gonce)
     # Same-loop structured baselines vs DRL: same rates, FT, fortify, floor 0.70.
     # Env still L1-ranks filters; these policies only pick the compression rate.
     # *_traj: unconstrained TRAJ protocol (quote [eval] TRAJ). *_gonce: plus
@@ -1645,8 +1672,15 @@ case "$PROFILE" in
     export SPECTRA_CONTINUE_TRAIN=0
     export SPECTRA_REWARD_MODE="${SPECTRA_REWARD_MODE:-neon}"
     export SPECTRA_STATE_ENCODER="${SPECTRA_STATE_ENCODER:-transformer}"
+    BASELINE_RATES=(1.0 0.9 0.8)
     case "$PROFILE" in
       baseline_c10_mild|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce) export SPECTRA_EVAL_POLICY=mild ;;
+      baseline_c10_mildest95_traj_gonce)
+        # V9 fine menu: weakest legal cut. 0.95 is finer than 0.9 only on groups >= 16 wide;
+        # dedupe masks it below that, where the walk is the mild walk.
+        export SPECTRA_EVAL_POLICY=mildest
+        export SPECTRA_ACTION_DEDUPE=1
+        BASELINE_RATES=(1.0 0.95 0.9 0.8) ;;
       baseline_c10_random) export SPECTRA_EVAL_POLICY=random ;;
       *) export SPECTRA_EVAL_POLICY=l1 ;;
     esac
@@ -1660,7 +1694,7 @@ case "$PROFILE" in
     fi
     EXTRA_ARGS=(--runtime_limit 7200 --allowed_acc_reduction 10
                 --train_compressed_layer_only False
-                --compression_rates 1.0 0.9 0.8)
+                --compression_rates "${BASELINE_RATES[@]}")
     ;;
   *)
     echo "Unknown SPECTRA_PROFILE='${PROFILE}'" >&2

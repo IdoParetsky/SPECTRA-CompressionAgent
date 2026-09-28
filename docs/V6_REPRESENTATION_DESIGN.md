@@ -101,9 +101,11 @@ now** — see §3 for why the next train GPU is better spent elsewhere.
 | Group-as-token + relational bias | **keep — the one cell**, after §0 says content is read per layer | thesis novelty; CNN-native prune unit |
 | Shared actor/critic trunk | **keep, second cell** | cheap, standard; not a representation claim |
 | Full feature refresh under recipe A | **ride-along flag exists** (`SPECTRA_REFRESH_ALL_FEATURES`) | NEON `create_fe`; state lag is a caption until measured — put it on the *group-token* job, not on its own GPU |
-| Probe set VGG-13 + r56-w6 | **done** in the v5/v6 profiles | rewind governor no longer thin-ResNet-only |
+| Probe set VGG-13 + r56-w6 | **claimed done; was not** (correction 28 Sep, below) | every v3–V8 train probed r56-w6 + r20-w10 |
 | "Identity-skip of FT / don't reward identity" | **subsumed** by in-band linear | identity pays 0 vs +ρ for a legal cut; the opportunity cost now exists |
 | Add 0.7 to the rate menu | **not now** | the in-band actor reached 0.756 kept on r56-w4 with {1.0, 0.9, 0.8}; the clone was the reward, not the ladder. Reopen only if the matched-size heuristic controls show the ladder, not the schedule, is binding |
+
+**Correction (28 Sep, V9 sitting).** (1) *Probe set.* The v3 default `SPECTRA_PROBE_NETS=resnet56-width6,resnet20-width10` in `spectra.sbatch` runs before the v5/v6 VGG-13 defaults, so those never applied: every v3–V8 train (area, PPO-8, factored, budget, group-token) probed two thin ResNets. The fix is `SPECTRA_PROBE_SET=v7` in `tree_v9`, for the next train only. (2) *The 0.756 row above.* The in-band actor's r56-w4 walk is mild's geometry (0.9 on every legal row in pass 1). Its 0.756 is mild's pass-1 staircase read at the band edge, not a different policy (`PROMPT_FABLE_NEXT_SITTING.md` §9). The "reward, not the ladder" reading waits for the seed replicate N0.
 
 ## 3. Order (GPU) — representation is third, not first
 

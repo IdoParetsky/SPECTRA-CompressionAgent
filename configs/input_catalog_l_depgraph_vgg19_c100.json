@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/vgg19_cifar100_dep_graph_73.5.pth": [
+    "vgg19_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_depgraph.py",
+    "cifar-100"
+  ]
+}

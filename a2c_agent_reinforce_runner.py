@@ -51,7 +51,10 @@ def _traj_capture(env, step_index, rate, test_new, test_orig):
 
 def _print_traj_summary(net_path, picked):
     name = os.path.basename(net_path)
-    for key in ("floor_hold", "floor_cross", "val_best", "terminal"):
+    keys = ("floor_hold", "floor_cross", "val_best", "terminal")
+    if "size_match" in picked:
+        keys = keys + ("size_match",)
+    for key in keys:
         point = picked.get(key)
         if not point:
             utils.print_flush(f"[eval] TRAJ {key} {name} NONE")
@@ -87,13 +90,18 @@ def apply_policy_config(args):
     with open(path, "r", encoding="utf-8") as fh:
         cfg = json.load(fh)
     changed = []
-    for key, value in (cfg.get("env") or {}).items():
+    env_cfg = cfg.get("env") or {}
+    for key, value in env_cfg.items():
         if value is None:
             continue
         current = os.environ.get(key)
         if current != str(value):
             os.environ[key] = str(value)
             changed.append(f"{key}: {current!r} -> {value!r}")
+    for key in A2CAgentReinforce.ACTION_GEOMETRY_KEYS:
+        if key not in env_cfg and os.environ.get(key, "").strip() not in ("", "0"):
+            changed.append(f"{key}: {os.environ[key]!r} -> unset (actor trained without it)")
+            os.environ.pop(key)
     rates = cfg.get("compression_rates")
     if rates and [float(x) for x in rates] != [float(x) for x in args.compression_rates]:
         changed.append(f"compression_rates: {args.compression_rates} -> {rates}")
@@ -280,7 +288,15 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         f"ranking_menu={list(getattr(conf, 'ranking_menu', None) or [])} "
                         f"rankings={[conf.action_rankings_dict.get(i) for i in sorted(conf.action_rankings_dict)]} "
                         f"ft_recipe={fortify_mod.ft_recipe(bool(conf.train_compressed_layer_only))} "
-                        f"refresh_all={int(fortify_mod.refresh_all_features())}")
+                        f"refresh_all={int(fortify_mod.refresh_all_features())} "
+                        f"ladder={fortify_mod.width_ladder_max()} "
+                        f"dedupe={int(fortify_mod.action_dedupe())} "
+                        f"protect_streams={int(fortify_mod.protect_streams())} "
+                        f"rollback={int(fortify_mod.eval_rollback())} "
+                        f"size_match={fortify_mod.eval_size_match() or 'off'} "
+                        f"group_first={fortify_mod.ft_group_first_epochs()}")
+                size_match = fortify_mod.eval_size_match() if traj else None
+                rollback = traj and fortify_mod.eval_rollback() and eval_policy not in ("actor",)
                 # Paper TEST walks every remaining prunable row. The size floor
                 # identity-pads unless SPECTRA_EVAL_TRAJECTORY=1, which labels a
                 # ~0.70 hold then continues. Train rollout_limit must not apply
@@ -380,9 +396,25 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                                 f"{conf.compression_rates_dict[int(action.item())]}")
                     compression_rate = conf.compression_rates_dict[int(action.item())]
                     ranking = _ranking_for(conf, fortify_mod, int(action.item()), chosen_rank)
+                    is_cut = abs(float(compression_rate) - 1.0) >= 1e-9
+                    snapshot = env.rollback_snapshot() if (rollback and is_cut) else None
                     next_state, reward, done = env.step(compression_rate, ranking=ranking)
+                    rolled_back = False
+                    if snapshot is not None:
+                        val_pp = (float(env.last_val_acc) - float(env.original_acc)) * 100.0
+                        if val_pp < -float(conf.allowed_acc_reduction):
+                            locked = env.rollback_to(snapshot)
+                            rolled_back = True
+                            utils.print_flush(
+                                f"[eval] rollback step={step_i} rate={compression_rate} "
+                                f"val Δacc {val_pp:+.2f} pp < -τ; cut undone, "
+                                f"{len(locked)} layer(s) locked for the walk")
+                            run_recorder.record("eval_rollback", network=net_path, step=step_i,
+                                                rate=float(compression_rate), val_dacc_pp=val_pp,
+                                                locked=locked)
+                        snapshot = None
                     if traj and mode == EVAL_TEST:
-                        if abs(float(compression_rate) - 1.0) >= 1e-9:
+                        if is_cut and not rolled_back:
                             test_new, test_orig, _ = env.score_test_loader()
                             last_test = (test_new, test_orig)
                             traj_points.append(
@@ -392,13 +424,20 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             traj_points.append(
                                 _traj_capture(env, step_i, compression_rate,
                                               last_test[0], last_test[1]))
+                        if (size_match is not None and not done and traj_points
+                                and float(traj_points[-1][size_match[0]]) <= size_match[1] + 1e-12):
+                            utils.print_flush(
+                                f"[eval] TRAJ size_match {size_match[0]} "
+                                f"x{traj_points[-1][size_match[0]]:.3f} <= {size_match[1]}; walk ends")
+                            done = True
                     step_i += 1
                     state = next_state
                 if traj and mode == EVAL_TEST:
                     picked = fortify_mod.select_trajectory_points(
                         traj_points,
                         min_param=fortify_mod.eval_min_param_ratio(),
-                        tau_pp=float(conf.allowed_acc_reduction))
+                        tau_pp=float(conf.allowed_acc_reduction),
+                        size_match=size_match)
                     _print_traj_summary(net_path, picked)
                     run_recorder.record(
                         "eval_traj_summary",
@@ -406,7 +445,9 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         floor_hold=picked.get("floor_hold"),
                         floor_cross=picked.get("floor_cross"),
                         val_best=picked.get("val_best"),
-                        terminal=picked.get("terminal"))
+                        terminal=picked.get("terminal"),
+                        size_match=picked.get("size_match"),
+                        points=traj_points)
         except Exception as error:
             logging_utils.exception(f"Evaluation of {net_path} failed; continuing with the rest")
             run_recorder.issue("eval_network_failed", f"{type(error).__name__}: {error}",

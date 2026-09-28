@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/vgg11_bn_cifar100_chenyaofo_70.78_9.8_306.68.pt": [
+    "vgg11_bn",
+    "/home/paretsky/spectra_models_instantiation/vgg_chenyaofo.py",
+    "cifar-100"
+  ]
+}

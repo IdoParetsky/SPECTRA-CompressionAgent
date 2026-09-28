@@ -291,12 +291,61 @@ def stop_reward_scale(default: float = 100.0) -> float:
 BUDGET_OVERSHOOT_TOLERANCE = 1.5
 
 
+def width_ladder_max() -> int:
+    """
+    ``SPECTRA_WIDTH_LADDER=<W>`` (V7 §3.6; default 0 = off): on a group at most ``W`` channels
+    wide, a rate means a channel count instead of a fraction — the number of channels it would
+    remove from a ``LADDER_REFERENCE_WIDTH``-wide group (0.9 → 1, 0.8 → 2, 0.7 → 3).
+
+    With ``round`` and the one-channel minimum of :func:`pruning.target_width`, 0.9 and 0.8 both
+    remove exactly one channel on every group 3–7 channels wide, so two menu entries are one
+    action there. The ladder keeps them distinct. With ``W <= 15`` it never changes a 0.9 cut
+    (0.9 already removes exactly one channel from every group narrower than 16), so the ``mild``
+    walk is unchanged by construction; only harsher entries and the actor's menu change.
+    Implies :func:`action_dedupe`. Pinned in ``policy_config``.
+    """
+    return max(0, _env_int_or("SPECTRA_WIDTH_LADDER", 0))
+
+
+LADDER_REFERENCE_WIDTH = 10
+
+
+def action_dedupe() -> bool:
+    """
+    ``SPECTRA_ACTION_DEDUPE=1`` (default off; implied by the ladder): when two non-identity
+    entries realise the same width on the current group, only the one with the lowest nominal
+    rate stays legal. With a 0.95 entry this is what makes 0.95 exist only where it is a finer
+    cut than 0.9 (groups ≥ 16 channels wide); below that it is masked as a duplicate of 0.9, so
+    the ``mild`` picker keeps its 0.9 and the actor has no duplicate logits.
+    """
+    return _flag("SPECTRA_ACTION_DEDUPE") or width_ladder_max() > 0
+
+
+def ladder_keep_rate(rate: float, width: Optional[int]) -> Optional[float]:
+    """Keep rate the ladder applies for ``rate`` on a ``width``-wide group; ``None`` = not a ladder row.
+
+    ``0.0`` means the ladder asks for more channels than the group has (infeasible).
+    """
+    lim = width_ladder_max()
+    value = float(rate)
+    if lim <= 0 or width is None or not 0.0 < value < 1.0:
+        return None
+    w = int(width)
+    if w <= 1 or w > lim:
+        return None
+    removed = LADDER_REFERENCE_WIDTH - pruning.target_width(LADDER_REFERENCE_WIDTH, value)
+    kept = w - removed
+    return kept / float(w) if kept >= 1 else 0.0
+
+
 def effective_rates(compression_rates: Dict[int, float], group_param_fraction: float,
                     group_width: Optional[int] = None) -> Dict[int, Tuple[float, bool, bool]]:
     """
     ``{action index: (keep rate the env will apply, is_stop, feasible)}`` for the current group.
 
-    ``rates`` menu: identity mapping, every action feasible, nothing is STOP.
+    ``rates`` menu: identity mapping, every action feasible, nothing is STOP — unless the width
+    ladder (:func:`width_ladder_max`) remaps a narrow group or :func:`action_dedupe` masks an
+    entry that realises the same width as a harsher-nominal one (both need ``group_width``).
     ``budget`` menu (``SPECTRA_ACTION_MENU=budget``): a value ≥ 1 is identity; a negative
     value is STOP (identity step that ends the episode); a value in (0, 1) is "remove this
     fraction of the *network's* parameters through this group" and maps onto a keep rate
@@ -314,7 +363,11 @@ def effective_rates(compression_rates: Dict[int, float], group_param_fraction: f
     for idx, raw in compression_rates.items():
         value = float(raw)
         if not budget:
-            out[idx] = (value, False, True)
+            laddered = ladder_keep_rate(value, group_width)
+            if laddered is None:
+                out[idx] = (value, False, True)
+            else:
+                out[idx] = (laddered if laddered > 0.0 else value, False, laddered > 0.0)
         elif value < 0.0:
             out[idx] = (1.0, True, True)
         elif value >= 1.0:
@@ -325,7 +378,87 @@ def effective_rates(compression_rates: Dict[int, float], group_param_fraction: f
             if feasible and per_channel is not None and per_channel > BUDGET_OVERSHOOT_TOLERANCE * value:
                 feasible = False
             out[idx] = (keep, False, feasible)
+    if not budget and action_dedupe() and group_width is not None and int(group_width) > 1:
+        w = int(group_width)
+        owner_of_width: Dict[int, int] = {}
+        for idx in sorted(out, key=lambda i: float(compression_rates[i])):
+            keep, is_stop, feasible = out[idx]
+            if is_stop or not feasible or not 0.0 < float(keep) < 1.0:
+                continue
+            realised = pruning.target_width(w, float(keep))
+            if realised in owner_of_width:
+                out[idx] = (keep, False, False)
+            else:
+                owner_of_width[realised] = idx
     return out
+
+
+def protect_streams() -> bool:
+    """
+    ``SPECTRA_PROTECT_STREAMS=1`` (default off): identity on every row whose channel group has
+    more than one producer — a residual stream (stem / downsample + every ``conv2`` it is added
+    to, MobileNet-v2 projections). Only block-internal channels are cut. This is Li et al.'s
+    ResNet rule (ICLR 2017; ``res56prune.py`` prunes only the first conv of each block, never
+    the one whose output meets the shortcut), without their per-target skip lists and stage
+    rates. VGG / DenseNet groups have one producer and are unaffected. Pinned in ``policy_config``.
+    """
+    return _flag("SPECTRA_PROTECT_STREAMS")
+
+
+def is_residual_stream(group) -> bool:
+    """A group whose channel dimension is written by more than one producer (added streams)."""
+    return group is not None and len(getattr(group, "producers", []) or []) > 1
+
+
+def eval_rollback() -> bool:
+    """
+    ``SPECTRA_EVAL_ROLLBACK=1`` (TRAJ, heuristic policies; default off): a cut whose recovered
+    **val** Δacc leaves −τ is undone — the pre-cut model is restored and the group is locked for
+    the rest of the walk — and the walk goes on with the next row. No test score is read to
+    decide. It measures how deep a *safe* schedule can go with this menu and recovery: an upper
+    bound for any policy that only sees the state before the cut.
+    """
+    return _flag("SPECTRA_EVAL_ROLLBACK")
+
+
+def eval_size_match() -> Optional[Tuple[str, float]]:
+    """
+    ``SPECTRA_EVAL_SIZE_MATCH=flop:0.39`` or ``param:0.42`` (TRAJ only; default off): label the
+    first trajectory point at or below that fraction kept as ``size_match`` and end the walk
+    there. That is the published-size row printed beside a paper's number (DepGraph R56 2.57×
+    FLOPs ≈ 0.39 kept; OCS VGG-16 ≈ 0.42 params), reported even when val left the band. Set
+    ``SPECTRA_EVAL_PASSES`` high enough for the walk to reach it.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_SIZE_MATCH", "").strip().lower()
+    if not raw or ":" not in raw:
+        return None
+    kind, _, value = raw.partition(":")
+    kind = kind.strip()
+    if kind in ("flops", "mac", "macs"):
+        kind = "flop"
+    if kind in ("params", "parameters"):
+        kind = "param"
+    if kind not in ("flop", "param"):
+        return None
+    try:
+        target = float(value)
+    except ValueError:
+        return None
+    return (kind, target) if 0.0 < target < 1.0 else None
+
+
+def ft_group_first_epochs() -> int:
+    """
+    ``SPECTRA_FT_GROUP_FIRST_EPOCHS=<n>`` (recipe A only; default 0 = off): after a structural
+    cut, train only the rewritten group (producers, consumer slices, norms; everything else
+    frozen, frozen BatchNorms held in eval) for up to ``n`` epochs, then run recipe A's
+    full-net fine-tune unchanged. FT kill-table hypothesis (ii); the budget is additive.
+    """
+    return max(0, _env_int_or("SPECTRA_FT_GROUP_FIRST_EPOCHS", 0))
+
+
+def ft_group_first_patience(default: int = 2) -> int:
+    return max(1, _env_int_or("SPECTRA_FT_GROUP_FIRST_PATIENCE", default))
 
 
 def ft_reinit_then_polish() -> bool:
@@ -839,7 +972,7 @@ def legal_action_mask(
     unknown_fraction = budget and group_param_fraction is None
     mapped = effective_rates(compression_rates,
                              0.0 if group_param_fraction is None else float(group_param_fraction),
-                             group_width=None if group_param_fraction is None else int(alive_count))
+                             group_width=None if unknown_fraction else int(alive_count))
     for idx, raw in compression_rates.items():
         keep, is_stop, feasible = mapped[idx]
         # STOP (budget menu, rate < 0) is legal on every row, including stems.
@@ -952,12 +1085,15 @@ def trajectory_release_floor(at_budget: bool, actor_idx: int, guarded_idx: int) 
     return int(actor_idx) != int(guarded_idx)
 
 
-def select_trajectory_points(points, *, min_param: float, tau_pp: float) -> dict:
+def select_trajectory_points(points, *, min_param: float, tau_pp: float,
+                             size_match: Optional[Tuple[str, float]] = None) -> dict:
     """Pick labeled TEST points from a recorded prune curve.
 
     ``points`` are dicts with ``param``, ``flop``, ``val_dacc_pp``, ``test_dacc_pp``.
     ``val_best`` is the *most compressed* in-budget val point (not the kindest
     Δacc). Test Δacc is reported at that step but never used to pick it.
+    ``size_match`` (``(kind, target)`` from :func:`eval_size_match`) adds the first point
+    at or below that fraction kept, whatever its Δacc.
     """
     pts = list(points or [])
     origin = pts[0] if pts else None
@@ -981,13 +1117,18 @@ def select_trajectory_points(points, *, min_param: float, tau_pp: float) -> dict
             in_tau,
             key=lambda p: (float(p["param"]), float(p["flop"]), -float(p["val_dacc_pp"])),
         )
-    return {
+    out = {
         "origin": origin,
         "floor_hold": floor_hold,
         "floor_cross": floor_cross,
         "val_best": val_best,
         "terminal": terminal,
     }
+    if size_match is not None:
+        kind, target = size_match
+        out["size_match"] = next(
+            (p for p in pts if float(p[kind]) <= float(target) + 1e-12), None)
+    return out
 
 
 def eval_min_flop_ratio() -> float:
@@ -1265,6 +1406,8 @@ def heuristic_eval_action(
         The name ``l1`` is historical: it is *greedy rate selection*, not a different
         ranking. Filters are still ranked by ``filter_importance``.
     mild: prefer 0.9 if legal, else strongest prune.
+    mildest: weakest legal prune (highest rate < 1) — the 0.95 walk when the menu has 0.95;
+        pair with ``SPECTRA_ACTION_DEDUPE=1`` so 0.95 is only legal where it is finer than 0.9.
     random: uniform among legal non-identity actions.
     """
     identity = next(
@@ -1283,6 +1426,9 @@ def heuristic_eval_action(
     if name in ("random", "uniform_random"):
         pick = prune_idx[int(torch.randint(0, len(prune_idx), (1,)).item())]
         return torch.tensor([pick], device=device)
+    if name == "mildest":
+        weakest = max(prune_idx, key=lambda i: float(compression_rates[i]))
+        return torch.tensor([weakest], device=device)
     if name in ("mild", "l1_mild"):
         nines = [i for i in prune_idx if abs(float(compression_rates[i]) - 0.9) < 1e-9]
         if nines:

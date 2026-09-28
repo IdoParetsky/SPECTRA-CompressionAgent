@@ -205,9 +205,9 @@ case "$PROFILE" in
     # Plain C10-thin held-out eval (no FLOP floor) — the §17 r20-w2 / r56-w4 comparison.
     # _traj is the unconstrained curve (floor-hold then continue); _gonce adds group-once.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
-  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce)
+  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce|baseline_c10_mildest95_traj_gonce)
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
-    # *_traj / *_traj_gonce: TRAJ protocol, optionally with group-once.
+    # *_traj / *_traj_gonce: TRAJ protocol, optionally with group-once. mildest95: V9 fine menu.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
   diag_reward_band)
     # Crossed dataset x outcome reward-band trace. Short wall so it hands the GPU back.
@@ -410,10 +410,20 @@ for _k in SPECTRA_EVAL_DETERMINISTIC SPECTRA_REWARD_MODE SPECTRA_REWARD_SCALE \
           SPECTRA_DATASET_NAMES SPECTRA_EVAL_COUNTERFACTUAL SPECTRA_PROBE_SCORE SPECTRA_STATE_TOKENS SPECTRA_FT_LR SPECTRA_FT_OPTIM SPECTRA_FT_SGD_LR \
           SPECTRA_FT_SCHEDULE SPECTRA_FT_LR_MIN SPECTRA_FT_WARMUP_EPOCHS SPECTRA_FT_WD \
           SPECTRA_FT_LSQ_CONSUMERS SPECTRA_FT_BN_RECAL SPECTRA_FT_CALIB_BATCHES SPECTRA_FT_CALIB_IMAGES \
-          SPECTRA_ACTION_MENU SPECTRA_STOP_REWARD_SCALE; do
+          SPECTRA_ACTION_MENU SPECTRA_STOP_REWARD_SCALE \
+          SPECTRA_WIDTH_LADDER SPECTRA_ACTION_DEDUPE SPECTRA_PROTECT_STREAMS SPECTRA_MIN_WIDTH_FOR_PRUNE \
+          SPECTRA_EVAL_ROLLBACK SPECTRA_EVAL_SIZE_MATCH SPECTRA_FT_GROUP_FIRST_EPOCHS \
+          SPECTRA_FT_GROUP_FIRST_PATIENCE SPECTRA_FT_COSINE SPECTRA_FT_MIXUP SPECTRA_FT_LABEL_SMOOTH \
+          SPECTRA_FT_KD SPECTRA_FT_KD_T SPECTRA_FT_KD_ALPHA SPECTRA_PROBE_SET SPECTRA_RESUME_TRAIN; do
   _v="${!_k-}"
   if [[ -n "$_v" ]]; then
-    SBATCH_EXPORT+=",${_k}=${_v}"
+    if [[ "$_v" == *,* ]]; then
+      # sbatch --export splits on commas; --export=ALL carries the exported value intact.
+      export "${_k}=${_v}"
+      echo "note: ${_k}=${_v} has a comma; passed via --export=ALL, not the explicit list" >&2
+    else
+      SBATCH_EXPORT+=",${_k}=${_v}"
+    fi
   fi
 done
 

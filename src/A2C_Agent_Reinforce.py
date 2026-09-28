@@ -57,7 +57,26 @@ def load_agent_checkpoint(model, checkpoint_path, device):
 
     # Saved from a DDP replica but restored into a bare module (or vice versa)
     state_dict = {(k[len("module."):] if k.startswith("module.") else k): v for k, v in state_dict.items()}
-    ddp.unwrap(model).load_state_dict(state_dict)
+    target = ddp.unwrap(model)
+    target.load_state_dict(_backfill_zero_init_keys(target, state_dict))
+
+
+# Parameters added after actors were frozen whose zero init leaves the old forward unchanged
+# (V8 ``SpectraStateEncoder.relation_bias`` is only read when group-token relations exist).
+ZERO_INIT_BACKFILL_SUFFIXES = ("relation_bias",)
+
+
+def _backfill_zero_init_keys(model, state_dict):
+    """Zero-fill ``ZERO_INIT_BACKFILL_SUFFIXES`` keys a checkpoint predates; every other key stays strict."""
+    own = model.state_dict()
+    missing = [k for k in own if k not in state_dict and k.endswith(ZERO_INIT_BACKFILL_SUFFIXES)]
+    if not missing:
+        return state_dict
+    filled = dict(state_dict)
+    for key in missing:
+        filled[key] = torch.zeros_like(own[key])
+    utils.print_flush(f"checkpoint predates {len(missing)} zero-init parameter(s); zero-filled {missing}")
+    return filled
 
 
 def save_agent_checkpoint(model, path):
@@ -260,7 +279,14 @@ class A2CAgentReinforce:
         "SPECTRA_FT_LSQ_CONSUMERS", "SPECTRA_FT_BN_RECAL", "SPECTRA_ACTION_MENU",
         # V8 representation cell: group-as-token changes the token width and the attention bias.
         "SPECTRA_STATE_TOKENS",
+        # V9 action geometry (what an action index removes on a narrow group) and recovery.
+        "SPECTRA_WIDTH_LADDER", "SPECTRA_ACTION_DEDUPE", "SPECTRA_PROTECT_STREAMS",
+        "SPECTRA_FT_GROUP_FIRST_EPOCHS",
     )
+    # Contract keys that change what an action index means. An actor whose config predates
+    # them was trained with them off, so a replay turns them off (the other contract keys
+    # only pin when present, as before).
+    ACTION_GEOMETRY_KEYS = ("SPECTRA_WIDTH_LADDER", "SPECTRA_ACTION_DEDUPE", "SPECTRA_PROTECT_STREAMS")
     POLICY_INFO_KEYS = (
         "SPECTRA_FT_OPTIM", "SPECTRA_FT_SCHEDULE", "SPECTRA_FT_WD", "SPECTRA_FT_LR", "SPECTRA_FT_LR_MIN",
         "SPECTRA_FT_WARMUP_EPOCHS", "SPECTRA_FT_CALIB_BATCHES", "SPECTRA_FT_CALIB_IMAGES",
@@ -274,6 +300,9 @@ class A2CAgentReinforce:
         "SPECTRA_PROBE_NETS", "SPECTRA_MIN_EPISODES", "SPECTRA_PATIENCE_EPISODES",
         "SPECTRA_REWIND_BEST", "SPECTRA_REWIND_PATIENCE", "SPECTRA_REWIND_MAX",
         "SPECTRA_REWIND_ENTROPY", "SPECTRA_ENTROPY_MIN", "SPECTRA_ENTROPY_ANNEAL_HORIZON",
+        "SPECTRA_FT_COSINE", "SPECTRA_FT_MIXUP", "SPECTRA_FT_LABEL_SMOOTH", "SPECTRA_FT_KD",
+        "SPECTRA_FT_KD_T", "SPECTRA_FT_KD_ALPHA", "SPECTRA_FT_GROUP_FIRST_PATIENCE",
+        "SPECTRA_PROBE_SET",
     )
 
     def write_policy_config(self):

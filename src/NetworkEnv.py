@@ -222,7 +222,10 @@ class NetworkEnv:
         self.actions_history = []
         self._ratio_cache = {}
         self._pass_locked_layers = set()
+        self._rollback_locked_layers = set()
         self._episode_group_cuts = {}
+        self.last_step_outcome = {"mode": "identity"}
+        self.last_step_layer_idx = None
         self._reset_episode_reward_stats()
 
         # If a specific network is requested, use it directly (evaluation / cross-validation).
@@ -408,6 +411,9 @@ class NetworkEnv:
         def _current_flops():
             return utils.calc_flops(self.current_model, self._input_shape())
 
+        if fortify.width_ladder_max() > 0:
+            compression_rate = self._ladder_keep_rate(
+                ModelWithRows(self.current_model), max(0, (self.row_idx or 1) - 1), compression_rate)
         if abs(float(compression_rate) - 1.0) < 1e-9:
             p = utils.calc_num_parameters(self.current_model) / origin_p
             if not need_flops:
@@ -469,20 +475,75 @@ class NetworkEnv:
         if fortify.action_menu() == "budget":
             # Budget actions are priced per group: the mask must judge the mapped keep rate.
             owned = recovery_edits.group_param_fraction(model_with_rows, row)
+        force_identity = self.group_locked(layer_idx)
+        if not force_identity and fortify.protect_streams():
+            force_identity = self._is_stream_row(model_with_rows, layer)
         return legal_action_mask(
             self.conf.compression_rates_dict,
             row_index=row,
             alive_count=alive,
             device=dev,
-            force_identity=self.group_locked(layer_idx),
+            force_identity=force_identity,
             group_param_fraction=owned,
         )
 
+    @staticmethod
+    def _is_stream_row(model_with_rows, layer) -> bool:
+        """True when ``layer`` writes a residual stream (``SPECTRA_PROTECT_STREAMS``)."""
+        try:
+            groups = channel_groups.build_channel_groups(model_with_rows.model)
+        except Exception:
+            return False
+        if not groups:
+            return False
+        return fortify.is_residual_stream(channel_groups.group_of(groups, layer))
+
+    @staticmethod
+    def _ladder_keep_rate(model_with_rows, row: int, rate: float) -> float:
+        """Keep rate the width ladder applies to ``row`` (``rate`` when no ladder row; 1.0 = infeasible)."""
+        value = float(rate)
+        if fortify.width_ladder_max() <= 0 or not 0.0 < value < 1.0:
+            return value
+        target = model_with_rows.all_layers[model_with_rows.row_to_main_layer[row]]
+        alive = int(pruning.alive_filters(target).numel()) if hasattr(target, "weight") else None
+        keep, _is_stop, feasible = fortify.effective_rates({0: value}, 0.0, group_width=alive)[0]
+        return float(keep) if feasible else 1.0
+
     def group_locked(self, layer_idx: int) -> bool:
-        """True when ``layer_idx`` owns a group already cut this pass (group-once switch)."""
+        """
+        True when ``layer_idx`` owns a group already cut this pass (group-once switch), or a
+        group whose cut an eval rollback undid (locked for the rest of the walk).
+        """
+        if int(layer_idx) in (getattr(self, "_rollback_locked_layers", None) or set()):
+            return True
         if not fortify.group_once_per_pass():
             return False
         return int(layer_idx) in (getattr(self, "_pass_locked_layers", None) or set())
+
+    def rollback_snapshot(self) -> dict:
+        """Pre-step copy for ``SPECTRA_EVAL_ROLLBACK``: the model and the val accuracy it scored."""
+        return {"model": copy.deepcopy(self.current_model),
+                "val_acc": float(self.last_val_acc if self.last_val_acc is not None
+                                 else self.original_acc)}
+
+    def rollback_to(self, snapshot: dict) -> list:
+        """
+        Undo the last step's cut: restore ``snapshot`` and lock the layers of the group that was
+        cut (the target layer alone after a masked fallback) for the rest of the walk. The row
+        counter and pass bookkeeping stay where the step left them. Returns the locked indices.
+        """
+        outcome = getattr(self, "last_step_outcome", None) or {}
+        indices = [int(i) for i in (outcome.get("group_layer_indices") or [])]
+        if not indices and self.last_step_layer_idx is not None:
+            indices = [int(self.last_step_layer_idx)]
+        self.current_model = snapshot["model"]
+        self.last_val_acc = float(snapshot["val_acc"])
+        self._ratio_cache = {}
+        locked = getattr(self, "_rollback_locked_layers", None)
+        if locked is None:
+            locked = self._rollback_locked_layers = set()
+        locked.update(indices)
+        return indices
 
     def tau(self) -> float:
         """τ in force: ``SPECTRA_TRAIN_TAU`` in AGENT_TRAIN mode, else ``--allowed_acc_reduction``."""
@@ -622,6 +683,17 @@ class NetworkEnv:
                 if n_norms:
                     utils.print_flush(f"BN recalibration: {n_norms} BatchNorm module(s)")
 
+        group_first = fortify.ft_group_first_epochs()
+        edited = list(getattr(model_with_rows, "last_edited_param_ids", None) or [])
+        if (group_first and is_to_train and recipe == "A" and edited
+                and prune_outcome.get("mode") == "structural"):
+            handler.freeze_all_layers_but_pruned(edited)
+            with logging_utils.stage("step.finetune", level=logging.DEBUG):
+                handler.train_model(self.train_loader, max_epochs=group_first,
+                                    patience=fortify.ft_group_first_patience(), tag="group-first")
+            handler.unfreeze_all_layers()
+            prune_outcome["ft_group_first"] = group_first
+
         if is_to_train:
             with logging_utils.stage("step.finetune", level=logging.DEBUG):
                 # Policy-training episodes may use a shorter recovery budget
@@ -677,6 +749,10 @@ class NetworkEnv:
             utils.print_flush(
                 f"budget action: remove {requested_rate:.4f} of the network "
                 f"through a group that owns {owned:.4f} -> keep rate {compression_rate:.4f}")
+        elif fortify.width_ladder_max() > 0 and 0.0 < requested_rate < 1.0:
+            compression_rate = self._ladder_keep_rate(model_with_rows, self.row_idx - 1, requested_rate)
+            if abs(compression_rate - requested_rate) > 1e-9:
+                utils.print_flush(f"width ladder: rate {requested_rate} -> keep rate {compression_rate:.4f}")
 
         # Determine affected layers (from current row up to start of next row)
         current_layer_idx = model_with_rows.row_to_main_layer[self.row_idx - 1]
@@ -727,6 +803,8 @@ class NetworkEnv:
             learning_handler_new_model = self.create_learning_handler(model_with_rows.model)
             self._recover_after_prune(learning_handler_new_model, model_with_rows, prune_outcome,
                                       is_to_train)
+        self.last_step_outcome = prune_outcome
+        self.last_step_layer_idx = current_layer_idx
 
         # Evaluate the compressed model
         learning_handler_new_model.model.eval()
