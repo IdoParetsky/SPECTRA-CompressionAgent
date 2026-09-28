@@ -199,6 +199,12 @@ line is what counts). N2 must show identity on every conv2 / downsample row; the
 slurm log and `Resumed training from … at episode=16` in `rank0.log`. Points for the fixed-step
 readout are in `run_records.jsonl` → `eval_traj_summary.points`.
 
+**GO A read rule (`21725471` / `72`, r56-w4 half).** Before calling either head deeper or kinder,
+grep that section's `Step N - Layer L (Conv2d), Compression Rate: r` lines. If every legal row is
+`0.9` through step 57, the walk is mild's geometry: a selected keep of 0.832 / 0.757 / 0.756 is a
+point on mild's staircase read at the band edge, not a head effect, until N0 says otherwise. Say so
+in the ledger read. (r20-w2 halves already printed: both step 40 at mild's 0.536 / 0.655 widths.)
+
 **Ledger.** One row per cell from the next free § number, PRELIM, yardstick in the row (N0/N1/N2/N3/N4 → §93;
 F → §120; S → DepGraph quote-only; V1 → §124 VGG-19 twin). N0 goes first in the row text: if either
 seed selects ≤ 0.83 on r56-w4, write "band-edge noise" in the read and do not call any r56-w4 keep
