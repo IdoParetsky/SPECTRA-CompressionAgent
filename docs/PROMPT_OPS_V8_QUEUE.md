@@ -256,6 +256,19 @@ python scripts/traj_readout.py <tree>/runs/job<ID> --taus 10,5,2 --sizes param:0
 
 The smoke is a plumbing check: never ledger it. If it fails, its afterok children sit in `DependencyNeverSatisfied`. Leave them there, report the Traceback, and wait for the next science sitting. Do not patch `tree_v9b`.
 
+**Shutdown case only.** If the 29 Sep maintenance kills the smoke without a Traceback (NODE_FAIL / CANCELLED by root, or no log at all), resubmit the identical line and point the children at the new id. This is not a code change, so it is allowed:
+
+```
+cd /home/paretsky/scratch_audit/tree_v9b && export SPECTRA_REPO_DIR=$PWD SPECTRA_EVAL_DETERMINISTIC=1
+env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_EVAL_FINAL_FT_EPOCHS=1 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 \
+  SPECTRA_EVAL_SAVE_TRAJ_MODELS=1 SPECTRA_EVAL_SIZE_POINTS=param:0.9 SPECTRA_EVAL_PASSES=1 SPECTRA_NUM_EPOCHS=1 \
+  SPECTRA_FINETUNE_PATIENCE=1 SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-01:30:00 SPECTRA_JOB_NAME=v9b-smoke SPECTRA_NICE=0 \
+  bash scripts/submit.sh baseline_c10_mild_traj_gonce
+for j in 21726335 21726336 21726337 21726338 21726340 21726341; do scontrol update JobId=$j Dependency=afterok:<NEW>; done
+```
+
+A running cell killed by the shutdown is simply requeued or resubmitted with its §10.6 line. Its dependency on a COMPLETED smoke is already satisfied.
+
 **Flag to Ido as soon as they land (in this order):**
 
 1. **P twins 21726337.**
