@@ -117,6 +117,12 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     for param in model.parameters():
         param.requires_grad = True
     kd = fortify_mod.eval_final_ft_kd()
+    if kd and getattr(env, "kd_teacher", None) is None:
+        # env.reset() builds a teacher only under the walk's SPECTRA_FT_KD; without one the handler skips KD
+        teacher = copy.deepcopy(env.data_dict[env.selected_net_path][0]).eval()
+        for param in teacher.parameters():
+            param.requires_grad = False
+        env.kd_teacher = teacher
     loader, aug = utils.final_ft_train_loader(env.train_loader, fortify_mod.eval_final_ft_batch())
     recipe = dict(zip(_FINAL_FT_ENV_KEYS, ("sgd", f"{lr:g}", "0.9", "5e-4", "1", "", "0", "0",
                                            "1" if kd else "0")))

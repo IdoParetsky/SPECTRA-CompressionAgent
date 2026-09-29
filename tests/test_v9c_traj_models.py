@@ -247,6 +247,18 @@ def test_one_failing_candidate_does_not_cost_the_others(monkeypatch):
     assert any(ln.startswith("EXC [eval] TRAJ final_ft val_best net.pt failed") for ln in lines)
 
 
+def test_final_ft_kd_builds_a_frozen_teacher_from_the_original(monkeypatch):
+    import a2c_agent_reinforce_runner as runner
+    _quiet(monkeypatch, runner)
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_KD", "1")
+    env = _Env()
+    original = env.data_dict["net.pt"][0]
+    runner._run_final_ft(env, "net.pt", {"val_best": _point(5, 0.7, -9.0)}, _candidates(), 10)
+    assert env.kd_teacher is not None and env.kd_teacher is not original
+    assert not any(p.requires_grad for p in env.kd_teacher.parameters())
+    assert torch.equal(env.kd_teacher.weight, original.weight)
+
+
 def test_saved_files_are_state_dicts_with_arch_json(monkeypatch, tmp_path):
     import a2c_agent_reinforce_runner as runner
     _quiet(monkeypatch, runner, tmp_path)
