@@ -518,9 +518,41 @@ def eval_final_ft_origin() -> bool:
 
 
 def eval_save_traj_models() -> bool:
-    """``SPECTRA_EVAL_SAVE_TRAJ_MODELS=1``: ``torch.save`` the final-FT candidates (before and after the
-    final fine-tune) under ``<run_dir>/traj_models/`` so a later recipe needs no new walk."""
+    """``SPECTRA_EVAL_SAVE_TRAJ_MODELS=1``: save the final-FT candidates (before and after the final
+    fine-tune) under ``<run_dir>/traj_models/`` as ``state_dict`` + arch/recipe JSON
+    (:mod:`src.traj_models`), so a later recipe needs no new walk."""
     return _flag("SPECTRA_EVAL_SAVE_TRAJ_MODELS")
+
+
+def eval_final_ft_scratch() -> str:
+    """
+    ``SPECTRA_EVAL_FINAL_FT_SCRATCH`` (default off): also train each final-FT candidate's architecture
+    from a fresh init (``1`` = inherit and scratch, ``only`` = scratch alone) — Liu et al. (ICLR 2019)
+    "scratch-E", the network-level reading of "throw away the pruned layer and train a new one".
+    Budget :func:`eval_final_ft_scratch_epochs` at lr :func:`eval_final_ft_scratch_lr`; the ``origin``
+    candidate trained the same way is the recipe's own ceiling.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_FINAL_FT_SCRATCH", "").strip().lower()
+    if raw == "only":
+        return "only"
+    return "both" if raw in ("1", "true", "yes", "on", "both") else ""
+
+
+def eval_final_ft_scratch_epochs() -> int:
+    return max(1, _env_int_or("SPECTRA_EVAL_FINAL_FT_SCRATCH_EPOCHS", 200))
+
+
+def eval_final_ft_scratch_lr() -> float:
+    return max(1e-6, _env_float_or("SPECTRA_EVAL_FINAL_FT_SCRATCH_LR", 0.1))
+
+
+def eval_final_ft_from() -> str:
+    """
+    ``SPECTRA_EVAL_FINAL_FT_FROM=<traj_models dir>`` (TRAJ TEST; default off): skip the walk and run the
+    final fine-tune on the candidates an earlier job saved there (``SPECTRA_EVAL_SAVE_TRAJ_MODELS=1``),
+    so a new final recipe (scratch, KD, epochs) costs no new walk.
+    """
+    return os.environ.get("SPECTRA_EVAL_FINAL_FT_FROM", "").strip()
 
 
 def ft_group_first_epochs() -> int:

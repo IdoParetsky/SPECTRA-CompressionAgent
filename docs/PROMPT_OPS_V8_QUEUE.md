@@ -215,6 +215,10 @@ difference a policy effect until a two-seed read exists.
 
 ## 7. V9b protocol queue (28 Sep ~23:50, Opus 5.5 sitting; Ido authorized the submits) — ops manages
 
+**LIVE 29 Sep 15:55.** Cap 4. **0 R.** Twins GO §142. DepGraph R56 **21726340 COMPLETED** §146. V9b GPU queue empty.
+
+**Utilization (Ido 15:49).** Independent no-agent TESTs do **not** wait for a second GO. Sitting writes `docs/SITTING_GPU_QUEUE.md` and **sbatches** to keep QOS 4 full (afterok OK). Ops does not invent cells; if the sitting table lists `NEXT` and GPUs are idle, ops may submit those exact lines. **Still GO:** trains, release **21716380**, catalog emit, TEST PPO-8 / Budget / GT ep0011. Do not patch `tree_v9b`. Ledger next **§147**.
+
 Why, in three lines (full evidence in `docs/PROMPT_FABLE_NEXT_SITTING.md` §10):
 
 1. **val is memorized.** The legacy val is carved from the CIFAR train split the zoo nets were trained on. Unpruned val reads 1.000 / 1.000 / 0.999 on the chenyaofo R56·C10 / VGG16·C10 / VGG19·C100 twins, against TEST 0.943 / 0.936 / 0.739. The §124 VGG-19 C100 walk sat at TEST −8.8 with val −30.9.
@@ -319,3 +323,110 @@ env SPECTRA_BATCH_SIZE=256 SPECTRA_SEED=42 SPECTRA_EVAL_PASSES=2 SPECTRA_GPU_GRE
 - Quote the smoke.
 - Quote a `final_ft` row without its `origin` control.
 - Pick any point on TEST.
+
+## 8. V9c + wave queue (29 Sep ~17:45 IDT, Opus 5.5 sitting) — ops manages
+
+**LIVE 29 Sep 17:45.** Cap 4: **4 R, 13 PD.** Live table: `docs/SITTING_GPU_QUEUE.md`. Ranked options and rules: `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. Ledger next **§147**.
+
+**Trees.**
+- `tree_v9b` is frozen and serves wave 1 (21729551–58). Those runs have `SPECTRA_EVAL_SAVE_TRAJ_MODELS` **unset**, so `final_ft` runs but nothing is saved.
+- `tree_v9c = /home/paretsky/scratch_audit/tree_v9c` is `tree_v9b` plus:
+  - `src/traj_models.py`: candidates saved as `state_dict` + arch/recipe JSON, never the live module; saves never raise;
+  - `SPECTRA_EVAL_FINAL_FT_SCRATCH=both|only`: re-initialise and train 200 ep SGD 0.1;
+  - `SPECTRA_EVAL_FINAL_FT_FROM=<run>/traj_models`: final FT of a saved walk, no new walk;
+  - a final FT where one failing candidate does not cost the others (`final_ft_failed` issue).
+- CPU pytest **367/367**. Frozen now.
+
+**P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256`. Wave 1 adds `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` where it runs a final FT. Wave 2 adds `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`.
+
+| Job | Name | Tree | Wall / nice | Depends | Pairs with (paired read) |
+|---|---|---|---|---|---|
+| 21729551 R | v9b-ft100-dg-vgg19 | v9b | 20 h / 10 | — | honest gain (`final_ft_readout.py`) |
+| 21729552 R | v9b-p-gate-c100 | v9b | 16 h / 20 | — | control for 21729554 |
+| 21729553 R | v9b-aug-twins | v9b | 16 h / 30 | — | 21726337 by step |
+| 21729554 R | v9b-aug-gate-c100 | v9b | 16 h / 40 | — | 21729552 by step |
+| **21730498** | v9c-smoke-save | v9c | 1 h / 0 | — | gate for every v9c job |
+| 21730499 | v9c-smoke-from | v9c | 1 h / 0 | afterok 498 | — |
+| 21730500 | v9c-ft100-dg-r56 | v9c | 30 h / 5 | afterok 498 | 21726340 by step (must be ≈ 0) |
+| 21729555 | v9b-p-thin-12x4 | v9b | 5 h / 10 | — | control for 21729556 |
+| 21729556 | v9b-aug-thin-12x4 | v9b | 5 h / 11 | — | 21729555 by step |
+| 21730501 | v9c-ft100-thin | v9c | 18 h / 20 | afterok 498 | 21726335 by step (must be ≈ 0) |
+| 21729557 | v9b-aug-thin | v9b | 14 h / 30 | — | 21726335 by step |
+| 21730506 | v9c-ft100-twins-c10 | v9c | 30 h / 40 | afterok 498 | 21726337 by step (must be ≈ 0) |
+| 21730507 | v9c-scratch-thin | v9c | 16 h / 45 | afterok 501 | its `+scratch` rows vs 21730501's inherited rows |
+| 21730509 | v9c-cg-neon-twins | v9c | 30 h / 50 | afterok 498 | 21726337 by step, **big-effect kill** |
+| 21730514 | v9c-cg-neon-thin | v9c | 24 h / 52 | afterok 498 | 21726335 by step, **big-effect kill** |
+| 21730516 | v9c-scratch-dg-r56 | v9c | 30 h / 55 | afterok 500 | its `+scratch` rows vs 21730500 |
+| 21729558 | v9b-p-n2-streams | v9b | 16 h / 80 | — | 21726335 **by params** |
+
+**Smoke 21730498 must show** (flag at once either way):
+- the header ending `final_ft=1+origin+scratch:both`;
+- `[eval] TRAJ final_ft <label> … init=inherit` and `… <label>+scratch … init=scratch` for each net;
+- `runs/job21730498/traj_models/*.pt` **and** `*.json`, including `…__origin__step-1.pt`;
+- no `PicklingError` or `TRAJ save failed`.
+
+**Smoke 21730499 must show** `[eval] TRAJ final_ft from …/job21730498/traj_models: ['size_param0.90', 'val_best'] for <net>`, then `final_ft` lines with `init=inherit`.
+
+If either smoke has a Traceback, its afterok children wait in `DependencyNeverSatisfied`. Leave them, report, and do not patch `tree_v9c`. Shutdown case (no Traceback, NODE_FAIL or root CANCELLED): resubmit the identical line and repoint the children with `scontrol update JobId=<j> Dependency=afterok:<NEW>`.
+
+**Greps, every cell:**
+
+```
+grep -E "Val from test|FT aug on|\[eval\] policy=|\[eval\] TRAJ (val_best|size_|final_ft)|TRAJ save failed|final_ft_failed|Traceback" <tree>/runs/job<ID>/logs/rank0.log
+```
+
+**Paired early read.** Heartbeat, every R arm in the table; val only; login node is fine:
+
+```
+PY=/home/paretsky/.conda/envs/spectra/bin/python; cd /home/paretsky/scratch_audit/tree_v9c
+$PY scripts/paired_steps.py <tree>/runs/job<ARM> <tree>/runs/job<CONTROL> [--by params]
+$PY scripts/paired_steps.py <arm> <control> --min-steps 5 --kill 3 --frac 0.8        # C-G cells only
+```
+
+- **`KILL`** on an arm in this table: scancel **that arm** (pre-registered; independent no-agent cell, not a train). Ledger one PRELIM line, "early kill, paired val, n pairs, mean", and report it in the heartbeat. Do not scancel a control, a final-FT cell or anything outside this table.
+- **`ADOPT?`** is a candidate only. The arm keeps running to TEST. Report it; do not adopt on val.
+- A `tree_v9c` final-FT cell re-walks its control, so its paired read must be ≈ 0. Flag if |mean| > 0.5 pp.
+
+**Readouts when a cell COMPLETES** (login node):
+
+```
+$PY scripts/final_ft_readout.py <tree>/runs/job<ID>                 # honest gain; ADOPT ≥ 2 pp, CROSS-OFF < 0.5 pp
+$PY scripts/crossfit_readout.py <tree>/runs/job<ID> --taus 10,5 --sizes <the cell's size points>
+```
+
+`crossfit_readout.py` is invalid for 21726338-style rollback walks.
+
+**NEXT lines** (submit only when the condition in `SITTING_GPU_QUEUE.md` holds, and a GPU would otherwise idle):
+
+```
+cd /home/paretsky/scratch_audit/tree_v9c && export SPECTRA_REPO_DIR=$PWD SPECTRA_EVAL_DETERMINISTIC=1
+P0="SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256"; D=$PWD/configs/input_catalog_l_depgraph_r56.json; S="bash scripts/submit.sh baseline_c10_mild_traj_gonce"
+# N1 KD final FT from the saved DepGraph R56 walk (after 21730500 COMPLETED, honest gain >= 0.5 pp).
+# SPECTRA_FT_KD=1 is required on tree_v9c: the teacher is built at env.reset() only under that flag, and
+# without it EVAL_FINAL_FT_KD prints kd=1 but distils from nothing. From-saved runs no walk, so it touches nothing else.
+env $P0 SPECTRA_FT_KD=1 SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_FINAL_FT_KD=1 SPECTRA_EVAL_FINAL_FT_FROM=$PWD/runs/job21730500/traj_models SPECTRA_INPUT=$D SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-16:00:00 SPECTRA_JOB_NAME=v9c-kd-from-dg-r56 SPECTRA_NICE=60 $S
+# N2 AutoAugment final FT from the same saved walk (same condition)
+env $P0 SPECTRA_FT_AUG=1 SPECTRA_FT_AUTOAUG=1 SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_FINAL_FT_FROM=$PWD/runs/job21730500/traj_models SPECTRA_INPUT=$D SPECTRA_GPU_GRES=1 SPECTRA_WALL=0-16:00:00 SPECTRA_JOB_NAME=v9c-autoaug-from-dg-r56 SPECTRA_NICE=61 $S
+```
+
+N3–N7 need a sitting decision (they depend on TEST reads, not on a pre-registered val rule). Do not submit them from ops.
+
+**Wave lines as submitted** (for a shutdown resubmit only): `scripts/_tmp_v9c_wave1.sh` (tree_v9b) and `scripts/_tmp_v9c_wave2.sh` (tree_v9c) in the repo. Both skip names that are already queued.
+
+**Ledger rules for these rows** (continue from §147):
+- **§147** is the zero-GPU readout of the finished P walks, **not** a TEST row. Its source is `PROMPT_FABLE_NEXT_SITTING.md` §13.1:
+  - census: 0/343 full-width cut points with val Δ > 0; r20-w2 8/18;
+  - cross-fit 10k numbers;
+  - first paired read, r20-w13 C100 +4.60 pp val, 16 cuts.
+- Name the protocol and the half in every row: "P, 5k TEST half" or "P, 10k (cross-fit / both halves)".
+- `final_ft` rows: always beside the origin row and the honest gain; caption "after a 100-epoch SGD final fine-tune".
+- `+scratch` rows: caption "scratch-B (re-initialised, 200 ep SGD 0.1), Liu et al. 2019", beside the inherited row at the same step and `origin+scratch`.
+- C-G rows: caption "C-G under P, NEON train-loss stop (patience 10, cap 100)".
+- Do not edit `SPECTRA_draft.md`.
+
+**Never (V9c additions):**
+- Patch `tree_v9c` while its jobs are PD or R.
+- Adopt on a paired val read.
+- Quote a smoke.
+- Quote a `+scratch` row without `origin+scratch`.
+- Quote a 10k cross-fit number as a single network's accuracy: it is the rule's two-fold estimate, and both fold points are printed.
