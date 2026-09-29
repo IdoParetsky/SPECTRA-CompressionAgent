@@ -570,7 +570,7 @@ Write the live tables in **`docs/SITTING_GPU_QUEUE.md`** and paste the same tabl
 
 ---
 
-## 13. Status-note action items → options ranked, and the A/B ladder (29 Sep ~17:45 IDT, Opus 5.5 MAX)
+## 13. Status-note action items → options ranked, and the A/B ladder (29 Sep ~17:10 IDT, Opus 5.5 MAX)
 
 Gilad has not answered the 29 Sep status note. Under Ido's directive the sitting works each item as an experiment. One fact changes all four: every closed verdict in the note was measured on the memorized val (§141). Protocol P removes it, and three zero-GPU readouts already move items 2–4. Live queue: `docs/SITTING_GPU_QUEUE.md`. Exact lines: `docs/PROMPT_OPS_V8_QUEUE.md` §8.
 
@@ -592,7 +592,7 @@ Gilad has not answered the 29 Sep status note. Under Ido's directive the sitting
    | DepGraph VGG-19 | −7.55 @ 0.534 | params 0.70: −6.09 | |
 
    Not valid for rollback walks (§144), or for a policy whose state reads accuracy.
-3. **First paired early read: crop+flip in the walk fine-tune.** On the C100 gate's first net, r20-w13, the aug arm 21729554 was compared with the P gate 21729552 over the same 16 cuts at the same widths. Mean **+4.60 pp** val, better on 94% of cuts; at step 26, −6.0 vs −13.4. That is the pre-registered `ADOPT?`. It is a candidate only: val, one net. TEST, the other 7 nets and the thin-control pair rule decide. Caveat to check: under aug, train-loss patience may use more of the 12-epoch cap.
+3. **First paired early read: crop+flip in the walk fine-tune (ledger §148).** On the C100 gate's first net, r20-w13, the aug arm 21729554 was compared with the P gate 21729552 at the same widths. The read at 16 cuts was +4.60 pp. With the net finished (17:01): **24 cuts, mean +5.48 pp val, better on 96 %**; deepest pair −8.84 vs −18.26. TEST agrees at the pre-registered sizes: **+5.7 pp at 0.861** and **+6.2 pp at 0.787** params. The τ rule then keeps 0.662 instead of 0.926 at the same −8/−9 pp. That is the pre-registered `ADOPT?`, still a candidate: one net of eight. The other seven, the gate admit lines and the thin-control pair (21729555 / 56) decide. Aug took 32 vs 28 min on that net, so it used only a little more of the 12-epoch cap.
 
 ### 13.2 The four items, re-read
 

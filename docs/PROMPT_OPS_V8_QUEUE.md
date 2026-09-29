@@ -324,9 +324,9 @@ env SPECTRA_BATCH_SIZE=256 SPECTRA_SEED=42 SPECTRA_EVAL_PASSES=2 SPECTRA_GPU_GRE
 - Quote a `final_ft` row without its `origin` control.
 - Pick any point on TEST.
 
-## 8. V9c + wave queue (29 Sep ~17:45 IDT, Opus 5.5 sitting) — ops manages
+## 8. V9c + wave queue (29 Sep ~17:10 IDT, Opus 5.5 sitting) — ops manages
 
-**LIVE 29 Sep 17:45.** Cap 4: **4 R, 13 PD.** Live table: `docs/SITTING_GPU_QUEUE.md`. Ranked options and rules: `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. Ledger next **§147**.
+**LIVE 29 Sep 17:10.** Cap 4: **4 R, 13 PD.** Live table: `docs/SITTING_GPU_QUEUE.md`. Ranked options and rules: `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. The sitting wrote **§147** (zero-GPU readout) and **§148** (aug gate r20-w13, PRELIM) into the ledger, uncommitted beside ops' pending ledger edits. Ledger next **§149**.
 
 **Trees.**
 - `tree_v9b` is frozen and serves wave 1 (21729551–58). Those runs have `SPECTRA_EVAL_SAVE_TRAJ_MODELS` **unset**, so `final_ft` runs but nothing is saved.
@@ -413,11 +413,9 @@ N3–N7 need a sitting decision (they depend on TEST reads, not on a pre-registe
 
 **Wave lines as submitted** (for a shutdown resubmit only): `scripts/_tmp_v9c_wave1.sh` (tree_v9b) and `scripts/_tmp_v9c_wave2.sh` (tree_v9c) in the repo. Both skip names that are already queued.
 
-**Ledger rules for these rows** (continue from §147):
-- **§147** is the zero-GPU readout of the finished P walks, **not** a TEST row. Its source is `PROMPT_FABLE_NEXT_SITTING.md` §13.1:
-  - census: 0/343 full-width cut points with val Δ > 0; r20-w2 8/18;
-  - cross-fit 10k numbers;
-  - first paired read, r20-w13 C100 +4.60 pp val, 16 cuts.
+**Ledger rules for these rows** (continue from §149):
+- **§147** (written): the zero-GPU readout of the finished P walks, **not** a TEST row (census, cross-fit 10k).
+- **§148** (written): aug gate r20-w13 vs P gate, PRELIM, parents R. When 21729554 / 21729552 COMPLETE, extend §148 with the other seven nets, the paired read and both gates' admit lines. Do not open a new section for them.
 - Name the protocol and the half in every row: "P, 5k TEST half" or "P, 10k (cross-fit / both halves)".
 - `final_ft` rows: always beside the origin row and the honest gain; caption "after a 100-epoch SGD final fine-tune".
 - `+scratch` rows: caption "scratch-B (re-initialised, 200 ep SGD 0.1), Liu et al. 2019", beside the inherited row at the same step and `origin+scratch`.

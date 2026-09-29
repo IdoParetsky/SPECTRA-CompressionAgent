@@ -6,7 +6,7 @@
 
 Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Ranked options, kill/adopt rules and the A/B ladder: **§13**. Exact submit lines: `docs/PROMPT_OPS_V8_QUEUE.md` §8.
 
-**Stamped:** 29 Sep 2026, ~17:45 IDT (Opus 5.5 sitting). 4 R, 13 PD. Trees: `tree_v9b` frozen (wave 1), `tree_v9c` = v9b + state_dict saves / scratch / final FT from saved (CPU pytest **367/367**), frozen now.
+**Stamped:** 29 Sep 2026, ~17:10 IDT (Opus 5.5 sitting). 4 R, 13 PD. Trees: `tree_v9b` frozen (wave 1), `tree_v9c` = v9b + state_dict saves / scratch / final FT from saved (CPU pytest **367/367**), frozen now.
 
 **P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c` only). **Paired read** = `scripts/paired_steps.py <arm run> <control run>`: val only, same step = same widths under mild.
 
@@ -18,8 +18,8 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Ranked options, kill/adopt rul
 | 2 | smoke-from | 21730499 | PD afterok 498 | v9c | final FT from the saved walk, no new walk | fan-out FT variants cost no walk | no `final_ft from` line / wrong labels | loads `val_best` + size points, prints origin |
 | 3 | final_ft DG VGG-19 C100 | 21729551 | R cs-1080-05 | v9b | honest gain of 100-ep SGD at val_best / size 0.70 / 0.60 | close part of −7.9 vs DepGraph −3.11 | honest < 0.5 pp (and one C10 cell < 0.5) | honest ≥ 2 pp → tables use final_ft |
 | 4 | P gate C100 12/4 | 21729552 | R cs-1080-05 | v9b | 8 C100 nets under clean val at the live recipe (Q4) | ≥ 4/8 admitted: one recipe already holds | ≤ 2/8 → aug gate decides | ≥ 4/8 → Q4 evidence "yes" (no emit) |
-| 5 | aug gate C100 12/4 | 21729554 | R cs-1080-01 | v9b | crop+flip in the walk FT vs Pri 4, same steps | **early read: r20-w13 +4.60 pp val over 16 cuts, 94 % better (`ADOPT?`)** | paired mean ≤ −1 pp, ≥ 75 % worse | admits ≥ Pri 4 and kinder TEST at equal keep on ≥ 5/8 |
-| 6 | aug twins 40/10 | 21729553 | R cs-1080-05 | v9b | aug as the TEST walk recipe vs P twins 21726337 | R56 / VGG-16 cuts reach val Δ ≥ 0 (census 0/343 today) | paired ≤ −1 pp over 25 % of cuts | TEST ≥ 1 pp kinder at equal keep on ≥ 2/3 twins |
+| 5 | aug gate C100 12/4 | 21729554 | R cs-1080-01 | v9b | crop+flip in the walk FT vs Pri 4, same steps | **r20-w13 done (§148): +5.48 pp val over 24 cuts, 96 % better (`ADOPT?`); TEST +5.7 / +6.2 at size 0.90 / 0.80; val_best keeps 0.662 vs 0.926** | paired mean ≤ −1 pp, ≥ 75 % worse | admits ≥ Pri 4 and kinder TEST at equal keep on ≥ 5/8 |
+| 6 | aug twins 40/10 | 21729553 | R cs-1080-05 | v9b | aug as the TEST walk recipe vs P twins 21726337 | R56 / VGG-16 cuts reach val Δ ≥ 0 (census 0/343 today); 17:05: 3 pairs, +0.09 | paired ≤ −1 pp over 25 % of cuts | TEST ≥ 1 pp kinder at equal keep on ≥ 2/3 twins |
 | 7 | final_ft DG R56 | 21730500 | PD afterok 498 | v9c | honest gain at DepGraph's 2.11× / 2.57× (flop 0.47 / 0.39) + saves | 10k −3.32 / −3.98 → within ~1–2 pp of +0.24 / +0.11 | honest < 0.5 pp | ≥ 2 pp → bar-3 row = final_ft (PruningBench-style caption) |
 | 8 | P thin 12/4 | 21729555 | PD | v9b | P reference for the aug train-recipe pair rule | — (control) | — | — |
 | 9 | aug thin 12/4 | 21729556 | PD | v9b | aug as the **training** recipe: thin C10 control vs Pri 8 | r56-w4 no worse, r20 kinder | r56-w4 > 0.5 pp worse at equal keep (r20 guard 2 pp) | pass + Pri 5 pass → recipe candidate for Q4 |
@@ -36,7 +36,7 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Ranked options, kill/adopt rul
 
 | Pri | Cell | Condition | Checks | Cross-off | Adopt |
 |---|---|---|---|---|---|
-| N1 | final-FT KD from saved, DG R56 | 21730500 COMPLETED with honest gain ≥ 0.5 pp | KD from the unpruned net on top of 100-ep SGD | ≤ +0.3 pp over plain final_ft | ≥ +0.5 pp |
+| N1 | final-FT KD from saved, DG R56 | 21730500 COMPLETED with honest gain ≥ 0.5 pp | KD from the unpruned net on top of 100-ep SGD (on `tree_v9c` the line must carry `SPECTRA_FT_KD=1`, or it silently skips KD) | ≤ +0.3 pp over plain final_ft | ≥ +0.5 pp |
 | N2 | final-FT AutoAugment from saved, DG R56 | same | AutoAugment (CIFAR policy) in the final FT | ≤ +0.3 pp | ≥ +0.5 pp |
 | N3 | aug walk + final FT, DG R56 | Pri 6 TEST adopt | better walk recipe under the bar-3 row | walk kinder but final_ft equal | final_ft ≥ 1 pp kinder |
 | N4 | aug walk + final FT, DG VGG-19 | Pri 5 or 6 adopt | same on the C100 bar-3 cell | same | same |
@@ -57,7 +57,7 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Ranked options, kill/adopt rul
 | DepGraph R56 P | 21726340 | §146 | −4.0 @ 0.356 (10k −4.02); flop 0.47 10k −3.32; flop 0.39 10k −3.98 vs +0.11 |
 | N0 3-seed b256 | 21726098/99 + 21726342 | §138 | r56 all 0.923; not band-edge noise |
 | GO A area / factored | 21725471 / 72 | §136 / §137 | Drop factored head |
-| Census (zero GPU) | — | §147 (ops) | 0/343 full-width cut points with val Δ > 0 under P; r20-w2 8/18 |
+| Census + cross-fit (zero GPU) | — | §147 | 0/343 full-width cut points with val Δ > 0 under P; r20-w2 8/18; 10k numbers above |
 
 ## Held (do not release)
 
