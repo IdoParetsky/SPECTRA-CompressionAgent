@@ -42,6 +42,10 @@ Read this first, then `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger ro
 **(e) Attribution train (only after a success).**
 - If 21737123 leaves mild, one P-only train (the cancelled 21737095 line, `scripts/_tmp_s30_train_submit.sh`) separates the val fix from the augmentation. If it does not leave mild, skip it: the weaker recipe cannot do better.
 
+**(f) Resume 21737123 after its 6-day fuse (~10 Oct).**
+- *Why it comes up.* The train runs at ~2.3× the control's time per episode (ops §9.2 "Speed"): P's batch 256 against the adaptive 384, the whole 50k split, and +18 % for aug. The fuse should stop it near episode ~160, short of the 250 minimum.
+- *Recommendation.* Resume (§9.4 line, 7 more GPU-days) only if a freeze TEST by then is ≥ mild at equal keep, or the probe area is still rising. Otherwise stop there: a policy that has not left mild in ~160 episodes under P+aug is the answer to Stage 4.
+
 ## 2. Insights gathered (ledger refs)
 
 1. **Memorized val (§141).** Zoo nets read val 1.000 / 1.000 / 0.999 unpruned against TEST 0.943 / 0.936 / 0.739. Every legacy reward and gate scored a cut on memorization loss.
@@ -97,6 +101,7 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 5. **O38 reward replay** (`scripts/reward_replay.py`). Per-step (val Δ, keep) from finished P walks through the linear in-band, cubic and NEON-exact returns; print where each return would stop.
 6. **O26 memorization census** (`scripts/memorization_census.py`). Baseline val in each train log vs the TEST accuracy in the checkpoint name, per catalog net.
 7. **Optional O39.** `SPECTRA_FT_AUG_MIN_TRAIN_ACC` (aug off when the unpruned net's train accuracy is below a bar). Only if an underfitting net enters a catalog.
+8. **Optional: GPU-side crop+flip.** Pad and crop plus flip on the batch tensor on the GPU, not per image in the loader. It recovers up to the measured +18 % per epoch. Build it only for the next train; never swap it into a live one (the recipe must not change mid-train).
 
 ## 5. First moves for the next sitting
 
@@ -119,3 +124,4 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 30 Sep 03:14 | 21730499 smoke-from COMPLETED, passed | 1-epoch FT from saved; origin −5.84 pp printed "honest +5.78 ADOPT" on a raw gain of −0.06 | reader fixed (`ORIGIN-HURT`, git + `readers_s30/`). For `tree_v9d`, and for any new recipe (KD, AutoAugment), check the origin row before the verdict
 - 30 Sep 03:49 | 21729553 scancelled after its R56 rows (pre-registered) | §152: R56 aug −0.06 @ 0.661 vs P −2.84; size 0.80 −0.16 vs −2.68; census val Δ > 0 on 0/62, max −0.12 | TEST-walk rule 1/3 twins. Aug brings the best cut to −0.12, near the cubic's positive branch: watch the VGG census in 21737104 for N10
 - 30 Sep 03:49 | 21730500 R, `ise-4090-18` | took 553's slot | first final-FT cell on C10; read it with the fixed reader
+- 30 Sep 03:55 | 21737123 pace | episode 0 993 s vs control 422 s (same 24 steps); epoch 6.7 s vs 2.9 s; aug alone +18 % (556 vs 555, same node) | ~2.3× → the 6-day fuse lands near episode ~160; decision (f). `tree_v9d` option: GPU-side crop+flip (saves up to the 18 %)

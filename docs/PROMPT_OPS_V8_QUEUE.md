@@ -506,8 +506,17 @@ Control probes: ep12 0.0241, ep24 0.0550 (freeze ep0023), ep36–72 0.020–0.02
 1. By PPO update 10: `ev` ≤ 0 on the last 3 updates, or `gap_to_uniform` ≤ +0.05 on the last 8 episodes → "no-go signal".
 2. By PPO update 20: every probe score 0 (all probe walks left the band) → report.
 3. No `Snapshot frozen` by episode 120 → note; by episode 250 → report (the §135 Budget pattern).
-4. Median s/episode > 1,200 → report (slow card, or the CPU-side aug is the bottleneck).
+4. Median s/episode > **2,000** → report. The known pace is ~2.3× the control, so a median near 1,350 s is expected (see **Speed** below); only a further slowdown is news.
 5. Any `REWIND` → note only (the control rewound too).
+
+**Speed (measured by the sitting, 03:55).** Episode 0: 993 s vs the control's 422 s over the same 24 steps. One walk-FT epoch on mbv2x0.5 at step 33: 6.7 s vs 2.9 s. Causes, all protocol:
+- P's fixed batch 256 against the control's adaptive 384 on an RTX 6000 (`get_adaptive_batch_size`: 64 × 6), so ~1.5× the iterations;
+- P trains on the whole 50k split;
+- crop+flip, which is +18 % per epoch on the same node, net and step (21729556 vs 21729555, both batch 256).
+
+Do not restart or change the batch: every P TEST used 256.
+
+**Fuse.** The trainer stops at the **6-day runtime fuse** (`SPECTRA_RUNTIME_LIMIT`, ~10 Oct 03:14), inside the 7-day wall. At ~2.3× the control's 3 d 22 h that is near **episode ~160**, not the 250 minimum. The control froze at episodes 23 and 83, so the first freezes should come well before that. When the fuse stops it: annotate the episode count, **report**, and resume only on Ido's GO (way-ahead §1f), with the §9.4 resume line. A fuse stop is not an infrastructure death.
 
 **Freeze.** On `Snapshot frozen -> …/snapshots/ep####`:
 - Annotate episode, score and time.

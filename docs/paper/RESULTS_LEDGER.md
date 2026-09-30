@@ -2729,6 +2729,9 @@ Ido GO 30 Sep 01:56: Stage 4 = one train, the area train under P, plus crop+flip
 - `Val from test on cifar-10: n_train=50000 … n_val=5000, n_test=5000`; `on svhn: n_train=73257 … n_val=13016, n_test=13016`.
 - `FT aug on cifar-10: RandomCrop+Flip on train only`, and no aug line for svhn.
 - `policy_config.json` vs 21536396: only `created`, `SPECTRA_RUN_ID`, `SPECTRA_BATCH_SIZE` (unset → 256) and `SPECTRA_VAL_FROM_TEST` (unset → 1). The fraction and split seed are at their defaults and are not recorded.
+- *Pace.* Episode 0 took 993 s vs the control's 422 s (the same 24 steps); one walk-FT epoch 6.7 s vs 2.9 s.
+  - Causes, all protocol: P's batch 256 against the control's adaptive 384 (RTX 6000: 64 × 6), the whole 50k split, and crop+flip (+18 % per epoch; 21729556 vs 21729555 on the same node at batch 256).
+  - At ~2.3×, the 6-day runtime fuse stops training near episode ~160, not at the 250 minimum.
 
 Do **not** lock.
 

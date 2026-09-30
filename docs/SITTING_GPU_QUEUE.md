@@ -16,7 +16,7 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Options, decisions and dev ite
 
 | Pri | Cell | Job | State (30 Sep 03:00) | Tree | Checks | Read so far / hope | Cross-off | Adopt |
 |---|---|---|---|---|---|---|---|---|
-| 1 | **Stage-4 train**: area train under P + crop+flip (§151) | **21737123** (P-only arm 21737095 cancelled, never started) | **R since 03:14**, `ise-cpu256-32` RTX 6000 Ada; start checks green 03:16 | v9c | does the agent leave mild when the reward reads clean val and recovery uses crop+flip? | control 21536396 PPO u10 ev 0.88, best area 0.055; first freeze ep0023 | no freeze by episode 250; mild clone at the freeze TEST (0.9 on ≥ 95 % of legal r56-w4 rows) → report, never scancel | frozen agent ≥ mild at equal keep on the thin pair under P + aug (control 21729557), then the coverage set |
+| 1 | **Stage-4 train**: area train under P + crop+flip (§151) | **21737123** (P-only arm 21737095 cancelled, never started) | **R since 03:14**, `ise-cpu256-32` RTX 6000 Ada; start checks green 03:16; ~2.3× the control's s/episode, so the 6-day fuse lands near episode ~160 (way-ahead §1f) | v9c | does the agent leave mild when the reward reads clean val and recovery uses crop+flip? | control 21536396 PPO u10 ev 0.88, best area 0.055; first freeze ep0023 | no freeze by episode 250; mild clone at the freeze TEST (0.9 on ≥ 95 % of legal r56-w4 rows) → report, never scancel | frozen agent ≥ mild at equal keep on the thin pair under P + aug (control 21729557), then the coverage set |
 | 2 | smoke-from | 21730499 | **COMPLETED 03:14, passed** (2 min) | v9c | final FT from the saved walk, no new walk | smoke-save **passed** (00:34) | no `final_ft from` line / wrong labels | loads `val_best` + size points, prints origin; **found the ORIGIN-HURT reader flaw** (see below) |
 | 3 | aug thin 12/4 (training rule) | 21729556 | **COMPLETED 03:12 (§150)** | v9b | crop+flip as the **training** recipe vs P thin 12/4 21729555 | **PASSED**: r56-w4 +2.3 pp TEST at equal keep (0.795), `val_best` −5.1 @ 0.622 vs −10.6 @ 0.741; r20 guard −1.8 mean (one point −3.1) | — | crop+flip = Stage-4 train recipe |
 | 4 | aug gate C100 12/4 | 21729554 | R, net 7/8, wall ~08:29 | v9b | crop+flip vs P gate, same steps | **rule met (§148)**: 12/12 size points kinder, mean +3.3 pp TEST; 6/6 admit | — | done; extend §148 with nets 7–8 |
@@ -83,7 +83,8 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Options, decisions and dev ite
 | Item | Recommendation (way-ahead §1) |
 |---|---|
 | `21716380` | scancel |
-| C100 emit | GO after both gates finish (~08:30), from the gate matching the train's recipe |
+| C100 emit | GO after both gates finish (~08:30), from the aug gate 21729554 (the train's recipe) |
 | Diverse train (N8) | after the Stage-4 freeze TEST shows it is not a mild clone, or in parallel if speed matters more |
 | Freeze TESTs of Pri 1 | pre-authorize ops: first freeze after PPO update 20, then at most one a day |
-| Crop+flip as the TEST walk recipe | decide on Pri 6 + 6b + 8 TEST rows |
+| Crop+flip as the TEST walk recipe | decide on Pri 6 + 6b + 8 TEST rows; R56 (Pri 6) already meets it (§152) |
+| Resume Pri 1 after the 6-day fuse (~10 Oct, ~episode 160) | only if a freeze TEST is ≥ mild at equal keep, or the probe area is still rising |
