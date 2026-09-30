@@ -326,7 +326,7 @@ env SPECTRA_BATCH_SIZE=256 SPECTRA_SEED=42 SPECTRA_EVAL_PASSES=2 SPECTRA_GPU_GRE
 
 ## 8. V9c + wave queue (29 Sep ~17:10 IDT, Opus 5.5 sitting) — ops manages
 
-**LIVE 29 Sep 17:10.** Cap 4: **4 R, 13 PD.** Live table: `docs/SITTING_GPU_QUEUE.md`. Ranked options and rules: `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. The sitting wrote **§147** (zero-GPU readout) and **§148** (aug gate r20-w13, PRELIM) into the ledger, uncommitted beside ops' pending ledger edits. Ledger next **§149**.
+**LIVE 30 Sep ~03:30: superseded for the train, wave 3 and the handoff by §9.** Cap 4. Live table: `docs/SITTING_GPU_QUEUE.md`. Options and decisions: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. The sitting wrote ledger **§147–§151** (§148 = the six-net aug gate, §149 = DG VGG-19 final FT, §150 = the thin 12/4 pair, §151 = the Stage-4 train). Ledger next **§152**. The commands, greps and kill rules below still apply.
 
 **Trees.**
 - `tree_v9b` is frozen and serves wave 1 (21729551–58). Those runs have `SPECTRA_EVAL_SAVE_TRAJ_MODELS` **unset**, so `final_ft` runs but nothing is saved.
@@ -390,7 +390,7 @@ $PY scripts/paired_steps.py <arm> <control> --min-steps 5 --kill 3 --frac 0.8   
 **Readouts when a cell COMPLETES** (login node):
 
 ```
-$PY scripts/final_ft_readout.py <tree>/runs/job<ID>                 # honest gain; ADOPT ≥ 2 pp, CROSS-OFF < 0.5 pp
+$PY /home/paretsky/scratch_audit/readers_s30/scripts/final_ft_readout.py <tree>/runs/job<ID>   # honest gain; ADOPT ≥ 2 pp, CROSS-OFF < 0.5 pp, ORIGIN-HURT = origin lost > 0.5 pp
 $PY scripts/crossfit_readout.py <tree>/runs/job<ID> --taus 10,5 --sizes <the cell's size points>
 ```
 
@@ -428,3 +428,142 @@ N3–N7 need a sitting decision (they depend on TEST reads, not on a pre-registe
 - Quote a smoke.
 - Quote a `+scratch` row without `origin+scratch`.
 - Quote a 10k cross-fit number as a single network's accuracy: it is the rule's two-fold estimate, and both fold points are printed.
+
+## 9. Handoff to Grok 4.6 ops — Stage-4 train + wave 3 (30 Sep ~03:30 IDT, Opus 5.5 sitting ends)
+
+The in-chat PASTE for the ops chat is the block below. Everything after it is its reference.
+
+```
+You are SPECTRA ops (Grok 4.6) from 30 Sep ~03:30 IDT until the next Opus 5.5 science sitting.
+You MONITOR, FLAG and ANNOTATE. You do not design cells or change recipes. Standing rules:
+.cursor/rules/*.mdc (30-min heartbeat, QOS cap 4, ledger discipline, canvases only on request).
+
+Read, in this order:
+ 1. docs/SITTING_GPU_QUEUE.md: live queue (rank, checks, cross-off, adopt) + the pre-registered action.
+ 2. docs/PROMPT_OPS_V8_QUEUE.md §9 (train monitoring, actions, lines, never) and §8 (cell greps,
+    paired-read kill rules, readouts, N1/N2 lines, ledger rules).
+ 3. docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md: decisions waiting on Ido (do NOT act on them);
+    §7 is YOUR annotation log for the next Opus sitting.
+ 4. docs/RUN_RECORD_29SEP_V9C.md: what was built and run (read once).
+ 5. docs/paper/RESULTS_LEDGER.md §147-§151: the rows you extend. Next new section: §152.
+
+Live: Stage-4 train 21737123 = area train under clean val (P) + crop+flip, tree_v9c, 7-day limit,
+R since 30 Sep 03:14 on an RTX 6000 Ada; start checks already green (§9.2). Plus 15 no-agent cells
+(tree_v9b / tree_v9c). One heartbeat command does the reads:
+  powershell -NoProfile -File scripts/rexec.ps1 -Quiet -File scripts/_tmp_s30_ops_hb.sh
+Honest gain: only /home/paretsky/scratch_audit/readers_s30/scripts/final_ft_readout.py (ORIGIN-HURT fix).
+
+Every heartbeat: (a) run it; (b) any KILL on an arm -> scancel THAT arm only, one PRELIM ledger line;
+(c) train telemetry vs the control numbers in §9.2; (d) on COMPLETED: readouts (§8), ledger row,
+state in SITTING_GPU_QUEUE.md; (e) the pre-registered actions in §9.3; (f) one dated line in
+WAY_AHEAD §7 for anything the next sitting must know (fact, number, ledger §, implication).
+Ping Ido on: any Traceback; a KILL; a §9.2 train flag; the train dying; a freeze;
+both C100 gates finishing; a QOS slot idle > 1 h.
+Never: §9.5. When unsure, report and wait; do not improvise a cell.
+```
+
+### 9.1 Live jobs (30 Sep ~03:30)
+
+| Job | Name | Tree | State | Pairs with / read |
+|---|---|---|---|---|
+| **21737123** | v9c-paug-area-train | v9c | **R since 03:14**, `ise-cpu256-32` RTX 6000 Ada; start checks green (below) | control 21536396, §9.2 |
+| 21737095 | v9c-p-area-train | v9c | **cancelled** (P-only arm; the rule passed) | — |
+| 21729552 / 54 | v9b-p-gate-c100 / aug-gate | v9b | R, nets 7–8, walls ~08:21 / 08:29 | extend §148 |
+| 21729553 | v9b-aug-twins | v9b | R, R56 last steps | 21726337; **scancel after R56 rows** (§9.3) |
+| 21729556 | v9b-aug-thin-12x4 | v9b | COMPLETED | §150 |
+| 21730499 | v9c-smoke-from | v9c | **COMPLETED 03:14, passed**; never ledger | §8 smoke check |
+| 21730500 / 01 / 06 | v9c-ft100-* | v9c | PD | honest gain + re-walk ≈ 0 |
+| 21729557 | v9b-aug-thin | v9b | PD | 21726335 |
+| 21737104 | v9c-aug-twins-vgg | v9c | PD | 21726337 (VGG rows) |
+| 21737105 | v9c-aug-ft100-dg-vgg19 (N4) | v9c | PD | 21729551 (walk by step, final_ft at equal keep) |
+| 21730507 / 16 | v9c-scratch-* | v9c | PD afterok 501 / 500 | `+scratch` vs inherited rows |
+| 21730509 / 14 | v9c-cg-neon-* | v9c | PD | big-effect kill |
+| 21729558 | v9b-p-n2-streams | v9b | PD | 21726335 by params |
+| 21716380 | v8-grouptoken | v8b | **held: never release** | Ido |
+
+### 9.2 Stage-4 train 21737123: what to check
+
+**At start: done by the sitting, 03:16, all green.** Env header, `Val from test` on cifar-10 and svhn, `FT aug on` cifar-10 only, RTX 6000 Ada. `policy_config.json` differs from the control's only in `created`, `SPECTRA_RUN_ID`, `SPECTRA_BATCH_SIZE` (unset → 256) and `SPECTRA_VAL_FROM_TEST` (unset → 1). What was checked, for a resume:
+- Log header `SPECTRA_* env` has `SPECTRA_VAL_FROM_TEST: '1'`, `SPECTRA_BATCH_SIZE: '256'`, `SPECTRA_FT_AUG: '1'`, `SPECTRA_PROBE_SCORE: 'area'`.
+- `Val from test` lines for **cifar-10 and svhn**.
+- `FT aug on cifar-10 … RandomCrop+Flip` and **no** aug line for svhn: aug is CIFAR-only by design; flipping digits is wrong.
+- `GPUs:` names the card: RTX 6000 Ada expected, as the control's.
+- `runs/job21737123/agent_checkpoints/policy_config.json` differs from `tree_v7/runs/job21536396/agent_checkpoints/policy_config.json` **only** in `SPECTRA_VAL_FROM_TEST`, `SPECTRA_VAL_TEST_FRACTION`, `SPECTRA_SPLIT_SEED`, `SPECTRA_BATCH_SIZE` and the run id / timestamp. `SPECTRA_FT_AUG` is not a `policy_config` key on `tree_v9c`: provenance is the log header and the job name. Any other diff → report; do not patch.
+
+**Control 21536396 (legacy val, same card family), early curve.**
+
+| PPO update | ev | batch_score | best probe area |
+|---|---|---|---|
+| 1 | 0.454 | 0.407 | — |
+| 10 | 0.880 | 0.405 | 0.055 |
+| 20 | 0.690 | 0.342 | 0.055 |
+| 30 | 0.802 | 0.355 | 0.059 |
+
+Control probes: ep12 0.0241, ep24 0.0550 (freeze ep0023), ep36–72 0.020–0.026, ep84 0.0586 (freeze ep0083). `gap_to_uniform` +0.23 at ep39, +0.16–0.19 at ep79–80. Median 580 s/episode (first 40), 629 s overall, 250 episodes in 3 d 22 h. **Probe area under P is on a new scale**: never compare its value with these numbers, only its shape (does it rise, does it freeze).
+
+**Flags (report; never scancel the train).**
+1. By PPO update 10: `ev` ≤ 0 on the last 3 updates, or `gap_to_uniform` ≤ +0.05 on the last 8 episodes → "no-go signal".
+2. By PPO update 20: every probe score 0 (all probe walks left the band) → report.
+3. No `Snapshot frozen` by episode 120 → note; by episode 250 → report (the §135 Budget pattern).
+4. Median s/episode > 1,200 → report (slow card, or the CPU-side aug is the bottleneck).
+5. Any `REWIND` → note only (the control rewound too).
+
+**Freeze.** On `Snapshot frozen -> …/snapshots/ep####`:
+- Annotate episode, score and time.
+- Check the snapshot has `latest_best_actor.pt`, `latest_best_critic.pt`, `policy_config.json` and `standardizer.pt`.
+- **TEST only on Ido's GO** (way-ahead §1c), with the line in §9.4.
+
+**Death.** On NODE_FAIL / preemption / root CANCELLED with no Traceback, resubmit **with resume** (§9.4) and report. On a Traceback, paste the last 30 lines to Ido; do not patch or resubmit.
+
+### 9.3 Pre-registered actions (no GO needed)
+
+1. **21729553.** When its `resnet56` TRAJ size rows print, `scancel 21729553`: its VGG-16 cannot finish before the 08:21 wall, and 21737104 re-walks both VGGs. Ledger **§152**: the R56 twin with crop+flip vs P twins 21726337 at equal keep (5k TEST), plus the paired read. PRELIM.
+2. **Gates 21729552 / 54.** As each completes or walls out, extend **§148** with nets 7–8 (the same columns) and both admit lines. A net cut by the wall is "not finished", never "not admitted". **Do not emit.**
+3. **21730499 smoke-from.** Done: passed at 03:14. Never ledger it.
+4. **21730500.** If it COMPLETES with honest gain ≥ 0.5 pp at a size point **and its origin row did not lose more than 0.5 pp** (the fixed reader never prints `ORIGIN-HURT` there), submit **N1** and **N2** (§8 lines), then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"`. On `ORIGIN-HURT`, report and do not submit.
+5. **Re-walk determinism.** 21730500 / 01 / 06 vs their controls must read ≈ 0; flag |mean| > 0.5 pp. §149 already showed up to 0.8 pp at single points across SKUs.
+6. **C-G 21730509 / 14.** Big-effect kill (5 pairs, mean ≤ −3 pp, ≥ 4/5 worse) → scancel that cell.
+7. **An idle slot for more than 1 h** while PD cells wait on `Features` and no RTX 6000 / 4090 is free → `scontrol update JobId=<top PD cell> Features=` and note it.
+8. **COMPLETED readouts.** The fixed `readers_s30/scripts/final_ft_readout.py` for every final-FT cell (§8 path). `crossfit_readout.py --taus 10,5 --sizes <its points>` for every mild walk; never for rollback walks or the train. Add the aug census: cut points with val Δ > 0 on full-width nets under aug are the trigger for N10 (way-ahead O42). Annotate the count either way.
+
+### 9.4 Lines
+
+**Freeze TEST (only on Ido's GO).** Thin pair, TEST FT 40/10, same walk recipe as the train (P + crop+flip). Control at equal keep: **21729557** (aug thin 40/10, mild). P thin 21726335 is the no-aug audit column.
+
+```
+T=/home/paretsky/scratch_audit/tree_v9c; SNAP=$T/runs/job21737123/snapshots/ep####
+cd $T && export SPECTRA_REPO_DIR=$T SPECTRA_GPU_GRES=1 SPECTRA_EVAL_DETERMINISTIC=1 SPECTRA_EVAL_TRAJECTORY=1 \
+  SPECTRA_EVAL_PASSES=2 SPECTRA_SKIP_TRAIN=1 SPECTRA_SKIP_EVAL_TRAIN=1 SPECTRA_EVAL_PREFER_PARAM_PER_FLOP=0 SPECTRA_SEED=42
+env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6 \
+  SPECTRA_ACTOR_CHECKPOINT_PATH=$SNAP/latest_best_actor.pt SPECTRA_CRITIC_CHECKPOINT_PATH=$SNAP/latest_best_critic.pt \
+  SPECTRA_STANDARDIZER_PATH=$SNAP/standardizer.pt SPECTRA_JOB_NAME=traj-v9c-paug-ep#### SPECTRA_NICE=0 \
+  bash scripts/submit.sh eval_c10_thin_traj
+```
+
+Then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"`. Read it with a compression-rate census: 0.9 on ≥ 95 % of legal r56-w4 rows = "mild clone under P+aug" (the §136 read).
+
+**Train resume after an infrastructure death** (new job id; weights, optimisers and episode index resume; the governor restarts):
+
+```
+cd /home/paretsky/scratch_audit/tree_v9c && export SPECTRA_REPO_DIR=$PWD; R=$PWD/runs/job21737123
+env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_PROBE_SCORE=area \
+  SPECTRA_RESUME_TRAIN=1 SPECTRA_RESUME_PATH=$R/agent_checkpoints/train_resume.pt SPECTRA_PARENT_RUN=$R \
+  SPECTRA_JOB_NAME=v9c-paug-area-train-r1 SPECTRA_NICE=0 bash scripts/submit.sh offline_train_v6_inband_p5b2
+```
+
+**Shutdown resubmits of the cells.** `scripts/_tmp_v9c_wave1.sh`, `_tmp_v9c_wave2.sh`, `_tmp_s30_wave3.sh` (each skips queued names). Then re-add `Features`.
+
+### 9.5 Never (adds to §5 and §8)
+
+- Release, scancel or TEST a held job (`21716380`, the FLOP-70 set). Ido decides (way-ahead §1a).
+- TEST a freeze without Ido's GO. Start a second train. Emit `database_offline_v7_diverse_admitted.json`.
+- Scancel the Stage-4 train. Report no-go flags; the train is Ido's.
+- Patch `tree_v9b` / `tree_v9c`; overlay leap `src/`; edit `SPECTRA_draft.md`.
+- Compare probe area across protocols, or quote a probe score as a result.
+- Adopt on a paired val read. Quote a smoke. Quote `final_ft` without origin. Mix the 5k P TEST with the 10k legacy TEST. Call §145 / §146 / §149 a DepGraph beat. Rewrite C6 as "C100 solved".
+
+### 9.6 Annotation log and briefings
+
+- **Annotation.** One line per finding in `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md` §7:
+  `- 30 Sep 14:05 | 21730500 COMPLETED | honest +x.x @ flop 0.39 (§153) | bar-3 C10 row uses final_ft; N1/N2 = <ids>`
+- **3-hour briefing.** As the standing rule, but write the "Fable additions" part into that §7, the file the next Opus sitting reads, not `PROMPT_FABLE_V6.md`.

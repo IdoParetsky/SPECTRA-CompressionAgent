@@ -11,6 +11,9 @@ Per network and label (TEST = the 5k TEST half under protocol P):
 * ``honest`` — (final − walk) − (origin's final − origin's start): the gain the long recipe gives the
   pruned net beyond what it gives any net. The rule (sitting 29 Sep): ≥ adopt pp → paper tables use
   ``final_ft`` (captioned); < kill pp → the long recipe is not the lever; otherwise HOLD.
+  ``ORIGIN-HURT`` instead when the recipe costs the unpruned origin more than 0.5 pp: subtracting a
+  negative origin change inflates ``honest`` by that much (the 1-epoch smoke 21730499 printed
+  "honest +5.78 ADOPT" on a raw gain of −0.06). Read the raw gain there.
 * ``10k``    — for size points and origin only: Δacc on the whole CIFAR test set (val half + TEST
   half, weighted by their sizes). Those points are chosen by size and fine-tuned without val, so
   neither half selected them. ``val_best`` was selected on the val half: 5k only.
@@ -64,9 +67,11 @@ def honest_gain(row, origin):
     return gain, gain - _pp(origin["test_final"], origin["test_walk"])
 
 
-def verdict(honest, adopt=2.0, kill=0.5):
+def verdict(honest, adopt=2.0, kill=0.5, origin_change=None, origin_floor=-0.5):
     if honest is None:
         return "NO-ORIGIN"
+    if origin_change is not None and origin_change < origin_floor:
+        return "ORIGIN-HURT"
     if honest >= adopt:
         return "ADOPT"
     if honest < kill:
@@ -88,9 +93,10 @@ def readout(rows, adopt=2.0, kill=0.5, n_val=5000, n_test=5000):
             text += f" | origin change {final - walk:+.2f} pp"
         else:
             gain, honest = honest_gain(row, origin)
+            origin_change = _pp(origin["test_final"], origin["test_walk"]) if origin is not None else None
             text += f" | gain {gain:+.2f}"
-            text += f" | honest {honest:+.2f} pp {verdict(honest, adopt, kill)}" if honest is not None \
-                else " | honest n/a (no origin row)"
+            text += (f" | honest {honest:+.2f} pp {verdict(honest, adopt, kill, origin_change)}"
+                     if honest is not None else " | honest n/a (no origin row)")
             if scratch and label[:-len("+scratch")] in rows:
                 text += (f" | scratch−inherit "
                          f"{_pp(row['test_final'], rows[label[:-len('+scratch')]]['test_final']):+.2f} pp")

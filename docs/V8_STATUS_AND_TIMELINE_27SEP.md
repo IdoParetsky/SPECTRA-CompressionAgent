@@ -100,4 +100,25 @@ Reading of the recipe question: every *rate* / *schedule* change that helps CIFA
 
 ## 9. Results feed (ops appends here — decision 2; this is Fable's entry point next sitting)
 
-_(empty — first cap-40 pair lands ~06:00–10:00 28 Sep)_
+V8 RESULTS FEED — 28 Sep 17:48 IDT
+C/D. cap-40 recipe: thin fail both LRs (§132–§133). C100 1e-3 still first net unpruned (9h48m, 1080). C100 1e-4: VGG-11 **−3.3 @ 0.819** admit; VGG-13 **−4.5 @ 0.819** admit; ResNets/MN-v2×0.5 not admitted. Cannot save either arm. Catalog emitted? **no**.
+B.  Budget+STOP 21715228: **COMPLETED** 13:58, 250 ep, rewind 3/3, best area **0.0273** at ep84, last probe 0.0239, **no snapshot** (bar 0.05). TEST only on GO. Ledger §135.
+E.  Group-token 21716380: **R** 3h49m `ise-6000-04`. `SPECTRA_STATE_TOKENS=groups`. `token_feature_dim` **63 vs 59 (+4)**. PPO-3, ep~13, no freeze yet. Flag took.
+A.  Factored 21536398: COMPLETED 11:37. Freeze ep0167 / 0.0608. TEST on GO. Ledger §134.
+Crossed off: cap-40 thin both LRs; A-LSQ; C-PCA; schedules; Budget freeze never written. Open Ido: Q4; GO TESTs of area / PPO-8 / factored; whether to TRAJ Budget latest_best.
+
+V8 RESULTS FEED — 28 Sep 20:15 IDT
+Ido GO option **A**. Area TRAJ **21725471** R 3090 pin ep0083; factored TRAJ **21725472** R 2080 Ti pin ep0167; both `eval_c10_thin_traj` 2-pass det 40/10. Quote val_best at equal keep. Match → drop head; win on r56-w4 → factored becomes control.
+Group-token **21716380**: first PROBE 18:20 area **0.0555** (r56-w6 0.031 / r20-w10 0.080), freeze `ep0011`. Then PD Priority, SKU-pinned rtx_6000, last log ~19:59 ep16. Do not scancel. Do not TRAJ ep0011 without a new GO.
+Cap-40 C100 **21715234 / 21715236 CANCELLED** 20:10 (dropped value; thin already failed). Maintenance 29 Sep drain; backups `/home/paretsky/spectra_pre_maint_28sep/`.
+Fable sitting is **code today** (width-ladder, 0.95 menu, 0.70/probe audit, VGG-19, FT kill table). Do not wait for TRAJ. Screen honesty: thin TRAJ is 2 nets, not coverage.
+
+V8 RESULTS FEED — 29 Sep 01:52 IDT
+Area TRAJ **21725471 COMPLETED** 23:10. `[eval] TRAJ val_best`: r20 **−5.1 @ 0.536/0.655** val −6.39; r56 **−6.8 @ 0.923/0.769** val −8.94. Same keep as 2-pass mild §93; r56 is the 90 %-rule clone. Ledger §136. Factored **21725472** still R 5h42m 2080 (r20 **−3.7 @ 0.536** val −4.02; r56 not yet). Do not drop the head until r56. Group-token **21716380** remains JobHeldUser. Science sitting has **v9** jobs R/PD — ops does not scancel them. Heartbeat 17:48 loop ended; re-arm. Backups NFS+Windows still running. Cluster SSH up at 01:52 (29 Sep drain still ahead).
+
+V8 RESULTS FEED — 29 Sep 10:05 IDT
+Twins **GO** §142: VGG-19 C100 **−6.7 @ 0.657** val −6.44 (legacy was unpruned). Adopt P as walk protocol. P-thin §143 r56 **0.739** vs N0 **0.923**. N0 three-seed r56 all 0.923. P-N4 §144 first undo step 77 not 39. DepGraph VGG-19 P §145 **−7.9 @ 0.534** (quote-only). Pickle still kills `final_ft`. Live: only **21726340** R. GT held. Next sitting: pickle on tree_v9c + C100-pool GO + one-change train. Do not fill idle GPUs from ops.
+
+V8 RESULTS FEED — 29 Sep 15:55 IDT
+Ido: full QOS utilization; independent TESTs no second GO. Sitting owns `docs/SITTING_GPU_QUEUE.md` and sbatches. Cluster 15:43: QOS 4, 0 R, holds only. `root_19` until 18:00. Sitting doc §PASTE + §12 restamped.
+

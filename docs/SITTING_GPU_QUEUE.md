@@ -2,52 +2,62 @@
 
 **Owner:** Opus 5.5 science sitting. **Ops:** heartbeat, paired early reads, ledger — do not invent cells. NEXT lines below may be submitted by ops **only when their condition is met** and a GPU would otherwise idle.
 **Rule (Ido 29 Sep 15:49):** QOS **4** stays full with **independent** no-agent TESTs. Sitting **sbatches**. No second GO on those cells.
-**Still Ido GO:** DRL train; release `21716380`; emit diverse catalog; TEST PPO-8 / Budget / GT `ep0011`.
+**Still Ido GO:** a second DRL train; freeze TESTs; the diverse catalog emit; `21716380`.
 
-Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Ranked options, kill/adopt rules and the A/B ladder: **§13**. Exact submit lines: `docs/PROMPT_OPS_V8_QUEUE.md` §8.
+Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Options, decisions and dev items: **`docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`**. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Exact lines, greps and kill rules: `docs/PROMPT_OPS_V8_QUEUE.md` §8 (cells) and **§9** (train + handoff).
 
-**Stamped:** 29 Sep 2026, ~17:10 IDT (Opus 5.5 sitting). 4 R, 13 PD. Trees: `tree_v9b` frozen (wave 1), `tree_v9c` = v9b + state_dict saves / scratch / final FT from saved (CPU pytest **367/367**), frozen now.
+**Stamped:** 30 Sep 2026, ~03:00 IDT (Opus 5.5 sitting). Cap 4: **4 R**, the rest PD. Trees `tree_v9b` / `tree_v9c` frozen. Pending no-agent cells carry `Features=rtx_6000|rtx_4090` (untyped requests landed on 1080s by node weight).
 
-**P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c` only). **Paired read** = `scripts/paired_steps.py <arm run> <control run>`: val only, same step = same widths under mild.
+**P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c`). **Paired read** = `scripts/paired_steps.py <arm> <control>`: val only, same step = same widths under mild.
+
+**Honest-gain reader (fixed 30 Sep 03:20).** Run `/home/paretsky/scratch_audit/readers_s30/scripts/final_ft_readout.py`, not the frozen trees' copy. When the recipe costs the unpruned origin more than 0.5 pp, subtracting that change inflates honest gain. The fixed reader prints `ORIGIN-HURT` there instead of `ADOPT`. The smoke-from showed it: a 1-epoch FT, origin −5.84 pp, "honest +5.78 ADOPT" on a raw gain of −0.06. §149 is unaffected (origin +0.10). The fix is in git for `tree_v9d`; 13/13 reader tests pass on the cluster conda.
 
 ## Live rank
 
-| Pri | Cell | Job | State | Tree | Checks | Hope | Cross-off | Adopt |
+| Pri | Cell | Job | State (30 Sep 03:00) | Tree | Checks | Read so far / hope | Cross-off | Adopt |
 |---|---|---|---|---|---|---|---|---|
-| 1 | smoke-save | 21730498 | PD (next GPU) | v9c | `.pt` = state_dict + `.json` arch; scratch lines; no PicklingError | wave 2 unblocked | any Traceback → fix on a new tree, children wait | `traj_models/*.pt`+`.json`, `init=scratch` lines |
-| 2 | smoke-from | 21730499 | PD afterok 498 | v9c | final FT from the saved walk, no new walk | fan-out FT variants cost no walk | no `final_ft from` line / wrong labels | loads `val_best` + size points, prints origin |
-| 3 | final_ft DG VGG-19 C100 | 21729551 | R cs-1080-05 | v9b | honest gain of 100-ep SGD at val_best / size 0.70 / 0.60 | close part of −7.9 vs DepGraph −3.11 | honest < 0.5 pp (and one C10 cell < 0.5) | honest ≥ 2 pp → tables use final_ft |
-| 4 | P gate C100 12/4 | 21729552 | R cs-1080-05 | v9b | 8 C100 nets under clean val at the live recipe (Q4) | ≥ 4/8 admitted: one recipe already holds | ≤ 2/8 → aug gate decides | ≥ 4/8 → Q4 evidence "yes" (no emit) |
-| 5 | aug gate C100 12/4 | 21729554 | R cs-1080-01 | v9b | crop+flip in the walk FT vs Pri 4, same steps | **r20-w13 done (§148): +5.48 pp val over 24 cuts, 96 % better (`ADOPT?`); TEST +5.7 / +6.2 at size 0.90 / 0.80; val_best keeps 0.662 vs 0.926** | paired mean ≤ −1 pp, ≥ 75 % worse | admits ≥ Pri 4 and kinder TEST at equal keep on ≥ 5/8 |
-| 6 | aug twins 40/10 | 21729553 | R cs-1080-05 | v9b | aug as the TEST walk recipe vs P twins 21726337 | R56 / VGG-16 cuts reach val Δ ≥ 0 (census 0/343 today); 17:05: 3 pairs, +0.09 | paired ≤ −1 pp over 25 % of cuts | TEST ≥ 1 pp kinder at equal keep on ≥ 2/3 twins |
-| 7 | final_ft DG R56 | 21730500 | PD afterok 498 | v9c | honest gain at DepGraph's 2.11× / 2.57× (flop 0.47 / 0.39) + saves | 10k −3.32 / −3.98 → within ~1–2 pp of +0.24 / +0.11 | honest < 0.5 pp | ≥ 2 pp → bar-3 row = final_ft (PruningBench-style caption) |
-| 8 | P thin 12/4 | 21729555 | PD | v9b | P reference for the aug train-recipe pair rule | — (control) | — | — |
-| 9 | aug thin 12/4 | 21729556 | PD | v9b | aug as the **training** recipe: thin C10 control vs Pri 8 | r56-w4 no worse, r20 kinder | r56-w4 > 0.5 pp worse at equal keep (r20 guard 2 pp) | pass + Pri 5 pass → recipe candidate for Q4 |
-| 10 | final_ft P thin | 21730501 | PD afterok 498 | v9c | fastest C10 honest-gain cell; saves for scratch | r56-w4 size 0.80 −7.4 (10k) recovers | honest < 0.5 pp | ≥ 2 pp |
-| 11 | aug thin 40/10 | 21729557 | PD | v9b | aug at TEST FT on the skinny pair vs P thin 21726335 | r56-w4 cliff moves deeper than 0.739 in band | paired ≤ −1 pp over 25 % of cuts | TEST kinder ≥ 1 pp at equal keep on r56-w4 |
-| 12 | final_ft twins C10 | 21730506 | PD afterok 498 | v9c | VGG-16 (OCS / HRank cell) + R56 twin, same walk as 21726337 | VGG-16 −2.8 → ≤ −1 at 0.66 | honest < 0.5 pp | ≥ 2 pp |
-| 13 | scratch-B thin | 21730507 | PD afterok 501 | v9c | Liu'19: re-init the walk's saved architectures, 200 ep SGD 0.1, + origin scratch | network-level "regenerate" matches inheritance | scratch < inherit − 1 pp on both nets | scratch ≥ inherit − 0.5 pp → item-1 answer + architecture metric |
-| 14 | C-G NEON-rule twins | 21730509 | PD afterok 498 | v9c | NEON-literal redraw under clean val **and** NEON's train-loss stop (p10, cap 100) | first real in-band C-G cut on full R56 | 5 paired cuts: mean ≤ −3 pp, ≥ 4/5 worse → **scancel**, item 1 closed | ≥ A at equal keep on ≥ 2/3 nets |
-| 15 | C-G NEON-rule thin | 21730514 | PD afterok 498 | v9c | same on the skinny pair vs P thin | same | same | same |
-| 16 | scratch-B DG R56 | 21730516 | PD afterok 500 | v9c | scratch at DepGraph's size points + origin scratch | scratch ≈ final_ft → bar-3 scratch column | scratch < inherit − 1 pp | scratch ≥ inherit − 0.5 pp |
-| 17 | N2 streams P | 21729558 | PD | v9b | block internals only, 3 passes, vs P thin **by params** | deeper in-band r56-w4 | no deeper in-band r56-w4 and r20 > 0.5 pp worse at equal keep | deeper in band and TEST no worse |
+| 1 | **Stage-4 train**: area train under P + crop+flip (§151) | **21737123** (P-only arm 21737095 cancelled, never started) | **R since 03:14**, `ise-cpu256-32` RTX 6000 Ada; start checks green 03:16 | v9c | does the agent leave mild when the reward reads clean val and recovery uses crop+flip? | control 21536396 PPO u10 ev 0.88, best area 0.055; first freeze ep0023 | no freeze by episode 250; mild clone at the freeze TEST (0.9 on ≥ 95 % of legal r56-w4 rows) → report, never scancel | frozen agent ≥ mild at equal keep on the thin pair under P + aug (control 21729557), then the coverage set |
+| 2 | smoke-from | 21730499 | **COMPLETED 03:14, passed** (2 min) | v9c | final FT from the saved walk, no new walk | smoke-save **passed** (00:34) | no `final_ft from` line / wrong labels | loads `val_best` + size points, prints origin; **found the ORIGIN-HURT reader flaw** (see below) |
+| 3 | aug thin 12/4 (training rule) | 21729556 | **COMPLETED 03:12 (§150)** | v9b | crop+flip as the **training** recipe vs P thin 12/4 21729555 | **PASSED**: r56-w4 +2.3 pp TEST at equal keep (0.795), `val_best` −5.1 @ 0.622 vs −10.6 @ 0.741; r20 guard −1.8 mean (one point −3.1) | — | crop+flip = Stage-4 train recipe |
+| 4 | aug gate C100 12/4 | 21729554 | R, net 7/8, wall ~08:29 | v9b | crop+flip vs P gate, same steps | **rule met (§148)**: 12/12 size points kinder, mean +3.3 pp TEST; 6/6 admit | — | done; extend §148 with nets 7–8 |
+| 5 | P gate C100 12/4 | 21729552 | R, net 7/8, wall ~08:21 | v9b | 8 C100 nets under clean val at the live recipe (Q4) | **passed: 6/6 admitted** | — | Q4 evidence "yes" (no emit) |
+| 6 | aug twins 40/10 | 21729553 | R, R56 near its last step | v9b | aug as the TEST walk recipe vs P twins 21726337 | **R56 +2.01 pp val, 51 cuts, 98 % better**; VGG-16 cannot finish before the wall | paired ≤ −1 pp over 25 % of cuts | TEST ≥ 1 pp kinder at equal keep on ≥ 2/3 twins (with 6b) |
+| 6b | aug twins, VGG only | 21737104 | PD, nice 25 | v9c | VGG-16 C10 + VGG-19 C100 twins with aug, saved | completes Pri 6's 2/3 rule | as Pri 6 | as Pri 6 |
+| 7 | final_ft DG R56 | 21730500 | PD, nice 5 | v9c | honest gain at DepGraph's 2.11× / 2.57× (flop 0.47 / 0.39) + saves | 10k walk −3.32 / −3.98 → within ~1–2 pp of +0.24 / +0.11 | honest < 0.5 pp | ≥ 2 pp → bar-3 row = final_ft |
+| 8 | aug thin 40/10 | 21729557 | PD, nice 30 | v9b | aug at TEST FT on the skinny pair vs P thin 21726335 | the thin guard for Pri 6; r56-w4 cliff deeper than 0.739 | paired ≤ −1 pp over 25 % of cuts | TEST kinder ≥ 1 pp at equal keep on r56-w4 |
+| 9 | final_ft P thin | 21730501 | PD, nice 20 | v9c | fastest C10 honest-gain cell; saves for scratch | r56-w4 size 0.80 −7.4 (10k) recovers | honest < 0.5 pp | ≥ 2 pp |
+| 10 | final_ft twins C10 | 21730506 | PD, nice 40 | v9c | VGG-16 (OCS / HRank cell) + R56 twin, same walk as 21726337 | VGG-16 −2.8 → ≤ −1 at 0.66 | honest < 0.5 pp | ≥ 2 pp |
+| 11 | **N4** aug walk + final FT, DG VGG-19 | 21737105 | PD, nice 45 | v9c | does a kinder walk survive the 100-ep final FT? vs 21729551 | 21729551 final −2.52 @ 0.684 | final_ft within 0.5 pp of 21729551 at equal keep | final_ft ≥ 1 pp kinder |
+| 12 | scratch-B thin | 21730507 | PD afterok 501 | v9c | Liu'19: re-init the walk's saved architectures, 200 ep SGD 0.1, + origin scratch | network-level "regenerate" matches inheritance | scratch < inherit − 1 pp on both nets | scratch ≥ inherit − 0.5 pp |
+| 13 | C-G NEON-rule twins | 21730509 | PD, nice 50 | v9c | NEON-literal redraw under clean val and NEON's train-loss stop (p10, cap 100) | first real in-band C-G cut on full R56 | 5 paired cuts: mean ≤ −3 pp, ≥ 4/5 worse → **scancel** | ≥ A at equal keep on ≥ 2/3 nets |
+| 14 | C-G NEON-rule thin | 21730514 | PD, nice 52 | v9c | same on the skinny pair vs P thin | same | same | same |
+| 15 | scratch-B DG R56 | 21730516 | PD afterok 500 | v9c | scratch at DepGraph's size points + origin scratch | scratch ≈ final_ft → bar-3 scratch column | scratch < inherit − 1 pp | scratch ≥ inherit − 0.5 pp |
+| 16 | N2 streams P | 21729558 | PD, nice 80 | v9b | block internals only, 3 passes, vs P thin **by params** | deeper in-band r56-w4 | no deeper in-band r56-w4 and r20 > 0.5 pp worse at equal keep | deeper in band and TEST no worse |
+
+**Pre-registered ops action.** When 21729553 prints its `resnet56` TRAJ size rows, **scancel 21729553**: its VGG-16 cannot finish before the 08:21 wall, and 6b re-walks both VGGs on a fast card. Ledger the R56 TEST rows (PRELIM).
 
 ## NEXT (conditional; exact lines in ops §8)
 
 | Pri | Cell | Condition | Checks | Cross-off | Adopt |
 |---|---|---|---|---|---|
-| N1 | final-FT KD from saved, DG R56 | 21730500 COMPLETED with honest gain ≥ 0.5 pp | KD from the unpruned net on top of 100-ep SGD (on `tree_v9c` the line must carry `SPECTRA_FT_KD=1`, or it silently skips KD) | ≤ +0.3 pp over plain final_ft | ≥ +0.5 pp |
+| N1 | final-FT KD from saved, DG R56 | 21730500 COMPLETED with honest gain ≥ 0.5 pp | KD from the unpruned net on top of 100-ep SGD (on `tree_v9c` the line must carry `SPECTRA_FT_KD=1`) | ≤ +0.3 pp over plain final_ft | ≥ +0.5 pp |
 | N2 | final-FT AutoAugment from saved, DG R56 | same | AutoAugment (CIFAR policy) in the final FT | ≤ +0.3 pp | ≥ +0.5 pp |
-| N3 | aug walk + final FT, DG R56 | Pri 6 TEST adopt | better walk recipe under the bar-3 row | walk kinder but final_ft equal | final_ft ≥ 1 pp kinder |
-| N4 | aug walk + final FT, DG VGG-19 | Pri 5 or 6 adopt | same on the C100 bar-3 cell | same | same |
-| N5 | F2 group-first 12/4 under P | Pri 9 not adopt | skinny-group recovery without aug | same keep as Pri 8 within noise, no kinder r20 | r56-w4 deeper in band |
-| N6 | F1 cosine 12/4 under P | Pri 9 not adopt | schedule only | same | same |
-| N7 | SGD 0.01 + aug gate 12/4 | Pri 5 adopt | does aug rescue SGD (legacy SGD failed without aug) | admits ≤ Pri 5 | admits > Pri 5, thin pair passes |
+| N3 | aug walk + final FT, DG R56 | Pri 6 + 6b TEST adopt | better walk recipe under the C10 bar-3 row | walk kinder but final_ft equal | final_ft ≥ 1 pp kinder |
+| N4 | aug walk + final FT, DG VGG-19 | ~~Pri 5 or 6 adopt~~ met (§148) | — | — | **submitted: Pri 11** |
+| N5 / N6 | F2 group-first / F1 cosine 12/4 under P | ~~only if §150 fails~~ §150 passed: not queued | skinny-group recovery without aug | — | — |
+| N7 | SGD 0.01 + aug gate 12/4 | met, low value | does aug rescue SGD | admits ≤ Pri 4 | not queued |
+| N8 | diverse P train (C10 + C100, admitted v7 catalog) | Ido GO (way-ahead §1b) | NEON's multi-dataset offline train | — | — |
+| N9 | attribution train: P-only (the 21737095 line) | Pri 1 leaves mild | P vs P + aug in training | — | — |
+| N10 | cubic (NEON) reward under the Pri 1 recipe | an aug census shows cuts with val Δ > 0 on full-width nets | the item-2 reward A/B | — | — |
 
-## Done (walk TESTs already ledgered — do not re-run)
+## Done (ledgered; do not re-run)
 
-| Cell | Job | Ledger | One-line result (5k TEST half; 10k = cross-fit / both halves, zero GPU) |
+| Cell | Job | Ledger | One-line result (5k TEST half; 10k = cross-fit / both halves) |
 |---|---|---|---|
+| final_ft DG VGG-19 C100 | 21729551 | §149 | honest +4.08 / +4.46 / +5.52; final −2.52 @ 0.684 (10k −2.39), −3.28 @ 0.599 (10k −3.04); origin +0.10 |
+| P thin 12/4 | 21729555 | §150 | r20 size 0.80 −0.1 @ 0.774 (10k +0.64); r56-w4 −10.6 @ 0.741, size 0.80 −8.2; 12/4 is −1.03 pp vs 40/10 on r56-w4 |
+| aug thin 12/4 | 21729556 | §150 | **training rule passed**: r56-w4 size 0.80 −5.9 (+2.3), `val_best` −5.1 @ 0.622; r20 −1.0 / −1.3 / −3.1 at equal keep |
+| smoke-save (v9c) | 21730498 | never | saves + scratch lines + no PicklingError: passed |
 | smoke-ft (v9b) | 21729550 | never | final_ft path prints with SAVE unset; plumbing only |
 | P twins | 21726337 | §142 | R56 −2.8 @ 0.661 (10k −3.03); VGG-16 −2.8 @ 0.657 (10k −2.78); VGG-19 −6.7 @ 0.657 (10k −6.55) |
 | P thin | 21726335 | §143 | r20 −3.7 @ 0.536 (10k −2.57); r56-w4 −10.1 @ 0.739 (10k −9.86) |
@@ -57,18 +67,21 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Ranked options, kill/adopt rul
 | DepGraph R56 P | 21726340 | §146 | −4.0 @ 0.356 (10k −4.02); flop 0.47 10k −3.32; flop 0.39 10k −3.98 vs +0.11 |
 | N0 3-seed b256 | 21726098/99 + 21726342 | §138 | r56 all 0.923; not band-edge noise |
 | GO A area / factored | 21725471 / 72 | §136 / §137 | Drop factored head |
-| Census + cross-fit (zero GPU) | — | §147 | 0/343 full-width cut points with val Δ > 0 under P; r20-w2 8/18; 10k numbers above |
+| Census + cross-fit (zero GPU) | — | §147 | 0/343 full-width cut points with val Δ > 0 under P; r20-w2 8/18 |
 
-## Held (do not release)
+## Held
 
 | Job | Why |
 |---|---|
-| 21716380 | Group-token. Ido after 1 Oct. Requeue deletes `train_resume.pt`. |
+| 21716380 | Group-token, legacy val. Recommendation: scancel (bundle backed up, way-ahead §1a). Never release: requeue deletes `train_resume.pt`. |
 | 20412… / 20715… | Old FLOP-70 heuristics. Nice 1000+. Spent. |
 
 ## Blocked on Ido
 
-| Cell | Why |
+| Item | Recommendation (way-ahead §1) |
 |---|---|
-| Next DRL train: P-val reward (one change), + crop+flip if Pri 5 / 9 adopt | the reward read memorized val in every train so far (§141) |
-| Catalog emit | Q4 evidence from Pri 4 / 5 first; never from the gate alone |
+| `21716380` | scancel |
+| C100 emit | GO after both gates finish (~08:30), from the gate matching the train's recipe |
+| Diverse train (N8) | after the Stage-4 freeze TEST shows it is not a mild clone, or in parallel if speed matters more |
+| Freeze TESTs of Pri 1 | pre-authorize ops: first freeze after PPO update 20, then at most one a day |
+| Crop+flip as the TEST walk recipe | decide on Pri 6 + 6b + 8 TEST rows |

@@ -2405,3 +2405,334 @@ Control for §126: recipe A + `SPECTRA_FT_BN_RECAL=1` only. 2-pass mild, `tree_v
 
 ---
 
+## 132. Cap-40 recipe gate, Adam 1e-3 (thin **21715233** COMPLETED; C100 **21715234** still R) — PRELIM, no-agent
+
+Adam 1e-3, patience 4, **cap 40** (budget, not LR), recipe A, 2-pass mild, `tree_v8`. FLAGS: `optim=adam lr=0.001 epochs=40 patience=4`. Thin **COMPLETED** 2 h 12 m (ended 28 Sep 03:04, `cs-pheno-06`, exit 0). Tracebacks 0. Pair rule: thin within ~0.5 pp of §120 at equal keep **and** ≥ 4/8 C100 admits (kept ≤ 0.98, val Δacc ≥ −10). Quote `[eval] TRAJ val_best`. Headline numbers are TEST Δacc, same as §120.
+
+| Net | cap-40 Adam 1e-3 | Adam 1e-3 12/4 ref §120 |
+|---|---|---|
+| r20-w2 | **−4.5 @ 0.536/0.655** (0.648→0.603), val **−5.26**, step 40 | −5.3 @ 0.536/0.655, val −6.23 |
+| r56-w4 | **−7.2 @ 0.923/0.769** (0.888→0.816), val **−9.64**, step 38 | −6.5 @ 0.933/0.776, val −9.03 |
+
+C100 gate **21715234** still R (~1 h 45 m at 09:45, `cs-1080-05`). First row only: r20-w13 **0.0 @ 1.000/1.000**, step −1, val +0.00 → not admitted.
+
+**Read.** **Thin fail → arm out.** r20 is 0.8 pp kinder at the same keep (pass). r56 is 0.7 pp worse than §120 and a notch deeper (0.923 vs 0.933). The pair rule needs both nets. CIFAR-100 remaining rows cannot save the arm. Do **not** emit `database_offline_v7_diverse_admitted.json`. Do **not** lock. Do not edit the draft.
+
+---
+
+## 133. Cap-40 recipe gate, Adam 1e-4 (thin **21715235** COMPLETED; C100 **21715236** still R) — PRELIM, no-agent
+
+Same walk as §132 at `optim=adam lr=0.0001`. Thin **COMPLETED** 2 h 47 m (ended 28 Sep 05:52, exit 0). Tracebacks 0. Same pair rule.
+
+| Net | cap-40 Adam 1e-4 | Adam 1e-3 12/4 ref §120 |
+|---|---|---|
+| r20-w2 | **−8.6 @ 0.536/0.655** (0.648→0.562), val **−8.75**, step 40 | −5.3 @ 0.536/0.655, val −6.23 |
+| r56-w4 | **−7.8 @ 0.937/0.784** (0.888→0.810), val **−9.97**, step 30 | −6.5 @ 0.933/0.776, val −9.03 |
+
+C100 gate **21715236** still R (~1 h 46 m at 09:45, `ise-pheno-05`). First net r20-w13 **−3.7 @ 0.993/0.962**, val −8.45 (second pass val −9.72 at the same keep) → not admitted (kept > 0.98).
+
+**Read.** **Thin fail → arm out.** r20 is 3.3 pp worse at the same keep as §120; r56 is 1.3 pp worse. Forty epochs does not repair the 12-epoch 1e-4 thin failure (§118). Combined with §132: **neither cap-40 arm passes**. Recipe stays Adam 1e-3 12/4; CIFAR-100 stays test-only unless Ido answers Gilad note Q4 otherwise. Catalog not emitted. Do **not** lock. Do not edit the draft.
+
+---
+
+## 134. Factored-head train (**21536398**) COMPLETED — freeze ep0167 / 0.0608; no TEST until GO
+
+Parent train **COMPLETED** 11:37 IDT 28 Sep (exit 0, 6 d 0 h 19 m, `ise-cpu256-06`). Stop: `since_improvement=148/150`, `min_episodes=250`, `rewinds=3`, wall `519436s/518400s`. Last DONE ep315. Last probe ep312 = **0.0377** (r56 0.029 / r20 0.047), under the freeze. One snap: `snapshots/ep0167` (25 Sep 19:34, area **0.0608**). `policy_config` pins `factored_head=true`, ranking menu l1/fpgm/bn_scale/svd/taylor, `ft_recipe=A`, in-band linear (`cbrt_cubes`), area probe, 12/4, P5-B2 catalog. Tracebacks 0.
+
+**Read.** This is the two-decision-head cell against the area train `21536396` (freeze ep83 / 0.0586). Area scores are not TESTs. Verdict is a skinny-r56 TRAJ of `ep0167` vs that area freeze at equal keep — **TEST only on Ido GO**. Do not auto-queue. Do not start a second factored train. Group-token `21716380` took the GPU (`ise-6000-04`, R since ~13:59). Do **not** lock. Do not edit the draft.
+
+---
+
+## 135. Budget + STOP train (**21715228**) COMPLETED — no snapshot (best area 0.0273 < 0.05 baseline)
+
+Parent train **COMPLETED** 13:58 IDT 28 Sep (exit 0, 13 h 7 m, `ise-6000-04`). Stop: `reward_not_improving=True`, `since_improvement=164/150`, `min_episodes=250`, `rewinds=3`. Last DONE ep250. Peak probe ep84 = **0.0273** (both halves ~0.027); last probe ep240 = **0.0239**. `SPECTRA_SNAPSHOT_BASELINE=0.05` → **no `snapshots/` freeze** (score never cleared the bar). FLAGS confirmed: `compression_rates=[1.0, 0.01, 0.02, 0.04, -1.0]`, `SPECTRA_ACTION_MENU=budget`, `cbrt_cubes`, area probe, P5-B2, STOP scale 100. Tracebacks 0. Never quote `21703443`.
+
+**Read.** Probe area is about half the clean-catalog area freeze (0.0586). STOP was not a learned depth choice (rewinds exhausted; no freeze). A TRAJ of `latest_best` vs `21536396` at equal keep is the kill cell — **TEST only on Ido GO**. Recommendation: do not TEST a sub-baseline actor; the training probe already lost. Do not start a second Budget train. Do **not** lock. Do not edit the draft.
+
+---
+
+## 136. Area-train freeze TRAJ (**21725471** COMPLETED) — clean-catalog `ep0083` vs 2-pass mild §93 — PRELIM
+
+Ido GO A. Skip-train `eval_c10_thin_traj` of **21536396** `snapshots/ep0083` (area probe 0.0586). Job **COMPLETED** 2 h 59 m (ended 28 Sep 23:10 cluster, exit 0, `cs-pheno-09` 3090 = **batch 256**). Pin: det=1, 2-pass, TEST 40/10, look-ahead 0, group-once from `policy_config`. Quote `[eval] TRAJ val_best`. Do not quote wrap. Fair yardstick = 2-pass mild §93 (GTX 1080 = **batch 64**) / 2-pass L1 §94. Twin factored TRAJ **21725472** COMPLETED 01:58 (§137). Protocol: **legacy** (train-split val).
+
+| Net | area ep0083 **21725471** | 2-pass mild §93 | 2-pass L1 §94 |
+|---|---|---|---|
+| r20-w2 | **−5.1 @ 0.536/0.655** (0.648→0.597), val **−6.39** | **−3.4 @ 0.536/0.655** | −7.3 @ 0.417/0.608 |
+| r56-w4 | **−6.8 @ 0.923/0.769** (0.888→0.820), val **−8.94** | **−6.6 @ 0.923/0.769** | −7.8 @ 0.898/0.720 |
+
+**Read.** Same keep as mild on both nets. r56 is the 90 %-rule clone (mild staircase step 38). r20 at identical widths sits inside mild's own batch-256 seed spread (§138: −4.0 / −5.3 / −5.6) — do **not** call the area head worse than mild on r20. Geometry on r56-w4 is 0.9 on every legal row through step 57. Factored r56 (§137) picked the next stair, not a different policy. Stay on the **area-train stack**. Group-token stays **held**. Do **not** lock. Do not edit the draft.
+
+---
+
+## 137. Factored-head freeze TRAJ (**21725472** COMPLETED) — `ep0167` vs area §136 / mild §93 — PRELIM
+
+Ido GO A. Skip-train `eval_c10_thin_traj` of **21536398** `snapshots/ep0167` (area probe 0.0608). Job **COMPLETED** 5 h 48 m (ended 29 Sep 01:58 cluster, exit 0, `ise-pheno-05` 2080 Ti = **batch 128**). Same pin as §136. Quote `[eval] TRAJ val_best`. Protocol: **legacy** (train-split val, batch 128).
+
+| Net | factored ep0167 **21725472** | area §136 (batch 256) | 2-pass mild §93 (batch 64) |
+|---|---|---|---|
+| r20-w2 | **−3.7 @ 0.536/0.655** (0.648→0.611), val **−4.02**, step 40 | −5.1 @ 0.536/0.655 | −3.4 @ 0.536/0.655 |
+| r56-w4 | **−7.1 @ 0.832/0.730** (0.888→0.817), val **−9.76**, step 39 | −6.8 @ 0.923/0.769, step 38 | −6.6 @ 0.923/0.769, step 38 |
+
+**Read.** Compression-rate census: every legal r56-w4 row is **0.9** through step 57 (same as area, same as N0). Step 39 keep **0.832 / 0.730** is mild's documented next stair after step 38's 0.923, with val −9.76 sitting on −τ. That is the band-edge lottery, not a ranking-head effect. **Do not promote the factored head.** Stay on the area stack. r20 at equal keep is kinder than area and close to §93 — confounded with batch 128 vs 256 vs 64 (§138). Do **not** lock. Do not edit the draft.
+
+---
+
+## 138. N0 — 2-pass mild seed × batch-256 thin — PRELIM
+
+No-agent mild, det TRAJ, 2-pass, recipe A, `tree_v9`. Protocol: **legacy** (train-split val), **batch 256** pinned or landed. Yardstick §93 is the same walk at seed 42 on a GTX 1080 (**batch 64**). Quote `[eval] TRAJ val_best`.
+
+| Job | Seed / GPU | r20-w2 step 40 (0.536/0.655) | r56-w4 val_best |
+|---|---|---|---|
+| §93 **21413236** | 42 / 1080 batch **64** | **−3.4** (0.648→0.614), val −4.27 | **−6.6 @ 0.923/0.769**, step 38, val −9.32 |
+| **21726098** COMPLETED 02:09, pheno-06 3090 | 43 / batch **256** | **−4.0** (0.648→0.608), val −4.85 | **−6.4 @ 0.923/0.769**, step 38, val −9.13 |
+| **21726099** COMPLETED 02:08, pheno-08 3090 | 44 / batch **256** | **−5.3** (0.648→0.595), val −5.52 | **−6.4 @ 0.923/0.769**, step 38, val −8.90 |
+| **21726342** COMPLETED 06:48, ise-1080-01, batch **pinned 256** | 42 / batch **256** | **−5.6** (0.648→0.592), val −6.29 | **−6.7 @ 0.923/0.769**, step 38, val −9.22 |
+
+**Read.** All three batch-256 seeds stay at **0.923** on r56-w4. The N0 kill (any seed ≤ 0.83 ⇒ actor-vs-mild r56 is band-edge noise) does **not** fire. Geometry is still 0.9 throughout (§137). Batch-256 r20 at identical widths: **−4.0 / −5.3 / −5.6**. §93's −3.4 (batch 64) is outside that cluster. GO A area's −5.1 sits inside it. Do **not** lock. Do not edit the draft.
+
+---
+
+## 139. N4 — 3-pass mild + rollback, legacy protocol (**21726100** COMPLETED) — PRELIM
+
+`SPECTRA_EVAL_ROLLBACK=1`, 3 passes, seed 42, `tree_v9`, `cs-pheno-09` 3090 = **batch 256**. COMPLETED 3 h 15 m, 29 Sep 02:25, exit 0. Quote `[eval] TRAJ val_best`. Diagnostic, no kill. Protocol: **legacy**. P twin is **§145**.
+
+| Net | val_best | Rollbacks |
+|---|---|---|
+| r20-w2 | **−7.0 @ 0.417/0.608** (0.648→0.578), val **−7.51**, step 61 | none in the printed TRAJ |
+| r56-w4 | **−8.4 @ 0.834/0.678** (0.888→0.804), val **−10.00**, step 150 | **23** undos: first at step **39** (10 layers locked), then 49, 51, 55, 58, **59** (10 layers), 66, 70, 74, **77** (10 layers), 79, 81, 89, 91, 102, 104, 110, 133, 142, 144, 152, 155, 157 |
+
+**Read.** Not "step 39 only". Many stage-3 internals roll back too, so the sitting's N4 fork says the binding problem is **recovery** (F arms), not only the first stream cut. Selected keep 0.834 at val exactly −10 is the lottery again. Re-read under P when **21726338** prints. Do **not** lock. Do not edit the draft.
+
+---
+
+## 140. VGG-11 C100 canary — P vs legacy, train FT 12/4 — PRELIM
+
+Same net `vgg11_bn_cifar100_chenyaofo_70.78`, 2-pass mild, `tree_v9b`. Admitted = kept ≤ 0.98 with val ≥ −10. Quote `[eval] TRAJ val_best`. **No `final_ft` lines** (pickle crash, §141). Do not mix the TEST columns: P TEST is the **5k half**.
+
+| Job | Protocol | val_best | terminal (not the quote) |
+|---|---|---|---|
+| **21726336** COMPLETED 02:22 | **P** (clean val, batch 256, final FT intended 100) | **−8.4 @ 0.659/0.680** (0.714→0.630), val **−7.30**, step 19 | same point |
+| **21726339** COMPLETED 02:36 | **legacy** (train-split val, batch 256, no final FT) | **0.0 @ 1.000/1.000**, step −1, val +0.00 | TEST **−9.6 @ 0.659/0.680**, val **−36.11** |
+
+Size-matched, quoted even if val left τ: P `size_param0.90` −9.4 @ 0.889 val −8.46; P `size_param0.80` −8.4 @ 0.787 val −7.54. Legacy at the same keeps: TEST −10.2 / −9.2 with val **−35.1 / −34.9**.
+
+**Read.** **Admitted under P, not under legacy.** Same terminal keep (0.659); TEST is similar (−8.4 vs −9.6); val is −7.3 vs −36.1. The C100 train-pool block on this canary was the memorized val. Do **not** rewrite claim C6 from this one net. Do **not** emit the diverse catalog. No origin-controlled final-FT gain (crash). Do **not** lock. Do not edit the draft.
+
+---
+
+## 141. V9b provenance — memorized val, batch lottery, final-FT pickle (29 Sep) — not a TEST row
+
+Opus 5.5 sitting 28 Sep 20:39–23:45. Three measurement defects, confirmed from finished logs (`PROMPT_FABLE_NEXT_SITTING.md` §10). Fixes live in **`tree_v9b` only**, all default **off**. Do not re-grade pre-V9b rows.
+
+1. **Memorized val.** Legacy val is carved from the CIFAR train split the zoo nets were trained on. Unpruned val vs TEST: R56·C10 1.000/0.943, VGG-16 C10 1.000/0.936, VGG-19 C100 0.999/0.739, r56-w4 0.926/0.888, r20-w2 0.658/0.648. §124 VGG-19 C100 sat at TEST −8.8 with val −30.9 (`val_best` = unpruned). Every train's reward read this val.
+2. **Batch lottery.** Fine-tune batch follows the GPU (1080 64, 2080 128, 3090/4090 256, rtx_6000 384). §93 ran at 64; most later rows at 256. Pin `SPECTRA_BATCH_SIZE=256` in new cells.
+3. **`val_best` lottery** at a flat band edge (r56-w4 hovers near −10 for ~30 steps). Size points + `scripts/traj_readout.py` are the second readout.
+
+**Smoke 21726334** (never ledger as TEST): split banner `n_train=50000, n_val=5000, n_test=5000`, header `val_from_test=0.5 batch=256 size_points=param:0.9 final_ft=1+origin`, `size_param0.90` printed, then `PicklingError: Can't pickle thin_res_net.ResNet` inside `_run_final_ft` `torch.save`. Exit 0, so afterok children **started**. `traj_models/*.pt` are ~1 KB stubs. Same pickle on P canary (`vgg_chenyaofo.VGG`). Walk `val_best` is usable; `final_ft` is not. Do **not** patch `tree_v9b`. Do **not** scancel the children.
+
+**P twins 21726337 COMPLETED 08:28.** Unpruned val vs TEST on chenyaofo R56·C10 **0.942 / 0.943**. Walk `val_best` on all three nets; VGG-19 C100 **off unpruned**. See **§142**. Same pickle on every P cell after the walk (`resnet_chenyaofo`, `vgg_chenyaofo`, `thin_res_net`, `vgg_depgraph`). Do **not** patch `tree_v9b`.
+
+---
+
+## 142. P twins — Catalog L chenyaofo R56·C10 / VGG-16·C10 / VGG-19·C100 (**21726337** COMPLETED) — PRELIM
+
+Protocol **P**: clean val, batch 256, final FT intended 100 (pickle-crashed; no `final_ft` / origin). 2-pass mild, `tree_v9b`, COMPLETED 6 h 6 m, 29 Sep 08:28, `cs-pheno-06`, exit 0. TEST is the **5k half**. Quote `[eval] TRAJ val_best`. Yardstick = legacy §124 (`21536393`, batch 256, train-split val, 10k TEST).
+
+| Net | P **21726337** | legacy §124 | unpruned val vs TEST (P) |
+|---|---|---|---|
+| R56·C10 | **−2.8 @ 0.661/0.662** (0.943→0.914), val **−3.22**, step 112 | −3.3 @ 0.661/0.662, val −8.18 | **0.942 / 0.943** |
+| VGG-16·C10 | **−2.8 @ 0.657/0.678** (0.937→0.910), val **−2.78**, step 29 | −3.5 @ 0.657/0.678, val −8.20 | TEST 0.937; val tracks TEST |
+| VGG-19·C100 | **−6.7 @ 0.657/0.673** (0.745→0.678), val **−6.44**, step 35 | **0.0 @ 1.000/1.000** (unpruned) | TEST 0.745; val tracks TEST |
+
+Size-matched, quoted even if val left τ: R56 `size_param0.80` −2.7 @ 0.794; `0.70` −2.7 @ 0.694. VGG-16 `0.80` −2.9 @ 0.796; `0.70` −2.8 @ 0.698. VGG-19 `0.80` −6.4 @ 0.796 val −4.74; `0.70` −6.8 @ 0.688 val −6.32.
+
+**Read. Twins GO.** Unpruned val agrees with TEST within ~1.5 pp (not the §124 5.7–26 pp gaps). VGG-19 C100 `val_best` is **off unpruned** at the same keep §124's terminal sat at with val −30.9. Adopt **P as the walk TEST protocol**. Do not quote `final_ft`. Do **not** rewrite C6 from this plus the VGG-11 canary alone. Do **not** lock. Do not edit the draft.
+
+---
+
+## 143. P thin vs N0 s42-b256 — val effect, same seed and batch — PRELIM
+
+P **21726335** COMPLETED 07:54, `ise-1080-01`, 5 h 46 m (pickle after each net). Legacy **21726342** §138. Both seed 42, batch 256, 2-pass mild. P TEST is the **5k half** (unpruned r20 0.649 / r56 0.890 vs legacy 0.648 / 0.888).
+
+| Net | P **21726335** | legacy N0 s42-b256 **21726342** |
+|---|---|---|
+| r20-w2 step 40 | **−3.7 @ 0.536/0.655** (0.649→0.611), val **−1.42** | **−5.6 @ 0.536/0.655**, val **−6.29** |
+| r56-w4 | **−10.1 @ 0.739/0.585** (0.890→0.788), val **−9.52**, step 76 | **−6.7 @ 0.923/0.769**, val −9.22, step 38 |
+
+Size-matched: P r20 `size_param0.80` +0.1 @ 0.774 val +1.16; `0.60` −4.2 @ 0.584. P r56 `size_param0.80` −7.6 @ 0.795 val −7.18; `0.60` NONE.
+
+**Read.** Same seed, same batch, same widths on r20: clean val is **1.9 pp kinder** on TEST and **4.9 pp kinder** on val. On r56-w4, P selects **0.739** (in-band on val) vs legacy **0.923**; TEST −10.1 is 0.1 pp past τ on the 5k half. That is the predicted val effect (r56 gap 3.8 pp under legacy). Do **not** lock. Do not edit the draft.
+
+---
+
+## 144. P N4 — 3-pass mild + rollback under clean val (**21726338** COMPLETED) — PRELIM
+
+`SPECTRA_EVAL_ROLLBACK=1`, 3 passes, seed 42, P flags, `tree_v9b`, `cs-pheno-08`, COMPLETED 4 h 40 m, 29 Sep 07:16. Quote `val_best`. Compare legacy §139.
+
+| Net | P **21726338** | legacy §139 |
+|---|---|---|
+| r20-w2 | **−7.9 @ 0.417/0.608** (0.649→0.569), val **−5.92**, step 61 | −7.0 @ 0.417/0.608, val −7.51 |
+| r56-w4 | **−11.0 @ 0.691/0.537** (0.890→0.780), val **−9.56**, step 150 | −8.4 @ 0.834/0.678, val −10.00, step 150 |
+
+Rollbacks on r56-w4: **18** undos, first at step **77** (10 layers), then 81, **96** (10 layers), 102, 108, 110, 133, 136, 140, 142, 144, 146, 152, 155, 157, 161, 163, 169. `size_param0.80` −7.2 @ 0.795 val −8.06; `0.60` NONE.
+
+**Read.** Still many internals, not step-39-only — recovery fork stands. Clean val **delays** the first undo (77 vs legacy 39) and the selected keep is deeper (0.691 vs 0.834). TEST −11.0 is past τ on the 5k half; val stayed in band. Do **not** lock. Do not edit the draft.
+
+---
+
+## 145. DepGraph VGG-19 C100 under P (**21726341** COMPLETED) — PRELIM, quote-only vs literature
+
+DepGraph's own `vgg19_cifar100_dep_graph_73.5.pth`, 3-pass mild, P, `tree_v9b`, COMPLETED 2 h 14 m, 29 Sep 09:30, `cs-pheno-08`. TEST is the **5k half** (unpruned 0.740). No `final_ft`. Twin under P is §142. DepGraph published (Fang et al. CVPR 2023): **73.50 → 70.39 (−3.11) at 8.92×** after sparse learning + target fine-tune. Quote beside; **never "beats".**
+
+| Readout | SPECTRA P mild | Caption |
+|---|---|---|
+| `val_best` | **−7.9 @ 0.534/0.550** (0.740→0.660), val **−7.18**, step 47 | τ-matched walk; off unpruned |
+| `size_param0.70` | **−6.3 @ 0.684/0.686** (0.740→0.677), val **−5.92**, step 29 | size-matched, quoted even if val left τ |
+| `size_param0.50` | NONE | 3-pass mild did not reach 0.50; not DepGraph's 8.92× (~0.11 keep) |
+
+**Read.** Same story as the zoo twin: clean val lets VGG-19 C100 `val_best` leave 1.000. Not a SOTA comparison (different FT, 5k TEST, no sparse learning, pickle killed the 100-ep finish). DepGraph R56 P is **§146**. Do **not** lock. Do not edit the draft.
+
+---
+
+## 146. DepGraph R56·C10 under P (**21726340** COMPLETED) — PRELIM, quote-only vs literature
+
+DepGraph's own `resnet56_cifar10_dep_graph_93.53.pth`, 5-pass mild, P, `tree_v9b`, COMPLETED 5 h 58 m, 29 Sep 12:46, `cs-pheno-09`. TEST is the **5k half** (unpruned 0.934). No `final_ft` (pickle `resnet_chenyaofo.CifarResNet`). Legacy 2-pass same checkpoint: §131 **−3.1 @ 0.661/0.662**. DepGraph published: **93.53 → 93.64 (+0.11) at 2.57× FLOPs** (FLOPs kept ≈ 0.39) after sparse learning + target fine-tune. Quote beside; **never "beats".**
+
+| Readout | SPECTRA P mild 5-pass | Caption |
+|---|---|---|
+| `val_best` | **−4.0 @ 0.356/0.369** (0.934→0.894), val **−4.04**, step 283 | τ-matched walk; 5-pass ceiling, not §131's 2-pass keep |
+| `size_flop0.60` | **−3.1 @ 0.638/0.599** (0.934→0.902), val **−2.56**, step 136 | size-matched |
+| `size_flop0.39` | **−3.9 @ 0.382/0.380** (0.934→0.894), val **−4.04**, step 267 | **DepGraph 2.57× size**; quote next to +0.11 |
+
+**Read.** At their FLOP point we are **−3.9** on the 5k half vs their **+0.11** after a different protocol. Caption the gap; do not call it a loss of the agent (this row is no-agent mild). Walk numbers usable; `final_ft` missing. V9b GPU queue is now empty. Do **not** lock. Do not edit the draft.
+
+---
+
+## 147. Zero-GPU readout of the finished P walks (29 Sep) — not a TEST row
+
+Offline, login node, `tree_v9c` readers on the `tree_v9b` walks 21726335 / 36 / 37 / 40 / 41 (rollback walk 21726338 excluded: its walk reads val). Source: `PROMPT_FABLE_NEXT_SITTING.md` §13.1. No new run and no selection on a reported half.
+
+**Census (`crossfit_readout.py`).** **0 of 343** cut points on six full-width nets under P have val Δacc > 0 (R56 twin, VGG-16, VGG-19 twin, DepGraph R56, DepGraph VGG-19, VGG-11 C100 canary). The best is DepGraph R56 at −0.72 pp after its first cut. Thin r20-w2 does gain: 8 of 18 under P (4 of 18 legacy), max +3.76. Published light cuts of over-parameterised CIFAR nets recover to ≥ 0 under SGD + crop/flip (DepGraph R56 2.11× +0.24; Network Slimming VGG-19 +0.14). So the "no accuracy increase" fact belongs to the walk fine-tune (Adam 1e-3, no augmentation), not to the reward and not only to memorized val.
+
+**Cross-fit, P, 10k (both halves).** The mild walk reads neither half, so the τ rule runs twice with the halves swapped (mean shown; both fold points in the log), and size points use both halves. A two-fold estimate of the rule, not one network's accuracy.
+
+| Net | τ = 10 rule, 10k | Size points, 10k | 5k row |
+|---|---|---|---|
+| R56 twin | −3.03 @ 0.661 | — | §142 |
+| VGG-16 | −2.78 @ 0.657 | — | §142 |
+| VGG-19 twin | −6.55 @ 0.657 | — | §142 |
+| r20-w2 | −2.57 @ 0.536 | — | §143; halves disagree by 2.3 pp |
+| r56-w4 | −9.86 | params 0.80: −7.37 | §143; folds pick 0.739 / 0.743 |
+| DepGraph R56 | −4.02 @ 0.356 | FLOPs 0.47: −3.32; FLOPs 0.39: −3.98 | §146; DepGraph +0.24 / +0.11 |
+| DepGraph VGG-19 | −7.55 @ 0.534 | params 0.70: −6.09 | §145 |
+| VGG-11 C100 canary | −7.86 @ 0.659 | — | §140 |
+
+**Read.** Walk numbers only, no final FT. Quote as "P, 10k (cross-fit)". Not valid for rollback walks or accuracy-reading policies. Do not lock.
+
+---
+
+## 148. Crop+flip in the walk fine-tune, C100 gate (**21729554** vs **21729552**, both R) — PRELIM, 6 of 8 nets; gate adopt rule met
+
+`tree_v9b`, P, gate profile (τ = 10, 2-pass mild, walk FT 12/4), both on 1080s. Arm adds `SPECTRA_FT_AUG=1` (RandomCrop+Flip on train images only). TEST is the **5k half**. Mild holds the same widths at the same step, so the size columns are paired (keep shown once). First read (r20-w13 only, 29 Sep 17:01) is the first row. Stamped 30 Sep 02:13; nets 7–8 (mbv2x1, densenet40) still walking, walls ~08:21 (552) / ~08:29 (554), densenet40 may not finish.
+
+| Net (unpruned) | size 0.90: no aug → aug | size 0.80: no aug → aug | `val_best` no aug | `val_best` aug | Paired val (n, mean, better) | Admit no aug / aug |
+|---|---|---|---|---|---|---|
+| r20-w13 (0.700) | −10.9 → −5.2 (**+5.7**) @ 0.861 | −13.1 → −6.9 (**+6.2**) @ 0.787 | −9.2 @ 0.926, val −9.54 | −8.4 @ 0.662, val −8.84 | 24, **+5.48**, 96 % | yes / yes |
+| r56-w9 (0.733) | −13.7 → −7.7 (**+6.0**) @ 0.860 | −12.2 → −9.5 (**+2.7**) @ 0.792 | −9.0 @ 0.941, val −8.46 | −9.5 @ 0.647, val −9.70 | 60, **+4.94**, 98 % | yes / yes |
+| resnet32 (0.706) | −7.8 → −5.4 (**+2.4**) @ 0.873 | −8.1 → −4.6 (**+3.5**) @ 0.793 | −9.5 @ 0.663, val −8.42 | −5.3 @ 0.663, val −4.90 | 36, **+2.48**, 97 % | yes / yes |
+| vgg11_bn (0.714) | −9.6 → −5.6 (**+4.0**) @ 0.889 | −7.3 → −6.4 (**+0.9**) @ 0.787 | −9.4 @ 0.659, val −8.78 | −4.3 @ 0.659, val −4.98 | 18, **+2.07**, 100 % | yes / yes |
+| vgg13_bn (0.751) | −7.1 → −5.1 (**+2.0**) @ 0.887 | −9.7 → −6.4 (**+3.3**) @ 0.798 | −9.3 @ 0.661, val −8.54 | −4.8 @ 0.658, val −4.58 | 22, **+3.39**, 100 % | yes / yes |
+| mbv2x0.5 (0.711) | −2.6 → −0.8 (**+1.8**) @ 0.868 | −1.9 → −0.8 (**+1.1**) @ 0.798 | −2.9 @ 0.692, val −2.78 | −2.0 @ 0.692, val −2.16 | 50, +0.92, 92 % (CONTINUE) | yes / yes |
+| mbv2x1, densenet40 | walking (mbv2x1: 3 pairs, +1.90) | | | | | |
+
+**Paired read (`paired_steps.py`, val).** `ADOPT?` on 5 of 6 nets; mbv2x0.5 CONTINUE. First net at 16 cuts read +4.60, final +5.48.
+
+**Read.** At the same widths crop+flip is kinder at **12 of 12** size points, **+0.9 to +6.2 pp TEST, mean +3.3**. Both arms admit **6/6** (TRAJ `val_best` kept ≤ 0.98, val Δ ≥ −10). The pre-registered gate rule (admits ≥ no-aug and kinder TEST at equal keep on ≥ 5/8) is **met on 6 nets**, whatever nets 7–8 show. Four of six nets stay inside τ to the deepest 2-pass mild point (~0.66 keep) in **both** arms: under clean val, C100 recovery at the live recipe is a gate pass (Q4 evidence "yes", no emit), and crop+flip halves the drop there (resnet32 −9.5 → −5.3, VGG-11 −9.4 → −4.3, VGG-13 −9.3 → −4.8). One seed per arm: the smallest gaps (VGG-11 size 0.80 +0.9, mbv2x0.5 +1.1) sit inside the 5k-half noise. Still a walk-recipe result, not a training-recipe pass: the thin-C10 rule is §150. Do **not** rewrite C6 as "C100 solved". Do not lock. Do not edit the draft.
+
+---
+
+## 149. 100-epoch SGD final fine-tune, DepGraph VGG-19 C100 (**21729551** COMPLETED) — PRELIM; O2 adopt rule met on this cell
+
+`tree_v9b`, P, 3-pass mild (τ = 10, walk FT 40/10), then `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1`: SGD lr 0.01, momentum 0.9, wd 5e-4, cosine, crop+flip, batch 128, no KD, from the inherited weights. COMPLETED 8 h 06 m, 30 Sep 00:27, `cs-1080-05`; 27–38 min per candidate. TEST = **5k half** (unpruned 0.740); 10k = both halves, size points only (`val_best` is val-selected). Nothing saved (`SAVE_TRAJ_MODELS` unset on v9b). Honest gain = (final − walk) − (origin final − origin walk), `final_ft_readout.py`.
+
+| Point | Keep params / FLOPs | Walk | Final FT | Honest gain | 10k final |
+|---|---|---|---|---|---|
+| `val_best` step 47 | 0.534 / 0.550 | −7.82 | **−3.64** | **+4.08** | n/a |
+| `size_param0.70` step 29 | 0.684 / 0.686 | −7.08 | **−2.52** | **+4.46** | **−2.39** |
+| `size_param0.60` step 42 | 0.599 / 0.590 | −8.90 | **−3.28** | **+5.52** | **−3.04** |
+| origin step −1 | 1.000 | 0 | +0.10 | — | +0.56 |
+
+**Re-walk vs §145** (same checkpoint and flags; `cs-1080-05` vs `cs-pheno-08`). `val_best` step 47 at the same keep: TEST −7.8 vs −7.9, val −7.02 vs −7.18. `size_param0.70` step 29: TEST −7.1 vs −6.3, val −6.30 vs −5.92. One re-walk moves a size point by up to **0.8 pp** TEST at equal widths (SKU / cuDNN nondeterminism). Caption walk gaps below ~1 pp as inside that noise.
+
+**Cross-fit of this walk (10k).** τ = 10: −7.42 @ 0.534 (both folds step 47). τ = 5: −4.83 (folds pick 0.822 and 0.986). Census 0/46 cut points with val Δ > 0 (max −3.50).
+
+**DepGraph** (Fang et al. CVPR 2023, their checkpoint): 73.50 → 70.39 (**−3.11**) at **8.92×** params (keep ≈ 0.11) after sparse learning + fine-tune. We are −2.52 at 0.684 keep and −3.64 at 0.534, i.e. far less compression. Quote beside; **never "beats"**.
+
+**Read.** Honest gain **+4.1 to +5.5 pp** at every point, ≥ 2 pp: the pre-registered O2 rule is met on this C100 cell. The C10 cells (21730500 / 01 / 06) are still PD. Bar-3 rows (the SOTA comparison) use the final FT, captioned "after a 100-epoch SGD final fine-tune; origin +0.10". Bar 2 (same loop, same size vs heuristics) stays on the walk recipe. It does not change what the agent learns: the reward still reads the walk fine-tune. Do **not** lock. Do not edit the draft.
+
+---
+
+## 150. Thin pair at the train fine-tune 12/4 under P; crop+flip as the training recipe (**21729555** vs **21729556**, both COMPLETED) — PRELIM; training rule PASSED
+
+`tree_v9b`, P, 2-pass mild, walk FT **12/4** (the train recipe), seed 42, `cs-pheno-06`. 555 COMPLETED 01:45 (1 h 11 m). 556 COMPLETED 03:12 (1 h 26 m). TEST = 5k half; 10k = both halves / cross-fit. Pre-registered rule (sitting §13.4): crop+flip becomes the training recipe if the C100 gate rule holds (§148: met) and r56-w4 is not > 0.5 pp worse at equal keep. r20-w2 is a 2 pp guard only (seed SD ≈ 0.85 pp; the halves differ by up to 2.3 pp).
+
+| Net (unpruned) | Point | P 12/4 (555) | P + crop+flip 12/4 (556) | Aug − P, TEST | 10k |
+|---|---|---|---|---|---|
+| r56-w4 (0.890) | `size_param0.80`, step 47, 0.795 | −8.2, val −8.52 | **−5.9**, val −5.34 | **+2.3** | −5.59 vs −8.35 (+2.8) |
+| r56-w4 | `val_best` | −10.6 @ 0.741, step 70, val −9.42 | **−5.1 @ 0.622**, step 112, val −5.30 | deeper and kinder | τ10 −5.21 @ 0.622 vs −10.30 @ 0.741 |
+| r56-w4 | `size_param0.60` | NONE | NONE | — | — |
+| r20-w2 (0.649) | `val_best`, step 40, 0.536 | −5.3, val −4.42 | −6.6, val −5.18 | −1.3 | τ10 −5.87 vs −4.82 |
+| r20-w2 | `size_param0.80`, step 17, 0.774 | −0.1, val +1.30 | −3.2, val −0.96 | **−3.1** | −2.08 vs +0.64 |
+| r20-w2 | `size_param0.60`, step 36, 0.584 | −5.2, val −3.04 | −6.2, val −4.78 | −1.0 | −5.46 vs −4.11 |
+
+**Paired read (val).**
+- r56-w4: 60 cuts, **+5.03 pp**, better on 100 %; deepest pair step 112, −5.30 vs −12.92.
+- r20-w2: 16 cuts, −1.92, better on 0 % (the generic KILL label; r20 is a guard, not a decider).
+- Recipe length, info only (555 vs P thin 40/10 21726335): r56-w4 −1.03 pp over 60 pairs, r20 −0.93. The train FT is harsher than TEST's.
+
+**Census (val Δ > 0).** P 12/4: r20 8/18 (2 on both halves), r56-w4 0/62. Aug 12/4: r20 3/18 (0 on both), r56-w4 0/62 (max −1.88).
+
+**Read.**
+- **Training rule PASSED.** On r56-w4, crop+flip is +2.3 pp TEST at equal keep (10k +2.8). The τ rule stays inside the band to the end of the 2-pass walk: 0.622 at −5.1, against 0.741 at −10.6.
+- **The r20 guard holds on the mean:** −1.8 pp TEST over the three equal-keep points, paired val −1.92. One point is at −3.1. Crop+flip hurts the 5k-parameter, 64.8 % r20-w2, a net that underfits (NetAug, Cai et al. ICLR 2022). r20-w2 is a hold-out diagnostic, not a train net.
+- **Crop+flip becomes the Stage-4 train recipe (§151).**
+- **Still no cut gains on r56-w4 with aug (0/62),** so the cubic reward's positive branch stays unvisited there.
+
+Do not lock. Do not edit the draft.
+
+---
+
+## 151. Stage-4 train released (**21737123**) — the area train under clean val + crop+flip
+
+Ido GO 30 Sep 01:56: Stage 4 = one train, the area train under P, plus crop+flip if it passes the training rule.
+- *Submitted.* From `tree_v9c` (frozen, CPU pytest 367/367): `offline_train_v6_inband_p5b2` + `SPECTRA_PROBE_SCORE=area` + **P** (`SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256`) + **`SPECTRA_FT_AUG=1`**. Nice 0; the picker's default card (`rtx_6000`; the control ran on `ise-6000-09`, RTX 6000 Ada); 7-day scheduler limit, 6-day runtime fuse.
+- *Sequence.* The P-only arm **21737095** was submitted at ~02:10 and held. The P+aug arm was submitted held at ~02:35. When §150 passed at 03:11, 21737123 was released and 21737095 cancelled; it never started.
+- *Control.* Area train **21536396** (`tree_v7`, legacy val, adaptive batch; freeze `ep0083` ≡ mild's 90 % rule, §136).
+- *Unchanged from the control.* P5-B2 catalog (C10 + SVHN), in-band linear reward (structural + cbrt_cubes), 5-action menu (1.0 | 0.9/0.8 × l1/fpgm), probes r56-w6 + r20-w10 every 12 episodes, 12/4 train FT, PPO 4×4, lr 3e-4, entropy 0.01, min 250 episodes / patience 150 / 3 rewinds, snapshot baseline 0.05.
+- *Aug scope.* CIFAR only (RandomCrop pad 4 + flip on train images). The SVHN net stays unaugmented.
+- *Pre-flight.* On this path the `tree_v7` → `tree_v9c` sbatch diff is added profiles, the `PROBE_SET` case (default = the same thin probes) and resume logic. Catalog byte-identical; `bash -n` ok.
+
+**Why these changes.**
+- Every train so far scored its reward on memorized train-split val (§141). Unpruned val read ≈ 1.000, so every cut looked like a large drop and the mildest policy scored best. Under P the reward sees the drop TEST sees.
+- Crop+flip gives the agent the recovery the zoo nets were trained with (§148, §150).
+- One train with both changes is the more decisive single experiment: if it cannot leave mild, the weaker P-only recipe will not. Attribution (P alone) is O40, after a success only.
+
+**Pre-registered reads.**
+1. `policy_config.json` differs from 21536396's only in the P keys (`VAL_FROM_TEST`, `VAL_TEST_FRACTION`, `SPLIT_SEED`, `BATCH_SIZE`) and run id / stamp. `SPECTRA_FT_AUG` is not a `policy_config` key on `tree_v9c`; it is recorded in the log's `SPECTRA_* env` header and the job name.
+2. The log shows `Val from test` for cifar-10 **and** svhn, and `FT aug on` for cifar-10 only.
+3. Probe area is on a new scale: never compare it with 0.0586.
+4. The verdict is a TRAJ of a freeze, on Ido's GO, against 2-pass mild at equal keep on the thin pair **under the same walk recipe** (P + crop+flip, 40/10: 21729557). P thin 21726335 is the no-aug audit column. The coverage set follows.
+5. Mild-clone read at that TEST: a 0.9 rate on ≥ 95 % of legal r56-w4 rows means "mild clone under P+aug" (the §136 read).
+
+**Start (R 30 Sep 03:14, `ise-cpu256-32`, RTX 6000 Ada).** Reads 1 and 2 pass.
+- The `SPECTRA_* env` header has `VAL_FROM_TEST '1'`, `BATCH_SIZE '256'`, `FT_AUG '1'`, `PROBE_SCORE 'area'`.
+- `Val from test on cifar-10: n_train=50000 … n_val=5000, n_test=5000`; `on svhn: n_train=73257 … n_val=13016, n_test=13016`.
+- `FT aug on cifar-10: RandomCrop+Flip on train only`, and no aug line for svhn.
+- `policy_config.json` vs 21536396: only `created`, `SPECTRA_RUN_ID`, `SPECTRA_BATCH_SIZE` (unset → 256) and `SPECTRA_VAL_FROM_TEST` (unset → 1). The fraction and split seed are at their defaults and are not recorded.
+
+Do **not** lock.
+
+---
+
+
+

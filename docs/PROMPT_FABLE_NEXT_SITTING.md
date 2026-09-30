@@ -676,3 +676,16 @@ P = probability the option passes its own adopt rule. "Pri" refers to `docs/SITT
 - r20: seed SD ≈ 0.85 pp, and the 5k halves disagree by up to 2.3 pp. So r20 is a guard at 2 pp, never a decider.
 - r56-w4: SD ≈ 0.17 pp at 0.923.
 - Free determinism check: every `tree_v9c` final-FT cell re-walks its control, so its paired read against that control must be ≈ 0. Flag if |mean| > 0.5 pp; the cause would be the GPU SKU or nondeterminism.
+
+### 13.5 Status 30 Sep ~03:00 IDT (Opus 5.5 MAX): statuses now live in `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`
+
+- **O1 crop+flip.**
+  - The gate rule is met (§148): kinder at 12 of 12 equal-width C100 size points, mean +3.3 pp TEST; both arms admit 6/6.
+  - The training rule **passed** (§150): r56-w4 +2.3 pp TEST at equal keep; the r20 guard −1.8 mean.
+  - The TEST-walk rule waits on the twins: R56 in 21729553, both VGGs in 21737104 (21729553 walls out inside VGG-16), and the thin guard 21729557.
+- **O2 final FT.** Met on DepGraph VGG-19 C100 (§149): honest +4.08 / +4.46 / +5.52 pp. C10 cells are PD.
+- **O18 / O3.** Passed.
+- **O17 = Stage 4.** 21737123: the area train under P + crop+flip (§151). The P-only arm was cancelled before it started and is kept for attribution.
+- **Stage 3, N4.** Submitted as 21737105.
+- **New options.** O39 capacity-conditioned aug, O40 attribution train, O41 diverse P train, O42 the cubic reward under P. They and the `tree_v9d` dev items are in the way-ahead file, §3–§4.
+- **Queue.** Pending no-agent cells carry `Features=rtx_6000|rtx_4090`. Untyped requests were landing on 1080s by node weight (run record §6).

@@ -129,6 +129,17 @@ def test_missing_origin_is_flagged_not_quoted(tmp_path):
     assert "honest n/a (no origin row)" in final_ft_readout.readout(rows)[0]
 
 
+def test_a_recipe_that_hurts_the_origin_is_never_adopted(tmp_path):
+    # the 1-epoch smoke 21730499 on r20-w2: origin −5.84 pp, raw gain −0.06 pp, "honest" +5.78
+    rows = _rows(tmp_path, [
+        _ft("origin", -1, 0.80, 0.7416, 0.85, 1.0),
+        _ft("size_param0.80", 3, 0.75, 0.7494, 0.84),
+    ])
+    size = next(ln for ln in final_ft_readout.readout(rows) if "size_param0.80" in ln)
+    assert "honest +5.78 pp ORIGIN-HURT" in size and "ADOPT" not in size
+    assert final_ft_readout.verdict(2.5, origin_change=-0.4) == "ADOPT"
+
+
 # ---------------------------------------------------------------- cross-fit readout
 
 def _tp(step, param, val, test):
