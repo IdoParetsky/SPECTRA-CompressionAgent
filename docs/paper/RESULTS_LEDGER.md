@@ -2756,7 +2756,7 @@ Do **not** lock.
 
 ---
 
-## 152. Crop+flip in the TEST walk, C10 R56 twin (**21729553** vs **21726337**) — PRELIM
+## 152. Crop+flip in the TEST walk: C10 twins (**21729553**, **21737104** vs **21726337**) and the thin guard (**21729557** vs **21726335**) — PRELIM; decision (d) met
 
 `tree_v9b`, P, 2-pass mild (τ = 10, walk FT 40/10), `SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.7`. The arm adds `SPECTRA_FT_AUG=1`; control = the P twins **21726337**. Net: `resnet56_cifar10_chenyaofo_94.37` (unpruned TEST half 0.943). Mild takes the same step at the same widths in both arms, so every row compares equal architectures. TEST = the 5k half; 10k = both halves, size points and cross-fit only. Arm on `cs-1080-05`; control on another card: re-walk noise is up to 0.8 pp (§149).
 
@@ -2786,6 +2786,21 @@ Do **not** lock.
 - *Thin guard (21729557 vs 21726335, 40/10).*
   - r20-w2: aug is 1.3 / 0.7 / 1.6 pp worse at size 0.80 / 0.60 / `val_best`, all at equal keep. That is inside its 2 pp guard.
   - r56-w4 is still walking: paired val +4.99 over 54 cuts, better on 100 %. Its rows decide (d): not > 0.5 pp worse than 21726335 at equal keep = met.
+
+**Thin guard, r56-w4 (30 Sep 11:55; 21729557 COMPLETED 4 h 15 m, `ise-4090-20`, 0 Tracebacks).**
+- *The net.* `resnet56-width4_cifar10_thin-res-net_88.80`, unpruned TEST half 0.890.
+- *The comparison.* TEST FT 40/10 against the P thin walk 21726335; same steps, same widths.
+
+| Point | Step (P / aug) | Params kept (P / aug) | P TEST | P + aug TEST | Aug − P |
+|---|---|---|---|---|---|
+| size 0.80 | 47 / 47 | 0.795 / 0.795 | −7.6 | **−2.6** | **+5.0** |
+| size 0.60 | NONE | — | — | — | — |
+| `val_best` | 76 / 112 | 0.739 / **0.622** | −10.1 (val −9.52) | **−4.5** (val −4.34) | deeper by 0.117 keep **and** 5.6 pp kinder |
+
+- *Against the training FT (§150).* The same walk with crop+flip at 12/4 (21729556) was −5.9 at 0.795; at 40/10 it is −2.6. With crop+flip, the longer TEST FT recovers another 3.3 pp.
+- *(d) verdict.* The thin guard holds with a wide margin: r56-w4 is 5.0 pp kinder at equal keep, and r20-w2 is inside its 2 pp. With the twins at 2/3, **decision (d) is met** (runbook M3, 11:55). Converting 21730506 to the crop+flip walk (runbook §10.5 c) waits for Ido's reply.
+- *Control.* 21729557 is now final, and it is the mild control for every Stage-4 freeze TEST (runbook §10.3 item 1).
+- *Still to add.* The VGG-19 C100 twin rows when 21737104 completes.
 
 Do **not** lock.
 

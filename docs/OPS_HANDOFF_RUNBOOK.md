@@ -27,8 +27,9 @@ Read, in this order:
  5. docs/paper/RESULTS_LEDGER.md §147-§153: the rows you extend. Next new section: §154.
 
 Live: Stage-4 train 21737123 (clean val P + crop+flip + area probe, tree_v9c), R since 30 Sep 03:14;
-its chained resume 21767188 (PD afterok) carries it past the 6-day fuse (~6 Oct 03:15); 13 no-agent
-cells. One command does the reads:
+its chained resume 21767188 (PD afterok) carries it past the 6-day fuse (~6 Oct 03:15); 12 no-agent
+cells. Decision (d) was met at 11:55 (ledger §152, milestone M3): convert 21730506 (§10.5 c) only
+when Ido says so. One command does the reads:
   powershell -NoProfile -File scripts/rexec.ps1 -Quiet -File scripts/_tmp_s30_ops_hb.sh
 
 Every heartbeat: (a) run it; (b) a KILL on an arm -> scancel THAT arm only, one PRELIM ledger line;
@@ -41,26 +42,25 @@ a freeze TEST verdict; a milestone; a QOS slot idle > 1 h.
 Never: §10.6. When unsure, report and wait; do not improvise a cell.
 ```
 
-### 10.1 Live jobs (30 Sep 11:50)
+### 10.1 Live jobs (30 Sep 11:55)
 
 | Job | Name | Tree | State | Pairs with / read |
 |---|---|---|---|---|
 | **21737123** | v9c-paug-area-train | v9c | R since 03:14, `ise-cpu256-32` (RTX 6000 Ada), `Requeue=0`; 12 episodes by 10:58 | control 21536396 (§9.2) |
 | **21767188** | v9c-paug-area-train-r1 | v9c | PD `afterok:21737123`, nice 0, `Requeue=0`, `Features=rtx_6000\|rtx_4090` | continues 21737123 (§10.2) |
-| 21729557 | v9b-aug-thin | v9b | R; r20 rows in, r56-w4 walking | 21726335; the (d) thin guard (§10.3 item 3) |
 | 21737104 | v9c-aug-twins-vgg | v9c | R; VGG-16 rows in (§152), VGG-19 C100 walking | 21726337 |
 | 21730501 | v9c-ft100-thin | v9c | R; r20 final-FT rows in | fixed reader; re-walk ≈ 0 vs 21726335 |
-| **21767189** | v9c-aug-ft100-dg-r56 (**N3**) | v9c | PD nice 3 (next free GPU) | 21730500 (§153): walk by step, final FT at equal keep |
+| **21767189** | v9c-aug-ft100-dg-r56 (**N3**) | v9c | **R** since ~11:50, `ise-4090-19` | 21730500 (§153): walk by step, final FT at equal keep |
 | 21737105 | v9c-aug-ft100-dg-vgg19 (N4) | v9c | PD nice 45 | 21729551 (§149) |
 | 21730507 | v9c-scratch-thin | v9c | PD afterok 21730501, nice 45 | the inherited rows of 501 |
 | 21730509 / 14 | v9c-cg-neon-twins / -thin | v9c | PD nice 50 / 52 | 21726337 / 21726335, big-effect kill |
 | 21730516 | v9c-scratch-dg-r56 | v9c | PD nice 55 | the inherited rows of 500 |
 | **21767190** | v9c-kd-from-dg-r56 (**N1**) | v9c | PD nice 60 | 21730500's `final_ft` rows (same saved models) |
 | **21767192** | v9c-autoaug-from-dg-r56 (**N2**) | v9c | PD nice 61 | same |
-| 21730506 | v9c-ft100-twins-c10 | v9c | PD, **parked at nice 70** for decision (d) | 21726337 |
+| 21730506 | v9c-ft100-twins-c10 | v9c | PD, **parked at nice 70**; (d) met, conversion on Ido's reply | 21726337 |
 | 21729558 | v9b-p-n2-streams | v9b | PD nice 80 | 21726335 by params |
 
-Done since the 03:30 handoff: 21730500 COMPLETED ~09:57 (§153); 21729554 COMPLETED and 21729552 TIMEOUT (§148); the C100 catalog emitted (§148); **21716380 scancelled** 11:29 on Ido's GO (its bundle stays in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/`).
+Done since the 03:30 handoff: **21729557 COMPLETED ~11:50** (§152: thin guard held, r56-w4 +5.0 pp at equal keep → decision (d) met; now the fixed mild control for freeze TESTs); 21730500 COMPLETED ~09:57 (§153); 21729554 COMPLETED and 21729552 TIMEOUT (§148); the C100 catalog emitted (§148); **21716380 scancelled** 11:29 on Ido's GO (its bundle stays in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/`).
 
 ### 10.2 The train: fuse, resume, requeue (supersedes §9.2 "Fuse" and the §9.4 resume note)
 
@@ -88,16 +88,15 @@ Done since the 03:30 handoff: 21730500 COMPLETED ~09:57 (§153); 21729554 COMPLE
    - Check its start (§10.2) and report.
    - If that update fails: scancel 21767188, submit §10.5 (b) once, then `Features` and `Requeue=0`.
    - The same rule covers 21767188 itself, with R = its own run dir. One recovery per job; a second death → report and wait.
-3. **Decision (d) read: the thin guard.** When 21729557 prints its r56-w4 rows (the heartbeat's last block), compare them with 21726335 at equal keep: size 0.80 and `val_best`. Size 0.60 is NONE on the P side.
-   - If aug is no more than 0.5 pp worse at either point, the rule is met (the twins already are, §152). Annotate "(d) MET" and ping Ido "convert 21730506?".
-   - **Only on his reply:** scancel 21730506 if it is still PD, and submit §10.5 (c).
-   - If the guard fails: report, and leave 21730506 at nice 70.
+3. **Decision (d): MET at 11:55; the sitting did the read** (§152, M3). r56-w4 is +5.0 pp at 0.795, and its `val_best` is deeper and kinder. r20 is inside its 2 pp. Ido has been told.
+   - **Only on his reply** ("convert 21730506"): scancel 21730506 if it is still PD, submit §10.5 (c), then `Features`. Annotate the new job id in way-ahead §7 and `SITTING_GPU_QUEUE.md`.
+   - Until then, leave 21730506 at nice 70. Do not re-ask on every heartbeat; one reminder a day at most.
 4. **Readouts on COMPLETED.** As §9.3 item 8: `readers_s30/scripts/final_ft_readout.py`; `crossfit_readout.py --taus 10,5 --sizes <points>` for mild walks; the aug census. Cell rules (`SITTING_GPU_QUEUE.md`):
    - *N3* 21767189 against 21730500 (§153), 10k at flop 0.47 / 0.39. Final FT ≥ 1 pp kinder at equal keep → ADOPT: the bar-3 R56 rows use the aug walk. Walk kinder but final FT within 0.5 pp → the final FT erases the walk's difference (cross-off for bar 3). Then check M4.
    - *N1* 21767190 / *N2* 21767192 against 21730500's `final_ft` rows (the same saved models). Read the origin row first (way-ahead §2 insight 10). ≥ +0.5 pp at the size points with a healthy origin → ADOPT candidate for the final recipe; ≤ +0.3 → cross-off. Then check M5.
    - *N4* 21737105 against 21729551 (§149): the N3 rule.
    - *21730501*: new § at COMPLETED. Its r20-w2 rows already read as a cross-off: the origin gains +3.5 pp, the pruned points −0.3 to −1.1 raw.
-   - *21737104* COMPLETED: extend §152 with the VGG-19 C100 twin. *21729557* COMPLETED: extend §152 with the thin-guard rows.
+   - *21737104* COMPLETED: extend §152 with the VGG-19 C100 twin. (21729557's thin-guard rows are already in §152.)
 5. **Kill rules on arms** (unchanged): paired-read KILL (≥ 15 pairs, mean ≤ −1 pp, ≥ 75 % worse) → scancel that arm. C-G big-effect kill (5 pairs, mean ≤ −3 pp, ≥ 4/5 worse). Never on the train or its resume.
 6. **A slot idle for more than 1 h** while PD cells wait on `Features` and no RTX 6000 / 4090 is free: `scontrol update JobId=<top PD cell> Features=`, and note it. Never for 21767188.
 
@@ -110,7 +109,7 @@ When one fires, write "MILESTONE <id>" with its numbers and ledger § at the top
 | **M1** | A freeze TEST is at or above mild (21729557) on **both** thin nets: no size point more than 0.5 pp worse at equal keep. **And** it is ≥ 1 pp kinder at a size point, or its `val_best` is deeper (keep ≥ 0.03 lower) at a Δ no more than 0.5 pp worse. **And** the census says it is not a mild clone | The first SPECTRA agent to beat its own heuristic under an honest protocol: the thesis claim | Coverage-set TEST of that freeze; build `tree_v9d`; ask Ido for N8 (roadmap) |
 | **M1-neg** | Two freeze TESTs are mild clones, or both are more than 0.5 pp worse than mild on both nets | Clean val and crop+flip were not enough to leave mild | Diagnose before any new train: reward replay (O38); N10 if a census allows it; the action menu |
 | **M2** | PPO update 10 (~episode 40): ev > 0 on the last 3 updates **and** `gap_to_uniform` > +0.05 over the last 8 episodes. Or §9.2 flag 1 fires | Early health. ev was ~0 at updates 1–3, against 0.45–0.88 in the control | Note only; a flag is not a kill |
-| **M3** | (d) met (§10.3 item 3) | Every TEST walk moves to crop+flip | Ido decides the 21730506 conversion |
+| **M3** | (d) met (§10.3 item 3). **Fired 30 Sep 11:55** (§152) | Every TEST walk moves to crop+flip | Ido decides the 21730506 conversion |
 | **M4** | N3 completes with its 10k final FT within 1.0 pp of DepGraph at 2.11× or 2.57× | The first "competitive-enough" C10 bar-3 row | A Gilad-facing row; never "beats" |
 | **M5** | N1 or N2 ≥ +0.5 pp over the plain final FT with a healthy origin | A better final recipe for every bar-3 row | Adopt it in `tree_v9d` |
 | **M6** | Any aug census on a full-width net shows cut points with val Δ > 0 | The cubic reward's positive branch becomes reachable | N10 design (O42) |

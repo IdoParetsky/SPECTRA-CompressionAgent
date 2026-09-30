@@ -33,7 +33,7 @@ All are required unless marked.
 | **G0** | C100 recoverable under the train recipe; catalog emitted | **done** | §148: 8/8 admitted; 16-net catalog; `tests/test_v5_catalog.py` 16/16 |
 | **G1** | The Stage-4 recipe leaves mild (runbook **M1**) | pending; first read ~2–3 Oct | The first freeze TEST after PPO update 20 against mild 21729557 at equal keep, plus the compression-rate census |
 | **G2** | `tree_v9d` ready (§5) | not built | CPU pytest on the cluster conda; a 2-episode GPU smoke on C100 nets |
-| **G3** | TEST-walk recipe settled (decision d) | twins 2/3 met (§152); thin guard pending | runbook §10.3 item 3 |
+| **G3** | TEST-walk recipe settled (decision d) | **met 30 Sep 11:55** (§152: twins 2/3; thin r56-w4 +5.0 pp) | the 21730506 conversion is Ido's call |
 | **G4** | One GPU for ~8 days | Stage 4 holds 1 of 4 | the no-agent ladder drains in ~2–3 days |
 | **G5** | Ido's GO | — | — |
 

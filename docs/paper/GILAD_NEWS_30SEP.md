@@ -62,6 +62,7 @@ Written for Ido to deliver, and for the ops chat to read once. Ledger sections a
 | C100 gate, 12 size points on 6 nets | — | kinder at **12 / 12**, +0.9 to +6.2 pp, mean **+3.3** | §148 |
 | Thin ResNet-56 ×4 (C10), training fine-tune, at 0.795 kept | −8.2 | **−5.9** (+2.3) | §150 |
 | ResNet-56 ×4, deepest point still in band | −10.6 @ 0.741 | **−5.1 @ 0.622** | §150 |
+| Thin ResNet-56 ×4, TEST fine-tune, at 0.795 kept | −7.6 | **−2.6** (+5.0) | §152 |
 | ResNet-56 (C10), TEST fine-tune, val-selected | −2.84 @ 0.661 | **−0.06 @ 0.661** | §152 |
 | VGG-16 (C10), TEST fine-tune, val-selected | −2.8 @ 0.657 | **−0.5 @ 0.657** | §152 |
 
@@ -69,7 +70,7 @@ Written for Ido to deliver, and for the ops chat to read once. Ledger sections a
 - *The third twin.* VGG-19 C100 has no TEST rows yet. On validation it is kinder at all 7 paired steps so far (+3.2 pp mean).
 - *Cost.* +18 % time per fine-tune epoch.
 
-**What it means.** Most of the measured cost of a cut came from poor recovery, not from the pruning. Crop+flip is in the Stage-4 train, and it is about to become the TEST-walk recipe for every method (decision (d): 2 of 3 twins meet the rule; the thin guard is pending).
+**What it means.** Most of the measured cost of a cut came from poor recovery, not from the pruning. Crop+flip is in the Stage-4 train. It also meets the pre-registered rule for the TEST walk of every method: ≥ 1 pp kinder at equal keep on 2 of 3 twins, and the thin-net guard holds (§152).
 
 ## 3. The 100-epoch SGD final fine-tune
 

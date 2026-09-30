@@ -141,6 +141,7 @@ Ready-made: `scripts/_tmp_s30_poll.sh` (queue, sacct, reservations, per-job TRAJ
 | 11:40 | N2: final-FT AutoAugment from the same saves (nice 61) | **21767192** |
 | 11:40 | 21730506 (no-aug twins + final FT) parked at nice 70 for the decision (d) conversion | 21730506 |
 | 11:45 | `Requeue=0` on 21737123 and 21767188; bundle copied to `~/spectra_backups/job21737123_20260930` | — |
+| 11:55 | Final poll: 21729557 COMPLETED. Its r56-w4 thin guard is +5.0 pp at equal keep, so **decision (d) is met** (§152, M3). N3 took its slot (R, `ise-4090-19`) | 21729557 / 21767189 |
 
 Lines: `scripts/_tmp_s30_1140_act.sh` (submits, nice, pace, (d) rows) and `scripts/_tmp_s30_requeue.sh` (requeue config, `Requeue=0`, backup). Reads: `_tmp_s30_1110_reads.sh`, `_tmp_s30_resumechk.sh`, `_tmp_s30_1130_gate.sh`, `_tmp_s30_500read.sh`. The ops heartbeat `_tmp_s30_ops_hb.sh` was rewritten for the handoff. It follows the live train id, prints `Requeue`, keeps the daily backup, runs the N3 / N1 / N2 paired reads and prints the (d) thin-guard block.
 
@@ -157,7 +158,7 @@ Lines: `scripts/_tmp_s30_1140_act.sh` (submits, nice, pace, (d) rows) and `scrip
 **Ledger.**
 - §148: 8 of 8 nets; emitted.
 - §151: fuse and resume.
-- §152: the VGG-16 twin, +2.3 to +2.6 pp; twins 2/3.
+- §152: the VGG-16 twin, +2.3 to +2.6 pp (twins 2/3), and the thin guard, r56-w4 +5.0 pp. Decision (d) is met.
 - §153 (new): DepGraph R56 C10 final FT. HOLD, honest +1.2 to +1.8; 10k −1.52 / −2.11 against DepGraph's +0.24 / +0.11.
 - Next is §154.
 

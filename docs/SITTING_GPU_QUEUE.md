@@ -7,7 +7,7 @@
 
 Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10** (current), §8 (cells). Options, decisions and dev items: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. N8: `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12.
 
-**Stamped:** 30 Sep 2026, ~11:50 IDT (Opus 5.5 sitting, handoff to ops). Cap 4: **4 R** (train 21737123, 21729557, 21730501, 21737104), 11 PD (the resume on its dependency). Trees `tree_v9b` / `tree_v9c` frozen. Pending cells carry `Features=rtx_6000|rtx_4090`. Both train jobs `Requeue=0`.
+**Stamped:** 30 Sep 2026, ~11:55 IDT (Opus 5.5 sitting, handoff to ops). Cap 4: **4 R** (train 21737123, N3 21767189, 21730501, 21737104), 10 PD (the resume on its dependency). **Decision (d) met 11:55** (§152); the 21730506 conversion waits for Ido. Trees `tree_v9b` / `tree_v9c` frozen. Pending cells carry `Features=rtx_6000|rtx_4090`. Both train jobs `Requeue=0`.
 
 **P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c`). **Paired read** = `readers_s30/scripts/paired_steps.py <arm> <control>`: val only, same step = same widths under mild. **Honest gain**: only `readers_s30/scripts/final_ft_readout.py` (prints `ORIGIN-HURT` when the origin loses > 0.5 pp).
 
@@ -16,9 +16,8 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 | Pri | Cell | Job | State (30 Sep 11:50) | Tree | Checks | Read so far / hope | Cross-off | Adopt |
 |---|---|---|---|---|---|---|---|---|
 | 1 | **Stage-4 train**: area train under P + crop+flip (§151) | **21737123** → resume **21767188** | R since 03:14 (`ise-cpu256-32`, RTX 6000 Ada); 12 episodes / 3 PPO updates by 11:50, mean 2,315 s per episode; fuse ~6 Oct 03:15 near episode ~200; resume PD `afterok` | v9c | does the agent leave mild when the reward reads clean val and recovery uses crop+flip? | ev ~0 at updates 1–3 (control 0.45–0.88): watch M2 at update 10 | no freeze by episode 250; mild clone at the freeze TEST → report, never scancel | runbook M1 |
-| 1b | Freeze TESTs of Pri 1 | — | none yet; first after PPO update 20 (~2 Oct) | v9c | thin pair, P + crop+flip, 40/10, vs 21729557 at equal keep + census | — | mild clone (0.9 on ≥ 95 % of legal r56-w4 rows) | M1 |
-| 2 | **N3** aug walk + final FT, DG R56 | **21767189** | PD nice 3 (next free GPU) | v9c | 21730500's line + `SPECTRA_FT_AUG=1`; pairs with §153 | close part of the ~2 pp gap to DepGraph (10k −1.52 / −2.11) | walk kinder but final FT within 0.5 pp | final FT ≥ 1 pp kinder at equal keep |
-| 3 | aug thin 40/10 (the (d) thin guard) | 21729557 | R, `ise-4090-20`; r20 rows in, r56-w4 walking | v9b | aug at TEST FT on the skinny pair vs P thin 21726335; also the mild control for freeze TESTs | r20 1.3 / 0.7 / 1.6 pp worse (inside its 2 pp guard); r56-w4 paired +4.99 over 54 cuts | r56-w4 > 0.5 pp worse at equal keep | (d) met → M3 |
+| 1b | Freeze TESTs of Pri 1 | — | none yet; first after PPO update 20 (~2 Oct) | v9c | thin pair, P + crop+flip, 40/10, vs 21729557 (final, §152) at equal keep + census | — | mild clone (0.9 on ≥ 95 % of legal r56-w4 rows) | M1 |
+| 2 | **N3** aug walk + final FT, DG R56 | **21767189** | **R** since ~11:50, `ise-4090-19` (21729557's slot) | v9c | 21730500's line + `SPECTRA_FT_AUG=1`; pairs with §153 | close part of the ~2 pp gap to DepGraph (10k −1.52 / −2.11) | walk kinder but final FT within 0.5 pp | final FT ≥ 1 pp kinder at equal keep |
 | 4 | aug twins, VGG | 21737104 | R, `cs-4090-07`; VGG-16 done (§152), VGG-19 C100 walking | v9c | VGG twins with aug vs 21726337, saved | **VGG-16 +2.3 to +2.6 pp at equal keep**: twins 2/3 met | — | extend §152 |
 | 5 | final_ft P thin | 21730501 | R, `ise-4090-21`; r20 final rows in | v9c | fastest C10 honest-gain cell; saves for scratch | r20 **cross-off** so far: origin +3.5, pruned points −0.3 to −1.1 raw | honest < 0.5 pp | ≥ 2 pp |
 | 6 | **N4** aug walk + final FT, DG VGG-19 | 21737105 | PD, nice 45 | v9c | does a kinder walk survive the 100-ep final FT? vs 21729551 | 21729551 final −2.52 @ 0.684 | final FT within 0.5 pp of 21729551 at equal keep | final FT ≥ 1 pp kinder |
@@ -28,14 +27,14 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 | 10 | scratch-B DG R56 | 21730516 | PD, nice 55 | v9c | scratch at DepGraph's size points + origin scratch | scratch ≈ final FT → bar-3 scratch column | scratch < inherit − 1 pp | scratch ≥ inherit − 0.5 pp |
 | 11 | **N1** final-FT KD from saved, DG R56 | **21767190** | PD, nice 60 | v9c | KD from the unpruned net on top of 100-ep SGD (`SPECTRA_FT_KD=1` on the line) vs 21730500's `final_ft` rows | — | ≤ +0.3 pp over plain final FT | ≥ +0.5 pp, healthy origin → M5 |
 | 12 | **N2** final-FT AutoAugment from saved, DG R56 | **21767192** | PD, nice 61 | v9c | AutoAugment (CIFAR policy) in the final FT, same saves | — | ≤ +0.3 pp | ≥ +0.5 pp → M5 |
-| 13 | final_ft twins C10 (no-aug walk) | 21730506 | PD, **parked at nice 70** for (d) | v9c | VGG-16 (OCS / HRank cell) + R56 twin, same walk as 21726337 | if (d) is met, Ido converts it to the aug line (runbook §10.5 c) | honest < 0.5 pp | ≥ 2 pp |
+| 13 | final_ft twins C10 (no-aug walk) | 21730506 | PD, **parked at nice 70**; (d) met 11:55 | v9c | VGG-16 (OCS / HRank cell) + R56 twin, same walk as 21726337 | **on Ido's reply**: convert to the aug line (runbook §10.5 c) | honest < 0.5 pp | ≥ 2 pp |
 | 14 | N2 streams P | 21729558 | PD, nice 80 | v9b | block internals only, 3 passes, vs P thin **by params** | deeper in-band r56-w4 | no deeper in-band r56-w4 and r20 > 0.5 pp worse at equal keep | deeper in band and TEST no worse |
 
 ## NEXT (conditional)
 
 | Pri | Cell | Condition | Checks | Cross-off | Adopt |
 |---|---|---|---|---|---|
-| (d) | aug twins + final FT, C10 (replaces 21730506) | (d) met **and** Ido's reply | runbook §10.5 (c); re-walk ≈ 0 vs 21737104 (VGG-16) / 21729553 (R56) | honest < 0.5 pp | ≥ 2 pp; the bar-3 VGG-16 / R56 rows |
+| (d) | aug twins + final FT, C10 (replaces 21730506) | (d) **met 11:55**; waits for Ido's reply | runbook §10.5 (c); re-walk ≈ 0 vs 21737104 (VGG-16) / 21729553 (R56) | honest < 0.5 pp | ≥ 2 pp; the bar-3 VGG-16 / R56 rows |
 | N5 / N6 | F2 group-first / F1 cosine 12/4 under P | ~~only if §150 fails~~ §150 passed: not queued | skinny-group recovery without aug | — | — |
 | N7 | SGD 0.01 + aug gate 12/4 | met, low value | does aug rescue SGD | admits ≤ Pri 4 | not queued |
 | N8 | diverse P train (8 C10 + 8 C100, emitted catalog) | runbook M1 + `tree_v9d` + Ido GO (`docs/N8_DIVERSE_TRAIN_ROADMAP.md`) | NEON's multi-dataset offline train; then frozen → ImageNet | roadmap §4 | roadmap §4 |
@@ -46,6 +45,7 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 
 | Cell | Job | Ledger | One-line result (5k TEST half; 10k = cross-fit / both halves) |
 |---|---|---|---|
+| aug thin 40/10 (the (d) thin guard) | 21729557 | §152 | r56-w4 **+5.0 pp** at 0.795 (−2.6 vs −7.6); `val_best` −4.5 @ 0.622 vs −10.1 @ 0.739; r20 1.3 / 0.7 / 1.6 worse (inside 2 pp) → **(d) met**. The mild control for freeze TESTs |
 | final_ft DG R56 C10 | 21730500 | §153 | honest +1.18 / +1.80 / +1.74 (HOLD); 10k final −1.06 @ FLOPs 0.599, **−1.52 @ 0.463** (DepGraph +0.24), **−2.11 @ 0.380** (DepGraph +0.11); origin +0.42; re-walk vs 21726340 −0.04 |
 | aug gate C100 12/4 | 21729554 | §148 | **8/8 admitted** at 0.647–0.696 kept (val −1.18 to −9.70); 12/12 size points kinder than no aug (+0.9 to +6.2, mean +3.3); emitted |
 | P gate C100 12/4 | 21729552 | §148 | 6/6 finished admitted; TIMEOUT at mbv2x1, densenet40 not started |
@@ -77,6 +77,6 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 
 | Item | Recommendation (way-ahead §1) |
 |---|---|
-| Convert 21730506 to the aug line | yes, once the thin guard holds (ops pings "(d) met") |
+| Convert 21730506 to the aug line | **yes, now**: (d) met 11:55 (§152). Runbook §10.5 (c) |
 | Diverse train (N8) | after runbook M1 and `tree_v9d` (roadmap §3); in parallel after M2 only if speed matters more than the risk |
 | A second resume of Pri 1 | only if the resume's own fuse (~12 Oct) comes before the governor stops the train |

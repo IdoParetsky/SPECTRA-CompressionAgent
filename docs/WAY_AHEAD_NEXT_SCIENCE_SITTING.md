@@ -11,7 +11,7 @@ Read this first, then the §7 log at the bottom (what ops saw since the handoff)
   - The 100-epoch SGD final FT adds an honest +4.1 to +5.5 pp on the C100 bar-3 cell (§149), and +1.2 to +1.8 (HOLD) on DepGraph's R56 C10 (§153): 10k −1.52 / −2.11 at DepGraph's FLOPs points, against their +0.24 / +0.11.
 - **Stage 4 is running.** **21737123**: the area train under P + crop+flip (§151). The training rule passed at 03:11 (§150): r56-w4 +2.3 pp TEST at equal keep. The P-only arm was cancelled before it started; its line is kept for the attribution train (N9). Freeze TESTs are pre-authorized (runbook §10.3).
 - **C100 is in the catalog.** The aug gate admitted 8/8 (§148); `configs/database_offline_v7_diverse_admitted.json` has 16 nets (8 C10 + 8 C100), emitted 30 Sep 11:45. Nothing trains on it until N8 (roadmap).
-- **No-agent ladder.** 13 cells (3 R, 10 PD): 21729552 / 554 / 21730500 finished; N3 / N1 / N2 added. The pending ones are pinned to fast cards (`Features=rtx_6000|rtx_4090`).
+- **No-agent ladder.** 12 cells (3 R, 9 PD) at 11:55. 21729552 / 554 / 557 and 21730500 have finished; N3 / N1 / N2 were added, and N3 is R. The pending ones are pinned to fast cards (`Features=rtx_6000|rtx_4090`).
 - **The train is slow by design, and the fuse is covered.**
   - *Pace.* Mean 2,315 s per episode over the first 12 (median 1,296).
   - *When the fuse fires.* The 6-day fuse (`runtime_limit` 518,400 s from the train's start) fires **~6 Oct 03:15, near episode ~200**, short of the 250 minimum. The 03:55 estimate of "~10 Oct, ~episode 160" was wrong.
@@ -19,7 +19,7 @@ Read this first, then the §7 log at the bottom (what ops saw since the handoff)
 
 ## 1. Decisions waiting on Ido (recommendation first)
 
-Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and done by 11:45. Their facts stay below for the record. Open: (b)-train (N8), (d), (e).
+Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and done by 11:45. Their facts stay below for the record. (d) was met at 11:55; the 21730506 conversion waits for Ido's reply. Still open: (b)-train (N8) and (e).
 
 **(a) `21716380` (group-token, held since 28 Sep) — DONE: scancelled 30 Sep 11:29.**
 - *Facts.* `tree_v8b`, legacy val, 7-day cold train. A release would have re-run the prologue, deleting `train_resume.pt` and restarting cold. Its 12 episodes and the `ep0011` freeze are backed up in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/` (`train_resume.pt`, `latest_best_*`, `policy_config.json`, `standardizer.pt`) and in `tree_v8b/runs/job21716380/snapshots/ep0011`. Its question (group tokens) is confounded by memorized val, like every legacy train.
@@ -37,13 +37,13 @@ Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and d
 - *What ops runs.* Runbook §10.3 and line §10.5 (a): the first freeze written after PPO update 20, then at most one a day, never two in flight. Each goes on the thin pair, under P + crop+flip at 40/10, against mild in 21729557 at equal keep, with the compression-rate census for the mild-clone read.
 - *Fallback.* If there is still no freeze by episode 120, ops reports.
 
-**(d) Crop+flip as the TEST walk recipe (bar 2 for every method) — twins met; thin guard pending.**
-- *So far (§152).*
+**(d) Crop+flip as the TEST walk recipe (bar 2 for every method) — MET 30 Sep 11:55 (§152; runbook M3). Waiting on Ido: the 21730506 conversion.**
+- *The evidence (§152).*
   - R56 meets the rule with margin: −0.16 vs −2.68 at size 0.80, −0.50 vs −2.70 at size 0.70, −0.06 vs −2.84 at `val_best` 0.661.
   - VGG-16 meets it: +2.6 / +2.5 / +2.3 pp at size 0.80, size 0.70 and `val_best`. That makes **2 of 3 twins**. VGG-19 C100 is still walking in 21737104; its paired read is +3.21 over 7 cuts.
-  - Thin guard: r20 is 1.3 / 0.7 / 1.6 pp worse, inside its 2 pp. r56-w4 is still walking in 21729557; its paired read is +4.99 over 54 cuts.
+  - Thin guard (21729557 COMPLETED): r56-w4 is **+5.0 pp** at size 0.80 (−2.6 vs −7.6 at 0.795), and its `val_best` is deeper and kinder (−4.5 @ 0.622 vs −10.1 @ 0.739). r20 is 1.3 / 0.7 / 1.6 pp worse, inside its 2 pp.
 - *Rule.* TEST ≥ 1 pp kinder at equal keep on ≥ 2 of 3 twins, and the thin guard holds. Then every TEST walk (agent and heuristics) switches to aug, and the no-aug rows stay as an audit column.
-- *Recommendation.* Once r56-w4's TEST rows hold the guard (not > 0.5 pp worse at equal keep), convert 21730506 (parked at nice 70) to the aug line, runbook §10.5 (c). Ops pings "(d) met"; the conversion waits for Ido's reply.
+- *Recommendation.* **Convert 21730506** (parked at nice 70) to the aug line, runbook §10.5 (c): scancel 21730506, submit the line, then set `Features`. Do it on Ido's reply, in the ops chat or here.
 - *Why it matters.* A P+aug-trained agent should be TESTed under the walk recipe it was trained with.
 
 **(e) Attribution train (only after a success).**
@@ -78,7 +78,10 @@ Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and d
     - 10k final −1.52 at FLOPs 0.463 and −2.11 at 0.380. DepGraph publishes +0.24 and +0.11 on the same checkpoint.
     - Our walk here is no-aug mild, and there are no KD, AutoAugment or scratch rows yet. N3 (aug walk), N1 (KD) and N2 (AutoAugment) measure how much of the gap closes.
     - The re-walk matches 21726340 to −0.04 over 150 cuts, so the walk itself is reproducible.
-12. **VGG-16 confirms crop+flip at TEST FT (§152).** +2.3 to +2.6 pp at equal keep, and arm better on 100 % of 28 paired cuts. Decision (d) now waits only on the thin guard.
+12. **VGG-16 and the thin guard confirm crop+flip at TEST FT (§152).**
+    - VGG-16 is +2.3 to +2.6 pp at equal keep, and the arm is better on 100 % of 28 paired cuts.
+    - On the thin r56-w4 it is +5.0 pp at 0.795. At 40/10 it recovers 3.3 pp more than at 12/4 (§150).
+    - Decision (d) is met.
 13. **The requeue trap (runbook §10.2).**
     - *The mechanism.* The cluster requeues on preemption (`JobRequeue=1`, `PreemptMode=REQUEUE`). A requeue keeps the job id, so the sbatch's "always cold" block runs again and deletes `train_resume.pt`. A requeued resume would also re-copy the parent bundle over its own (prologue lines 48–54).
     - *For now.* `Requeue=0` on every train.
@@ -91,7 +94,7 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 
 | # | Option | Status | P now | Next |
 |---|---|---|---|---|
-| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150); TEST walk 2/3 twins: R56 +2.2 to +2.8, VGG-16 +2.3 to +2.6 pp (§152)**; thin guard: r20 inside, r56-w4 walking | 0.90 TEST walk | 21729557 r56-w4 rows → decision (d) |
+| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150); TEST-walk rule met (§152)**: R56 +2.2 to +2.8, VGG-16 +2.3 to +2.6, thin r56-w4 +5.0; r20 inside its guard | adopted for the TEST walk | the 21730506 conversion (Ido) |
 | O2 | 100-ep SGD final FT + origin | **met on C100 (§149)**; **HOLD on DG R56 C10 (§153, +1.2 to +1.8)**; r20 thin cross-off so far (21730501, origin +3.5) | 0.50 ≥ 2 pp on full-width C10 | 21730501 r56-w4; 21730506 after (d) |
 | O18 | P gate at the live recipe | **passed (6/6 finished; TIMEOUT at net 7)** | — | — |
 | O3 | crop+flip in the C100 gate | **passed (8/8); emitted 30 Sep 11:45** | — | N8 (roadmap) |
@@ -147,6 +150,11 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
+**MILESTONE M3** (30 Sep 11:55, the sitting). Decision (d) is met (§152).
+- 21729557 COMPLETED: thin r56-w4 +5.0 pp at equal keep (−2.6 vs −7.6 at 0.795), with a deeper, kinder `val_best` (−4.5 @ 0.622 vs −10.1 @ 0.739). r20 is inside 2 pp.
+- The twins are 2/3.
+- Ido was told in the sitting chat. Converting 21730506 (runbook §10.5 c) waits for his reply.
+
 - 30 Sep 03:11 | sitting | Stage-4 train released after §150; P-only arm cancelled | first read: FLAGS + `policy_config` diff (ops §9.2)
 - 30 Sep 03:16 | 21737123 R 03:14, `ise-cpu256-32` RTX 6000 Ada | start checks green: env header; val-from-test on cifar-10 and svhn; aug on cifar-10 only; `policy_config` diff = P keys only | read its curve's shape against 21536396, never its probe-area values
 - 30 Sep 03:14 | 21730499 smoke-from COMPLETED, passed | 1-epoch FT from saved; origin −5.84 pp printed "honest +5.78 ADOPT" on a raw gain of −0.06 | reader fixed (`ORIGIN-HURT`, git + `readers_s30/`). For `tree_v9d`, and for any new recipe (KD, AutoAugment), check the origin row before the verdict
@@ -160,4 +168,5 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 30 Sep 11:45 | C100 catalog emitted (§148) | 16 nets, 8 C10 + 8 C100; `--check-admitted` passes; pytest 16/16 | decision (b) emit closed; N8 → roadmap
 - 30 Sep 11:50 | 21730500 COMPLETED (§153) | HOLD: honest +1.18 / +1.80 / +1.74, origin +0.42; 10k −1.52 / −2.11 vs DepGraph +0.24 / +0.11 | N3 / N1 / N2 read against it
 - 30 Sep 11:50 | 21737104 VGG-16 done (§152) | +2.3 to +2.6 pp at equal keep; twins 2/3 met; thin guard: r20 inside 2 pp, r56-w4 paired +4.99 over 54 cuts | ops pings "(d) met" when 557's r56-w4 TEST rows land inside the guard
+- 30 Sep 11:55 | 21729557 COMPLETED (4 h 15 m); N3 21767189 R on `ise-4090-19` in its slot | §152 thin guard: r56-w4 +5.0 pp at 0.795 | MILESTONE M3 above
 - 30 Sep 11:55 | handoff | ops now runs from `docs/OPS_HANDOFF_RUNBOOK.md` §10 (renamed from `PROMPT_OPS_V8_QUEUE.md`) | ops appends here; milestones M1–M7 in §10.4
