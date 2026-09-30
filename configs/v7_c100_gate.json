@@ -1,10 +1,14 @@
 {
-  "stamped": "2026-09-21T19:30 IDT (Fable V7 catalog)",
-  "purpose": "V7 diverse training catalog gate. CIFAR-100 rows enter database_offline_v7_diverse_admitted.json only when status == 'admitted'. Admission = the no-agent mild 2-pass walk under the *V7 train FT* (12/4 with SPECTRA_FT_LR=1e-4, or SGD 0.01 \u2014 whichever the C10 control also recovers under) reaches TRAJ val_best with kept <= 0.98 and val dacc >= -tau. The 18-20 Sep gate (ledger 109) used Adam 1e-3 12/4 and admitted nothing; hypothesis: the FT LR, not the nets, is what fails on CIFAR-100.",
+  "stamped": "2026-09-30T11:45 IDT (Opus 5.5 sitting; emit GO Ido 30 Sep 11:08)",
+  "purpose": "V7 diverse training catalog gate. CIFAR-100 rows enter database_offline_v7_diverse_admitted.json only when status == 'admitted'. Re-gated under protocol P (val = a 5k half of the CIFAR-100 test split, never the train split the checkpoints memorised) with the live train FT (Adam 1e-3, 12 epochs / patience 4) and crop+flip. The 18-20 Sep gate (ledger 109) read val from the train split and admitted nothing; ledger 148 has both P gates.",
   "admit_rule": {
     "max_kept_at_val_best": 0.98,
     "min_val_delta_pp": -10.0,
-    "probe_recipe": "mild 2-pass group-once, recipe A, train budget 12/4, FT LR arm chosen by the C10 control"
+    "probe_recipe": "mild 2-pass group-once, P (VAL_FROM_TEST=1, batch 256), SPECTRA_FT_AUG=1, train budget 12/4 (Adam 1e-3) = the Stage-4 train recipe",
+    "gate_jobs": {
+      "aug": 21729554,
+      "no_aug": 21729552
+    }
   },
   "c10_core": [
     "resnet20-width10_cifar10_thin-res-net_91.90_0.107_16.55.pt",
@@ -18,60 +22,126 @@
   ],
   "c100": {
     "resnet20-width13_cifar100_thin-res-net_69.95_0.185_27.67.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "thin C100 residual; was in the failed c100_wide mix under Adam 1e-3 \u2014 re-gate under 1e-4 / SGD",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.662,
+      "val_best_delta_pp": -8.84,
+      "val_best_step": 40,
+      "test_5k_half": "0.700 -> 0.617 (-8.3 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "val_best_step": 14,
+        "val_best_kept": 0.926,
+        "val_best_delta_pp": -9.54,
+        "admitted": true
+      }
     },
     "resnet56-width9_cifar100_thin-res-net_73.05_0.275_41.13.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "thin C100 residual; same history",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.647,
+      "val_best_delta_pp": -9.7,
+      "val_best_step": 110,
+      "test_5k_half": "0.733 -> 0.638 (-9.5 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "val_best_step": 38,
+        "val_best_kept": 0.941,
+        "val_best_delta_pp": -8.46,
+        "admitted": true
+      }
     },
     "resnet32_cifar100_chenyaofo_70.16_0.47_138.26.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "standard-width residual; r44 avoided (similar r44 C10)",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.663,
+      "val_best_delta_pp": -4.9,
+      "val_best_step": 64,
+      "test_5k_half": "0.706 -> 0.653 (-5.3 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "val_best_step": 64,
+        "val_best_kept": 0.663,
+        "val_best_delta_pp": -8.42,
+        "admitted": true
+      }
     },
     "vgg11_bn_cifar100_chenyaofo_70.78_9.8_306.68.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "C6 precedent under 160-ep SGD; identity under Adam 1e-3 12/4 (ledger 109)",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.659,
+      "val_best_delta_pp": -4.98,
+      "val_best_step": 19,
+      "test_5k_half": "0.714 -> 0.671 (-4.3 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "val_best_step": 19,
+        "val_best_kept": 0.659,
+        "val_best_delta_pp": -8.78,
+        "admitted": true
+      }
     },
     "vgg13_bn_cifar100_chenyaofo_74.63_9.99_557.68.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "second VGG C100; VGG-16 C100 = C9 TEST, VGG-19 C100 = Catalog L",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.658,
+      "val_best_delta_pp": -4.58,
+      "val_best_step": 23,
+      "test_5k_half": "0.751 -> 0.703 (-4.8 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "val_best_step": 22,
+        "val_best_kept": 0.661,
+        "val_best_delta_pp": -8.54,
+        "admitted": true
+      }
     },
     "mobilenet-v2x0.5_cifar100_chenyaofo_70.88_0.82_56.16.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "harder MobileNet; x0.75 is the similar hold-out width",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.692,
+      "val_best_delta_pp": -2.16,
+      "val_best_step": 103,
+      "test_5k_half": "0.711 -> 0.691 (-2.0 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "val_best_step": 103,
+        "val_best_kept": 0.692,
+        "val_best_delta_pp": -2.78,
+        "admitted": true
+      }
     },
     "mobilenet-v2x1_cifar100_chenyaofo_74.2_2.35_176.18.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "identity under Adam 1e-3 12/4 (ledger 109)",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.671,
+      "val_best_delta_pp": -1.18,
+      "val_best_step": 103,
+      "test_5k_half": "0.747 -> 0.743 (-0.4 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "note": "not reached (TIMEOUT 16 h)"
+      }
     },
     "densenet40_cifar100_densenet-cifar_70.25_0.188_74.44.pt": {
-      "status": "pending_regate",
+      "status": "admitted",
       "why_candidate": "the only C100 candidate that cut at all under Adam 1e-3 12/4 (-2.6 @ 0.989, ledger 109)",
-      "probe_job": null,
-      "val_best_kept": null,
-      "val_best_delta_pp": null
+      "probe_job": 21729554,
+      "val_best_kept": 0.696,
+      "val_best_delta_pp": -6.14,
+      "val_best_step": 77,
+      "test_5k_half": "0.703 -> 0.644 (-5.9 pp)",
+      "no_aug_gate": {
+        "job": 21729552,
+        "note": "not reached (TIMEOUT 16 h)"
+      }
     }
   }
 }

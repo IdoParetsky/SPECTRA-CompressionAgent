@@ -8,7 +8,7 @@
 
 You are the SPECTRA science/dev sitting (Opus 5.5 MAX, 300K). Ops will not start you. After you develop and re-rank, **you** `sbatch` independent GPU cells and keep QOS **4** full (`SPECTRA_GPU_GRES=1`, afterok children OK). Do **not** wait for another Ido GO on those cells. Paste job IDs + the queue table back so ops can heartbeat.
 
-**Read (grep, do not Read the whole ledger/draft):** this file **§12** then §10–§11; `docs/SITTING_GPU_QUEUE.md`; `docs/PROMPT_OPS_V8_QUEUE.md` §7; ledger **§136–§146**; glossary Memorized val / Clean val / Batch lottery / Final fine-tune / Origin control / tree_v9b.
+**Read (grep, do not Read the whole ledger/draft):** this file **§12** then §10–§11; `docs/SITTING_GPU_QUEUE.md`; `docs/OPS_HANDOFF_RUNBOOK.md` §7; ledger **§136–§146**; glossary Memorized val / Clean val / Batch lottery / Final fine-tune / Origin control / tree_v9b.
 
 **Trees (do not patch in place):**
 - `tree_v9b` = `/home/paretsky/scratch_audit/tree_v9b` — P protocol. **Do not edit.** Walks here are still valid (pickle only kills `final_ft` at the end, exit 0).
@@ -54,7 +54,7 @@ P twins §142: R56 **−2.8 @ 0.661**; VGG-16 **−2.8 @ 0.657**; VGG-19 C100 **
 
 **Do not** overlay leap `src/` or `tree` / `tree_v6_inband` / `tree_v6_dev` / `tree_v7` / `tree_v8` / `tree_v8b` / **`tree_v9` / `tree_v9b`**. **Do not** scancel **21716380**. **Do not** patch `tree_v9b`. **Do not** edit `SPECTRA_draft.md`. **Do not** emit `database_offline_v7_diverse_admitted.json`. **Do not** start a train until Ido GO on the one-change recipe. **Do not** TEST group-token `ep0011` / PPO-8 / Budget. **Independent no-agent TESTs:** sitting **sbatches** (Ido 15:49). Leave QOS 4 empty only while the queue table says there is nothing independent left.
 
-Read first: this file **§PASTE then §12 then §10**, `docs/SITTING_GPU_QUEUE.md`, `docs/PROMPT_OPS_V8_QUEUE.md` §7, `docs/GLOSSARY_CHRONOLOGICAL.md`, ledger **§93, §124, §136–§146**, `docs/V6_REPRESENTATION_DESIGN.md` correction note.
+Read first: this file **§PASTE then §12 then §10**, `docs/SITTING_GPU_QUEUE.md`, `docs/OPS_HANDOFF_RUNBOOK.md` §7, `docs/GLOSSARY_CHRONOLOGICAL.md`, ledger **§93, §124, §136–§146**, `docs/V6_REPRESENTATION_DESIGN.md` correction note.
 
 Pytest / patches: a **new** tree (`tree_v9c`), never `tree_v9b` in place. Cluster conda. Re-run the suite after the pickle fix.
 
@@ -270,7 +270,7 @@ Tests: `tests/test_v9_fine_menu.py` (26 items): ladder counts on widths 2 / 3 / 
 | Group tokens | **Wired; not yet a signal.** Token width 63 vs 59; relations reach the encoder. `relation_bias` is trainable and moving but tiny: ep0011 actor [0, 7.9e-4, 5.8e-4]; resume bundle at episode 16 [0, 4.7e-4, 1.3e-3]; `block_affinity` 8e-4 → 1.5e-3. A latent strict-load failure (pre-V8 actor on a V8+ tree) is fixed in `tree_v9`. |
 | A5 duplicate actions | **Confirmed.** 0.9 ≡ 0.8 on widths 3–7, so `{1.0, 0.9, 0.8}` is `{keep, −1}` on every r20-w2 group and on r56-w4 stages 1–2. `SPECTRA_ACTION_DEDUPE` / the ladder address it. |
 | A6 / A2 | A6 covered. **A2 (standardizer OOD on thin nets) not run**: still open. |
-| Resume trap (new) | Releasing held `21716380` requeues it into the same run dir, and the "always cold" block deletes its own `train_resume.pt`. **Never `scontrol release 21716380`.** Backup: `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/` (bundle 19:56, standardizer, `policy_config`, `latest_best_*`). Resume line in `PROMPT_OPS_V8_QUEUE.md` §6. |
+| Resume trap (new) | Releasing held `21716380` requeues it into the same run dir, and the "always cold" block deletes its own `train_resume.pt`. **Never `scontrol release 21716380`.** Backup: `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/` (bundle 19:56, standardizer, `policy_config`, `latest_best_*`). Resume line in `OPS_HANDOFF_RUNBOOK.md` §6. |
 | GO A pins | `21725471` / `72` match §0 (snapshot, 2-pass, look-ahead 0, thin pair). Left alone; both R on pheno nodes (outside both reservations), 0 tracebacks at 21:50. Both have printed r20-w2 `val_best` (PRELIM; ops ledgers it): step 40 at **0.536 / 0.655**, mild's exact step-40 widths, area **−5.1** and factored **−3.7** vs mild −3.4 (§93). That is a 1.7 pp TEST spread at identical widths (rankings may differ), the scale of noise N0 has to measure. **Read rule when r56-w4 lands:** grep the r56-w4 section's `Compression Rate` lines. If every legal row is 0.9 through step 57, the walk is mild's geometry and a deeper selected keep is a band-edge outcome, not a head win. |
 
 ### 9.3 Dry-walk geometry (CPU, no FT: keeps only, no accuracy)
@@ -310,7 +310,7 @@ Params kept / FLOPs kept at the end of each pass.
 
 CPU probe `21725670`: strict load into `vgg_depgraph.vgg19_bn`, **0 missing / 0 unexpected** (114 keys). Params 20.09 M; MACs 512 M at 32 px. DepGraph's layout skips `pool3` below 64 px; our twin is 20.61 M / 399 M, so DepGraph's 8.92× is relative to 512 M, not to the twin. 16 prunable groups (widths 64, 64, 128, 128, 256 ×4, 512 ×8), 17 rows. Test accuracy **73.13 %** on 3 000 images (paper 73.50; standard error about 0.8 pp). A one-row structural cut keeps the forward shape [2, 100]. Walkable now. Expect val_best = unpruned under 12/4 or 40/10, as the §124 twin did, until a recipe recovers C100.
 
-### 9.5 Kill table (no agent; all from `tree_v9`; ops submits; exact lines in `PROMPT_OPS_V8_QUEUE.md` §6)
+### 9.5 Kill table (no agent; all from `tree_v9`; ops submits; exact lines in `OPS_HANDOFF_RUNBOOK.md` §6)
 
 Thin pair, det TRAJ, group-once, recipe A, TEST 40/10, 2 passes unless stated. Primary readout `[eval] TRAJ val_best`. Secondary readout (new): val and TEST Δacc at pre-registered steps of the same geometry, from the recorded points (r56-w4 steps 38 / 39 / 55; r20-w2 step 40).
 
@@ -334,7 +334,7 @@ Order if GPUs open before 1 Oct: **N0 → N4 → N1 → N2**, then F1–F3, then
 
 ### 9.6 Decision points (Ido)
 
-- **D1. GPU tonight. Decided 28 Sep ~22:00: GO N0 (seeds 43 and 44) + N4 tonight**, 4 h walls, ops submits (`PROMPT_OPS_V8_QUEUE.md` §6). Everything else waits for 1 Oct.
+- **D1. GPU tonight. Decided 28 Sep ~22:00: GO N0 (seeds 43 and 44) + N4 tonight**, 4 h walls, ops submits (`OPS_HANDOFF_RUNBOOK.md` §6). Everything else waits for 1 Oct.
 - **D2. The next train's single change:** `SPECTRA_PROBE_SET=v7` (fix what the governor sees) **or** one action-geometry change that N1 / N2 pass (streams, 0.95 or ladder). Not both.
 - **D3. Group-token resume. Decided 28 Sep ~22:00: stay held; decide after 1 Oct.** The resume line is ready in the ops doc §6 (new job from `tree_v9`, `SPECTRA_RESUME_TRAIN=1`; the governor restarts). Never release `21716380`.
 - **D4. FT arm order.** F1 (cosine) is cheapest; F2 (group-first) is the one aimed at skinny groups.
@@ -572,7 +572,7 @@ Write the live tables in **`docs/SITTING_GPU_QUEUE.md`** and paste the same tabl
 
 ## 13. Status-note action items → options ranked, and the A/B ladder (29 Sep ~17:10 IDT, Opus 5.5 MAX)
 
-Gilad has not answered the 29 Sep status note. Under Ido's directive the sitting works each item as an experiment. One fact changes all four: every closed verdict in the note was measured on the memorized val (§141). Protocol P removes it, and three zero-GPU readouts already move items 2–4. Live queue: `docs/SITTING_GPU_QUEUE.md`. Exact lines: `docs/PROMPT_OPS_V8_QUEUE.md` §8.
+Gilad has not answered the 29 Sep status note. Under Ido's directive the sitting works each item as an experiment. One fact changes all four: every closed verdict in the note was measured on the memorized val (§141). Protocol P removes it, and three zero-GPU readouts already move items 2–4. Live queue: `docs/SITTING_GPU_QUEUE.md`. Exact lines: `docs/OPS_HANDOFF_RUNBOOK.md` §8.
 
 `tree_v9c` = `tree_v9b` + TRAJ candidates saved as `state_dict` + arch/recipe JSON (`src/traj_models.py`; never the live module), a non-fatal save, per-candidate isolation in the final FT, the scratch control (`SPECTRA_EVAL_FINAL_FT_SCRATCH=both|only`, 200 ep SGD 0.1) and a final FT from a saved walk (`SPECTRA_EVAL_FINAL_FT_FROM=<run>/traj_models`, no new walk). Tests pin the 21726337 crash (a file-path class cannot be pickled; its state_dict round-trips) and real-prune round-trips on thin_res_net / vgg_chenyaofo / resnet_chenyaofo / vgg_depgraph. CPU pytest **367/367** on the cluster conda. Offline readers: `scripts/paired_steps.py`, `scripts/final_ft_readout.py`, `scripts/crossfit_readout.py`.
 

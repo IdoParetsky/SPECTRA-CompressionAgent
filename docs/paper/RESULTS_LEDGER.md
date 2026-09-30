@@ -2631,9 +2631,9 @@ Offline, login node, `tree_v9c` readers on the `tree_v9b` walks 21726335 / 36 / 
 
 ---
 
-## 148. Crop+flip in the walk fine-tune, C100 gate (**21729554** vs **21729552**, both R) — PRELIM, 6 of 8 nets; gate adopt rule met
+## 148. Crop+flip in the walk fine-tune, C100 gate (**21729554** COMPLETED vs **21729552** TIMEOUT) — PRELIM, 8 of 8 nets; gate adopt rule met; **C100 catalog emitted**
 
-`tree_v9b`, P, gate profile (τ = 10, 2-pass mild, walk FT 12/4), both on 1080s. Arm adds `SPECTRA_FT_AUG=1` (RandomCrop+Flip on train images only). TEST is the **5k half**. Mild holds the same widths at the same step, so the size columns are paired (keep shown once). First read (r20-w13 only, 29 Sep 17:01) is the first row. Stamped 30 Sep 02:13; nets 7–8 (mbv2x1, densenet40) still walking, walls ~08:21 (552) / ~08:29 (554), densenet40 may not finish.
+`tree_v9b`, P, gate profile (τ = 10, 2-pass mild, walk FT 12/4), both on 1080s. Arm adds `SPECTRA_FT_AUG=1` (RandomCrop+Flip on train images only). TEST is the **5k half**. Mild holds the same widths at the same step, so the size columns are paired (keep shown once). First read (r20-w13 only, 29 Sep 17:01) is the first row. Rows for nets 1–6 stamped 30 Sep 02:13; nets 7–8 and the admit lines 30 Sep 11:45. 21729554 COMPLETED in 15 h 05 m (`cs-1080-01`). 21729552 hit its 16 h wall (`cs-1080-05`) at mbv2x1 step ~102, before that net's TRAJ rows, and never started densenet40.
 
 | Net (unpruned) | size 0.90: no aug → aug | size 0.80: no aug → aug | `val_best` no aug | `val_best` aug | Paired val (n, mean, better) | Admit no aug / aug |
 |---|---|---|---|---|---|---|
@@ -2643,11 +2643,22 @@ Offline, login node, `tree_v9c` readers on the `tree_v9b` walks 21726335 / 36 / 
 | vgg11_bn (0.714) | −9.6 → −5.6 (**+4.0**) @ 0.889 | −7.3 → −6.4 (**+0.9**) @ 0.787 | −9.4 @ 0.659, val −8.78 | −4.3 @ 0.659, val −4.98 | 18, **+2.07**, 100 % | yes / yes |
 | vgg13_bn (0.751) | −7.1 → −5.1 (**+2.0**) @ 0.887 | −9.7 → −6.4 (**+3.3**) @ 0.798 | −9.3 @ 0.661, val −8.54 | −4.8 @ 0.658, val −4.58 | 22, **+3.39**, 100 % | yes / yes |
 | mbv2x0.5 (0.711) | −2.6 → −0.8 (**+1.8**) @ 0.868 | −1.9 → −0.8 (**+1.1**) @ 0.798 | −2.9 @ 0.692, val −2.78 | −2.0 @ 0.692, val −2.16 | 50, +0.92, 92 % (CONTINUE) | yes / yes |
-| mbv2x1, densenet40 | walking (mbv2x1: 3 pairs, +1.90) | | | | | |
+| mbv2x1 (0.747) | not finished → **−1.3** @ 0.889 | not finished → **−2.1** @ 0.789 | not finished (wall) | −0.4 @ 0.671, val −1.18 | 49, **+1.58**, 94 % | not finished / yes |
+| densenet40 (0.703) | not started → **−3.9** @ 0.900 | not started → **−4.7** @ 0.798 | not started | −6.0 @ 0.696, val −6.14 | — | not started / yes |
 
-**Paired read (`paired_steps.py`, val).** `ADOPT?` on 5 of 6 nets; mbv2x0.5 CONTINUE. First net at 16 cuts read +4.60, final +5.48.
+**Paired read (`paired_steps.py`, val).** `ADOPT?` on 6 of 7 paired nets; mbv2x0.5 CONTINUE. First net at 16 cuts read +4.60, final +5.48.
 
-**Read.** At the same widths crop+flip is kinder at **12 of 12** size points, **+0.9 to +6.2 pp TEST, mean +3.3**. Both arms admit **6/6** (TRAJ `val_best` kept ≤ 0.98, val Δ ≥ −10). The pre-registered gate rule (admits ≥ no-aug and kinder TEST at equal keep on ≥ 5/8) is **met on 6 nets**, whatever nets 7–8 show. Four of six nets stay inside τ to the deepest 2-pass mild point (~0.66 keep) in **both** arms: under clean val, C100 recovery at the live recipe is a gate pass (Q4 evidence "yes", no emit), and crop+flip halves the drop there (resnet32 −9.5 → −5.3, VGG-11 −9.4 → −4.3, VGG-13 −9.3 → −4.8). One seed per arm: the smallest gaps (VGG-11 size 0.80 +0.9, mbv2x0.5 +1.1) sit inside the 5k-half noise. Still a walk-recipe result, not a training-recipe pass: the thin-C10 rule is §150. Do **not** rewrite C6 as "C100 solved". Do not lock. Do not edit the draft.
+**Admit lines (rule: TRAJ `val_best` kept ≤ 0.98 and val Δ ≥ −10).**
+- *Aug gate 21729554:* **8 / 8 admitted**. Kept 0.647–0.696 (every net reaches the deepest 2-pass mild point); val Δ −1.18 (mbv2x1) to −9.70 (r56-w9). The two thin residual nets sit near the edge: r56-w9 −9.70, r20-w13 −8.84.
+- *No-aug gate 21729552:* **6 / 6 finished admitted**. mbv2x1 was cut by the wall and densenet40 never started: "not finished", never "not admitted". r20-w13 and r56-w9 admit only at a shallow `val_best` (0.926 and 0.941 kept); every later point is below −10.
+- *Legacy gate (§109, train-split val, Adam 1e-3 12/4):* 0 / 8.
+
+**Emit (Ido GO 30 Sep 11:08).** The C100 recipe is the Stage-4 train's (P + crop+flip, 12/4), so the aug gate is the admitting gate.
+- `configs/v7_c100_gate.json`: all 8 rows `admitted`, `probe_job` 21729554, `val_best_*`, and a `no_aug_gate` column.
+- `python scripts/build_v5_catalog.py --emit-admitted --intended configs/database_offline_v7_diverse.json --gate configs/v7_c100_gate.json --out configs/database_offline_v7_diverse_admitted.json --min-c100 8` wrote **16 nets** (the 8-net C10 core + 8 C100). `--check-admitted` ok; `tests/test_v5_catalog.py` 16/16, with a new check that the committed file equals the builder's output.
+- No job reads this file yet. N8 (`docs/N8_DIVERSE_TRAIN_ROADMAP.md`) needs a profile that accepts it.
+
+**Read.** At the same widths crop+flip is kinder at **12 of 12** size points, **+0.9 to +6.2 pp TEST, mean +3.3**. Both arms admit **6/6** (TRAJ `val_best` kept ≤ 0.98, val Δ ≥ −10). The pre-registered gate rule (admits ≥ no-aug and kinder TEST at equal keep on ≥ 5/8) is **met on 6 nets**, whatever nets 7–8 show. Four of six nets stay inside τ to the deepest 2-pass mild point (~0.66 keep) in **both** arms: under clean val, C100 recovery at the live recipe is a gate pass (Q4 evidence "yes"; emitted 30 Sep, above), and crop+flip halves the drop there (resnet32 −9.5 → −5.3, VGG-11 −9.4 → −4.3, VGG-13 −9.3 → −4.8). One seed per arm: the smallest gaps (VGG-11 size 0.80 +0.9, mbv2x0.5 +1.1) sit inside the 5k-half noise. Still a walk-recipe result, not a training-recipe pass: the thin-C10 rule is §150. Do **not** rewrite C6 as "C100 solved". Do not lock. Do not edit the draft.
 
 ---
 
@@ -2731,7 +2742,15 @@ Ido GO 30 Sep 01:56: Stage 4 = one train, the area train under P, plus crop+flip
 - `policy_config.json` vs 21536396: only `created`, `SPECTRA_RUN_ID`, `SPECTRA_BATCH_SIZE` (unset → 256) and `SPECTRA_VAL_FROM_TEST` (unset → 1). The fraction and split seed are at their defaults and are not recorded.
 - *Pace.* Episode 0 took 993 s vs the control's 422 s (the same 24 steps); one walk-FT epoch 6.7 s vs 2.9 s.
   - Causes, all protocol: P's batch 256 against the control's adaptive 384 (RTX 6000: 64 × 6), the whole 50k split, and crop+flip (+18 % per epoch; 21729556 vs 21729555 on the same node at batch 256).
-  - At ~2.3×, the 6-day runtime fuse stops training near episode ~160, not at the 250 minimum.
+  - ~~At ~2.3×, the 6-day runtime fuse stops training near episode ~160~~ (corrected 30 Sep 11:45, below).
+
+**Fuse and resume (30 Sep 11:45).**
+- *Pace.* 12 episodes by the update-3 line (10:58): median 1,296 s, mean 2,315 s per episode (20–114 steps each), plus a probe every 12 episodes.
+- *Fuse.* The 518,400 s fuse counts from 03:14:51, so it fires **~6 Oct 03:15**, near **episode ~200**. The earlier "~10 Oct" and "~160" were wrong.
+- *Resume.* Ido GO 11:08: let the train run its course past the fuse. Resume **21767188** (`v9c-paug-area-train-r1`, same profile, env and tree) is chained `afterok:21737123`, nice 0, any RTX 6000 / 4090.
+  - It restores weights, both optimisers, the episode index, the standardizer and the governor's best probe score and since-improvement count (`load_train_resume`); only the rewind count resets.
+  - So the stop rule runs on unchanged: episode ≥ 250 **and** 150 episodes since the best probe. The resume's own fuse is 6 days.
+- *Requeue.* The cluster requeues by default (`JobRequeue=1`, `PreemptMode=REQUEUE`). A requeue of 21737123 under its own id would run the sbatch "always cold" block, which deletes its `train_resume.pt`. Set `Requeue=0` on 21737123 and 21767188. Bundle backed up to `~/spectra_backups/job21737123_20260930`; the ops heartbeat keeps one copy a day.
 
 Do **not** lock.
 
@@ -2753,6 +2772,44 @@ Do **not** lock.
 - *Reading.* On a full-width C10 net, crop+flip in the walk FT removes almost all of the walk's accuracy cost at 1.26–1.51× parameter compression. This is the same-loop (bar-2) recipe, **without** the 100-ep final FT. The literature rows use a long final FT, and DepGraph R56 is +0.24 at 2.11× (§147). Do not call this a match: the compression is lower and the recipes differ.
 - *Stopped.* Scancelled 03:49 after the R56 rows (pre-registered, ops §9.3). Its VGG-16 was at step 1 and could not finish before the 08:21 wall. **21737104** re-walks both VGG twins on `tree_v9c`.
 - *TEST-walk rule (O1, way-ahead decision d).* This covers R56 only. Still pending: the VGG twins (21737104) and the thin guard at 40/10 (21729557).
+
+**VGG-16 twin (30 Sep 11:45; 21737104 R on `tree_v9c`, `cs-4090-07`, VGG-19 C100 walking).** Same design and control (21726337), `vgg16_bn_cifar10_chenyaofo_94.16` (unpruned TEST half 0.937). The arm ran on a 4090 and the control on another card.
+
+| Point | Step | Params kept | P TEST | P + aug TEST | Aug − P |
+|---|---|---|---|---|---|
+| size 0.80 | 20 | 0.796 | −2.9 | **−0.3** | **+2.6** |
+| size 0.70 | 25 | 0.698 | −2.8 | **−0.3** | **+2.5** |
+| `val_best` | 29 | 0.657 | −2.8 | **−0.5** | **+2.3** |
+
+- *Paired val.* 28 cuts, +2.44 pp, arm better on 100 %. The VGG-19 C100 twin: 7 cuts so far, +3.21 pp, 100 %.
+- *TEST-walk rule (d), 11:45.* **Two of three twins** are ≥ 1 pp kinder at equal keep (R56 +2.2 to +2.8; VGG-16 +2.3 to +2.6). The twin half of the rule is met.
+- *Thin guard (21729557 vs 21726335, 40/10).*
+  - r20-w2: aug is 1.3 / 0.7 / 1.6 pp worse at size 0.80 / 0.60 / `val_best`, all at equal keep. That is inside its 2 pp guard.
+  - r56-w4 is still walking: paired val +4.99 over 54 cuts, better on 100 %. Its rows decide (d): not > 0.5 pp worse than 21726335 at equal keep = met.
+
+Do **not** lock.
+
+---
+
+## 153. 100-epoch SGD final fine-tune, DepGraph ResNet-56 C10 (**21730500** COMPLETED) — PRELIM; O2 honest gain HOLD
+
+`tree_v9c`, P, 5-pass mild (τ = 10, walk FT 40/10, no aug), `SPECTRA_EVAL_SIZE_POINTS=flop:0.6,0.47,0.39` (0.47 and 0.39 are DepGraph's 2.11× and 2.57×). Then the §149 final FT: SGD 0.01, momentum 0.9, wd 5e-4, cosine, crop+flip, batch 128, 100 epochs, no KD, from the inherited weights, plus the origin control. `SAVE_TRAJ_MODELS=1`: the candidates are saved in `runs/job21730500/traj_models` (N1, N2 and scratch 21730516 start from them). COMPLETED 6 h 07 m, 30 Sep ~09:57, `ise-4090-18`. Checkpoint `resnet56_cifar10_dep_graph_93.53.pth`; TEST = the **5k half** (unpruned 0.934); 10k = both halves. Readers: `readers_s30/scripts/final_ft_readout.py` (ORIGIN-HURT fix) and `crossfit_readout.py`.
+
+| Point | Step | Params / FLOPs kept | Walk (5k) | Final FT (5k) | Honest gain | 10k: walk → final | DepGraph published (10k) |
+|---|---|---|---|---|---|---|---|
+| size_flop0.60 | 136 | 0.638 / 0.599 | −2.50 | **−0.90** | +1.18 HOLD | −2.67 → **−1.06** | — |
+| size_flop0.47 | 210 | 0.470 / 0.463 | −3.66 | **−1.44** | +1.80 HOLD | −3.81 → **−1.52** | **+0.24** at 2.11× |
+| size_flop0.39 | 267 | 0.382 / 0.380 | −4.34 | **−2.18** | +1.74 HOLD | −4.60 → **−2.11** | **+0.11** at 2.57× |
+| `val_best` | 283 | 0.356 / 0.369 | −3.88 | −1.94 | +1.52 HOLD | cross-fit τ10 walk −4.25; final n/a (val-selected) | — |
+| origin | — | 1 / 1 | 0 | +0.42 | origin change +0.42 | +0.49 | — |
+
+- *Re-walk determinism* vs 21726340 (same checkpoint and walk, `tree_v9b`): 150 paired cuts, mean −0.04 pp. ≈ 0, as required.
+- *Census.* 152 cut points, val Δ > 0 on 0 (max −0.84): no-aug walk.
+- *Reading.*
+  - The final FT recovers **+1.2 to +1.8 pp beyond what it gives the unpruned net**. That is real, but under the 2 pp ADOPT line (HOLD). The VGG-19 C100 cell (§149) was +4.1 to +5.5.
+  - At DepGraph's FLOPs points the 10k gap is **1.8 pp at 2.11× and 2.2 pp at 2.57×**. DepGraph learns sparsity and fine-tunes on this checkpoint. This row is a no-agent mild walk with the no-aug walk FT, then a 100-epoch SGD.
+  - Quote beside DepGraph, never "beats" or "matches". Whether the crop+flip walk closes part of the gap is **N3 = 21767189** (this line + `SPECTRA_FT_AUG=1`).
+- *Triggered.* N1 (KD, **21767190**) and N2 (AutoAugment, **21767192**) run from these saves: the pre-registered condition was honest ≥ 0.5 pp and no ORIGIN-HURT, and the origin change is +0.42.
 
 Do **not** lock.
 

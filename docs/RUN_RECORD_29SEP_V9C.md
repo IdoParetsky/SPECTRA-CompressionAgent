@@ -118,3 +118,56 @@ Ready-made: `scripts/_tmp_s30_poll.sh` (queue, sacct, reservations, per-job TRAJ
 ## 7. Commits of this sitting
 
 `502ec84` (V9c code + readers + sitting §13 + queue doc + ops §8), `5b6398d` (final-FT KD teacher, next tree), `3c22f83` (aug r20-w13 read, stamps). This record, the way-ahead doc, ledger §148–§151, the queue / ops updates and ops' pending ledger / status / Gilad-note edits: the 30 Sep commit that adds this file.
+
+## 8. Addendum — 30 Sep 11:08 → ~11:55 IDT (Opus 5.5, handoff to ops)
+
+**Mandate (Ido 30 Sep 11:08).**
+- Let the Stage-4 train run its course past the 6-day fuse.
+- scancel 21716380 and submit the highest-priority work (the C100 emit).
+- Explain clean val, crop+flip and the 100-epoch final FT for Gilad.
+- Write a new ops prompt that pre-authorizes freeze TESTs.
+- Draw the N8 roadmap.
+- Rename the ops-handoff doc.
+- Any further dev now only if warranted.
+
+**Cluster actions.**
+
+| Time | Action | Job |
+|---|---|---|
+| 11:29 | scancel the held legacy group-token train (bundle already backed up) | 21716380 |
+| 11:40 | resume of the Stage-4 train, `afterok:21737123`, nice 0, `Features=rtx_6000\|rtx_4090`, `Requeue=0` | **21767188** |
+| 11:40 | N3: aug walk + 100-ep final FT, DepGraph R56 C10 (nice 3) | **21767189** |
+| 11:40 | N1: final-FT KD from 21730500's saves (nice 60) | **21767190** |
+| 11:40 | N2: final-FT AutoAugment from the same saves (nice 61) | **21767192** |
+| 11:40 | 21730506 (no-aug twins + final FT) parked at nice 70 for the decision (d) conversion | 21730506 |
+| 11:45 | `Requeue=0` on 21737123 and 21767188; bundle copied to `~/spectra_backups/job21737123_20260930` | — |
+
+Lines: `scripts/_tmp_s30_1140_act.sh` (submits, nice, pace, (d) rows) and `scripts/_tmp_s30_requeue.sh` (requeue config, `Requeue=0`, backup). Reads: `_tmp_s30_1110_reads.sh`, `_tmp_s30_resumechk.sh`, `_tmp_s30_1130_gate.sh`, `_tmp_s30_500read.sh`. The ops heartbeat `_tmp_s30_ops_hb.sh` was rewritten for the handoff. It follows the live train id, prints `Requeue`, keeps the daily backup, runs the N3 / N1 / N2 paired reads and prints the (d) thin-guard block.
+
+**The emit** (zero GPU).
+- `configs/v7_c100_gate.json` was filled from the aug gate 21729554: 8/8 admitted, with 21729552's values as a `no_aug_gate` audit column.
+- `build_v5_catalog.py --emit-admitted --min-c100 8` wrote `configs/database_offline_v7_diverse_admitted.json` (16 nets, 8 C10 + 8 C100).
+- `tests/test_v5_catalog.py` now checks the emitted file against the gate: 16/16 local.
+
+**Findings.**
+- **The fuse date was wrong.** The 03:55 estimate said ~10 Oct, near episode ~160. At the measured mean of 2,315 s per episode, `runtime_limit` (518,400 s from the train's start) fires ~6 Oct 03:15, near episode ~200.
+- **The resume carries the governor.** `load_train_resume` restores the best score and the since-improvement count; only rewinds reset. The sbatch comment "the governor restarts" is stale.
+- **The requeue trap.** `JobRequeue=1` and `PreemptMode=REQUEUE` are set cluster-wide. A requeue under the same job id runs the "always cold" block and deletes `train_resume.pt`. A requeued resume would re-copy the parent bundle over its own. The trap is closed per job with `Requeue=0`; the permanent fix is a `tree_v9d` item.
+
+**Ledger.**
+- §148: 8 of 8 nets; emitted.
+- §151: fuse and resume.
+- §152: the VGG-16 twin, +2.3 to +2.6 pp; twins 2/3.
+- §153 (new): DepGraph R56 C10 final FT. HOLD, honest +1.2 to +1.8; 10k −1.52 / −2.11 against DepGraph's +0.24 / +0.11.
+- Next is §154.
+
+**Docs.**
+- `docs/PROMPT_OPS_V8_QUEUE.md` → `docs/OPS_HANDOFF_RUNBOOK.md` (`git mv`; the six referencing docs updated).
+  - New §10 is the current handoff. It holds the paste block, live jobs, the fuse and resume, the pre-authorized actions, milestones M1–M7, lines and the never-list.
+  - Old §0–§9 stay as history.
+- New `docs/N8_DIVERSE_TRAIN_ROADMAP.md` and `docs/paper/GILAD_NEWS_30SEP.md`.
+- The way-ahead doc and `docs/SITTING_GPU_QUEUE.md` were restamped.
+
+**No dev this sitting.**
+- *Why none is needed yet.* N8's trigger (runbook M1) is ~2–3 Oct, and nothing live needs a code change. The one bug found, the requeue trap, has a per-job workaround in place.
+- *`tree_v9d`* is the next sitting's first task (roadmap §5).

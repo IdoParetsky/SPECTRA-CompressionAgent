@@ -1,51 +1,61 @@
-# Way ahead — for the next science sitting (written 30 Sep ~03:00 IDT, Opus 5.5 MAX)
+# Way ahead — for the next science sitting (written 30 Sep ~03:00 IDT, Opus 5.5 MAX; restamped 30 Sep ~11:55 at the ops handoff)
 
-Read this first, then `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger rows it cites. What was built and run is in `docs/RUN_RECORD_29SEP_V9C.md`. The earlier option list and ladder are `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. This file supersedes §13.3's statuses.
+Read this first, then the §7 log at the bottom (what ops saw since the handoff), `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger rows it cites. The ops handoff, pre-authorized actions and milestones M1–M7 are `docs/OPS_HANDOFF_RUNBOOK.md` §10. The diverse train is `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. The Gilad explanation of the three 29–30 Sep findings is `docs/paper/GILAD_NEWS_30SEP.md`. What was built and run is in `docs/RUN_RECORD_29SEP_V9C.md`. The earlier option list and ladder are `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. This file supersedes §13.3's statuses.
 
 ## 0. State of play
 
 - **Protocol P is the walk and train protocol.** Val = one 5k half of the test split, TEST = the other; batch 256 pinned. Every verdict closed before 28 Sep was measured on a val the zoo nets had memorized (§141): agent ≡ mild, C100 unrecoverable, C-G dead, and the reward-shape reading.
 - **Under P the walk fine-tune is the lever.**
   - Crop+flip in the walk FT is kinder at every equal-width C100 point measured (12/12, mean +3.3 pp TEST, §148).
-  - On the C10 R56 twin it is −0.06 pp TEST at 0.661 keep, against −2.84 without it (§152).
-  - The 100-epoch SGD final FT adds an honest +4.1 to +5.5 pp on the C100 bar-3 cell (§149).
-- **Stage 4 is running.** **21737123**: the area train under P + crop+flip (§151). The training rule passed at 03:11 (§150): r56-w4 +2.3 pp TEST at equal keep. The P-only arm was cancelled before it started; its line is kept for the attribution train (N9).
-- **No-agent ladder.** 13 cells (3 R, 10 PD), the pending ones pinned to fast cards (`Features=rtx_6000|rtx_4090`).
-- **The train is slow by design.** ~2.3× the control per episode, so the 6-day fuse lands near episode ~160 (decision f).
+  - On the C10 R56 twin it is −0.06 pp TEST at 0.661 keep, against −2.84 without it (§152). On VGG-16 it is +2.3 to +2.6 pp at equal keep (§152).
+  - The 100-epoch SGD final FT adds an honest +4.1 to +5.5 pp on the C100 bar-3 cell (§149), and +1.2 to +1.8 (HOLD) on DepGraph's R56 C10 (§153): 10k −1.52 / −2.11 at DepGraph's FLOPs points, against their +0.24 / +0.11.
+- **Stage 4 is running.** **21737123**: the area train under P + crop+flip (§151). The training rule passed at 03:11 (§150): r56-w4 +2.3 pp TEST at equal keep. The P-only arm was cancelled before it started; its line is kept for the attribution train (N9). Freeze TESTs are pre-authorized (runbook §10.3).
+- **C100 is in the catalog.** The aug gate admitted 8/8 (§148); `configs/database_offline_v7_diverse_admitted.json` has 16 nets (8 C10 + 8 C100), emitted 30 Sep 11:45. Nothing trains on it until N8 (roadmap).
+- **No-agent ladder.** 13 cells (3 R, 10 PD): 21729552 / 554 / 21730500 finished; N3 / N1 / N2 added. The pending ones are pinned to fast cards (`Features=rtx_6000|rtx_4090`).
+- **The train is slow by design, and the fuse is covered.**
+  - *Pace.* Mean 2,315 s per episode over the first 12 (median 1,296).
+  - *When the fuse fires.* The 6-day fuse (`runtime_limit` 518,400 s from the train's start) fires **~6 Oct 03:15, near episode ~200**, short of the 250 minimum. The 03:55 estimate of "~10 Oct, ~episode 160" was wrong.
+  - *The resume.* 21767188 is chained `afterok`, so the train runs to its stopping rule (decision f).
 
 ## 1. Decisions waiting on Ido (recommendation first)
 
-**(a) `21716380` (group-token, held since 28 Sep).**
-- *Facts.* `tree_v8b`, legacy val, 7-day cold train. A release re-runs the prologue, which deletes `train_resume.pt` and restarts cold. Its 12 episodes and the `ep0011` freeze are backed up in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/` (`train_resume.pt`, `latest_best_*`, `policy_config.json`, `standardizer.pt`) and in `tree_v8b/runs/job21716380/snapshots/ep0011`. Its question (group tokens) is confounded by memorized val, like every legacy train.
-- *Recommendation.* **scancel** it: nothing is lost, and a held 7-day legacy job is one mistyped release from burning a slot for a week. Re-run group tokens later as a one-change arm on top of the Stage-4 train, only if that train leaves mild. Never release it; do not TEST `ep0011`.
+Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and done by 11:45. Their facts stay below for the record. Open: (b)-train (N8), (d), (e).
 
-**(b) C100 catalog emit, and a diverse (C10 + C100) train.**
-- *Facts.*
-  - Under P both gates admit **6/6** so far (rule: ≥ 4/8). Nets 7–8 finish by ~08:30 or wall out.
-  - The emit writes a file (`configs/database_offline_v7_diverse_admitted.json`); nothing trains on it until a profile points there.
-  - Three steps. First, fill `configs/v7_c100_gate.json` from the gate log whose recipe matches the train. The Stage-4 recipe is P + aug, so that is the aug gate 21729554. Second, `build_v5_catalog.py --intended configs/database_offline_v7_diverse.json --gate configs/v7_c100_gate.json --out configs/database_offline_v7_diverse_admitted.json`. Third, a `DATASET_NAMES` override in the sbatch, because the profile hard-sets `cifar-10 svhn` (a `tree_v9d` item).
-  - The diverse catalog has no SVHN and drops r20-w8.
-- *Recommendation.*
-  - **GO the emit** once both gates finish: it is reversible and it answers Gilad's Q4 on paper.
-  - Hold the **diverse train** until the Stage-4 train's first freeze TEST shows it is not a mild clone. Two parallel trains that both copy mild waste two of four slots for a week.
-  - If speed matters more than that risk, run it in parallel: one slot, ~6 days.
-- *Draft Q4 answer.* One recipe (Adam 1e-3, 12/4) admits C100 under clean val. Crop+flip, the augmentation every zoo net was trained with, improves it uniformly. No per-dataset recipe.
+**(a) `21716380` (group-token, held since 28 Sep) — DONE: scancelled 30 Sep 11:29.**
+- *Facts.* `tree_v8b`, legacy val, 7-day cold train. A release would have re-run the prologue, deleting `train_resume.pt` and restarting cold. Its 12 episodes and the `ep0011` freeze are backed up in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/` (`train_resume.pt`, `latest_best_*`, `policy_config.json`, `standardizer.pt`) and in `tree_v8b/runs/job21716380/snapshots/ep0011`. Its question (group tokens) is confounded by memorized val, like every legacy train.
+- *Still true.* Re-run group tokens later as a one-change arm on top of the Stage-4 recipe, only if that train leaves mild. Do not TEST `ep0011`.
 
-**(c) Freeze TESTs of the Stage-4 train.**
-- *Recommendation.* Pre-authorize ops to TEST the first freeze written after PPO update 20, plus later freezes at most once per day. Use the exact line in ops §9, on the thin pair, against mild under the same protocol. Otherwise each TEST waits for Ido.
+**(b) C100 catalog emit — DONE 30 Sep 11:45. Diverse (C10 + C100) train → `docs/N8_DIVERSE_TRAIN_ROADMAP.md`.**
+- *The emit.* `configs/v7_c100_gate.json` now carries the aug gate 21729554: 8/8 admitted, val-selected keep 0.647–0.696, val Δ −1.18 to −9.70. The no-aug gate values sit beside it as an audit column: 21729552 admitted 6/6 of the nets it finished. `build_v5_catalog.py --emit-admitted --min-c100 8` wrote `configs/database_offline_v7_diverse_admitted.json`: 16 nets, 8 C10 + 8 C100, no SVHN, r20-w8 dropped. `--check-admitted` passes; `tests/test_v5_catalog.py` 16/16.
+- *Still to build for the train.* A `DATASET_NAMES` override: the profile hard-sets `cifar-10 svhn`. A C100 probe net. Requeue safety. All are `tree_v9d` items; see roadmap §5.
+- *Recommendation (unchanged).*
+  - Hold N8 until the Stage-4 train's first freeze TEST shows it is not a mild clone (runbook M1; roadmap §3). Two parallel trains that both copy mild waste two of four slots for a week.
+  - If speed matters more than that risk, run it in parallel after M2: one slot, ~6 days.
+- *Q4 answer for Gilad* (`docs/paper/GILAD_NEWS_30SEP.md` §1). One recipe (Adam 1e-3, 12/4) admits C100 under clean val: 6/6 finished without aug, 8/8 with crop+flip. Crop+flip, the augmentation every zoo net was trained with, improves it uniformly. No per-dataset recipe.
 
-**(d) Crop+flip as the TEST walk recipe (bar 2 for every method).**
-- *When.* After the twins TEST rows: R56 from 21729553, the VGG twins from 21737104, and the thin 40/10 guard 21729557.
-- *So far (§152).* R56 meets it with margin: −0.16 vs −2.68 at size 0.80, −0.50 vs −2.70 at size 0.70, −0.06 vs −2.84 at `val_best` 0.661. The VGG twins and the thin guard are still to come.
+**(c) Freeze TESTs of the Stage-4 train — PRE-AUTHORIZED 30 Sep 11:08.**
+- *What ops runs.* Runbook §10.3 and line §10.5 (a): the first freeze written after PPO update 20, then at most one a day, never two in flight. Each goes on the thin pair, under P + crop+flip at 40/10, against mild in 21729557 at equal keep, with the compression-rate census for the mild-clone read.
+- *Fallback.* If there is still no freeze by episode 120, ops reports.
+
+**(d) Crop+flip as the TEST walk recipe (bar 2 for every method) — twins met; thin guard pending.**
+- *So far (§152).*
+  - R56 meets the rule with margin: −0.16 vs −2.68 at size 0.80, −0.50 vs −2.70 at size 0.70, −0.06 vs −2.84 at `val_best` 0.661.
+  - VGG-16 meets it: +2.6 / +2.5 / +2.3 pp at size 0.80, size 0.70 and `val_best`. That makes **2 of 3 twins**. VGG-19 C100 is still walking in 21737104; its paired read is +3.21 over 7 cuts.
+  - Thin guard: r20 is 1.3 / 0.7 / 1.6 pp worse, inside its 2 pp. r56-w4 is still walking in 21729557; its paired read is +4.99 over 54 cuts.
 - *Rule.* TEST ≥ 1 pp kinder at equal keep on ≥ 2 of 3 twins, and the thin guard holds. Then every TEST walk (agent and heuristics) switches to aug, and the no-aug rows stay as an audit column.
+- *Recommendation.* Once r56-w4's TEST rows hold the guard (not > 0.5 pp worse at equal keep), convert 21730506 (parked at nice 70) to the aug line, runbook §10.5 (c). Ops pings "(d) met"; the conversion waits for Ido's reply.
 - *Why it matters.* A P+aug-trained agent should be TESTed under the walk recipe it was trained with.
 
 **(e) Attribution train (only after a success).**
 - If 21737123 leaves mild, one P-only train (the cancelled 21737095 line, `scripts/_tmp_s30_train_submit.sh`) separates the val fix from the augmentation. If it does not leave mild, skip it: the weaker recipe cannot do better.
 
-**(f) Resume 21737123 after its 6-day fuse (~10 Oct).**
-- *Why it comes up.* The train runs at ~2.3× the control's time per episode (ops §9.2 "Speed"): P's batch 256 against the adaptive 384, the whole 50k split, and +18 % for aug. The fuse should stop it near episode ~160, short of the 250 minimum.
-- *Recommendation.* Resume (§9.4 line, 7 more GPU-days) only if a freeze TEST by then is ≥ mild at equal keep, or the probe area is still rising. Otherwise stop there: a policy that has not left mild in ~160 episodes under P+aug is the answer to Stage 4.
+**(f) Resume 21737123 past its 6-day fuse — DONE: chained 30 Sep 11:40 as 21767188.**
+- *Why.* The train runs at ~2.3× the control's time per episode (runbook §9.2 "Speed"): P's batch 256 against the adaptive 384, the whole 50k split, and +18 % for aug. The fuse fires ~6 Oct 03:15, near episode ~200. It is not ~10 Oct and not ~160, as first written here. Either way it comes before the 250-episode minimum, and Ido chose to let the train run its course.
+- *The job.* 21767188 runs `afterok:21737123` at nice 0, with `Features` and `Requeue=0`.
+- *What it restores.* Weights, both optimisers, the episode index, the standardizer, and the governor's best score and since-improvement count. Only the rewind count resets.
+- *When it stops.* At the governor's rule (episode ≥ 250 and 150 episodes without a better probe), or at its own 6-day fuse (~12 Oct). A second resume needs Ido.
+- *The requeue trap.* The cluster requeues on preemption. A requeue under the same job id runs the sbatch "always cold" block, which deletes `train_resume.pt`. `Requeue=0` is now set on both jobs, and the heartbeat keeps a daily bundle backup in `~/spectra_backups/`. The permanent fix is `tree_v9d` item 9.
+- *A mild clone at ~episode 200* is still reported, not killed. The runbook's M1-neg calls the sitting.
 
 ## 2. Insights gathered (ledger refs)
 
@@ -56,33 +66,45 @@ Read this first, then `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger ro
    - The r56-w4 decider at 12/4: +2.3 pp TEST at equal keep, and in-band to the end of the walk (−5.1 @ 0.622 vs −10.6 @ 0.741).
    - The full-width C10 R56 twin at 40/10 (§152): −0.06 pp TEST at 0.661 keep, against −2.84 without aug. That is almost lossless at 1.51×, with no final FT.
    - The 5k-param r20-w2 (64.8 % accuracy) loses 1.0–3.1 pp TEST. That net underfits, and augmentation hurts underfitting nets (NetAug, Cai et al. ICLR 2022). r20-w2 is a hold-out diagnostic, not a train net.
-4. **Under P, C100 admits at the live recipe (§148: 6/6).** Four of six nets stay inside τ = 10 to the deepest 2-pass mild point (~0.66 keep). "C100 unrecoverable" was memorized val.
+4. **Under P, C100 admits at the live recipe (§148).** Without aug, 6/6 finished nets; with crop+flip, 8/8, with val-selected points at 0.65–0.70 keep. "C100 unrecoverable" was memorized val. The catalog is emitted.
 5. **The final 100-ep SGD FT recovers +4 to +5.5 pp at fixed widths (§149).** Origin moves +0.10. SOTA-facing rows (bar 3) must carry it; same-loop rows (bar 2) stay on the walk recipe.
 6. **The train FT 12/4 is ~1 pp harsher than the TEST FT 40/10 on r56-w4 (§150).** The agent trains in a harsher world than it is tested in.
 7. **Re-walk noise.** Up to 0.8 pp TEST at equal widths across GPU SKUs (§149). Caption walk gaps below ~1 pp as noise.
 8. **Probe area is protocol-dependent.** A P-train's area is not comparable with 0.0586 (legacy). Compare freezes by TEST only.
 9. **Scheduler.** Untyped GPU requests land on the lowest-weight (slowest) nodes. `Features=rtx_6000|rtx_4090` fixed the no-agent cells without starving on one SKU (run record §6).
 10. **Honest gain needs a healthy origin.** Subtracting a negative origin change inflates it: the 1-epoch smoke printed "+5.78 ADOPT" on a raw gain of −0.06. The reader now says `ORIGIN-HURT` when the origin loses > 0.5 pp. That case matters for every new final recipe (KD, AutoAugment, SWA).
+11. **DepGraph R56 C10 under the final FT: HOLD, ~2 pp short (§153).**
+    - Honest +1.18 / +1.80 / +1.74; origin +0.42.
+    - 10k final −1.52 at FLOPs 0.463 and −2.11 at 0.380. DepGraph publishes +0.24 and +0.11 on the same checkpoint.
+    - Our walk here is no-aug mild, and there are no KD, AutoAugment or scratch rows yet. N3 (aug walk), N1 (KD) and N2 (AutoAugment) measure how much of the gap closes.
+    - The re-walk matches 21726340 to −0.04 over 150 cuts, so the walk itself is reproducible.
+12. **VGG-16 confirms crop+flip at TEST FT (§152).** +2.3 to +2.6 pp at equal keep, and arm better on 100 % of 28 paired cuts. Decision (d) now waits only on the thin guard.
+13. **The requeue trap (runbook §10.2).**
+    - *The mechanism.* The cluster requeues on preemption (`JobRequeue=1`, `PreemptMode=REQUEUE`). A requeue keeps the job id, so the sbatch's "always cold" block runs again and deletes `train_resume.pt`. A requeued resume would also re-copy the parent bundle over its own (prologue lines 48–54).
+    - *For now.* `Requeue=0` on every train.
+    - *The permanent fix* is in `tree_v9d` (§4 item 9).
+14. **The Stage-4 critic starts flat.** ev 0.010 / −0.129 / 0.026 at PPO updates 1–3, against 0.45–0.88 in the control. That could be the harder P reward, or just the early updates; M2 at update 10 reads it (runbook §10.4). A flag, not a kill.
 
-## 3. Options re-ranked (status 30 Sep ~03:55)
+## 3. Options re-ranked (status 30 Sep ~11:55)
 
 P = projected probability that the option passes its own adopt rule. Cells: `SITTING_GPU_QUEUE.md`.
 
 | # | Option | Status | P now | Next |
 |---|---|---|---|---|
-| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150); TEST walk 1/3 twins, R56 +2.2 to +2.8 pp (§152)** | 0.90 TEST walk | 21737104 (VGG twins), 21729557 (thin guard) |
-| O2 | 100-ep SGD final FT + origin | **met on C100 (§149)** | 0.85 on C10 | 21730500 / 01 / 06 |
-| O18 | P gate at the live recipe | **passed (6/6)** | — | nets 7–8 by ~08:30 |
-| O3 | crop+flip in the C100 gate | **passed** | — | nets 7–8 |
-| O17 | P-val reward train + crop+flip | **Stage 4: 21737123** | 0.40–0.50 leave mild | telemetry, then freeze TEST (GO) |
-| O22 | scratch-B at the walk architecture (Liu et al. 2019) | PD after 500 / 501 | 0.45–0.55 | 21730507 / 16 |
+| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150); TEST walk 2/3 twins: R56 +2.2 to +2.8, VGG-16 +2.3 to +2.6 pp (§152)**; thin guard: r20 inside, r56-w4 walking | 0.90 TEST walk | 21729557 r56-w4 rows → decision (d) |
+| O2 | 100-ep SGD final FT + origin | **met on C100 (§149)**; **HOLD on DG R56 C10 (§153, +1.2 to +1.8)**; r20 thin cross-off so far (21730501, origin +3.5) | 0.50 ≥ 2 pp on full-width C10 | 21730501 r56-w4; 21730506 after (d) |
+| O18 | P gate at the live recipe | **passed (6/6 finished; TIMEOUT at net 7)** | — | — |
+| O3 | crop+flip in the C100 gate | **passed (8/8); emitted 30 Sep 11:45** | — | N8 (roadmap) |
+| O17 | P-val reward train + crop+flip | **Stage 4: 21737123 → resume 21767188** | 0.40–0.50 leave mild | freeze TESTs pre-authorized (runbook §10.3) → M1 |
+| O22 | scratch-B at the walk architecture (Liu et al. 2019) | PD: 21730507 after 501; 21730516 eligible (500 done) | 0.45–0.55 | — |
+| N3 | aug walk + final FT, DG R56 | **submitted** 21767189 (nice 3) | 0.35 (≥ 1 pp after final FT) | pairs with 21730500 (§153) |
 | N4 | aug walk + final FT, DG VGG-19 | **submitted** 21737105 | 0.35 (≥ 1 pp after final FT) | pairs with 21729551 |
-| O4 | KD in the final FT (N1) | waits on 21730500 | 0.35 | ops §8 line |
-| O12 | AutoAugment in the final FT (N2) | waits on 21730500 | 0.30 | ops §8 line |
+| O4 | KD in the final FT (N1) | **submitted** 21767190 (nice 60), from 21730500's saves | 0.35 | ≥ +0.5 pp over plain final FT → M5 |
+| O12 | AutoAugment in the final FT (N2) | **submitted** 21767192 (nice 61), same saves | 0.30 | ≥ +0.5 pp → M5 |
 | O20/21 | C-G under P, NEON train-loss stop | PD 21730509 / 14 | 0.25 real cut; 0.05–0.08 ≥ A | 5-pair big-effect kill |
 | O13 | N2 stream protection | PD 21729558 | 0.20 | pairs by params |
 | O42 | cubic (NEON) reward under P (+aug): the item-2 A/B | new; a train | 0.25 | only if an aug census shows cuts with val Δ > 0; otherwise cubic just penalises drops harder (→ mildest) |
-| O41 | diverse P train (C10 + C100) | new; a train | 0.35 | after (b) |
+| O41 | diverse P train (C10 + C100) = N8 | catalog emitted; a train | 0.35 | `docs/N8_DIVERSE_TRAIN_ROADMAP.md`: after M1 + `tree_v9d` + Ido GO |
 | O40 | attribution train | new; a train | — | only after O17 leaves mild |
 | O39 | capacity-conditioned aug (off when the net underfits; NetAug) | new | 0.30 | only if tiny nets enter the catalog |
 | O38 | reward replay of the P walks (linear / cubic / NEON-exact returns) | zero GPU, not built | 0.80 informative | next sitting, ~50 lines |
@@ -96,21 +118,26 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 ## 4. Next dev items (`tree_v9d`; build only when no `tree_v9c` job needs the change)
 
 1. **Provenance.** Add `SPECTRA_FT_AUG` / `SPECTRA_FT_AUTOAUG` to `POLICY_INFO_KEYS` (`src/A2C_Agent_Reinforce.py`). Today a P+aug train records aug only in the log's `SPECTRA_* env` dump and its job name.
-2. **Diverse train profile.** Honour a pre-set `SPECTRA_DATASET_NAMES` (or add `SPECTRA_V6_DATASET_NAMES`) and point `SPECTRA_V6_DATABASE` at the admitted v7 catalog.
-3. **Emit.** Generalise `emit_v5_admitted_from_gate_log.py` (hardcoded to v5 paths) to `--gate-log / --intended / --out`, or write the v7 gate table from the gate log and reuse `build_v5_catalog.py`.
+2. **Diverse train profile** (roadmap §5). Honour a pre-set `SPECTRA_DATASET_NAMES` (or add `SPECTRA_V6_DATASET_NAMES`) and point `SPECTRA_V6_DATABASE` at the admitted v7 catalog. A new profile `offline_train_v9_diverse` keeps the Stage-4 recipe otherwise unchanged.
+3. ~~**Emit.**~~ Done 30 Sep 11:45: the v7 gate table was filled from the gate log and `build_v5_catalog.py --emit-admitted` reused. Generalising `emit_v5_admitted_from_gate_log.py` is no longer needed.
 4. **Final-FT KD teacher** (in git `5b6398d`) goes live with `tree_v9d`. Drop the `SPECTRA_FT_KD=1` workaround from N1 then.
 5. **O38 reward replay** (`scripts/reward_replay.py`). Per-step (val Δ, keep) from finished P walks through the linear in-band, cubic and NEON-exact returns; print where each return would stop.
 6. **O26 memorization census** (`scripts/memorization_census.py`). Baseline val in each train log vs the TEST accuracy in the checkpoint name, per catalog net.
 7. **Optional O39.** `SPECTRA_FT_AUG_MIN_TRAIN_ACC` (aug off when the unpruned net's train accuracy is below a bar). Only if an underfitting net enters a catalog.
 8. **Optional: GPU-side crop+flip.** Pad and crop plus flip on the batch tensor on the GPU, not per image in the loader. It recovers up to the measured +18 % per epoch. Build it only for the next train; never swap it into a live one (the recipe must not change mid-train).
+9. **Requeue safety** (insight 13). Three changes:
+   - Make train profiles skip the "always cold" delete when `SLURM_RESTART_COUNT` > 0, or submit them with `--no-requeue`.
+   - Stop a requeued resume from re-copying the parent bundle over its own (prologue lines 48–54).
+   - Correct the stale "the governor restarts" comment near the resume block.
+10. **A C100 probe net for N8** (roadmap §5 item 4). Both probe sets (`SPECTRA_PROBE_SET` v7 and thin) are C10 only. Add one admitted C100 net through `SPECTRA_PROBE_NETS` (recommended: `resnet20-width13_cifar100`), so the governor's probe sees both datasets.
 
 ## 5. First moves for the next sitting
 
-1. Stage-4 train telemetry against the control. Ops §9 has the checklist and the control's numbers at PPO updates 1 / 10 / 20 / 30.
-2. Ledger rows ops wrote since §151; the twins TEST for O1 (decision (d)).
-3. With GO, TEST of the first freeze under the train's own walk recipe, against mild under the same recipe, at equal keep. Include the compression-rate census for the mild-clone read.
-4. Build `tree_v9d` (§4 items 1–5), CPU pytest on the cluster conda.
-5. Gilad summary. Items 1–4 of the status note, answered with the P evidence (§147–§152).
+1. **Why you were called.** Runbook §10.4 names the milestone (M1, M1-neg or M7) and the §7 log below has ops' numbers. Ledger rows ops wrote start at §154.
+2. **Freeze TESTs** ops already ran (pre-authorized). Read them by TEST at equal keep against 21729557 and the census; never by probe area.
+3. **Build `tree_v9d`**: roadmap §5, plus §4 items 1, 2, 4, 5, 6, 9 and 10. CPU pytest on the cluster conda, then a smoke.
+4. **With Ido's GO, N8** per the roadmap (on M1). On M1-neg, see roadmap §3, "If G1 fails".
+5. **Gilad.** `docs/paper/GILAD_NEWS_30SEP.md` covers the three 29–30 Sep findings; extend it with M1 when it lands.
 
 ## 6. Literature used in this cycle
 
@@ -125,4 +152,12 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 30 Sep 03:14 | 21730499 smoke-from COMPLETED, passed | 1-epoch FT from saved; origin −5.84 pp printed "honest +5.78 ADOPT" on a raw gain of −0.06 | reader fixed (`ORIGIN-HURT`, git + `readers_s30/`). For `tree_v9d`, and for any new recipe (KD, AutoAugment), check the origin row before the verdict
 - 30 Sep 03:49 | 21729553 scancelled after its R56 rows (pre-registered) | §152: R56 aug −0.06 @ 0.661 vs P −2.84; size 0.80 −0.16 vs −2.68; census val Δ > 0 on 0/62, max −0.12 | TEST-walk rule 1/3 twins. Aug brings the best cut to −0.12, near the cubic's positive branch: watch the VGG census in 21737104 for N10
 - 30 Sep 03:49 | 21730500 R, `ise-4090-18` | took 553's slot | first final-FT cell on C10; read it with the fixed reader
-- 30 Sep 03:55 | 21737123 pace | episode 0 993 s vs control 422 s (same 24 steps); epoch 6.7 s vs 2.9 s; aug alone +18 % (556 vs 555, same node) | ~2.3× → the 6-day fuse lands near episode ~160; decision (f). `tree_v9d` option: GPU-side crop+flip (saves up to the 18 %)
+- 30 Sep 03:55 | 21737123 pace | episode 0 993 s vs control 422 s (same 24 steps); epoch 6.7 s vs 2.9 s; aug alone +18 % (556 vs 555, same node) | ~2.3× → the 6-day fuse lands near episode ~160; decision (f). `tree_v9d` option: GPU-side crop+flip (saves up to the 18 %). **Corrected 11:45:** ~6 Oct 03:15, near episode ~200 (next line)
+- 30 Sep 11:29 | 21716380 scancelled (Ido GO 11:08) | bundle kept in `spectra_pre_maint_28sep/` | decision (a) closed
+- 30 Sep 11:40 | resume 21767188 chained `afterok:21737123` (nice 0, `Features`, `Requeue=0`); N3 21767189 (nice 3), N1 21767190 (nice 60), N2 21767192 (nice 61) submitted; 21730506 parked at nice 70 | decision (f) closed; 21730506 waits on (d) and Ido
+- 30 Sep 11:45 | fuse re-read | mean 2,315 s per episode over 12 (median 1,296) → `runtime_limit` fires ~6 Oct 03:15 near episode ~200, not ~10 Oct / ~160 | §151; the resume covers it
+- 30 Sep 11:45 | requeue trap closed for now | the cluster requeues on preemption, and a requeue under the same id deletes `train_resume.pt`. `Requeue=0` on 21737123 / 21767188; bundle backup `~/spectra_backups/job21737123_20260930` (the heartbeat keeps the last 3 daily) | `tree_v9d` item 9
+- 30 Sep 11:45 | C100 catalog emitted (§148) | 16 nets, 8 C10 + 8 C100; `--check-admitted` passes; pytest 16/16 | decision (b) emit closed; N8 → roadmap
+- 30 Sep 11:50 | 21730500 COMPLETED (§153) | HOLD: honest +1.18 / +1.80 / +1.74, origin +0.42; 10k −1.52 / −2.11 vs DepGraph +0.24 / +0.11 | N3 / N1 / N2 read against it
+- 30 Sep 11:50 | 21737104 VGG-16 done (§152) | +2.3 to +2.6 pp at equal keep; twins 2/3 met; thin guard: r20 inside 2 pp, r56-w4 paired +4.99 over 54 cuts | ops pings "(d) met" when 557's r56-w4 TEST rows land inside the guard
+- 30 Sep 11:55 | handoff | ops now runs from `docs/OPS_HANDOFF_RUNBOOK.md` §10 (renamed from `PROMPT_OPS_V8_QUEUE.md`) | ops appends here; milestones M1–M7 in §10.4

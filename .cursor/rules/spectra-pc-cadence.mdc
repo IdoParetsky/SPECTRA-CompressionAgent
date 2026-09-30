@@ -5,6 +5,8 @@ alwaysApply: true
 
 # SPECTRA PC cadence (science-first; semester extension 18 Sep)
 
+**Precedence (30 Sep 11:55).** Current ops is `docs/OPS_HANDOFF_RUNBOOK.md` §10 (live jobs, pre-authorized freeze TESTs, milestones M1–M7, never-list). Where this file disagrees, the runbook wins: the QOS cap is **4** running GPUs, the C100 catalog **is emitted**, and the V7 queue, old job ids and the QOS-6 lines below are history.
+
 **Gilad granted a full-semester thesis extension (Ido 18 Sep 01:12).** Do **not** optimize for 30 Sep / 30 Oct / mid-December. Do not invent a new calendar due date. Rank GPUs and method cells for **identifiable science**, not for a submission clock. Isolated A/Bs that were skipped as “too slow” are now in-scope. The goal is the **best SPECTRA**, not the fastest thesis.
 
 **17 Sep "train freeze" is symbolic (Ido 17 Sep 00:47) and stays that way.** Do **not** scancel v3/v4 trains (`21385158`/`59`/`60`/`61`, `21394377`/`78`) or any other live train because a calendar date arrived. Keep them R until Ido **explicitly** asks to stop.

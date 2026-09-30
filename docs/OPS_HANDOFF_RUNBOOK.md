@@ -1,4 +1,176 @@
-# Ops handoff — V8 cycle, second night (Fable, 28 Sep 2026 ~02:00 IDT) — paste into "SPECTRA overnight operations"
+# SPECTRA ops handoff and runbook
+
+The ops chat's working document. Renamed 30 Sep from `docs/PROMPT_OPS_V8_QUEUE.md`.
+
+- **§10, directly below, is the current handoff.** Paste its block into the ops chat. It supersedes the §9 paste and every earlier one.
+- §0–§9 are the earlier handoffs, oldest first. §10 points into them for exact lines, greps and rules: §8 (cell greps, readouts, ledger rules), §9.2 (train checks, the control's curve, flags) and §9.6 (annotation log, briefings).
+- Where an older section, or an older `.cursor/rules` line, disagrees with §10, §10 wins.
+
+## 10. Current handoff — Grok 4.6 ops from 30 Sep ~12:00 IDT (Opus 5.5 sitting ends)
+
+```
+You are SPECTRA ops (Grok 4.6) from 30 Sep ~12:00 IDT until the next Opus 5.5 science sitting.
+This prompt replaces the two earlier ops prompts that were never sent (29 Sep, 30 Sep ~03:30).
+You MONITOR, FLAG, ANNOTATE and run the pre-authorized actions of runbook §10.3. You do not design
+cells, change recipes or start trains. Standing rules: .cursor/rules/*.mdc (30-min heartbeat, ledger
+discipline, canvases only on request). The QOS cap is 4 GPUs. Where a rule file or an older doc
+disagrees with the runbook, the runbook wins.
+
+Read, in this order:
+ 1. docs/OPS_HANDOFF_RUNBOOK.md §10: live jobs, the train's fuse and resume, pre-authorized actions
+    (freeze TESTs included), milestones, lines, never. It points into §8 and §9.2.
+ 2. docs/SITTING_GPU_QUEUE.md: live rank, checks, cross-off / adopt rules, done rows.
+ 3. docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md: decisions still waiting on Ido (do NOT act on them);
+    §7 is YOUR annotation log for the next Opus sitting.
+ 4. docs/paper/GILAD_NEWS_30SEP.md and docs/N8_DIVERSE_TRAIN_ROADMAP.md: why the recipe changed
+    and what the next train needs (read once).
+ 5. docs/paper/RESULTS_LEDGER.md §147-§153: the rows you extend. Next new section: §154.
+
+Live: Stage-4 train 21737123 (clean val P + crop+flip + area probe, tree_v9c), R since 30 Sep 03:14;
+its chained resume 21767188 (PD afterok) carries it past the 6-day fuse (~6 Oct 03:15); 13 no-agent
+cells. One command does the reads:
+  powershell -NoProfile -File scripts/rexec.ps1 -Quiet -File scripts/_tmp_s30_ops_hb.sh
+
+Every heartbeat: (a) run it; (b) a KILL on an arm -> scancel THAT arm only, one PRELIM ledger line;
+(c) train telemetry vs §9.2's control table and flags, and the §10.2 resume checks; (d) on COMPLETED:
+readouts, ledger row, state in SITTING_GPU_QUEUE.md; (e) the §10.3 actions, freeze TESTs included;
+(f) one dated line in WAY_AHEAD §7 for anything the next sitting must know; (g) when a §10.4
+milestone fires, write "MILESTONE <id>" with its numbers at the top of WAY_AHEAD §7 and ping Ido.
+Ping Ido on: any Traceback; a KILL; a §9.2 flag; the train dying or reaching its fuse; a freeze;
+a freeze TEST verdict; a milestone; a QOS slot idle > 1 h.
+Never: §10.6. When unsure, report and wait; do not improvise a cell.
+```
+
+### 10.1 Live jobs (30 Sep 11:50)
+
+| Job | Name | Tree | State | Pairs with / read |
+|---|---|---|---|---|
+| **21737123** | v9c-paug-area-train | v9c | R since 03:14, `ise-cpu256-32` (RTX 6000 Ada), `Requeue=0`; 12 episodes by 10:58 | control 21536396 (§9.2) |
+| **21767188** | v9c-paug-area-train-r1 | v9c | PD `afterok:21737123`, nice 0, `Requeue=0`, `Features=rtx_6000\|rtx_4090` | continues 21737123 (§10.2) |
+| 21729557 | v9b-aug-thin | v9b | R; r20 rows in, r56-w4 walking | 21726335; the (d) thin guard (§10.3 item 3) |
+| 21737104 | v9c-aug-twins-vgg | v9c | R; VGG-16 rows in (§152), VGG-19 C100 walking | 21726337 |
+| 21730501 | v9c-ft100-thin | v9c | R; r20 final-FT rows in | fixed reader; re-walk ≈ 0 vs 21726335 |
+| **21767189** | v9c-aug-ft100-dg-r56 (**N3**) | v9c | PD nice 3 (next free GPU) | 21730500 (§153): walk by step, final FT at equal keep |
+| 21737105 | v9c-aug-ft100-dg-vgg19 (N4) | v9c | PD nice 45 | 21729551 (§149) |
+| 21730507 | v9c-scratch-thin | v9c | PD afterok 21730501, nice 45 | the inherited rows of 501 |
+| 21730509 / 14 | v9c-cg-neon-twins / -thin | v9c | PD nice 50 / 52 | 21726337 / 21726335, big-effect kill |
+| 21730516 | v9c-scratch-dg-r56 | v9c | PD nice 55 | the inherited rows of 500 |
+| **21767190** | v9c-kd-from-dg-r56 (**N1**) | v9c | PD nice 60 | 21730500's `final_ft` rows (same saved models) |
+| **21767192** | v9c-autoaug-from-dg-r56 (**N2**) | v9c | PD nice 61 | same |
+| 21730506 | v9c-ft100-twins-c10 | v9c | PD, **parked at nice 70** for decision (d) | 21726337 |
+| 21729558 | v9b-p-n2-streams | v9b | PD nice 80 | 21726335 by params |
+
+Done since the 03:30 handoff: 21730500 COMPLETED ~09:57 (§153); 21729554 COMPLETED and 21729552 TIMEOUT (§148); the C100 catalog emitted (§148); **21716380 scancelled** 11:29 on Ido's GO (its bundle stays in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/`).
+
+### 10.2 The train: fuse, resume, requeue (supersedes §9.2 "Fuse" and the §9.4 resume note)
+
+- **Pace.** 12 episodes by 10:58: median 1,296 s and mean 2,315 s per episode (20–114 steps each), plus a probe every 12 episodes. §9.2 flag 4 (median > 2,000 s) stands.
+- **Fuse.** The 518,400 s runtime fuse counts from 03:14:51, so it fires **~6 Oct 03:15**, near **episode ~200**. §9.2's "~10 Oct" and "~160" were wrong. The trainer writes `train_resume.pt`, the job ends COMPLETED (`SKIP_EVAL=1`), and **21767188 starts by itself**. Annotate the episode count and ping; it is not a death.
+- **What the resume restores** (`load_train_resume`): weights, both optimisers, the episode index, the standardizer, and the governor's best probe score and since-improvement count. Only the rewind count resets; the sbatch comment and the §9.4 note that say "the governor restarts" are stale. The stop rule carries on: episode ≥ 250 **and** 150 episodes since the best probe. The resume's own fuse is 6 days (~12 Oct). If it fires before the governor stops the train, report: a second resume needs Ido.
+- **Resume start checks** (report any miss; never patch):
+  1. The log has `copied resume bundle from …/job21737123/agent_checkpoints/train_resume.pt`, `resume: standardizer from …` and `resume: keeping …`.
+  2. The same env header as 21737123 (`VAL_FROM_TEST '1'`, `BATCH_SIZE '256'`, `FT_AUG '1'`, `PROBE_SCORE 'area'`); `Val from test` on cifar-10 and svhn; `FT aug on cifar-10` only.
+  3. The first `Episode N/250` line continues the parent's count; it does not restart at 0.
+  4. The first `best_score=` line shows the parent's last best, not `-inf` (unless the parent never set one).
+- **Freezes after the resume** land in `runs/job21767188/snapshots/`. The heartbeat lists both run dirs.
+- **Requeue trap, closed.** The cluster requeues by default (`JobRequeue=1`, `PreemptMode=REQUEUE`). A requeue under the same job id reruns the sbatch "always cold" block, which deletes that run's `train_resume.pt`. Both train jobs have `Requeue=0` (set ~11:45; the heartbeat prints it). The heartbeat also keeps one copy a day of the train's `agent_checkpoints/` in `~/spectra_backups/` (the last 3 days).
+- **Death** (FAILED, NODE_FAIL, PREEMPTED, CANCELLED by the system) without a Traceback: §10.3 item 2. With a Traceback: paste the last 30 lines to Ido; do not resubmit.
+
+### 10.3 Pre-authorized actions (no GO needed)
+
+1. **Freeze TESTs of the Stage-4 train** (Ido GO 30 Sep 11:08).
+   - *Which.* The first `Snapshot frozen` written **after PPO update 20** (episode ≥ 80). After that, at most **one a day**: the newest freeze since the last TEST. Never two freeze TESTs in flight. If no freeze comes after update 20 by episode 120, TEST the newest existing freeze, once.
+   - *Line.* §10.5 (a), nice 0, then `Features`. A freeze made after the resume has its `SNAP` under `runs/job21767188/`.
+   - *Read.* TRAJ rows on both thin nets against **21729557** (mild, the same P + crop+flip walk, 40/10) at equal keep: size 0.80, size 0.60 where both walks reach it, and `val_best` (keep and Δ). The no-aug column is 21726335. Run the compression-rate census on r56-w4: a 0.9 rate on ≥ 95 % of legal rows means "mild clone under P+aug" (the §136 read).
+   - *Ledger.* One new § per TEST, PRELIM: "frozen actor ep#### of <job>, P + crop+flip TEST walk 40/10, deterministic, vs 21729557". Then check §10.4 M1 / M1-neg.
+2. **Crash recovery of the train (the same train, not a new one).** If 21737123 ends FAILED / NODE_FAIL / PREEMPTED / CANCELLED (not by you) **without a Traceback**, 21767188 never starts on its own.
+   - Run `scontrol update JobId=21767188 Dependency=`. It then starts from the last bundle, which is rewritten after every PPO update.
+   - Check its start (§10.2) and report.
+   - If that update fails: scancel 21767188, submit §10.5 (b) once, then `Features` and `Requeue=0`.
+   - The same rule covers 21767188 itself, with R = its own run dir. One recovery per job; a second death → report and wait.
+3. **Decision (d) read: the thin guard.** When 21729557 prints its r56-w4 rows (the heartbeat's last block), compare them with 21726335 at equal keep: size 0.80 and `val_best`. Size 0.60 is NONE on the P side.
+   - If aug is no more than 0.5 pp worse at either point, the rule is met (the twins already are, §152). Annotate "(d) MET" and ping Ido "convert 21730506?".
+   - **Only on his reply:** scancel 21730506 if it is still PD, and submit §10.5 (c).
+   - If the guard fails: report, and leave 21730506 at nice 70.
+4. **Readouts on COMPLETED.** As §9.3 item 8: `readers_s30/scripts/final_ft_readout.py`; `crossfit_readout.py --taus 10,5 --sizes <points>` for mild walks; the aug census. Cell rules (`SITTING_GPU_QUEUE.md`):
+   - *N3* 21767189 against 21730500 (§153), 10k at flop 0.47 / 0.39. Final FT ≥ 1 pp kinder at equal keep → ADOPT: the bar-3 R56 rows use the aug walk. Walk kinder but final FT within 0.5 pp → the final FT erases the walk's difference (cross-off for bar 3). Then check M4.
+   - *N1* 21767190 / *N2* 21767192 against 21730500's `final_ft` rows (the same saved models). Read the origin row first (way-ahead §2 insight 10). ≥ +0.5 pp at the size points with a healthy origin → ADOPT candidate for the final recipe; ≤ +0.3 → cross-off. Then check M5.
+   - *N4* 21737105 against 21729551 (§149): the N3 rule.
+   - *21730501*: new § at COMPLETED. Its r20-w2 rows already read as a cross-off: the origin gains +3.5 pp, the pruned points −0.3 to −1.1 raw.
+   - *21737104* COMPLETED: extend §152 with the VGG-19 C100 twin. *21729557* COMPLETED: extend §152 with the thin-guard rows.
+5. **Kill rules on arms** (unchanged): paired-read KILL (≥ 15 pairs, mean ≤ −1 pp, ≥ 75 % worse) → scancel that arm. C-G big-effect kill (5 pairs, mean ≤ −3 pp, ≥ 4/5 worse). Never on the train or its resume.
+6. **A slot idle for more than 1 h** while PD cells wait on `Features` and no RTX 6000 / 4090 is free: `scontrol update JobId=<top PD cell> Features=`, and note it. Never for 21767188.
+
+### 10.4 Milestones to flag for the next science sitting
+
+When one fires, write "MILESTONE <id>" with its numbers and ledger § at the top of way-ahead §7, and ping Ido in one line. **Call the next science sitting on M1, M1-neg or M7** (the Stage-4 verdict, or the end of the train), or on anything that needs a code change. The others are flagged and wait for that sitting.
+
+| Id | Fires when | Why it matters | The next sitting then |
+|---|---|---|---|
+| **M1** | A freeze TEST is at or above mild (21729557) on **both** thin nets: no size point more than 0.5 pp worse at equal keep. **And** it is ≥ 1 pp kinder at a size point, or its `val_best` is deeper (keep ≥ 0.03 lower) at a Δ no more than 0.5 pp worse. **And** the census says it is not a mild clone | The first SPECTRA agent to beat its own heuristic under an honest protocol: the thesis claim | Coverage-set TEST of that freeze; build `tree_v9d`; ask Ido for N8 (roadmap) |
+| **M1-neg** | Two freeze TESTs are mild clones, or both are more than 0.5 pp worse than mild on both nets | Clean val and crop+flip were not enough to leave mild | Diagnose before any new train: reward replay (O38); N10 if a census allows it; the action menu |
+| **M2** | PPO update 10 (~episode 40): ev > 0 on the last 3 updates **and** `gap_to_uniform` > +0.05 over the last 8 episodes. Or §9.2 flag 1 fires | Early health. ev was ~0 at updates 1–3, against 0.45–0.88 in the control | Note only; a flag is not a kill |
+| **M3** | (d) met (§10.3 item 3) | Every TEST walk moves to crop+flip | Ido decides the 21730506 conversion |
+| **M4** | N3 completes with its 10k final FT within 1.0 pp of DepGraph at 2.11× or 2.57× | The first "competitive-enough" C10 bar-3 row | A Gilad-facing row; never "beats" |
+| **M5** | N1 or N2 ≥ +0.5 pp over the plain final FT with a healthy origin | A better final recipe for every bar-3 row | Adopt it in `tree_v9d` |
+| **M6** | Any aug census on a full-width net shows cut points with val Δ > 0 | The cubic reward's positive branch becomes reachable | N10 design (O42) |
+| **M7** | The train stops: the governor (≥ 250 episodes and 150 since the best probe), or the resume's fuse | Stage 4 is over | Final freeze TESTs, the coverage set, the N8 decision |
+
+### 10.5 Lines
+
+**(a) Freeze TEST.** Thin pair, TEST FT 40/10, the train's walk recipe (P + crop+flip). For a freeze after the resume, use `$T/runs/job21767188/snapshots/ep####`.
+
+```
+T=/home/paretsky/scratch_audit/tree_v9c; SNAP=$T/runs/job21737123/snapshots/ep####
+cd $T && export SPECTRA_REPO_DIR=$T SPECTRA_GPU_GRES=1 SPECTRA_EVAL_DETERMINISTIC=1 SPECTRA_EVAL_TRAJECTORY=1 \
+  SPECTRA_EVAL_PASSES=2 SPECTRA_SKIP_TRAIN=1 SPECTRA_SKIP_EVAL_TRAIN=1 SPECTRA_EVAL_PREFER_PARAM_PER_FLOP=0 SPECTRA_SEED=42
+env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6 \
+  SPECTRA_ACTOR_CHECKPOINT_PATH=$SNAP/latest_best_actor.pt SPECTRA_CRITIC_CHECKPOINT_PATH=$SNAP/latest_best_critic.pt \
+  SPECTRA_STANDARDIZER_PATH=$SNAP/standardizer.pt SPECTRA_JOB_NAME=traj-v9c-paug-ep#### SPECTRA_NICE=0 \
+  bash scripts/submit.sh eval_c10_thin_traj
+```
+
+Then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"`.
+
+**(b) Crash resume** (§10.3 item 2 only). `R` = the run dir of the job that died; the name takes the next suffix.
+
+```
+cd /home/paretsky/scratch_audit/tree_v9c && export SPECTRA_REPO_DIR=$PWD; R=$PWD/runs/job21737123
+env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_PROBE_SCORE=area \
+  SPECTRA_RESUME_TRAIN=1 SPECTRA_RESUME_PATH=$R/agent_checkpoints/train_resume.pt SPECTRA_PARENT_RUN=$R \
+  SPECTRA_GPU_GRES=1 SPECTRA_JOB_NAME=v9c-paug-area-train-r2 SPECTRA_NICE=0 bash scripts/submit.sh offline_train_v6_inband_p5b2
+```
+
+Then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"` and `scontrol update JobId=<id> Requeue=0`.
+
+**(c) Decision (d) conversion** (only on Ido's reply). 21730506's line with the crop+flip walk:
+
+```
+cd /home/paretsky/scratch_audit/tree_v9c && export SPECTRA_REPO_DIR=$PWD SPECTRA_EVAL_DETERMINISTIC=1
+P0="SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256"; FT="SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_SAVE_TRAJ_MODELS=1"
+TW=$PWD/configs/input_catalog_l_twins.json; S="bash scripts/submit.sh baseline_c10_mild_traj_gonce"
+env $P0 $FT SPECTRA_FT_AUG=1 SPECTRA_EVAL_PASSES=2 SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.7 SPECTRA_DATASET_NAMES=cifar-10 \
+  SPECTRA_INPUT=$TW SPECTRA_GPU_GRES=1 SPECTRA_WALL=1-06:00:00 SPECTRA_JOB_NAME=v9c-aug-ft100-twins-c10 SPECTRA_NICE=40 $S
+```
+
+Then `Features`. Its walk re-runs 21737104's VGG-16 and 21729553's R56 twin under the same recipe (both must read ≈ 0); 21726337 is the no-aug audit column.
+
+### 10.6 Never (adds to §5, §8 and §9.5)
+
+- Start a train (N8, N9, N10, attribution) or any resume beyond §10.3 item 2. Change the train's env or card. Scancel 21737123 or 21767188. Set `Requeue=1`.
+- TEST a freeze from before PPO update 20 (except the episode-120 fallback), more than one a day, or two at once.
+- Convert 21730506 without Ido's reply.
+- Edit `configs/v7_c100_gate.json` or `configs/database_offline_v7_diverse_admitted.json`, or call the emit "N8 started".
+- Patch `tree_v9b` / `tree_v9c`; overlay leap `src/`; edit `SPECTRA_draft.md`.
+- Compare probe area across protocols, or quote a probe score as a result.
+- Adopt on a paired val read. Quote a smoke. Quote `final_ft` without its origin row. Mix the 5k P TEST with the 10k legacy TEST. Call a DepGraph row a beat or a match. Rewrite C6 as "C100 solved".
+- Release, scancel or TEST the held FLOP-70 set.
+
+---
+
+# Earlier handoffs (history, oldest first; §10 wins where they disagree)
+
+## 28 Sep ~02:00 IDT (Fable): V8 cycle, second night — was pasted into "SPECTRA overnight operations"
 
 You are the SPECTRA overnight ops agent (Grok 4.6). The first V8 night landed: eleven no-agent
 walks COMPLETED and are ledgered (**§126–§131**); the Budget + STOP train was re-submitted
@@ -441,7 +613,7 @@ You MONITOR, FLAG and ANNOTATE. You do not design cells or change recipes. Stand
 Read, in this order:
  1. docs/SITTING_GPU_QUEUE.md: live queue (rank, checks, cross-off, adopt), NEXT conditions,
     and the items blocked on Ido.
- 2. docs/PROMPT_OPS_V8_QUEUE.md §9 (train monitoring, actions, lines, never) and §8 (cell greps,
+ 2. docs/OPS_HANDOFF_RUNBOOK.md §9 (train monitoring, actions, lines, never) and §8 (cell greps,
     paired-read kill rules, readouts, N1/N2 lines, ledger rules).
  3. docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md: decisions waiting on Ido (do NOT act on them);
     §7 is YOUR annotation log for the next Opus sitting.
@@ -517,21 +689,21 @@ Control probes: ep12 0.0241, ep24 0.0550 (freeze ep0023), ep36–72 0.020–0.02
 
 Do not restart or change the batch: every P TEST used 256.
 
-**Fuse.** The trainer stops at the **6-day runtime fuse** (`SPECTRA_RUNTIME_LIMIT`, ~10 Oct 03:14), inside the 7-day wall. At ~2.3× the control's 3 d 22 h that is near **episode ~160**, not the 250 minimum. The control froze at episodes 23 and 83, so the first freezes should come well before that. When the fuse stops it: annotate the episode count, **report**, and resume only on Ido's GO (way-ahead §1f), with the §9.4 resume line. A fuse stop is not an infrastructure death.
+**Fuse.** Superseded by §10.2: the fuse fires ~6 Oct 03:15 near episode ~200, and the resume 21767188 is already chained (Ido GO 30 Sep 11:08).
 
 **Freeze.** On `Snapshot frozen -> …/snapshots/ep####`:
 - Annotate episode, score and time.
 - Check the snapshot has `latest_best_actor.pt`, `latest_best_critic.pt`, `policy_config.json` and `standardizer.pt`.
-- **TEST only on Ido's GO** (way-ahead §1c), with the line in §9.4.
+- ~~TEST only on Ido's GO~~ Pre-authorized since 30 Sep 11:08: §10.3 item 1, line §10.5 (a).
 
 **Death.** On NODE_FAIL / preemption / root CANCELLED with no Traceback, resubmit **with resume** (§9.4) and report. On a Traceback, paste the last 30 lines to Ido; do not patch or resubmit.
 
 ### 9.3 Pre-registered actions (no GO needed)
 
 1. **21729553.** Done by the sitting: scancelled 03:49 after its R56 rows; ledger **§152**. The rows for the VGG twins come from 21737104: extend §152 with them against 21726337.
-2. **Gates 21729552 / 54.** As each completes or walls out, extend **§148** with nets 7–8 (the same columns) and both admit lines. A net cut by the wall is "not finished", never "not admitted". **Do not emit.**
+2. **Gates 21729552 / 54.** As each completes or walls out, extend **§148** with nets 7–8 (the same columns) and both admit lines. A net cut by the wall is "not finished", never "not admitted". Done by the sitting 30 Sep 11:45, and emitted on Ido's GO (§148).
 3. **21730499 smoke-from.** Done: passed at 03:14. Never ledger it.
-4. **21730500.** If it COMPLETES with honest gain ≥ 0.5 pp at a size point **and its origin row did not lose more than 0.5 pp** (the fixed reader never prints `ORIGIN-HURT` there), submit **N1** and **N2** (§8 lines), then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"`. On `ORIGIN-HURT`, report and do not submit.
+4. **21730500.** If it COMPLETES with honest gain ≥ 0.5 pp at a size point **and its origin row did not lose more than 0.5 pp** (the fixed reader never prints `ORIGIN-HURT` there), submit **N1** and **N2** (§8 lines), then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"`. On `ORIGIN-HURT`, report and do not submit. *Done by the sitting 30 Sep 11:29: honest +1.2 to +1.8, origin +0.42 (§153); N1 = 21767190, N2 = 21767192.*
 5. **Re-walk determinism.** 21730500 / 01 / 06 vs their controls must read ≈ 0; flag |mean| > 0.5 pp. §149 already showed up to 0.8 pp at single points across SKUs.
 6. **C-G 21730509 / 14.** Big-effect kill (5 pairs, mean ≤ −3 pp, ≥ 4/5 worse) → scancel that cell.
 7. **An idle slot for more than 1 h** while PD cells wait on `Features` and no RTX 6000 / 4090 is free → `scontrol update JobId=<top PD cell> Features=` and note it.
@@ -539,7 +711,7 @@ Do not restart or change the batch: every P TEST used 256.
 
 ### 9.4 Lines
 
-**Freeze TEST (only on Ido's GO).** Thin pair, TEST FT 40/10, same walk recipe as the train (P + crop+flip). Control at equal keep: **21729557** (aug thin 40/10, mild). P thin 21726335 is the no-aug audit column.
+**Freeze TEST** (pre-authorized since 30 Sep: §10.3 item 1; the same line is §10.5 (a)). Thin pair, TEST FT 40/10, same walk recipe as the train (P + crop+flip). Control at equal keep: **21729557** (aug thin 40/10, mild). P thin 21726335 is the no-aug audit column.
 
 ```
 T=/home/paretsky/scratch_audit/tree_v9c; SNAP=$T/runs/job21737123/snapshots/ep####
@@ -553,7 +725,7 @@ env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_EVAL
 
 Then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"`. Read it with a compression-rate census: 0.9 on ≥ 95 % of legal r56-w4 rows = "mild clone under P+aug" (the §136 read).
 
-**Train resume after an infrastructure death** (new job id; weights, optimisers and episode index resume; the governor restarts):
+**Train resume after an infrastructure death** (new job id; weights, optimisers, episode index and the governor's best score and counter resume; only rewinds reset, §10.2). The fuse resume is already chained as 21767188; a crash resume is §10.5 (b):
 
 ```
 cd /home/paretsky/scratch_audit/tree_v9c && export SPECTRA_REPO_DIR=$PWD; R=$PWD/runs/job21737123
@@ -567,7 +739,7 @@ env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_PROB
 ### 9.5 Never (adds to §5 and §8)
 
 - Release, scancel or TEST a held job (`21716380`, the FLOP-70 set). Ido decides (way-ahead §1a).
-- TEST a freeze without Ido's GO. Start a second train. Emit `database_offline_v7_diverse_admitted.json`.
+- Start a second train. (Freeze TESTs are pre-authorized and the emit is done since 30 Sep 11:08: §10.3, §10.6.)
 - Scancel the Stage-4 train. Report no-go flags; the train is Ido's.
 - Patch `tree_v9b` / `tree_v9c`; overlay leap `src/`; edit `SPECTRA_draft.md`.
 - Compare probe area across protocols, or quote a probe score as a result.

@@ -1,6 +1,6 @@
 # V8 — what of the 21 Sep designs is implemented, what is not, and when (Fable, 27 Sep 2026 05:40 IDT)
 
-Ido's question: were `V6_REPRESENTATION_DESIGN.md`, `GILAD_BENCHMARK_SETUP_21SEP.md`, `V7_OVERHAUL_PROPOSAL.md`, `V7_TRAIN_CATALOG.md` implemented? Item by item, with the reason and a GPU-aware timeframe. QOS cap is **4**; the factored train `21536398` holds one slot until it ends (episode ~235 of 250 + patience; 1–3 days); the ten 27 Sep jobs (`PROMPT_OPS_V8_QUEUE.md`) hold the rest for the next ~24 h, then the Budget+STOP train holds one slot for 7 days.
+Ido's question: were `V6_REPRESENTATION_DESIGN.md`, `GILAD_BENCHMARK_SETUP_21SEP.md`, `V7_OVERHAUL_PROPOSAL.md`, `V7_TRAIN_CATALOG.md` implemented? Item by item, with the reason and a GPU-aware timeframe. QOS cap is **4**; the factored train `21536398` holds one slot until it ends (episode ~235 of 250 + patience; 1–3 days); the ten 27 Sep jobs (`OPS_HANDOFF_RUNBOOK.md`) hold the rest for the next ~24 h, then the Budget+STOP train holds one slot for 7 days.
 
 ## 1. `V6_REPRESENTATION_DESIGN.md`
 

@@ -141,6 +141,7 @@ def test_gate_covers_every_c100_candidate_and_blocks_pending():
 P5B2 = CFG / "database_offline_v6_p5b2.json"
 V7 = CFG / "database_offline_v7_diverse.json"
 V7_GATE = CFG / "v7_c100_gate.json"
+V7_ADMITTED = CFG / "database_offline_v7_diverse_admitted.json"
 
 
 def test_v7_diverse_catalog_shape_and_holdouts():
@@ -176,6 +177,9 @@ def test_v7_diverse_catalog_shape_and_holdouts():
     assert {Path(k).name for k, r in admitted.items() if _dataset(r) == "cifar-10"} == set(c10)
     if any(r["status"] != "admitted" for r in gate["c100"].values()):
         assert check_admitted(V7, gate)
+    if V7_ADMITTED.exists():
+        assert check_admitted(V7_ADMITTED, gate) == []
+        assert _load(V7_ADMITTED) == admitted, "re-run build_v5_catalog.py --emit-admitted after a gate edit"
 
 
 def test_p5b2_fallback_keeps_one_svhn_and_every_other_holdout():
