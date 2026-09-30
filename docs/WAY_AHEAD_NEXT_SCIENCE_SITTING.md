@@ -7,10 +7,11 @@ Read this first, then `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger ro
 - **Protocol P is the walk and train protocol.** Val = one 5k half of the test split, TEST = the other; batch 256 pinned. Every verdict closed before 28 Sep was measured on a val the zoo nets had memorized (§141): agent ≡ mild, C100 unrecoverable, C-G dead, and the reward-shape reading.
 - **Under P the walk fine-tune is the lever.**
   - Crop+flip in the walk FT is kinder at every equal-width C100 point measured (12/12, mean +3.3 pp TEST, §148).
-  - On the C10 R56 twin it reads +2.0 pp paired val.
+  - On the C10 R56 twin it is −0.06 pp TEST at 0.661 keep, against −2.84 without it (§152).
   - The 100-epoch SGD final FT adds an honest +4.1 to +5.5 pp on the C100 bar-3 cell (§149).
 - **Stage 4 is running.** **21737123**: the area train under P + crop+flip (§151). The training rule passed at 03:11 (§150): r56-w4 +2.3 pp TEST at equal keep. The P-only arm was cancelled before it started; its line is kept for the attribution train (N9).
-- **No-agent ladder.** 14 cells PD, now on fast cards (`Features=rtx_6000|rtx_4090`).
+- **No-agent ladder.** 13 cells (3 R, 10 PD), the pending ones pinned to fast cards (`Features=rtx_6000|rtx_4090`).
+- **The train is slow by design.** ~2.3× the control per episode, so the 6-day fuse lands near episode ~160 (decision f).
 
 ## 1. Decisions waiting on Ido (recommendation first)
 
@@ -63,7 +64,7 @@ Read this first, then `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger ro
 9. **Scheduler.** Untyped GPU requests land on the lowest-weight (slowest) nodes. `Features=rtx_6000|rtx_4090` fixed the no-agent cells without starving on one SKU (run record §6).
 10. **Honest gain needs a healthy origin.** Subtracting a negative origin change inflates it: the 1-epoch smoke printed "+5.78 ADOPT" on a raw gain of −0.06. The reader now says `ORIGIN-HURT` when the origin loses > 0.5 pp. That case matters for every new final recipe (KD, AutoAugment, SWA).
 
-## 3. Options re-ranked (status 30 Sep ~03:00)
+## 3. Options re-ranked (status 30 Sep ~03:55)
 
 P = projected probability that the option passes its own adopt rule. Cells: `SITTING_GPU_QUEUE.md`.
 
