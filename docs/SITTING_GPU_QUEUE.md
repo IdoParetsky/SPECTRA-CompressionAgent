@@ -6,7 +6,7 @@
 
 Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Options, decisions and dev items: **`docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`**. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Exact lines, greps and kill rules: `docs/PROMPT_OPS_V8_QUEUE.md` §8 (cells) and **§9** (train + handoff).
 
-**Stamped:** 30 Sep 2026, ~03:00 IDT (Opus 5.5 sitting). Cap 4: **4 R**, the rest PD. Trees `tree_v9b` / `tree_v9c` frozen. Pending no-agent cells carry `Features=rtx_6000|rtx_4090` (untyped requests landed on 1080s by node weight).
+**Stamped:** 30 Sep 2026, ~03:55 IDT (Opus 5.5 sitting, handoff to ops). Cap 4: **4 R** (train 21737123, 21730500, gates 21729552 / 54), 12 PD, 21716380 held. Trees `tree_v9b` / `tree_v9c` frozen. Pending no-agent cells carry `Features=rtx_6000|rtx_4090` (untyped requests landed on 1080s by node weight).
 
 **P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c`). **Paired read** = `scripts/paired_steps.py <arm> <control>`: val only, same step = same widths under mild.
 
@@ -21,9 +21,9 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Options, decisions and dev ite
 | 3 | aug thin 12/4 (training rule) | 21729556 | **COMPLETED 03:12 (§150)** | v9b | crop+flip as the **training** recipe vs P thin 12/4 21729555 | **PASSED**: r56-w4 +2.3 pp TEST at equal keep (0.795), `val_best` −5.1 @ 0.622 vs −10.6 @ 0.741; r20 guard −1.8 mean (one point −3.1) | — | crop+flip = Stage-4 train recipe |
 | 4 | aug gate C100 12/4 | 21729554 | R, net 7/8, wall ~08:29 | v9b | crop+flip vs P gate, same steps | **rule met (§148)**: 12/12 size points kinder, mean +3.3 pp TEST; 6/6 admit | — | done; extend §148 with nets 7–8 |
 | 5 | P gate C100 12/4 | 21729552 | R, net 7/8, wall ~08:21 | v9b | 8 C100 nets under clean val at the live recipe (Q4) | **passed: 6/6 admitted** | — | Q4 evidence "yes" (no emit) |
-| 6 | aug twins 40/10 | 21729553 | R, R56 near its last step | v9b | aug as the TEST walk recipe vs P twins 21726337 | **R56 +2.01 pp val, 51 cuts, 98 % better**; VGG-16 cannot finish before the wall | paired ≤ −1 pp over 25 % of cuts | TEST ≥ 1 pp kinder at equal keep on ≥ 2/3 twins (with 6b) |
+| 6 | aug twins 40/10 | 21729553 | **scancelled 03:49 after its R56 rows** (pre-registered) | v9b | aug as the TEST walk recipe vs P twins 21726337 | **R56 TEST at equal keep (§152): size 0.80 −0.16 vs −2.68, size 0.70 −0.50 vs −2.70, `val_best` −0.06 vs −2.84 @ 0.661.** 1 of 3 twins meets the rule | paired ≤ −1 pp over 25 % of cuts | TEST ≥ 1 pp kinder at equal keep on ≥ 2/3 twins (with 6b) |
 | 6b | aug twins, VGG only | 21737104 | PD, nice 25 | v9c | VGG-16 C10 + VGG-19 C100 twins with aug, saved | completes Pri 6's 2/3 rule | as Pri 6 | as Pri 6 |
-| 7 | final_ft DG R56 | 21730500 | PD, nice 5 | v9c | honest gain at DepGraph's 2.11× / 2.57× (flop 0.47 / 0.39) + saves | 10k walk −3.32 / −3.98 → within ~1–2 pp of +0.24 / +0.11 | honest < 0.5 pp | ≥ 2 pp → bar-3 row = final_ft |
+| 7 | final_ft DG R56 | 21730500 | **R since 03:49**, `ise-4090-18` | v9c | honest gain at DepGraph's 2.11× / 2.57× (flop 0.47 / 0.39) + saves | 10k walk −3.32 / −3.98 → within ~1–2 pp of +0.24 / +0.11 | honest < 0.5 pp | ≥ 2 pp → bar-3 row = final_ft |
 | 8 | aug thin 40/10 | 21729557 | PD, nice 30 | v9b | aug at TEST FT on the skinny pair vs P thin 21726335 | the thin guard for Pri 6; r56-w4 cliff deeper than 0.739 | paired ≤ −1 pp over 25 % of cuts | TEST kinder ≥ 1 pp at equal keep on r56-w4 |
 | 9 | final_ft P thin | 21730501 | PD, nice 20 | v9c | fastest C10 honest-gain cell; saves for scratch | r56-w4 size 0.80 −7.4 (10k) recovers | honest < 0.5 pp | ≥ 2 pp |
 | 10 | final_ft twins C10 | 21730506 | PD, nice 40 | v9c | VGG-16 (OCS / HRank cell) + R56 twin, same walk as 21726337 | VGG-16 −2.8 → ≤ −1 at 0.66 | honest < 0.5 pp | ≥ 2 pp |
@@ -34,7 +34,7 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Options, decisions and dev ite
 | 15 | scratch-B DG R56 | 21730516 | PD afterok 500 | v9c | scratch at DepGraph's size points + origin scratch | scratch ≈ final_ft → bar-3 scratch column | scratch < inherit − 1 pp | scratch ≥ inherit − 0.5 pp |
 | 16 | N2 streams P | 21729558 | PD, nice 80 | v9b | block internals only, 3 passes, vs P thin **by params** | deeper in-band r56-w4 | no deeper in-band r56-w4 and r20 > 0.5 pp worse at equal keep | deeper in band and TEST no worse |
 
-**Pre-registered ops action.** When 21729553 prints its `resnet56` TRAJ size rows, **scancel 21729553**: its VGG-16 cannot finish before the 08:21 wall, and 6b re-walks both VGGs on a fast card. Ledger the R56 TEST rows (PRELIM).
+**Pre-registered ops action: done by the sitting.** 21729553 printed its `resnet56` rows at ~03:45 and was scancelled at 03:49. Ledger **§152**. 21730500 took the slot on an RTX 4090.
 
 ## NEXT (conditional; exact lines in ops §8)
 
@@ -57,7 +57,9 @@ Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12. Options, decisions and dev ite
 | final_ft DG VGG-19 C100 | 21729551 | §149 | honest +4.08 / +4.46 / +5.52; final −2.52 @ 0.684 (10k −2.39), −3.28 @ 0.599 (10k −3.04); origin +0.10 |
 | P thin 12/4 | 21729555 | §150 | r20 size 0.80 −0.1 @ 0.774 (10k +0.64); r56-w4 −10.6 @ 0.741, size 0.80 −8.2; 12/4 is −1.03 pp vs 40/10 on r56-w4 |
 | aug thin 12/4 | 21729556 | §150 | **training rule passed**: r56-w4 size 0.80 −5.9 (+2.3), `val_best` −5.1 @ 0.622; r20 −1.0 / −1.3 / −3.1 at equal keep |
+| aug twins 40/10 (R56 only) | 21729553 | §152 | R56 size 0.80 −0.16 vs −2.68 (10k −0.37 vs −2.85), size 0.70 −0.50 vs −2.70, `val_best` −0.06 vs −2.84 @ 0.661; census val Δ > 0 on 0/62 (max −0.12); scancelled at VGG-16 step 1 |
 | smoke-save (v9c) | 21730498 | never | saves + scratch lines + no PicklingError: passed |
+| smoke-from (v9c) | 21730499 | never | loads `val_best` + size from the saved walk, `init=inherit`, origin row: passed. Exposed the ORIGIN-HURT reader flaw (fixed) |
 | smoke-ft (v9b) | 21729550 | never | final_ft path prints with SAVE unset; plumbing only |
 | P twins | 21726337 | §142 | R56 −2.8 @ 0.661 (10k −3.03); VGG-16 −2.8 @ 0.657 (10k −2.78); VGG-19 −6.7 @ 0.657 (10k −6.55) |
 | P thin | 21726335 | §143 | r20 −3.7 @ 0.536 (10k −2.57); r56-w4 −10.1 @ 0.739 (10k −9.86) |

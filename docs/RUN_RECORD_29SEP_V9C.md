@@ -51,7 +51,7 @@ P = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256`: val is one 5k half of the 
 | 21729550 | v9b-smoke-ft | v9b | COMPLETED (plumbing) | never |
 | 21729551 | v9b-ft100-dg-vgg19 | v9b | COMPLETED 00:27 | §149 |
 | 21729552 | v9b-p-gate-c100 | v9b | R, net 7/8, wall ~08:21 | §148 |
-| 21729553 | v9b-aug-twins | v9b | R, R56 near done; VGG-16 cannot finish | Pri 6 |
+| 21729553 | v9b-aug-twins | v9b | R56 done; scancelled 03:49 at VGG-16 step 1 (pre-registered) | §152 |
 | 21729554 | v9b-aug-gate-c100 | v9b | R, net 7/8, wall ~08:29 | §148 |
 | 21729555 | v9b-p-thin-12x4 | v9b | COMPLETED 01:45 | §150 |
 | 21729556 | v9b-aug-thin-12x4 | v9b | COMPLETED 03:12, training rule passed | §150 |
@@ -59,7 +59,7 @@ P = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256`: val is one 5k half of the 
 | 21729558 | v9b-p-n2-streams | v9b | PD | Pri 17 |
 | 21730498 | v9c-smoke-save | v9c | COMPLETED 00:34, **passed** | never |
 | 21730499 | v9c-smoke-from | v9c | COMPLETED 03:14, passed | never |
-| 21730500 / 01 / 06 | v9c-ft100-dg-r56 / thin / twins-c10 | v9c | PD | Pri 7 / 10 / 12 |
+| 21730500 / 01 / 06 | v9c-ft100-dg-r56 / thin / twins-c10 | v9c | 500 R 03:49 (`ise-4090-18`); 501 / 506 PD | Pri 7 / 10 / 12 |
 | 21730507 / 16 | v9c-scratch-thin / dg-r56 | v9c | PD afterok 501 / 500 | Pri 13 / 16 |
 | 21730509 / 14 | v9c-cg-neon-twins / thin | v9c | PD | Pri 14 / 15 |
 | 21737095 | v9c-p-area-train | v9c | submitted 02:10, held, **cancelled 03:11** (never started) | §151 |
@@ -79,7 +79,12 @@ Wave scripts (for a shutdown resubmit; each skips names already queued): `script
    - 12/4 against 40/10: −1.03 pp paired val on r56-w4 (60 pairs), so the train recipe is harsher than TEST's.
    - Crop+flip on r56-w4, the decider: **+2.3 pp TEST at equal keep** (size 0.80, 10k +2.8). `val_best` goes from −10.6 @ 0.741 to −5.1 @ 0.622. Paired +5.03 over 60 cuts, better on 100 %.
    - Crop+flip on r20-w2, the guard: −1.0 / −1.3 / −3.1 pp TEST at equal keep, mean −1.8, inside the 2 pp guard. A 5k-param net that underfits.
-5. **C10 twin R56 with crop+flip (Pri 6, val only).** +2.06 pp paired val over 56 cuts, better on 98 %. Step 104: −0.40 vs −3.16.
+5. **C10 twin R56 with crop+flip at the TEST FT 40/10 (§152).** TEST at equal keep against the P twin 21726337:
+   - size 0.80: −0.16 vs −2.68 (10k −0.37 vs −2.85);
+   - size 0.70: −0.50 vs −2.70;
+   - `val_best` 0.661: −0.06 vs −2.84 (cross-fit −0.51 vs −3.03).
+   - Paired val +2.08 over 60 cuts, better on 98 %. Census: val Δ > 0 on 0 of 62 cuts, best −0.12 (control −1.42).
+   - Scancelled at VGG-16 step 1, as pre-registered; 21737104 walks the VGG twins.
 6. **Smoke-save 21730498 and smoke-from 21730499 passed.**
    - Smoke-save: header `final_ft=1+origin+scratch:both`. `traj_models/*.pt` + `.json` for `val_best`, the size point, origin, the `__ft1` copies and `+scratch`. 0 Traceback / PicklingError / `TRAJ save failed`.
    - Smoke-from (03:14, 2 min): `final_ft from …/job21730498/traj_models: ['size_param0.90', 'val_best']` for both nets. `val_best`, size and origin rows all `init=inherit`, 0 errors.

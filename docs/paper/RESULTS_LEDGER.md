@@ -2734,5 +2734,26 @@ Do **not** lock.
 
 ---
 
+## 152. Crop+flip in the TEST walk, C10 R56 twin (**21729553** vs **21726337**) — PRELIM
+
+`tree_v9b`, P, 2-pass mild (τ = 10, walk FT 40/10), `SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.7`. The arm adds `SPECTRA_FT_AUG=1`; control = the P twins **21726337**. Net: `resnet56_cifar10_chenyaofo_94.37` (unpruned TEST half 0.943). Mild takes the same step at the same widths in both arms, so every row compares equal architectures. TEST = the 5k half; 10k = both halves, size points and cross-fit only. Arm on `cs-1080-05`; control on another card: re-walk noise is up to 0.8 pp (§149).
+
+| Point | Step | Params / FLOPs kept | P TEST | P + aug TEST | Aug − P | 10k: P → aug |
+|---|---|---|---|---|---|---|
+| size 0.80 | 77 | 0.794 / 0.737 | −2.68 | **−0.16** | **+2.52** | −2.85 → **−0.37** |
+| size 0.70 | 102 | 0.694 / 0.676 | −2.70 | **−0.50** | **+2.20** | −3.04 → **−0.63** |
+| `floor_hold` | 100 | 0.701 / 0.679 | −3.2 | −0.3 | +2.9 | — |
+| `val_best` | 112 | 0.661 / 0.662 | −2.84 | **−0.06** | **+2.78** | cross-fit τ10: −3.03 → **−0.51** |
+
+- *Paired val.* 60 cuts, arm − control +2.08 pp, arm better on 98 % (`ADOPT?`: candidate only). Last step 112: −0.96 vs −3.22.
+- *Census (aug).* 62 cut points: val Δ > 0 on **0**, TEST Δ > 0 on 6, both on 0; max val Δ −0.12 pp. Control: 0 / 0 / 0, max val −1.42. The cubic's positive branch is still not reached on val, but aug moves the best cut from −1.42 to −0.12 (O42 / N10 stays untriggered).
+- *Reading.* On a full-width C10 net, crop+flip in the walk FT removes almost all of the walk's accuracy cost at 1.26–1.51× parameter compression. This is the same-loop (bar-2) recipe, **without** the 100-ep final FT. The literature rows use a long final FT, and DepGraph R56 is +0.24 at 2.11× (§147). Do not call this a match: the compression is lower and the recipes differ.
+- *Stopped.* Scancelled 03:49 after the R56 rows (pre-registered, ops §9.3). Its VGG-16 was at step 1 and could not finish before the 08:21 wall. **21737104** re-walks both VGG twins on `tree_v9c`.
+- *TEST-walk rule (O1, way-ahead decision d).* This covers R56 only. Still pending: the VGG twins (21737104) and the thin guard at 40/10 (21729557).
+
+Do **not** lock.
+
+---
+
 
 

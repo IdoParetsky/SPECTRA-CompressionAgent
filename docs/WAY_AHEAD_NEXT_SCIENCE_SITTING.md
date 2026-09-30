@@ -35,6 +35,7 @@ Read this first, then `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger ro
 
 **(d) Crop+flip as the TEST walk recipe (bar 2 for every method).**
 - *When.* After the twins TEST rows: R56 from 21729553, the VGG twins from 21737104, and the thin 40/10 guard 21729557.
+- *So far (§152).* R56 meets it with margin: −0.16 vs −2.68 at size 0.80, −0.50 vs −2.70 at size 0.70, −0.06 vs −2.84 at `val_best` 0.661. The VGG twins and the thin guard are still to come.
 - *Rule.* TEST ≥ 1 pp kinder at equal keep on ≥ 2 of 3 twins, and the thin guard holds. Then every TEST walk (agent and heuristics) switches to aug, and the no-aug rows stay as an audit column.
 - *Why it matters.* A P+aug-trained agent should be TESTed under the walk recipe it was trained with.
 
@@ -48,6 +49,7 @@ Read this first, then `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger ro
 3. **Crop+flip helps every capable net and hurts only the tiniest (§148, §150).**
    - The C100 gate is +0.9 to +6.2 pp TEST at equal widths.
    - The r56-w4 decider at 12/4: +2.3 pp TEST at equal keep, and in-band to the end of the walk (−5.1 @ 0.622 vs −10.6 @ 0.741).
+   - The full-width C10 R56 twin at 40/10 (§152): −0.06 pp TEST at 0.661 keep, against −2.84 without aug. That is almost lossless at 1.51×, with no final FT.
    - The 5k-param r20-w2 (64.8 % accuracy) loses 1.0–3.1 pp TEST. That net underfits, and augmentation hurts underfitting nets (NetAug, Cai et al. ICLR 2022). r20-w2 is a hold-out diagnostic, not a train net.
 4. **Under P, C100 admits at the live recipe (§148: 6/6).** Four of six nets stay inside τ = 10 to the deepest 2-pass mild point (~0.66 keep). "C100 unrecoverable" was memorized val.
 5. **The final 100-ep SGD FT recovers +4 to +5.5 pp at fixed widths (§149).** Origin moves +0.10. SOTA-facing rows (bar 3) must carry it; same-loop rows (bar 2) stay on the walk recipe.
@@ -63,7 +65,7 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 
 | # | Option | Status | P now | Next |
 |---|---|---|---|---|
-| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150)**; TEST-walk rule pending twins | 0.85 TEST walk | 21729553 R56 TEST, 21737104, 21729557 |
+| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150); TEST walk 1/3 twins, R56 +2.2 to +2.8 pp (§152)** | 0.90 TEST walk | 21737104 (VGG twins), 21729557 (thin guard) |
 | O2 | 100-ep SGD final FT + origin | **met on C100 (§149)** | 0.85 on C10 | 21730500 / 01 / 06 |
 | O18 | P gate at the live recipe | **passed (6/6)** | — | nets 7–8 by ~08:30 |
 | O3 | crop+flip in the C100 gate | **passed** | — | nets 7–8 |
@@ -102,7 +104,7 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 2. Ledger rows ops wrote since §151; the twins TEST for O1 (decision (d)).
 3. With GO, TEST of the first freeze under the train's own walk recipe, against mild under the same recipe, at equal keep. Include the compression-rate census for the mild-clone read.
 4. Build `tree_v9d` (§4 items 1–5), CPU pytest on the cluster conda.
-5. Gilad summary. Items 1–4 of the status note, answered with the P evidence (§147–§150).
+5. Gilad summary. Items 1–4 of the status note, answered with the P evidence (§147–§152).
 
 ## 6. Literature used in this cycle
 
@@ -115,3 +117,5 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 30 Sep 03:11 | sitting | Stage-4 train released after §150; P-only arm cancelled | first read: FLAGS + `policy_config` diff (ops §9.2)
 - 30 Sep 03:16 | 21737123 R 03:14, `ise-cpu256-32` RTX 6000 Ada | start checks green: env header; val-from-test on cifar-10 and svhn; aug on cifar-10 only; `policy_config` diff = P keys only | read its curve's shape against 21536396, never its probe-area values
 - 30 Sep 03:14 | 21730499 smoke-from COMPLETED, passed | 1-epoch FT from saved; origin −5.84 pp printed "honest +5.78 ADOPT" on a raw gain of −0.06 | reader fixed (`ORIGIN-HURT`, git + `readers_s30/`). For `tree_v9d`, and for any new recipe (KD, AutoAugment), check the origin row before the verdict
+- 30 Sep 03:49 | 21729553 scancelled after its R56 rows (pre-registered) | §152: R56 aug −0.06 @ 0.661 vs P −2.84; size 0.80 −0.16 vs −2.68; census val Δ > 0 on 0/62, max −0.12 | TEST-walk rule 1/3 twins. Aug brings the best cut to −0.12, near the cubic's positive branch: watch the VGG census in 21737104 for N10
+- 30 Sep 03:49 | 21730500 R, `ise-4090-18` | took 553's slot | first final-FT cell on C10; read it with the fixed reader

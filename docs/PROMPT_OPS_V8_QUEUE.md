@@ -445,11 +445,11 @@ Read, in this order:
  3. docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md: decisions waiting on Ido (do NOT act on them);
     §7 is YOUR annotation log for the next Opus sitting.
  4. docs/RUN_RECORD_29SEP_V9C.md: what was built and run (read once).
- 5. docs/paper/RESULTS_LEDGER.md §147-§151: the rows you extend. Next new section: §152.
+ 5. docs/paper/RESULTS_LEDGER.md §147-§152: the rows you extend. Next new section: §153.
 
 Live: Stage-4 train 21737123 = area train under clean val (P) + crop+flip, tree_v9c, 7-day limit,
-R since 30 Sep 03:14 on an RTX 6000 Ada; start checks already green (§9.2). Plus 15 no-agent cells
-(tree_v9b / tree_v9c). One heartbeat command does the reads:
+R since 30 Sep 03:14 on an RTX 6000 Ada; start checks already green (§9.2). Plus 13 no-agent cells
+(tree_v9b / tree_v9c; 3 R, 10 PD). One heartbeat command does the reads:
   powershell -NoProfile -File scripts/rexec.ps1 -Quiet -File scripts/_tmp_s30_ops_hb.sh
 Honest gain: only /home/paretsky/scratch_audit/readers_s30/scripts/final_ft_readout.py (ORIGIN-HURT fix).
 
@@ -469,10 +469,11 @@ Never: §9.5. When unsure, report and wait; do not improvise a cell.
 | **21737123** | v9c-paug-area-train | v9c | **R since 03:14**, `ise-cpu256-32` RTX 6000 Ada; start checks green (below) | control 21536396, §9.2 |
 | 21737095 | v9c-p-area-train | v9c | **cancelled** (P-only arm; the rule passed) | — |
 | 21729552 / 54 | v9b-p-gate-c100 / aug-gate | v9b | R, nets 7–8, walls ~08:21 / 08:29 | extend §148 |
-| 21729553 | v9b-aug-twins | v9b | R, R56 last steps | 21726337; **scancel after R56 rows** (§9.3) |
+| 21729553 | v9b-aug-twins | v9b | **scancelled 03:49** after its R56 rows (done) | ledger §152 |
 | 21729556 | v9b-aug-thin-12x4 | v9b | COMPLETED | §150 |
 | 21730499 | v9c-smoke-from | v9c | **COMPLETED 03:14, passed**; never ledger | §8 smoke check |
-| 21730500 / 01 / 06 | v9c-ft100-* | v9c | PD | honest gain + re-walk ≈ 0 |
+| 21730500 | v9c-ft100-dg-r56 | v9c | **R since 03:49**, `ise-4090-18` | honest gain + re-walk ≈ 0 vs 21726340 |
+| 21730501 / 06 | v9c-ft100-thin / twins-c10 | v9c | PD | honest gain + re-walk ≈ 0 |
 | 21729557 | v9b-aug-thin | v9b | PD | 21726335 |
 | 21737104 | v9c-aug-twins-vgg | v9c | PD | 21726337 (VGG rows) |
 | 21737105 | v9c-aug-ft100-dg-vgg19 (N4) | v9c | PD | 21729551 (walk by step, final_ft at equal keep) |
@@ -517,7 +518,7 @@ Control probes: ep12 0.0241, ep24 0.0550 (freeze ep0023), ep36–72 0.020–0.02
 
 ### 9.3 Pre-registered actions (no GO needed)
 
-1. **21729553.** When its `resnet56` TRAJ size rows print, `scancel 21729553`: its VGG-16 cannot finish before the 08:21 wall, and 21737104 re-walks both VGGs. Ledger **§152**: the R56 twin with crop+flip vs P twins 21726337 at equal keep (5k TEST), plus the paired read. PRELIM.
+1. **21729553.** Done by the sitting: scancelled 03:49 after its R56 rows; ledger **§152**. The rows for the VGG twins come from 21737104: extend §152 with them against 21726337.
 2. **Gates 21729552 / 54.** As each completes or walls out, extend **§148** with nets 7–8 (the same columns) and both admit lines. A net cut by the wall is "not finished", never "not admitted". **Do not emit.**
 3. **21730499 smoke-from.** Done: passed at 03:14. Never ledger it.
 4. **21730500.** If it COMPLETES with honest gain ≥ 0.5 pp at a size point **and its origin row did not lose more than 0.5 pp** (the fixed reader never prints `ORIGIN-HURT` there), submit **N1** and **N2** (§8 lines), then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"`. On `ORIGIN-HURT`, report and do not submit.
