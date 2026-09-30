@@ -6,7 +6,7 @@ The ops chat's working document. Renamed 30 Sep from `docs/PROMPT_OPS_V8_QUEUE.m
 - §0–§9 are the earlier handoffs, oldest first. §10 points into them for exact lines, greps and rules: §8 (cell greps, readouts, ledger rules), §9.2 (train checks, the control's curve, flags) and §9.6 (annotation log, briefings).
 - Where an older section, or an older `.cursor/rules` line, disagrees with §10, §10 wins.
 
-## 10. Current handoff — Grok 4.6 ops from 30 Sep ~12:00 IDT (Opus 5.5 sitting ends)
+## 10. Current handoff — Grok 4.6 ops from 30 Sep ~12:00 IDT (Opus 5.5 sitting ends; amended 13:20 after Ido's 12:34 GO)
 
 ```
 You are SPECTRA ops (Grok 4.6) from 30 Sep ~12:00 IDT until the next Opus 5.5 science sitting.
@@ -28,8 +28,8 @@ Read, in this order:
 
 Live: Stage-4 train 21737123 (clean val P + crop+flip + area probe, tree_v9c), R since 30 Sep 03:14;
 its chained resume 21767188 (PD afterok) carries it past the 6-day fuse (~6 Oct 03:15); 12 no-agent
-cells. Decision (d) was met at 11:55 (ledger §152, milestone M3): convert 21730506 (§10.5 c) only
-when Ido says so. One command does the reads:
+cells. Decision (d) is met, twins 3/3 (ledger §152, M3). 21730506 was converted at 12:47 on Ido's
+GO: 21809595. 21814029 is the size-matched VGG-16 cell. One command does the reads:
   powershell -NoProfile -File scripts/rexec.ps1 -Quiet -File scripts/_tmp_s30_ops_hb.sh
 
 Every heartbeat: (a) run it; (b) a KILL on an arm -> scancel THAT arm only, one PRELIM ledger line;
@@ -38,29 +38,36 @@ readouts, ledger row, state in SITTING_GPU_QUEUE.md; (e) the §10.3 actions, fre
 (f) one dated line in WAY_AHEAD §7 for anything the next sitting must know; (g) when a §10.4
 milestone fires, write "MILESTONE <id>" with its numbers at the top of WAY_AHEAD §7 and ping Ido.
 Ping Ido on: any Traceback; a KILL; a §9.2 flag; the train dying or reaching its fuse; a freeze;
-a freeze TEST verdict; a milestone; a QOS slot idle > 1 h.
+a freeze TEST verdict; a milestone; the G2 trigger (§10.4); a QOS slot idle > 1 h.
 Never: §10.6. When unsure, report and wait; do not improvise a cell.
 ```
 
-### 10.1 Live jobs (30 Sep 11:55)
+### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |
 |---|---|---|---|---|
-| **21737123** | v9c-paug-area-train | v9c | R since 03:14, `ise-cpu256-32` (RTX 6000 Ada), `Requeue=0`; 12 episodes by 10:58 | control 21536396 (§9.2) |
+| **21737123** | v9c-paug-area-train | v9c | R since 03:14, `ise-cpu256-32` (RTX 6000 Ada), `Requeue=0`; 12 episodes, 3 PPO updates by 12:44. First freeze **ep0011** at 12:44 (probe 0.282): before update 20, so **not** a TEST (§10.3 item 1) | control 21536396 (§9.2) |
 | **21767188** | v9c-paug-area-train-r1 | v9c | PD `afterok:21737123`, nice 0, `Requeue=0`, `Features=rtx_6000\|rtx_4090` | continues 21737123 (§10.2) |
-| 21737104 | v9c-aug-twins-vgg | v9c | R; VGG-16 rows in (§152), VGG-19 C100 walking | 21726337 |
-| 21730501 | v9c-ft100-thin | v9c | R; r20 final-FT rows in | fixed reader; re-walk ≈ 0 vs 21726335 |
-| **21767189** | v9c-aug-ft100-dg-r56 (**N3**) | v9c | **R** since ~11:50, `ise-4090-19` | 21730500 (§153): walk by step, final FT at equal keep |
-| 21737105 | v9c-aug-ft100-dg-vgg19 (N4) | v9c | PD nice 45 | 21729551 (§149) |
+| 21730501 | v9c-ft100-thin | v9c | R since 08:21, `ise-4090-21`; r20-w2 final-FT rows in (honest −3.8 to −4.5, CROSS-OFF); r56-w4 final FT next | fixed reader; re-walk ≈ 0 vs 21726335 |
+| **21767189** | v9c-aug-ft100-dg-r56 (**N3**) | v9c | **R** since ~11:50, `ise-4090-19`; paired val +1.77 pp over 15 cuts at 12:48 (candidate only) | 21730500 (§153): walk by step, final FT at equal keep |
+| **21737105** | v9c-aug-ft100-dg-vgg19 (**N4**) | v9c | **R** since ~12:45, `cs-4090-07` | 21729551 (§149) |
+| **21809595** | v9c-aug-ft100-twins-c10 | v9c | PD nice 40 (first in line). The converted 21730506: the same line + crop+flip walk | walk ≈ 0 vs 21737104 (VGG-16) and 21729553 (R56); `final_ft` honest gain; 21726337 is the no-aug column |
+| **21814029** | v9c-aug-ft100-l2-vgg16 | v9c | PD nice 42. VGG-16 C10 only, 10 passes, `flop:0.465,0.212` (labels print `size_flop0.47` / `size_flop0.21`) | first 2 passes ≈ 0 vs 21737104; size-matched to HRank / OCSPruner (§10.3 item 4) |
 | 21730507 | v9c-scratch-thin | v9c | PD afterok 21730501, nice 45 | the inherited rows of 501 |
 | 21730509 / 14 | v9c-cg-neon-twins / -thin | v9c | PD nice 50 / 52 | 21726337 / 21726335, big-effect kill |
 | 21730516 | v9c-scratch-dg-r56 | v9c | PD nice 55 | the inherited rows of 500 |
 | **21767190** | v9c-kd-from-dg-r56 (**N1**) | v9c | PD nice 60 | 21730500's `final_ft` rows (same saved models) |
 | **21767192** | v9c-autoaug-from-dg-r56 (**N2**) | v9c | PD nice 61 | same |
-| 21730506 | v9c-ft100-twins-c10 | v9c | PD, **parked at nice 70**; (d) met, conversion on Ido's reply | 21726337 |
 | 21729558 | v9b-p-n2-streams | v9b | PD nice 80 | 21726335 by params |
 
-Done since the 03:30 handoff: **21729557 COMPLETED ~11:50** (§152: thin guard held, r56-w4 +5.0 pp at equal keep → decision (d) met; now the fixed mild control for freeze TESTs); 21730500 COMPLETED ~09:57 (§153); 21729554 COMPLETED and 21729552 TIMEOUT (§148); the C100 catalog emitted (§148); **21716380 scancelled** 11:29 on Ido's GO (its bundle stays in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/`).
+Done since the 03:30 handoff:
+- **21737104 COMPLETED ~12:45** (2 h 48 m). §152: the VGG-19 C100 twin is +3.8 to +4.9 pp at equal keep, so the twins are 3/3.
+- **21730506 cancelled while PD, 12:47**, on Ido's GO of 12:34 → 21809595.
+- **21729557 COMPLETED ~11:50** (§152). The thin guard held (r56-w4 +5.0 pp at equal keep), so decision (d) is met. It is now the fixed mild control for freeze TESTs.
+- 21730500 COMPLETED ~09:57 (§153).
+- 21729554 COMPLETED and 21729552 TIMEOUT (§148).
+- The C100 catalog emitted (§148).
+- **21716380 scancelled** 11:29 on Ido's GO. Its bundle stays in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/`.
 
 ### 10.2 The train: fuse, resume, requeue (supersedes §9.2 "Fuse" and the §9.4 resume note)
 
@@ -88,28 +95,35 @@ Done since the 03:30 handoff: **21729557 COMPLETED ~11:50** (§152: thin guard h
    - Check its start (§10.2) and report.
    - If that update fails: scancel 21767188, submit §10.5 (b) once, then `Features` and `Requeue=0`.
    - The same rule covers 21767188 itself, with R = its own run dir. One recovery per job; a second death → report and wait.
-3. **Decision (d): MET at 11:55; the sitting did the read** (§152, M3). r56-w4 is +5.0 pp at 0.795, and its `val_best` is deeper and kinder. r20 is inside its 2 pp. Ido has been told.
-   - **Only on his reply** ("convert 21730506"): scancel 21730506 if it is still PD, submit §10.5 (c), then `Features`. Annotate the new job id in way-ahead §7 and `SITTING_GPU_QUEUE.md`.
-   - Until then, leave 21730506 at nice 70. Do not re-ask on every heartbeat; one reminder a day at most.
+3. **Decision (d): MET and DONE** (§152, M3). The twins are 3/3 and the thin guard held. Ido GO'd the conversion at 12:34, and the sitting ran it at 12:47: 21730506 → **21809595** (§10.5 c). Nothing is left for ops here except the 21809595 readout (item 4).
 4. **Readouts on COMPLETED.** As §9.3 item 8: `readers_s30/scripts/final_ft_readout.py`; `crossfit_readout.py --taus 10,5 --sizes <points>` for mild walks; the aug census. Cell rules (`SITTING_GPU_QUEUE.md`):
    - *N3* 21767189 against 21730500 (§153), 10k at flop 0.47 / 0.39. Final FT ≥ 1 pp kinder at equal keep → ADOPT: the bar-3 R56 rows use the aug walk. Walk kinder but final FT within 0.5 pp → the final FT erases the walk's difference (cross-off for bar 3). Then check M4.
    - *N1* 21767190 / *N2* 21767192 against 21730500's `final_ft` rows (the same saved models). Read the origin row first (way-ahead §2 insight 10). ≥ +0.5 pp at the size points with a healthy origin → ADOPT candidate for the final recipe; ≤ +0.3 → cross-off. Then check M5.
    - *N4* 21737105 against 21729551 (§149): the N3 rule.
    - *21730501*: new § at COMPLETED. Its r20-w2 rows already read as a cross-off: the origin gains +3.5 pp, the pruned points −0.3 to −1.1 raw.
-   - *21737104* COMPLETED: extend §152 with the VGG-19 C100 twin. (21729557's thin-guard rows are already in §152.)
+   - *21809595* (the converted twins).
+     - *Determinism first.* Its walk against 21737104 (VGG-16) and 21729553 (R56) by step must read |mean| ≤ 0.8 pp. If it does not, report before quoting.
+     - *Then* `final_ft_readout.py`: the honest gain per net at size 0.80 / 0.70 / `val_best`, beside 21730500's (§153) for R56. New § at COMPLETED.
+     - *Caption.* Not a published size: these are the twins' own points.
+   - *21814029* (L2, size-matched VGG-16).
+     - *Determinism first.* Its first 2 passes against 21737104, by step, ≈ 0.
+     - *Then* `final_ft_readout.py`, with the 10k at both size points: 0.465 is HRank's FLOPs (93.96 → 93.43 at 17.1 % params); 0.212 is OCSPruner's pretrained start (94.07 → 93.63 at 13.7 % params).
+     - *Caption.* Size-matched on FLOPs only: mild keeps far more params at the same FLOPs. Quote beside, never "beats" or "matches". New § at COMPLETED.
+   - *21737104*: done (§152, twins 3/3).
 5. **Kill rules on arms** (unchanged): paired-read KILL (≥ 15 pairs, mean ≤ −1 pp, ≥ 75 % worse) → scancel that arm. C-G big-effect kill (5 pairs, mean ≤ −3 pp, ≥ 4/5 worse). Never on the train or its resume.
 6. **A slot idle for more than 1 h** while PD cells wait on `Features` and no RTX 6000 / 4090 is free: `scontrol update JobId=<top PD cell> Features=`, and note it. Never for 21767188.
 
 ### 10.4 Milestones to flag for the next science sitting
 
-When one fires, write "MILESTONE <id>" with its numbers and ledger § at the top of way-ahead §7, and ping Ido in one line. **Call the next science sitting on M1, M1-neg or M7** (the Stage-4 verdict, or the end of the train), or on anything that needs a code change. The others are flagged and wait for that sitting.
+When one fires, write "MILESTONE <id>" with its numbers and ledger § at the top of way-ahead §7, and ping Ido in one line. **Call the next science sitting on the G2 trigger, M1, M1-neg or M7**, or on anything that needs a code change. The others are flagged and wait for that sitting.
 
 | Id | Fires when | Why it matters | The next sitting then |
 |---|---|---|---|
-| **M1** | A freeze TEST is at or above mild (21729557) on **both** thin nets: no size point more than 0.5 pp worse at equal keep. **And** it is ≥ 1 pp kinder at a size point, or its `val_best` is deeper (keep ≥ 0.03 lower) at a Δ no more than 0.5 pp worse. **And** the census says it is not a mild clone | The first SPECTRA agent to beat its own heuristic under an honest protocol: the thesis claim | Coverage-set TEST of that freeze; build `tree_v9d`; ask Ido for N8 (roadmap) |
+| **M1** | A freeze TEST is at or above mild (21729557) on **both** thin nets: no size point more than 0.5 pp worse at equal keep. **And** it is ≥ 1 pp kinder at a size point, or its `val_best` is deeper (keep ≥ 0.03 lower) at a Δ no more than 0.5 pp worse. **And** the census says it is not a mild clone | The first SPECTRA agent to beat its own heuristic under an honest protocol: the thesis claim | Coverage-set TEST of that freeze; N8 under roadmap G5 (a pre-registered conditional GO, if Ido adopts it; otherwise ask him) |
 | **M1-neg** | Two freeze TESTs are mild clones, or both are more than 0.5 pp worse than mild on both nets | Clean val and crop+flip were not enough to leave mild | Diagnose before any new train: reward replay (O38); N10 if a census allows it; the action menu |
 | **M2** | PPO update 10 (~episode 40): ev > 0 on the last 3 updates **and** `gap_to_uniform` > +0.05 over the last 8 episodes. Or §9.2 flag 1 fires | Early health. ev was ~0 at updates 1–3, against 0.45–0.88 in the control | Note only; a flag is not a kill |
-| **M3** | (d) met (§10.3 item 3). **Fired 30 Sep 11:55** (§152) | Every TEST walk moves to crop+flip | Ido decides the 21730506 conversion |
+| **G2 trigger** | The first of: (a) you submit the first M1 freeze TEST (the first freeze after update 20, or the episode-120 fallback); (b) the no-agent ladder has drained: two QOS slots free and nothing PD to fill them (likely first, ~2 Oct) | `tree_v9d` is mostly recipe-independent; building it before the M1 verdict saves ~half a day of an N8-ready slot (roadmap §3) | Build `tree_v9d` + smoke; submit the SVHN / Fashion-MNIST hold-out checkpoints (roadmap §2b) |
+| **M3** | (d) met (§10.3 item 3). **Fired 30 Sep 11:55** (§152); twins 3/3 at 12:50 | Every TEST walk moves to crop+flip | Done: 21730506 → 21809595 (Ido GO 12:34) |
 | **M4** | N3 completes with its 10k final FT within 1.0 pp of DepGraph at 2.11× or 2.57× | The first "competitive-enough" C10 bar-3 row | A Gilad-facing row; never "beats" |
 | **M5** | N1 or N2 ≥ +0.5 pp over the plain final FT with a healthy origin | A better final recipe for every bar-3 row | Adopt it in `tree_v9d` |
 | **M6** | Any aug census on a full-width net shows cut points with val Δ > 0 | The cubic reward's positive branch becomes reachable | N10 design (O42) |
@@ -142,7 +156,7 @@ env SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_PROB
 
 Then `scontrol update JobId=<id> Features="rtx_6000|rtx_4090"` and `scontrol update JobId=<id> Requeue=0`.
 
-**(c) Decision (d) conversion** (only on Ido's reply). 21730506's line with the crop+flip walk:
+**(c) Decision (d) conversion. DONE 30 Sep 12:47 → 21809595** (Ido GO 12:34; `scripts/_tmp_s30_convert506.sh`). Kept for the record: 21730506's line with the crop+flip walk.
 
 ```
 cd /home/paretsky/scratch_audit/tree_v9c && export SPECTRA_REPO_DIR=$PWD SPECTRA_EVAL_DETERMINISTIC=1
@@ -154,12 +168,16 @@ env $P0 $FT SPECTRA_FT_AUG=1 SPECTRA_EVAL_PASSES=2 SPECTRA_EVAL_SIZE_POINTS=para
 
 Then `Features`. Its walk re-runs 21737104's VGG-16 and 21729553's R56 twin under the same recipe (both must read ≈ 0); 21726337 is the no-aug audit column.
 
+**(d) Size-matched VGG-16 C10 (L2). SUBMITTED 30 Sep ~13:10 → 21814029** (`scripts/_tmp_s30_l2_submit.sh`). The line is (c) with a VGG-16-only input, `SPECTRA_EVAL_PASSES=10` and `SPECTRA_EVAL_SIZE_POINTS=flop:0.465,0.212`, nice 42.
+- *Why.* No earlier cell reached a published VGG-16 size. The 2-pass walks stop at 0.66 kept.
+- *A correction.* "OCS VGG-16 ≈ 0.42 params" (§-older line above, the `eval_size_match` docstring, the 21 / 27 Sep Gilad notes) is OCSPruner's **ResNet-56** point. The published VGG-16 C10 sizes are HRank 46.5 % FLOPs / 17.1 % params and OCSPruner (pretrained start) 21.2 % / 13.7 % (`GILAD_WEEK_27SEP.md` §1.5).
+
 ### 10.6 Never (adds to §5, §8 and §9.5)
 
 - Start a train (N8, N9, N10, attribution) or any resume beyond §10.3 item 2. Change the train's env or card. Scancel 21737123 or 21767188. Set `Requeue=1`.
 - TEST a freeze from before PPO update 20 (except the episode-120 fallback), more than one a day, or two at once.
-- Convert 21730506 without Ido's reply.
-- Edit `configs/v7_c100_gate.json` or `configs/database_offline_v7_diverse_admitted.json`, or call the emit "N8 started".
+- Resubmit 21809595 or 21814029 with changed flags; report a wall-out instead.
+- Edit `configs/v7_c100_gate.json` or `configs/database_offline_v7_diverse_admitted.json`, or call the emit "N8 started". Put an SVHN or Fashion-MNIST net into any training file: N8 holds both datasets out (roadmap §2b). Launch N8: G5 belongs to the science sitting.
 - Patch `tree_v9b` / `tree_v9c`; overlay leap `src/`; edit `SPECTRA_draft.md`.
 - Compare probe area across protocols, or quote a probe score as a result.
 - Adopt on a paired val read. Quote a smoke. Quote `final_ft` without its origin row. Mix the 5k P TEST with the 10k legacy TEST. Call a DepGraph row a beat or a match. Rewrite C6 as "C100 solved".

@@ -172,3 +172,37 @@ Lines: `scripts/_tmp_s30_1140_act.sh` (submits, nice, pace, (d) rows) and `scrip
 **No dev this sitting.**
 - *Why none is needed yet.* N8's trigger (runbook M1) is ~2–3 Oct, and nothing live needs a code change. The one bug found, the requeue trap, has a per-job workaround in place.
 - *`tree_v9d`* is the next sitting's first task (roadmap §5).
+
+## 9. Addendum — 30 Sep 12:34 → ~13:20 IDT (Opus 5.5, before the ops handoff)
+
+**Mandate (Ido 30 Sep 12:34).**
+- Convert 21730506 to the crop+flip walk.
+- Is 8 C10 + 8 C100 in, with SVHN, Fashion-MNIST and ImageNet held out, the right catalog? Give pros and cons against the headline claims. Were the architectures considered?
+- Explain 21730506's "parked" state and the way ahead.
+- When should G2 trigger, and what exactly is G5?
+- Add anything to the ops prompt.
+
+**Cluster actions.**
+
+| Time | Action | Job |
+|---|---|---|
+| 12:47 | 21730506 checked PD, cancelled; the §10.5 (c) line submitted (its own flags + `SPECTRA_FT_AUG=1`, nice 40), `Features=rtx_6000\|rtx_4090` | **21809595** |
+| ~13:10 | the size-matched VGG-16 C10 cell: the (c) line with a VGG-16-only input, 10 passes, `flop:0.465,0.212`, nice 42, `Features` | **21814029** |
+
+Lines: `scripts/_tmp_s30_convert506.sh` and `scripts/_tmp_s30_l2_submit.sh`. Reads: `_tmp_s30_1250_reads.sh`. The heartbeat now reads 21809595 and 21814029 and pairs their walks against 21737104 and 21729553. The login node dropped several SSH handshakes (server side); retries were safe because `subid` refuses a duplicate job name.
+
+**Findings.**
+- **Twins 3/3.** 21737104 COMPLETED ~12:45. Its VGG-19 C100 twin is +3.8 to +4.9 pp at equal keep against 21726337 (§152).
+- **The first Stage-4 freeze,** `ep0011` at 12:44, came after PPO update 3. It is not a TEST (runbook §10.3 item 1).
+- **A wrong size target in the benchmark notes.** "OCS VGG-16 ≈ 0.42 params" (the `eval_size_match` docstring, runbook older §, the 21 / 27 Sep Gilad notes) is OCSPruner's ResNet-56 point.
+  - The published VGG-16 C10 rows are HRank at 46.5 % FLOPs / 17.1 % params, and OCSPruner (pretrained start) at 21.2 % / 13.7 %.
+  - No cell had reached either, which is why 21814029 was added.
+- **The state is data-dependent.** The per-layer token carries activation moments over the dataset's own images (`src/BERTInputModeler.py`, `DATASET_STATS` in `src/utils.py`). Every held-out dataset is therefore off-distribution for a CIFAR-only pool. This is the main risk of catalog design A (roadmap §2b).
+- **NEON's protocol, corrected in the roadmap.** NEON did not train one agent over 28 datasets. It used 5-fold dataset cross-validation: five agents, each on ~22 datasets.
+
+**Ledger.** §152 was extended with the VGG-19 C100 twin (twins 3/3) and the conversion. Next is §154.
+
+**Docs.**
+- `docs/N8_DIVERSE_TRAIN_ROADMAP.md`: the NEON fix; new §2b (history, the architecture grid, four designs, the recommendation, additions 1–3); the G1 timing, the G2 trigger and the G5 proposal (§3); H7; §5 items 8–9; the timeline and the diagram.
+- Runbook §10: the paste block, 10.1, 10.3 items 3–4, the G2-trigger row in 10.4, 10.5 (c) done and new (d), and 10.6.
+- `docs/SITTING_GPU_QUEUE.md`, the way-ahead doc and the Gilad notes were updated (the size correction; the news note's twins row).

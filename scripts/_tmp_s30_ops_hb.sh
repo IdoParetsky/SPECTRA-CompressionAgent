@@ -49,8 +49,8 @@ fi
 echo "snapshots: $(ls -d $C/job21737123/snapshots/ep* $C/job21767188/snapshots/ep* 2>/dev/null | sed -E 's#.*/job([0-9]+)/snapshots/#\1/#' | tr '\n' ' ')"
 
 echo "=== TRAJ rows (last 6 per cell)"
-for j in 21729557 21730501 21730506 21730507 21730509 21730514 21730516 21737104 21737105 \
-         21767189 21767190 21767192 21729558; do
+for j in 21729557 21730501 21809595 21730507 21730509 21730514 21730516 21737104 21737105 \
+         21767189 21767190 21767192 21729558 21814029; do
   d=$(run $j); [[ -n "$d" ]] || continue
   f=$d/logs/rank0.log
   echo "--- $j $(sacct -j $j -X -n -o JobName%24,State%11,Elapsed,NodeList%14 2>/dev/null | head -1) TB=$(grep -c Traceback "$f")"
@@ -69,8 +69,9 @@ echo "- N4 aug DG VGG-19 105 vs 551";           pair 21737105 21729551
 echo "- N2 streams 558 vs P thin 335 (params)"; pair 21729558 21726335 --by params
 echo "- C-G twins 509 vs 337 (big-effect)";     pair 21730509 21726337 --min-steps 5 --kill 3 --frac 0.8
 echo "- C-G thin 514 vs 335 (big-effect)";      pair 21730514 21726335 --min-steps 5 --kill 3 --frac 0.8
-echo "- determinism (must be ~0): 501 vs 335, 506 vs 337"
-pair 21730501 21726335; pair 21730506 21726337
+echo "- determinism (must be ~0): 501 vs 335; crop+flip twins 21809595 vs 21737104 (VGG-16) and vs 21729553 (R56)"
+pair 21730501 21726335; pair 21809595 21737104; pair 21809595 21729553
+echo "- L2 VGG-16 10-pass 21814029 vs 21737104 (its first 2 passes, must be ~0)"; pair 21814029 21737104
 
 echo "=== decision (d) thin guard: r56-w4 rows, aug 557 vs P 335 (TEST, equal keep)"
 for j in 21729557 21726335; do

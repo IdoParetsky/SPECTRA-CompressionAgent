@@ -2756,7 +2756,7 @@ Do **not** lock.
 
 ---
 
-## 152. Crop+flip in the TEST walk: C10 twins (**21729553**, **21737104** vs **21726337**) and the thin guard (**21729557** vs **21726335**) — PRELIM; decision (d) met
+## 152. Crop+flip in the TEST walk: the three twins (**21729553**, **21737104** vs **21726337**) and the thin guard (**21729557** vs **21726335**) — PRELIM; decision (d) met, twins 3/3
 
 `tree_v9b`, P, 2-pass mild (τ = 10, walk FT 40/10), `SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.7`. The arm adds `SPECTRA_FT_AUG=1`; control = the P twins **21726337**. Net: `resnet56_cifar10_chenyaofo_94.37` (unpruned TEST half 0.943). Mild takes the same step at the same widths in both arms, so every row compares equal architectures. TEST = the 5k half; 10k = both halves, size points and cross-fit only. Arm on `cs-1080-05`; control on another card: re-walk noise is up to 0.8 pp (§149).
 
@@ -2798,9 +2798,22 @@ Do **not** lock.
 | `val_best` | 76 / 112 | 0.739 / **0.622** | −10.1 (val −9.52) | **−4.5** (val −4.34) | deeper by 0.117 keep **and** 5.6 pp kinder |
 
 - *Against the training FT (§150).* The same walk with crop+flip at 12/4 (21729556) was −5.9 at 0.795; at 40/10 it is −2.6. With crop+flip, the longer TEST FT recovers another 3.3 pp.
-- *(d) verdict.* The thin guard holds with a wide margin: r56-w4 is 5.0 pp kinder at equal keep, and r20-w2 is inside its 2 pp. With the twins at 2/3, **decision (d) is met** (runbook M3, 11:55). Converting 21730506 to the crop+flip walk (runbook §10.5 c) waits for Ido's reply.
+- *(d) verdict.* The thin guard holds with a wide margin: r56-w4 is 5.0 pp kinder at equal keep, and r20-w2 is inside its 2 pp. With the twins at 2/3, **decision (d) is met** (runbook M3, 11:55).
 - *Control.* 21729557 is now final, and it is the mild control for every Stage-4 freeze TEST (runbook §10.3 item 1).
-- *Still to add.* The VGG-19 C100 twin rows when 21737104 completes.
+
+**VGG-19 C100 twin (30 Sep 12:50; 21737104 COMPLETED 2 h 48 m, `cs-4090-07`, 0 Tracebacks).** Same design and control (21726337), `vgg19_bn_cifar100_chenyaofo_73.87` (unpruned TEST half 0.745).
+
+| Point | Step | Params / FLOPs kept | P TEST | P + aug TEST | Aug − P |
+|---|---|---|---|---|---|
+| size 0.80 | 24 | 0.796 / 0.745 | −6.4 | **−2.6** | **+3.8** |
+| size 0.70 | 31 | 0.688 / 0.679 | −6.8 | **−1.9** | **+4.9** |
+| `floor_hold` | 30 | 0.705 / 0.682 | −6.5 | −2.2 | +4.3 |
+| `val_best` | 35 | 0.657 / 0.673 | −6.7 | **−2.5** | **+4.2** |
+
+- *Paired val.* 34 cuts, +4.39 pp, arm better on 100 %. Last step 35: −1.24 vs −6.44.
+- *Twins, final.* **Three of three** are ≥ 1 pp kinder at equal keep: R56 C10 +2.2 to +2.8, VGG-16 C10 +2.3 to +2.6, VGG-19 C100 +3.8 to +4.9. The effect is largest on C100, where the no-aug walk FT loses 6–7 pp.
+- *Reading.* Walk rows only, mild, no agent, no 100-epoch final FT: a same-loop recipe fix, not a policy result. On C100 it also bounds how much of the old walk cost was the recipe: at 0.66–0.80 kept the twin's TEST cost falls from ~6.5 pp to ~2.2 pp.
+- *Conversion (Ido GO 12:34).* 21730506 (no-aug walk + final FT, R56 + VGG-16 C10) was cancelled while PD at 12:47 and resubmitted as **21809595** `v9c-aug-ft100-twins-c10`: the same line + `SPECTRA_FT_AUG=1`, nice 40, `tree_v9c`. Its walk must reproduce 21737104 (VGG-16) and 21729553 (R56) by step, ≈ 0.
 
 Do **not** lock.
 

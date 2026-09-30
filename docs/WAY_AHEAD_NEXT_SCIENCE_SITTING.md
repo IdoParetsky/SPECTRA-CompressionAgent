@@ -1,4 +1,4 @@
-# Way ahead — for the next science sitting (written 30 Sep ~03:00 IDT, Opus 5.5 MAX; restamped 30 Sep ~11:55 at the ops handoff)
+# Way ahead — for the next science sitting (written 30 Sep ~03:00 IDT, Opus 5.5 MAX; restamped 30 Sep ~13:20 after Ido's 12:34 GO)
 
 Read this first, then the §7 log at the bottom (what ops saw since the handoff), `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger rows it cites. The ops handoff, pre-authorized actions and milestones M1–M7 are `docs/OPS_HANDOFF_RUNBOOK.md` §10. The diverse train is `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. The Gilad explanation of the three 29–30 Sep findings is `docs/paper/GILAD_NEWS_30SEP.md`. What was built and run is in `docs/RUN_RECORD_29SEP_V9C.md`. The earlier option list and ladder are `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. This file supersedes §13.3's statuses.
 
@@ -7,11 +7,11 @@ Read this first, then the §7 log at the bottom (what ops saw since the handoff)
 - **Protocol P is the walk and train protocol.** Val = one 5k half of the test split, TEST = the other; batch 256 pinned. Every verdict closed before 28 Sep was measured on a val the zoo nets had memorized (§141): agent ≡ mild, C100 unrecoverable, C-G dead, and the reward-shape reading.
 - **Under P the walk fine-tune is the lever.**
   - Crop+flip in the walk FT is kinder at every equal-width C100 point measured (12/12, mean +3.3 pp TEST, §148).
-  - On the C10 R56 twin it is −0.06 pp TEST at 0.661 keep, against −2.84 without it (§152). On VGG-16 it is +2.3 to +2.6 pp at equal keep (§152).
+  - On the C10 R56 twin it is −0.06 pp TEST at 0.661 keep, against −2.84 without it (§152). On VGG-16 it is +2.3 to +2.6 pp at equal keep, and on the VGG-19 C100 twin +3.8 to +4.9: twins 3/3 (§152).
   - The 100-epoch SGD final FT adds an honest +4.1 to +5.5 pp on the C100 bar-3 cell (§149), and +1.2 to +1.8 (HOLD) on DepGraph's R56 C10 (§153): 10k −1.52 / −2.11 at DepGraph's FLOPs points, against their +0.24 / +0.11.
 - **Stage 4 is running.** **21737123**: the area train under P + crop+flip (§151). The training rule passed at 03:11 (§150): r56-w4 +2.3 pp TEST at equal keep. The P-only arm was cancelled before it started; its line is kept for the attribution train (N9). Freeze TESTs are pre-authorized (runbook §10.3).
 - **C100 is in the catalog.** The aug gate admitted 8/8 (§148); `configs/database_offline_v7_diverse_admitted.json` has 16 nets (8 C10 + 8 C100), emitted 30 Sep 11:45. Nothing trains on it until N8 (roadmap).
-- **No-agent ladder.** 12 cells (3 R, 9 PD) at 11:55. 21729552 / 554 / 557 and 21730500 have finished; N3 / N1 / N2 were added, and N3 is R. The pending ones are pinned to fast cards (`Features=rtx_6000|rtx_4090`).
+- **No-agent ladder.** 12 cells (3 R, 9 PD) at 13:20. 21729552 / 554 / 557, 21730500 and 21737104 have finished. N3 / N1 / N2 were added; N3 and N4 are R. 21730506 became 21809595, and the size-matched VGG-16 cell 21814029 was added. The pending ones are pinned to fast cards (`Features=rtx_6000|rtx_4090`).
 - **The train is slow by design, and the fuse is covered.**
   - *Pace.* Mean 2,315 s per episode over the first 12 (median 1,296).
   - *When the fuse fires.* The 6-day fuse (`runtime_limit` 518,400 s from the train's start) fires **~6 Oct 03:15, near episode ~200**, short of the 250 minimum. The 03:55 estimate of "~10 Oct, ~episode 160" was wrong.
@@ -19,7 +19,7 @@ Read this first, then the §7 log at the bottom (what ops saw since the handoff)
 
 ## 1. Decisions waiting on Ido (recommendation first)
 
-Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and done by 11:45. Their facts stay below for the record. (d) was met at 11:55; the 21730506 conversion waits for Ido's reply. Still open: (b)-train (N8) and (e).
+Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and done by 11:45. Their facts stay below for the record. (d) was met at 11:55, and the conversion ran at 12:47 on Ido's 12:34 GO (21809595). Still open: (b)-train (N8: the catalog choice and G5, roadmap §2b and §3) and (e).
 
 **(a) `21716380` (group-token, held since 28 Sep) — DONE: scancelled 30 Sep 11:29.**
 - *Facts.* `tree_v8b`, legacy val, 7-day cold train. A release would have re-run the prologue, deleting `train_resume.pt` and restarting cold. Its 12 episodes and the `ep0011` freeze are backed up in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/` (`train_resume.pt`, `latest_best_*`, `policy_config.json`, `standardizer.pt`) and in `tree_v8b/runs/job21716380/snapshots/ep0011`. Its question (group tokens) is confounded by memorized val, like every legacy train.
@@ -31,19 +31,23 @@ Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and d
 - *Recommendation (unchanged).*
   - Hold N8 until the Stage-4 train's first freeze TEST shows it is not a mild clone (runbook M1; roadmap §3). Two parallel trains that both copy mild waste two of four slots for a week.
   - If speed matters more than that risk, run it in parallel after M2: one slot, ~6 days.
+  - *Catalog (Ido 12:34).* Keep design A: 8 C10 + 8 C100, with SVHN, Fashion-MNIST and ImageNet held out. Add the three additions of roadmap §2b: grow the SVHN / Fashion-MNIST hold-out rows with unseen families, caption H2 as the net pool change, and pre-register N8b.
+  - *G5.* Pre-register it now as a conditional GO (roadmap §3). The science sitting launches N8 on M1 + a clean smoke + catalog A + a free slot. Anything marginal comes back to Ido.
 - *Q4 answer for Gilad* (`docs/paper/GILAD_NEWS_30SEP.md` §1). One recipe (Adam 1e-3, 12/4) admits C100 under clean val: 6/6 finished without aug, 8/8 with crop+flip. Crop+flip, the augmentation every zoo net was trained with, improves it uniformly. No per-dataset recipe.
 
 **(c) Freeze TESTs of the Stage-4 train — PRE-AUTHORIZED 30 Sep 11:08.**
 - *What ops runs.* Runbook §10.3 and line §10.5 (a): the first freeze written after PPO update 20, then at most one a day, never two in flight. Each goes on the thin pair, under P + crop+flip at 40/10, against mild in 21729557 at equal keep, with the compression-rate census for the mild-clone read.
 - *Fallback.* If there is still no freeze by episode 120, ops reports.
 
-**(d) Crop+flip as the TEST walk recipe (bar 2 for every method) — MET 30 Sep 11:55 (§152; runbook M3). Waiting on Ido: the 21730506 conversion.**
+**(d) Crop+flip as the TEST walk recipe (bar 2 for every method) — MET 30 Sep 11:55, twins 3/3 at 12:50 (§152; runbook M3). DONE: 21730506 → 21809595 (Ido GO 12:34).**
 - *The evidence (§152).*
   - R56 meets the rule with margin: −0.16 vs −2.68 at size 0.80, −0.50 vs −2.70 at size 0.70, −0.06 vs −2.84 at `val_best` 0.661.
-  - VGG-16 meets it: +2.6 / +2.5 / +2.3 pp at size 0.80, size 0.70 and `val_best`. That makes **2 of 3 twins**. VGG-19 C100 is still walking in 21737104; its paired read is +3.21 over 7 cuts.
+  - VGG-16 meets it: +2.6 / +2.5 / +2.3 pp at size 0.80, size 0.70 and `val_best`. That made **2 of 3 twins** at 11:55.
+  - VGG-19 C100 (21737104 COMPLETED ~12:45): +3.8 / +4.9 / +4.2 pp at size 0.80 / 0.70 / `val_best`. **3 of 3 twins.**
   - Thin guard (21729557 COMPLETED): r56-w4 is **+5.0 pp** at size 0.80 (−2.6 vs −7.6 at 0.795), and its `val_best` is deeper and kinder (−4.5 @ 0.622 vs −10.1 @ 0.739). r20 is 1.3 / 0.7 / 1.6 pp worse, inside its 2 pp.
 - *Rule.* TEST ≥ 1 pp kinder at equal keep on ≥ 2 of 3 twins, and the thin guard holds. Then every TEST walk (agent and heuristics) switches to aug, and the no-aug rows stay as an audit column.
-- *Recommendation.* **Convert 21730506** (parked at nice 70) to the aug line, runbook §10.5 (c): scancel 21730506, submit the line, then set `Features`. Do it on Ido's reply, in the ops chat or here.
+- *Done.* 21730506 was cancelled while PD at 12:47 and resubmitted as **21809595**: runbook §10.5 (c), nice 40, `Features`. Its readout is runbook §10.3 item 4.
+- *The gap it did not close.* No cell had reached a published VGG-16 size: the 2-pass walks stop at 0.66 kept. **21814029** (§10.5 d) walks VGG-16 for 10 passes to HRank's 46.5 % and OCSPruner's 21.2 % FLOPs. "OCS VGG-16 ≈ 0.42 params" in older notes is OCSPruner's ResNet-56 point.
 - *Why it matters.* A P+aug-trained agent should be TESTed under the walk recipe it was trained with.
 
 **(e) Attribution train (only after a success).**
@@ -94,8 +98,8 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 
 | # | Option | Status | P now | Next |
 |---|---|---|---|---|
-| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150); TEST-walk rule met (§152)**: R56 +2.2 to +2.8, VGG-16 +2.3 to +2.6, thin r56-w4 +5.0; r20 inside its guard | adopted for the TEST walk | the 21730506 conversion (Ido) |
-| O2 | 100-ep SGD final FT + origin | **met on C100 (§149)**; **HOLD on DG R56 C10 (§153, +1.2 to +1.8)**; r20 thin cross-off so far (21730501, origin +3.5) | 0.50 ≥ 2 pp on full-width C10 | 21730501 r56-w4; 21730506 after (d) |
+| O1 | crop+flip in the walk FT | **gate rule met (§148); training rule passed (§150); TEST-walk rule met (§152)**: R56 +2.2 to +2.8, VGG-16 +2.3 to +2.6, thin r56-w4 +5.0; r20 inside its guard | adopted for the TEST walk; twins 3/3 | 21809595 (converted), 21814029 (L2) |
+| O2 | 100-ep SGD final FT + origin | **met on C100 (§149)**; **HOLD on DG R56 C10 (§153, +1.2 to +1.8)**; r20 thin cross-off so far (21730501, origin +3.5) | 0.50 ≥ 2 pp on full-width C10 | 21730501 r56-w4; 21809595; 21814029 |
 | O18 | P gate at the live recipe | **passed (6/6 finished; TIMEOUT at net 7)** | — | — |
 | O3 | crop+flip in the C100 gate | **passed (8/8); emitted 30 Sep 11:45** | — | N8 (roadmap) |
 | O17 | P-val reward train + crop+flip | **Stage 4: 21737123 → resume 21767188** | 0.40–0.50 leave mild | freeze TESTs pre-authorized (runbook §10.3) → M1 |
@@ -152,8 +156,8 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 
 **MILESTONE M3** (30 Sep 11:55, the sitting). Decision (d) is met (§152).
 - 21729557 COMPLETED: thin r56-w4 +5.0 pp at equal keep (−2.6 vs −7.6 at 0.795), with a deeper, kinder `val_best` (−4.5 @ 0.622 vs −10.1 @ 0.739). r20 is inside 2 pp.
-- The twins are 2/3.
-- Ido was told in the sitting chat. Converting 21730506 (runbook §10.5 c) waits for his reply.
+- The twins were 2/3 at 11:55 and 3/3 at 12:50 (VGG-19 C100 +3.8 to +4.9).
+- Ido GO'd the conversion at 12:34. It ran at 12:47: 21730506 → 21809595.
 
 - 30 Sep 03:11 | sitting | Stage-4 train released after §150; P-only arm cancelled | first read: FLAGS + `policy_config` diff (ops §9.2)
 - 30 Sep 03:16 | 21737123 R 03:14, `ise-cpu256-32` RTX 6000 Ada | start checks green: env header; val-from-test on cifar-10 and svhn; aug on cifar-10 only; `policy_config` diff = P keys only | read its curve's shape against 21536396, never its probe-area values
@@ -170,3 +174,8 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 30 Sep 11:50 | 21737104 VGG-16 done (§152) | +2.3 to +2.6 pp at equal keep; twins 2/3 met; thin guard: r20 inside 2 pp, r56-w4 paired +4.99 over 54 cuts | ops pings "(d) met" when 557's r56-w4 TEST rows land inside the guard
 - 30 Sep 11:55 | 21729557 COMPLETED (4 h 15 m); N3 21767189 R on `ise-4090-19` in its slot | §152 thin guard: r56-w4 +5.0 pp at 0.795 | MILESTONE M3 above
 - 30 Sep 11:55 | handoff | ops now runs from `docs/OPS_HANDOFF_RUNBOOK.md` §10 (renamed from `PROMPT_OPS_V8_QUEUE.md`) | ops appends here; milestones M1–M7 in §10.4
+- 30 Sep 12:44 | 21737123 first freeze `ep0011` (probe 0.282, after PPO update 3) | before update 20: not a TEST (runbook §10.3 item 1) | the pre-authorized TEST waits for the first freeze after update 20
+- 30 Sep 12:45 | 21737104 COMPLETED (2 h 48 m, 0 Tracebacks); N4 21737105 R on `cs-4090-07` in its slot | §152: VGG-19 C100 twin +3.8 to +4.9 pp at equal keep → twins 3/3 | (d) fully met
+- 30 Sep 12:47 | 21730506 cancelled while PD → **21809595** (Ido GO 12:34), nice 40 | runbook §10.5 (c) | read its re-walk ≈ 0 against 21737104 / 21729553 before any final_ft row
+- 30 Sep 13:10 | **21814029** L2 submitted: VGG-16 C10, 10 passes, `flop:0.465,0.212`, nice 42 | "OCS VGG-16 ≈ 0.42 params" was OCSPruner's ResNet-56 point. The published VGG-16 sizes are HRank 46.5 % FLOPs / 17.1 % params and OCSPruner 21.2 % / 13.7 % | the frozen agent's Catalog L TEST needs the same size points (roadmap §5 item 9)
+- 30 Sep 13:20 | the sitting (Ido's 12:34 questions) | N8 catalog: keep design A (2 datasets in, 3 held out) + additions 1–3; G2 trigger and G5 written (roadmap §2b, §3) | Ido decides the catalog and whether to pre-register G5

@@ -65,12 +65,14 @@ Written for Ido to deliver, and for the ops chat to read once. Ledger sections a
 | Thin ResNet-56 ×4, TEST fine-tune, at 0.795 kept | −7.6 | **−2.6** (+5.0) | §152 |
 | ResNet-56 (C10), TEST fine-tune, val-selected | −2.84 @ 0.661 | **−0.06 @ 0.661** | §152 |
 | VGG-16 (C10), TEST fine-tune, val-selected | −2.8 @ 0.657 | **−0.5 @ 0.657** | §152 |
+| VGG-19 (C100), TEST fine-tune, val-selected | −6.7 @ 0.657 | **−2.5 @ 0.657** | §152 |
+| VGG-19 (C100), TEST fine-tune, at 0.688 kept | −6.8 | **−1.9** (+4.9) | §152 |
 
 - *The one net it hurts.* The 5k-parameter thin ResNet-20 ×2 (64.8 % accuracy) loses 1–3 pp. Augmentation hurts nets that underfit (NetAug, Cai et al. ICLR 2022). That net is a hold-out diagnostic, not a training net.
-- *The third twin.* VGG-19 C100 has no TEST rows yet. On validation it is kinder at all 7 paired steps so far (+3.2 pp mean).
+- *The third twin* (added 30 Sep 12:50). VGG-19 C100 is +3.8 to +4.9 pp at equal keep: the largest effect of the three, on the dataset where the short walk fine-tune overfits most.
 - *Cost.* +18 % time per fine-tune epoch.
 
-**What it means.** Most of the measured cost of a cut came from poor recovery, not from the pruning. Crop+flip is in the Stage-4 train. It also meets the pre-registered rule for the TEST walk of every method: ≥ 1 pp kinder at equal keep on 2 of 3 twins, and the thin-net guard holds (§152).
+**What it means.** Most of the measured cost of a cut came from poor recovery, not from the pruning. Crop+flip is in the Stage-4 train. It also meets the pre-registered rule for the TEST walk of every method: ≥ 1 pp kinder at equal keep on **3 of 3** twins, and the thin-net guard holds (§152).
 
 ## 3. The 100-epoch SGD final fine-tune
 
