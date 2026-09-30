@@ -89,7 +89,7 @@ flowchart TD
   D --> S4b["Revised recipe, then a new C10 train"]
   G0 --> GO
   G1 --> G2["G2: tree_v9d = N8 profile, provenance, requeue safety, probe set, C100 smoke"]
-  G3["G3: decision (d) settled"] --> GO
+  G3["G3 met 30 Sep: crop+flip is the TEST walk"] --> GO
   G2 --> GO{"Ido GO"}
   GO --> N8["N8: 8 C10 + 8 C100, cold, resume chained, ~7-8 days"]
   N8 --> R1["Freeze TESTs: H1 health, H2 C10 not hurt"]
