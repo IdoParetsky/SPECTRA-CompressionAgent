@@ -154,6 +154,29 @@ def test_cbrt_cubes_keeps_inband_linear(monkeypatch):
     assert in_band_cbrt < 3.0 < in_band
 
 
+def test_cbrt_miss_keeps_the_raw_gain_cube(monkeypatch):
+    """G2 cubic-gain train (Ido 1 Oct): miss −ρ, in-band +ρ, gain raw +ρ³; the other scales are unchanged."""
+    _init_static_conf(10)
+    from src.utils import apply_reward_scale, compute_reward
+
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural")
+    monkeypatch.setenv("SPECTRA_REWARD_SCALE", "cbrt_miss")
+    big = dict(params_before=1000, params_after=800)      # ρ = 20
+    assert abs(compute_reward(0.95, 1.0, 0.8, **big) - 20.0) < 1e-9
+    assert abs(compute_reward(0.80, 1.0, 0.8, **big) + 20.0) < 1e-6
+    assert abs(compute_reward(1.01, 1.0, 0.8, **big) - 20.0 ** 3) < 1e-6
+    # Below ρ = 1 the cube pays a gain less than an in-band cut
+    small = dict(params_before=1000, params_after=995)    # ρ = 0.5
+    assert compute_reward(1.01, 1.0, 0.9, **small) < compute_reward(0.99, 1.0, 0.9, **small)
+    # Only a cubed negative is rooted; an uncubed negative (shaped taper) passes through
+    assert apply_reward_scale(-8.0, cubed=False) == -8.0
+    assert apply_reward_scale(8000.0, cubed=True) == 8000.0
+    assert abs(apply_reward_scale(-8000.0, cubed=True) + 20.0) < 1e-9
+    # structural_band's miss arm is rooted as under cbrt_cubes
+    monkeypatch.setenv("SPECTRA_REWARD_MODE", "structural_band")
+    assert abs(compute_reward(0.85, 1.0, 0.8, **big) + 5.0) < 1e-6
+
+
 def test_cbrt_default_unchanged_on_inband(monkeypatch):
     """Live v3/V4 keep shrinking the in-band arm. Do not change the default."""
     _init_static_conf(10)

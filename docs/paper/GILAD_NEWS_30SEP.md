@@ -1,7 +1,25 @@
 # SPECTRA — weekly meeting with Gilad, 1 Oct 2026
 
-**From:** Ido Paretsky. Prepared 30 Sep; numbers as of 19:45 IDT.
+**From:** Ido Paretsky. Prepared 30 Sep; **restamped 1 Oct 00:20**; sitting prompt **01:00** (`docs/PROMPT_FABLE_G2_SITTING.md`). Ops will restamp this file again at **08:15** with twins / L2 / any sitting TESTs.
 **This note replaces the 29 Sep status note.** Several of its bad-news items are now obsolete (§0).
+**Overnight (1 Oct).** DepGraph ResNet-56 with crop+flip: 10k **−0.46 at 2.11×** vs their +0.24 (**M4**, 0.70 pp behind; never "beats"). Scratch-B on that architecture: 10k **−0.16 at 2.11×**. KD / AutoAugment did not beat the crop+flip walk. C-G+ with crop+flip **KILL** (−20.8 pp). Zoo twins + 100-ep FT **CROSS-OFF**. VGG-16 at HRank/OCS FLOPs: 10k **−0.25 / −2.02**, params not matched. QOS **8**, G2 sitting filled. Agent: 28 episodes, one freeze from before learning; first real test ~2–3 Oct.
+
+### Tonight one-liners (read at 08:45; 08:15 will add anything that lands after 01:00)
+
+- Clean val was a measurement leak: unpruned val read 1.000 while test is 0.94 / 0.94 / 0.74; one flaw explained agent≡mild, C100 0/8, and several empty-band rows.
+- Crop+flip in the per-step recovery is now the walk and the train recipe (twins 3/3); ResNet-56 C10 **−0.06 at 66 % kept**.
+- CIFAR-100: **8 of 8** admitted with the same Adam 1e-3 12/4 + crop+flip; 16-net catalog emitted; ImageNet stays a frozen hold-out.
+- DepGraph’s ResNet-56, crop+flip walk, 10k: **−0.46 at 2.11×** vs their +0.24 (0.70 pp; **M4**). At 2.57× we are still 1.74 pp behind. Never “beats.”
+- The 100-epoch final fine-tune is protocol alignment: it adds honest +4–5 pp after a *weak* walk, and **nothing** once crop+flip is in the walk.
+- Scratch-B (train the pruned architecture from scratch, Liu 2019): fails on the tiny diagnostic nets; on DepGraph ResNet-56 10k **−0.16 at 2.11×**.
+- Distillation and AutoAugment in that long fine-tune do not beat the crop+flip walk.
+- NEON layer replacement under clean val, with NEON’s own stop: **12–54 pp worse**; we propose to close C-G. C-G+ with crop+flip on the thin pair: **KILL** at 01:45, **−20.8 pp** vs mild on ResNet-20 (0 of 5 paired cuts better). Close C-G+ too.
+- 70 of 152 crop+flip cuts on DepGraph ResNet-56 **raise** validation accuracy, so NEON’s “accuracy went up” reward arm is reachable for the first time. The live agent still does **not** extra-reward those cuts (cube then cube-root). A replay plus one-change cubic / raw-NEON trains start tonight; they will not finish by this meeting.
+- First agent under the corrected protocol: 28 episodes, PPO-7, still only a pre-learning freeze (ep0011). First honest freeze test ~2–3 Oct. No agent result yet.
+- Zoo ResNet-56 / VGG-16 with the 100-epoch finish (**21809595** §164): walk matches the crop+flip twins; long FT **adds nothing** (VGG-16 origin itself gains +0.88).
+- VGG-16 walked to HRank / OCS **FLOPs** (**21814029** §165): 10k **−0.25 at 46 % FLOPs** (we keep 44 % params; HRank keeps 17 %) and **−2.02 at 21 % FLOPs** (OCS −0.44 at 14 % params). Never “beats.”
+- Cluster cap is **8** GPUs (was 4 last week, never a measured 7). G2 sitting filled the idle slots (hold-out checkpoints + FT/heuristic A/Bs). C-G+ already killed.
+- Walk fine-tune A/Bs vs Adam 1e-3 12/4: Adam **1e-4** destroys skinny ResNet-20 (−5.3 / −14.5 pp) even though skinny ResNet-56 at 80 % kept is **+3.1**; SGD **0.01** misses ResNet-56 by 0.7–2.2 pp. Train recipe stays Adam 1e-3. On the two tightest CIFAR-100 nets, 1e-4 is kinder than 1e-3 — not enough to retune the live train.
 **Your two standing topics** are §2 (the benchmarking methodology and roadmap) and §3 ("throw away the pruned layer and train a new one": NEON's layer replacement, carried to CNNs).
 **Record:** every number is in `docs/paper/RESULTS_LEDGER.md`; the § in each row points there. All rows are preliminary.
 
@@ -48,7 +66,7 @@ This week we found that the validation images that scored every pruning decision
    - It passed its pre-registered rule on all three benchmark networks and on the diagnostic networks. It is now the recovery for every method, including inside the agent's training.
 4. **First rows at DepGraph's own sizes, on DepGraph's own checkpoints, with an honest accounting** *(result and infrastructure; §149, §153–§155).*
    - *The protocol.* A 100-epoch SGD final fine-tune, which is the literature's protocol. A control gives the same fine-tune to the unpruned network, so only recovery from pruning is credited (the *honest gain*).
-   - *ResNet-56 C10.* At DepGraph's two FLOPs ratios (2.11× and 2.57×) the heuristic walk is **−1.52 / −2.11** (10k), against their +0.24 / +0.11. That is about 2 points behind, with no agent and no training on the target.
+   - *ResNet-56 C10.* At DepGraph's two FLOPs ratios (2.11× and 2.57×) the crop+flip heuristic walk is **−0.46 / −1.63** (10k), against their +0.24 / +0.11. That is **0.70 pp** behind at 2.11× (M4) and 1.74 pp at 2.57×, with no agent and no training on the target.
    - *VGG-19 C100.* **−1.62** (10k) at 68 % of parameters kept.
 5. **A training run built to finish, and reproducible walks** *(infrastructure; §151, §153).*
    - *The run.* The agent's run resumes itself past the cluster's 6-day limit. It is protected from the cluster's automatic requeue, which would have deleted its resume file. Its test is pre-registered.
@@ -68,7 +86,7 @@ No agent. Each before → after pair is the same architecture; only the protocol
 | VGG-19 (C100) | 66 % | −6.7 | **−2.5** | crop+flip | §152 |
 | Diagnostic ResNet-56 ×4 (C10) | 79.5 % | −7.6 | **−2.6** | crop+flip | §152 |
 | Diagnostic ResNet-56 ×4 (C10) | 79.5 % | −8.3 | **−2.7** (honest gain +5.3) | 100-epoch final fine-tune | §154 |
-| DepGraph's ResNet-56 (C10), 10k | FLOPs 46 % / 38 % | −3.81 / −4.60 | **−1.52 / −2.11** | 100-epoch final fine-tune | §153 · DepGraph +0.24 / +0.11 |
+| DepGraph's ResNet-56 (C10), 10k | FLOPs 46 % / 38 % | −1.52 / −2.11 (no-aug walk + FT) | **−0.46 / −1.63** | crop+flip walk; long FT adds nothing | §157 · DepGraph +0.24 / +0.11 |
 | DepGraph's VGG-19 (C100), 10k | 68 % | −6.09 | **−1.62** | crop+flip + final fine-tune | §147, §155 · DepGraph −3.11 at 8.92× FLOPs |
 
 ### The 29 Sep note's top losses, today
@@ -140,7 +158,7 @@ The three bars come in this order, and one never substitutes for another:
 |---|---|---|
 | **1. Budget** | One frozen agent, zero per-network search or training | Met by design; written first |
 | **2. Same loop, matched size** | On networks it never saw, the agent is at least as accurate as the same-loop heuristics at equal size, or reaches a size inside the budget that they cannot | Not met yet. First test on the diagnostic networks ~2–3 Oct (§4.1), then the benchmark cells |
-| **3. Beside the published number, size-matched** | Our row at their size, next to their row; expected below, and said so in print | First heuristic rows exist: ~2 points behind DepGraph on ResNet-56 at equal FLOPs (§2.5) |
+| **3. Beside the published number, size-matched** | Our row at their size, next to their row; expected below, and said so in print | Crop+flip walk: **0.70 pp** behind DepGraph on ResNet-56 at 2.11× (10k −0.46 vs +0.24, §157); 1.74 pp at 2.57× |
 
 ### 2.2 What we train on and what we test on
 
@@ -222,8 +240,8 @@ Our costs come from Slurm job times. Theirs come from the epoch counts in their 
 
 | Cell | Published result (before → after, at size) | Ours now | Pending |
 |---|---|---|---|
-| **ResNet-56 · C10** | **DepGraph** (CVPR 2023): 93.53 → 93.77 (+0.24) at 2.11×, 93.64 (+0.11) at 2.57×; −0.07 at 2.11× without its sparsity training. **OCSPruner** (WACV 2026): −0.32 at 38.9 % FLOPs / 41.4 % params. **HRank** (CVPR 2020): −0.09 at 50 % FLOPs. **GReg** (ICLR 2021): −0.18 / 0.00 at 2.55×. **ResRep** (ICCV 2021): 0.00 at 2.12×. **FPGM** (CVPR 2019): −0.33 at 1.70×. **AMC** (ECCV 2018): −0.9 at 2.0×. **C-SGD** +0.05 at 2.55×; **Polar** +0.03 at 1.88×; **SFP** −0.23 at 2.11× | DepGraph's checkpoint, walk + final fine-tune (10k): **−1.52 at 2.11×, −2.11 at 2.57×** (§153). Zoo checkpoint, crop+flip walk only: **−0.06 at 66 % params** (§152) | DepGraph's checkpoint with the crop+flip walk + final fine-tune (overnight); distillation and AutoAugment in the final fine-tune; the frozen agent |
-| **VGG-16 · C10** | **HRank**: 93.96 → 93.43 (−0.53) at 46.5 % FLOPs / 17.1 % params. **OCSPruner**: 93.88 at 26.0 % FLOPs, 93.76 at 21.2 %; from a pretrained start 94.07 → 93.63 (−0.44) at 21.2 % FLOPs / 13.7 % params. **Network Slimming** (VGG-19 on C10): +0.14 at 49 % FLOPs / 11.5 % params | Crop+flip walk only: **−0.5 at 66 % params / 68 % FLOPs** (§152) | A 10-pass walk to 46.5 % and 21.2 % FLOPs, with the final fine-tune (running); the final fine-tune at 66 % (running); the frozen agent |
+| **ResNet-56 · C10** | **DepGraph** (CVPR 2023): 93.53 → 93.77 (+0.24) at 2.11×, 93.64 (+0.11) at 2.57×; −0.07 at 2.11× without its sparsity training. **OCSPruner** (WACV 2026): −0.32 at 38.9 % FLOPs / 41.4 % params. **HRank** (CVPR 2020): −0.09 at 50 % FLOPs. **GReg** (ICLR 2021): −0.18 / 0.00 at 2.55×. **ResRep** (ICCV 2021): 0.00 at 2.12×. **FPGM** (CVPR 2019): −0.33 at 1.70×. **AMC** (ECCV 2018): −0.9 at 2.0×. **C-SGD** +0.05 at 2.55×; **Polar** +0.03 at 1.88×; **SFP** −0.23 at 2.11× | DepGraph's checkpoint, **crop+flip walk** (10k): **−0.46 at 2.11×, −1.63 at 2.57×** (§157). Scratch-B at the same sizes: **−0.16 / −0.56** (§159). Zoo checkpoint, crop+flip walk: **−0.06 at 66 % params** (§152); 100-ep finish CROSS-OFF (§164) | the frozen agent |
+| **VGG-16 · C10** | **HRank**: 93.96 → 93.43 (−0.53) at 46.5 % FLOPs / 17.1 % params. **OCSPruner**: 93.88 at 26.0 % FLOPs, 93.76 at 21.2 %; from a pretrained start 94.07 → 93.63 (−0.44) at 21.2 % FLOPs / 13.7 % params. **Network Slimming** (VGG-19 on C10): +0.14 at 49 % FLOPs / 11.5 % params | Crop+flip 2-pass: **−0.5 at 66 % params** (§152). 10-pass to published FLOPs (10k): **−0.25 at 46 % FLOPs / 44 % params** vs HRank −0.53 at 17 % params; **−2.02 at 21 % FLOPs / 19 % params** vs OCS −0.44 at 14 % params (§165). 100-ep finish CROSS-OFF (origin +0.90) | the frozen agent |
 | **VGG-19 · C100** | **DepGraph**: 73.50 → 70.39 (−3.11) at 8.92×; −5.90 without its sparsity training. **OCSPruner**: 70.47 at ≈11 % FLOPs; from a pretrained start 73.58 → 69.98 at 11.2 % FLOPs / 10.1 % params. **GReg**: 74.02 → 67.55 / 67.75 at 8.84×. **PruningBench** (base 73.87 = our zoo copy): +0.01 at 2× (L2 magnitude); −1.45 at 4× (OBD-C); −3.96 at 8× (LAMP) | DepGraph's checkpoint, crop+flip walk + final fine-tune (10k): **−1.62 at 68 % params** (§155). Zoo copy, crop+flip walk only: **−2.5 at 66 %** (§152) | DepGraph's 8.92× size needs a ~11-pass walk: **proposed, not queued**; the frozen agent |
 
 Published values are the papers' own, or as reprinted in DepGraph's Table 1. OCSPruner trains its own bases inside its cycle, so only its published rows are quoted. Network Slimming's ResNet-164 and DenseNet-40 points become rows once those networks are imported (action item 8); HRank's GoogLeNet is not planned. Liu et al. (ICLR 2019) is not a pruner: it shows that training the pruned architecture from scratch for a full budget matches fine-tuning. It is the basis of our scratch controls and of our reading of layer replacement (§3).
@@ -261,10 +279,10 @@ The dates are estimates at the measured pace, not deadlines.
 | The agent copies the heuristic (M1-neg) | Two frozen snapshots are copies, or both are > 0.5 points worse on both networks | — | Diagnose first (step 4 above) |
 | Crop+flip for every test walk (M3) | ≥ 1 point kinder on ≥ 2 of 3 benchmark networks, and the diagnostic guard holds | **Fired 30 Sep** (3 of 3) | Done |
 | CIFAR-100 in the catalog (G0) | 8 of 8 admitted; catalog emitted and tested | **Done 30 Sep** | The multi-dataset train |
-| A competitive-enough C10 literature row (M4) | DepGraph's ResNet-56, crop+flip walk + final fine-tune, within 1 point of DepGraph at 2.11× or 2.57× (10k) | Lands overnight | A row for you; never "beats" |
-| A better final recipe (M5) | Distillation or AutoAugment ≥ +0.5 over the plain final fine-tune, with a healthy unpruned control | Queued | Adopted for every literature row |
-| The cubic reward's bonus becomes reachable (M6) | A crop+flip walk on a full-width network has cuts with validation above the unpruned network | **Weakly fired 30 Sep:** 2 of 46 cuts on VGG-19 C100, +0.28 at most | Design the cubic-reward train (not a launch) |
-| The next code version (G2) | The first agent test is submitted, or the no-agent queue drains | ~2 Oct | Build + smoke; new hold-out networks |
+| A competitive-enough C10 literature row (M4) | DepGraph's ResNet-56, crop+flip walk + final fine-tune, within 1 point of DepGraph at 2.11× or 2.57× (10k) | **Fired 1 Oct 00:15:** 10k **−0.46** at 2.11× vs +0.24 (0.70 pp). 2.57× still 1.74 pp behind | A row for you; never "beats" |
+| A better final recipe (M5) | Distillation or AutoAugment ≥ +0.5 over the plain final fine-tune, with a healthy unpruned control | **Not adopted:** KD +0.62 only at the easy 0.60 size; AutoAugment origin +1.24. Neither beats the crop+flip walk | Keep the crop+flip walk as bar 3 on this cell |
+| The cubic reward's bonus becomes reachable (M6) | A crop+flip walk on a full-width network has cuts with validation above the unpruned network | **Fired on N3:** 70/152 cuts val Δ > 0 on DepGraph R56 (max +0.86); 53 TEST Δ > 0 | Design the cubic-reward train (not a launch) |
+| The next code version (G2) | The first agent test is submitted, or the no-agent queue drains | **Open 1 Oct 00:15:** ladder drained; 5 of 8 GPU slots idle | Build + smoke; new hold-out networks |
 | The multi-dataset launch (G5) | The agent leaves the heuristic, the smoke is clean, catalog design A agreed, a free GPU | Proposed (§4.3) | ~8-day train, then the hold-out tests |
 | The run stops (M7) | ≥ 250 episodes and 150 without a better probe, or the resume's time limit | ~7–12 Oct | Final snapshot tests, coverage set, the multi-dataset decision |
 
@@ -339,8 +357,8 @@ At the last step read, the ResNet-56 was at −40.4 against −3.2 for keep-the-
   - the 12-epoch training fine-tune.
 
   It started on 30 Sep at 03:14. One train with both changes is the decisive single experiment: if it cannot leave the heuristic, a weaker recipe will not.
-- **Where it is (30 Sep, 19:46).**
-  - 22 episodes and 5 policy updates, with no errors.
+- **Where it is (1 Oct, 00:15).**
+  - 25 episodes and 6 policy updates, with no errors. Critic ev 0.041 → 0.191 → 0.234 at updates 4–6. The episode-24 probe (0.268) is still below the episode-11 freeze (0.282).
   - A snapshot is frozen whenever the score on two probe networks improves. The only one so far is from episode 11, before any real learning. By rule it is not tested.
 - **When.** The first snapshot frozen after policy update 20 (~2 Oct evening) is tested; if none freezes, a fallback test runs at episode 120 (~3 Oct). A test walk takes about 5 hours. Freeze tests are pre-authorized, at most one a day.
 - **The pre-registered test.** The frozen snapshot walks the two diagnostic networks under the same protocol as the heuristic. It passes when all three hold:
@@ -453,13 +471,13 @@ TEST on the 5k half unless marked 10k. The honest gain is the pruned network's g
 | Diagnostic ResNet-56 ×4, C10 (§154) | no augmentation | **+5.3 to +5.5** (+0.30) | −2.72 @ 79.5 %; −2.64 @ 75.6 % |
 | Diagnostic ResNet-20 ×2, C10 (§154) | no augmentation | −3.8 to −4.5 (+3.46): crossed off | — |
 
-In flight: DepGraph's ResNet-56 with the crop+flip walk. Over 130 cuts its walk tracks +2.6 points kinder on validation than the un-augmented walk; that is a validation read, not a test result. Its test rows land overnight.
+N3 landed (§157): crop+flip walk 10k **−0.46 at 2.11×** (M4). The 100-ep finish is CROSS-OFF on this cell. Scratch-B on the same architectures: 10k **−0.16** (§159). KD / AutoAugment did not beat that walk (§160–§161).
 
 ---
 
 ## 6. What we do not claim
 
-- No beat or match of DepGraph, or of any focused method on its home cell. We are ~2 points behind at equal FLOPs, with a heuristic walk and no training on the target.
+- No beat or match of DepGraph, or of any focused method on its home cell. We are **0.70 pp** behind at 2.11× FLOPs and 1.74 pp at 2.57×, with a heuristic walk and no training on the target.
 - CIFAR-100 is not "solved"; it is admitted to training.
 - No agent result under the corrected protocol yet.
 - Test numbers are on a 5k half; 10k numbers appear only at points chosen by size.
@@ -468,13 +486,13 @@ In flight: DepGraph's ResNet-56 with the crop+flip walk. Over 130 cuts its walk 
 
 | | Action | When | What it decides |
 |---|---|---|---|
-| 1 | DepGraph's ResNet-56 with the crop+flip walk + final fine-tune | Overnight; ledgered by morning | The literature ResNet-56 rows use the crop+flip walk if it is ≥ 1 point kinder at equal size; a competitive-enough row (M4) if within 1 point of DepGraph |
-| 2 | Zoo ResNet-56 and VGG-16 with the crop+flip walk + final fine-tune; the VGG-16 walk to HRank's and OCSPruner's sizes | Running; 1–2 Oct | The CIFAR-10 literature rows at the published sizes |
+| 1 | DepGraph's ResNet-56 with the crop+flip walk + final fine-tune | **Done §157; M4 at 2.11×** | Literature ResNet-56 rows use the crop+flip walk; long FT is caption-only on this cell |
+| 2 | Zoo ResNet-56 and VGG-16 with the crop+flip walk + final fine-tune; the VGG-16 walk to HRank's and OCSPruner's sizes | **Done §164–§165** | Long FT CROSS-OFF; VGG-16 at HRank/OCS FLOPs keeps far more params than they do |
 | 3 | Agent health check at update 10; first frozen-agent test after update 20 | ~1 Oct 11:00; ~2 Oct night, result ~3 Oct | Whether the agent leaves the heuristic (§4.1) |
-| 4 | Scratch-B controls (Liu et al. 2019): the walk's architectures retrained from scratch (200 epochs of SGD), beside the inherited weights | Queued | Whether inherited weights matter at these sizes; the network-level form of "fresh weights" |
-| 5 | Distillation (Hinton et al. 2015) and AutoAugment (Cubuk et al., CVPR 2019) inside the final fine-tune, on DepGraph's ResNet-56 | Queued | A better final recipe (M5): adopted at ≥ +0.5 with a healthy unpruned control |
-| 6 | A 3-pass walk that never cuts the residual streams | Queued, low priority | Whether the residual streams are what limits depth |
-| 7 | The next code version and its smoke test; the new SVHN and Fashion-MNIST hold-out networks | ~2 Oct | Readiness for the multi-dataset train |
+| 4 | Scratch-B controls (Liu et al. 2019): the walk's architectures retrained from scratch (200 epochs of SGD), beside the inherited weights | **Done §158–§159** | Thin pair fails; DepGraph R56 scratch 10k −0.16 at 2.11× |
+| 5 | Distillation (Hinton et al. 2015) and AutoAugment (Cubuk et al., CVPR 2019) inside the final fine-tune, on DepGraph's ResNet-56 | **Done §160–§161; not M5** | Keep the crop+flip walk |
+| 6 | A 3-pass walk that never cuts the residual streams | **Done §162; split** | Helps skinny ResNet-20; does not deepen skinny ResNet-56 vs crop+flip |
+| 7 | The next code version and its smoke test; the new SVHN and Fashion-MNIST hold-out networks | **G2 open now** (idle GPUs) | Readiness for the multi-dataset train |
 | 8 | Import the literature hold-out networks: ResNet-164 on CIFAR-10 and CIFAR-100 and DenseNet-40 on CIFAR-10 (Network Slimming's), PruningBench's ResNet-18/50 CIFAR-100 bases, AMC's Plain-20 | Not started; with item 7 | Published points on transfer networks too |
 | 9 | **Proposed, not queued:** walk DepGraph's VGG-19 C100 to its 8.92× size (~11 passes) with the final fine-tune; run the other same-loop heuristics (L1-magnitude walk; greedy, random, look-ahead) on the three cells under the new protocol | Your view (§8) | A complete bar-3 row on the third cell; a complete bar-2 comparison set |
 | 10 | Zero-GPU readouts: replay the finished walks through the linear, cubic and NEON-exact rewards; a census of how much each training network memorized its training set | With item 7 | Where each reward would stop; how widespread the memorization is |
@@ -496,7 +514,7 @@ In flight: DepGraph's ResNet-56 with the crop+flip walk. Over 130 cuts its walk 
 
 ## 9. Discussion
 
-1. **How strong the heuristic now is, and what the agent adds.** With clean validation and a proper recovery, a fixed 90 % rule is ~2 points behind DepGraph on its home cell. The agent's value has to show as a better size–accuracy trade-off than that rule, on networks it never trained on, at no per-target cost. Is that the right way to present the contribution?
+1. **How strong the heuristic now is, and what the agent adds.** With clean validation and a proper recovery, a fixed 90 % rule is **0.70 pp** behind DepGraph at 2.11× on its home cell (10k −0.46 vs +0.24) and 1.74 pp at 2.57×. The agent's value has to show as a better size–accuracy trade-off than that rule, on networks it never trained on, at no per-target cost. Is that the right way to present the contribution?
 2. **The memorized-validation finding as a methods point.** Any pruning or architecture-search pipeline that starts from public checkpoints and validates on a slice of the training split has the same flaw. Is it worth a thesis section, or a short standalone note?
 3. **NEON's lineage in the thesis.** With layer replacement closed, SPECTRA inherits NEON's preference-aware reward and its offline multi-dataset training. How should the thesis frame the part that did not carry over to CNNs?
 4. **What you want to see before the results chapter.** The decision points are in §2.6: the first agent test (~3 Oct) and, if it passes, the multi-dataset train and its hold-out tests.

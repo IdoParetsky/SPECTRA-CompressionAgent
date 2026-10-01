@@ -1,54 +1,115 @@
 # SPECTRA sitting GPU queue
 
 **Owner:** Opus 5.5 science sitting. **Ops:** heartbeat, paired early reads, ledger, and the pre-authorized actions in the runbook §10.3 — do not invent cells.
-**Rule (Ido 29 Sep 15:49):** QOS **4** stays full with **independent** no-agent TESTs. Sitting **sbatches**. No second GO on those cells.
+**Rule (Ido 29 Sep 15:49):** QOS stays full with **independent** no-agent TESTs. Sitting **sbatches**. No second GO on those cells. Cap is **live `gpu-part` MaxTRESPU** (8 as of 1 Oct 00:09). Do not invent cells when the ladder is empty.
 **Pre-authorized (Ido 30 Sep 11:08):** freeze TESTs of the Stage-4 train (first after PPO update 20, then ≤ 1 a day); its resume past the 6-day fuse (chained: 21767188). **Done on that GO:** 21716380 scancelled; C100 catalog emitted (§148). **Done on Ido's 12:34 GO:** 21730506 converted to the crop+flip walk → **21809595**.
-**Still Ido GO:** a DRL train (N8, N9, N10; for N8 see the conditional-GO proposal, roadmap §3 G5); a second resume.
+**Done on Ido's 1 Oct 01:03 GO:** the two one-change reward trains (C1 **21938807**, C2 **21938810**; resumes chained).
+**Still Ido GO:** a DRL train (N8, N9; for N8 see the conditional-GO proposal, roadmap §3 G5); a second resume.
 
 Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10** (current), §8 (cells). Options, decisions and dev items: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. N8: `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12.
 
-**Stamped:** 30 Sep 2026, ~13:20 IDT (Opus 5.5 sitting, handoff to ops).
-- *Slots.* Cap 4: **4 R** (train 21737123, N3 21767189, N4 21737105, 21730501) and 10 PD (the resume waits on its dependency).
-- *Decisions.* Decision (d) is met, twins 3/3 (§152). 21730506 → 21809595. The size-matched VGG-16 L2 cell is 21814029.
-- *Trees and jobs.* Trees `tree_v9b` / `tree_v9c` are frozen. Pending cells carry `Features=rtx_6000|rtx_4090`. Both train jobs have `Requeue=0`.
+**Stamped:** 1 Oct 2026, ~03:15 IDT (G2 sitting). **QOS `gpu-part` `gres/gpu=8`, full: 8 R** (train **21737123** + 7 G2 cells). **6 PD** take freed slots in nice order (reward trains 50 / 51, v9 smoke 52, random 60 / 70 / 71), plus 3 `afterok` resumes. Every new job: `tree_v9d`, `Features=rtx_6000|rtx_4090`, `--gpus=1`. Do **not** launch N8.
+- *G2 sitting (charge 1 Oct 01:03).* **A1** hold-out checkpoints R. **A2** greedy and random R. **A3** Adam 1e-4 thin, SGD 0.01 thin, Adam 1e-4 C100 COMPLETED (§166–§168); SGD 0.01 C100 R. **A4** C-G+ KILL (§163). **A5** F1 / F2 R. **B** O38 replay below. **C** two one-change reward trains PD. **D** `tree_v9d` built and tested; `offline_train_v9_diverse` + catalog A deployed; smoke PD.
+- *Overnight COMPLETED.* N3 **21767189** §157 **M4**; scratch-thin **21730507** §158 CROSS-OFF; scratch-DG **21730516** §159 ADOPT; N1 **21767190** §160 mixed; N2 **21767192** §161 not M5; streams **21729558** §162 split.
+- *Ledger.* Next **§169**. C-G+ KILL §163; twins FT §164; VGG-16 10-pass §165; Adam 1e-4 thin §166 CROSS-OFF; SGD thin §167 CROSS-OFF; Adam 1e-4 C100 t2 §168 kinder, not a train switch.
+- *Trees.* `tree_v9b` / `tree_v9c` frozen. **`tree_v9d`** = v9c + the G2 dev pass, default-off for every existing profile (`PROVENANCE_v9d.txt`). Train `Requeue=0`.
 
 **P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c`). **Paired read** = `readers_s30/scripts/paired_steps.py <arm> <control>`: val only, same step = same widths under mild. **Honest gain**: only `readers_s30/scripts/final_ft_readout.py` (prints `ORIGIN-HURT` when the origin loses > 0.5 pp).
 
 ## Live rank
 
-| Pri | Cell | Job | State (30 Sep 13:20) | Tree | Checks | Read so far / hope | Cross-off | Adopt |
+Equal keep = the size points (`param:0.8,0.6` thin; `0.9,0.8` C100) and `val_best`, read on the 5k TEST half. Greedy and random cut differently per step, so `paired_steps.py` labels are valid only between two mild walks.
+
+| Pri | Cell | Job | State (1 Oct 03:15) | Tree | Checks | Read so far / hope | Cross-off | Adopt |
 |---|---|---|---|---|---|---|---|---|
-| 1 | **Stage-4 train**: area train under P + crop+flip (§151) | **21737123** → resume **21767188** | R since 03:14 (`ise-cpu256-32`, RTX 6000 Ada); 12 episodes / 3 PPO updates by 12:44 (~0.79 h per episode); first freeze **ep0011** at 12:44, probe 0.282 (not a TEST: before update 20); fuse ~6 Oct 03:15 near episode ~200; resume PD `afterok` | v9c | does the agent leave mild when the reward reads clean val and recovery uses crop+flip? | ev ~0 at updates 1–3 (control 0.45–0.88): watch M2 at update 10 (~1 Oct 11:00) | no freeze by episode 250; mild clone at the freeze TEST → report, never scancel | runbook M1 |
-| 1b | Freeze TESTs of Pri 1 | — | none yet; the first freeze after PPO update 20 (episode 84 probe ~2 Oct 22:00; fallback episode 120 ~3 Oct 23:30) | v9c | thin pair, P + crop+flip, 40/10, vs 21729557 (final, §152) at equal keep + census | — | mild clone (0.9 on ≥ 95 % of legal r56-w4 rows) | M1 |
-| 2 | **N3** aug walk + final FT, DG R56 | **21767189** | **R** since ~11:50, `ise-4090-19`; paired val +1.77 pp over 15 cuts at 12:48 | v9c | 21730500's line + `SPECTRA_FT_AUG=1`; pairs with §153 | close part of the ~2 pp gap to DepGraph (10k −1.52 / −2.11) | walk kinder but final FT within 0.5 pp | final FT ≥ 1 pp kinder at equal keep |
-| 3 | aug twins + final FT, C10 (the converted 21730506) | **21809595** | PD nice 40, first in line | v9c | runbook §10.5 (c); walk ≈ 0 vs 21737104 (VGG-16) and 21729553 (R56) | does the 100-ep final FT stack on the crop+flip walk at the twins' own points (0.80 / 0.70 / `val_best`)? | honest < 0.5 pp | ≥ 2 pp |
-| 3b | **L2**: size-matched VGG-16 C10, aug walk + final FT | **21814029** | PD nice 42 | v9c | 10 passes, `flop:0.465,0.212` (HRank; OCSPruner pretrained start); first 2 passes ≈ 0 vs 21737104 | the first VGG-16 C10 row at a published size, beside HRank 93.43 (−0.53) and OCSPruner 93.63 (−0.44) | — | the bar-3 L2 row (size-matched on FLOPs only) |
-| 5 | final_ft P thin | 21730501 | R, `ise-4090-21`; r20 final rows in; r56-w4 final FT next | v9c | fastest C10 honest-gain cell; saves for scratch | r20 **cross-off**: honest −3.8 / −3.8 / −4.5 (origin +3.5, pruned points −0.3 to −1.0 raw) | honest < 0.5 pp | ≥ 2 pp |
-| 6 | **N4** aug walk + final FT, DG VGG-19 | **21737105** | **R** since ~12:45, `cs-4090-07` | v9c | does a kinder walk survive the 100-ep final FT? vs 21729551 | 21729551 final −2.52 @ 0.684 | final FT within 0.5 pp of 21729551 at equal keep | final FT ≥ 1 pp kinder |
-| 7 | scratch-B thin | 21730507 | PD afterok 501, nice 45 | v9c | Liu'19: re-init the walk's saved architectures, 200 ep SGD 0.1, + origin scratch | network-level "regenerate" matches inheritance | scratch < inherit − 1 pp on both nets | scratch ≥ inherit − 0.5 pp |
-| 8 | C-G NEON-rule twins | 21730509 | PD, nice 50 | v9c | NEON-literal redraw under clean val and NEON's train-loss stop (p10, cap 100) | first real in-band C-G cut on full R56 | 5 paired cuts: mean ≤ −3 pp, ≥ 4/5 worse → **scancel** | ≥ A at equal keep on ≥ 2/3 nets |
-| 9 | C-G NEON-rule thin | 21730514 | PD, nice 52 | v9c | same on the skinny pair vs P thin | same | same | same |
-| 10 | scratch-B DG R56 | 21730516 | PD, nice 55 | v9c | scratch at DepGraph's size points + origin scratch | scratch ≈ final FT → bar-3 scratch column | scratch < inherit − 1 pp | scratch ≥ inherit − 0.5 pp |
-| 11 | **N1** final-FT KD from saved, DG R56 | **21767190** | PD, nice 60 | v9c | KD from the unpruned net on top of 100-ep SGD (`SPECTRA_FT_KD=1` on the line) vs 21730500's `final_ft` rows | — | ≤ +0.3 pp over plain final FT | ≥ +0.5 pp, healthy origin → M5 |
-| 12 | **N2** final-FT AutoAugment from saved, DG R56 | **21767192** | PD, nice 61 | v9c | AutoAugment (CIFAR policy) in the final FT, same saves | — | ≤ +0.3 pp | ≥ +0.5 pp → M5 |
-| 14 | N2 streams P | 21729558 | PD, nice 80 | v9b | block internals only, 3 passes, vs P thin **by params** | deeper in-band r56-w4 | no deeper in-band r56-w4 and r20 > 0.5 pp worse at equal keep | deeper in band and TEST no worse |
+| 1 | **Stage-4 train**: area train under P + crop+flip (§151) | **21737123** → resume **21767188** | R since 30 Sep 03:14 (`ise-cpu256-32`); **29** eps; PPO **7** at 01:14: ev **0.592**, batch_score 0.540, probe best 0.282; freeze still **ep0011** only; fuse ~6 Oct 03:15 | v9c | leave mild under P + crop+flip? | M2 at update 10 (~1 Oct midday) | no freeze by 250; mild clone at TEST | M1 |
+| 1b | Freeze TESTs of Pri 1 | — | none yet; first freeze after PPO update 20 | v9c | vs 21729557 + census | — | mild clone | M1 |
+| 2 | **C1 cubic-gain train**: the Stage-4 line, reward scale only → `cbrt_miss` (gain +ρ³, band +ρ, miss −ρ) | **21938807** → r1 **21938809** | PD nice 50; next free slot | v9d | FLAGS `SPECTRA_REWARD_SCALE_ARM=cbrt_miss`; `PPO training: … scale=cbrt_miss`; `Requeue=0` | O38: at 12/4 the gain arm is rare (3 of 76 thin cuts, 0 on C100), so C1 may train close to live | **report, never scancel**: ev ≤ 0 by update 10, or the freeze is a ≥ 90 % mild clone | first freeze TEST beats the Stage-4 freeze at equal keep |
+| 3 | **C2 NEON-raw train**: scale → `raw` (+ρ³ / +ρ / −ρ³ on the realised cut) | **21938810** → r1 **21938811** | PD nice 51 | v9d | `scale=raw` | O38: = C1 on every walk without a miss; differs only on the miss arm | same | same |
+| 4 | A1 hold-out checkpoints, SVHN: ShuffleNetV2 ×1, RepVGG-A0, MBV2 ×0.5, DN-40, 200 ep | **21938295** | R (`ise-4090-15`); epochs 109–162 at 02:50, test acc 96.1–96.5 % | v9d | `runs/g2_holdout/svhn/*.log`; writes `configs/input_g2_holdout_svhn.json` | done ~04:15 | a net < 90 % → retrain that net | hold-out set (roadmap §2b); never in a train catalog |
+| 5 | A1, Fashion-MNIST | **21938296** | R (`cs-4090-07`); epochs 144–190, test acc 94.5–95.0 % | v9d | `…/fmnist/*.log`; `input_g2_holdout_fmnist.json` | done ~03:20 | same | same |
+| 6 | A2 **greedy** (profile `l1`: Ido's "L1" = Gilad's "greedy"), thin, P + crop+flip 40/10 | **21938279** | R (`cs-4090-08`); r20 done, r56-w4 in walk | v9d | vs mild **21729557** at equal keep | r20: **−4.0 @ 0.595** vs mild −4.9 @ 0.584; −5.1 @ 0.702 (mild −1.2 @ 0.774); reaches **−8.2 @ 0.417** in band (val −6.96; mild's 2 passes stop at 0.536) | worse on both nets at equal keep | kinder, or deeper in band at equal keep |
+| 7 | A2b **random**, r56-w4, seed 42 | **21938285** | R since 02:33 | v9d | vs 21729557 r56-w4 | 4 cuts in | — (baseline row) | — |
+| 8 | A3 SGD 0.01, C100 tight-2 (r20-w13, r56-w9), 12/4 | **21938284** | R; r20-w13 done | v9d | vs **21729554** | r20-w13: **−7.2 @ 0.861** vs −5.2; **−8.4 @ 0.787** vs −6.9 | SGD thin failed (§167): not a train FT either way | — |
+| 9 | A5 F1 cosine, thin 12/4 | **21938286** | R; r20 done | v9d | vs **21729556** | r20: +0.4 @ 0.774, **−4.2 @ 0.584**, −2.6 @ `val_best` 0.536 | > 0.5 pp worse on r20 already: CROSS-OFF unless r56-w4 is clearly kinder | within 0.5 pp on r20 and kinder on r56-w4 |
+| 10 | A5 F2 group-first 4, thin 12/4 | **21938287** | R since 02:49 | v9d | vs 21729556 | r20, 4 cuts: val −1.37 mean, 0 of 4 better | same | same |
+| 11 | D **smoke** `offline_train_v9_diverse`, 2 episodes | **21938898** | PD nice 52 | v9d | seed 50 → episodes on r20-w13 C100 and MBV2 ×1 C100. Grep `PPO training: networks=16`, `probe_nets=` (3), `Val from test on cifar-100`, `FT aug on cifar-100`, step counts, `Stopping PPO training after 2 episodes`, no `Traceback` | plumbing only; **never ledger** | any fail → fix before N8 | N8 launchable on G5 |
+| 12 | A2b random, r20-w2, seed 42 | **21938894** | PD nice 60 | v9d | vs 21729557 r20 | — | — | — |
+| 13 | A2b random, second draws (seed 43), r56-w4 / r20-w2 | **21938895** / **21938896** | PD nice 70 / 71 | v9d | random row = mean of the draws, never the best draw | — | — | — |
 
 ## NEXT (conditional)
 
 | Pri | Cell | Condition | Checks | Cross-off | Adopt |
 |---|---|---|---|---|---|
-| G2 | `tree_v9d` + smoke; SVHN / Fashion-MNIST hold-out checkpoints (roadmap §2b, §5) | the G2 trigger (runbook §10.4): the first M1 freeze TEST is submitted, or the ladder drains | CPU pytest; 2-episode C100 smoke; `train_pretrained_checkpoint.py`, 200 epochs | — | — |
-| N5 / N6 | F2 group-first / F1 cosine 12/4 under P | ~~only if §150 fails~~ §150 passed: not queued | skinny-group recovery without aug | — | — |
-| N7 | SGD 0.01 + aug gate 12/4 | met, low value | does aug rescue SGD | admits ≤ Pri 4 | not queued |
-| N8 | diverse P train (8 C10 + 8 C100, emitted catalog) | roadmap §3: G1 (M1) + G2 + G5 | NEON's multi-dataset offline train; then frozen → ImageNet, SVHN, Fashion-MNIST | roadmap §4 | roadmap §4 |
+| N8 | diverse P train (8 C10 + 8 C100, catalog A): profile **`offline_train_v9_diverse`** in `tree_v9d` | roadmap §3: G1 (M1) + G2 (**met** once smoke 21938898 passes) + G5 | NEON's multi-dataset offline train; then frozen → ImageNet, SVHN, Fashion-MNIST | roadmap §4 | roadmap §4 |
+| H0 | mild walks on the G2 hold-out checkpoints | A1 COMPLETED **and** a loader check: P (val from test) and crop+flip on SVHN / Fashion-MNIST (flip is not label-safe on digits) | the hold-out bar for N8 H5 / H7 | — | sitting GO; not in the 1 Oct charge |
+| LA | accuracy look-ahead heuristic | today "look-ahead" = the floor guard, off under TRAJ, so it equals greedy | a one-step look-ahead costs ~3× FT per step | — | design question for Gilad |
+| D5 | GPU-side crop+flip (roadmap §5 item 5) | before the N8 launch | up to +18 % per epoch | never into a live train | — |
 | N8b | N8 + SVHN nets in training (pre-registered, roadmap §2b) | N8 passes on CIFAR (H2, H3) but is below mild on the dataset hold-outs (H5, H7) | read on Fashion-MNIST, ImageNet and the unlike families | — | — |
 | N9 | attribution train: P-only (the 21737095 line) | Pri 1 leaves mild | P vs P + aug in training | — | — |
-| N10 | cubic (NEON) reward under the Pri 1 recipe | an aug census shows cuts with val Δ > 0 on full-width nets (M6) | the item-2 reward A/B | — | — |
+| O26 | `scripts/memorization_census.py` | zero GPU | — | — | not built yet |
+
+## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
+
+`scripts/reward_replay.py <run_dir...> --tau 10 --gamma 1` replays finished no-agent walks through the live `src.utils.compute_reward` under each shape. Identity steps earn no size credit. Return = undiscounted sum along the walk; in brackets, the share of the positive return paid on cuts with cumulative val Δ > 0 (the gain arm). Not a TEST.
+
+| Walk | Cuts: gain / band / miss | Ends (keep, val Δ) | Live `cbrt_cubes` | Cubic gain `cbrt_miss` (C1) | NEON raw, realised ρ (C2) | Full `cbrt` | NEON literal, nominal ρ |
+|---|---|---|---|---|---|---|---|
+| N3 DG R56, P + aug 40/10, 5-pass (21767189) | 150: 69 / 81 / 0 | 0.356, −1.10 | 101.4 (33 %) | 493.1 (86 %) | 493.1 (86 %) | 94.7 (36 %) | 6.98e4 (99 %) |
+| DG R56, no aug (21730500; 21726340) | 150: 0 / 150 / 0 | 0.356, −4.62; −4.04 | 101.4 | 101.4 | 101.4 | 105.2 | 1500 |
+| thin aug 40/10, r20-w2 (21729557) | 16: 6 / 10 / 0 | 0.522, −4.34 | 102.9 (31 %) | 2267 (97 %) | 2267 (97 %) | 51.2 (63 %) | 6100 (98 %) |
+| thin aug 40/10, r56-w4 (21729557) | 60: 0 / 60 / 0 | 0.622, −4.34 | 126.6 | 126.6 | 126.6 | 60.5 | 600 |
+| thin aug 12/4, r20-w2 (21729556) | 16: 3 / 13 / 0 | 0.522, −5.18 | 102.9 (7 %) | 134.2 (29 %) | 134.2 (29 %) | 31.8 (22 %) | 3130 (96 %) |
+| thin aug 12/4, r56-w4 (21729556) | 60: 0 / 60 / 0 | 0.622, −5.30 | 126.6 | 126.6 | 126.6 | 60.5 | 600 |
+| aug C100 gate 12/4, the 7 nets without a miss (21729554) | 18–76: 0 gain, 0 miss | 0.658–0.696, −1.18 to −8.84 | 36.1–46.4 | = live | = live | 21.7–58.1 | 180–760 |
+| aug C100 gate 12/4, r56-w9 (21729554) | 60: 0 / 52 / 8 | 0.642, −10.46 | 18.04 | 18.04 | **−368.9** | 22.5 | **−7480** |
+
+Every shape's return peaks at the walk's last cut, except on r56-w9: cut 51 of 60 (keep 0.742, val −7.66), NEON literal at 45 (0.756, −9.44).
+
+1. **The live reward is blind to Δacc inside the band.** With no miss it pays Σρ: the aug and no-aug R56 walks both score 101.4 with a 3.5 pp val gap.
+2. Full cbrt pays the no-aug walk more than the aug walk (105.2 vs 94.7): ρ^⅓ > ρ for ρ < 1, so it rewards many tiny cuts.
+3. **C1 = C2 on every walk without a miss.** The two trains differ only on misses (−ρ vs −ρ³). One 7.3 % cut 0.76 pp past τ costs −7.3 live, −394 raw.
+4. Cubic-gain credit sits on a few large cuts made above the origin (86–97 % of the return from ρ > 1 cuts); tiny cuts earn ≈ 0. C1 pushes toward large cuts while the net is above origin.
+5. τ = 10 binds on 1 of 15 walks. The shapes differ in what they pay along a walk, not in where a return-maximiser stops.
+6. At the train FT (12/4) the gain arm is rare: 3 of 76 thin cuts, none on C100. C1 may see few gain-arm steps.
+7. Band miss ties live on r56-w9 by coincidence (18.036 vs 18.044). It also charges identity steps taken past τ; live charges them 0.
+
+## `tree_v9d` (G2 sitting, 1 Oct)
+
+`/home/paretsky/scratch_audit/tree_v9d` = `tree_v9c` + the G2 dev pass; each install is stamped in `PROVENANCE_v9d.txt`. Pytest: 346 passed, plus the 3 files the login-node watchdog killed, run single-threaded (densenet 1, v2 recipe 15, v4 factored 11) and policy_config 2; `test_v5_catalog.py` 17 passed after catalog A.
+
+| Roadmap §5 item | State |
+|---|---|
+| 1 profile `offline_train_v9_diverse` | **built.** Stage-4 recipe pinned in the profile (P, batch 256, crop+flip, area probe; in-band linear reward, keep-rate menu, 12/4). Catalog A, `cifar-10 cifar-100`, `--check-admitted --gate configs/v7_c100_gate.json`; refuses a catalog with no C100 rows. If M1 changes the recipe, change the pin |
+| catalog A on the cluster | **was missing**: v9b / v9c / v9d all held the 21 Sep C10-only admitted file (8 rows, gate `pending_regate`), which `--check-admitted` passes. Deployed git `d92a1a0` (16 rows, 8 admitted) into v9d only |
+| 2 provenance | `SPECTRA_FT_AUG` / `SPECTRA_FT_AUTOAUG` in `POLICY_INFO_KEYS` |
+| 3 requeue safety | `--no-requeue` on every `offline_train*` submit; the prologue keeps a run's own `train_resume.pt`; resume comment fixed |
+| 4 probe set | + `resnet20-width13_cifar100` (3 probe nets), v9 profile only |
+| 5 GPU crop+flip | not built (D5) |
+| 6 tests + smoke | pytest done; smoke **21938898** PD |
+| 8 hold-out checkpoints | A1 R; the job writes the input files; the disjointness test covers them |
+| 9 size points | `eval_size_match` docstring fixed (OCS ≈ 0.42 params is R56; VGG-16 matches on FLOPs) |
+| reward | `cbrt_miss` scale; `SPECTRA_REWARD_SCALE_ARM` (in-band train profiles only); `scripts/reward_replay.py` + test |
 
 ## Done (ledgered; do not re-run)
 
 | Cell | Job | Ledger | One-line result (5k TEST half; 10k = cross-fit / both halves) |
 |---|---|---|---|
+| final_ft P thin, no-aug walk | 21730501 | §154 | r20 **CROSS-OFF** honest −3.8 (origin +3.46); r56-w4 **ADOPT** +5.3 / +5.5 @ 0.795 / 0.756 |
+| N4 aug walk + final FT, DG VGG-19 | 21737105 | §155 | walk kinder (+4.48 val); honest **CROSS-OFF** −0.50 to −0.94; 10k −1.62 @ 0.684 vs §149 −2.39 |
+| C-G NEON-rule P | 21730509 / 21730514 | §156 | **KILL** scancelled 19:12; mean −12 to −54 pp vs mild |
+| C-G+ P+aug thin | 21938280 | §163 | **KILL** scancelled 01:45; r20 mean **−20.8 pp** vs 21729557 (0/5 better); r56 never started |
+| aug twins + 100-ep FT, C10 | 21809595 | §164 | walk ≈ §152; long FT **CROSS-OFF** (R56 honest ~0; VGG-16 origin +0.88) |
+| 10-pass VGG-16 HRank/OCS FLOPs | 21814029 | §165 | 10k **−0.25 @ FLOPs 0.464** (HRank −0.53 at 17 % params; we keep 44 %); **−2.02 @ 0.211** (OCS −0.44); long FT CROSS-OFF |
+| Adam 1e-4 thin 12/4 | 21938281 | §166 | **CROSS-OFF** vs 21729556: r20 −5.3 / −14.5 at equal keep; r56 0.80 **+3.1** |
+| SGD 0.01 thin 12/4 | 21938282 | §167 | **CROSS-OFF**: r56 −0.7 / −2.2 vs Adam 1e-3 |
+| Adam 1e-4 C100 t2 | 21938283 | §168 | kinder than §148 on both nets; C10 failed so not a train switch |
+| N3 aug walk + final FT, DG R56 | 21767189 | §157 | **M4** 10k **−0.46 @ 2.11×** vs DepGraph +0.24; long FT CROSS-OFF |
+| scratch-B thin | 21730507 | §158 | r20 CROSS-OFF; r56 ORIGIN-HURT |
+| scratch-B DG R56 | 21730516 | §159 | ADOPT 10k **−0.16 @ 2.11×** |
+| N1 KD from saved, DG R56 | 21767190 | §160 | +0.62 only at keep 0.60; not vs N3 walk |
+| N2 AutoAugment from saved | 21767192 | §161 | not M5; origin +1.24 |
+| N2-streams P | 21729558 | §162 | r20 kinder; r56-w4 not deeper vs crop+flip |
 | aug twins VGG (VGG-16 C10 + VGG-19 C100) | 21737104 | §152 | VGG-16 **+2.3 to +2.6 pp** at equal keep; VGG-19 C100 **+3.8 to +4.9** (−2.6 / −1.9 / −2.5 vs −6.4 / −6.8 / −6.7 at 0.796 / 0.688 / 0.657) → **twins 3/3** |
 | final_ft twins C10, no-aug walk | 21730506 | — | **cancelled while PD** 12:47 on Ido's GO; replaced by 21809595 (crop+flip walk) |
 | aug thin 40/10 (the (d) thin guard) | 21729557 | §152 | r56-w4 **+5.0 pp** at 0.795 (−2.6 vs −7.6); `val_best` −4.5 @ 0.622 vs −10.1 @ 0.739; r20 1.3 / 0.7 / 1.6 worse (inside 2 pp) → **(d) met**. The mild control for freeze TESTs |

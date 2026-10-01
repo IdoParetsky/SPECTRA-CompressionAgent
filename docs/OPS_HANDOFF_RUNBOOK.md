@@ -42,6 +42,21 @@ a freeze TEST verdict; a milestone; the G2 trigger (§10.4); a QOS slot idle > 1
 Never: §10.6. When unsure, report and wait; do not improvise a cell.
 ```
 
+### 10.0 G2 sitting addendum (1 Oct ~03:15; supersedes §10.1 for these jobs)
+
+Rank, checks, cross-off and adopt rules: `docs/SITTING_GPU_QUEUE.md` (Live rank Pri 2–13). All on `tree_v9d` (`/home/paretsky/scratch_audit/tree_v9d`), `Features=rtx_6000|rtx_4090`; controls stay in `tree_v9b`. Ledger next **§169**. Greedy and random walks cut differently per step: read them at the size points and `val_best`, never with `paired_steps.py` labels.
+
+| Job | Name | Pairs with | Ops action |
+|---|---|---|---|
+| 21938807 → r1 21938809 | g2-cubicgain-train | Stage-4 21737123 | on start: FLAGS `SPECTRA_REWARD_SCALE_ARM=cbrt_miss` and `PPO training: … scale=cbrt_miss`. **Report, never scancel**: ev ≤ 0 by PPO update 10, or a freeze that is a ≥ 90 % mild clone |
+| 21938810 → r1 21938811 | g2-neonraw-train | same | same, `scale=raw` |
+| 21938295 / 21938296 | g2-holdout-svhn / -fmnist | — | on COMPLETED: 4 `runs/g2_holdout/<svhn\|fmnist>/manifest_*.json` and `configs/input_g2_holdout_<svhn\|fmnist>.json` in tree_v9d; flag any net < 90 % test acc. Never a TEST row |
+| 21938279 | g2-greedy-thin-aug | 21729557, equal keep | readout + ledger on COMPLETED |
+| 21938285, 21938894, 21938895 / 96 | g2-random-r56w4 / -r20w2 (seed 42), -s43 | 21729557, same net, equal keep | the random row = mean of the draws |
+| 21938284 | g2-sgd01-c100t2-12x4 | 21729554 | readout + ledger |
+| 21938286 / 21938287 | g2-f1-cosine / g2-f2-groupfirst thin 12/4 | 21729556 | readout + ledger |
+| 21938898 | g2-v9diverse-smoke | — | plumbing, **never ledger**: `PPO training: networks=16`, 3 `probe_nets`, `Val from test on cifar-100`, `FT aug on cifar-100`, `Stopping PPO training after 2 episodes`, no Traceback. Ping Ido pass / fail |
+
 ### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |

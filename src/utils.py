@@ -1330,6 +1330,14 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
           ``−ρ³``). The in-band arm stays linear ``+ρ``. Default **off**. Isolated
           cell vs ``cbrt``: a 20-point in-band cut is +20, a miss is −20, so one
           legal cut pays for one miss. Fresh actor; do not overlay onto a live train.
+          Side effect: the gain arm pays ``+ρ``, exactly the in-band arm.
+      cbrt_miss
+          Cube-root **only the over-budget arm**: miss ``−ρ`` (as ``cbrt_cubes``),
+          in-band ``+ρ``, accuracy gain keeps NEON's raw ``+ρ³``. Default **off**.
+          ρ is a per-step percentage, so the cube only rewards a gain above
+          ``cbrt_cubes`` on a cut that removes more than 1 % of the current network;
+          below that ``ρ³ < ρ`` and a gain pays less than an in-band cut
+          (``scripts/reward_replay.py`` prints the ρ distribution of a walk).
 
     The NEON body is preserved verbatim under ``neon``; other modes are explicit
     gated ablations for A/B experiments.
@@ -1410,7 +1418,7 @@ def compute_reward(new_acc, prev_acc, compression_rate, *,
 
 
 def reward_scale_name() -> str:
-    """``raw`` (default), ``cbrt`` (all arms), or ``cbrt_cubes`` (cubed arms only)."""
+    """``raw`` (default), ``cbrt`` (all arms), ``cbrt_cubes`` (cubed arms) or ``cbrt_miss`` (miss arm)."""
     return os.environ.get("SPECTRA_REWARD_SCALE", "raw").strip().lower() or "raw"
 
 
@@ -1422,13 +1430,17 @@ def apply_reward_scale(reward, *, cubed=True):
     ``cbrt_cubes`` inverts it only when ``cubed=True`` (gain / over-budget); the
     in-band arm stays linear. Ordering among cubed arms is unchanged; in-band vs
     miss becomes 1:1 at equal ρ instead of ρ^{1/3} vs ρ.
+    ``cbrt_miss`` inverts it only on a cubed **negative** reward (the over-budget
+    arm); the gain arm keeps the raw cube.
     """
     scale = reward_scale_name()
     if scale in ("", "raw"):
         return reward
     if scale == "cbrt_cubes" and not cubed:
         return reward
-    if scale in ("cbrt", "cbrt_cubes"):
+    if scale == "cbrt_miss" and not (cubed and float(reward) < 0):
+        return reward
+    if scale in ("cbrt", "cbrt_cubes", "cbrt_miss"):
         value = float(reward)
         return math.copysign(abs(value) ** (1.0 / 3.0), value)
     return reward

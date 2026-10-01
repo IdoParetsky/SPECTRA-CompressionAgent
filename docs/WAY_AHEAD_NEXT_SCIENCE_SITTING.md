@@ -154,6 +154,8 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
+**MILESTONE M6** (weak, 30 Sep 19:15, ops). N4 **21737105** census: 2/46 full-width cuts with val Δ > 0 (max +0.28). Letter of M6; N10 still a sitting design, not a launch.
+
 **MILESTONE M3** (30 Sep 11:55, the sitting). Decision (d) is met (§152).
 - 21729557 COMPLETED: thin r56-w4 +5.0 pp at equal keep (−2.6 vs −7.6 at 0.795), with a deeper, kinder `val_best` (−4.5 @ 0.622 vs −10.1 @ 0.739). r20 is inside 2 pp.
 - The twins were 2/3 at 11:55 and 3/3 at 12:50 (VGG-19 C100 +3.8 to +4.9).
@@ -178,4 +180,20 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 30 Sep 12:45 | 21737104 COMPLETED (2 h 48 m, 0 Tracebacks); N4 21737105 R on `cs-4090-07` in its slot | §152: VGG-19 C100 twin +3.8 to +4.9 pp at equal keep → twins 3/3 | (d) fully met
 - 30 Sep 12:47 | 21730506 cancelled while PD → **21809595** (Ido GO 12:34), nice 40 | runbook §10.5 (c) | read its re-walk ≈ 0 against 21737104 / 21729553 before any final_ft row
 - 30 Sep 13:10 | **21814029** L2 submitted: VGG-16 C10, 10 passes, `flop:0.465,0.212`, nice 42 | "OCS VGG-16 ≈ 0.42 params" was OCSPruner's ResNet-56 point. The published VGG-16 sizes are HRank 46.5 % FLOPs / 17.1 % params and OCSPruner 21.2 % / 13.7 % | the frozen agent's Catalog L TEST needs the same size points (roadmap §5 item 9)
-- 30 Sep 13:20 | the sitting (Ido's 12:34 questions) | N8 catalog: keep design A (2 datasets in, 3 held out) + additions 1–3; G2 trigger and G5 written (roadmap §2b, §3) | Ido decides the catalog and whether to pre-register G5
+- 30 Sep 13:20 | ops chat absorbs runbook §10 + Ido addendum | 4 R: train 21737123 (13 eps, freeze ep0011 only — not a TEST); N3 21767189; N4 21737105; 501 still R with r56 `final_ft` lines appearing | conversion 21809595 / L2 21814029 PD; SSH handshake dropped once, retry OK; `root_20` until 18:00
+- 30 Sep 13:20 | Ido catalog / G2 / G5 answers in ops chat | keep design A; G2 = first of M1 freeze-TEST submit or ladder drain; G5 = Ido GO to launch N8 (conditional, science sitting) | ops never edits catalog, never launches N8, never TESTs ep0011
+- 30 Sep 19:12 | **KILL** C-G 21730509 / 21730514 scancelled (§156) | twins mean −30.7 / −11.6 pp; thin −27.8 / −54.0 vs mild | do not resubmit C-G; slots → 21809595 / 21814029 R on 4090s
+- 30 Sep 19:15 | drain over: `root_20` gone; idle includes `ise-6000-[01-03,06-07]`, `ise-6000p-02`, `ise-4090-[11,13]` | QOS still 4; do not scancel live jobs to migrate SKUs | keep `Features=rtx_6000|rtx_4090` on **new** TESTs; login handshake still drops
+- 30 Sep 19:15 | 21730501 COMPLETED §154; 21737105 COMPLETED §155 | r56-w4 long FT ADOPT; r20 CROSS-OFF; N4 bar-3 CROSS-OFF (walk already recovered) | N3 still the DepGraph R56 walk+FT question
+- 30 Sep 19:11 | train 21737123 | 21 eps, PPO update 5, ev 0.191, freeze still ep0011, `gap_to_uniform=+0.25` on ep20 | M2 still at update 10; do not TEST ep0011
+- 1 Oct 00:09 | **QOS `gpu-part` `gres/gpu=8`** (`DenyOnLimit`) | was 4 at 30 Sep 19:28; 3 R + 1 PD resume; 5 idle | do not invent cells; G2 open
+- 1 Oct 00:15 | N3 21767189 COMPLETED §157 | 10k **−0.46 @ FLOPs 0.463** vs DepGraph +0.24 → **M4**; census 70/152 val Δ>0 | bar-3 R56 = crop+flip walk; long FT CROSS-OFF
+- 1 Oct 00:15 | scratch 507/516, N1/N2, streams 558 COMPLETED | §158–§162 | thin scratch fails; DG scratch 10k −0.16; KD/AA not M5; streams split
+- 1 Oct 00:20 | **G2 OPEN** | ladder drained | ping Ido; sitting builds `tree_v9d` + hold-out ckpts; ops does not start Fable or N8
+- 1 Oct 01:00 | Ido **starts G2 sitting tonight** | prompt `docs/PROMPT_FABLE_G2_SITTING.md` | fill QOS 8; O38 + hold-out ckpts + P+aug heuristic/FT/C-G+ A/Bs; one-change cubic/NEON-raw trains from tree_v9d; **no N8**; ops 08:15 restamp GILAD_NEWS
+- 1 Oct 01:45 | **KILL** C-G+ 21938280 scancelled (§163) | r20 5 pairs mean **−20.82 pp** vs 21729557 (0 % better; last −21.44 vs +2.36); r56 never started | close C-G+ under P+aug; do not resubmit; slot → PD hold-out / G2 tails
+- 1 Oct 01:46 | twins+FT **21809595** COMPLETED §164 | walk ≈ §152; 100-ep **CROSS-OFF** | bar-3 zoo C10 = crop+flip walk
+- 1 Oct 02:00 | VGG-16 10-pass **21814029** COMPLETED §165 | 10k **−0.25 @ FLOPs 0.464**, **−2.02 @ 0.211**; params 0.444 / 0.187 vs HRank 0.171 / OCS 0.137 | never "beats"; pending in Gilad table 2.5 filled
+- 1 Oct 02:34 | Adam 1e-4 / SGD 0.01 thin COMPLETED §166–§167 | 1e-4 kills r20 (−5.3 / −14.5); SGD misses r56 by 0.7–2.2 pp | train FT stays Adam 1e-3 12/4
+- 1 Oct 02:43 | Adam 1e-4 C100 t2 COMPLETED §168 | kinder than 1e-3 on r20-w13 / r56-w9 | not a train switch (thin C10 failed)
+

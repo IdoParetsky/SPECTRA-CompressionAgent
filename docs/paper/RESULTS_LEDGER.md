@@ -2843,5 +2843,233 @@ Do **not** lock.
 
 ---
 
+## 154. 100-epoch SGD final fine-tune, P thin, no-aug walk (**21730501** COMPLETED) — PRELIM; split: r20 CROSS-OFF, r56-w4 ADOPT
+
+`tree_v9c`, P, 2-pass mild, walk FT 40/10 **no aug**, then the §149 final FT + origin, `SAVE_TRAJ_MODELS=1`. COMPLETED 5 h 01 m, 30 Sep 13:22, `ise-4090-21`. TEST = 5k half. Reader: `final_ft_readout.py`. Re-walk vs §143: paired mean −0.06 pp (r20) / −0.51 pp (r56-w4).
+
+| Net | Point | Keep | Walk (5k) | Final (5k) | Honest | 10k final | Verdict |
+|---|---|---|---|---|---|---|---|
+| r20-w2 (0.649) | size 0.80 / 0.60 / `val_best` | 0.774 / 0.584 / 0.536 | +0.42 / −3.64 / −3.50 | +0.10 / −3.94 / −4.54 | **−3.78 / −3.76 / −4.50** | +0.99 / −3.43 / n/a | **CROSS-OFF** |
+| r20-w2 | origin | 1 | 0 | **+3.46** | origin +3.46 | +3.83 | origin ran away |
+| r56-w4 (0.890) | size 0.80 / `val_best` | 0.795 / 0.756 | −8.28 / −8.46 | −2.72 / −2.64 | **+5.26 / +5.52** | −2.85 / n/a | **ADOPT** |
+| r56-w4 | origin | 1 | 0 | +0.30 | +0.30 | +0.25 | healthy |
+
+**Read.** On the 5k-param r20-w2 the unpruned net gains **+3.5 pp** from the long SGD; the pruned points do not, so honest is −3.8 to −4.5 (CROSS-OFF). On r56-w4 the origin moves +0.30 and the pruned points recover **+5.3 to +5.5 pp** honest (ADOPT ≥ 2). Do not average the two nets into one cell verdict. Scratch-B **21730507** starts from these saves. Do **not** lock. Do not edit the draft.
+
+---
+
+## 155. N4 — crop+flip walk + 100-ep final FT, DepGraph VGG-19 C100 (**21737105** COMPLETED) — PRELIM; bar-3 CROSS-OFF vs §149
+
+`tree_v9c`, P + `SPECTRA_FT_AUG=1`, 3-pass mild, size param 0.70 / 0.60, then the same final FT + origin as §149. COMPLETED 2 h 43 m, 30 Sep 15:28, `cs-4090-07`. Pair: no-aug final-FT cell **21729551** (§149). Checkpoint `vgg19_cifar100_dep_graph_73.5.pth`. TEST = 5k half (unpruned 0.740).
+
+| Point | Keep | Walk (5k) | Final (5k) | Honest | 10k final | §149 10k final |
+|---|---|---|---|---|---|---|
+| size 0.70 step 29 | 0.684 / 0.686 | −2.24 | −2.24 | **−0.50 CROSS-OFF** | **−1.62** | −2.39 |
+| size 0.60 step 42 | 0.599 / 0.590 | −2.52 | −2.94 | **−0.92 CROSS-OFF** | **−2.97** | −3.04 |
+| `val_best` step 47 | 0.534 / 0.550 | −2.16 | −2.60 | **−0.94 CROSS-OFF** | n/a | n/a |
+| origin | 1 | 0 | +0.50 | +0.50 | +0.96 | +0.56 |
+
+Paired **walk** vs 21729551: 45 cuts, mean val **+4.48 pp**, better on 98 %. Census: 46 cuts, **val Δ > 0 on 2** (max +0.28); TEST Δ > 0 on 0. Cross-fit 10k τ10 mean **−2.11** @ 0.534.
+
+**Read.** The aug walk is much kinder. The 100-ep finish **does not add** ≥ 0.5 pp honest (CROSS-OFF). 10k at 0.684 is −1.62 vs §149 −2.39 (**+0.77 pp**, under the 1 pp N4 adopt line). Bar-3 VGG-19 stays on §149's no-aug-walk + final FT unless a later recipe moves it. Quote DepGraph −3.11 at 8.92× beside; **never "beats"**. **M6** letter: two full-width cuts with val Δ > 0 (tiny). Do **not** lock. Do not edit the draft.
+
+---
+
+## 156. C-G NEON-rule under P — KILL, scancelled (**21730509** twins, **21730514** thin)
+
+`tree_v9c`, NEON-literal C-G redraw, train-loss stop (patience 10, cap 100), P. Big-effect kill (runbook §10.3): ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse. **Scancelled 30 Sep 19:12** while R (`ise-4090-18` / `cs-4090-07`). Never a TEST of C-G working.
+
+| Arm | vs | Pairs | Mean arm−control val | Arm better | Last step |
+|---|---|---|---|---|---|
+| 21730509 R56 | 21726337 | 60 | **−30.72 pp** | 2 % | 112: −40.40 vs −3.22 |
+| 21730509 VGG-16 | 21726337 | 25 | **−11.58 pp** | 0 % | 26: −14.02 vs −2.56 |
+| 21730514 r20-w2 | 21726335 | 16 | **−27.84 pp** | 0 % | 40: −23.88 vs −1.42 |
+| 21730514 r56-w4 | 21726335 | 28 | **−54.00 pp** | 4 % | 51: −58.40 vs −7.96 |
+
+Slots went to **21809595** and **21814029**.
+
+**Read.** Under clean val, C-G with NEON's stop is not an in-band competitor. Do not resubmit. Do **not** lock.
+
+---
+
+## 157. N3 — crop+flip walk + 100-ep final FT, DepGraph ResNet-56 C10 (**21767189** COMPLETED) — PRELIM; **M4 fired** at 2.11×; final FT CROSS-OFF
+
+`tree_v9c`, P + `SPECTRA_FT_AUG=1`, 5-pass mild, size `flop:0.60,0.47,0.39`, then the same 100-ep SGD final FT + origin as §153. COMPLETED 10 h 27 m, 30 Sep ~22:40, `ise-4090-19`. Pair: no-aug final-FT cell **21730500** (§153). Checkpoint `resnet56_cifar10_dep_graph_93.53.pth`. TEST = 5k half (unpruned 0.934). Reader: `final_ft_readout.py`. Census: 152 cuts, **val Δ > 0 on 70** (max +0.86); TEST Δ > 0 on 53.
+
+| Point | Params / FLOPs | Walk (5k) | Final (5k) | Honest | 10k final | §153 10k final | DepGraph |
+|---|---|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | **+0.08** | +0.04 | **−0.40 CROSS-OFF** | **−0.03** | −1.06 | — |
+| size_flop0.47 (2.11×) | 0.470 / 0.463 | **−0.22** | −0.44 | **−0.58 CROSS-OFF** | **−0.46** | −1.52 | **+0.24** |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | **−1.32** | −1.34 | **−0.38 CROSS-OFF** | **−1.63** | −2.11 | **+0.11** |
+| `val_best` | 0.356 / 0.369 | −1.12 | −0.96 | −0.20 CROSS-OFF | n/a | n/a | — |
+| origin | 1 | 0 | +0.36 | +0.36 | +0.60 | +0.49 | — |
+
+Paired walk vs 21730500: 150 cuts, mean val **+2.68 pp**, better on 99 %.
+
+**Read.** The crop+flip **walk** is the lever. 10k at DepGraph's 2.11× is **−0.46** vs their **+0.24** (**0.70 pp** behind) → **M4**. At 2.57×, 10k **−1.63** vs +0.11 (1.74 pp behind). The 100-ep finish does not add honest gain (CROSS-OFF), same pattern as N4 §155. Bar-3 ResNet-56 rows use the **crop+flip walk**; caption the final FT as protocol alignment that did not move this cell. Quote beside DepGraph; **never "beats"**. Do **not** lock. Do not edit the draft.
+
+---
+
+## 158. Scratch-B, P thin from 21730501 saves (**21730507** COMPLETED) — PRELIM; CROSS-OFF / ORIGIN-HURT
+
+`tree_v9c`, from-saved, `SPECTRA_EVAL_FINAL_FT_SCRATCH`, 200-ep SGD 0.1 + crop+flip. COMPLETED 2 h 43 m, `ise-4090-14`. Control = inherit final FT §154.
+
+| Net | Point | Keep | Walk (inherit) | Scratch final | Honest | Origin scratch | Verdict |
+|---|---|---|---|---|---|---|---|
+| r20-w2 | size 0.80 / 0.60 / `val_best` | 0.774 / 0.584 / 0.536 | +0.42 / −3.64 / −3.50 | +0.74 / −4.44 / −5.48 | **−4.78 / −5.90 / −7.08** | **+5.10** | **CROSS-OFF** |
+| r56-w4 | size 0.80 / `val_best` | 0.795 / 0.756 | −8.28 / −8.46 | −3.20 / −3.50 | +6.24 / +6.12 printed | **−1.16** | **ORIGIN-HURT** |
+
+**Read.** Liu et al. scratch-B does not recover the thin pair: the 5k-param origin runs away (+5.1), and the r56-w4 origin **loses** 1.16 pp so the printed honest is invalid. Do not use scratch-B as a thin-net architecture metric. Do **not** lock.
+
+---
+
+## 159. Scratch-B, DepGraph ResNet-56 from 21730500 saves (**21730516** COMPLETED) — PRELIM; ADOPT at 2.11× / 2.57×
+
+Same recipe as §158, from the no-aug walk's saved architectures. COMPLETED 1 h 54 m, `ise-6000-07`. Origin change **+1.20** (healthy).
+
+| Point | Params / FLOPs | Inherit walk (5k) | Scratch final (5k) | Honest | 10k scratch |
+|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | −2.50 | +0.08 | +1.38 HOLD | −0.26 |
+| size_flop0.47 | 0.470 / 0.463 | −3.66 | **+0.20** | **+2.66 ADOPT** | **−0.16** |
+| size_flop0.39 | 0.382 / 0.380 | −4.34 | −0.50 | **+2.64 ADOPT** | **−0.56** |
+| `val_best` | 0.356 / 0.369 | −3.88 | −0.98 | +1.70 HOLD | n/a |
+
+**Read.** On DepGraph's ResNet-56, training the pruned **architecture** from scratch for 200 ep matches or beats inherit+long-FT, and 10k **−0.16 at 2.11×** is 0.40 pp from DepGraph's +0.24. This is Liu et al.'s network-level "fresh weights", not C-G. N3's crop+flip **walk** (10k −0.40 at the same size) is in the same band without throwing the weights away. Do **not** lock.
+
+---
+
+## 160. N1 — KD in the 100-ep final FT, from 21730500 saves (**21767190** COMPLETED) — PRELIM; mixed vs §153; does not beat N3's walk
+
+`tree_v9c`, `SPECTRA_FT_KD=1` + `EVAL_FINAL_FT_KD=1`, from-saved, no new walk. COMPLETED 1 h 20 m, `ise-6000-07`. Origin +0.38 (healthy). M5 bar: ≥ +0.5 pp over §153's plain final FT.
+
+| Point | N1 final (5k) | §153 final (5k) | Δ vs plain FT | 10k N1 | 10k §153 |
+|---|---|---|---|---|---|
+| size_flop0.60 | **−0.28** | −0.90 | **+0.62** | −0.18 | −1.06 |
+| size_flop0.47 | −1.38 | −1.44 | +0.06 | −1.45 | −1.52 |
+| size_flop0.39 | −1.92 | −2.18 | +0.26 | −1.66 | −2.11 |
+| origin | +0.38 | +0.42 | — | +0.44 | +0.49 |
+
+**Read.** KD helps the **easy** size (0.60) by 0.62 pp and is noise at DepGraph's two FLOPs points. It does **not** beat N3's crop+flip walk (10k −0.46 at 2.11× vs N1 −1.45). Do not fire M5 as a global adopt. Do **not** lock.
+
+---
+
+## 161. N2 — AutoAugment in the 100-ep final FT, from 21730500 saves (**21767192** COMPLETED) — PRELIM; CROSS-OFF / HOLD; origin +1.24
+
+Same from-saved walk as N1, `SPECTRA_FT_AUTOAUG=1`. COMPLETED 1 h 34 m, `cs-4090-08`. Origin **+1.24** (the recipe trains the unpruned net harder). Honest +0.36 to +0.88. 10k at 2.11× **−1.71** (worse than §153 −1.52). **Not M5.** Do **not** lock.
+
+---
+
+## 162. N2-streams — 3-pass mild, residual streams protected, under P (**21729558** COMPLETED) — PRELIM; split
+
+`tree_v9b`, P, no crop+flip, `SPECTRA_PROTECT_STREAMS=1`, 3 passes, vs P thin **21726335** by params. COMPLETED 3 h 37 m, `ise-6000-07`.
+
+| Net | `val_best` TEST | size 0.80 TEST | vs §152 aug thin at ~0.80 |
+|---|---|---|---|
+| r20-w2 | **−0.20 @ 0.646** (10k mean +0.41) | **+1.14 @ 0.798** | kinder; shallower keep |
+| r56-w4 | −7.64 @ 0.719 | **−6.74 @ 0.800** | worse than aug thin **−2.6 @ 0.795** |
+
+Paired by params vs 21726335: r20 mean **+1.50 pp** (ADOPT?); r56-w4 mean **+2.10 pp** vs **no-aug** P. Against the live **aug** TEST walk, r56-w4 is not deeper in band (0.719 vs 0.622) and is worse at equal ~0.80. Do not replace the TEST walk. Do **not** lock.
+
+---
+
+## 163. C-G+ under P + crop+flip, thin pair — KILL, scancelled (**21938280**)
+
+`tree_v9d`, recipe **C-G+** (layer replacement + 0.1× polish), P + crop+flip, 2-pass mild, vs aug thin 40/10 **21729557**. Big-effect kill (runbook §10.3): ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse. **Scancelled 1 Oct 01:45** while R (`ise-4090-15`), still on r20-w2 (r56-w4 never started). Never a TEST of C-G+ working under P.
+
+| Arm | vs | Pairs | Mean arm−control val | Arm better | Last step |
+|---|---|---|---|---|---|
+| 21938280 r20-w2 | 21729557 | 5 | **−20.82 pp** | 0 % | 14: −21.44 vs +2.36 |
+
+**Read.** Crop+flip does not rescue NEON layer replacement: C-G+ on the same mild walk is ~21 pp worse than recipe A at five paired cuts. Close C-G+ under P, same as C-G §156. Do not resubmit. Do **not** lock.
+
+---
+
+## 164. Crop+flip walk + 100-ep final FT, zoo twins C10 (**21809595** COMPLETED) — PRELIM; walk ≈ §152; long FT CROSS-OFF
+
+`tree_v9c`, P + `SPECTRA_FT_AUG=1`, 2-pass mild, size `param:0.8,0.7`, then 100-ep SGD final FT + origin. COMPLETED 6 h 34 m, 1 Oct 01:46, `cs-4090-07`. Conversion of cancelled 21730506 (Ido GO 12:34). Walk must ≈ 0 vs R56 **21729553** and VGG-16 **21737104**. TEST = 5k half. Reader: `final_ft_readout.py`.
+
+| Net | Point | Keep | Walk (5k) | Final (5k) | Honest | 10k final | §152 walk |
+|---|---|---|---|---|---|---|---|
+| R56 zoo | size 0.80 | 0.794 / 0.737 | −0.40 | −0.38 | **+0.02 CROSS-OFF** | **−0.39** | −0.16 |
+| R56 zoo | size 0.70 | 0.694 / 0.676 | −0.36 | −0.62 | **−0.26 CROSS-OFF** | **−0.76** | −0.50 |
+| R56 zoo | `val_best` | 0.661 / 0.662 | −0.22 | −0.20 | **+0.02 CROSS-OFF** | n/a | −0.06 |
+| R56 zoo | origin | 1 | 0 | +0.00 | +0.00 | −0.01 | — |
+| VGG-16 zoo | size 0.80 | 0.796 / 0.747 | −0.10 | −0.10 | **−0.88 CROSS-OFF** | **+0.00** | −0.3 |
+| VGG-16 zoo | size 0.70 | 0.698 / 0.685 | −0.70 | −0.20 | **−0.38 CROSS-OFF** | **+0.01** | −0.3 |
+| VGG-16 zoo | `val_best` | 0.657 / 0.678 | −0.40 | +0.04 | **−0.44 CROSS-OFF** | n/a | −0.5 |
+| VGG-16 zoo | origin | 1 | 0 | +0.88 | +0.88 | +0.55 | — |
+
+**Read.** Re-walk is inside noise of the crop+flip twins. The 100-ep finish adds nothing on zoo ResNet-56 (honest ~0) and is CROSS-OFF on VGG-16 because the origin gains +0.88. Same pattern as N3/N4: the walk is the lever. Bar-3 zoo C10 rows stay on the crop+flip **walk**. Do **not** lock.
+
+---
+
+## 165. 10-pass mild crop+flip + 100-ep FT, VGG-16 C10 to HRank / OCS FLOPs (**21814029** COMPLETED) — PRELIM; long FT CROSS-OFF
+
+`tree_v9c`, P + `SPECTRA_FT_AUG=1`, **10-pass** mild (default L1 ranking; job name `l2-vgg16` is the literature size, not `FILTER_IMPORTANCE=l2`), size `flop:0.465,0.212`, then 100-ep SGD + origin. COMPLETED 6 h 48 m, 1 Oct 02:00, `ise-4090-18`. Checkpoint `vgg16_bn_cifar10_chenyaofo_94.16`. TEST = 5k half. Reader: `final_ft_readout.py`.
+
+| Point | Step | Params / FLOPs | Walk (5k) | Final (5k) | Honest | 10k final | Published (own base) |
+|---|---|---|---|---|---|---|---|
+| size_flop0.47 (HRank 46.5 %) | 56 | 0.444 / 0.464 | −0.60 | −0.44 | **−0.74 CROSS-OFF** | **−0.25** | HRank **−0.53** at 46.5 % FLOPs / **17.1 % params** |
+| size_flop0.21 (OCS 21.2 %) | 122 | 0.187 / 0.211 | −2.50 | −2.36 | **−0.76 CROSS-OFF** | **−2.02** | OCS pretrained **−0.44** at 21.2 % FLOPs / **13.7 % params** |
+| `val_best` | 149 | 0.123 / 0.154 | −2.36 | −2.32 | **−0.86 CROSS-OFF** | n/a | — |
+| origin | — | 1 | 0 | +0.90 | +0.90 | +0.67 | — |
+
+**Read.** Mild L1 at HRank's FLOPs keeps **44 % params** vs their 17 % — not a param-matched row. At OCS's FLOPs we keep 19 % params vs 14 %, 10k **−2.02** vs their **−0.44**. Never "beats". The 100-ep finish is CROSS-OFF (origin +0.90). Quote 10k walk-adjacent finals beside HRank/OCS; caption the param mismatch. Do **not** lock.
+
+---
+
+## 166. Adam 1e-4 vs Adam 1e-3, thin C10, P + crop+flip 12/4 (**21938281** COMPLETED) — PRELIM; CROSS-OFF as train FT
+
+`tree_v9d`, no-agent mild, recipe A, P + `SPECTRA_FT_AUG=1`, 12/4, `SPECTRA_FT_LR=1e-4`. COMPLETED 1 h 19 m, 1 Oct 02:34, `ise-4090-16`. Control = aug thin 12/4 **21729556** (§150, Adam 1e-3). Pair rule (G2 sitting): within 0.5 pp of 556 at equal keep. TEST = 5k half. Do not quote terminal over τ.
+
+| Net | Point | Keep | Adam 1e-4 TEST | §150 1e-3 TEST | Δ vs 556 |
+|---|---|---|---|---|---|
+| r56-w4 | size 0.80 | 0.795 | **−2.8** | −5.9 | **+3.1** |
+| r56-w4 | `val_best` | 0.622 | −5.6 | −5.1 | −0.5 |
+| r20-w2 | size 0.80 | 0.774 | **−8.5** | −3.2 | **−5.3** |
+| r20-w2 | size 0.60 | 0.584 | **−20.7** | −6.2 | **−14.5** |
+| r20-w2 | `val_best` | 0.736 / 0.536 | −9.0 | −6.6 | unmatched keep |
+
+Paired val vs 556: r20 16 cuts mean **−7.41 pp**, 0 % better (KILL label); r56 60 cuts **+0.36 pp**, 47 % better.
+
+**Read.** Lower Adam lr is kinder on skinny ResNet-56 at 80 % kept and a wash at `val_best`, but it **destroys** r20-w2 at equal keep. Fails the 0.5 pp thin rule. Cap-40 stays crossed. Live train stays Adam **1e-3**. Do **not** lock.
+
+---
+
+## 167. SGD 0.01 vs Adam 1e-3, thin C10, P + crop+flip 12/4 (**21938282** COMPLETED) — PRELIM; CROSS-OFF as train FT
+
+Same walk as §166, `SPECTRA_FT_OPTIM=sgd SPECTRA_FT_SGD_LR=0.01` (momentum, wd 5e-4). COMPLETED 1 h 18 m, 1 Oct 02:32, `ise-4090-19`. Control **21729556**.
+
+| Net | Point | Keep | SGD 0.01 TEST | §150 Adam 1e-3 | Δ vs 556 |
+|---|---|---|---|---|---|
+| r56-w4 | size 0.80 | 0.795 | −6.6 | −5.9 | **−0.7** |
+| r56-w4 | `val_best` | 0.622 | −7.3 | −5.1 | **−2.2** |
+| r20-w2 | size 0.80 | 0.774 | −3.0 | −3.2 | +0.2 |
+| r20-w2 | size 0.60 | 0.584 | −9.0 | −6.2 | **−2.8** |
+| r20-w2 | `val_best` | 0.655 / 0.536 | −5.4 | −6.6 | unmatched keep |
+
+Paired val vs 556: r20 mean **−3.87 pp**; r56 60 cuts **−1.37 pp**, 28 % better.
+
+**Read.** SGD 0.01 fails the r56-w4 0.5 pp rule (−0.7 / −2.2). Crop+flip does not make SGD a train-FT replacement. Do **not** lock.
+
+---
+
+## 168. Adam 1e-4, C100 tight-2, P + crop+flip 12/4 (**21938283** COMPLETED) — PRELIM; kinder than §148 on both nets; not a train switch
+
+`tree_v9d`, r20-w13 + r56-w9 (the two §148 nets that sat nearest τ). COMPLETED 1 h 28 m, 1 Oct 02:43, `ise-4090-20`. Control = aug C100 gate **21729554** (Adam 1e-3). TEST = 5k half.
+
+| Net | Point | Keep | Adam 1e-4 TEST | §148 1e-3 TEST | Δ vs 554 |
+|---|---|---|---|---|---|
+| r20-w13 | size 0.90 | 0.861 | −3.9 | −5.2 | **+1.3** |
+| r20-w13 | size 0.80 | 0.787 | −4.8 | −6.9 | **+2.1** |
+| r20-w13 | `val_best` | 0.662 | −7.8 | −8.4 | **+0.6** |
+| r56-w9 | size 0.90 | 0.860 | −6.6 | −7.7 | **+1.1** |
+| r56-w9 | size 0.80 | 0.792 | −5.8 | −9.5 | **+3.7** |
+| r56-w9 | `val_best` | 0.642 / 0.647 | −8.7 | −9.5 | ~+0.8 |
+
+**Read.** On the two hardest C100 admitters, Adam 1e-4 is kinder than 1e-3 at every equal-keep size point. That does **not** clear the G2 pair rule: thin C10 §166 failed. SGD C100 t2 **21938284** still R. Do not retune the live train. Do **not** lock.
+
+---
+
 
 

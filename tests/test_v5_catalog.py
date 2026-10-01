@@ -31,6 +31,11 @@ HOLDOUT_FILES = [
     "input_v5_holdout_svhn.json", "input_v5_holdout_fmnist.json", "input_catalog_l_c10_r56.json",
     "input_catalog_l_twins.json",   # Catalog L lock 21 Sep: L1 R56 C10, L2 VGG-16 C10, L3 VGG-19 C100
 ]
+# G2 hold-outs (roadmap §2b addition 1): written by scripts/g2_holdout_pretrain.sbatch when the
+# checkpoints land, so they join the hold-out set only once they exist.
+G2_HOLDOUT_FILES = ("input_g2_holdout_svhn.json", "input_g2_holdout_fmnist.json")
+G2_ARCH_PREFIXES = ("shufflenetv2x1_", "repvgg-a0_", "mobilenet-v2x05_", "densenet40_")
+G2_DATASET_TOKENS = ("_svhn_", "_fashionmnist_")
 IMAGENET_GLOB = "input_offline_imagenet*.json"
 UNLIKE_FAMILIES = ("shufflenet", "repvgg")
 CATALOG_L_PREFIXES = ("resnet56_cifar10_", "vgg16_bn_cifar10_", "vgg19", "densenet100", "resnet110")
@@ -59,10 +64,18 @@ def _family(name: str) -> str:
     raise AssertionError(f"unknown family for {name}")
 
 
+def _is_g2_holdout(name: str) -> bool:
+    low = name.lower()
+    return low.startswith(G2_ARCH_PREFIXES) and any(tok in low for tok in G2_DATASET_TOKENS)
+
+
 def _holdout_names() -> set:
     names = set()
     for fname in HOLDOUT_FILES:
         names |= _names(_load(CFG / fname))
+    for fname in G2_HOLDOUT_FILES:
+        if (CFG / fname).exists():
+            names |= _names(_load(CFG / fname))
     for path in CFG.glob(IMAGENET_GLOB):
         names |= _names(_load(path))
     catalog_l = _load(CFG / "catalog_l_map.json")
@@ -241,3 +254,19 @@ def test_c100_candidates_are_not_c9_test_or_thin_residuals():
         assert not ("thin-res-net" in name and "cifar100" in name), f"thin C100 residual in train: {name}"
     old_trio = _names(_load(CFG / "database_c100_recoverable.json"))
     assert old_trio & c9, "sanity: the old trio really does overlap C9 (why this test exists)"
+
+
+def test_g2_holdouts_stay_out_of_every_train_catalog():
+    """ShuffleNetV2 ×1, RepVGG-A0, MobileNetV2 ×0.5, DenseNet-40 on SVHN / Fashion-MNIST are TEST-only."""
+    for path in (CORE, INTENDED, ADMITTED, P5B2, V7, V7_ADMITTED):
+        if path.exists():
+            clash = sorted(n for n in _names(_load(path)) if _is_g2_holdout(n))
+            assert not clash, f"{path.name} holds G2 hold-out nets {clash}"
+    for fname in G2_HOLDOUT_FILES:
+        path = CFG / fname
+        if not path.exists():
+            continue
+        want = "svhn" if "svhn" in fname else "fashion-mnist"
+        for key, row in _load(path).items():
+            assert _is_g2_holdout(Path(key).name), key
+            assert _dataset(row) == want, (key, row)

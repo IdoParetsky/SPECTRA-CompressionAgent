@@ -426,8 +426,10 @@ def eval_size_match() -> Optional[Tuple[str, float]]:
     ``SPECTRA_EVAL_SIZE_MATCH=flop:0.39`` or ``param:0.42`` (TRAJ only; default off): label the
     first trajectory point at or below that fraction kept as ``size_match`` and end the walk
     there. That is the published-size row printed beside a paper's number (DepGraph R56 2.57×
-    FLOPs ≈ 0.39 kept; OCS VGG-16 ≈ 0.42 params), reported even when val left the band. Set
-    ``SPECTRA_EVAL_PASSES`` high enough for the walk to reach it.
+    FLOPs ≈ 0.39 kept; OCSPruner R56 ≈ 0.42 params), reported even when val left the band.
+    VGG-16 C10 is matched on FLOPs, because mild keeps params ≈ FLOPs and the papers publish
+    both: HRank 0.465 FLOPs / 0.171 params kept, OCSPruner 0.212 FLOPs / 0.137 params. Set
+    ``SPECTRA_EVAL_PASSES`` high enough for the walk to reach it (mild needs 10 on VGG-16).
     """
     raw = os.environ.get("SPECTRA_EVAL_SIZE_MATCH", "").strip().lower()
     if not raw or ":" not in raw:

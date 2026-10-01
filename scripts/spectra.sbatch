@@ -45,16 +45,23 @@ mkdir -p "$SPECTRA_RUN_DIR"
 export SPECTRA_STOP_FILE="${SPECTRA_RUN_DIR}/SLURM_STOP"
 # Continue-train: copy resume + latest_best into THIS job, then drop SPECTRA_RESUME_PATH
 # so later save_train_resume writes here instead of overwriting the parent snapshot.
+# A requeue re-enters with the same run dir: its own (newer) bundle and bests are kept.
 if [[ -n "${SPECTRA_PARENT_RUN:-}" || -n "${SPECTRA_RESUME_PATH:-}" ]]; then
   mkdir -p "${SPECTRA_RUN_DIR}/agent_checkpoints"
   if [[ -n "${SPECTRA_RESUME_PATH:-}" && -f "${SPECTRA_RESUME_PATH}" ]]; then
-    cp -f "${SPECTRA_RESUME_PATH}" "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt"
-    echo "copied resume bundle from ${SPECTRA_RESUME_PATH}"
+    if [[ -s "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" ]]; then
+      echo "requeue: keeping this run's train_resume.pt, not re-copying ${SPECTRA_RESUME_PATH}"
+    else
+      cp -f "${SPECTRA_RESUME_PATH}" "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt"
+      echo "copied resume bundle from ${SPECTRA_RESUME_PATH}"
+    fi
     unset SPECTRA_RESUME_PATH
   fi
   if [[ -n "${SPECTRA_PARENT_RUN:-}" ]]; then
     for _f in latest_best_actor.pt latest_best_critic.pt; do
-      if [[ -f "${SPECTRA_PARENT_RUN}/agent_checkpoints/${_f}" ]]; then
+      if [[ -s "${SPECTRA_RUN_DIR}/agent_checkpoints/${_f}" ]]; then
+        echo "requeue: keeping this run's ${_f}"
+      elif [[ -f "${SPECTRA_PARENT_RUN}/agent_checkpoints/${_f}" ]]; then
         cp -f "${SPECTRA_PARENT_RUN}/agent_checkpoints/${_f}" "${SPECTRA_RUN_DIR}/agent_checkpoints/${_f}"
         echo "seeded ${_f} from ${SPECTRA_PARENT_RUN}"
       fi
@@ -669,7 +676,7 @@ case "$PROFILE" in
                   --compression_rates 1.0 0.9 0.8)
     fi
     ;;
-  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken)
+  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
     if [[ "$PROFILE" == offline_train_v5_p5b3* ]]; then
@@ -893,7 +900,7 @@ case "$PROFILE" in
       export SPECTRA_CONTINUE_TRAIN=0
       export SPECTRA_SKIP_TRAIN=0
     fi
-    if [[ "$PROFILE" == offline_train_v3_* || "$PROFILE" == offline_train_v4_* || "$PROFILE" == offline_train_v5_* || "$PROFILE" == offline_train_v6_* || "$PROFILE" == offline_train_v7_* || "$PROFILE" == offline_train_v8_* ]]; then
+    if [[ "$PROFILE" == offline_train_v3_* || "$PROFILE" == offline_train_v4_* || "$PROFILE" == offline_train_v5_* || "$PROFILE" == offline_train_v6_* || "$PROFILE" == offline_train_v7_* || "$PROFILE" == offline_train_v8_* || "$PROFILE" == offline_train_v9_* ]]; then
       # ---- v3 (16 Sep last train). Everything v2a/v2b had, plus what the v2 traces showed
       # was missing: (1) band-edge exposure — B saw the τ edge on 2.5 % of steps, so "stop
       # from slack" had no signal → --passes 2 in training (TEST replays 2 passes via
@@ -962,10 +969,18 @@ case "$PROFILE" in
         offline_train_v3_fpgm_structraw)
           # Fallback if neonraw collapses like v2c: NEON trichotomy on the realised cut, no cube-root.
           export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=raw ;;
-        offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken)
+        offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse)
           # Ido 19 Sep GO: cbrt on cubed arms only; in-band stays linear +ρ.
           # Isolated vs live v3-fpgm 21385158 (same 24-net, same PPO, same fpgm menu).
-          export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=cbrt_cubes ;;
+          export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=cbrt_cubes
+          # G2 one-change reward trains (Ido 1 Oct GO): the arm swaps the scale and nothing else.
+          # cbrt_miss = raw +ρ³ on gains; raw = NEON's trichotomy on the realised cut.
+          if [[ -n "${SPECTRA_REWARD_SCALE_ARM:-}" ]]; then
+            case "$SPECTRA_REWARD_SCALE_ARM" in
+              raw|cbrt|cbrt_cubes|cbrt_miss) export SPECTRA_REWARD_SCALE="$SPECTRA_REWARD_SCALE_ARM" ;;
+              *) echo "unknown SPECTRA_REWARD_SCALE_ARM=${SPECTRA_REWARD_SCALE_ARM} (raw|cbrt|cbrt_cubes|cbrt_miss)" >&2; exit 1 ;;
+            esac
+          fi ;;
         *)
           export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=cbrt ;;
       esac
@@ -988,6 +1003,29 @@ case "$PROFILE" in
         if [[ ! -s "$SPECTRA_DATABASE" ]]; then
           echo "offline_train_v6_inband_p5b2: ${SPECTRA_DATABASE} missing" >&2; exit 1
         fi
+        export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0
+      fi
+      if [[ "$PROFILE" == "offline_train_v9_diverse" ]]; then
+        # ---- N8 diverse train (roadmap §5). The Stage-4 recipe of 21737123 pinned here, not at
+        # submit: P (val = half of the CIFAR test split, batch 256), crop+flip train FT, area probe
+        # score; the in-band linear reward, keep-rate menu and 12/4 train FT come from the blocks
+        # above. Three changes against Stage 4: catalog A (8 C10 + the 8 admitted C100 nets, §148),
+        # datasets cifar-10 + cifar-100, and r20-w13 C100 as a third probe net so the selection
+        # score sees C100. SVHN, Fashion-MNIST and ImageNet stay held out (tests/test_v5_catalog.py).
+        # If M1 changes the recipe, change the pin here.
+        export SPECTRA_DATABASE="${SPECTRA_V9_DATABASE:-${REPO_DIR}/configs/database_offline_v7_diverse_admitted.json}"
+        export SPECTRA_DATASET_NAMES="cifar-10 cifar-100"
+        if [[ ! -s "$SPECTRA_DATABASE" ]]; then
+          echo "offline_train_v9_diverse: ${SPECTRA_DATABASE} missing" >&2; exit 1
+        fi
+        # --check-admitted passes a C10-only file (it only rejects unadmitted C100 rows).
+        if ! grep -q '"cifar-100"' "$SPECTRA_DATABASE"; then
+          echo "offline_train_v9_diverse: no CIFAR-100 rows in ${SPECTRA_DATABASE}; catalog A not deployed" >&2; exit 1
+        fi
+        "$PYTHON" "${REPO_DIR}/scripts/build_v5_catalog.py" --check-admitted "$SPECTRA_DATABASE" \
+          --gate "${REPO_DIR}/configs/v7_c100_gate.json" || exit 1
+        export SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_PROBE_SCORE=area
+        export SPECTRA_PROBE_NETS="resnet56-width6,resnet20-width10,resnet20-width13_cifar100"
         export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0
       fi
       if [[ "$PROFILE" == offline_train_v5_* ]]; then
@@ -1039,9 +1077,11 @@ case "$PROFILE" in
       # Always cold (group-cost changes the token width; no v2 checkpoint can be loaded) —
       # unless SPECTRA_RESUME_TRAIN=1 continues a run of this same profile and tree: then the
       # bundle the prologue copied from SPECTRA_RESUME_PATH stays, and the parent's feature
-      # standardizer is reused. Weights, optimizers and the episode index resume; the governor
-      # (best probe, rewinds) restarts, so the first probe after resume can freeze again.
-      # A requeue of the same job id without the switch deletes its own train_resume.pt here.
+      # standardizer is reused. The bundle restores weights, optimizers, the episode index and
+      # the governor's best probe score and patience counter (PPO saves gov.best_score), so a
+      # probe after the resume freezes only if it beats the pre-resume best. Only the rewind
+      # count starts again at 0. Trains submit with --no-requeue; without the switch this
+      # branch deletes the bundle.
       if [[ "${SPECTRA_RESUME_TRAIN:-0}" == "1" && -s "${SPECTRA_RUN_DIR}/agent_checkpoints/train_resume.pt" ]]; then
         if [[ -n "${SPECTRA_PARENT_RUN:-}" ]]; then
           for _std in "${SPECTRA_PARENT_RUN}/standardizer.pt" "${SPECTRA_PARENT_RUN}/agent_checkpoints/standardizer.pt"; do
