@@ -55,6 +55,7 @@ Rank, checks, cross-off and adopt rules: `docs/SITTING_GPU_QUEUE.md` (Live rank 
 | 21938285, 21938894; 21938895 / 96; 21938929 / 30 | g2-random-r56w4 / -r20w2: seed 42, -s43, -s44 | 21729557, same net, equal keep | the random row = mean of the 3 draws per net |
 | 21938284 | g2-sgd01-c100t2-12x4 | 21729554 | **done**: ledger §170 (sitting) |
 | 21940176–21940192 (15) | lr-{cg,prod,pca,cgp}-{r20w2,r56w4,r56,vgg16}-aug | thin: 21729557 (v9b); R56 / VGG-16: 21809595 (v9c) | layer-replacement grid (queue file section). Per job: `paired_steps.py` vs its control; ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse → **scancel (pre-authorized)** + ledger. On COMPLETED: TEST at equal keep. Verdict per construction over its 4 nets (rules in the queue file) |
+| smokes 21940310 / 15 / 18; trains 21940311 / 16 (released), **21940319 / 21 held**; resumes 21940314 / 17 / 20 / 22 | ab-{budgetstop,factored,grouptoken,ft40}-{smoke,train,train-r1} | Stage-4 21737123, by episode | agent-design arms (queue file section). Smoke: `Stopping PPO training after 4 episodes`, one `PPO update`, no Traceback; never ledger; on fail report and leave the children. Trains: start greps (profile, P, aug, area, `Requeue=0`), then as C1. **Report, never scancel.** Freeze TESTs as runbook §10.3, at most one freeze TEST in flight across all trains. **Never `scontrol release` 21940319 / 21940321**: when a gate passes, ping Ido (a release is a train start, his call; ≤ 5 trains R; N8 on GO goes first) |
 | 21938286 / 21938287 | g2-f1-cosine / g2-f2-groupfirst thin 12/4 | 21729556 | readout + ledger |
 | 21938898 | g2-v9diverse-smoke | — | plumbing, **never ledger**. Start greps passed 03:27 (the log shows the C100 probe as `resnet20-width13_cifar10` because names are cut to 24 chars). On end: `Stopping PPO training after 2 episodes`, no Traceback. Ping Ido pass / fail |
 
@@ -190,7 +191,7 @@ Then `Features`. Its walk re-runs 21737104's VGG-16 and 21729553's R56 twin unde
 
 ### 10.6 Never (adds to §5, §8 and §9.5)
 
-- Start a train (N8, N9, N10, attribution) or any resume beyond §10.3 item 2. Change the train's env or card. Scancel 21737123 or 21767188. Set `Requeue=1`.
+- Start a train (N8, N9, N10, attribution) or any resume beyond §10.3 item 2, including `scontrol release` of the held arms 21940319 / 21940321. Change the train's env or card. Scancel 21737123 or 21767188, or any `ab-*` train. Set `Requeue=1`.
 - TEST a freeze from before PPO update 20 (except the episode-120 fallback), more than one a day, or two at once.
 - Resubmit 21809595 or 21814029 with changed flags; report a wall-out instead.
 - Edit `configs/v7_c100_gate.json` or `configs/database_offline_v7_diverse_admitted.json`, or call the emit "N8 started". Put an SVHN or Fashion-MNIST net into any training file: N8 holds both datasets out (roadmap §2b). Launch N8: G5 belongs to the science sitting.

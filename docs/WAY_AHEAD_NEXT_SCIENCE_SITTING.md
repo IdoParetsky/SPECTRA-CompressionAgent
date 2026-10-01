@@ -23,7 +23,7 @@ Decisions (a), (b)-emit, (c) and (f) were settled by Ido's 30 Sep 11:08 GO and d
 
 **(a) `21716380` (group-token, held since 28 Sep) — DONE: scancelled 30 Sep 11:29.**
 - *Facts.* `tree_v8b`, legacy val, 7-day cold train. A release would have re-run the prologue, deleting `train_resume.pt` and restarting cold. Its 12 episodes and the `ep0011` freeze are backed up in `/home/paretsky/spectra_pre_maint_28sep/job21716380_agent_checkpoints/` (`train_resume.pt`, `latest_best_*`, `policy_config.json`, `standardizer.pt`) and in `tree_v8b/runs/job21716380/snapshots/ep0011`. Its question (group tokens) is confounded by memorized val, like every legacy train.
-- *Still true.* Re-run group tokens later as a one-change arm on top of the Stage-4 recipe, only if that train leaves mild. Do not TEST `ep0011`.
+- *Still true.* Re-run group tokens later as a one-change arm on top of the Stage-4 recipe, only if that train leaves mild. Do not TEST `ep0011`. **Enqueued 1 Oct (Ido 08:42)**: smoke 21940318, train **21940319 held** on that gate (queue file, agent-design arms), with budget + STOP, the two-decision head and the 40/10 train FT.
 
 **(b) C100 catalog emit — DONE 30 Sep 11:45. Diverse (C10 + C100) train → `docs/N8_DIVERSE_TRAIN_ROADMAP.md`.**
 - *The emit.* `configs/v7_c100_gate.json` now carries the aug gate 21729554: 8/8 admitted, val-selected keep 0.647–0.696, val Δ −1.18 to −9.70. The no-aug gate values sit beside it as an audit column: 21729552 admitted 6/6 of the nets it finished. `build_v5_catalog.py --emit-admitted --min-c100 8` wrote `configs/database_offline_v7_diverse_admitted.json`: 16 nets, 8 C10 + 8 C100, no SVHN, r20-w8 dropped. `--check-admitted` passes; `tests/test_v5_catalog.py` 16/16.
@@ -197,4 +197,17 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 1 Oct 02:34 | Adam 1e-4 / SGD 0.01 thin COMPLETED §166–§167 | 1e-4 kills r20 (−5.3 / −14.5); SGD misses r56 by 0.7–2.2 pp | train FT stays Adam 1e-3 12/4
 - 1 Oct 03:04 | Fashion-MNIST hold-outs **21938296** COMPLETED | 4/4 ckpts, acc 94.8–95.3 | `input_g2_holdout_fmnist.json`; SVHN **21938295** still R
 - 1 Oct 03:04 | C1 cubic-gain train **21938807** R | FLAGS `scale=cbrt_miss` (gain stays +ρ³); P+aug, p5b2 | report never scancel; C2 neon-raw still PD
+- 1 Oct 03:24 | SVHN hold-outs **21938295** COMPLETED | 4/4, acc 96.7–97.0 | both hold-out sets ready; never in a train catalog
+- 1 Oct 03:26 | SGD 0.01 C100 t2 COMPLETED §170 | harsher on 3/4 equal-keep vs Adam 1e-3 | SGD CROSS-OFF as train FT on C10 and C100
+- 1 Oct 03:44 | **3h briefing** | QOS 8: train ep 30 PPO-7; C1+C2 R ep0 identical; smoke 21938898 R | M2 still update 10; do not TEST ep0011
+- 1 Oct 03:55 | F1 cosine **21938286** COMPLETED §171 | r56 +3.3 / +1.0 vs plateau; r20 0.60 **−4.2** | cosine not Stage-4; F2 still R
+- 1 Oct 04:24 | F2 group-first **21938287** COMPLETED §172 | r56 +2.3 / +0.9; r20 0.60 **−2.0** | A5 both CROSS-OFF as train FT
+- 1 Oct 04:36 | Stage-4 **PPO update 8** | ev **0.735**, batch_score 0.527, freeze still ep0011 | M2 at update 10; do not TEST
+- 1 Oct 04:44 | v9 diverse smoke **21938898** COMPLETED | 16 nets, 2 ep, 0 TB | G2 smoke met; **do not launch N8** (G5)
+- 1 Oct 05:25 | greedy **21938279** COMPLETED §173 | keeps unmatched; r56 −5.7 @ 0.743 vs mild −2.6 @ 0.795 | keep mild as bar-2
+- 1 Oct 05:31 | C1 PPO update 1 | ev **0.000**, clipfrac 0, gap_to_uniform still 0 | report, never scancel (kill is ev≤0 by **update 10**)
+- 1 Oct 06:05–06:11 | random r56 s42 + r20 s44 COMPLETED | r20 3-draw mean §174 ≈ mild | r56 mean waits on s43/s44; QOS 5 R, ops does not fill
+- 1 Oct 06:44 | **3h briefing** | PPO-8 ev 0.735; freeze ep0011; C1 ev 0 at update 1; 3 idle GPUs | Gilad 08:45; ops 08:15 GILAD_NEWS; do not invent; do not N8
+- 1 Oct 08:11 | random r56 s44 **21938929** COMPLETED | 3-draw mean §175 **−5.1 / −7.2 / −6.5** vs mild **−2.6 / none / −4.5** | keep mild; QOS 3 R / 5 idle
+- 1 Oct 08:15 | **Gilad pack** `GILAD_NEWS_30SEP.md` | PPO-9 ev 0.774; C1/C2 PPO-2; G2 sitting closed except the two reward trains | meeting 08:45; do not N8; do not invent
 

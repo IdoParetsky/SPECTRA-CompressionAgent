@@ -4,11 +4,12 @@
 **Rule (Ido 29 Sep 15:49):** QOS stays full with **independent** no-agent TESTs. Sitting **sbatches**. No second GO on those cells. Cap is **live `gpu-part` MaxTRESPU** (8 as of 1 Oct 00:09). Do not invent cells when the ladder is empty.
 **Pre-authorized (Ido 30 Sep 11:08):** freeze TESTs of the Stage-4 train (first after PPO update 20, then ≤ 1 a day); its resume past the 6-day fuse (chained: 21767188). **Done on that GO:** 21716380 scancelled; C100 catalog emitted (§148). **Done on Ido's 12:34 GO:** 21730506 converted to the crop+flip walk → **21809595**.
 **Done on Ido's 1 Oct 01:03 GO:** the two one-change reward trains (C1 **21938807**, C2 **21938810**; resumes chained).
+**Done on Ido's 1 Oct asks:** 08:29 the layer-replacement grid (15 jobs); 08:42 the agent-design arms (11 jobs, two trains held on gates). Both sections below.
 **Still Ido GO:** a DRL train (N8, N9; for N8 see the conditional-GO proposal, roadmap §3 G5); a second resume.
 
 Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10** (current), §8 (cells). Options, decisions and dev items: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. N8: `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12.
 
-**Stamped:** 1 Oct 2026, ~08:15 IDT (Gilad pack). **QOS `gpu-part` `gres/gpu=8`, 3 R / 5 idle**: train **21737123**, C1 **21938807**, C2 **21938810**. **3 PD** `afterok` resumes only. Do **not** invent cells; do **not** launch N8.
+**Stamped:** 1 Oct 2026, ~09:00 IDT. **QOS `gpu-part` `gres/gpu=8`, 8 R**: train **21737123**, C1 **21938807**, C2 **21938810**, LR grid **21940176–80**. **PD**: arm smokes 3 (nice 24), LR grid 10 (nice 25–34), arm trains 2 `afterok` + 2 **held**, 7 `afterok` resumes. Do **not** invent cells; do **not** launch N8.
 - *G2 sitting (charge 1 Oct 01:03).* **A1** hold-outs 8/8. **A2** greedy §173; random r20 §174; random r56 **§175**. **A3–A5** CROSS-OFF / KILL. **C** C1/C2 R (PPO-2). **D** smoke passed; **no N8**.
 - *Overnight COMPLETED.* N3 **21767189** §157 **M4**; scratch-thin **21730507** §158 CROSS-OFF; scratch-DG **21730516** §159 ADOPT; N1 **21767190** §160 mixed; N2 **21767192** §161 not M5; streams **21729558** §162 split.
 - *Ledger.* Next **§176**. Random r56 3-draw **§175**.
@@ -65,6 +66,27 @@ Bold = R since 08:35 (start flags checked); the rest PD nice 25–34, thin first
 - *Read (on COMPLETED).* TEST at equal keep (size points, `val_best`) vs the control's rows.
 - *Cross off a construction.* Killed, or worse than keep-the-survivors at equal keep, on ≥ 3 of its 4 nets.
 - *Re-open.* Within 0.5 pp of the control, or kinder, at equal keep on ≥ 3 of 4 nets including one full-width net.
+
+## Agent-design arms: one change each on the Stage-4 line (Ido 1 Oct 08:42)
+
+Each arm is 21737123's recipe with one switch changed: P5-B2 catalog (CIFAR-10 + SVHN), live in-band reward, area probe, P + crop+flip, its seed and governor. All on `tree_v9d`, `Requeue=0`, resume chained `afterok`. Every one of these features was trained only under memorized val, so none has a verdict yet (the re-open rule): factored head §110 / §134 / §137, budget + STOP §135 (no freeze), group tokens 21716380 (scancelled at 12 episodes). The three reward options are Stage-4 (live), C1 and C2 (Live rank Pri 1–3).
+
+| Arm | Change vs 21737123 | Smoke (4 ep, never ledger) | Train | Resume | Gate |
+|---|---|---|---|---|---|
+| Budget + STOP | `offline_train_v7_budget`: cut 0 / 1 / 2 / 4 % of the net's params through this group (L1), or STOP (scale 100) | **21940310** | **21940311** nice 40, `afterok` smoke | 21940314 | released |
+| Two-decision head | `offline_train_v6_inband_p5b2_factored`: keep {1.0, 0.9, 0.8} × criterion {L1, FPGM, BN-scale, SVD, Taylor} | **21940315** | **21940316** nice 41, `afterok` smoke | 21940317 | released |
+| Group-as-token state | `offline_train_v8_grouptoken`: one encoder token per dependency group | **21940318** | **21940319 held** nice 42 | 21940320 | Stage-4's first post-PPO-20 freeze TEST is not a mild clone (way-ahead (a)), or Ido |
+| 40/10 train FT | `SPECTRA_TRAIN_FT_EPOCHS=40 SPECTRA_TRAIN_FT_PATIENCE=10` (the TEST's FT budget in the loop; §150: 12/4 is ~1 pp harsher on r56-w4) | none (Stage-4's code path) | **21940321 held** nice 43 | 21940322 | the FT proxy-fidelity check shows 12/4 misranks cuts that 40/10 ranks right, or Ido |
+
+- *Order.* Smokes run right after the five running LR jobs; the released trains start once the whole LR grid has started.
+- *Slots.* Slurm does not preempt, so a train holds its GPU ~6 days per leg. At most **5 trains R** (Stage-4, C1, C2 and the two released arms): that leaves 3 GPUs for freeze TESTs, the LR grid and the fidelity cell. When a held arm's gate passes, ops pings Ido; the release (`scontrol release <id>`) is his call, best timed with the end of a train leg (Stage-4 fuse ~6 Oct, C1 / C2 ~7 Oct). N8 on GO goes ahead of any held arm.
+- *Smoke pass.* `Stopping PPO training after 4 episodes`, one `PPO update`, no Traceback. A failed smoke leaves its train in `DependencyNeverSatisfied`: report; do not patch `tree_v9d` from ops.
+- *Progress.* Per PPO update vs 21737123, indexed by episode, not wall clock (40/10 runs ~2–3× slower per episode): probe area, critic ev, `gap_to_uniform`, `batch_score`.
+- *Preliminary read.* Each arm's first freeze after PPO update 20, TESTed exactly like Stage-4's (runbook §10.3: thin pair, P + crop+flip 40/10, vs mild 21729557 at equal keep, with the compression-rate census).
+- *Final read.* The last freeze: the same TEST, plus the G2 hold-outs once H0's loader check passes.
+- *Adopt.* Kinder than the Stage-4 freeze by > 1 pp at equal keep on both thin nets **and** not a ≥ 90 % mild clone → a second seed before it changes the recipe. One seed each, so smaller gaps are noise.
+- *Report, never scancel* (as C1 / C2): ev ≤ 0 by PPO update 10, or a freeze that is a ≥ 90 % mild clone.
+- *Not enqueued.* SGD 0.01, cosine and group-first FT in the loop: each failed the pair rule as the walk FT under P + crop+flip (§167, §170–§172). The literature SGD-cosine recipe stays the final FT.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 
