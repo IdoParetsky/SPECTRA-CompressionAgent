@@ -50,12 +50,12 @@ Rank, checks, cross-off and adopt rules: `docs/SITTING_GPU_QUEUE.md` (Live rank 
 |---|---|---|---|
 | 21938807 → r1 21938809 | g2-cubicgain-train | Stage-4 21737123 | on start: FLAGS `SPECTRA_REWARD_SCALE_ARM=cbrt_miss` and `PPO training: … scale=cbrt_miss`. **Report, never scancel**: ev ≤ 0 by PPO update 10, or a freeze that is a ≥ 90 % mild clone |
 | 21938810 → r1 21938811 | g2-neonraw-train | same | same, `scale=raw` |
-| 21938295 / 21938296 | g2-holdout-svhn / -fmnist | — | on COMPLETED: 4 `runs/g2_holdout/<svhn\|fmnist>/manifest_*.json` and `configs/input_g2_holdout_<svhn\|fmnist>.json` in tree_v9d; flag any net < 90 % test acc. Never a TEST row |
+| 21938295 / 21938296 | g2-holdout-svhn / -fmnist | — | **done** (sitting 03:30): both COMPLETED, 8/8 nets ≥ 94.7 %, both input files in git, `test_v5_catalog.py` 17 passed. Never a TEST row |
 | 21938279 | g2-greedy-thin-aug | 21729557, equal keep | readout + ledger on COMPLETED |
-| 21938285, 21938894, 21938895 / 96 | g2-random-r56w4 / -r20w2 (seed 42), -s43 | 21729557, same net, equal keep | the random row = mean of the draws |
-| 21938284 | g2-sgd01-c100t2-12x4 | 21729554 | readout + ledger |
+| 21938285, 21938894; 21938895 / 96; 21938929 / 30 | g2-random-r56w4 / -r20w2: seed 42, -s43, -s44 | 21729557, same net, equal keep | the random row = mean of the 3 draws per net |
+| 21938284 | g2-sgd01-c100t2-12x4 | 21729554 | **done**: ledger §170 (sitting) |
 | 21938286 / 21938287 | g2-f1-cosine / g2-f2-groupfirst thin 12/4 | 21729556 | readout + ledger |
-| 21938898 | g2-v9diverse-smoke | — | plumbing, **never ledger**: `PPO training: networks=16`, 3 `probe_nets`, `Val from test on cifar-100`, `FT aug on cifar-100`, `Stopping PPO training after 2 episodes`, no Traceback. Ping Ido pass / fail |
+| 21938898 | g2-v9diverse-smoke | — | plumbing, **never ledger**. Start greps passed 03:27 (the log shows the C100 probe as `resnet20-width13_cifar10` because names are cut to 24 chars). On end: `Stopping PPO training after 2 episodes`, no Traceback. Ping Ido pass / fail |
 
 ### 10.1 Live jobs (30 Sep 13:20)
 

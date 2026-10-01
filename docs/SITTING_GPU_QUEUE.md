@@ -8,10 +8,10 @@
 
 Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10** (current), §8 (cells). Options, decisions and dev items: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. N8: `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12.
 
-**Stamped:** 1 Oct 2026, ~03:15 IDT (G2 sitting). **QOS `gpu-part` `gres/gpu=8`, full: 8 R** (train **21737123** + 7 G2 cells). **6 PD** take freed slots in nice order (reward trains 50 / 51, v9 smoke 52, random 60 / 70 / 71), plus 3 `afterok` resumes. Every new job: `tree_v9d`, `Features=rtx_6000|rtx_4090`, `--gpus=1`. Do **not** launch N8.
-- *G2 sitting (charge 1 Oct 01:03).* **A1** hold-out checkpoints R. **A2** greedy and random R. **A3** Adam 1e-4 thin, SGD 0.01 thin, Adam 1e-4 C100 COMPLETED (§166–§168); SGD 0.01 C100 R. **A4** C-G+ KILL (§163). **A5** F1 / F2 R. **B** O38 replay below. **C** two one-change reward trains PD. **D** `tree_v9d` built and tested; `offline_train_v9_diverse` + catalog A deployed; smoke PD.
+**Stamped:** 1 Oct 2026, ~03:35 IDT (G2 sitting). **QOS `gpu-part` `gres/gpu=8`, full: 8 R**: train **21737123**, greedy, random r56-w4 s42, F1, F2, C1 **21938807**, C2 **21938810**, smoke **21938898**. **5 PD** random draws take freed slots in nice order (60 / 70 / 71 / 80 / 81), plus 3 `afterok` resumes. Every new job: `tree_v9d`, `Features=rtx_6000|rtx_4090`, `--gpus=1`. Do **not** launch N8.
+- *G2 sitting (charge 1 Oct 01:03).* **A1** hold-out checkpoints COMPLETED (8/8 nets; both input files in git). **A2** greedy and random R. **A3** all four COMPLETED (§166–§168, §170): no arm passes the pair rule. **A4** C-G+ KILL (§163). **A5** F1 / F2 R. **B** O38 replay below. **C** both one-change reward trains R. **D** `tree_v9d` built and tested; `offline_train_v9_diverse` + catalog A deployed; KD-teacher fallback deployed; O26 census §169; smoke R.
 - *Overnight COMPLETED.* N3 **21767189** §157 **M4**; scratch-thin **21730507** §158 CROSS-OFF; scratch-DG **21730516** §159 ADOPT; N1 **21767190** §160 mixed; N2 **21767192** §161 not M5; streams **21729558** §162 split.
-- *Ledger.* Next **§169**. C-G+ KILL §163; twins FT §164; VGG-16 10-pass §165; Adam 1e-4 thin §166 CROSS-OFF; SGD thin §167 CROSS-OFF; Adam 1e-4 C100 t2 §168 kinder, not a train switch.
+- *Ledger.* Next **§171**. C-G+ KILL §163; twins FT §164; VGG-16 10-pass §165; Adam 1e-4 thin §166 CROSS-OFF; SGD thin §167 CROSS-OFF; Adam 1e-4 C100 t2 §168 kinder, not a train switch; O26 memorization census §169; SGD C100 t2 §170 CROSS-OFF.
 - *Trees.* `tree_v9b` / `tree_v9c` frozen. **`tree_v9d`** = v9c + the G2 dev pass, default-off for every existing profile (`PROVENANCE_v9d.txt`). Train `Requeue=0`.
 
 **P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c`). **Paired read** = `readers_s30/scripts/paired_steps.py <arm> <control>`: val only, same step = same widths under mild. **Honest gain**: only `readers_s30/scripts/final_ft_readout.py` (prints `ORIGIN-HURT` when the origin loses > 0.5 pp).
@@ -24,18 +24,18 @@ Equal keep = the size points (`param:0.8,0.6` thin; `0.9,0.8` C100) and `val_bes
 |---|---|---|---|---|---|---|---|---|
 | 1 | **Stage-4 train**: area train under P + crop+flip (§151) | **21737123** → resume **21767188** | R since 30 Sep 03:14 (`ise-cpu256-32`); **29** eps; PPO **7** at 01:14: ev **0.592**, batch_score 0.540, probe best 0.282; freeze still **ep0011** only; fuse ~6 Oct 03:15 | v9c | leave mild under P + crop+flip? | M2 at update 10 (~1 Oct midday) | no freeze by 250; mild clone at TEST | M1 |
 | 1b | Freeze TESTs of Pri 1 | — | none yet; first freeze after PPO update 20 | v9c | vs 21729557 + census | — | mild clone | M1 |
-| 2 | **C1 cubic-gain train**: the Stage-4 line, reward scale only → `cbrt_miss` (gain +ρ³, band +ρ, miss −ρ) | **21938807** → r1 **21938809** | PD nice 50; next free slot | v9d | FLAGS `SPECTRA_REWARD_SCALE_ARM=cbrt_miss`; `PPO training: … scale=cbrt_miss`; `Requeue=0` | O38: at 12/4 the gain arm is rare (3 of 76 thin cuts, 0 on C100), so C1 may train close to live | **report, never scancel**: ev ≤ 0 by update 10, or the freeze is a ≥ 90 % mild clone | first freeze TEST beats the Stage-4 freeze at equal keep |
-| 3 | **C2 NEON-raw train**: scale → `raw` (+ρ³ / +ρ / −ρ³ on the realised cut) | **21938810** → r1 **21938811** | PD nice 51 | v9d | `scale=raw` | O38: = C1 on every walk without a miss; differs only on the miss arm | same | same |
-| 4 | A1 hold-out checkpoints, SVHN: ShuffleNetV2 ×1, RepVGG-A0, MBV2 ×0.5, DN-40, 200 ep | **21938295** | R (`ise-4090-15`); epochs 109–162 at 02:50, test acc 96.1–96.5 % | v9d | `runs/g2_holdout/svhn/*.log`; writes `configs/input_g2_holdout_svhn.json` | done ~04:15 | a net < 90 % → retrain that net | hold-out set (roadmap §2b); never in a train catalog |
-| 5 | A1, Fashion-MNIST | **21938296** | R (`cs-4090-07`); epochs 144–190, test acc 94.5–95.0 % | v9d | `…/fmnist/*.log`; `input_g2_holdout_fmnist.json` | done ~03:20 | same | same |
+| 2 | **C1 cubic-gain train**: the Stage-4 line, reward scale only → `cbrt_miss` (gain +ρ³, band +ρ, miss −ρ) | **21938807** → r1 **21938809** | **R since 03:04** (`cs-4090-07`); verified: p5b2, networks=10, `cifar-10 svhn`, P + aug, area, thin probes, `scale=cbrt_miss` | v9d | ev and batch_score vs 21737123 by PPO update; `Requeue=0` | O38: at 12/4 the gain arm is rare (3 of 76 thin cuts, 0 on C100), so C1 may train close to live | **report, never scancel**: ev ≤ 0 by update 10, or the freeze is a ≥ 90 % mild clone | first freeze TEST beats the Stage-4 freeze at equal keep |
+| 3 | **C2 NEON-raw train**: scale → `raw` (+ρ³ / +ρ / −ρ³ on the realised cut) | **21938810** → r1 **21938811** | **R since 03:24** (`ise-4090-15`); verified: same line as C1 with `scale=raw` | v9d | as C1 | O38: = C1 on every walk without a miss; differs only on the miss arm | same | same |
+| 4 | A1 hold-out checkpoints, SVHN: ShuffleNetV2 ×1, RepVGG-A0, MBV2 ×0.5, DN-40, 200 ep | **21938295** | **COMPLETED** 03:24, 0/4 failed; last-epoch test acc ShuffleNetV2 96.55, RepVGG-A0 96.71, MBV2×0.5 96.64, DN-40 96.34 | v9d | `configs/input_g2_holdout_svhn.json` (4 rows, in git); `test_v5_catalog.py` 17 passed with both hold-out files | hold-out set | a net < 90 % | hold-out set (roadmap §2b); never in a train catalog |
+| 5 | A1, Fashion-MNIST | **21938296** | **COMPLETED** 03:04, 0/4 failed; best-epoch test acc (in the checkpoint name) ShuffleNetV2 94.82, RepVGG-A0 94.96, MBV2×0.5 94.93, DN-40 95.29 | v9d | `input_g2_holdout_fmnist.json` (4 rows, in git) | hold-out set | a net < 90 % | hold-out set (roadmap §2b) |
 | 6 | A2 **greedy** (profile `l1`: Ido's "L1" = Gilad's "greedy"), thin, P + crop+flip 40/10 | **21938279** | R (`cs-4090-08`); r20 done, r56-w4 in walk | v9d | vs mild **21729557** at equal keep | r20: **−4.0 @ 0.595** vs mild −4.9 @ 0.584; −5.1 @ 0.702 (mild −1.2 @ 0.774); reaches **−8.2 @ 0.417** in band (val −6.96; mild's 2 passes stop at 0.536) | worse on both nets at equal keep | kinder, or deeper in band at equal keep |
 | 7 | A2b **random**, r56-w4, seed 42 | **21938285** | R since 02:33 | v9d | vs 21729557 r56-w4 | 4 cuts in | — (baseline row) | — |
-| 8 | A3 SGD 0.01, C100 tight-2 (r20-w13, r56-w9), 12/4 | **21938284** | R; r20-w13 done | v9d | vs **21729554** | r20-w13: **−7.2 @ 0.861** vs −5.2; **−8.4 @ 0.787** vs −6.9 | SGD thin failed (§167): not a train FT either way | — |
+| 8 | A3 SGD 0.01, C100 tight-2 (r20-w13, r56-w9), 12/4 | **21938284** | **COMPLETED** 03:26 → ledger **§170** | v9d | vs **21729554** | harsher at 3 of 4 equal-keep points: r20-w13 −7.2 / −8.4 vs −5.2 / −6.9; r56-w9 −12.6 vs −7.7 at 0.86, −9.2 vs −9.5 at 0.79 | **CROSS-OFF** as train FT (with §167); cap-40 stays crossed | — |
 | 9 | A5 F1 cosine, thin 12/4 | **21938286** | R; r20 done | v9d | vs **21729556** | r20: +0.4 @ 0.774, **−4.2 @ 0.584**, −2.6 @ `val_best` 0.536 | > 0.5 pp worse on r20 already: CROSS-OFF unless r56-w4 is clearly kinder | within 0.5 pp on r20 and kinder on r56-w4 |
 | 10 | A5 F2 group-first 4, thin 12/4 | **21938287** | R since 02:49 | v9d | vs 21729556 | r20, 4 cuts: val −1.37 mean, 0 of 4 better | same | same |
-| 11 | D **smoke** `offline_train_v9_diverse`, 2 episodes | **21938898** | PD nice 52 | v9d | seed 50 → episodes on r20-w13 C100 and MBV2 ×1 C100. Grep `PPO training: networks=16`, `probe_nets=` (3), `Val from test on cifar-100`, `FT aug on cifar-100`, step counts, `Stopping PPO training after 2 episodes`, no `Traceback` | plumbing only; **never ledger** | any fail → fix before N8 | N8 launchable on G5 |
+| 11 | D **smoke** `offline_train_v9_diverse`, 2 episodes | **21938898** | **R since 03:26** (`ise-4090-18`); start greps pass: `C100 gate ok`, `networks=16`, 3 probe nets (the log prints basenames cut to 24 chars, so the C100 probe shows as `resnet20-width13_cifar10`), Val from test + FT aug on cifar-10 and cifar-100, `scale=cbrt_cubes` | v9d | still to grep: step counts, `Stopping PPO training after 2 episodes`, no `Traceback` | plumbing only; **never ledger** | any fail → fix before N8 | N8 launchable on G5 |
 | 12 | A2b random, r20-w2, seed 42 | **21938894** | PD nice 60 | v9d | vs 21729557 r20 | — | — | — |
-| 13 | A2b random, second draws (seed 43), r56-w4 / r20-w2 | **21938895** / **21938896** | PD nice 70 / 71 | v9d | random row = mean of the draws, never the best draw | — | — | — |
+| 13 | A2b random, draws 2 and 3 (seeds 43, 44), r56-w4 / r20-w2 | s43 **21938895** / **21938896**; s44 **21938929** / **21938930** | PD nice 70 / 71 / 80 / 81 (fill the slots that free from ~06:00) | v9d | random row = mean of the 3 draws per net, never the best draw | — | — | — |
 
 ## NEXT (conditional)
 
@@ -47,7 +47,7 @@ Equal keep = the size points (`param:0.8,0.6` thin; `0.9,0.8` C100) and `val_bes
 | D5 | GPU-side crop+flip (roadmap §5 item 5) | before the N8 launch | up to +18 % per epoch | never into a live train | — |
 | N8b | N8 + SVHN nets in training (pre-registered, roadmap §2b) | N8 passes on CIFAR (H2, H3) but is below mild on the dataset hold-outs (H5, H7) | read on Fashion-MNIST, ImageNet and the unlike families | — | — |
 | N9 | attribution train: P-only (the 21737095 line) | Pri 1 leaves mild | P vs P + aug in training | — | — |
-| O26 | `scripts/memorization_census.py` | zero GPU | — | — | not built yet |
+| O26 | `scripts/memorization_census.py` | **built 1 Oct** (ledger §169) | legacy v3 train 21385158: 24 / 24 MEMORIZED, val − TEST +3.35 to +7.19 pp; Stage-4 P train 21737123: 0 / 10, −0.63 to +0.08 pp | — | done |
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 
@@ -86,10 +86,11 @@ Every shape's return peaks at the walk's last cut, except on r56-w9: cut 51 of 6
 | 3 requeue safety | `--no-requeue` on every `offline_train*` submit; the prologue keeps a run's own `train_resume.pt`; resume comment fixed |
 | 4 probe set | + `resnet20-width13_cifar100` (3 probe nets), v9 profile only |
 | 5 GPU crop+flip | not built (D5) |
-| 6 tests + smoke | pytest done; smoke **21938898** PD |
+| 6 tests + smoke | pytest done; smoke **21938898** R, start greps pass |
 | 8 hold-out checkpoints | A1 R; the job writes the input files; the disjointness test covers them |
 | 9 size points | `eval_size_match` docstring fixed (OCS ≈ 0.42 params is R56; VGG-16 matches on FLOPs) |
 | reward | `cbrt_miss` scale; `SPECTRA_REWARD_SCALE_ARM` (in-band train profiles only); `scripts/reward_replay.py` + test |
+| final-FT KD teacher (way-ahead §4 item 4) | git `5b6398d` deployed 03:17 (it was not in v9c, so v9d lacked it): `SPECTRA_EVAL_FINAL_FT_KD=1` alone now distils from a frozen copy of the original. `test_v9c_traj_models.py` 15 passed. Drop the walk-side `SPECTRA_FT_KD=1` workaround on v9d final-FT lines |
 
 ## Done (ledgered; do not re-run)
 

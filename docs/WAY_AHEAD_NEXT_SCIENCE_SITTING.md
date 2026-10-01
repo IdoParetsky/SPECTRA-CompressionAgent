@@ -114,8 +114,8 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 | O41 | diverse P train (C10 + C100) = N8 | catalog emitted; a train | 0.35 | `docs/N8_DIVERSE_TRAIN_ROADMAP.md`: after M1 + `tree_v9d` + Ido GO |
 | O40 | attribution train | new; a train | — | only after O17 leaves mild |
 | O39 | capacity-conditioned aug (off when the net underfits; NetAug) | new | 0.30 | only if tiny nets enter the catalog |
-| O38 | reward replay of the P walks (linear / cubic / NEON-exact returns) | zero GPU, not built | 0.80 informative | next sitting, ~50 lines |
-| O26 | memorization census of the train catalog | zero GPU, not built | 0.95 informative | next sitting |
+| O38 | reward replay of the P walks (linear / cubic / NEON-exact returns) | zero GPU, **built 1 Oct** (`scripts/reward_replay.py`) | table in `docs/SITTING_GPU_QUEUE.md` | done |
+| O26 | memorization census of the train catalog | zero GPU, **built 1 Oct** (`scripts/memorization_census.py`) | ledger §169: legacy 24 / 24 memorized, P 0 / 10 | done |
 | O25 | selection readouts on P runs (`traj_readout.py`) | zero GPU | 0.50 | any time |
 | O7 / O8 | F2 group-first / F1 cosine at 12/4 (N5 / N6) | not queued: §150 passed | 0.15 | revisit only if aug trains badly |
 | O11 | SGD 0.01 + aug gate (N7) | condition met, low value | 0.20 | not queued |
@@ -195,5 +195,6 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 1 Oct 01:46 | twins+FT **21809595** COMPLETED §164 | walk ≈ §152; 100-ep **CROSS-OFF** | bar-3 zoo C10 = crop+flip walk
 - 1 Oct 02:00 | VGG-16 10-pass **21814029** COMPLETED §165 | 10k **−0.25 @ FLOPs 0.464**, **−2.02 @ 0.211**; params 0.444 / 0.187 vs HRank 0.171 / OCS 0.137 | never "beats"; pending in Gilad table 2.5 filled
 - 1 Oct 02:34 | Adam 1e-4 / SGD 0.01 thin COMPLETED §166–§167 | 1e-4 kills r20 (−5.3 / −14.5); SGD misses r56 by 0.7–2.2 pp | train FT stays Adam 1e-3 12/4
-- 1 Oct 02:43 | Adam 1e-4 C100 t2 COMPLETED §168 | kinder than 1e-3 on r20-w13 / r56-w9 | not a train switch (thin C10 failed)
+- 1 Oct 03:04 | Fashion-MNIST hold-outs **21938296** COMPLETED | 4/4 ckpts, acc 94.8–95.3 | `input_g2_holdout_fmnist.json`; SVHN **21938295** still R
+- 1 Oct 03:04 | C1 cubic-gain train **21938807** R | FLAGS `scale=cbrt_miss` (gain stays +ρ³); P+aug, p5b2 | report never scancel; C2 neon-raw still PD
 

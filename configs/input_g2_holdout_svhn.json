@@ -1,0 +1,22 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/densenet40_svhn_densenet-cifar_96.88_0.176_74.43.pt": [
+    "densenet40",
+    "/home/paretsky/spectra_models_instantiation/densenet_cifar.py",
+    "svhn"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2x05_svhn_chenyaofo_97.03_0.700_28.89.pt": [
+    "mobilenet_v2x05",
+    "/home/paretsky/spectra_models_instantiation/mobilenetv2_chenyaofo.py",
+    "svhn"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/repvgg-a0_svhn_chenyaofo_96.72_7.841_490.72.pt": [
+    "repvgg_a0",
+    "/home/paretsky/spectra_models_instantiation/repvgg_chenyaofo.py",
+    "svhn"
+  ],
+  "/home/paretsky/spectra_pretrained_networks/shufflenetv2x1_svhn_chenyaofo_96.82_1.264_45.98.pt": [
+    "shufflenetv2x1",
+    "/home/paretsky/spectra_models_instantiation/shufflenetv2_chenyaofo.py",
+    "svhn"
+  ]
+}

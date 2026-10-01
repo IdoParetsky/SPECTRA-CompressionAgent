@@ -3071,5 +3071,35 @@ Paired val vs 556: r20 mean **−3.87 pp**; r56 60 cuts **−1.37 pp**, 28 % bet
 
 ---
 
+## 169. O26 memorization census: unpruned val at episode reset vs the TEST accuracy in the checkpoint name — zero GPU, not a TEST row
+
+`scripts/memorization_census.py` (G2 sitting, 1 Oct 03:25) reads each run's `episode_reset` events (`baseline_acc` = the unpruned net on the env's val split) and compares the median with the accuracy encoded in the checkpoint name. MEMORIZED = val ≥ 0.995 or val − TEST ≥ +3 pp.
+
+| Run | Val split | Nets | MEMORIZED | val − TEST | Detail |
+|---|---|---|---|---|---|
+| v3 train **21385158** | legacy (train-side) | 24 | **24 / 24** | **+3.35 to +7.19 pp** | 11 nets read val ≥ 0.999 (VGG-13, R56-w12, R56-w14 read 1.0000). The 9 nets below the 0.995 val bar (narrow thin ResNets, VGG-11 F-MNIST) are flagged on the gap alone: val 0.939–0.994, +3.4 to +5.6 pp |
+| Stage-4 train **21737123** (P) | half of the test split | 10 | **0 / 10** | **−0.63 to +0.08 pp** | split noise; val sits slightly below the full-test number on 8 / 10 |
+
+**Read.** This quantifies §141 across a full train catalog. Every legacy train scored every cut against a val split that read 3–7 pp above TEST, so a cut that only cost memorization looked like an accuracy loss. Under P, the reward and gates see the TEST-level accuracy on every net. This supports re-opening only the cells whose kill used legacy val (G2 charge); it does not by itself re-open any cell. The checkpoint-name accuracy is the pretraining's best test epoch, so it can sit a little above the last epoch.
+
+---
+
+## 170. SGD 0.01 vs Adam 1e-3, C100 tight-2, P + crop+flip 12/4 (**21938284** COMPLETED) — PRELIM; harsher on 3 of 4 equal-keep points; CROSS-OFF as train FT
+
+`tree_v9d`, r20-w13 + r56-w9 (the §168 pair). COMPLETED 1 h 26 m, 1 Oct 03:26. Control = aug C100 gate **21729554** (Adam 1e-3); the Adam 1e-4 column is §168. TEST = 5k half.
+
+| Net | Point | Keep | SGD 0.01 TEST | 554 Adam 1e-3 TEST | Δ vs 554 | §168 Adam 1e-4 |
+|---|---|---|---|---|---|---|
+| r20-w13 | size 0.90 | 0.861 | −7.2 | −5.2 | **−2.0** | −3.9 |
+| r20-w13 | size 0.80 | 0.787 | −8.4 | −6.9 | **−1.5** | −4.8 |
+| r20-w13 | `val_best` | 0.762 (554: 0.662) | −8.5 | −8.4 | different keep | −7.8 @ 0.662 |
+| r56-w9 | size 0.90 | 0.860 | −12.6 | −7.7 | **−4.9** | −6.6 |
+| r56-w9 | size 0.80 | 0.792 | −9.2 | −9.5 | +0.3 (noise) | −5.8 |
+| r56-w9 | `val_best` | 0.757 (554: 0.642) | −10.8 | −9.5 | different keep | −8.7 @ 0.642 / 0.647 |
+
+**Read.** SGD 0.01 is harsher than Adam 1e-3 at three of the four equal-keep points (−1.5 to −4.9 pp); the fourth is inside the ~0.8 pp re-walk noise. With the thin failure (§167), SGD 0.01 is CROSS-OFF as the train FT. Neither A3 arm passed the pair rule (Adam 1e-4 fails thin, §166), so cap-40 stays crossed. Do **not** lock.
+
+---
+
 
 

@@ -1,0 +1,38 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/densenet40_fashionmnist_densenet-cifar_95.29_0.176_74.43.pt": [
+    "densenet40",
+    "/home/paretsky/spectra_models_instantiation/densenet_cifar.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ],
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2x05_fashionmnist_chenyaofo_94.93_0.700_28.89.pt": [
+    "mobilenet_v2x05",
+    "/home/paretsky/spectra_models_instantiation/mobilenetv2_chenyaofo.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ],
+  "/home/paretsky/spectra_pretrained_networks/repvgg-a0_fashionmnist_chenyaofo_94.96_7.841_490.72.pt": [
+    "repvgg_a0",
+    "/home/paretsky/spectra_models_instantiation/repvgg_chenyaofo.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ],
+  "/home/paretsky/spectra_pretrained_networks/shufflenetv2x1_fashionmnist_chenyaofo_94.82_1.264_45.98.pt": [
+    "shufflenetv2x1",
+    "/home/paretsky/spectra_models_instantiation/shufflenetv2_chenyaofo.py",
+    {
+      "name": "fashion-mnist",
+      "image_size": 32,
+      "to_rgb": true
+    }
+  ]
+}
