@@ -42,13 +42,15 @@ The original accuracy is always printed (our checkpoints and theirs differ by up
 
 ## 3. (c) Budgets — where we are more efficient, and where we are not
 
-| Method | Work done **per target network** | Fine-tune on the target | Cost of the **next** network |
-|---|---|---|---|
-| **SPECTRA** | **none** — one offline training on the catalog, amortised over every later network | 40 epochs / patience 10 per accepted cut | a single pass over the network plus short fine-tunes; no learning |
-| DepGraph | a group-sparsity search on the target | hundreds of SGD epochs (their reproduce script) | repeat search and fine-tune |
-| OCSPruner | a one-cycle training on the target | inside the cycle | repeat per network |
-| AMC | a reinforcement-learning search per target | then fine-tune | repeat per network |
-| L1 / magnitude heuristics | none | our 40 epochs | same as SPECTRA without the agent |
+| Method | Work done **per target network** | Fine-tune on the target | Cost of the **next** network | How filters are chosen (how many · which) |
+|---|---|---|---|---|
+| **SPECTRA** | **none** — one offline training on the catalog, amortised over every later network | 40 epochs / patience 10 per accepted cut | a single pass over the network plus short fine-tunes; no learning | frozen agent sets each coupled group's keep-rate · L1 group vote |
+| DepGraph | a group-sparsity search on the target | hundreds of SGD epochs (their reproduce script) | repeat search and fine-tune | learned global sparsity to a speed-up target · lowest group L2 after sparse training |
+| OCSPruner | a one-cycle training on the target | inside the cycle | repeat per network | global binary-searched threshold · lowest group L2 under a growing penalty |
+| AMC | a reinforcement-learning search per target | then fine-tune | repeat per network | DDPG per-layer ratio · largest-magnitude channels + least-squares refit |
+| L1 / magnitude heuristics | none | our 40 epochs | same as SPECTRA without the agent | uniform (mild 90 % / L1 80 %) · L1 group vote |
+
+The last column is the one-line form of `FILTER_SELECTION_NAP_DESIGN.md` §2 (49 published methods, checked against the papers on 1 Oct). The published methods differ from SPECTRA mainly in *how many*: they learn it on each target or set it by hand. Their *which* is mostly a magnitude read-out after sparsity training.
 
 All numbers are **measured**, not estimated: our offline training from the Slurm job time, our per-network cost from one test run, and the compared methods from the epoch counts in their published scripts multiplied by a CIFAR epoch measured on our GPU. We report **two** totals — the cost per additional network (SPECTRA lower by construction) and the cost of the first network including our offline training (SPECTRA higher).
 

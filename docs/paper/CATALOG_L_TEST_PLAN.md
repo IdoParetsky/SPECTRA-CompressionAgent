@@ -123,13 +123,15 @@ One row grammar, stolen from DepGraph/OCS, SPECTRA uses **kept**:
 
 This is the comparison where SPECTRA can be **better** even when Δacc on R56 is not.
 
-| Method | Per-target search / agent train | Fine-tune on the target | Cost to add a **new** CNN |
-|---|---|---|---|
-| **SPECTRA** | **None.** One offline train on the catalog, then freeze | Adam **40**/patience 10 at TEST (train FT 12/4 is an untested cost cut until `21443408` catalogs) | Skip-train walk + short FT |
-| DepGraph | Group-sparse search **on the target** | ~pretrain protocol, smaller LR, still **hundreds** of SGD epochs in `Torch-Pruning/reproduce` | Repeat search + long FT |
-| OCSPruner | One-cycle **on the target** (from scratch or pretrained) | Built into the cycle | Repeat per net |
-| AMC | DDPG **on the target** | Then FT | The opposite of SPECTRA |
-| FPGM / L1 | Criterion only | Paper’s long FT **or** our same-loop 40 | Same-loop is the fair yardstick |
+| Method | Per-target search / agent train | Fine-tune on the target | Cost to add a **new** CNN | How filters are chosen (how many · which) |
+|---|---|---|---|---|
+| **SPECTRA** | **None.** One offline train on the catalog, then freeze | Adam **40**/patience 10 at TEST (train FT 12/4 is an untested cost cut until `21443408` catalogs) | Skip-train walk + short FT | Frozen agent sets each coupled group's keep-rate · L1 group vote |
+| DepGraph | Group-sparse search **on the target** | ~pretrain protocol, smaller LR, still **hundreds** of SGD epochs in `Torch-Pruning/reproduce` | Repeat search + long FT | Learned global sparsity to a speed-up target · lowest group L2 after sparse training |
+| OCSPruner | One-cycle **on the target** (from scratch or pretrained) | Built into the cycle | Repeat per net | Global binary-searched threshold · lowest group L2 under a growing penalty |
+| AMC | DDPG **on the target** | Then FT | The opposite of SPECTRA | DDPG per-layer ratio · largest-magnitude channels + least-squares refit |
+| FPGM / L1 | Criterion only | Paper’s long FT **or** our same-loop 40 | Same-loop is the fair yardstick | FPGM: uniform · nearest the geometric median, soft. Li et al.: hand-set per stage · smallest L1. Same loop: the walk's rates · that criterion |
+
+Last column: one-line form of `FILTER_SELECTION_NAP_DESIGN.md` §2 (49 published methods, sources, checked 1 Oct).
 
 **Thesis sentence for (c):** SPECTRA is more efficient **per additional architecture** (no per-net RL, short FT). SPECTRA is **not** more efficient **on the first net** if we count the offline train. Report **both** numbers (offline GPU-hours amortized over |test set|, vs DepGraph GPU-hours × |test set|). Do not invent GPU-hours; measure from slurm elapsed of (1) one V6 train, (2) one Catalog L TRAJ, (3) quoted DepGraph reproduce recipe epochs × a 4090-class hour.
 
@@ -218,13 +220,13 @@ One row grammar for every method (ours and quoted), SPECTRA in **kept** fraction
 
 ### 5.3 (c) Budgets — where SPECTRA is more efficient, and where it is not
 
-| Method | Search / agent work **on the target** | Fine-tune on the target | Cost of the **next** CNN |
-|---|---|---|---|
-| **SPECTRA (frozen agent)** | **none** — one offline DRL train on the catalog, amortised over every later target | Adam 40 / patience 10 per accepted cut (TEST loop) | one skip-train walk + short FT; no RL |
-| DepGraph | group-sparse search on the target | pretrain-protocol SGD, hundreds of epochs (`reproduce/`) | repeat search + long FT |
-| OCSPruner | one-cycle training on the target | inside the cycle | repeat per target |
-| AMC | DDPG per target | then FT | repeat per target |
-| FPGM / L1 / mild (same loop) | criterion only | our 40/10 | same as SPECTRA minus the agent |
+| Method | Search / agent work **on the target** | Fine-tune on the target | Cost of the **next** CNN | How filters are chosen (how many · which) |
+|---|---|---|---|---|
+| **SPECTRA (frozen agent)** | **none** — one offline DRL train on the catalog, amortised over every later target | Adam 40 / patience 10 per accepted cut (TEST loop) | one skip-train walk + short FT; no RL | frozen agent sets each coupled group's keep-rate · L1 group vote |
+| DepGraph | group-sparse search on the target | pretrain-protocol SGD, hundreds of epochs (`reproduce/`) | repeat search + long FT | learned global sparsity · lowest group L2 after sparse training |
+| OCSPruner | one-cycle training on the target | inside the cycle | repeat per target | global binary-searched threshold · lowest group L2 under a growing penalty |
+| AMC | DDPG per target | then FT | repeat per target | DDPG per-layer ratio · largest-magnitude channels + refit |
+| FPGM / L1 / mild (same loop) | criterion only | our 40/10 | same as SPECTRA minus the agent | uniform (mild 90 % / L1 80 %) · L1 group vote, or FPGM as a switch |
 
 Numbers are **measured, not invented**: (1) offline train GPU-hours = slurm elapsed of the quoted actor's train job (e.g. `21459737` at freeze); (2) per-target cost = slurm elapsed of one Catalog L TRAJ; (3) DepGraph/OCS per-target cost = their `reproduce` epoch counts × a measured CIFAR epoch on our 4090-class node (state the epoch count and the source script). Report **both** the amortised cost per additional target and the first-target cost including the offline train; SPECTRA wins the first, loses the second.
 

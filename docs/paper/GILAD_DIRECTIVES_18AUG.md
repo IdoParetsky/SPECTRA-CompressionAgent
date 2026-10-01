@@ -79,6 +79,11 @@ Same-loop candidates (prefer these **before** quoting literature stars):
 | **Uniform / random channel** | Almost every paper | Random rate already; uniform keep-rate schedule is the missing sibling |
 | **Group L2 / DepGraph criterion** | Coupling + norm inside *their* solver | We already group; do not re-solve DepGraph overnight |
 
+**Status, 1 Oct.**
+- FPGM and BN-scale are implemented and were A/B'd in the walk; they tie L1 (ledger §59–60).
+- Taylor is implemented (`pruning.bind_taylor_scores`).
+- Taylor, HRank, mean activation, APoZ, random masks and a single-channel ablation oracle are all measured at matched allocation by the selection probe S0 (`scripts/selection_probe.py`; `FILTER_SELECTION_NAP_DESIGN.md` §8). That is a lever measurement, not a walk switch.
+
 **Quote-only (do not rerun overnight):** DepGraph, SPA, AMC, MetaPruning, OCS/OCSPruner (WACV 2026), SACP (arXiv:2506.11469), GoPrune (arXiv:2511.22120), sGLP-IB (arXiv:2502.09125), Auto-Train-Once, HESSO. Overlay on the Pareto with a “different FT” caption.
 
 NEON’s extra baselines (AMC per-net DRL, ADMM unstructured) are lineage, not the CNN structured arena. Do not spend freeze time reimplementing AMC on ResNet-56.
@@ -102,15 +107,17 @@ Closest **DRL** ancestor: AMC (2018) — per-target controller.
 
 **2025–26 per-model SOTA to cite, not absorb:**
 
-| Paper | Venue / id | Why it is a reference, not the claim |
-|---|---|---|
-| OCS / OCSPruner | WACV 2026, arXiv:2501.13439 | One-cycle structured prune; CIFAR + ImageNet VGG/ResNet/MobileNet; **per-model search** |
-| SACP | arXiv:2506.11469 | GCN + search for layer-wise rates; CIFAR-10 / ImageNet VGG/ResNet |
-| GoPrune | arXiv:2511.22120 | ℓ2,p structured sparsity; CIFAR ResNet/VGG |
-| sGLP-IB / sTLP-IB | arXiv:2502.09125 | Structured lasso + information bottleneck |
-| Hu / poplar opt | KBS 2025 | Metaheuristic channels |
-| Palakonda metaheuristics | ESWA 2025 | Search encodings |
-| MLPruner, DAGP, SVD filter prune, Flow-Guided, spectral-entropy+DepGraph, DualPrune | 2025–26 | Criterion / search / pipeline |
+| Paper | Venue / id | Why it is a reference, not the claim | How filters are chosen (how many · which), checked 1 Oct |
+|---|---|---|---|
+| OCS / OCSPruner | WACV 2026, arXiv:2501.13439 | One-cycle structured prune; CIFAR + ImageNet VGG/ResNet/MobileNet; **per-model search** | global binary-searched threshold · lowest group L2 under a growing penalty, once stable |
+| SACP | arXiv:2506.11469 | GCN + search for layer-wise rates; CIFAR-10 / ImageNet VGG/ResNet | searched per-layer ratios (GCN similarity, then val accuracy) · UNVERIFIED; final model picked on test |
+| GoPrune | arXiv:2511.22120 | ℓ2,p structured sparsity; CIFAR ResNet/VGG | ratio 0.7 (global vs per-layer UNVERIFIED) · lowest normalised channel magnitude after ℓ2,p training |
+| sGLP-IB / sTLP-IB | arXiv:2502.09125 | Structured lasso + information bottleneck | not checked |
+| Hu / poplar opt | KBS 2025 | Metaheuristic channels | not checked |
+| Palakonda metaheuristics | ESWA 2025 | Search encodings | not checked |
+| MLPruner, DAGP, SVD filter prune, Flow-Guided, spectral-entropy+DepGraph, DualPrune | 2025–26 | Criterion / search / pipeline | not checked |
+
+The full allocation · selection table (49 published methods) is `FILTER_SELECTION_NAP_DESIGN.md` §2.
 
 Full positioning: literature survey canvas. Draft bib [1]–[78] proposal; [79]–[92] Aug survey; [93]–[96] this pass.
 
@@ -126,6 +133,12 @@ Gilad asked Ido to contact PhD student **Michael Bohadana** for **NAPv2**. Chrom
 
 Meeting item 6: **scanned; do not lift.**
 
+**Update, 1 Oct 2026 (Gilad's second group of notes, relayed by Ido).** Gilad now wants NAP2 considered as a CNN representation for supported decision-making about *which* filters to cut, possibly through a second DRL agent. He also pointed to the robustness vs verification literature in DRL. Michael is a PhD student in the lab, so building on the repo is fine.
+
+The 20 Aug verdict still holds for its narrow claim: do not call `NAP2Predictor.score()` inside the prune loop. The new direction is different. We rebuild NAPv2's statistics at filter level ("NAP-F") and retrain its predictor on our own fine-tune trajectories. Design, literature and gates: `docs/paper/FILTER_SELECTION_NAP_DESIGN.md`. Status for 8 Oct: `docs/paper/GILAD_OCT8_TRACKER.md`.
+
+The second NAP paper is Bohadana, Schneider & Katz, TMLR, July 2026. The repo is still private to our token, so it was copied from the 20 Aug zip to `scratch_audit/third_party/NAPv2` (read-only).
+
 ---
 
 ## 7. Action for the next Gilad meeting
@@ -135,4 +148,4 @@ Meeting item 6: **scanned; do not lift.**
 3. Heuristic story: greedy / mild / random / look-ahead on the same plot; ranking A/B if jobs finish.
 4. Literature table: SPECTRA TEST vs quoted SOTA on the same nets, with the “we do not claim to win their home cell” sentence.
 5. ImageNet: frozen transfer probe or an honest limitation — **not** DRL train.
-6. NAP2: scanned 20 Aug. Michael’s NAPv2 is NAS performance prediction (NB-201), not a pruner. Complementary; do not lift into SPECTRA this fortnight.
+6. NAP2: scanned 20 Aug. Michael’s NAPv2 is NAS performance prediction (NB-201), not a pruner. Complementary; do not lift into SPECTRA this fortnight. **Superseded 1 Oct:** see the §6 update. The selection-headroom probe (S0) runs first; it decides whether a NAP-informed selector or second agent can move accuracy at all.

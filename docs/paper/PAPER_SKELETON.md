@@ -61,8 +61,8 @@ Caption rules: X is fraction **kept** (or 1/kept as a second axis). Y is `eval_t
 
 | SPECTRA | NEON | Contents |
 |---|---|---|
-| **T1** related-work criteria | Table 1 | Global POV, preference-aware (τ), generic (no per-net agent train), structured (real shapes), same-loop vs quote-only |
-| **T2** compared methods | §4 algorithms | DRL / greedy / mild / random / look-ahead / prefer-heuristic; ranking L1 default, FPGM/BN as A/B |
+| **T1** related-work criteria | Table 1 | Global POV, preference-aware (τ), generic (no per-net agent train), structured (real shapes), same-loop vs quote-only, **how filters are chosen: how many (allocation) · which (selection)**, per `FILTER_SELECTION_NAP_DESIGN.md` §2 |
+| **T2** compared methods | §4 algorithms | DRL / greedy / mild / random / look-ahead / prefer-heuristic; ranking L1 default, FPGM/BN as A/B. Each row states its allocation · selection (SPECTRA: frozen agent per coupled group · L1 group vote) |
 | **T3** coverage summary | Table 3 “NEON X” | One row per family × dataset: Δacc, params kept, FLOPs kept, inside τ? Mark DRL rows **sampled** until argmax |
 | **T4** skinny ResNet callout | — | Three operating points on r56-w4 (F9 in table form) |
 | **T5** C100 recoverability vs C9 | — | No-agent VGG recipe vs frozen-agent C9 split (VGG/ShuffleNet in, residuals/RepVGG out) |

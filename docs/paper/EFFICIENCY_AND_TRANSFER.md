@@ -93,53 +93,55 @@ That is an upper bound: the two runs differ in protocol (legacy vs P), and the g
 
 ### 4.1 Per-target search cost of learned pruners (CIFAR)
 
-| Method | Per-target cost as reported | GPU | Includes | Source |
-|---|---|---|---|---|
-| AMC (He et al., ECCV 2018) | "within 1 hour" (CIFAR-10) | 1× TITAN Xp | RL search; fine-tune extra | [arXiv:1802.03494](https://arxiv.org/abs/1802.03494) §4.1 |
-| AGMC (Yu et al., ICCV 2021) | (320 ± 30) s, ResNet-56, 300 episodes | RTX 8000 | search | [ICCV 2021](https://openaccess.thecvf.com/content/ICCV2021/html/Yu_Auto_Graph_Encoder-Decoder_for_Neural_Network_Pruning_ICCV_2021_paper.html) §4.2 (not in arXiv v1) |
-| GNN-RL (Yu et al., ICML 2022) | "within half a GPU hour" | V100 | search | [arXiv:2102.03214](https://arxiv.org/abs/2102.03214) |
-| TAS (Dong & Yang, NeurIPS 2019) | 3.83 GPU-h, ResNet-32 | 1× V100 | search | [arXiv:1905.09717](https://arxiv.org/abs/1905.09717) Table 2 |
-| DSA (Ning et al., ECCV 2020) | DSA 5 GPU-h; AMC ≈ 3 GPU-h; traditional pretrain → allocate → fine-tune "up to 10 GPU hours" (ResNet-56) | — | DSA's estimates | [arXiv:2004.02164](https://arxiv.org/abs/2004.02164) §5.3 |
-| RL-Pruner (Wang & Kindratenko, 2024) | "several hours", then a 100-epoch post-training (every method in its Table 2) | — | search + post-train | [arXiv:2411.06463](https://arxiv.org/abs/2411.06463) §4.3 |
-| AgenticPruner (Esmat et al., 2026) | 7.5 effective full-dataset epochs of search, plus LLM calls (Claude 3.5 Sonnet) | — | search | [arXiv:2601.12272](https://arxiv.org/abs/2601.12272) |
-| Graph metanetworks (Liu, Wang, Zhang, 2025) | meta-train 357 min once; then prune + fine-tune 67 min (100+100 epochs) or 43 min (60+60), vs DepGraph 84 min (100 SL + 100 FT) | 1× RTX 4090 | per target, after the one-time meta-train | [arXiv:2506.12041](https://arxiv.org/abs/2506.12041) App. A.4, Table 7 |
-| **SPECTRA** | **0** per-target search; one-time train 31.8+ GPU-h | RTX 6000 Ada | the walk is the TEST (§3.1) | this file §3 |
+| Method | Per-target cost as reported | GPU | Includes | How filters are chosen (how many · which) | Source |
+|---|---|---|---|---|---|
+| AMC (He et al., ECCV 2018) | "within 1 hour" (CIFAR-10) | 1× TITAN Xp | RL search; fine-tune extra | DDPG per-layer ratio · largest-magnitude channels + least-squares refit | [arXiv:1802.03494](https://arxiv.org/abs/1802.03494) §4.1 |
+| AGMC (Yu et al., ICCV 2021) | (320 ± 30) s, ResNet-56, 300 episodes | RTX 8000 | search | DDPG on a GCN embedding · smallest L2 (code) | [ICCV 2021](https://openaccess.thecvf.com/content/ICCV2021/html/Yu_Auto_Graph_Encoder-Decoder_for_Neural_Network_Pruning_ICCV_2021_paper.html) §4.2 (not in arXiv v1) |
+| GNN-RL (Yu et al., ICML 2022) | "within half a GPU hour" | V100 | search | PPO on a GNN · smallest L2 (code) | [arXiv:2102.03214](https://arxiv.org/abs/2102.03214) |
+| TAS (Dong & Yang, NeurIPS 2019) | 3.83 GPU-h, ResNet-32 | 1× V100 | search | searched widths · none: first *k* channels, re-initialised and distilled | [arXiv:1905.09717](https://arxiv.org/abs/1905.09717) Table 2 |
+| DSA (Ning et al., ECCV 2020) | DSA 5 GPU-h; AMC ≈ 3 GPU-h; traditional pretrain → allocate → fine-tune "up to 10 GPU hours" (ResNet-56) | — | DSA's estimates | differentiable keep ratios · top BN-scale magnitude | [arXiv:2004.02164](https://arxiv.org/abs/2004.02164) §5.3 |
+| RL-Pruner (Wang & Kindratenko, 2024) | "several hours", then a 100-epoch post-training (every method in its Table 2) | — | search + post-train | learned per-layer sparsity · smallest Taylor score | [arXiv:2411.06463](https://arxiv.org/abs/2411.06463) §4.3 |
+| AgenticPruner (Esmat et al., 2026) | 7.5 effective full-dataset epochs of search, plus LLM calls (Claude 3.5 Sonnet) | — | search | LLM-proposed ratios · Taylor, ranked inside dependency groups | [arXiv:2601.12272](https://arxiv.org/abs/2601.12272) |
+| Graph metanetworks (Liu, Wang, Zhang, 2025) | meta-train 357 min once; then prune + fine-tune 67 min (100+100 epochs) or 43 min (60+60), vs DepGraph 84 min (100 SL + 100 FT) | 1× RTX 4090 | per target, after the one-time meta-train | global ranking · smallest group L2 after the metanetwork rewrites the weights | [arXiv:2506.12041](https://arxiv.org/abs/2506.12041) App. A.4, Table 7 |
+| **SPECTRA** | **0** per-target search; one-time train 31.8+ GPU-h | RTX 6000 Ada | the walk is the TEST (§3.1) | frozen agent sets each coupled group's keep-rate · L1 group vote | this file §3 |
+
+The "how filters are chosen" column, here and in §4.2, §4.3 and §8.1, is the one-line form of `FILTER_SELECTION_NAP_DESIGN.md` §2 (49 published methods, checked against each paper's text or code on 1 Oct).
 
 ### 4.2 ImageNet search and pruning cost (ResNet-50 unless noted)
 
-| Method | Cost | Basis | Source |
-|---|---|---|---|
-| NetAdapt | ~195 h | HALP's estimate, V100-normalized, fine-tune excluded | [HALP, arXiv:2210.06659](https://arxiv.org/abs/2210.06659) Table 3 |
-| NetAdapt | 864 GPU-h | EagleEye's estimate (10^4 training iterations); network not named | [EagleEye, arXiv:2007.02491](https://arxiv.org/abs/2007.02491) Table 2 |
-| ThiNet | ~210 h; ≫1750 GPU-h incl. training the selected net; 244 epochs (196 + 48) | HALP T3; PaS T3; ABCPruner T3 | HALP; [PaS, arXiv:2206.01198](https://arxiv.org/abs/2206.01198); [ABCPruner, arXiv:2001.08565](https://arxiv.org/abs/2001.08565) |
-| EagleEye | 25 GPU-h self-reported (1000 candidates, adaptive BN, 10–20 s each on a 2080 Ti); 30 h (HALP T3); 75 GPU-h incl. training (PaS T3) | mixed | EagleEye Table 2, §4.3 |
-| HALP | 6.5 h GPU + 0.5 h CPU | V100-normalized, fine-tune excluded | HALP Table 3 |
-| DMCP | 40-epoch search on 16× GTX 1080 Ti (batch 1024), then training from scratch on 32 GPUs; 120 GPU-h in PaS T3 | — | [arXiv:2005.03354](https://arxiv.org/abs/2005.03354) §4.1 |
-| PaS | 60 GPU-h incl. training the selected net | — | PaS Table 3 |
-| MetaPruning / ABCPruner | 160 epochs (32 + 128) / 102 epochs (12 + 90) | epochs | ABCPruner Table 3 |
-| TAS (ResNet-18) | about 59 h on 4× V100 (≈ 236 GPU-h) | search | TAS §4.3 |
-| TPP | 41 h on 4× V100 (≈ 164 GPU-h), incl. 90-epoch retraining | total | [arXiv:2207.12534](https://arxiv.org/abs/2207.12534) App. A |
-| OCSPruner | 27 h 6 min on 2× RTX 4090 (≈ 54 GPU-h), from scratch; baseline training is 37 h 55 min | total | [arXiv:2501.13439](https://arxiv.org/abs/2501.13439) Supp. Table 9 (WACV 2026) |
-| Once-for-All | 1,200 V100 GPU-h once; for N = 40 deployments 1.2k GPU-h total, 0.34k lbs CO2e, $3.7k on AWS | amortized | [arXiv:1908.09791](https://arxiv.org/abs/1908.09791) Table 1 |
-| APQ | 2400 + 0.5N GPU-h | amortized | [arXiv:2006.08509](https://arxiv.org/abs/2006.08509) Table 2 |
-| DepGraph | 30 sparse-learning + 90 fine-tune epochs, 8 GPUs, AMP | recipe | [Torch-Pruning](https://github.com/VainF/Torch-Pruning) `scripts/prune/imagenet/resnet50_group_sl.sh` |
-| **SPECTRA** (MobileNet-V2) | 105–122 GPU-h on 1× RTX 4090, 3-epoch recovery budget, no final fine-tune | pre-audit walk | §3.1 |
+| Method | Cost | Basis | How filters are chosen (how many · which) | Source |
+|---|---|---|---|---|
+| NetAdapt | ~195 h | HALP's estimate, V100-normalized, fine-tune excluded | greedy per-layer proposals under a latency table · largest L2 kept | [HALP, arXiv:2210.06659](https://arxiv.org/abs/2210.06659) Table 3 |
+| NetAdapt | 864 GPU-h | EagleEye's estimate (10^4 training iterations); network not named | as above | [EagleEye, arXiv:2007.02491](https://arxiv.org/abs/2007.02491) Table 2 |
+| ThiNet | ~210 h; ≫1750 GPU-h incl. training the selected net; 244 epochs (196 + 48) | HALP T3; PaS T3; ABCPruner T3 | hand-set per-layer rate · greedy least next-layer reconstruction error | HALP; [PaS, arXiv:2206.01198](https://arxiv.org/abs/2206.01198); [ABCPruner, arXiv:2001.08565](https://arxiv.org/abs/2001.08565) |
+| EagleEye | 25 GPU-h self-reported (1000 candidates, adaptive BN, 10–20 s each on a 2080 Ti); 30 h (HALP T3); 75 GPU-h incl. training (PaS T3) | mixed | random ratio candidates, picked by adaptive-BN accuracy · smallest L1 | EagleEye Table 2, §4.3 |
+| HALP | 6.5 h GPU + 0.5 h CPU | V100-normalized, fine-tune excluded | global latency knapsack · highest-Taylor prefix per layer | HALP Table 3 |
+| DMCP | 40-epoch search on 16× GTX 1080 Ti (batch 1024), then training from scratch on 32 GPUs; 120 GPU-h in PaS T3 | — | learned Markov widths · none: first *k* channels | [arXiv:2005.03354](https://arxiv.org/abs/2005.03354) §4.1 |
+| PaS | 60 GPU-h incl. training the selected net | — | emerges from learned masks · learned binary channel mask | PaS Table 3 |
+| MetaPruning / ABCPruner | 160 epochs (32 + 128) / 102 epochs (12 + 90) | epochs | evolutionary / bee-colony width search · first *k* (MetaPruning) / random filters (ABCPruner) | ABCPruner Table 3 |
+| TAS (ResNet-18) | about 59 h on 4× V100 (≈ 236 GPU-h) | search | searched widths · first *k*, re-initialised | TAS §4.3 |
+| TPP | 41 h on 4× V100 (≈ 164 GPU-h), incl. 90-epoch retraining | total | preset ratios · lowest L1, regularised away | [arXiv:2207.12534](https://arxiv.org/abs/2207.12534) App. A |
+| OCSPruner | 27 h 6 min on 2× RTX 4090 (≈ 54 GPU-h), from scratch; baseline training is 37 h 55 min | total | global threshold · lowest group L2 under a growing penalty | [arXiv:2501.13439](https://arxiv.org/abs/2501.13439) Supp. Table 9 (WACV 2026) |
+| Once-for-All | 1,200 V100 GPU-h once; for N = 40 deployments 1.2k GPU-h total, 0.34k lbs CO2e, $3.7k on AWS | amortized | evolutionary search with an accuracy predictor · largest-L1 prefix | [arXiv:1908.09791](https://arxiv.org/abs/1908.09791) Table 1 |
+| APQ | 2400 + 0.5N GPU-h | amortized | joint architecture / pruning / quantisation search · UNVERIFIED | [arXiv:2006.08509](https://arxiv.org/abs/2006.08509) Table 2 |
+| DepGraph | 30 sparse-learning + 90 fine-tune epochs, 8 GPUs, AMP | recipe | learned global sparsity · lowest group L2 after sparse training | [Torch-Pruning](https://github.com/VainF/Torch-Pruning) `scripts/prune/imagenet/resnet50_group_sl.sh` |
+| **SPECTRA** (MobileNet-V2) | 105–122 GPU-h on 1× RTX 4090, 3-epoch recovery budget, no final fine-tune | pre-audit walk | frozen agent per coupled group · L1 group vote | §3.1 |
 
 Wall-clock figures on several GPUs are converted to GPU-hours above (TAS, TPP, OCSPruner). Don't place them beside single-GPU figures unconverted.
 
 ### 4.3 One-shot and regularization pipelines: schedules and wall-clock
 
-| Method | Schedule / time | Source |
-|---|---|---|
-| DepGraph, ResNet-56 CIFAR-10 | Official logs, read with `scripts/h2h_readout.py`; the GPU is not named. At 2.11×: sparse learning 76.9 min + pruning 14 s + fine-tune 30.3 min = 107.4 min, best epoch 93.89, last epoch 93.83. At 2.55×: 113.2 min. VGG-19 CIFAR-100 at 8.84× (it reaches 8.97×): 36.5 + 0.2 + 11.7 = 48.3 min, best 70.60, last 70.31. 100 SL + 100 FT epochs are argparse defaults, after 200-epoch pretraining. The reproduction picks its best epoch **on the CIFAR-10 test set** (`reproduce/registry.py` L128–129, `main.py` L158–179, L285–287) | [arXiv:2301.12900](https://arxiv.org/abs/2301.12900); Torch-Pruning `reproduce/` |
-| OCSPruner, ResNet-56 CIFAR-10 | 26 min total vs 25 min baseline training, 1× RTX 4090, from scratch | OCSPruner Supp. Table 9 |
-| CHIP | fine-tune 300 epochs (CIFAR-10) / 180 (ImageNet); per-layer filter counts are inputs | [arXiv:2110.13981](https://arxiv.org/abs/2110.13981) §4.1, Alg. 1 |
-| ResRep | 480 epochs (CIFAR-10 ResNet-56/110), 180 (ImageNet) | [arXiv:2007.03260](https://arxiv.org/abs/2007.03260) §4.1 |
-| OTO / ATO | OTO: 300 epochs (CIFAR-10), 120 (ImageNet). ATO: 300 (CIFAR), 240 (ImageNet ResNets) | [arXiv:2107.07467](https://arxiv.org/abs/2107.07467); [arXiv:2403.14729](https://arxiv.org/abs/2403.14729) |
-| HRank | "For each layer, we retrain the network for 30 epochs after pruning" | [arXiv:2002.10179](https://arxiv.org/abs/2002.10179) §4.1 |
-| ThiNet | "we fine-tune one or two epochs after the pruning of one layer" | [arXiv:1707.06342](https://arxiv.org/abs/1707.06342) §3.1 |
-| GReg | per-layer ratios: "We do not have strong rules to set them" | [arXiv:2012.09243](https://arxiv.org/abs/2012.09243) App. A.1 |
-| ICE-Pruning, ResNet-152 CIFAR-10, 60% | 1943 s vs 3793 s for naive iterative pruning (1 FT epoch per step), RTX 3090 | [arXiv:2505.07411](https://arxiv.org/abs/2505.07411) Table III(a) |
+| Method | Schedule / time | How filters are chosen (how many · which) | Source |
+|---|---|---|---|
+| DepGraph, ResNet-56 CIFAR-10 | Official logs, read with `scripts/h2h_readout.py`; the GPU is not named. At 2.11×: sparse learning 76.9 min + pruning 14 s + fine-tune 30.3 min = 107.4 min, best epoch 93.89, last epoch 93.83. At 2.55×: 113.2 min. VGG-19 CIFAR-100 at 8.84× (it reaches 8.97×): 36.5 + 0.2 + 11.7 = 48.3 min, best 70.60, last 70.31. 100 SL + 100 FT epochs are argparse defaults, after 200-epoch pretraining. The reproduction picks its best epoch **on the CIFAR-10 test set** (`reproduce/registry.py` L128–129, `main.py` L158–179, L285–287) | learned global sparsity to a speed-up target · lowest group L2 after sparse training | [arXiv:2301.12900](https://arxiv.org/abs/2301.12900); Torch-Pruning `reproduce/` |
+| OCSPruner, ResNet-56 CIFAR-10 | 26 min total vs 25 min baseline training, 1× RTX 4090, from scratch | global binary-searched threshold · lowest group L2 under a growing penalty, once stable | OCSPruner Supp. Table 9 |
+| CHIP | fine-tune 300 epochs (CIFAR-10) / 180 (ImageNet); per-layer filter counts are inputs | hand-set per-layer counts · lowest channel independence (nuclear-norm drop) | [arXiv:2110.13981](https://arxiv.org/abs/2110.13981) §4.1, Alg. 1 |
+| ResRep | 480 epochs (CIFAR-10 ResNet-56/110), 180 (ImageNet) | global compactor ranking to a FLOPs target · smallest compactor norm | [arXiv:2007.03260](https://arxiv.org/abs/2007.03260) §4.1 |
+| OTO / ATO | OTO: 300 epochs (CIFAR-10), 120 (ImageNet). ATO: 300 (CIFAR), 240 (ImageNet ResNets) | emerges from group sparsity · groups projected to zero (ATO: a controller's mask) | [arXiv:2107.07467](https://arxiv.org/abs/2107.07467); [arXiv:2403.14729](https://arxiv.org/abs/2403.14729) |
+| HRank | "For each layer, we retrain the network for 30 epochs after pruning" | hand-set per-layer rates · lowest mean feature-map rank | [arXiv:2002.10179](https://arxiv.org/abs/2002.10179) §4.1 |
+| ThiNet | "we fine-tune one or two epochs after the pruning of one layer" | hand-set per-layer rate · greedy least reconstruction error | [arXiv:1707.06342](https://arxiv.org/abs/1707.06342) §3.1 |
+| GReg | per-layer ratios: "We do not have strong rules to set them" | preset per-stage ratios · lowest L1, then a growing L2 penalty | [arXiv:2012.09243](https://arxiv.org/abs/2012.09243) App. A.1 |
+| ICE-Pruning, ResNet-152 CIFAR-10, 60% | 1943 s vs 3793 s for naive iterative pruning (1 FT epoch per step), RTX 3090 | uniform ratio · smallest L1 (pluggable) | [arXiv:2505.07411](https://arxiv.org/abs/2505.07411) Table III(a) |
 
 ### 4.4 Cost of one pruning step
 
@@ -283,16 +285,16 @@ A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows 
 
 ### 8.1 Closest prior work
 
-| Work | What transfers | Per-target cost after transfer | Source |
-|---|---|---|---|
-| NEON (Hirsch & Katz, Inf. Sci. 2022), "Multi-objective pruning of dense neural networks using deep reinforcement learning" | A DRL agent trained offline on many datasets, applied "without additional training"; **dense nets only** | Table 7 (minutes; small / medium / large data): NEON 5 = 0.67 / 5.81 / 13.35; AMC 4 = 2.89 / 13.37 / 17.53, of which 2.86 / 13.2 / 17.3 is AMC's agent training; AMC 1 = 0.62 / 3.25 / 4.03 | [doi:10.1016/j.ins.2022.07.134](https://doi.org/10.1016/j.ins.2022.07.134) |
-| Out-of-the-box channel pruned networks (Venkatesan et al., 2020) | Layer-wise profiles from one RL policy over 8 ResNet-20s (CIFAR-10/100), reused on TinyImageNet and ImageNet; **same architecture only** | profile reuse + fine-tune | [arXiv:2004.14584](https://arxiv.org/abs/2004.14584) |
-| Meta Pruning via Graph Metanetworks (Liu, Wang, Zhang, 2025) | "a feedforward through the metanetwork and some standard finetuning"; transfer shown between similar datasets and ResNet-56 ↔ 110 | 43–67 min on a 4090 | [arXiv:2506.12041](https://arxiv.org/abs/2506.12041) |
-| GNN-RL / AGMC (Yu et al.) | The encoder is reused, then a new search runs: GNN-RL ResNet-56 → 44 "only updated the MLP component"; AGMC ResNet-56 → 20 "only updated the decoder parameters", 100 episodes | a per-network search | [arXiv:2102.03214](https://arxiv.org/abs/2102.03214); [arXiv:2011.12641](https://arxiv.org/abs/2011.12641) |
-| N2N (Ashok et al., ICLR 2018) | A policy pre-trained on smaller teacher networks warm-starts training on larger ones | a continued search | [arXiv:1709.06030](https://arxiv.org/abs/1709.06030) |
-| Mu et al. (IEEE TCAD 2024) | The agent is warm-started across pruning ratios, models and datasets: 1.5–2.5× faster RL pruning | a continued search | [arXiv:2107.08815](https://arxiv.org/abs/2107.08815) |
-| Evolved pruning functions (Liu, Kung, Wentzlaff, GECCO 2022) | A scoring *criterion* evolved in 98 GPU-days transfers to unseen datasets; not an agent | the criterion's pipeline | [arXiv:2110.10876](https://arxiv.org/abs/2110.10876) |
-| AgenticPruner (2026) | An LLM prior with in-context learning | 7.5 effective epochs of search | [arXiv:2601.12272](https://arxiv.org/abs/2601.12272) |
+| Work | What transfers | Per-target cost after transfer | How filters are chosen (how many · which) | Source |
+|---|---|---|---|---|
+| NEON (Hirsch & Katz, Inf. Sci. 2022), "Multi-objective pruning of dense neural networks using deep reinforcement learning" | A DRL agent trained offline on many datasets, applied "without additional training"; **dense nets only** | Table 7 (minutes; small / medium / large data): NEON 5 = 0.67 / 5.81 / 13.35; AMC 4 = 2.89 / 13.37 / 17.53, of which 2.86 / 13.2 / 17.3 is AMC's agent training; AMC 1 = 0.62 / 3.25 / 4.03 | DRL agent per layer · none: the layer is re-initialised at the new width and retrained | [doi:10.1016/j.ins.2022.07.134](https://doi.org/10.1016/j.ins.2022.07.134) |
+| Out-of-the-box channel pruned networks (Venkatesan et al., 2020) | Layer-wise profiles from one RL policy over 8 ResNet-20s (CIFAR-10/100), reused on TinyImageNet and ImageNet; **same architecture only** | profile reuse + fine-tune | PPO keep fraction per layer · random channels | [arXiv:2004.14584](https://arxiv.org/abs/2004.14584) |
+| Meta Pruning via Graph Metanetworks (Liu, Wang, Zhang, 2025) | "a feedforward through the metanetwork and some standard finetuning"; transfer shown between similar datasets and ResNet-56 ↔ 110 | 43–67 min on a 4090 | global ranking · smallest group L2 after the metanetwork edit | [arXiv:2506.12041](https://arxiv.org/abs/2506.12041) |
+| GNN-RL / AGMC (Yu et al.) | The encoder is reused, then a new search runs: GNN-RL ResNet-56 → 44 "only updated the MLP component"; AGMC ResNet-56 → 20 "only updated the decoder parameters", 100 episodes | a per-network search | RL per-layer ratio · smallest L2 (code) | [arXiv:2102.03214](https://arxiv.org/abs/2102.03214); [arXiv:2011.12641](https://arxiv.org/abs/2011.12641) |
+| N2N (Ashok et al., ICLR 2018) | A policy pre-trained on smaller teacher networks warm-starts training on larger ones | a continued search | REINFORCE layer removal and shrinkage · UNVERIFIED | [arXiv:1709.06030](https://arxiv.org/abs/1709.06030) |
+| Mu et al. (IEEE TCAD 2024) | The agent is warm-started across pruning ratios, models and datasets: 1.5–2.5× faster RL pruning | a continued search | DDPG per-layer ratio · LASSO reconstruction | [arXiv:2107.08815](https://arxiv.org/abs/2107.08815) |
+| Evolved pruning functions (Liu, Kung, Wentzlaff, GECCO 2022) | A scoring *criterion* evolved in 98 GPU-days transfers to unseen datasets; not an agent | the criterion's pipeline | fixed ratios · the evolved score itself | [arXiv:2110.10876](https://arxiv.org/abs/2110.10876) |
+| AgenticPruner (2026) | An LLM prior with in-context learning | 7.5 effective epochs of search | LLM-proposed ratios · Taylor inside dependency groups | [arXiv:2601.12272](https://arxiv.org/abs/2601.12272) |
 
 The paper's novelty sentence, supported by both fact-checks: no published CNN pruning work applies one frozen learned agent across CNN families and unseen datasets without per-target search or agent fine-tuning. NEON did this for dense networks.
 
