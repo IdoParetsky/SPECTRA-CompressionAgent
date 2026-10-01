@@ -94,6 +94,15 @@ if ! "$PYTHON" -c "import torch,sys; sys.exit(0 if torch.cuda.is_available() els
   exit 2
 fi
 
+# Board power, utilisation and memory every second for the cost tables (scripts/cost_readout.py
+# integrates power.draw into Wh). Appends, so a requeue keeps the first attempt's samples.
+if [[ "${SPECTRA_GPU_SAMPLES:-1}" == "1" ]] && command -v nvidia-smi >/dev/null 2>&1; then
+  nvidia-smi --query-gpu=timestamp,index,name,power.draw,utilization.gpu,memory.used,clocks.sm,temperature.gpu \
+    --format=csv,nounits -l 1 >> "${SPECTRA_RUN_DIR}/gpu_samples.csv" 2>/dev/null &
+  _SPECTRA_GPU_SAMPLER=$!
+  trap 'kill "${_SPECTRA_GPU_SAMPLER}" 2>/dev/null' EXIT
+fi
+
 # ---------------------------------------------------------------- profiles
 # smoke:  prove the pipeline end to end in minutes. Tiny fine-tune / short warmup on purpose.
 # medium: realistic fine-tune + exploration on the small initial DB (progress, not correctness).
