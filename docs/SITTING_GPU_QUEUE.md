@@ -119,6 +119,7 @@ The question: does the agent's in-loop recovery (recipe A, Adam 1e-3, 12/4, crop
   - `bn` valid and within 0.1 of 12x4 → a cheap-proxy train arm is a sitting question (3–4× more episodes per GPU-day).
   - Depth penalty: median Δ(0.9) − Δ(0.8) under 12x4 over the final's. Above 1.5 means the proxy over-penalises the deeper cut, which pushes the agent toward mild: report, no action.
 - *Never* ledger these walks' TRAJ rows (truncated at the target). One ledger section at the readout, with the zero-GPU look.
+- *First GPU run of the battery* is 21941343 (R 09:31, banner `proxy=0.9`). If it fails there, ops holds the PD pf-* jobs (runbook §10.0). A failing candidate is logged and skipped; a failure before the first candidate ends the job with a Traceback.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 
