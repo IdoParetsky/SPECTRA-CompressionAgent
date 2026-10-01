@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/resnet56-width6_cifar10_thin-res-net_92.88_0.122_18.60.pt": [
+    "resnet56",
+    "/home/paretsky/spectra_models_instantiation/thin_res_net.py",
+    "cifar-10"
+  ]
+}

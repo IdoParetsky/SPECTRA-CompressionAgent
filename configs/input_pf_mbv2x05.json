@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/mobilenet-v2x0.5_cifar10_chenyaofo_92.99_0.7_55.94.pt": [
+    "mobilenet_v2x05",
+    "/home/paretsky/spectra_models_instantiation/mobilenetv2_chenyaofo.py",
+    "cifar-10"
+  ]
+}

@@ -467,7 +467,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         f"{'+origin' if fortify_mod.eval_final_ft_origin() else ''}"
                         f"{'+kd' if fortify_mod.eval_final_ft_kd() else ''}"
                         f"{'+scratch:' + fortify_mod.eval_final_ft_scratch() if fortify_mod.eval_final_ft_scratch() else ''}"
-                        f"{' from=' + fortify_mod.eval_final_ft_from() if fortify_mod.eval_final_ft_from() else ''}")
+                        f"{' from=' + fortify_mod.eval_final_ft_from() if fortify_mod.eval_final_ft_from() else ''}"
+                        f"{' proxy=' + ','.join(f'{t:g}' for t in fortify_mod.eval_proxy_fidelity()) if fortify_mod.eval_proxy_fidelity() else ''}")
                 if traj and mode == EVAL_TEST and fortify_mod.eval_final_ft_from():
                     _final_ft_from_saved(env, net_path, fortify_mod.eval_final_ft_from(),
                                          fortify_mod.eval_final_ft_epochs())
@@ -487,6 +488,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 traj_phase_b = False
                 last_test = None
                 step_i = 0
+                proxy_targets = fortify_mod.eval_proxy_fidelity() if traj and mode == EVAL_TEST else ()
+                proxy_done = set()
                 if traj and mode == EVAL_TEST:
                     test_new, test_orig, _ = env.score_test_loader()
                     last_test = (test_new, test_orig)
@@ -605,6 +608,10 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             if keep_models:
                                 _keep_final_ft_candidates(env, traj_points[-1], candidates, size_points,
                                                           float(conf.allowed_acc_reduction))
+                            if proxy_targets:
+                                from src import proxy_fidelity
+                                proxy_fidelity.maybe_run(env, net_path, traj_points[-1], proxy_targets,
+                                                         proxy_done)
                         elif done and last_test is not None:
                             traj_points.append(
                                 _traj_capture(env, step_i, compression_rate,

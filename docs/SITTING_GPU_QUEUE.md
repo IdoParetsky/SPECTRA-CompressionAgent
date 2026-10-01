@@ -4,15 +4,16 @@
 **Rule (Ido 29 Sep 15:49):** QOS stays full with **independent** no-agent TESTs. Sitting **sbatches**. No second GO on those cells. Cap is **live `gpu-part` MaxTRESPU** (8 as of 1 Oct 00:09). Do not invent cells when the ladder is empty.
 **Pre-authorized (Ido 30 Sep 11:08):** freeze TESTs of the Stage-4 train (first after PPO update 20, then ≤ 1 a day); its resume past the 6-day fuse (chained: 21767188). **Done on that GO:** 21716380 scancelled; C100 catalog emitted (§148). **Done on Ido's 12:34 GO:** 21730506 converted to the crop+flip walk → **21809595**.
 **Done on Ido's 1 Oct 01:03 GO:** the two one-change reward trains (C1 **21938807**, C2 **21938810**; resumes chained).
-**Done on Ido's 1 Oct asks:** 08:29 the layer-replacement grid (15 jobs); 08:42 the agent-design arms (11 jobs, two trains held on gates). Both sections below.
+**Done on Ido's 1 Oct asks:** 08:29 the layer-replacement grid (15 jobs); 08:42 the agent-design arms (11 jobs, two trains held on gates); 08:56 the FT proxy-fidelity cell (zero-GPU look + 6 jobs). Sections below.
 **Still Ido GO:** a DRL train (N8, N9; for N8 see the conditional-GO proposal, roadmap §3 G5); a second resume.
 
 Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10** (current), §8 (cells). Options, decisions and dev items: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. N8: `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12.
 
-**Stamped:** 1 Oct 2026, ~09:00 IDT. **QOS `gpu-part` `gres/gpu=8`, 8 R**: train **21737123**, C1 **21938807**, C2 **21938810**, LR grid **21940176–80**. **PD**: arm smokes 3 (nice 24), LR grid 10 (nice 25–34), arm trains 2 `afterok` + 2 **held**, 7 `afterok` resumes. Do **not** invent cells; do **not** launch N8.
+**Stamped:** 1 Oct 2026, ~09:20 IDT. **QOS `gpu-part` `gres/gpu=8`**. After four LR KILLs: Stage-4, C1, C2, budget-stop smoke R; LR CG draining. **PD** fill the freed slots (pca r56, smokes, pf-*, remaining LR). Do **not** invent; do **not** launch N8; do **not** release held trains.
+- *09:20 KILL.* C-G thin **21940176/177** §176; producers-only thin **21940178/179** §177. C-PCA r20 **21940180** COMPLETED §178 (harsher at equal keep). Full-width LR still PD.
 - *G2 sitting (charge 1 Oct 01:03).* **A1** hold-outs 8/8. **A2** greedy §173; random r20 §174; random r56 **§175**. **A3–A5** CROSS-OFF / KILL. **C** C1/C2 R (PPO-2). **D** smoke passed; **no N8**.
 - *Overnight COMPLETED.* N3 **21767189** §157 **M4**; scratch-thin **21730507** §158 CROSS-OFF; scratch-DG **21730516** §159 ADOPT; N1 **21767190** §160 mixed; N2 **21767192** §161 not M5; streams **21729558** §162 split.
-- *Ledger.* Next **§176**. Random r56 3-draw **§175**.
+- *Ledger.* Next **§179**. LR KILLs §176–§177; C-PCA r20 §178.
 - *Trees.* `tree_v9b` / `tree_v9c` frozen. **`tree_v9d`** = v9c + the G2 dev pass, default-off for every existing profile (`PROVENANCE_v9d.txt`). Train `Requeue=0`.
 
 **P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c`). **Paired read** = `readers_s30/scripts/paired_steps.py <arm> <control>`: val only, same step = same widths under mild. **Honest gain**: only `readers_s30/scripts/final_ft_readout.py` (prints `ORIGIN-HURT` when the origin loses > 0.5 pp).
@@ -56,9 +57,9 @@ Every replacement construction that had not run under P + crop+flip, one job per
 
 | Construction | r20-w2 | r56-w4 | R56 C10 | VGG-16 C10 |
 |---|---|---|---|---|
-| C-G (group redraw) | **21940176** | **21940177** | 21940183 | 21940184 |
-| C-G producers-only ("the pruned layer only") | **21940178** | **21940179** | 21940186 | 21940187 |
-| C-PCA (principal-direction layer) | **21940180** | 21940181 | 21940188 | 21940189 |
+| C-G (group redraw) | **KILL §176** | **KILL §176** | 21940183 | 21940184 |
+| C-G producers-only ("the pruned layer only") | **KILL §177** | **KILL §177** | 21940186 | 21940187 |
+| C-PCA (principal-direction layer) | **COMPLETED §178** | 21940181 | 21940188 | 21940189 |
 | C-G+ (C-G + 0.1× polish) | §163 KILL | 21940182 | 21940191 | 21940192 |
 
 Bold = R since 08:35 (start flags checked); the rest PD nice 25–34, thin first. Controls: thin **21729557** (tree_v9b), twins **21809595** (tree_v9c; walk ≈ 21729553 R56 / 21737104 VGG-16).
@@ -87,6 +88,37 @@ Each arm is 21737123's recipe with one switch changed: P5-B2 catalog (CIFAR-10 +
 - *Adopt.* Kinder than the Stage-4 freeze by > 1 pp at equal keep on both thin nets **and** not a ≥ 90 % mild clone → a second seed before it changes the recipe. One seed each, so smaller gaps are noise.
 - *Report, never scancel* (as C1 / C2): ev ≤ 0 by PPO update 10, or a freeze that is a ≥ 90 % mild clone.
 - *Not enqueued.* SGD 0.01, cosine and group-first FT in the loop: each failed the pair rule as the walk FT under P + crop+flip (§167, §170–§172). The literature SGD-cosine recipe stays the final FT.
+
+## FT proxy fidelity (Ido GO 1 Oct 08:56)
+
+The question: does the agent's in-loop recovery (recipe A, Adam 1e-3, 12/4, crop+flip) rank candidate cuts the way the final fine-tune does (SGD 0.01, momentum 0.9, wd 5e-4, cosine, crop+flip, 100 epochs)? Le & Hua (ICLR 2021) show the retraining schedule can reorder pruning methods; EagleEye (ECCV 2020) runs the same correlation for candidate evaluators, with re-estimated BN statistics as the cheap proxy. Gates the held 40/10 train (21940321) and N8's in-loop recipe.
+
+**Zero-GPU look (1 Oct 09:05; every inherit final FT on disk, 1-epoch smokes excluded):**
+- *With crop+flip in the walk*, the 40/10 walk TEST is within 0.5 pp of the final FT at **16 of 16** size points: DepGraph R56 (21767189), the chenyaofo R56 and VGG-16 twins (21809595), VGG-16 L2 (21814029), DepGraph VGG-19 C100 (21737105).
+- *Without it*, the final FT adds +1.6 to +2.2 pp on DepGraph R56 (21730500), +4.2 to +5.6 on VGG-19 C100 (21729551), +5.6 to +5.8 on r56-w4, and −0.3 to −1.0 on r20-w2 (both 21730501).
+- The final FT never reorders the two walk variants (with vs without crop+flip) on DepGraph R56 and VGG-19: **7 of 7** size points keep their order; the gap shrinks from 2.6–6.4 pp to 0.3–1.0 pp.
+- It cannot answer the question: no cell tests the 12/4 budget, candidate cuts within one state, or a thin net under crop+flip with a final FT.
+
+**GPU cell.** `tree_v9d`, `SPECTRA_EVAL_PROXY_FIDELITY` (`src/proxy_fidelity.py`, default off; `tests/test_proxy_fidelity.py` 6 passed). Mild TRAJ walk under P + crop+flip 40/10, seed 42; at the first point ≤ the target the battery runs, then `SPECTRA_EVAL_SIZE_MATCH` ends the walk. All nice 24, `Features=rtx_6000|rtx_4090`.
+
+| Net | keep ≤ 0.9 | keep ≤ 0.7 |
+|---|---|---|
+| r56-w4 (thin probe; 12/4 is ~1 pp harsher than 40/10 here, §150) | **21941343** | **21941344** |
+| ResNet-56 ×6 (P5-B2 training net) | **21941345** | **21941346** |
+| MobileNet-V2 ×0.5 (P5-B2 training net, depthwise) | **21941347** | **21941348** |
+
+- *Candidates per state (≤ 12).* `identity`; `menu` = keep 0.9 / 0.8 × L1 / FPGM on one row (the walk's next row, or the next one ≥ 10 channels wide); `crit` = that row at keep 0.8 under BN-scale, SVD, Taylor; `where` = up to 4 other groups cut by L1 at the same share of the network as the menu's 0.8 L1 cut. Exact duplicates are recorded, not scored.
+- *Scores.* Proxies on **val**: `none` (raw cut), `bn` (BN re-estimated), `12x4`, `40x10` (recipe A). Final on **TEST**: from the raw cut, seeds 0 and 1 (the second seed is the noise ceiling). ~30 min per candidate, ~7–9 h per job.
+- *Readout.* `python scripts/proxy_fidelity_readout.py runs/job21941343 … runs/job21941348` (CPU). Ranked sets = `crit` and `where` (equal size, ≥ 3 distinct candidates); `menu` is read as the depth penalty only.
+- *Registered calls (written before any result; the readout prints them):*
+  - Ceiling = mean ρ(final s0, final s1). Below **0.5** → uninformative: widen the cuts before reading any proxy.
+  - A proxy is **valid** if its mean ρ(proxy val, final TEST) ≥ max(0.6, 0.8 × ceiling) **and** its median top-1 regret ≤ 0.5 pp.
+  - **12x4 valid** → Adam 1e-3 12/4 stays the in-loop proxy; N8 unchanged; 21940321 stays held.
+  - **12x4 not valid**, and 40x10 valid or ρ(40x10) − ρ(12x4) ≥ 0.2 → ping Ido to release 21940321.
+  - Neither valid → next cell: SGD variants (0.05 / 0.1, cosine, short budgets) as proxies against the same finals.
+  - `bn` valid and within 0.1 of 12x4 → a cheap-proxy train arm is a sitting question (3–4× more episodes per GPU-day).
+  - Depth penalty: median Δ(0.9) − Δ(0.8) under 12x4 over the final's. Above 1.5 means the proxy over-penalises the deeper cut, which pushes the agent toward mild: report, no action.
+- *Never* ledger these walks' TRAJ rows (truncated at the target). One ledger section at the readout, with the zero-GPU look.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 

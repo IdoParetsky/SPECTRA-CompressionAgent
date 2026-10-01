@@ -557,6 +557,60 @@ def eval_final_ft_from() -> str:
     return os.environ.get("SPECTRA_EVAL_FINAL_FT_FROM", "").strip()
 
 
+def eval_proxy_fidelity() -> Tuple[float, ...]:
+    """
+    ``SPECTRA_EVAL_PROXY_FIDELITY=0.9,0.7`` (TRAJ TEST; default off): the first time the walk's kept
+    params reach each fraction, :mod:`src.proxy_fidelity` scores a fixed candidate set cut from that
+    state under every in-loop proxy and the final fine-tune. The walk itself is unchanged.
+    """
+    out = []
+    for part in os.environ.get("SPECTRA_EVAL_PROXY_FIDELITY", "").split(","):
+        try:
+            value = float(part)
+        except ValueError:
+            continue
+        if 0.0 < value < 1.0:
+            out.append(value)
+    return tuple(sorted(set(out), reverse=True))
+
+
+def eval_proxy_budgets() -> Tuple[Tuple[int, int], ...]:
+    """``SPECTRA_EVAL_PROXY_BUDGETS`` (default ``12x4,40x10``: the agent's training budget and the TEST
+    walk's): recipe-A fine-tune proxies as epoch cap x patience."""
+    out = []
+    raw = os.environ.get("SPECTRA_EVAL_PROXY_BUDGETS", "").strip() or "12x4,40x10"
+    for part in raw.split(","):
+        epochs, _, patience = part.strip().lower().partition("x")
+        try:
+            out.append((max(1, int(epochs)), max(1, int(patience or epochs))))
+        except ValueError:
+            continue
+    return tuple(out)
+
+
+def eval_proxy_final_seeds() -> Tuple[int, ...]:
+    """``SPECTRA_EVAL_PROXY_FINAL_SEEDS`` (default ``0,1``): one final fine-tune per seed; the second
+    is the noise ceiling the proxies are read against."""
+    out = []
+    for part in (os.environ.get("SPECTRA_EVAL_PROXY_FINAL_SEEDS", "").strip() or "0,1").split(","):
+        try:
+            out.append(int(part))
+        except ValueError:
+            continue
+    return tuple(dict.fromkeys(out))
+
+
+def eval_proxy_final_epochs() -> int:
+    """``SPECTRA_EVAL_PROXY_FINAL_EPOCHS`` (100): the battery's final fine-tune, separate from
+    ``SPECTRA_EVAL_FINAL_FT_EPOCHS`` so a battery walk emits no TRAJ ``final_ft`` rows."""
+    return max(1, _env_int_or("SPECTRA_EVAL_PROXY_FINAL_EPOCHS", 100))
+
+
+def eval_proxy_where_rows() -> int:
+    """``SPECTRA_EVAL_PROXY_WHERE_ROWS`` (4): other groups cut at the same share of the network."""
+    return max(0, _env_int_or("SPECTRA_EVAL_PROXY_WHERE_ROWS", 4))
+
+
 def ft_group_first_epochs() -> int:
     """
     ``SPECTRA_FT_GROUP_FIRST_EPOCHS=<n>`` (recipe A only; default 0 = off): after a structural
