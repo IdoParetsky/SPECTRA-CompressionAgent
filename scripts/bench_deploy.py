@@ -13,6 +13,10 @@ iterations and ``--min-seconds``, each timed with CUDA events. Energy is nvidia-
 sampled every 100 ms over the timed loop.
 
     python scripts/bench_deploy.py <run dir> ... [--batches 1,64,256] [--min-seconds 10] [--out f.jsonl]
+
+``--model FILE:DATASET[:LABEL[:GROUP]]`` also times a whole pickled ``nn.Module`` (another method's pruned
+network, e.g. Torch-Pruning's output); rows sharing GROUP print speedups against the one labelled ``origin``.
+The module's own package must be importable (``PYTHONPATH``).
 """
 import argparse
 import glob
@@ -244,12 +248,25 @@ def run(args):
                           "param_ratio": point.get("param"), "flop_ratio": point.get("flop"),
                           "test_origin": point.get("test_origin"), "test_walk": point.get("test_acc"),
                           "test_final": (doc.get("final_ft") or {}).get("test_final"), **timed[key], **env}
-                rows.append(record)
-                if args.out:
-                    with open(args.out, "a", encoding="utf-8") as fh:
-                        fh.write(json.dumps(record, default=str) + "\n")
+                rows.append(_emit(record, args.out))
+    for spec in args.model or []:
+        path, dataset, label, group = (spec.split(":") + ["", ""])[:4]
+        model = torch.load(path, map_location="cpu", weights_only=False)
+        timed = bench_model(model, DATASETS[dataset][1], device, batches, args, env)
+        del model
+        record = {"run": os.path.basename(os.path.dirname(path)), "network": group or os.path.basename(path),
+                  "label": label or os.path.basename(path), "step": None, "suffix": "", "arch_key": None,
+                  "file": path, **timed, **env}
+        rows.append(_emit(record, args.out))
     _print(rows, batches)
     return rows
+
+
+def _emit(record, out):
+    if out:
+        with open(out, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(record, default=str) + "\n")
+    return record
 
 
 def _print(rows, batches):
@@ -261,9 +278,10 @@ def _print(rows, batches):
         print(f"=== {run_name} {net} on {items[0].get('gpu', items[0]['device'])}")
         seen = set()
         for r in sorted(items, key=lambda r: -r["params"]):
-            if r["arch_key"] in seen:
+            key = r["arch_key"] or r.get("file")
+            if key in seen:
                 continue
-            seen.add(r["arch_key"])
+            seen.add(key)
             cells = []
             for bs in batches:
                 b = r["by_batch"][str(bs)]
@@ -279,7 +297,8 @@ def _print(rows, batches):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("runs", nargs="+", help="run directories with traj_models/")
+    parser.add_argument("runs", nargs="*", help="run directories with traj_models/")
+    parser.add_argument("--model", action="append", help="FILE:DATASET[:LABEL[:GROUP]] of a pickled nn.Module")
     parser.add_argument("--batches", default="1,64,256")
     parser.add_argument("--warmup", type=int, default=50)
     parser.add_argument("--min-iters", type=int, default=300)

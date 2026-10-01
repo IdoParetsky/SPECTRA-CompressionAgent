@@ -106,8 +106,8 @@ def test_bench_deploy_times_each_architecture_once_on_cpu(tmp_path, monkeypatch)
     real = bench.bench_model
     monkeypatch.setattr(bench, "bench_model", lambda *a, **k: calls.append(1) or real(*a, **k))
     out = tmp_path / "rows.jsonl"
-    args = SimpleNamespace(runs=[str(tmp_path / "job7")], batches="1,2", warmup=1, min_iters=2, min_seconds=0.0,
-                           max_iters=3, idle_seconds=0.0, device="cpu", threads=1, out=str(out))
+    args = SimpleNamespace(runs=[str(tmp_path / "job7")], model=None, batches="1,2", warmup=1, min_iters=2,
+                           min_seconds=0.0, max_iters=3, idle_seconds=0.0, device="cpu", threads=1, out=str(out))
     rows = bench.run(args)
     assert len(rows) == 3 and len(calls) == 1
     assert len({r["arch_key"] for r in rows}) == 1
@@ -118,6 +118,58 @@ def test_bench_deploy_times_each_architecture_once_on_cpu(tmp_path, monkeypatch)
         assert r["by_batch"]["2"]["latency_ms_median"] > 0 and r["params"] == utils_params(model)
         assert r["macs"] > 0 and r["state_mb_fp16"] < r["state_mb_fp32"]
     assert len(out.read_text().splitlines()) == 3
+
+
+def test_bench_deploy_times_pickled_modules_of_another_method(tmp_path):
+    bench = _script("bench_deploy")
+    wide, thin = tmp_path / "origin.pth", tmp_path / "pruned.pth"
+    torch.save(resnet20(num_classes=10, large_input=False, width=8), wide)
+    torch.save(resnet20(num_classes=10, large_input=False, width=4), thin)
+    args = SimpleNamespace(runs=[], model=[f"{wide}:cifar-10:origin:other", f"{thin}:cifar-10:pruned:other"],
+                           batches="1", warmup=1, min_iters=2, min_seconds=0.0, max_iters=3, idle_seconds=0.0,
+                           device="cpu", threads=1, out=None)
+    rows = bench.run(args)
+    assert [r["label"] for r in rows] == ["origin", "pruned"] and {r["network"] for r in rows} == {"other"}
+    assert rows[1]["macs"] < rows[0]["macs"] and rows[1]["params"] < rows[0]["params"]
+    assert rows[1]["by_batch"]["1"]["latency_ms_median"] > 0
+
+
+def test_h2h_readout_parses_a_torch_pruning_log(tmp_path):
+    h2h = _script("h2h_readout")
+    tag = "cifar10-global-group_sl-resnet56 INFO:"
+    lines = [f"[08/28 23:20:33] {tag} Regularizing..."]
+    lines += [f"[08/28 23:{21 + e // 3:02d}:{(e * 17) % 60:02d}] {tag} Epoch {e}/100, Acc=0.9{e:03d}, Val Loss=0.3, lr=0.01"
+              for e in range(0, 3)]
+    lines += [f"[08/29 00:37:26] {tag} Best Acc=0.9324", f"[08/29 00:37:28] {tag} Pruning...",
+              f"[08/29 00:37:42] {tag} Params: 0.86 M => 0.43 M (49.81%)",
+              f"[08/29 00:37:42] {tag} FLOPs: 127.12 M => 59.88 M (47.11%, 2.12X )",
+              f"[08/29 00:37:42] {tag} Acc: 0.9324 => 0.8885", f"[08/29 00:37:42] {tag} Finetuning...",
+              f"[08/29 00:38:01] {tag} Epoch 0/100, Acc=0.8252, Val Loss=0.5, lr=0.01",
+              f"[08/29 01:07:59] {tag} Epoch 99/100, Acc=0.9383, Val Loss=0.2, lr=0.0001",
+              f"[08/29 01:07:59] {tag} Best Acc=0.9389"]
+    (tmp_path / "resnet56_cifar10_group_sl_2.11.log").write_text("noise\n" + "\n".join(lines) + "\n")
+    rows = ["timestamp, index, name, power.draw [W]"]
+    rows += [f"2026/08/29 00:{m:02d}:{s:02d}.000, 0, RTX 4090, 200.0" for m in range(37, 60) for s in range(60)]
+    rows += [f"2026/08/29 01:{m:02d}:{s:02d}.000, 0, RTX 4090, 200.0" for m in range(0, 9) for s in range(60)]
+    (tmp_path / "gpu_samples.csv").write_text("\n".join(rows) + "\n")
+    bench = []
+    for repeat, scale in ((1, 1.0), (2, 1.2), (3, 1.1)):
+        for label, latency in (("origin", 2.0), ("group_sl", 1.0)):
+            bench.append({"network": "depgraph_resnet56", "label": label, "params": 1, "macs": 1, "gpu": "RTX 4090",
+                          "host": "n1", "by_batch": {"1": {"latency_ms_median": latency * scale,
+                                                           "throughput_img_s": 1e3 / (latency * scale)}}})
+    (tmp_path / "bench_r1.jsonl").write_text("\n".join(json.dumps(b) for b in bench) + "\n")
+    result = h2h.readout(str(tmp_path))
+    (run,) = result["runs"]
+    sl, cut, ft = (run["stages"][s] for s in ("sl", "prune", "ft"))
+    assert sl["minutes"] == pytest.approx(76.92, abs=0.01) and sl["best"] == 0.9324
+    assert sl["energy_wh"] == pytest.approx(200 * 28 / 3600, rel=0.05)
+    assert cut["minutes"] == pytest.approx(14 / 60, abs=0.01) and run["cut_acc"] == (0.9324, 0.8885)
+    assert ft["minutes"] == pytest.approx(30.28, abs=0.01) and (ft["best"], ft["last"], ft["epochs"]) == (0.9389, 0.9383, 2)
+    assert ft["energy_wh"] == pytest.approx(200 * 30.28 / 60, rel=0.01)
+    assert (run["flop_kept"], run["speed_up"], run["param_kept"]) == (0.4711, 2.123, 0.5)
+    pruned = next(c for c in result["bench"] if c["label"] == "group_sl")
+    assert pruned["repeats"] == 3 and pruned["by_batch"]["1"]["speedup"] == pytest.approx(2.0)
 
 
 def utils_params(model):

@@ -2,7 +2,7 @@
 
 Started 1 Oct 2026 on Ido's 09:29 request. It holds the side metrics the paper argues from: per-target search cost, the agent's overhead at TEST, wall-clock and GPU-hours per target and per K targets, memory, energy, deployment latency, and the transfer protocol. SPECTRA numbers come from our own logs, with job IDs and the GPU named in each run's manifest. Literature numbers carry their source, their GPU and what they include. Third-party estimates are marked. Every citation below was checked against the primary source on 1 Oct: two web fact-checks, plus NEON's Table 7 read from the paper PDF.
 
-Tools: `scripts/cost_readout.py` (login node, zero GPU), `scripts/bench_deploy.py` + `scripts/bench_deploy.sbatch` (one GPU), and the 1 s `nvidia-smi` sampler in `scripts/spectra.sbatch` that writes `gpu_samples.csv`. Their use is in §9.
+Tools: `scripts/cost_readout.py` (login node, zero GPU), `scripts/bench_deploy.py` + `scripts/bench_deploy.sbatch` (one GPU), the 1 s `nvidia-smi` sampler in `scripts/spectra.sbatch` that writes `gpu_samples.csv`, and the DepGraph re-run `scripts/h2h_depgraph.sbatch` with its readout `scripts/h2h_readout.py`. Their use is in §4.5 and §9.
 
 ## 1. The claim this file supports
 
@@ -14,6 +14,7 @@ On accuracy at a given compression, focused SOTA on its home benchmark is ahead.
 - **A TEST's cost is recovery fine-tuning.** Fine-tuning is 97.9–99.7% of every CIFAR walk measured (8 jobs, 13 network walks). The rest (pruning surgery, validation pass, state features, bookkeeping and the agent) is 0.4–2.0 s per step. On ImageNet MobileNet-V2, fine-tuning is 84–85% of the walk, and the per-step validation pass is the other 15%.
 - **Per-target search cost is zero.** Per-target learned searches cost 320 s to 3.8 GPU-hours on CIFAR. On ImageNet they cost 25 GPU-hours (EagleEye) up to 864 (NetAdapt, by EagleEye's estimate) (§4.1–4.2).
 - **One target on CIFAR is not a win at the current TEST recipe.** On an RTX 4090, our 40/10 walk on ResNet-56 takes 3.6 h (down to 0.70 of params kept) or 9.1 h (down to 0.36), plus 16 min per final fine-tune. DepGraph takes about 84 min per target on a 4090 (measured by a third party). OCSPruner takes 26 min on a 4090, including training the network from scratch.
+- **DepGraph is being re-run head to head on our GPU.** Job 21943448 runs Torch-Pruning's official pipeline on an RTX 4090 from the same released checkpoints we prune: ResNet-56 on CIFAR-10 at 2.11× and VGG-19 on CIFAR-100 at 8.84×. It measures their wall-clock, energy and accuracy on our hardware, and times their pruned networks with our deployment bench (§4.5).
 - **Several targets amortize.** One walk passes through every size point, so each extra target costs one final fine-tune: 15.7–16.6 min for R56, 8.6–8.8 min for VGG on a 4090. Against DepGraph on a 4090, break-even is about 3 targets for the 0.70-deep walk and about 8 for the 0.36-deep walk (§7).
 - **Three cost levers are measured or measurable.**
   - The 12/4 recovery budget runs 3.3× fewer fine-tune epochs than 40/10 (measured).
@@ -130,7 +131,7 @@ Wall-clock figures on several GPUs are converted to GPU-hours above (TAS, TPP, O
 
 | Method | Schedule / time | Source |
 |---|---|---|
-| DepGraph, ResNet-56 CIFAR-10 | Official log: sparse learning ~77 min + pruning ~13 s + fine-tune ~30 min, from timestamps; the GPU is not named. 100 SL + 100 FT epochs are argparse defaults, after 200-epoch pretraining. The reproduction picks its best epoch **on the CIFAR-10 test set** (`reproduce/registry.py` L128–129, `main.py` L158–179, L285–287) | [arXiv:2301.12900](https://arxiv.org/abs/2301.12900); Torch-Pruning `reproduce/` |
+| DepGraph, ResNet-56 CIFAR-10 | Official logs, read with `scripts/h2h_readout.py`; the GPU is not named. At 2.11×: sparse learning 76.9 min + pruning 14 s + fine-tune 30.3 min = 107.4 min, best epoch 93.89, last epoch 93.83. At 2.55×: 113.2 min. VGG-19 CIFAR-100 at 8.84× (it reaches 8.97×): 36.5 + 0.2 + 11.7 = 48.3 min, best 70.60, last 70.31. 100 SL + 100 FT epochs are argparse defaults, after 200-epoch pretraining. The reproduction picks its best epoch **on the CIFAR-10 test set** (`reproduce/registry.py` L128–129, `main.py` L158–179, L285–287) | [arXiv:2301.12900](https://arxiv.org/abs/2301.12900); Torch-Pruning `reproduce/` |
 | OCSPruner, ResNet-56 CIFAR-10 | 26 min total vs 25 min baseline training, 1× RTX 4090, from scratch | OCSPruner Supp. Table 9 |
 | CHIP | fine-tune 300 epochs (CIFAR-10) / 180 (ImageNet); per-layer filter counts are inputs | [arXiv:2110.13981](https://arxiv.org/abs/2110.13981) §4.1, Alg. 1 |
 | ResRep | 480 epochs (CIFAR-10 ResNet-56/110), 180 (ImageNet) | [arXiv:2007.03260](https://arxiv.org/abs/2007.03260) §4.1 |
@@ -160,6 +161,30 @@ PruningBench times one pruning step (ResNet-50, CIFAR-100; [arXiv:2406.12315](ht
 | HRank | 34 min 32 s |
 
 SPECTRA's pruning surgery takes 0.01–0.10 s per step (the "prune" stage behind §3.1), which is in the magnitude-criterion range. With the validation pass, state features and the agent (at most 0.33 s), a step's non-fine-tune cost is 0.4–2.0 s. The data-driven criteria, from Taylor to HRank, cost 3.7 s to 34 min per step.
+
+### 4.5 DepGraph re-run on our RTX 4090 (job 21943448)
+
+The literature costs above come from other GPUs or from third parties. This re-run gives one comparator measured on our own card.
+
+- **What runs.** Torch-Pruning v1.6.1 (commit e80127d), `reproduce/main.py --mode prune --method group_sl --global-pruning --reg 5e-4 --finetune`. It runs at DepGraph's published settings: ResNet-56 CIFAR-10 at `--speed-up 2.11`, and VGG-19 CIFAR-100 at `--speed-up 8.84`.
+- **Same checkpoints.** The checkpoints are DepGraph's released ones, which are the ones SPECTRA prunes. Re-evaluated through their loaders on 1 Oct: ResNet-56 93.53, VGG-19 73.49 (their README says 73.50).
+- **What it measures.**
+  - Wall-clock and energy per stage: sparse learning, pruning and fine-tune, from their log timestamps and the job's `gpu_samples.csv`.
+  - The accuracy of the best epoch and of the last epoch.
+  - Their pruned networks, timed by `scripts/bench_deploy.py --model` in the same job on the same card: batch 1 / 64 / 256, 3 repeats, with speedup against their own origin export.
+- **Readout.** `python scripts/h2h_readout.py runs/h2h_depgraph/job_21943448` in `tree_v9d`. Paste the rows here and into §5.3.
+- **Pitfalls found in the dry run.**
+  - The v1.6.1 README's prune commands omit `--finetune`. Without it the script stops at the cut, so we pass it.
+  - The registry reads `<dataroot>/torchdata/` and downloads whatever it cannot verify there. The job's data root is `scratch_audit/third_party/data`, with symlinks to our CIFAR copies.
+  - `--mode test` crashes in v1.6.1 (`logger_name` is unbound). It is not used.
+- **Selection.** Their sparse-learning and fine-tune stages both keep the best epoch by **test** accuracy.
+  - "Best epoch" is their published protocol.
+  - "Last epoch" removes the fine-tune selection, but the pruned model still comes from a test-selected sparse-learning epoch.
+  - Their official logs show how small the fine-tune selection effect is: 0.06 pp on ResNet-56 at 2.11× (93.89 vs 93.83) and 0.29 pp on VGG-19 (70.60 vs 70.31).
+- **How to quote it.**
+  - Compare DepGraph's 10k-test numbers only with our 10k legacy TEST rows (ledger §157), not with the 5k P TEST half.
+  - Put it **beside** SPECTRA. Never call it a beat.
+  - Keep the ledger for SPECTRA TESTs; this re-run goes here.
 
 ## 5. Deployment metrics
 
@@ -252,7 +277,7 @@ One-time costs are excluded on both sides: SPECTRA's agent train (§3.2) and the
 | Graph metanetworks, 60 + 60 | 43 min | 8.1 | 20 | 6.0 |
 | OCSPruner, from scratch | 26 min | 23 | 53 | 16 |
 
-A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows it) brings W to minutes. K* then drops to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. These rows are estimates from mixed sources. DepGraph's 84 min and the graph-metanetwork times were measured by the graph-metanetwork authors on a 4090; DepGraph's official log (≈ 107 min) names no GPU.
+A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows it) brings W to minutes. K* then drops to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. These rows are estimates from mixed sources. DepGraph's 84 min and the graph-metanetwork times were measured by the graph-metanetwork authors on a 4090; DepGraph's official log (107.4 min) names no GPU. Job 21943448 re-times DepGraph on our 4090 (§4.5). When it lands, its measured time replaces the 84 min row; the graph-metanetwork rows stay third-party.
 
 ## 8. Transfer: closest prior work and the evaluation protocol
 
@@ -284,7 +309,8 @@ The paper's novelty sentence, supported by both fact-checks: no published CNN pr
 - **Walk and train cost, every run.** On the login node: `python scripts/cost_readout.py <job ids or run dirs> --jsonl runs/cost/<tag>.jsonl`. It reads the manifest, events, log and `gpu_samples.csv`, and prints per network: walk minutes, fine-tune share, per-step stage split, fine-tune epochs by budget, final fine-tunes, GPU-hours and Wh.
 - **Energy.** `scripts/spectra.sbatch` in `tree_v9d` writes `gpu_samples.csv` every second for submissions from 1 Oct, about 11:00 (power, utilization, memory, SM clock, temperature). `SPECTRA_GPU_SAMPLES=0` turns it off. Jobs from older trees get an estimate: GPU-hours × the mean board power measured on the same SKU in a `tree_v9d` job. Label it as an estimate.
 - **Deployment.** For every TEST run that saved `traj_models`: `sbatch --gpus=rtx_4090:1 --nice=35 --exclude=<runbook list> scripts/bench_deploy.sbatch <run dirs>`, from the tree the run used. Rows go to `runs/bench_deploy/bench_<job>_r{1,2,3}.jsonl`.
-- **Where results go.** Paste into §3 (cost) and §5.3 (deployment) here. TEST accuracy stays in the ledger.
+- **Comparator re-runs.** `python scripts/h2h_readout.py <h2h out dir | Torch-Pruning log>` prints stage minutes, Wh, best and last epoch, params and FLOPs kept, and the bench medians with speedups (§4.5).
+- **Where results go.** Paste into §3 (cost), §4.5 (comparators) and §5.3 (deployment) here. TEST accuracy stays in the ledger.
 
 ## 10. Paper table templates
 
@@ -295,8 +321,12 @@ The paper's novelty sentence, supported by both fact-checks: no published CNN pr
 
 ## 11. Open items for Ido
 
-1. **Install `torch_pruning` in the `spectra` env.** It lets us re-time DepGraph's own pruned R56 and VGG on our 4090 at equal MACs, so deployment latency compares like for like.
+1. **Done (1 Oct): `torch_pruning` is in the `spectra` env.**
+   - torch-pruning 1.6.1, plus einops 0.8.1 because it imports einops. Both went in with `--no-deps`, so torch 2.4.1 and numpy 1.24.4 are unchanged.
+   - The Torch-Pruning repo (v1.6.1) is cloned at `scratch_audit/third_party/Torch-Pruning`.
+   - The head-to-head re-run is job 21943448 (§4.5).
 2. **Install `nvidia-ml-py`.** In-process NVML energy readings are more precise than sampling `power.draw`.
 3. **Add an explicit `agent.decide` stage timer and a per-walk cost event to the runner,** in the next tree only, never under live jobs. It replaces the §3.4 upper bound with a measurement.
 4. **Get BGU's PUE and grid carbon intensity for CO2e,** or quote the conventional defaults with a caveat.
 5. **Run a GPU-side CIFAR augmentation equivalence A/B as its own cell** (§3.3), since the walk is input-bound.
+6. **Optional: a val-selected DepGraph variant.** Pick DepGraph's sparse-learning and fine-tune epochs on our 5k val half, and quote our 5k P TEST half. That puts DepGraph on SPECTRA's own protocol. It needs a patched copy of their `main.py`, so it is no longer their exact pipeline. Run it only if the paper puts DepGraph and SPECTRA in the same accuracy table.
