@@ -100,8 +100,7 @@
    - Robust RL training (SA-MDP and its successors)?
    - Something else? We found no DRL-verification paper of yours.
 2. **NAP2:**
-   - Can Michael give our token access to the repository (still 403)?
-   - Can he share his trained autoencoder / BiGRU weights and his NAS-Bench-201 snapshots?
+   - Can Michael share his trained autoencoder / BiGRU weights and his NAS-Bench-201 snapshots? The code we have is main as of 1 Oct; it ships test reference outputs (autoencoder embeddings, BiGRU predictions), not trained models.
    - What acknowledgement or co-authorship is expected if NAP-F builds on NAPv2?
 3. **The second agent:** a thesis chapter, or the follow-up paper? After S0–S2 it is about one GPU-day per training round.
 4. **The two-decision head** has precedent (LFPC 2020, Balaskas 2024). Is it fine to present it as applied in the transfer setting rather than as a contribution?

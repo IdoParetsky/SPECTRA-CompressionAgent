@@ -5,7 +5,7 @@
 - Smoke `21944622`: COMPLETED in 3.3 min.
 - Cells, with the walk's crop+flip fine-tune: `21945105` (ResNet-56 C10), `21945106` (VGG-16 C10), `21945107` (VGG-19 C100).
 - The first cell submits, `21944623–25`, had no crop+flip; they were cancelled while pending.
-**NAPv2:** Michael Bohadana's repo, from the 20 Aug zip (GitHub still refuses our token, 403). Copied read-only to `scratch_audit/third_party/NAPv2` on the cluster.
+**NAPv2:** Michael Bohadana's repo, main branch (last commit 16 Apr 2026). Ido's browser download of 1 Oct is byte-identical to the 20 Aug zip used here. Our git/API token still gets 403; Ido's browser session can read the repo. Copied read-only to `scratch_audit/third_party/NAPv2` on the cluster.
 
 Every claim about another paper below was checked against its primary source by the 1 Oct literature pass. Cells that the source does not settle say UNVERIFIED.
 
