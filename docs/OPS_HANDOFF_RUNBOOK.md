@@ -54,6 +54,7 @@ Rank, checks, cross-off and adopt rules: `docs/SITTING_GPU_QUEUE.md` (Live rank 
 | 21938279 | g2-greedy-thin-aug | 21729557, equal keep | readout + ledger on COMPLETED |
 | 21938285, 21938894; 21938895 / 96; 21938929 / 30 | g2-random-r56w4 / -r20w2: seed 42, -s43, -s44 | 21729557, same net, equal keep | the random row = mean of the 3 draws per net |
 | 21938284 | g2-sgd01-c100t2-12x4 | 21729554 | **done**: ledger §170 (sitting) |
+| 21940176–21940192 (15) | lr-{cg,prod,pca,cgp}-{r20w2,r56w4,r56,vgg16}-aug | thin: 21729557 (v9b); R56 / VGG-16: 21809595 (v9c) | layer-replacement grid (queue file section). Per job: `paired_steps.py` vs its control; ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse → **scancel (pre-authorized)** + ledger. On COMPLETED: TEST at equal keep. Verdict per construction over its 4 nets (rules in the queue file) |
 | 21938286 / 21938287 | g2-f1-cosine / g2-f2-groupfirst thin 12/4 | 21729556 | readout + ledger |
 | 21938898 | g2-v9diverse-smoke | — | plumbing, **never ledger**. Start greps passed 03:27 (the log shows the C100 probe as `resnet20-width13_cifar10` because names are cut to 24 chars). On end: `Stopping PPO training after 2 episodes`, no Traceback. Ping Ido pass / fail |
 
