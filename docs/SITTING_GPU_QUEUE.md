@@ -9,7 +9,7 @@
 
 Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10** (current), §8 (cells). Options, decisions and dev items: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. N8: `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12.
 
-**Stamped:** 2 Oct 2026, ~19:55 IDT (sitting, Ido's delegated GO). **QOS 8/8 R, 7 PD in this order:** S2 **21982334** (MBV2 ×0.5 C10, nice 5) and **21982335** (R56 C100, nice 6), pf-w **21970089** (nice 26), H0 **21982353** (SVHN) and **21982354** (Fashion-MNIST, nice 27/28), D5 **21982372** (off) and **21982373** (on, nice 29). The QOS refills from that list as jobs finish; no laptop needed.
+**Stamped:** 2 Oct 2026, 19:40 IDT (sitting, Ido's delegated GO; clock times below checked against Slurm SubmitTime). **QOS 8/8 R, 7 PD in this order:** S2 **21982334** (MBV2 ×0.5 C10, nice 5) and **21982335** (R56 C100, nice 6), pf-w **21970089** (nice 26), H0 **21982353** (SVHN) and **21982354** (Fashion-MNIST, nice 27/28), D5 **21982372** (off) and **21982373** (on, nice 29). The QOS refills from that list as jobs finish; no laptop needed.
 - *S1 done.* **G1 PASS 3/3** (held-out τ +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17). The signal is NAPv2 gradient statistics. Pasted into design §8 under "S1 results", with the M8 re-read: at trained budgets no named criterion beats L1 beyond noise. Hence S2's sober prior.
 - *Done:* NEXT → R/PD: S2, H0 (loader flag `SPECTRA_FT_AUG_HOLDOUT`), D5 (flag `SPECTRA_FT_AUG_GPU`); calls in their sections below. `proxy_fidelity_readout.py --sets` deployed (7/7).
 - *Ops at 19:10:* Stage-4 **PPO-20 / ep 80**, freeze still **ep0011 only** — **not a TEST**. pf-w **21970086/87/88** R ~9.75 h TB=0; **21970089** PD. C1 PPO-13 freeze ep0011. C2 PPO-13 freeze ep0023. Budgetstop PPO-17 ev 0.751 freeze ep0023. Factored PPO-7 freeze ep0011. C-PCA **4/4 §190**. Held trains stay held. Do **not** invent; do **not** launch N8; do **not** start S2 from ops; do **not** release 21940321; do **not** TEST ep0011.
@@ -126,7 +126,7 @@ The question: does the agent's in-loop recovery (recipe A, Adam 1e-3, 12/4, crop
 - *First GPU run of the battery* is **21941343 COMPLETED** 16:02 (6.7 h, TB=0, 11 `[proxy]` lines). Do not hold the rest. Readout only at 6/6. A failing candidate is logged and skipped; a failure before the first candidate ends the job with a Traceback.
 - *Result:* §189, ceiling **+0.41** over 9 sets, uninformative.
 
-### FT proxy fidelity, wider cuts (pf-w; registered 2 Oct 09:35, before submit; sitting GO under Ido's delegation)
+### FT proxy fidelity, wider cuts (pf-w; registered before submit (Slurm submit 2 Oct 09:23); sitting GO under Ido's delegation)
 
 **Why §189 was uninformative, per set:**
 - **`where` sets** (same share of the network cut from different groups): spread 0.84–1.50 pp, ceilings +0.67 / +0.70 / +0.30, and the spread grew from keep 0.9 to keep 0.7.
@@ -160,7 +160,7 @@ The question: does the agent's in-loop recovery (recipe A, Adam 1e-3, 12/4, crop
 - *Start check:* `SPECTRA_EVAL_PROXY_FIDELITY=<target>`, `SPECTRA_EVAL_SIZE_MATCH=param:<target>`, `SPECTRA_EVAL_PROXY_WHERE_ROWS=8`, `SPECTRA_FT_AUG=1`, `SPECTRA_VAL_FROM_TEST=1` in the job env; then one `[proxy] … state step=` line at the target.
 - *Never* ledger these walks' TRAJ rows (they are truncated at the target). Write one ledger section at the readout, after all four jobs.
 
-## S2: does the learned selection score recover better? (registered 2 Oct 19:25, before submit; sitting GO under Ido's delegation)
+## S2: does the learned selection score recover better? (registered before submit (Slurm submit 2 Oct 19:12); sitting GO under Ido's delegation)
 
 **Why now.** S1 (zero GPU, design §8 "S1 results") passed **G1 3/3**. Leave one network out, the learned NAP-F scorer ranks channels against the single-channel ablation oracle at τ **+0.57 / +0.66 / +0.64**, where the best hand criterion reaches +0.24 / +0.42 / +0.17. Almost all of that comes from NAPv2's statistics of each filter's calibration-loss **gradient** (alone: +0.55 / +0.62 / +0.63; without gradients: +0.24 / +0.24 / +0.17).
 
@@ -191,7 +191,7 @@ Nice 5 / 6 puts both ahead of `21970089` (nice 26, already aged); S2 is about 2 
 - *Greps:* `grep -E "\[s2\]|\[sel\]|\[lever\]|Kendall|Traceback" runs/slurm_logs/sel_<id>.out`.
 - *Never* TEST rows. One ledger *probe* section after both readouts.
 
-## H0: mild walks on the G2 hold-out checkpoints (registered 2 Oct 19:35, before submit; sitting GO under Ido's delegation)
+## H0: mild walks on the G2 hold-out checkpoints (registered before submit (Slurm submit 2 Oct 19:21); sitting GO under Ido's delegation)
 
 **Why.** The eight A1 hold-out checkpoints (SVHN and Fashion-MNIST; DenseNet-40, MobileNet-V2 ×0.5, RepVGG-A0, ShuffleNetV2 ×1) have no same-loop bar yet. H0 is that bar: a later frozen-actor TEST on these nets (N8 roadmap H5 / H7) is read against these rows at equal keep. It is a baseline, so it has no call.
 
@@ -209,7 +209,7 @@ Nice 27 / 28: after S2 and after `21970089`. No final FT.
 - *Kill (loader mismatch):* the first net's unpruned TEST on the P half more than **1.0 pp** off the accuracy in its checkpoint name ⇒ scancel and report. A Traceback: report, no resubmit without a sitting.
 - *Read:* `[eval] TRAJ val_best` and the two size points, TEST on the P half, per net. These **are** baseline TEST rows (mild, same loop). Ledger them when each job completes. Never mix them with 10k legacy rows. Never put SVHN / Fashion-MNIST into a training catalog.
 
-## D5: device-resident CIFAR crop+flip, speed and equivalence A/B (registered 2 Oct 19:50, before submit; sitting GO)
+## D5: device-resident CIFAR crop+flip, speed and equivalence A/B (registered before submit (Slurm submit 2 Oct 19:31); sitting GO)
 
 **Why.** Every P+aug CIFAR walk runs at 4.2–5.6 s per fine-tune epoch, whatever the net or GPU (EFFICIENCY §3.3). So the CPU input pipeline, not the GPU, sets the speed of the walk, of 12/4 vs 40/10, and of any future train.
 

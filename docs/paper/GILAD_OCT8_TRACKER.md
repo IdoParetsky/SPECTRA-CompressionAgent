@@ -135,9 +135,10 @@
 - **2 Oct 02:01** — C-PCA zoo R56 `21940188` **COMPLETED §190**. TEST −2.1 / −2.4 / −2.7 vs mild −0.4 / −0.4 / −0.2 at equal keep. Construction **4/4**.
 - **2 Oct 03:11** — A3 `21943448` h2h-depgraph **COMPLETED** (2.3 h, TB=0). R56 85 min / 93.80; VGG-19 45 min / 70.78. EFFICIENCY §4.5. Never ledger, never “beats”.
 - **2 Oct 09:23** — Wider pf `21970086/87/88` **started** (keep ≤ 0.6, WHERE_ROWS=8, start flags ok). `21970089` PD keep ≤ 0.36. Never those TRAJ rows. Never release 21940321 until the four-job readout.
-- **2 Oct 19:20** — B7 S1 **G1 PASS 3/3** (zero GPU). Held-out τ vs oracle +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17. Signal = NAPv2 gradient statistics. M8 re-read: noise-level at trained budgets. Design §8 "S1 results"; ledger **§191**. Never a TEST row.
-- **2 Oct 19:25** — S2 `21982334` (MBV2 ×0.5 C10) / `21982335` (R56 C100) **submitted** (PD, nice 5/6), sitting GO under Ido's delegation. Calls registered in the queue file. Prior: FAIL at 40. S3 still needs Ido.
-- **2 Oct 19:40** — H0 `21982353` (SVHN) / `21982354` (Fashion-MNIST) mild walks on the A1 hold-outs **submitted**. They need the new default-off loader flag `SPECTRA_FT_AUG_HOLDOUT` (until now these datasets fine-tuned unaugmented). D5 `21982372` / `21982373` GPU-resident crop+flip speed A/B **submitted**.
+- **2 Oct 09:31** — B7 S1 **G1 PASS 3/3** (zero GPU). Held-out τ vs oracle +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17. Signal = NAPv2 gradient statistics. M8 re-read: noise-level at trained budgets. Design §8 "S1 results"; ledger **§191**. Never a TEST row.
+- **2 Oct 19:12** — S2 `21982334` (MBV2 ×0.5 C10) / `21982335` (R56 C100) **submitted** (PD, nice 5/6), sitting GO under Ido's delegation. Calls registered in the queue file. Prior: FAIL at 40. S3 still needs Ido.
+- **2 Oct 19:21** — H0 `21982353` (SVHN) / `21982354` (Fashion-MNIST) mild walks on the A1 hold-outs **submitted**. They need the new default-off loader flag `SPECTRA_FT_AUG_HOLDOUT` (until now these datasets fine-tuned unaugmented).
+- **2 Oct 19:31** — D5 `21982372` / `21982373` GPU-resident crop+flip speed A/B **submitted**.
 
 ---
 
