@@ -143,6 +143,24 @@ def test_readout_skips_duplicates_and_reads_files(tmp_path):
     assert ro.main([str(tmp_path)]) == 0
 
 
+def test_readout_sets_flag_restricts_only_the_calls(tmp_path, capsys):
+    ro = _readout()
+    recs = _state(lambda f: {"none": f, "bn": f, "12x4": f, "40x10": f})  # crit: 12x4 faithful
+    for i, f in enumerate((-1.5, -2.5, -3.5)):                             # where: 12x4 reversed
+        recs.append(_rec("where", 10 + i, 0.5, "l1", {"none": f, "bn": f, "12x4": -f, "40x10": f}, (f, f - 0.05)))
+    events = tmp_path / "events"
+    events.mkdir()
+    (events / "rank0.jsonl").write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
+    outs = {}
+    for sets in ("all", "where", "crit"):
+        assert ro.main([str(tmp_path), "--sets", sets]) == 0
+        outs[sets] = capsys.readouterr().out
+    assert all("| crit |" in o and "| where |" in o for o in outs.values())
+    assert "calls on sets: all (2 of 2 ranked sets)" in outs["all"]
+    assert "calls on sets: where (1 of 2" in outs["where"] and "NOT validated" in outs["where"]
+    assert "calls on sets: crit (1 of 2" in outs["crit"] and "VALIDATED as the proxy" in outs["crit"]
+
+
 # ---------------------------------------------------------------- the battery on a real thin ResNet-20
 
 def test_battery_scores_every_set_and_leaves_the_walk_untouched(monkeypatch):

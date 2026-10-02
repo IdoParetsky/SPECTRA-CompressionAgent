@@ -3101,5 +3101,338 @@ Paired val vs 556: r20 mean **−3.87 pp**; r56 60 cuts **−1.37 pp**, 28 % bet
 
 ---
 
+## 171. F1 cosine vs plateau, thin C10, P + crop+flip 12/4 (**21938286** COMPLETED) — PRELIM; r56 kinder, r20 deep keep fails; CROSS-OFF as train FT
+
+`tree_v9d`, `SPECTRA_FT_COSINE=1` (Adam 1e-3, 12/4, cosine instead of plateau). COMPLETED 1 h 21 m, 1 Oct 03:55, `ise-4090-16`. Control = aug thin 12/4 **21729556** (§150, plateau). Pair rule (G2 A5): within 0.5 pp on r20 **and** kinder on r56-w4. TEST = 5k half.
+
+| Net | Point | Keep | Cosine TEST | §150 plateau | Δ vs 556 |
+|---|---|---|---|---|---|
+| r56-w4 | size 0.80 | 0.795 | **−2.6** | −5.9 | **+3.3** |
+| r56-w4 | `val_best` | 0.622 | **−4.1** | −5.1 | **+1.0** |
+| r20-w2 | size 0.80 | 0.774 | −2.8 | −3.2 | +0.4 |
+| r20-w2 | size 0.60 | 0.584 | **−10.4** | −6.2 | **−4.2** |
+| r20-w2 | `val_best` | 0.536 | −9.2 | −6.6 | **−2.6** |
+
+Paired val vs 556: r20 16 cuts mean −0.69 pp; r56 60 cuts **+1.49 pp**, better on 93 % (`ADOPT?` on val only).
+
+**Read.** Cosine is clearly kinder on skinny ResNet-56 at the train FT, and a wash at r20 80 % kept, but it **fails** r20 at 60 % kept by 4.2 pp. That misses the 0.5 pp r20 half of the pair rule (and the 2 pp guard). Do not put cosine into Stage-4. F2 is **§172**. Do **not** lock.
+
+---
+
+## 172. F2 group-first-4 vs full-net FT, thin C10, P + crop+flip 12/4 (**21938287** COMPLETED) — PRELIM; r56 kinder, r20 0.60 fails; CROSS-OFF as train FT
+
+`tree_v9d`, `SPECTRA_FT_GROUP_FIRST_EPOCHS=4` (4 epochs on the edited group, then the usual 12/4 full-net). COMPLETED 1 h 40 m, 1 Oct 04:24, `ise-4090-20`. Control **21729556**. Same pair rule as §171. TEST = 5k half. FLAGS: `group_first=4`.
+
+| Net | Point | Keep | Group-first TEST | §150 full-net | Δ vs 556 |
+|---|---|---|---|---|---|
+| r56-w4 | size 0.80 | 0.795 | **−3.6** | −5.9 | **+2.3** |
+| r56-w4 | `val_best` | 0.622 | **−4.2** | −5.1 | **+0.9** |
+| r20-w2 | size 0.80 | 0.774 | −2.6 | −3.2 | +0.6 |
+| r20-w2 | size 0.60 | 0.584 | **−8.2** | −6.2 | **−2.0** |
+| r20-w2 | `val_best` | 0.536 | −6.8 | −6.6 | −0.2 |
+
+Paired val vs 556: r20 mean −0.79 pp; r56 60 cuts **−0.03 pp**, 50 % better (val wash; TEST still kinder at equal keep).
+
+**Read.** Same split as cosine: skinny ResNet-56 likes the extra group recovery; skinny ResNet-20 at 60 % kept fails the 0.5 pp rule by 2.0 pp (on the 2 pp guard line). Do not put group-first into Stage-4. A5 both arms CROSS-OFF as train FT. Do **not** lock.
+
+---
+
+## 173. Greedy (L1 profile) vs mild, thin C10, P + crop+flip 40/10 (**21938279** COMPLETED) — PRELIM; not size-matched; CROSS-OFF as the bar-2 walk
+
+`tree_v9d`, `SPECTRA_EVAL_POLICY` / profile `l1` (Gilad "greedy"), 2-pass, 40/10, P + aug. COMPLETED 4 h 10 m, 1 Oct 05:25, `cs-4090-08`. Control = mild **21729557** (§152). Greedy does not take the same widths at the same step — do not read `paired_steps.py` as equal-architecture. TEST = 5k half.
+
+| Net | Point (first keep ≤ target) | Greedy keep / TEST | Mild keep / TEST |
+|---|---|---|---|
+| r20-w2 | size ~0.80 | **0.702 / −5.1** | 0.774 / −1.2 |
+| r20-w2 | size ~0.60 | 0.595 / **−4.0** | 0.584 / −4.9 |
+| r20-w2 | `val_best` | **0.417 / −8.2** | 0.536 / −5.3 |
+| r56-w4 | size ~0.80 | **0.743 / −5.7** | 0.795 / −2.6 |
+| r56-w4 | size ~0.60 | 0.600 / −5.9 | mild 2-pass stops at 0.622 (NONE) |
+| r56-w4 | `val_best` | **0.389 / −7.8** | 0.622 / −4.5 |
+
+**Read.** Greedy overshoots the named size points. At the one near-equal keep (r20 ~0.59) it is 0.9 pp kinder; everywhere else it is a smaller net with a larger TEST drop. It is not a milder bar-2 walk. Keep mild. Random r20 3-draw mean is **§174**; r56 3-draw mean is **§175**. Do **not** lock.
+
+---
+
+## 174. Random walk, r20-w2, three seeds, P + crop+flip 40/10 (**21938894 / 21938896 / 21938930** COMPLETED) — PRELIM; mean ≈ mild; not a better bar-2
+
+`tree_v9d`, random policy, 2-pass, 40/10, P + aug. Seeds 42 / 43 / 44. Sitting rule: quote the **mean**, never the best draw. Control = mild **21729557**. TEST = 5k half. Keeps differ by draw — not an equal-architecture pair.
+
+| Point | s42 keep / TEST | s43 | s44 | Mean TEST | Mild 557 |
+|---|---|---|---|---|---|
+| size ~0.80 | 0.782 / −0.9 | 0.774 / −0.7 | 0.774 / −1.5 | **−1.0** | −1.2 @ 0.774 |
+| size ~0.60 | 0.599 / −3.6 | 0.560 / −5.1 | 0.584 / −4.1 | **−4.3** | −4.9 @ 0.584 |
+| `val_best` | 0.471 / −6.7 | 0.511 / −5.2 | 0.536 / −4.5 | **−5.5** | −5.3 @ 0.536 |
+
+r56-w4 three-seed mean is **§175**.
+
+**Read.** On skinny ResNet-20, random's three-seed mean sits next to mild. It is the stochastic baseline, not a better walk. Do **not** lock.
+
+---
+
+## 175. Random walk, r56-w4, three seeds, P + crop+flip 40/10 (**21938285 / 21938895 / 21938929** COMPLETED) — PRELIM; mean harsher than mild; not a better bar-2
+
+`tree_v9d`, random policy, 2-pass, 40/10, P + aug. Seeds 42 / 43 / 44. Sitting rule: quote the **mean**, never the best draw. Control = mild **21729557** (§152 / §173). TEST = 5k half. Keeps differ by draw — not an equal-architecture pair. s44 COMPLETED 08:11.
+
+| Point | s42 keep / TEST | s43 | s44 | Mean TEST | Mild 557 |
+|---|---|---|---|---|---|
+| size ~0.80 | 0.770 / −4.5 | 0.758 / −6.0 | 0.796 / −4.8 | **−5.1** | −2.6 @ 0.795 |
+| size ~0.60 | 0.510 / −7.7 | 0.491 / −8.0 | 0.590 / −6.0 | **−7.2** | 2-pass mild stops at 0.622 |
+| `val_best` | 0.450 / −6.8 | 0.431 / −6.9 | 0.525 / −5.7 | **−6.5** | −4.5 @ 0.622 |
+
+**Read.** On skinny ResNet-56, random's three-seed mean is 2.5 pp harsher than mild at ~80 % kept, and 2.0 pp harsher at the quoted point, while keeping less. With §174, random is the stochastic baseline, not a replacement walk. Keep mild as bar 2. Do **not** lock.
+
+---
+
+## 176. C-G, P + crop+flip, thin pair (**21940176 / 21940177** CANCELLED 09:20) — PRELIM; KILL; same deficit as §156
+
+`tree_v9d`, NEON-literal C-G (train-loss stop, patience 10, cap 100) on the mild walk, 40/10, P + aug. Control = mild keep-the-survivors **21729557**. Paired val, same step = same widths. Pre-authorized kill: ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940176** | r20-w2 | 8 | **−27.2 pp** | 0/8 | arm −23.8 vs control −0.0 |
+| **21940177** | r56-w4 | 7 | **−56.8 pp** | 1/7 | arm −68.5 vs control −1.6 |
+
+Scancel 09:20 (CG). Full-width C-G **21940183 / 21940184** still PD — construction not crossed until ≥ 3 of 4 nets.
+
+**Read.** Crop+flip does not close C-G on the diagnostic pair. Matches §156 (clean, no aug) and §163 (C-G+). Do **not** lock the construction off the thin pair alone.
+
+---
+
+## 177. C-G producers-only, P + crop+flip, thin pair (**21940178 / 21940179** CANCELLED 09:20) — PRELIM; KILL
+
+`tree_v9d`, redraw the pruned layer only (same NEON-literal stop), 40/10, P + aug. Control **21729557**. Same kill rule.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940178** | r20-w2 | 9 | **−16.9 pp** | 0/9 | arm −19.4 vs control +0.3 |
+| **21940179** | r56-w4 | 8 | **−57.2 pp** | 1/8 | arm −67.7 vs control −1.7 |
+
+Scancel 09:20 (CG). Full-width **21940186 / 21940187** still PD.
+
+**Read.** Producers-only is the same failure mode as full group redraw, under P + aug. Do **not** lock the construction off the thin pair alone.
+
+---
+
+## 178. C-PCA, P + crop+flip, r20-w2 (**21940180** COMPLETED) — PRELIM; harsher than mild at equal keep
+
+`tree_v9d`, principal-direction replacement, 2-pass, 40/10, P + aug. COMPLETED 45 m, 1 Oct 09:19. Control **21729557**. Same keep at the named points (recovery recipe on the mild walk). TEST = 5k half. TB=0.
+
+| Point | Keep | C-PCA TEST | Mild 557 | Δ vs mild |
+|---|---|---|---|---|
+| size 0.80 | 0.774 | **−5.9** | −1.2 | **−4.7** |
+| size 0.60 | 0.584 | **−9.3** | −4.9 | **−4.4** |
+| `val_best` | 0.536 | **−7.3** | −5.3 | **−2.0** |
+
+Paired val at 08:52 (6 cuts): mean −1.4 pp, better on 50% — not a kill; the TEST still loses at every equal-keep point. r56-w4 / twins still PD (**21940181 / 88 / 89**). Re-open needs ≥ 3 of 4 nets within 0.5 pp or kinder, including one full-width.
+
+**Read.** On skinny ResNet-20, C-PCA under P + aug is a worse recovery than keep-the-survivors. One net; construction still open. Do **not** lock.
+
+---
+
+## 179. C-PCA, P + crop+flip, r56-w4 (**21940181** COMPLETED) — PRELIM; harsher than mild at equal keep
+
+`tree_v9d`, principal-direction replacement, 2-pass, 40/10, P + aug. COMPLETED 3 h 34 m, 1 Oct 12:55. Control **21729557**. Same keep at the named points. TEST = 5k half. TB=0. Size 0.60: NONE (2-pass mild also stops at 0.622).
+
+| Point | Keep | C-PCA TEST | Mild 557 | Δ vs mild |
+|---|---|---|---|---|
+| size 0.80 | 0.795 | **−3.9** | −2.6 | **−1.3** |
+| `val_best` | 0.622 | **−6.2** | −4.5 | **−1.7** |
+
+Paired val through the morning never hit the kill (58 pairs, mean −1.38 pp). TEST still loses at both equal-keep points. With §178, C-PCA is worse on both thin nets. Twins **21940188 / 89** still PD. Cross-off needs ≥ 3 of 4.
+
+**Read.** C-PCA under P + aug is not keep-the-survivors on the diagnostic pair. Construction still open until a full-width net. Do **not** lock.
+
+---
+
+## 180. C-G+, P + crop+flip, r56-w4 (**21940182** CANCELLED 13:50) — PRELIM; KILL; same deficit as §163
+
+`tree_v9d`, NEON-literal C-G then 0.1× whole-network polish, 40/10, P + aug. Control = mild **21729557**. Paired val. Pre-authorized kill: ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940182** | r56-w4 | 10 | **−11.6 pp** | 1/10 | arm −7.3 vs control −1.7 |
+
+Scancel 13:50. r20-w2 already **§163** KILL. Full-width **21940191 / 21940192** still PD — construction not crossed until ≥ 3 of 4 nets.
+
+**Read.** Crop+flip plus the 0.1× polish does not close C-G+ on skinny ResNet-56. The diagnostic pair is now both KILL under P + aug. Do **not** lock the construction off the thin pair alone.
+
+---
+
+## 181. C-G, P + crop+flip, full-width ResNet-56 (**21940183** CANCELLED 18:22) — PRELIM; KILL; construction 3/4
+
+`tree_v9d`, NEON-literal C-G (train-loss stop, patience 10, cap 100), 40/10, P + aug, `ft_recipe=C-G`. Control = mild twin **21809595**. Paired val. Pre-authorized kill: ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940183** | R56 C10 | 8 | **−34.4 pp** | 1/8 | arm −41.0 vs control −0.4 |
+
+Scancel 18:22 (CG). Thin pair already **§176** KILL. VGG-16 **21940184** still PD at write time. C-G is now killed or worse on **3 of 4** nets → **CROSS-OFF** the construction (queue rule).
+
+**Read.** Crop+flip does not close group redraw on full-width ResNet-56 either. Same failure as the thin pair and as §156 (clean, no aug).
+
+---
+
+## 182. C-G, P + crop+flip, VGG-16 (**21940184** CANCELLED 19:22) — PRELIM; KILL; construction 4/4
+
+`tree_v9d`, same recipe as §181. Control = mild twin **21809595**. Same kill rule.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940184** | VGG-16 C10 | 14 | **−6.9 pp** | 0/14 | arm −6.0 vs control +0.2 |
+
+Scancel 19:22 (CG). With §176 and §181 this is **4 of 4** nets. C-G under P + crop+flip is closed.
+
+**Read.** Milder than the ResNet-56 collapse (−7 pp vs −34 pp) and still a clear miss vs keep-the-survivors. Do **not** start another C-G walk.
+
+---
+
+## 183. C-G producers-only, P + crop+flip, full-width ResNet-56 (**21940186** CANCELLED 21:22) — PRELIM; KILL; construction 3/4
+
+`tree_v9d`, redraw the pruned layer only (NEON-literal stop), 40/10, P + aug. Control = mild twin **21809595**. Same kill rule.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940186** | R56 C10 | 20 | **−4.3 pp** | 1/20 | arm −8.7 vs control +0.1 |
+
+Scancel 21:22 (CG). Thin pair already **§177** KILL. VGG-16 **21940187** still PD at write time. Producers-only is now killed on **3 of 4** nets → **CROSS-OFF**.
+
+**Read.** Milder than full group redraw on the same net (§181 −34 pp) and still a miss vs keep-the-survivors. Crop+flip does not close the “pruned layer only” construction on full-width ResNet-56.
+
+---
+
+## 184. C-G producers-only, P + crop+flip, VGG-16 (**21940187** CANCELLED 22:22) — PRELIM; KILL; construction 4/4
+
+`tree_v9d`, same recipe as §183. Control = mild twin **21809595**. Same kill rule.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940187** | VGG-16 C10 | 5 | **−7.9 pp** | 1/5 | arm −5.5 vs control −0.1 |
+
+Scancel 22:22 (CG). With §177 and §183 this is **4 of 4** nets. Producers-only under P + crop+flip is closed.
+
+**Read.** Hits the kill line faster than full-width ResNet-56 (§183 needed 20 pairs). Do **not** start another producers-only walk.
+
+---
+
+## 185. C-G+, P + crop+flip, full-width ResNet-56 (**21940191** CANCELLED 23:53) — PRELIM; KILL; construction 3/4
+
+`tree_v9d`, NEON-literal C-G then 0.1× whole-network polish, 40/10, P + aug, `ft_recipe=C-G+`. Control = mild twin **21809595**. Paired val. Pre-authorized kill: ≥ 5 pairs, mean ≤ −3 pp, ≥ 4/5 worse.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940191** | R56 C10 | 9 | **−7.02 pp** | 1/9 | arm −5.58 vs control −0.18 |
+
+Scancel 23:53 (CG). Thin pair already **§163** / **§180** KILL. VGG-16 **21940192** started on the C-PCA VGG-16 slot — leave it for its own kill rule. C-G+ is now killed on **3 of 4** nets → **CROSS-OFF** the construction (queue rule). Do **not** resubmit 21940191.
+
+**Read.** The 0.1× polish does not close group redraw on full-width ResNet-56. Milder than full C-G on the same net (§181 −34 pp) and still a miss vs keep-the-survivors.
+
+---
+
+## 186. C-PCA, P + crop+flip, VGG-16 (**21940189** COMPLETED) — PRELIM; harsher than mild at equal keep; construction 3/4
+
+`tree_v9d`, principal-direction replacement, 2-pass, 40/10, P + aug. COMPLETED 1 h 17 m, 1 Oct 23:53, `ise-4090-04`. Control = mild twin walk **21809595** (§164). Same keep at the named points. TEST = 5k half. TB=0. Quote `[eval] TRAJ` size points and `val_best` (traj_readout). Do not quote floor / terminal / `pass 1/1`.
+
+| Point | Keep | C-PCA TEST | Mild 595 walk | Δ vs mild |
+|---|---|---|---|---|
+| size 0.80 | 0.796 / 0.747 | **−2.8** | −0.10 | **−2.7** |
+| size 0.70 | 0.698 / 0.685 | **−1.5** | −0.70 | **−0.8** |
+| `val_best` | 0.657 / 0.678 | **−1.5** | −0.40 | **−1.1** |
+
+Paired val never hit the kill (28 pairs, mean −1.47 pp, 0 % better). TEST still loses at every equal-keep point. With §178 and §179 this is **3 of 4** nets worse than keep-the-survivors → **CROSS-OFF**. Full-width R56 **21940188** still R (CONTINUE on paired val) — leave it; one remaining net cannot re-open.
+
+**Read.** C-PCA under P + aug is not a collapse, and it is not keep-the-survivors on VGG-16 either. Do **not** start another C-PCA walk.
+
+---
+
+## 187. C-G+, P + crop+flip, VGG-16 (**21940192** CANCELLED 00:54) — PRELIM; KILL; construction 4/4
+
+`tree_v9d`, same recipe as §185 (`ft_recipe=C-G+`, 0.1× polish). Control = mild twin **21809595**. Same kill rule.
+
+| Job | Net | Pairs | Mean arm−control val | Better | Last step |
+|---|---|---|---|---|---|
+| **21940192** | VGG-16 C10 | 14 | **−4.39 pp** | 0/14 | arm −4.72 vs control +0.18 |
+
+Scancel 00:54 (CG). With §163, §180 and §185 this is **4 of 4** nets. C-G+ under P + crop+flip is closed. Do **not** resubmit 21940191 or 21940192.
+
+**Read.** Milder than C-G on the same net (§182 −6.9 pp) and still a clear miss vs keep-the-survivors. The 0.1× polish does not rescue group redraw on VGG-16 either.
+
+---
+
+## 188. S0 selection headroom — lever measurement, never a TEST row (`21945105` / `06` / `07` COMPLETED)
+
+`tree_v9d`, protocol P (clean val = 5k half, TEST = the other 5k half), crop+flip FT, keep 0.8 and 0.6, budgets 0 / bn / 1 / 3 / 10 / 40. Smoke `21944622` COMPLETED 12:58 (plumbing only). Cells: ResNet-56 C10 **21945105** (4.3 h, nap=4), VGG-16 C10 **21945106** (3.2 h, nap=0), VGG-19 C100 **21945107** (3.7 h, nap=0). Exit 0, TB=0. Decision on **val**. TEST sits beside each `[sel]` row and was not used to pick a criterion. Full Kendall / `[lever]` / `[overlap]` in `docs/paper/FILTER_SELECTION_NAP_DESIGN.md` §8.
+
+Keep 0.6 L1 (seed 0), val with TEST beside it, params ~0.36:
+
+| Cell | budget=0 L1 val / TEST | budget=1 L1 val / TEST | budget=40 L1 val / TEST |
+|---|---|---|---|
+| r56 | −79.84 / −81.28 | −12.78 / −12.04 | −2.60 / −2.86 |
+| vgg16 | −77.30 / −77.30 | −12.24 / −11.84 | −2.12 / −2.48 |
+| vgg19 | −71.50 / −72.70 | −17.34 / −17.50 | −6.02 / −6.12 |
+
+**M8** (runbook §10.4): on ≥ 2 of 3 cells, keep 0.6 `best_minus_l1_pp` or `ablation_minus_l1_pp` ≥ max(0.5, 2σ) at budget 40 or ≤ 3. **Fires on 3/3.** r56 at budget 0 (hrank +4.78); vgg16 at 0 (act +17.1) and 1 (fpgm +1.72 ≥ 1.70); vgg19 at 0 (svd +1.34), 1 (l2 +0.52) and **40** (l2 +1.03 ≥ 0.95). Not M8-neg. Not “only ≤ 3”.
+
+**Read.** Which filters survive is a lever under our own fine-tune, including after 40 epochs on VGG-19 C100. S1 (learned NAP-F scorer, zero GPU) is sitting work. Do **not** start S1–S3 from ops. Do **not** quote these as a method TEST row. Do **not** lock.
+
+---
+
+## 189. FT proxy fidelity — six jobs COMPLETED; ceiling uninformative; never a TRAJ TEST (`21941343–48`)
+
+`tree_v9d`, `SPECTRA_EVAL_PROXY_FIDELITY`, mild TRAJ under P + crop+flip 40/10 until keep ≤ 0.9 / 0.7, then the battery (val proxies `none` / `bn` / `12x4` / `40x10`; final TEST seeds 0 and 1). All six **COMPLETED**, TB=0. Last: **21941348** pf-mbv2-k70 9.5 h, 01:29. Never ledger these walks' TRAJ rows (truncated). Readout: `python scripts/proxy_fidelity_readout.py runs/job21941343 … runs/job21941348` (9 ranked `crit`/`where` sets).
+
+**Zero-GPU look (1 Oct, inherit finals on disk):** with crop+flip, 40/10 walk TEST is within 0.5 pp of the 100-ep final at 16/16 size points. Without it, the final adds +1.6 to +5.8 pp. The final never reorders with-vs-without crop+flip on DepGraph R56 and VGG-19 (7/7).
+
+**GPU battery (registered calls, written before the run):**
+
+| Call | Result |
+|---|---|
+| Ceiling = mean ρ(final s0, final s1) | **+0.41** over 9 sets |
+| Below 0.5 → uninformative | **yes.** Do not read any proxy |
+| 12x4 valid (ρ ≥ 0.60 and median regret ≤ 0.5 pp) | not read (ceiling) |
+| 40x10 valid, or ρ(40x10)−ρ(12x4) ≥ 0.2 | not read (ceiling) |
+| Release held 40/10 train **21940321** | **no** — stays held |
+| Depth penalty (12x4 vs final, printed only) | 1.09× (bar was 1.5; ignore under a dead ceiling) |
+
+Printed but not used: bn / none / 12x4 / 40x10 mean ρ −0.07 / +0.16 / +0.35 / −0.07. Candidate spread is 0.24–1.55 pp; the two final seeds often disagree (MobileNet-V2 0.7 `crit` ceiling **−0.70**).
+
+**Read.** These cuts are too small for the 100-ep final to rank them stably. Next cell (sitting): **widen the cuts** before any SGD-proxy A/B. 12/4 stays the in-loop recipe. Do **not** release 21940321. Do **not** lock.
+
+---
+
+## 190. C-PCA, P + crop+flip, zoo ResNet-56 (**21940188** COMPLETED) — PRELIM; harsher than mild at equal keep; construction **4/4**
+
+`tree_v9d`, principal-direction replacement, 2-pass, 40/10, P + aug. COMPLETED 3 h 39 m, 2 Oct 02:01, TB=0. Control = mild twin walk **21809595** (§164). Same keep at the named points. TEST = 5k half. Quote `[eval] TRAJ` size points and `val_best`. Do not quote floor / terminal / `pass 1/1`.
+
+| Point | Keep | C-PCA TEST | Mild 595 walk | Δ vs mild |
+|---|---|---|---|---|
+| size 0.80 | 0.794 / 0.737 | **−2.1** | −0.40 | **−1.7** |
+| size 0.70 | 0.694 / 0.676 | **−2.4** | −0.40 | **−2.0** |
+| `val_best` | 0.661 / 0.662 | **−2.7** | −0.20 | **−2.5** |
+
+Paired val never hit the kill (60 pairs, mean −1.23 pp, 10 % better). TEST still loses at every equal-keep point. With §178, §179 and §186 this is **4 of 4** nets worse than keep-the-survivors → **CROSS-OFF**.
+
+**Read.** C-PCA is milder than C-G and still not the recovery. Do **not** start another C-PCA walk. Do **not** lock.
+
+---
+
+## 191. S1 learned NAP-F selection scorer — zero GPU, probe section, never a TEST row
+
+`scripts/selection_scorer_s1.py` over the §188 run dirs (sitting 2 Oct, Ido's delegated GO). Leave one network out. The learner is picked by inner cross-fit on the two training nets, never on the held-out one. Metric: width-weighted within-group Kendall τ against the single-channel oracle. The hand τ reproduced §188's printed values on 27/27 entries before any fit.
+
+| Held-out net | Learned τ | Best hand on that net | Hand pick from the other two nets |
+|---|---|---|---|
+| DepGraph R56 C10 | **+0.572** | L2 +0.240 | Taylor +0.121 |
+| chenyaofo VGG-16-BN C10 | **+0.657** | Taylor +0.417 | L2 +0.267 |
+| DepGraph VGG-19 C100 | **+0.643** | L2 +0.170 | Taylor +0.123 |
+
+**G1 PASS 3/3** (bar: +0.05 on 2 of 3). NAPv2 gradient statistics alone give +0.552 / +0.624 / +0.625; hand criteria alone give +0.210 / +0.270 / +0.181. Exported scorer `tree_v9d/runs/selection_scorer_s1/nap_f_model.pkl` (md5 `2a3bf48db614`, LONO τ 0.632).
+
+**M8 re-read with the selection effect** (max over 9 named criteria vs pooled fine-tune noise). At keep 0.6 and trained budgets 1 / 3 / 10 / 40, p-null is 0.10–0.95; at budget 40 it is 0.91 / 0.95 / 0.49. So §188's M8 fire rests on budget 0 / BN and is noise-level once fine-tuned. The oracle's own masks are below L1 at 40 on all three cells (−0.55 / −0.30 / −0.71).
+
+**Read.** A transferable selection *ranking* exists (S1). Whether it *recovers* better is S2 (**21982334** / **21982335**, registered calls in `docs/SITTING_GPU_QUEUE.md`), with a FAIL-at-40 prior. Do **not** quote as a method row. Do **not** lock. Full tables: design §8 "S1 results".
+
+---
+
 
 

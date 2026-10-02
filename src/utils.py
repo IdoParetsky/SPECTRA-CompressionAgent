@@ -36,6 +36,9 @@ DATALOADER_WORKERS = int(os.environ.get("SPECTRA_DATALOADER_WORKERS", "4"))
 
 # CIFAR datasets that may take RandomCrop+Flip during fine-tune when SPECTRA_FT_AUG=1.
 _FT_AUG_DATASETS = ("cifar-10", "cifar-100")
+# SPECTRA_FT_AUG_HOLDOUT=1 (default off): the G2 hold-out checkpoints' own train-time aug
+# (scripts/train_pretrained_checkpoint.py): RandomCrop(32, pad 4), plus the flip except on SVHN digits.
+_FT_AUG_HOLDOUT = {"svhn": "crop", "fashion-mnist": "crop+flip"}
 # Native ImageNet / Places JPEGs are not a fixed H×W. Without Resize the
 # DataLoader collate crashes (job 20289097). CIFAR stays 32×32.
 _LARGE_SPATIAL = ("imagenet1k", "imagenet1kv2", "places365")
@@ -49,6 +52,11 @@ _ImageFile.LOAD_TRUNCATED_IMAGES = True
 def env_flag(name: str, default: str = "0") -> bool:
     """Parse a SPECTRA_* on/off environment flag. Default is off unless ``default`` says otherwise."""
     return os.environ.get(name, default).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def holdout_ft_aug(canonical: str):
+    """``"crop"`` / ``"crop+flip"`` when ``SPECTRA_FT_AUG_HOLDOUT=1`` covers ``canonical``, else None."""
+    return _FT_AUG_HOLDOUT.get(canonical) if env_flag("SPECTRA_FT_AUG_HOLDOUT") else None
 
 
 def val_from_test_fraction() -> float:
@@ -299,6 +307,11 @@ class DatasetRegistry:
             key = f"{key}|aug=1"
         if env_flag("SPECTRA_FT_AUTOAUG") and canonical_dataset_name(name_or_path) in _FT_AUG_DATASETS:
             key = f"{key}|autoaug=1"
+        holdout = holdout_ft_aug(canonical_dataset_name(name_or_path))
+        if holdout:
+            key = f"{key}|haug={holdout}"
+        if gpu_ft_aug(canonical_dataset_name(name_or_path), options):
+            key = f"{key}|gpuaug=1"
         return key
 
     def _may_load(self, spec) -> bool:
@@ -1048,6 +1061,8 @@ def build_transform(name_or_path: str, options: dict, train: bool = False):
                             standard RandomCrop(pad=4)+Flip used to train those checkpoints.
                             Val/test must keep ``train=False`` so reward accuracy is not
                             stochastic. Default off — does not change historical C10 jobs.
+                            ``SPECTRA_FT_AUG_HOLDOUT=1`` gives SVHN RandomCrop(pad=4) and
+                            Fashion-MNIST RandomCrop(pad=4)+Flip, after any grayscale/resize step.
     """
     steps = []
 
@@ -1075,6 +1090,14 @@ def build_transform(name_or_path: str, options: dict, train: bool = False):
         steps.append(transforms.RandomHorizontalFlip())
     if train and env_flag("SPECTRA_FT_AUTOAUG") and canonical in _FT_AUG_DATASETS:
         steps.append(transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10))
+    holdout = holdout_ft_aug(canonical) if train else None
+    if holdout:
+        crop = 32
+        if image_size:
+            crop = image_size[0] if isinstance(image_size, (list, tuple)) else int(image_size)
+        steps.append(transforms.RandomCrop(crop, padding=4))
+        if holdout == "crop+flip":
+            steps.append(transforms.RandomHorizontalFlip())
 
     steps.append(transforms.ToTensor())
 
@@ -1084,6 +1107,95 @@ def build_transform(name_or_path: str, options: dict, train: bool = False):
     steps.append(transforms.Normalize(mean, std))
 
     return transforms.Compose(steps)
+
+
+def gpu_ft_aug(canonical: str, options=None) -> bool:
+    """``SPECTRA_FT_AUG_GPU=1``: the CIFAR crop+flip train split lives on the GPU (default off)."""
+    return (env_flag("SPECTRA_FT_AUG_GPU") and env_flag("SPECTRA_FT_AUG")
+            and not env_flag("SPECTRA_FT_AUTOAUG") and canonical in _FT_AUG_DATASETS and not options)
+
+
+def crop_flip_batch(padded, oy, ox, flip, size=32):
+    """Crop ``padded`` (B, C, H+2p, W+2p) at per-sample offsets (oy, ox) and mirror where ``flip``."""
+    b, c = padded.shape[:2]
+    ar = torch.arange(size, device=padded.device)
+    rows = (oy.view(b, 1) + ar).view(b, 1, size, 1)
+    cols = (ox.view(b, 1) + ar).view(b, 1, 1, size)
+    out = padded[torch.arange(b, device=padded.device).view(b, 1, 1, 1),
+                 torch.arange(c, device=padded.device).view(1, c, 1, 1), rows, cols]
+    return torch.where(flip.view(b, 1, 1, 1), out.flip(3), out)
+
+
+class GpuCropFlipLoader:
+    """
+    CIFAR train loader for ``SPECTRA_FT_AUG_GPU=1``: the split is held on the device as
+    zero-padded uint8 and each batch gets RandomCrop(32, pad 4)+Flip there, the same
+    distribution as the torchvision train transform (offsets uniform on 0..8, flip p 0.5,
+    zero fill in pixel space). Batches leave as normalised float32 on the device, so a
+    caller's ``.to(device)`` is a no-op. ``dataset`` is the wrapped (Subset of a) CIFAR
+    dataset for introspection only.
+    """
+
+    pad = 4
+
+    def __init__(self, dataset, batch_size, mean, std, device=None):
+        self.dataset = dataset
+        self.batch_size = int(batch_size)
+        self.num_workers = 0
+        self.mean, self.std = tuple(mean), tuple(std)
+        self._device = device
+        self._x = self._y = None
+        base, indices = dataset, None
+        while isinstance(base, Subset):
+            outer = list(base.indices)
+            indices = outer if indices is None else [outer[i] for i in indices]
+            base = base.dataset
+        self._base, self._indices = base, indices
+
+    def __len__(self):
+        n = len(self._indices) if self._indices is not None else len(self._base.data)
+        return (n + self.batch_size - 1) // self.batch_size
+
+    def with_batch_size(self, batch_size):
+        other = GpuCropFlipLoader(self.dataset, batch_size, self.mean, self.std, self._device)
+        if self._x is not None:
+            other._x, other._y, other._m, other._s = self._x, self._y, self._m, self._s
+        return other
+
+    def _resolve_device(self):
+        if self._device is None:
+            try:
+                self._device = torch.device(StaticConf.get_instance().conf_values.device)
+            except Exception:
+                self._device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        return self._device
+
+    def _materialise(self):
+        device = self._resolve_device()
+        data = torch.as_tensor(np.asarray(self._base.data))  # (N, H, W, C) uint8
+        targets = torch.as_tensor(np.asarray(self._base.targets), dtype=torch.long)
+        if self._indices is not None:
+            idx = torch.as_tensor(self._indices, dtype=torch.long)
+            data, targets = data[idx], targets[idx]
+        data = torch.nn.functional.pad(data.permute(0, 3, 1, 2), (self.pad,) * 4)
+        self._x, self._y = data.contiguous().to(device), targets.to(device)
+        self._m = torch.tensor(self.mean, device=device).view(1, -1, 1, 1)
+        self._s = torch.tensor(self.std, device=device).view(1, -1, 1, 1)
+
+    def __iter__(self):
+        if self._x is None:
+            self._materialise()
+        n, device, span = self._x.shape[0], self._x.device, 2 * self.pad + 1
+        size = self._x.shape[-1] - 2 * self.pad
+        order = torch.randperm(n).to(device)
+        for start in range(0, n, self.batch_size):
+            idx = order[start:start + self.batch_size]
+            b = idx.numel()
+            oy = torch.randint(0, span, (b,), device=device)
+            ox = torch.randint(0, span, (b,), device=device)
+            flip = torch.rand(b, device=device) < 0.5
+            x = crop_flip_batch(self._x[idx], oy, ox, flip, size).float().div_(255.0)
+            yield (x - self._m) / self._s, self._y[idx]
 
 
 def load_cnn_dataset(spec, train_split: float, val_split: float):
@@ -1156,13 +1268,27 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
         else:
             transform = build_transform(name_or_path, options)
             train_data, test_data = DATASET_BUILDERS[canonical](transform)
+            holdout = holdout_ft_aug(canonical)
+            train_aug = (DATASET_BUILDERS[canonical](build_transform(name_or_path, options, train=True))[0]
+                         if holdout else None)
 
             if held_out > 0:
+                if holdout:
+                    train_data = train_aug
                 val_data, test_data = _split_held_out(test_data, held_out)
+            elif holdout:
+                # Val must stay unaugmented: same index split as the CIFAR aug branch.
+                train_len = int(len(train_data) * train_split / (train_split + val_split))
+                g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
+                perm = torch.randperm(len(train_data), generator=g).tolist()
+                train_data, val_data = Subset(train_aug, perm[:train_len]), Subset(train_data, perm[train_len:])
             else:
                 train_len = int(len(train_data) * train_split / (train_split + val_split))
                 val_len = len(train_data) - train_len
                 train_data, val_data = random_split(train_data, [train_len, val_len])
+            if holdout:
+                print_flush(f"FT aug on {canonical}: {holdout} on train only, the hold-out checkpoints' recipe "
+                            f"(n_train={len(train_data)}, n_val={len(val_data)})")
         if held_out > 0:
             print_flush(
                 f"Val from test on {canonical}: n_train={len(train_data)} (whole train split), "
@@ -1188,7 +1314,16 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
     if DATALOADER_WORKERS > 0:
         worker_kwargs.update({"persistent_workers": True, "prefetch_factor": 4})
 
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, **worker_kwargs)
+    if canonical in _FT_AUG_DATASETS and gpu_ft_aug(canonical, options):
+        mean, std = DATASET_STATS.get(canonical, DEFAULT_STATS)
+        train_loader = GpuCropFlipLoader(train_data, batch_size, mean, std)
+        print_flush(f"FT aug on {canonical}: RandomCrop+Flip on the GPU, train split device-resident "
+                    f"(n_train={len(train_data)}, batch={batch_size})")
+    else:
+        if env_flag("SPECTRA_FT_AUG_GPU") and canonical in _FT_AUG_DATASETS:
+            print_flush(f"SPECTRA_FT_AUG_GPU ignored on {canonical}: needs SPECTRA_FT_AUG=1, no AutoAugment, "
+                        f"no resize/to_rgb options")
+        train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, **worker_kwargs)
     val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, **worker_kwargs)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, **worker_kwargs)
 
@@ -1207,6 +1342,9 @@ def final_ft_train_loader(train_loader, batch_size=None):
     import copy as _copy
 
     batch = int(batch_size or train_loader.batch_size)
+    if isinstance(train_loader, GpuCropFlipLoader):
+        return (train_loader if batch == train_loader.batch_size
+                else train_loader.with_batch_size(batch)), "loader"
     dataset, indices = train_loader.dataset, None
     while isinstance(dataset, Subset):
         outer = list(dataset.indices)
@@ -1223,6 +1361,9 @@ def final_ft_train_loader(train_loader, batch_size=None):
             dataset.transform = transforms.Compose(
                 [transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(), *steps])
             aug = "crop+flip"
+    elif env_flag("SPECTRA_FT_AUG_HOLDOUT") and any(
+            isinstance(s, (transforms.RandomCrop, transforms.RandomHorizontalFlip)) for s in steps):
+        aug = "loader"  # the loader already carries the hold-out checkpoints' recipe
     if aug != "crop+flip" and batch == train_loader.batch_size:
         return train_loader, aug
     data = dataset if indices is None else Subset(dataset, indices)

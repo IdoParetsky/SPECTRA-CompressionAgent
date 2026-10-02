@@ -32,9 +32,9 @@
 |---|---|---|---|---|
 | A1 | Literature on cost and side metrics | **Done.** Per-target search cost of learned pruners, ImageNet search costs, schedules, the cost of one pruning step per criterion, deployment metrics, transfer prior work. Every number checked against its source | — | EFFICIENCY §4, §5.1, §8 |
 | A2 | SPECTRA's measured costs | **Done** for 8 jobs and 13 walks. Fine-tuning is 97.9–99.7 % of a CIFAR walk. The agent adds at most 0.33 s per step. Against DepGraph on a 4090, break-even is about 3 targets (walk to 0.70 kept) or 8 (to 0.36) | refresh at each COMPLETED | EFFICIENCY §2, §3, §7 |
-| A3 | DepGraph re-run on our RTX 4090, job `21943448` | Pending (GPU cap); about 3–4 h once it starts | yes, if it starts by ~6 Oct | EFFICIENCY §4.5, §5.3 |
-| A4 | Deployment bench, job `21942378` (latency, throughput, peak memory, energy per image) | Pending (GPU cap); ≤ 4 h | yes, likely | EFFICIENCY §5.3 |
-| A5 | Proxy fidelity, `21941343–48`: does the 12/4 fine-tune, or no fine-tune at all, keep the agent's ranking? | 4 running (ResNet-56 w4, w6), 2 pending (MobileNet-V2) | likely | queue file section; ledger on all six COMPLETED |
+| A3 | DepGraph re-run on our RTX 4090, job `21943448` | **COMPLETED** 03:11 (2.3 h, TB=0). R56 85 min, best acc **93.80**; VGG-19 45 min, **70.78**. Never ledger, never “beats”. EFFICIENCY §4.5 + §5.3 | yes | EFFICIENCY §4.5, §5.3 |
+| A4 | Deployment bench, job `21942378` (latency, throughput, peak memory, energy per image) | **COMPLETED** 01:08 (1.25 h, TB=0, 0 template failed). 3 repeats, 270 jsonl rows. Summary in EFFICIENCY §5.3. Never ledger | yes | EFFICIENCY §5.3 |
+| A5 | Proxy fidelity, `21941343–48`: does the 12/4 fine-tune, or no fine-tune at all, keep the agent's ranking? | **6/6 COMPLETED** (all TB=0). Ceiling **+0.41 < 0.5 → uninformative**. 21940321 stays held. Ledger **§189**. Never those walks' TRAJ rows. **Widen:** `21970086/87/88` R keep 0.6 (start flags ok); `21970089` PD keep 0.36 | yes | queue file; ledger §189; pf-w on all four |
 | A6 | Measuring as we go | `gpu_samples.csv` in every `tree_v9d` job since ~11:00 1 Oct; `scripts/cost_readout.py` at each COMPLETED | ongoing | EFFICIENCY §9 |
 | A7 | Open items for Ido (NVML, an agent timer, PUE / CO2e, a GPU-side augmentation A/B, a val-selected DepGraph) | Open | his call | EFFICIENCY §11 |
 | B1 | "How filters are chosen (how many · which)" column | **Done.** 49 published methods in the canonical table; the column added to every living SOTA table (news §2.4–2.5, benchmark setup §3, Catalog-L §2.4 and §5.3, efficiency §4.1–4.3 and §8.1, directives §5, skeleton T1–T2) and to the literature canvas | — | design §2 |
@@ -42,8 +42,8 @@
 | B3 | A second DRL agent for which filters | **Designed:** hierarchical; a set transformer over channel tokens; Plackett–Luce / Gumbel-top-k; reward paired against L1; a selection shield. Gated by S0 → S1 → S2. Training it (S3) needs Ido's GO | design only | design §6.4, §8 |
 | B4 | NAP2 as decision support | **NAPv2 code read**, quirks documented. NAP-F (its statistics per filter) built and checked against NAPv2's own code to 1e-9. Three roles defined; S0 records NAPv2 maps over its ResNet-56 fine-tunes | — | design §5–6 |
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
-| B6 | **S0 selection-headroom probe** | Smoke `21944622` **COMPLETED** 12:58 (3.3 min, plumbing pass). Cells `21945105` (ResNet-56 C10), `21945106` (VGG-16 C10), `21945107` (VGG-19 C100), with crop+flip, pending on the GPU cap | **yes**: about 3–4 h each on a 4090, up to ~11 h on a 1080 | design §8 |
-| B7 | S1: a learned NAP-F scorer (zero GPU) | Waits for the three S0 feature tables | yes, if S0 lands by ~6 Oct (about 1 h of sitting work) | design §6.3 |
+| B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
+| B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** Held-out τ +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17; the signal is NAPv2 gradient statistics. S2 (does it *recover* better?) `21982334` / `21982335` PD; prior FAIL at 40 | **yes** | design §8 "S1 results"; ledger §191 |
 
 ---
 
@@ -112,6 +112,32 @@
 
 - **1 Oct 12:58** — S0 smoke `21944622` COMPLETED: 3.3 min on a GTX 1080, exit 0, identical shapes across criteria. The Kendall table is in design §8: the norm family agrees with L1 at τ 0.83–0.90, and nothing agrees with the single-channel oracle (τ ≤ 0.18). Plumbing; never quoted.
 - **1 Oct 13:00** — S0 cells resubmitted with the walk's crop+flip fine-tune as `21945105 / 06 / 07`. The unaugmented submits `21944623–25` were cancelled while pending.
+- **1 Oct 16:02** — A5 `21941343` pf-r56w4-k90 COMPLETED (6.7 h, exit 0, TB=0). Slot went to `21941348` pf-mbv2-k70. No readout until 6/6. Never ledger this walk's TRAJ rows.
+- **1 Oct 18:22** — C-G full-width R56 `21940183` **KILL §181** (8 pairs, mean −34.4 pp). Construction **CROSS-OFF** (3/4 with §176). Slot should free for S0. VGG-16 `21940184` left PD.
+- **1 Oct 18:36** — A5 `21941344` pf-r56w4-k70 COMPLETED (9.2 h, TB=0, 14 `[proxy]` lines). Slot went to S0 `21945105`. C-G VGG-16 `21940184` had already taken the 18:23 slot (4 pairs, −9.1 pp, CONTINUE).
+- **1 Oct 19:22** — C-G VGG-16 `21940184` **KILL §182** (14 pairs, mean −6.9 pp, 0/14 better). Construction now **4/4**. Slot should free for `21945106` sel-vgg16.
+- **1 Oct 19:23** — B6 `21945106` sel-vgg16 **started** (`cs-pheno-08`). Banner `aug=1` and `FT_AUG=1 VAL_FROM_TEST=1` (`nap=0` by design). Never a TEST row. `21945107` still PD.
+- **1 Oct 19:56** — A5 `21941346` pf-r56w6-k70 COMPLETED (8.7 h, TB=0). Slot went to producers-only C-G `21940186` (nice 29), not sel-vgg19 (nice 23). At 25 min: 6 pairs, mean −0.8 pp vs twin — CONTINUE (kill needs ≤ −3 pp).
+- **1 Oct 21:22** — producers-only R56 `21940186` **KILL §183** (20 pairs, mean −4.3 pp). Construction **CROSS-OFF** 3/4. Slot should free for `21945107` sel-vgg19. C2 `21938810` froze **ep0023** (score 0.288) — **not a TEST** (before PPO update 20).
+- **1 Oct 21:23** — B6 `21945107` sel-vgg19 **started** (`cs-pheno-11`, cifar-100). Banner `aug=1` and `FT_AUG=1 VAL_FROM_TEST=1`. All three S0 cells now R. Never a TEST row.
+- **1 Oct 21:48** — A5 `21941347` pf-mbv2-k90 COMPLETED (8.0 h, TB=0). Slot went to producers VGG-16 `21940187`. Last pf job `21941348` still R.
+- **1 Oct 22:22** — producers-only VGG-16 `21940187` **KILL §184** (5 pairs, mean −7.9 pp, 1/5 better). Construction now **4/4**.
+- **1 Oct 22:36** — B6 `21945106` sel-vgg16 **COMPLETED** (3.2 h, exit 0). Kendall/[lever] in design §8. Never a TEST row.
+- **1 Oct 22:52** — B6 `21945105` sel-r56 **COMPLETED** (4.3 h, exit 0). Kendall/[lever] in design §8. Never a TEST row. M8 waits for vgg19.
+- **1 Oct 23:53** — C-G+ full-width R56 `21940191` **KILL §185** (9 pairs, mean −7.02 pp, 1/9 better). Construction **CROSS-OFF** 3/4. VGG-16 `21940192` started (`ft_recipe=C-G+`, aug=1) — leave for its own kill rule.
+- **1 Oct 23:53** — C-PCA VGG-16 `21940189` **COMPLETED §186**. TEST −2.8 / −1.5 / −1.5 vs mild walk −0.1 / −0.7 / −0.4 at equal keep. Construction **CROSS-OFF** 3/4. R56 `21940188` still R.
+- **1 Oct 23:53** — A4 `21942378` bench-deploy **started** (`ise-4090-18`). Never ledger. Paste into EFFICIENCY §5.3 on COMPLETED.
+- **2 Oct 00:54** — C-G+ VGG-16 `21940192` **KILL §187** (14 pairs, mean −4.39 pp, 0/14 better). Construction now **4/4**. Slot should free for A3 `21943448`. S0 vgg19 still R (34/36 masks).
+- **2 Oct 00:54** — A3 `21943448` h2h-depgraph **started** (`ise-4090-04`, Torch-Pruning v1.6.1, TB=0). Never ledger, never “beats”.
+- **2 Oct 01:04** — B6 `21945107` sel-vgg19 **COMPLETED** (3.7 h, exit 0). **M8 fired** (3/3). Ledger probe **§188**. Never a TEST row. Do not start S1–S3.
+- **2 Oct 01:08** — A4 `21942378` bench-deploy **COMPLETED** (1.25 h, TB=0). Summary in EFFICIENCY §5.3. Never ledger.
+- **2 Oct 01:29** — A5 `21941348` last pf job **COMPLETED**. All six TB=0. Readout: ceiling **+0.41 < 0.5**, uninformative. **21940321 stays held.** Ledger **§189**. Never those TRAJ rows.
+- **2 Oct 02:01** — C-PCA zoo R56 `21940188` **COMPLETED §190**. TEST −2.1 / −2.4 / −2.7 vs mild −0.4 / −0.4 / −0.2 at equal keep. Construction **4/4**.
+- **2 Oct 03:11** — A3 `21943448` h2h-depgraph **COMPLETED** (2.3 h, TB=0). R56 85 min / 93.80; VGG-19 45 min / 70.78. EFFICIENCY §4.5. Never ledger, never “beats”.
+- **2 Oct 09:23** — Wider pf `21970086/87/88` **started** (keep ≤ 0.6, WHERE_ROWS=8, start flags ok). `21970089` PD keep ≤ 0.36. Never those TRAJ rows. Never release 21940321 until the four-job readout.
+- **2 Oct 19:20** — B7 S1 **G1 PASS 3/3** (zero GPU). Held-out τ vs oracle +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17. Signal = NAPv2 gradient statistics. M8 re-read: noise-level at trained budgets. Design §8 "S1 results"; ledger **§191**. Never a TEST row.
+- **2 Oct 19:25** — S2 `21982334` (MBV2 ×0.5 C10) / `21982335` (R56 C100) **submitted** (PD, nice 5/6), sitting GO under Ido's delegation. Calls registered in the queue file. Prior: FAIL at 40. S3 still needs Ido.
+- **2 Oct 19:40** — H0 `21982353` (SVHN) / `21982354` (Fashion-MNIST) mild walks on the A1 hold-outs **submitted**. They need the new default-off loader flag `SPECTRA_FT_AUG_HOLDOUT` (until now these datasets fine-tuned unaugmented). D5 `21982372` / `21982373` GPU-resident crop+flip speed A/B **submitted**.
 
 ---
 

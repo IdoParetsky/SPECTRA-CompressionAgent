@@ -2,7 +2,7 @@
 """
 Proxy-fidelity readout: ``proxy_fidelity`` records of ``SPECTRA_EVAL_PROXY_FIDELITY`` walks (CPU).
 
-    python scripts/proxy_fidelity_readout.py <run_dir | events.jsonl> [...]
+    python scripts/proxy_fidelity_readout.py [--sets all|where|crit] <run_dir | events.jsonl> [...]
 
 Per state (net x target) and candidate set: Spearman rho between each proxy's **val** delta (what the
 agent's reward sees) and the final fine-tune's **TEST** delta (what the thesis quotes; mean over the
@@ -11,7 +11,9 @@ proxy's favourite gives up against the set's best final). Sets: ``crit`` = the f
 on one row; ``where`` = the same share of the network cut from different groups; ``menu`` = identity +
 the Stage-4 cut actions (mixed sizes, so it is read as the depth penalty, not as a ranking).
 
-The calls at the end are the ones registered in ``docs/SITTING_GPU_QUEUE.md`` before the run.
+The calls at the end are the ones registered in ``docs/SITTING_GPU_QUEUE.md`` before the run. ``--sets``
+restricts the calls to one kind of set (the wider-cut runs read ``where``); the table always shows every set,
+and the default ``all`` is the §189 readout.
 """
 import argparse
 import glob
@@ -199,6 +201,8 @@ def render(table, depth, proxies, seeds):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("targets", nargs="+", help="run directories or events jsonl files")
+    parser.add_argument("--sets", choices=("all", "where", "crit"), default="all",
+                        help="candidate sets the registered calls read (the table shows every set)")
     args = parser.parse_args(argv)
     rows = load(args.targets)
     if not rows:
@@ -207,7 +211,9 @@ def main(argv=None):
     table, depth, proxies, seeds = summarize(rows)
     print(render(table, depth, proxies, seeds))
     print()
-    print("\n".join(calls(table, proxies)))
+    chosen = table if args.sets == "all" else [t for t in table if t["set"] == args.sets]
+    print(f"calls on sets: {args.sets} ({len(chosen)} of {len(table)} ranked sets)")
+    print("\n".join(calls(chosen, proxies)))
     return 0
 
 

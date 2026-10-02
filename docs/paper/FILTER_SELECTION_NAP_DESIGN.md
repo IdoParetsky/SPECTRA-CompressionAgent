@@ -382,7 +382,107 @@ What it shows:
 
 **NAPv2 maps contain NaNs** (332 per weight map, 624–1,006 per gradient map). They come from NAPv2's own statistics on one-element or constant slices. NAPv2 zero-fills them before its autoencoder (`np.where(np.isnan(arr), 0.0, arr)` in its tests), so any R2 analysis must do the same.
 
-**S0 results.** Ops pastes each cell's `Within-group Kendall`, `[lever]` and `[overlap]` lines here on COMPLETED, then the M8 / M8-neg call (runbook §10.4). Pending: cells `21945105` (ResNet-56 C10), `21945106` (VGG-16 C10) and `21945107` (VGG-19 C100).
+**S0 results.** Never a TEST row. Protocol P (5k val / 5k TEST halves). Crop+flip FT. M8 evaluated below.
+
+**S0 `21945105` sel-r56** COMPLETED 22:52, 4.3 h, `cs-pheno-02`, exit 0, crop+flip, protocol P, nap=4. Calibration loss 0.0121. Kendall vs L1: L2 0.90, SVD 0.83, FPGM 0.85, BN-scale 0.51, Taylor 0.22, act 0.23, APoZ 0.10, HRank 0.13, ablation 0.23. Kendall vs ablation ≤ 0.24.
+
+```
+[lever] dg-r56-c10 keep=0.8 budget=0: {'best_named': 'hrank', 'best_minus_l1_pp': 9.02, 'ablation_minus_l1_pp': 4.14, 'l1_minus_random_pp': 6.912, 'random_sd_pp': 1.649, 'l1_minus_anti_l1_pp': 4.6, 'l1_ft_seed_sd_pp': 0.0}
+[lever] dg-r56-c10 keep=0.8 budget=bn: {'best_named': 'ablation', 'best_minus_l1_pp': 5.72, 'ablation_minus_l1_pp': 5.72, 'l1_minus_random_pp': 13.132, 'random_sd_pp': 6.536, 'l1_minus_anti_l1_pp': 23.22, 'l1_ft_seed_sd_pp': 0.072}
+[lever] dg-r56-c10 keep=0.8 budget=1: {'best_named': 'apoz', 'best_minus_l1_pp': 3.72, 'ablation_minus_l1_pp': 3.0, 'l1_minus_random_pp': -1.688, 'random_sd_pp': 1.026, 'l1_minus_anti_l1_pp': -0.74, 'l1_ft_seed_sd_pp': 0.666}
+[lever] dg-r56-c10 keep=0.8 budget=3: {'best_named': 'l2', 'best_minus_l1_pp': 1.007, 'ablation_minus_l1_pp': 0.387, 'l1_minus_random_pp': 0.325, 'random_sd_pp': 1.075, 'l1_minus_anti_l1_pp': 1.213, 'l1_ft_seed_sd_pp': 0.677}
+[lever] dg-r56-c10 keep=0.8 budget=10: {'best_named': 'ablation', 'best_minus_l1_pp': 0.867, 'ablation_minus_l1_pp': 0.867, 'l1_minus_random_pp': 0.281, 'random_sd_pp': 0.799, 'l1_minus_anti_l1_pp': -0.307, 'l1_ft_seed_sd_pp': 0.794}
+[lever] dg-r56-c10 keep=0.8 budget=40: {'best_named': 'taylor', 'best_minus_l1_pp': 0.767, 'ablation_minus_l1_pp': 0.407, 'l1_minus_random_pp': -0.051, 'random_sd_pp': 0.672, 'l1_minus_anti_l1_pp': 0.173, 'l1_ft_seed_sd_pp': 0.466}
+[lever] dg-r56-c10 keep=0.6 budget=0: {'best_named': 'hrank', 'best_minus_l1_pp': 4.78, 'ablation_minus_l1_pp': -0.56, 'l1_minus_random_pp': 3.492, 'random_sd_pp': 0.504, 'l1_minus_anti_l1_pp': 1.58, 'l1_ft_seed_sd_pp': 0.0}
+[lever] dg-r56-c10 keep=0.6 budget=bn: {'best_named': 'ablation', 'best_minus_l1_pp': 9.807, 'ablation_minus_l1_pp': 9.807, 'l1_minus_random_pp': 5.117, 'random_sd_pp': 3.094, 'l1_minus_anti_l1_pp': 5.473, 'l1_ft_seed_sd_pp': 0.17}
+[lever] dg-r56-c10 keep=0.6 budget=1: {'best_named': 'ablation', 'best_minus_l1_pp': 1.473, 'ablation_minus_l1_pp': 1.473, 'l1_minus_random_pp': 2.803, 'random_sd_pp': 3.629, 'l1_minus_anti_l1_pp': 5.267, 'l1_ft_seed_sd_pp': 1.774}
+[lever] dg-r56-c10 keep=0.6 budget=3: {'best_named': 'fpgm', 'best_minus_l1_pp': 1.82, 'ablation_minus_l1_pp': 0.42, 'l1_minus_random_pp': 0.132, 'random_sd_pp': 1.37, 'l1_minus_anti_l1_pp': 1.52, 'l1_ft_seed_sd_pp': 1.31}
+[lever] dg-r56-c10 keep=0.6 budget=10: {'best_named': 'ablation', 'best_minus_l1_pp': 0.787, 'ablation_minus_l1_pp': 0.787, 'l1_minus_random_pp': 0.901, 'random_sd_pp': 0.942, 'l1_minus_anti_l1_pp': 3.613, 'l1_ft_seed_sd_pp': 0.804}
+[lever] dg-r56-c10 keep=0.6 budget=40: {'best_named': 'fpgm', 'best_minus_l1_pp': 0.387, 'ablation_minus_l1_pp': -0.553, 'l1_minus_random_pp': 0.557, 'random_sd_pp': 0.817, 'l1_minus_anti_l1_pp': 1.413, 'l1_ft_seed_sd_pp': 0.636}
+[overlap] dg-r56-c10 Jaccard of kept channels: keep=0.8 L1 vs ablation 0.70; keep=0.6 L1 vs ablation 0.51. Full dict in sel_21945105.out and selection_masks.jsonl.
+```
+
+**S0 `21945106` sel-vgg16** COMPLETED 22:36, 3.2 h, `cs-pheno-08`, exit 0, crop+flip, protocol P, nap=0. Calibration loss 0.0004. Kendall vs L1: L2 0.92, SVD 0.91, FPGM 0.89, BN-scale 0.73, Taylor 0.32, act 0.45, APoZ −0.01, HRank 0.10, ablation 0.27.
+
+```
+[lever] cy-vgg16-c10 keep=0.8 budget=0: {'best_named': 'act', 'best_minus_l1_pp': 26.3, 'ablation_minus_l1_pp': -22.26, 'l1_minus_random_pp': 19.6, 'random_sd_pp': 10.835, 'l1_minus_anti_l1_pp': 37.02, 'l1_ft_seed_sd_pp': 0.0}
+[lever] cy-vgg16-c10 keep=0.8 budget=bn: {'best_named': 'bn_scale', 'best_minus_l1_pp': 2.167, 'ablation_minus_l1_pp': -11.153, 'l1_minus_random_pp': 0.569, 'random_sd_pp': 0.917, 'l1_minus_anti_l1_pp': 19.253, 'l1_ft_seed_sd_pp': 0.117}
+[lever] cy-vgg16-c10 keep=0.8 budget=1: {'best_named': 'bn_scale', 'best_minus_l1_pp': 2.66, 'ablation_minus_l1_pp': -0.14, 'l1_minus_random_pp': 0.428, 'random_sd_pp': 1.381, 'l1_minus_anti_l1_pp': 2.0, 'l1_ft_seed_sd_pp': 2.095}
+[lever] cy-vgg16-c10 keep=0.8 budget=3: {'best_named': 'bn_scale', 'best_minus_l1_pp': 0.753, 'ablation_minus_l1_pp': 0.413, 'l1_minus_random_pp': -0.061, 'random_sd_pp': 0.448, 'l1_minus_anti_l1_pp': 0.187, 'l1_ft_seed_sd_pp': 0.841}
+[lever] cy-vgg16-c10 keep=0.8 budget=10: {'best_named': 'apoz', 'best_minus_l1_pp': 0.847, 'ablation_minus_l1_pp': 0.707, 'l1_minus_random_pp': 0.629, 'random_sd_pp': 0.51, 'l1_minus_anti_l1_pp': 0.353, 'l1_ft_seed_sd_pp': 0.172}
+[lever] cy-vgg16-c10 keep=0.8 budget=40: {'best_named': 'l2', 'best_minus_l1_pp': 0.827, 'ablation_minus_l1_pp': -0.313, 'l1_minus_random_pp': 0.409, 'random_sd_pp': 0.197, 'l1_minus_anti_l1_pp': 0.353, 'l1_ft_seed_sd_pp': 1.025}
+[lever] cy-vgg16-c10 keep=0.6 budget=0: {'best_named': 'act', 'best_minus_l1_pp': 17.1, 'ablation_minus_l1_pp': -5.76, 'l1_minus_random_pp': 5.984, 'random_sd_pp': 0.036, 'l1_minus_anti_l1_pp': 6.0, 'l1_ft_seed_sd_pp': 0.0}
+[lever] cy-vgg16-c10 keep=0.6 budget=bn: {'best_named': 'act', 'best_minus_l1_pp': 5.48, 'ablation_minus_l1_pp': -14.06, 'l1_minus_random_pp': -2.956, 'random_sd_pp': 0.936, 'l1_minus_anti_l1_pp': 50.56, 'l1_ft_seed_sd_pp': 0.236}
+[lever] cy-vgg16-c10 keep=0.6 budget=1: {'best_named': 'fpgm', 'best_minus_l1_pp': 1.72, 'ablation_minus_l1_pp': 0.52, 'l1_minus_random_pp': 1.092, 'random_sd_pp': 1.986, 'l1_minus_anti_l1_pp': 16.9, 'l1_ft_seed_sd_pp': 0.852}
+[lever] cy-vgg16-c10 keep=0.6 budget=3: {'best_named': 'l2', 'best_minus_l1_pp': 3.2, 'ablation_minus_l1_pp': -0.86, 'l1_minus_random_pp': -0.9, 'random_sd_pp': 0.574, 'l1_minus_anti_l1_pp': 9.02, 'l1_ft_seed_sd_pp': 2.378}
+[lever] cy-vgg16-c10 keep=0.6 budget=10: {'best_named': 'bn_scale', 'best_minus_l1_pp': 0.68, 'ablation_minus_l1_pp': -0.84, 'l1_minus_random_pp': 0.448, 'random_sd_pp': 0.337, 'l1_minus_anti_l1_pp': 3.32, 'l1_ft_seed_sd_pp': 0.538}
+[lever] cy-vgg16-c10 keep=0.6 budget=40: {'best_named': 'bn_scale', 'best_minus_l1_pp': 0.08, 'ablation_minus_l1_pp': -0.3, 'l1_minus_random_pp': 0.704, 'random_sd_pp': 0.521, 'l1_minus_anti_l1_pp': 1.84, 'l1_ft_seed_sd_pp': 0.106}
+[overlap] cy-vgg16-c10 Jaccard of kept channels: keep=0.8 L1 vs ablation 0.69; keep=0.6 L1 vs ablation 0.54. Full dict in sel_21945106.out and selection_masks.jsonl.
+```
+
+**S0 `21945107` sel-vgg19** COMPLETED 01:04, 3.7 h, `cs-pheno-11`, exit 0, crop+flip, protocol P, nap=0. Calibration loss 0.0367. Kendall vs L1: L2 0.92, SVD 0.84, FPGM 0.89, BN-scale 0.64, Taylor 0.27, act 0.43, APoZ −0.07, HRank −0.04, ablation 0.17.
+
+```
+[lever] dg-vgg19-c100 keep=0.8 budget=0: {'best_named': 'act', 'best_minus_l1_pp': 5.74, 'ablation_minus_l1_pp': -22.48, 'l1_minus_random_pp': 21.964, 'random_sd_pp': 2.057, 'l1_minus_anti_l1_pp': 24.86, 'l1_ft_seed_sd_pp': 0.0}
+[lever] dg-vgg19-c100 keep=0.8 budget=bn: {'best_named': 'l2', 'best_minus_l1_pp': 1.093, 'ablation_minus_l1_pp': -8.527, 'l1_minus_random_pp': 5.291, 'random_sd_pp': 2.828, 'l1_minus_anti_l1_pp': 41.627, 'l1_ft_seed_sd_pp': 0.081}
+[lever] dg-vgg19-c100 keep=0.8 budget=1: {'best_named': 'fpgm', 'best_minus_l1_pp': 1.827, 'ablation_minus_l1_pp': 0.167, 'l1_minus_random_pp': 0.493, 'random_sd_pp': 0.863, 'l1_minus_anti_l1_pp': 9.713, 'l1_ft_seed_sd_pp': 0.44}
+[lever] dg-vgg19-c100 keep=0.8 budget=3: {'best_named': 'svd', 'best_minus_l1_pp': 1.12, 'ablation_minus_l1_pp': 0.08, 'l1_minus_random_pp': -1.124, 'random_sd_pp': 0.434, 'l1_minus_anti_l1_pp': 7.08, 'l1_ft_seed_sd_pp': 0.473}
+[lever] dg-vgg19-c100 keep=0.8 budget=10: {'best_named': 'fpgm', 'best_minus_l1_pp': 1.607, 'ablation_minus_l1_pp': -1.673, 'l1_minus_random_pp': 0.057, 'random_sd_pp': 0.856, 'l1_minus_anti_l1_pp': 1.973, 'l1_ft_seed_sd_pp': 0.26}
+[lever] dg-vgg19-c100 keep=0.8 budget=40: {'best_named': 'apoz', 'best_minus_l1_pp': 0.527, 'ablation_minus_l1_pp': -0.113, 'l1_minus_random_pp': 0.409, 'random_sd_pp': 1.28, 'l1_minus_anti_l1_pp': 1.333, 'l1_ft_seed_sd_pp': 0.232}
+[lever] dg-vgg19-c100 keep=0.6 budget=0: {'best_named': 'svd', 'best_minus_l1_pp': 1.34, 'ablation_minus_l1_pp': -0.46, 'l1_minus_random_pp': 0.508, 'random_sd_pp': 0.197, 'l1_minus_anti_l1_pp': 0.64, 'l1_ft_seed_sd_pp': 0.0}
+[lever] dg-vgg19-c100 keep=0.6 budget=bn: {'best_named': 'act', 'best_minus_l1_pp': 8.88, 'ablation_minus_l1_pp': -2.16, 'l1_minus_random_pp': 2.072, 'random_sd_pp': 2.333, 'l1_minus_anti_l1_pp': 14.26, 'l1_ft_seed_sd_pp': 0.053}
+[lever] dg-vgg19-c100 keep=0.6 budget=1: {'best_named': 'l2', 'best_minus_l1_pp': 0.52, 'ablation_minus_l1_pp': -0.54, 'l1_minus_random_pp': 4.228, 'random_sd_pp': 0.871, 'l1_minus_anti_l1_pp': 42.32, 'l1_ft_seed_sd_pp': 0.26}
+[lever] dg-vgg19-c100 keep=0.6 budget=3: {'best_named': 'taylor', 'best_minus_l1_pp': 0.187, 'ablation_minus_l1_pp': -3.273, 'l1_minus_random_pp': 1.597, 'random_sd_pp': 1.792, 'l1_minus_anti_l1_pp': 29.493, 'l1_ft_seed_sd_pp': 0.439}
+[lever] dg-vgg19-c100 keep=0.6 budget=10: {'best_named': 'taylor', 'best_minus_l1_pp': 0.667, 'ablation_minus_l1_pp': 0.567, 'l1_minus_random_pp': 1.529, 'random_sd_pp': 1.08, 'l1_minus_anti_l1_pp': 15.393, 'l1_ft_seed_sd_pp': 1.278}
+[lever] dg-vgg19-c100 keep=0.6 budget=40: {'best_named': 'l2', 'best_minus_l1_pp': 1.027, 'ablation_minus_l1_pp': -0.713, 'l1_minus_random_pp': 0.685, 'random_sd_pp': 0.735, 'l1_minus_anti_l1_pp': 5.133, 'l1_ft_seed_sd_pp': 0.474}
+[overlap] dg-vgg19-c100 Jaccard of kept channels: keep=0.8 L1 vs ablation 0.66; keep=0.6 L1 vs ablation 0.48. Full dict in sel_21945107.out and selection_masks.jsonl.
+```
+
+**M8 (runbook §10.4).** Keep 0.6. Threshold = max(0.5, 2 × `l1_ft_seed_sd_pp`). A cell passes if `best_minus_l1_pp` or `ablation_minus_l1_pp` meets it at budget 40 or at a budget ≤ 3.
+
+| Cell | budget=0 | budget=1 | budget=3 | budget=40 | Cell pass |
+|---|---|---|---|---|---|
+| r56 `21945105` | hrank **+4.78** (≥ 0.5) | +1.47 vs 3.55 — no | +1.82 vs 2.62 — no | +0.39 vs 1.27 — no | **yes, budget 0** |
+| vgg16 `21945106` | act **+17.1** (≥ 0.5) | fpgm **+1.72** (≥ 1.70) | +3.2 vs 4.76 — no | +0.08 vs 0.50 — no | **yes, budgets 0 and 1** |
+| vgg19 `21945107` | svd **+1.34** (≥ 0.5) | l2 **+0.52** (≥ 0.52) | +0.19 vs 0.88 — no | l2 **+1.03** (≥ 0.95) | **yes, budgets 0, 1 and 40** |
+
+**M8 fires** (3 of 3 cells). Not M8-neg. Not “only at budgets ≤ 3”: VGG-19 also passes at budget 40. Call on **val**; TEST is recorded beside each `[sel]` row and was not used. S1 (NAP-F scorer, zero GPU) is sitting work. Ops does **not** start S1–S3.
+
+Do not pick a criterion on the test half. Do not start S1–S3.
+
+### S1 results (2 Oct, sitting; zero GPU; never a TEST row)
+
+`scripts/selection_scorer_s1.py` over the three S0 run dirs. Leave one network out (LONO). The learner and its hyperparameters are chosen by an inner cross-fit between the two training nets only, never on the held-out net. Metric: width-weighted within-group Kendall τ against the single-channel oracle (`ablation`), on live channels (L1 > 0) of groups with ≥ 2 of them. Before any fit, the script aborts unless every hand τ reproduces S0's printed `tau_vs_ablation` within 2e-3; all 27 reproduced. Tests: `tests/test_selection_scorer_s1.py` 5/5.
+
+| Held-out net | Learned τ (learner chosen on the other two) | Best hand criterion on this net (τ) | Margin | Hand criterion the other two nets would pick (τ here) |
+|---|---|---|---|---|
+| DepGraph R56, C10 | **+0.572** (GBM 150 × 15 leaves) | L2 +0.240 | **+0.331** | Taylor +0.121 |
+| chenyaofo VGG-16-BN, C10 | **+0.657** (GBM 150 × 15) | Taylor +0.417 | **+0.240** | L2 +0.267 |
+| DepGraph VGG-19, C100 | **+0.643** (ridge α 100) | L2 +0.170 | **+0.473** | Taylor +0.123 |
+
+**G1 PASS, 3 of 3** (needs ≥ +0.05 on 2 of 3). The "best hand" column is an oracle pick on the held-out net, so the real margin is larger: the last column is what a fair hand choice would have given.
+
+Hand τ against the oracle (R56 / VGG-16 / VGG-19): L1 .227/.265/.168, L2 .240/.267/.170, SVD .223/.269/.156, FPGM .231/.260/.161, BN-scale .175/.247/.124, Taylor .121/.417/.123, activation .167/.206/.110, 1 − APoZ .114/.052/.006, HRank .090/.087/−.006, output-L1 .199/.248/.167.
+
+**Where the signal comes from** (same LONO, one feature family at a time; τ R56 / VGG-16 / VGG-19):
+
+| Features | R56 | VGG-16 | VGG-19 |
+|---|---|---|---|
+| hand criteria only | +0.210 | +0.270 | +0.181 |
+| NAPv2 weight statistics | +0.227 | +0.252 | +0.173 |
+| **NAPv2 gradient statistics** | **+0.552** | **+0.624** | **+0.625** |
+| everything except gradients | +0.237 | +0.243 | +0.170 |
+| everything | +0.572 | +0.657 | +0.643 |
+
+So the transferable score is almost entirely NAPv2's per-channel *gradient* statistics. No weight-only or activation-only score gets near it. This is the first SPECTRA evidence that NAP2-style descriptors carry selection information that the hand criteria do not.
+
+**Two caveats that set the prior for S2:**
+1. **The label is the single-channel oracle at budget 0.** S0 shows that this oracle's *masks* do not recover better than L1 once fine-tuning runs: `ablation_minus_l1_pp` at keep 0.6, budget 40 is −0.55 / −0.30 / −0.71. A scorer that ranks like the oracle can therefore still fail G2.
+2. **M8, re-read with the selection effect.** Each `best_minus_l1_pp` is the maximum over 9 named criteria. Under the pooled fine-tune noise of that cell, the probability that the maximum of 9 null criteria reaches the observed value (p-null) at keep 0.6 and trained budgets (1, 3, 10, 40) is 0.10–0.95. At budget 40 it is 0.91 / 0.95 / 0.49. So no named criterion beats L1 beyond noise once the network is fine-tuned. What does hold is that L1 beats anti-L1 and random (VGG-19, budget 1: L1 − random +4.23, z 7.4). The selection lever at budget 0 is real, and at 40 epochs it is at noise level.
+
+Exported scorer for S2 (all three nets, best mean LONO over the grid): `tree_v9d/runs/selection_scorer_s1/nap_f_model.pkl`, md5 `2a3bf48db614`, GBM 300 iterations × 15 leaves, LONO τ 0.632 (folds 0.577 / 0.655 / 0.665), sklearn 1.3.2.
+
+**S2 is registered and submitted** (`docs/SITTING_GPU_QUEUE.md` section "S2"; `21982334` MBV2 ×0.5 C10, `21982335` chenyaofo R56 C100, two nets S1 never saw). nap_f vs L1 at keep 0.6, 5 paired fine-tune seeds each, budgets 0 / bn / 1 / 3 / 10 / 40. Calls PASS / HARM / CHEAP-FT / FAIL as in the G2 row above, with CHEAP-FT = *H_b* ≥ max(0.5, 2 *σ_ft*) on both cells for some *b* ≤ 3. Prior: FAIL at 40, possibly CHEAP-FT. FAIL closes S3, and "allocation, not selection, decides recovered accuracy" becomes the written negative. S3 needs Ido's GO in any case.
 
 ---
 
