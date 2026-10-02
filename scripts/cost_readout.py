@@ -3,8 +3,9 @@
 What a SPECTRA run cost, from the files it already writes.
 
 Per network: walk minutes split into fine-tune / prune / evaluate / state features, the time between
-steps (agent decision plus bookkeeping), fine-tune epochs actually run per budget, final fine-tune
-minutes and GPU-hours. Per run: the GPU named in the manifest (the Slurm label is not the card:
+steps (agent decision plus bookkeeping), the mean decision itself when the run set
+``SPECTRA_TIME_DECIDE=1``, fine-tune epochs actually run per budget, final fine-tune minutes and
+GPU-hours. Per run: the GPU named in the manifest (the Slurm label is not the card:
 ``rtx_6000`` nodes carry an RTX 6000 Ada), peak GPU memory from the heartbeat, and board energy when
 the run has ``gpu_samples.csv`` (spectra.sbatch's 1 s nvidia-smi sampler).
 
@@ -24,7 +25,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 STAGES = {"step.finetune": "ft_s", "step.prune": "prune_s", "step.evaluate": "eval_s",
-          "step.feature_extraction": "features_s", "step.compute_results": "results_s"}
+          "step.feature_extraction": "features_s", "step.compute_results": "results_s",
+          "step.decide": "decide_s"}
 EPOCH_LINE = re.compile(r"\bnet=(\S+).*?\bstep=(-?\d+)\b.*?\| Epoch (\d+)/(\d+):")
 PEAK_ALLOC = re.compile(r"gpu_max_alloc_gb=([0-9.]+)")
 MAX_SAMPLE_GAP_S = 5.0
@@ -104,6 +106,8 @@ def read_events(run):
             t = float(event.get("t", 0.0) or 0.0)
             if kind == "stage" and event.get("stage") in STAGES:
                 pending[STAGES[event["stage"]]] += float(event.get("seconds", 0.0) or 0.0)
+                if event["stage"] == "step.decide":
+                    pending["decide_n"] += 1
             elif kind == "step":
                 name = os.path.basename(str(event.get("network", "?")))
                 row = nets[name]
@@ -218,6 +222,10 @@ def summarize(arg):
                "per_step_s": {key: round(row[key] / steps, 3) for key in
                               ("ft_s", "prune_s", "eval_s", "features_s", "results_s")},
                "between_steps_s": round(statistics.median(row["gaps"]), 3) if row["gaps"] else None,
+               # SPECTRA_TIME_DECIDE runs only: mean policy decision (actor or heuristic) per call.
+               "decide_ms": (round(1000.0 * row["decide_s"] / row["decide_n"], 3)
+                             if row["decide_n"] else None),
+               "decisions": int(row["decide_n"]),
                "epochs_by_budget": dict(sorted(epochs.get(name, {}).items())),
                "finals": len(finals), "final_min": round(final_min, 1),
                "gpu_h": round((row["step_s"] + 60.0 * final_min) / 3600.0, 3)}
@@ -241,7 +249,8 @@ def _print(summary):
         epochs = " ".join(f"{ran}@{budget}" for budget, ran in net["epochs_by_budget"].items()) or "-"
         print(f"  {net['network'][:40]:40s} cuts {net['cuts']:4d}/{net['steps']:<4d} walk {net['walk_min']:7.1f} min "
               f"(FT {100 * (net['ft_share'] or 0):5.1f}%) | per step FT {per['ft_s']:6.1f}s prune {per['prune_s']:.2f}s "
-              f"eval {per['eval_s']:.2f}s features {per['features_s']:.2f}s between {net['between_steps_s']}s | "
+              f"eval {per['eval_s']:.2f}s features {per['features_s']:.2f}s between {net['between_steps_s']}s "
+              f"decide {net['decide_ms'] if net['decide_ms'] is not None else '-'} ms | "
               f"epochs run {epochs} | finals {net['finals']} x {net['final_min'] / max(1, net['finals']):.1f} min "
               f"| {net['gpu_h']} GPU-h" + (f" | {net['energy_wh']} Wh" if "energy_wh" in net else ""))
 

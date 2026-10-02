@@ -733,6 +733,17 @@ def eval_counterfactual() -> bool:
     return _flag("SPECTRA_EVAL_COUNTERFACTUAL")
 
 
+def time_decide() -> bool:
+    """
+    ``SPECTRA_TIME_DECIDE=1`` (default off) — record each eval-walk decision as a ``step.decide``
+    stage: the frozen actor's forward and pick, or the heuristic's pick, so actor and heuristic
+    walks are timed the same way. Counterfactual probes stay outside it. ``scripts/cost_readout.py``
+    reports the mean per decision; it replaces the between-steps upper bound
+    (EFFICIENCY_AND_TRANSFER §3.4, §11 item 3).
+    """
+    return _flag("SPECTRA_TIME_DECIDE")
+
+
 def refresh_all_features() -> bool:
     """
     ``SPECTRA_REFRESH_ALL_FEATURES=1`` — NEON "feature-maps update": after a structural edit,

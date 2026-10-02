@@ -306,8 +306,9 @@ class A2CAgentReinforce:
         # The reward's val split and the fine-tune batch: memorised val and a GPU-dependent batch
         # both changed what a train measured (V9b).
         "SPECTRA_VAL_FROM_TEST", "SPECTRA_VAL_TEST_FRACTION", "SPECTRA_SPLIT_SEED", "SPECTRA_BATCH_SIZE",
-        # The fine-tune's augmentation (Stage 4 trains with crop+flip).
-        "SPECTRA_FT_AUG", "SPECTRA_FT_AUTOAUG",
+        # The fine-tune's augmentation (Stage 4 trains with crop+flip), the hold-out datasets'
+        # recipe and where CIFAR crop+flip runs (loader or GPU).
+        "SPECTRA_FT_AUG", "SPECTRA_FT_AUTOAUG", "SPECTRA_FT_AUG_HOLDOUT", "SPECTRA_FT_AUG_GPU",
     )
 
     def write_policy_config(self):

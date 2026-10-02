@@ -13,15 +13,15 @@ On accuracy at a given compression, focused SOTA on its home benchmark is ahead.
 - **The agent's own cost is negligible.** The Stage-4 actor has 2.73 M parameters (10.9 MB in FP32). Compared with a heuristic walk on the same GPU type, an actor adds at most 0.33 s per step on R56-w4 and 0.004 s on R20-w2. That is about 0.4% of a step. Peak GPU memory is the same, 0.36 GB, for actor and heuristic walks on an RTX 3090. Both figures are upper bounds until the runner has an explicit agent timer (§3.4).
 - **A TEST's cost is recovery fine-tuning.** Fine-tuning is 97.9–99.7% of every CIFAR walk measured (8 jobs, 13 network walks). The rest (pruning surgery, validation pass, state features, bookkeeping and the agent) is 0.4–2.0 s per step. On ImageNet MobileNet-V2, fine-tuning is 84–85% of the walk, and the per-step validation pass is the other 15%.
 - **Per-target search cost is zero.** Per-target learned searches cost 320 s to 3.8 GPU-hours on CIFAR. On ImageNet they cost 25 GPU-hours (EagleEye) up to 864 (NetAdapt, by EagleEye's estimate) (§4.1–4.2).
-- **One target on CIFAR is not a win at the current TEST recipe.** On an RTX 4090, our 40/10 walk on ResNet-56 takes 3.6 h (down to 0.70 of params kept) or 9.1 h (down to 0.36), plus 16 min per final fine-tune. DepGraph takes about 84 min per target on a 4090 (measured by a third party). OCSPruner takes 26 min on a 4090, including training the network from scratch.
-- **DepGraph is being re-run head to head on our GPU.** Job 21943448 runs Torch-Pruning's official pipeline on an RTX 4090 from the same released checkpoints we prune: ResNet-56 on CIFAR-10 at 2.11× and VGG-19 on CIFAR-100 at 8.84×. It measures their wall-clock, energy and accuracy on our hardware, and times their pruned networks with our deployment bench (§4.5).
+- **One target on CIFAR is not a win at the current TEST recipe.** On an RTX 4090, our 40/10 walk on ResNet-56 takes 3.6 h (down to 0.70 of params kept) or 9.1 h (down to 0.36), plus 16 min per final fine-tune. DepGraph takes **85 min** per target on our 4090 (job 21943448). OCSPruner takes 26 min on a 4090, including training the network from scratch.
+- **DepGraph re-run on our GPU is in.** Job **21943448** COMPLETED 2 Oct 03:11 (2.3 h, TB=0): Torch-Pruning v1.6.1 official pipeline on an RTX 4090 from the same released checkpoints we prune. Numbers in §4.5. Never a ledger row. Never “beats.”
 - **Several targets amortize.** One walk passes through every size point, so each extra target costs one final fine-tune: 15.7–16.6 min for R56, 8.6–8.8 min for VGG on a 4090. Against DepGraph on a 4090, break-even is about 3 targets for the 0.70-deep walk and about 8 for the 0.36-deep walk (§7).
 - **Three cost levers are measured or measurable.**
   - The 12/4 recovery budget runs 3.3× fewer fine-tune epochs than 40/10 (measured).
-  - A no-fine-tune proxy, such as BN recalibration, would make the walk take minutes. The proxy-fidelity cell (21941343–48, running) decides whether 12/4 or a proxy keeps the agent's ranking.
+  - A no-fine-tune proxy, such as BN recalibration, would make the walk take minutes. The proxy-fidelity cell (21941343–48, **COMPLETED**, ledger §189) is **uninformative** at these cut sizes (ceiling ρ +0.41). Widen cuts before reading 12/4 vs 40/10.
   - CIFAR fine-tuning is input-pipeline-bound, so GPU-side augmentation is a free speedup if an equivalence A/B passes (§3.3).
 - **No CNN work transfers a frozen agent across families and unseen datasets.** The closest works either transfer within one architecture or warm-start a new search (§8).
-- **Deployment metrics are being measured on our GPUs.** Job 21942378 (RTX 4090) records latency at batch 1, 64 and 256, throughput, peak memory and energy per image. Most pruning papers report FLOPs only (§5).
+- **Deployment metrics were measured on our GPUs.** Job **21942378** (RTX 4090, COMPLETED 01:08) records latency at batch 1, 64 and 256, throughput, peak memory and energy per image. Most pruning papers report FLOPs only (§5).
 
 ## 3. SPECTRA measured costs
 
@@ -87,7 +87,7 @@ So the CIFAR walk is bound by the CPU augmentation pipeline, not by the GPU. Und
 
 The cleanest pair available today is on the same GPU type (RTX 3090): the actor walk 21512868 against the mild walk 21729556, on the same two thin nets. The gap between steps is 0.666 s against 0.34 s on R56-w4, and 0.044 s against 0.040 s on R20-w2. State features cost the same (0.21 vs 0.19 s). So the actor adds at most about 0.33 s per step, about 0.4% of the actor walk's 80 s step.
 
-That is an upper bound: the two runs differ in protocol (legacy vs P), and the gap between steps also holds bookkeeping. Their validation pass differs too (0.7 s vs 0.33 s), which reflects the 10k vs 5k evaluation split, not the agent. Peak allocation is 0.36 GB for both. An explicit `agent.decide` stage timer in the runner (§11) will replace this bound with a measurement.
+That is an upper bound: the two runs differ in protocol (legacy vs P), and the gap between steps also holds bookkeeping. Their validation pass differs too (0.7 s vs 0.33 s), which reflects the 10k vs 5k evaluation split, not the agent. Peak allocation is 0.36 GB for both. The explicit timer is built (2 Oct, `tree_v9d`, default off). Under `SPECTRA_TIME_DECIDE=1` each eval-walk decision becomes a `step.decide` stage: the actor's forward and pick, or the heuristic's pick, timed the same way for both. `scripts/cost_readout.py` prints `decide … ms` per net. The first frozen-actor TEST that sets the flag replaces this bound with a measurement.
 
 ## 4. Literature: what pruning costs other methods
 
@@ -174,7 +174,17 @@ The literature costs above come from other GPUs or from third parties. This re-r
   - Wall-clock and energy per stage: sparse learning, pruning and fine-tune, from their log timestamps and the job's `gpu_samples.csv`.
   - The accuracy of the best epoch and of the last epoch.
   - Their pruned networks, timed by `scripts/bench_deploy.py --model` in the same job on the same card: batch 1 / 64 / 256, 3 repeats, with speedup against their own origin export.
-- **Readout.** `python scripts/h2h_readout.py runs/h2h_depgraph/job_21943448` in `tree_v9d`. Paste the rows here and into §5.3.
+- **Readout.** `python scripts/h2h_readout.py runs/h2h_depgraph/job_21943448` in `tree_v9d`. Job **21943448 COMPLETED** 2 Oct 03:11 (`ise-4090-04`, 2.3 h, exit 0, TB=0). Their protocol selects the best epoch on the **10k test** set. Quote beside SPECTRA; never a ledger TEST; never “beats.”
+
+| Cell | Wall-clock | Sparse-learn best acc | After prune+FT best / last | FLOPs | Params (bench) |
+|---|---|---|---|---|---|
+| ResNet-56 C10, `--speed-up 2.11` | **5104 s (85.1 min)** | 93.44 | **93.80 / 93.77** | 127.12 → 60.21 M (2.11×) | 0.856 → 0.432 M |
+| VGG-19 C100, `--speed-up 8.84` | **2682 s (44.7 min)** | 72.46 | **70.78 / 70.53** | 512.73 → 56.83 M (9.02×) | 20.087 → 1.220 M |
+
+Official published logs (other hardware) were 93.89 / 93.83 and 70.60 / 70.31. Our 4090 is **0.09 pp** under their R56 best and **0.18 pp** over their VGG-19 best. SPECTRA’s crop+flip walk on their R56 (ledger §157, **10k**) is **−0.46 at 2.11×** vs their published **+0.24**. Do not mix that 10k row with the 5k P half.
+
+Deployment of *their* pruned nets, median of 3, same card (§5.3): R56 at 2.11× is still throughput-bound at batch 1 (origin 5.02 ms → 4.90 ms, ×1.02) and slightly *slower* at batch 256 (49172 → 47071 img/s). VGG-19 at ~9× is almost unchanged at batch 1 (1.76 → 1.75 ms) and **×2.85** at batch 256 (50212 → 143349 img/s).
+
 - **Pitfalls found in the dry run.**
   - The v1.6.1 README's prune commands omit `--finetune`. Without it the script stops at the cut, so we pass it.
   - The registry reads `<dataroot>/torchdata/` and downloads whatever it cannot verify there. The job's data root is `scratch_audit/third_party/data`, with symlinks to our CIFAR copies.
@@ -232,7 +242,35 @@ The ≥ 10 s window gives at least 10 averaging windows. Energy per image is the
 
 ### 5.3 Results
 
-Job 21942378 (RTX 4090, nice 35) covers 45 architectures from eight mild walks: 21767189, 21809595, 21814029, 21737105, 21730498, 21730500, 21730501 and 21737104. The networks are DepGraph R56, chenyaofo R56, VGG-16-BN, VGG-19 C100, VGG-19-BN C100 and the thin R20-w2 / R56-w4, at their origin, val-best and size points. These archs show how our structured cuts turn MACs into real latency, and they set the origin baselines. The agent's own architectures get benched as the Stage-4 freeze TESTs land (§9).
+Job **21942378 COMPLETED** 2 Oct 01:08 (1.25 h, `ise-4090-18`, RTX 4090, exit 0, TB=0, 0 `template failed`). Three repeats in fresh processes; 270 jsonl rows in `tree_v9d/runs/bench_deploy/bench_21942378_r{1,2,3}.jsonl`. Never a ledger TEST row. Δacc stays in the walk's ledger section. Numbers below are the **median of 3 repeats**.
+
+Literature cells, origin vs the walk's `val_best` (or DepGraph 2.11× = `size_flop0.47`):
+
+| Net (walk) | Point | Params / MACs | bs 1 latency (ms) | bs 256 img/s | Peak MB @256 | mJ/img @256 |
+|---|---|---|---|---|---|---|
+| DG R56 (21767189) | origin | 1.00 / 1.00 | 5.00 | 48022 | 193 | 5.83 |
+| DG R56 (21767189) | 2.11× | 0.47 / 0.46 | 5.01 | 48497 | 133 | 4.89 |
+| DG R56 (21767189) | val_best | 0.36 / 0.37 | 4.86 | 47956 | 66 | 4.65 |
+| zoo R56 (21809595) | origin | 1.00 / 1.00 | 5.01 | 48420 | 98 | 5.80 |
+| zoo R56 (21809595) | val_best | 0.66 / 0.66 | 4.97 | 48198 | 87 | 5.55 |
+| VGG-16 (21809595) | origin | 1.00 / 1.00 | 1.55 | 59639 | 2321 | 6.75 |
+| VGG-16 (21809595) | val_best | 0.66 / 0.68 | 1.53 | 73813 | 238 | 5.51 |
+| VGG-16 10-pass (21814029) | origin | 1.00 / 1.00 | 1.56 | 59545 | 257 | 6.81 |
+| VGG-16 10-pass (21814029) | HRank FLOPs | 0.44 / 0.46 | 1.53 | 96339 | 1378 | 4.22 |
+| VGG-16 10-pass (21814029) | val_best | 0.12 / 0.15 | 1.52 | 161920 | 740 | 2.18 |
+| DG VGG-19 (21737105) | origin | 1.00 / 1.00 | 1.79 | 49192 | 295 | 8.16 |
+| DG VGG-19 (21737105) | val_best | 0.53 / 0.55 | 1.75 | 74694 | 261 | 5.56 |
+
+On a 4090, CIFAR ResNet-56 is **throughput-bound at batch 1**: cutting to 0.36 kept barely moves 5.00 → 4.86 ms. VGG-16 at batch 256 does move: origin 60k img/s → val_best 74k → HRank-FLOPs 96k → deep val_best 162k. Peak memory on VGG-16 origin is noisy across repeats (2321 vs 257 MB on the 10-pass origin); quote throughput and energy, not that peak, until a sitting re-reads the jsonl. The agent's own architectures get the same bench when Stage-4 freeze TESTs land (§9).
+
+DepGraph’s own pruned nets from job **21943448** (same card, median of 3, never ledger):
+
+| Net | Point | Params / MACs | bs 1 latency (ms) | bs 256 img/s | vs origin @256 |
+|---|---|---|---|---|---|
+| DepGraph R56 | origin | 0.856 M / 126.57 M | 5.02 | 49172 | ×1.00 |
+| DepGraph R56 | group_sl 2.11× | 0.432 M / 59.83 M | 4.90 | 47071 | ×0.96 |
+| DepGraph VGG-19 | origin | 20.087 M / 511.95 M | 1.76 | 50212 | ×1.00 |
+| DepGraph VGG-19 | group_sl ~9× | 1.220 M / 56.53 M | 1.75 | 143349 | **×2.85** |
 
 Table to fill (one row per architecture; Δacc from the ledger section of that run):
 
@@ -274,12 +312,12 @@ One-time costs are excluded on both sides: SPECTRA's agent train (§3.2) and the
 
 | Comparator | C per target | K*, walk to 0.70 kept (W = 213.5 min) | K*, walk to 0.36 kept (W = 545.5 min) | K*, 12/4 recovery (W ≈ 165 min, deep walk ÷ 3.3) |
 |---|---|---|---|---|
-| DepGraph, 100 SL + 100 FT | 84 min | 3.2 | 8.0 | 2.4 |
+| DepGraph, 100 SL + 100 FT | **85 min** | 3.1 | 8.0 | 2.4 |
 | Graph metanetworks, 100 + 100 | 67 min | 4.2 | 10.6 | 3.2 |
 | Graph metanetworks, 60 + 60 | 43 min | 8.1 | 20 | 6.0 |
 | OCSPruner, from scratch | 26 min | 23 | 53 | 16 |
 
-A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows it) brings W to minutes. K* then drops to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. These rows are estimates from mixed sources. DepGraph's 84 min and the graph-metanetwork times were measured by the graph-metanetwork authors on a 4090; DepGraph's official log (107.4 min) names no GPU. Job 21943448 re-times DepGraph on our 4090 (§4.5). When it lands, its measured time replaces the 84 min row; the graph-metanetwork rows stay third-party.
+A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows it) brings W to minutes. K* then drops to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. DepGraph’s **C = 85 min** is now **our** 4090 (job 21943448, ResNet-56 5104 s) and replaces the third-party 84 min; K* is unchanged at ~3 / ~8. The graph-metanetwork rows stay third-party.
 
 ## 8. Transfer: closest prior work and the evaluation protocol
 
@@ -328,7 +366,11 @@ The paper's novelty sentence, supported by both fact-checks: no published CNN pr
    - The Torch-Pruning repo (v1.6.1) is cloned at `scratch_audit/third_party/Torch-Pruning`.
    - The head-to-head re-run is job 21943448 (§4.5).
 2. **Install `nvidia-ml-py`.** In-process NVML energy readings are more precise than sampling `power.draw`.
-3. **Add an explicit `agent.decide` stage timer and a per-walk cost event to the runner,** in the next tree only, never under live jobs. It replaces the §3.4 upper bound with a measurement.
+3. **Add an explicit `agent.decide` stage timer and a per-walk cost event to the runner,** in the next tree only, never under live jobs. It replaces the §3.4 upper bound with a measurement. *The timer is built (2 Oct):*
+   - `SPECTRA_TIME_DECIDE=1` in `tree_v9d`, default off; `submit.sh` exports it.
+   - Tests: `tests/test_decide_timer.py` 8/8.
+   - No job sets it yet. Set it on the next frozen-actor TEST.
+   - The per-walk cost event is not built: `cost_readout.py` already derives per-net cost from the stage events.
 4. **Get BGU's PUE and grid carbon intensity for CO2e,** or quote the conventional defaults with a caveat.
-5. **Run a GPU-side CIFAR augmentation equivalence A/B as its own cell** (§3.3), since the walk is input-bound.
+5. **Run a GPU-side CIFAR augmentation equivalence A/B as its own cell** (§3.3), since the walk is input-bound. *Submitted 2 Oct* as D5. The flag is `SPECTRA_FT_AUG_GPU=1`. Off-arm 21982372 is R; on-arm 21982373 is PD. The calls are in `docs/SITTING_GPU_QUEUE.md` "D5". Paste the s/epoch and TEST readout into §3.3 when both complete.
 6. **Optional: a val-selected DepGraph variant.** Pick DepGraph's sparse-learning and fine-tune epochs on our 5k val half, and quote our 5k P TEST half. That puts DepGraph on SPECTRA's own protocol. It needs a patched copy of their `main.py`, so it is no longer their exact pipeline. Run it only if the paper puts DepGraph and SPECTRA in the same accuracy table.

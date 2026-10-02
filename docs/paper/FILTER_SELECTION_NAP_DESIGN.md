@@ -486,6 +486,39 @@ Exported scorer for S2 (all three nets, best mean LONO over the grid): `tree_v9d
 
 **S2 is registered and submitted** (`docs/SITTING_GPU_QUEUE.md` section "S2"; `21982334` MBV2 ×0.5 C10, `21982335` chenyaofo R56 C100, two nets S1 never saw). nap_f vs L1 at keep 0.6, 5 paired fine-tune seeds each, budgets 0 / bn / 1 / 3 / 10 / 40. Calls PASS / HARM / CHEAP-FT / FAIL as in the G2 row above, with CHEAP-FT = *H_b* ≥ max(0.5, 2 *σ_ft*) on both cells for some *b* ≤ 3. Prior: FAIL at 40, possibly CHEAP-FT. FAIL closes S3, and "allocation, not selection, decides recovered accuracy" becomes the written negative. S3 needs Ido's GO in any case.
 
+### S2 status (3 Oct 00:07; one cell of two; interim, never a TEST row)
+
+**21982334** (MBV2 ×0.5 C10) COMPLETED 22:51, 17/17 masks. **21982335** (R56 C100) R, 9/17 masks, ETA ~02:10. Start checks on both:
+- scorer md5 `2a3bf48db614`;
+- baseline TEST 92.36 vs nominal 92.99, and 73.16 vs 72.63;
+- nap_f scored 25/25 and 30/30 groups, with no L1 fallback.
+
+MBV2, from `selection_probe_s2.py --readout runs/selection_probe/s2_mbv2_21982334` (val Δ, pp; nap_f and L1 share 5 fine-tune seeds; the oracle shares 3):
+
+| Budget | L1 seed SD *σ_ft* | nap_f − L1 (SE) | Oracle − L1 (SE) |
+|---|---|---|---|
+| 0 | 0.00 | −3.98 (0.00) | −3.92 (0.00) |
+| BN | 0.11 | **+2.80** (0.07) | +17.01 (0.11) |
+| 1 | 0.98 | +1.83 (0.54) | +1.29 (1.02) |
+| 3 | 0.52 | −0.25 (0.43) | +0.83 (0.33) |
+| 10 | 0.76 | −0.04 (0.34) | +0.16 (0.38) |
+| 40 | 0.72 | **+0.21** (0.28) | +0.57 (0.29) |
+
+**What one cell already says:**
+1. **The prior's shape.** nap_f's masks are much better after BN recalibration alone (+2.80, 25× *σ_ft*). The gain shrinks at 1 epoch and is at noise from 3 epochs on. On this cell alone the registered rule reads CHEAP-FT, at BN only: 1 epoch misses, since +1.83 < 2 *σ_ft* = 1.96.
+2. **PASS is already out.** It needs *H_40* ≥ max(0.3, 2 *σ_ft*) on both cells, and MBV2 gives +0.21 < 1.44. The call will be HARM, CHEAP-FT, or FAIL. CHEAP-FT needs one budget that passes on both cells, so R56-C100 must clear BN, the only budget MBV2 clears.
+3. **The scorer keeps little of the oracle's BN advantage** (+2.80 vs +17.0). Unlike S0's three nets (−0.55 / −0.30 / −0.71), MBV2's oracle is not below L1 at 40 epochs (+0.57, SE 0.29, n 3). It is still under 2 *σ_ft*.
+4. **The ranking does not transfer to a new family.** Within-group Kendall τ vs the oracle, from the probe log (the metric S1 reproduces), with "best hand" picked on the net itself:
+
+   | Net | nap_f | L1 | Best hand |
+   |---|---|---|---|
+   | MBV2 | **0.254** | 0.286 | Taylor 0.352 |
+   | R56-C100 | **0.423** | 0.292 | L2 0.312 |
+
+   S1's leave-one-net-out τ (0.57–0.66) holds across datasets within the ResNet family (DepGraph R56 C10 was in S1's fit). It fails on MobileNet's inverted residuals and depthwise groups, a block type S1 never saw. Any later use of a learned score needs a family hold-out in its fit, not only a net hold-out.
+
+The call, the ledger *probe* section, and the tracker B7 line are written when 21982335 completes. The command is `python scripts/selection_probe_s2.py --readout runs/selection_probe/s2_mbv2_21982334 runs/selection_probe/s2_r56c100_21982335` in `tree_v9d`.
+
 ---
 
 ## 9. What we will not claim

@@ -124,27 +124,43 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 
 ## 4. Next dev items (`tree_v9d`; build only when no `tree_v9c` job needs the change)
 
-1. **Provenance.** Add `SPECTRA_FT_AUG` / `SPECTRA_FT_AUTOAUG` to `POLICY_INFO_KEYS` (`src/A2C_Agent_Reinforce.py`). Today a P+aug train records aug only in the log's `SPECTRA_* env` dump and its job name.
-2. **Diverse train profile** (roadmap §5). Honour a pre-set `SPECTRA_DATASET_NAMES` (or add `SPECTRA_V6_DATASET_NAMES`) and point `SPECTRA_V6_DATABASE` at the admitted v7 catalog. A new profile `offline_train_v9_diverse` keeps the Stage-4 recipe otherwise unchanged.
+*Status 3 Oct 00:50 (2 Oct sitting, `docs/RUN_RECORD_02OCT_SITTING.md` §1):*
+- **Built, `tree_v9d`:** items 1, 2, 4, 5, 6, 8, 9, 10, plus the new items 11 and 12 below.
+- **Not built:** item 7 (optional).
+
+1. **Provenance.** *Done 1 Oct; extended 2 Oct.* Add `SPECTRA_FT_AUG` / `SPECTRA_FT_AUTOAUG` to `POLICY_INFO_KEYS` (`src/A2C_Agent_Reinforce.py`). 2 Oct adds `SPECTRA_FT_AUG_HOLDOUT` and `SPECTRA_FT_AUG_GPU`. These "info" keys are written to `policy_config.json` and never re-applied on replay.
+2. **Diverse train profile** (roadmap §5). *Done 1 Oct:* `offline_train_v9_diverse`; G2 smoke 21938898 passed. Honour a pre-set `SPECTRA_DATASET_NAMES` (or add `SPECTRA_V6_DATASET_NAMES`) and point `SPECTRA_V6_DATABASE` at the admitted v7 catalog. A new profile `offline_train_v9_diverse` keeps the Stage-4 recipe otherwise unchanged.
 3. ~~**Emit.**~~ Done 30 Sep 11:45: the v7 gate table was filled from the gate log and `build_v5_catalog.py --emit-admitted` reused. Generalising `emit_v5_admitted_from_gate_log.py` is no longer needed.
-4. **Final-FT KD teacher** (in git `5b6398d`) goes live with `tree_v9d`. Drop the `SPECTRA_FT_KD=1` workaround from N1 then.
-5. **O38 reward replay** (`scripts/reward_replay.py`). Per-step (val Δ, keep) from finished P walks through the linear in-band, cubic and NEON-exact returns; print where each return would stop.
-6. **O26 memorization census** (`scripts/memorization_census.py`). Baseline val in each train log vs the TEST accuracy in the checkpoint name, per catalog net.
+4. **Final-FT KD teacher** (in git `5b6398d`) goes live with `tree_v9d`. *Done 1 Oct* (`3b72ea3`). Drop the `SPECTRA_FT_KD=1` workaround from N1 then.
+5. **O38 reward replay** (`scripts/reward_replay.py`). *Done 1 Oct 03:10* (queue file "O38"). Per-step (val Δ, keep) from finished P walks through the linear in-band, cubic and NEON-exact returns; print where each return would stop.
+6. **O26 memorization census** (`scripts/memorization_census.py`). *Done 1 Oct* (ledger §169). Baseline val in each train log vs the TEST accuracy in the checkpoint name, per catalog net.
 7. **Optional O39.** `SPECTRA_FT_AUG_MIN_TRAIN_ACC` (aug off when the unpruned net's train accuracy is below a bar). Only if an underfitting net enters a catalog.
-8. **Optional: GPU-side crop+flip.** Pad and crop plus flip on the batch tensor on the GPU, not per image in the loader. It recovers up to the measured +18 % per epoch. Build it only for the next train; never swap it into a live one (the recipe must not change mid-train).
-9. **Requeue safety** (insight 13). Three changes:
+8. **Optional: GPU-side crop+flip.** *Built 2 Oct:* `SPECTRA_FT_AUG_GPU=1`, default off, `tests/test_gpu_ft_aug.py` 9/9. The D5 A/B 21982372 / 73 measures the speed. Pad and crop plus flip on the batch tensor on the GPU, not per image in the loader. It recovers up to the measured +18 % per epoch. Build it only for the next train; never swap it into a live one (the recipe must not change mid-train).
+9. **Requeue safety** (insight 13). *Done 1 Oct:* trains submit with `--no-requeue` (`submit.sh`); the sbatch comment is corrected. Three changes:
    - Make train profiles skip the "always cold" delete when `SLURM_RESTART_COUNT` > 0, or submit them with `--no-requeue`.
    - Stop a requeued resume from re-copying the parent bundle over its own (prologue lines 48–54).
    - Correct the stale "the governor restarts" comment near the resume block.
-10. **A C100 probe net for N8** (roadmap §5 item 4). Both probe sets (`SPECTRA_PROBE_SET` v7 and thin) are C10 only. Add one admitted C100 net through `SPECTRA_PROBE_NETS` (recommended: `resnet20-width13_cifar100`), so the governor's probe sees both datasets.
+10. **A C100 probe net for N8** (roadmap §5 item 4). *Done 1 Oct:* `offline_train_v9_diverse` probes `resnet56-width6,resnet20-width10,resnet20-width13_cifar100`. Both probe sets (`SPECTRA_PROBE_SET` v7 and thin) are C10 only. Add one admitted C100 net through `SPECTRA_PROBE_NETS` (recommended: `resnet20-width13_cifar100`), so the governor's probe sees both datasets.
+11. **Decision timer.** *Built 2 Oct.*
+    - `SPECTRA_TIME_DECIDE=1` (default off) wraps each eval-walk decision in a `step.decide` stage. For the actor that is its forward and pick; for a heuristic, its pick. Counterfactual probes stay outside.
+    - `scripts/cost_readout.py` prints `decide … ms` and the count of decisions.
+    - Tests: `tests/test_decide_timer.py` 8/8.
+    - It replaces EFFICIENCY §3.4's between-steps upper bound once the next frozen-actor TEST sets the flag.
+12. **Hold-out FT augmentation.** *Built 2 Oct.* `SPECTRA_FT_AUG_HOLDOUT=1` (default off) gives the SVHN train split RandomCrop and Fashion-MNIST RandomCrop + Flip, the recipes their checkpoints were trained with. Tests: `tests/test_holdout_ft_aug.py` 6/6. H0 uses it.
 
 ## 5. First moves for the next sitting
 
-1. **Why you were called.** Runbook §10.4 names the milestone (M1, M1-neg or M7) and the §7 log below has ops' numbers. Ledger rows ops wrote start at §154.
-2. **Freeze TESTs** ops already ran (pre-authorized). Read them by TEST at equal keep against 21729557 and the census; never by probe area.
-3. **Build `tree_v9d`**: roadmap §5, plus §4 items 1, 2, 4, 5, 6, 9 and 10. CPU pytest on the cluster conda, then a smoke.
-4. **With Ido's GO, N8** per the roadmap (on M1). On M1-neg, see roadmap §3, "If G1 fails".
-5. **Gilad.** `docs/paper/GILAD_NEWS_30SEP.md` covers the three 29–30 Sep findings; extend it with M1 when it lands.
+1. **Why you were called.** Read `docs/RUN_RECORD_02OCT_SITTING.md`: the 2 Oct sitting under Ido's delegated GO, what it built and ran, and what is still in flight. Then read ops' §7 lines dated after 3 Oct 00:50. The ledger's next section is **§192**.
+2. **S2's call.** Ops pastes the readout when 21982335 completes. PASS is already out (design §8 "S2 status").
+   - **CHEAP-FT on both cells:** nap_f is a scorer for short fine-tunes only. Whether to use it in the 12/4 proxy line is a sitting cell, not ops'.
+   - **FAIL or HARM:** write the "allocation, not selection" negative (design §6.5) and close S3.
+   - **Either way:** S1's ranking did not transfer to MobileNet. Any later learned score needs a family hold-out in its fit. S1b (the mask datamodel) is the one open selection variant.
+3. **pf-w calls** (ops runs `--sets where` at 4/4, or at 21970089's wall). A ceiling below 0.5 stops the pf line. If 40x10 is valid and 12x4 is not, releasing 21940321 is Ido's call.
+4. **H0 rows** are the hold-out bars N8's H5 / H7 read against. Ops ledgers them on COMPLETED.
+5. **D5's call.** On ADOPT, new cells set `SPECTRA_FT_AUG_GPU=1`; never a live train or a resume. Re-time 12/4 vs 40/10 with it.
+6. **Freeze TESTs** are ops' (pre-authorized; the first after PPO update 20). Read them by TEST at equal keep against 21729557 and the census; never by probe area. There were none at 3 Oct 00:05.
+7. **Still Ido's GO:** N8 / N9 / G5, S3, releasing 21940319 / 21940321, nvidia-ml-py / PUE, `SPECTRA_draft.md`. `tree_v9d` only; never patch `tree_v9c`.
+8. **Gilad 8 Oct.** Tracker §1 B7 and §6 carry S1 and S2's interim; add S2's call.
 
 ## 6. Literature used in this cycle
 
@@ -153,6 +169,8 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 ## 7. Ops annotations (append-only, dated; ops writes here, the next sitting reads)
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
+
+**MILESTONE M8** (2 Oct 01:04, ops). S0 `21945105/06/07` all COMPLETED. Keep 0.6 lever ≥ threshold on **3 of 3** cells (r56 budget 0; vgg16 budgets 0 and 1; vgg19 budgets 0, 1 **and 40**). Not M8-neg. Not only ≤ 3. Ledger probe **§188**. S1 is sitting, zero GPU. Do **not** start S1–S3 from ops.
 
 **MILESTONE M6** (weak, 30 Sep 19:15, ops). N4 **21737105** census: 2/46 full-width cuts with val Δ > 0 (max +0.28). Letter of M6; N10 still a sitting design, not a launch.
 
@@ -210,4 +228,40 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 1 Oct 06:44 | **3h briefing** | PPO-8 ev 0.735; freeze ep0011; C1 ev 0 at update 1; 3 idle GPUs | Gilad 08:45; ops 08:15 GILAD_NEWS; do not invent; do not N8
 - 1 Oct 08:11 | random r56 s44 **21938929** COMPLETED | 3-draw mean §175 **−5.1 / −7.2 / −6.5** vs mild **−2.6 / none / −4.5** | keep mild; QOS 3 R / 5 idle
 - 1 Oct 08:15 | **Gilad pack** `GILAD_NEWS_30SEP.md` | PPO-9 ev 0.774; C1/C2 PPO-2; G2 sitting closed except the two reward trains | meeting 08:45; do not N8; do not invent
+- 1 Oct 09:20 | **LR KILL** C-G thin + producers-only thin; C-PCA r20 COMPLETED | §176–§178; crop+flip does not close replacement on the diagnostic pair | full-width LR still PD; do not release held trains
+- 1 Oct 10:50 | **M2 pass** Stage-4 PPO-10 | last-3 ev 0.735/0.774/0.916; last-8 gap_to_uniform min +0.078 | not a kill; freeze still ep0011; do not TEST until after update 20
+- 1 Oct 13:50 | **LR KILL** C-G+ r56-w4 **21940182** | 10 pairs mean −11.6 pp vs mild §180 | r20 already §163; full-width still PD
+- 1 Oct 15:50 | **3h briefing** | PPO-12; C1/C2 PPO-4 ev+; S0 still PD behind 5 pf jobs | 8 Oct board; do not TEST ep0011; do not S1–S3
+- 1 Oct 18:22 | **LR KILL** C-G full-width R56 **21940183** | 8 pairs mean −34.4 pp vs twin §181 | C-G construction **CROSS-OFF** 3/4; VGG-16 21940184 still PD
+- 1 Oct 18:52 | **3h briefing** | S0 `21945105` R flags ok; pf 3/6; C-G VGG-16 4 pairs −9.1 CONTINUE | never TEST S0; kill VGG-16 at ≥5 pairs
+- 1 Oct 19:22 | **LR KILL** C-G VGG-16 **21940184** | 14 pairs mean −6.9 pp vs twin §182 | C-G construction **4/4**; slot should free for sel-vgg16
+- 1 Oct 21:22 | **LR KILL** producers-only R56 **21940186** | 20 pairs mean −4.3 pp vs twin §183 | construction **CROSS-OFF** 3/4; C2 froze ep0023 — not a TEST
+- 1 Oct 21:52 | **3h briefing** | all 3 S0 R flags ok; pf 5/6; producers VGG-16 just started | never TEST S0 or C2 ep0023
+- 1 Oct 22:22 | **LR KILL** producers-only VGG-16 **21940187** | 5 pairs mean −7.9 pp vs twin §184 | construction **4/4**; slot should free for C-PCA or bench
+- 1 Oct 22:52 | **S0 2/3 COMPLETED** `21945106` vgg16 + `21945105` r56 | Kendall/[lever] in design §8; never TEST | M8 waits for vgg19 `21945107`
+- 1 Oct 23:53 | **LR KILL** C-G+ R56 `21940191` | 9 pairs mean −7.02 pp vs twin §185 | construction **CROSS-OFF** 3/4; leave `21940192`; do not resubmit 21940191
+- 1 Oct 23:53 | C-PCA VGG-16 `21940189` COMPLETED §186 | TEST −2.8 / −1.5 / −1.5 vs mild −0.1 / −0.7 / −0.4 | construction **CROSS-OFF** 3/4; leave `21940188`
+- 1 Oct 23:53 | bench `21942378` started | `ise-4090-18`, TB=0 | never ledger; readout on COMPLETED → EFFICIENCY §5.3
+- 2 Oct 00:54 | **LR KILL** C-G+ VGG-16 `21940192` | 14 pairs mean −4.39 pp vs twin §187 | construction **4/4**; do not resubmit; slot → h2h
+- 2 Oct 00:54 | **3h briefing** | PPO-14 ev 0.863 freeze ep0011; C-G+ 4/4; S0 34/36; pf 5/6 | never TEST S0 or ep0011; M8 after vgg19
+- 2 Oct 01:04 | **MILESTONE M8** S0 vgg19 `21945107` COMPLETED | 3/3 cells; vgg19 also budget 40; ledger **§188** | S1 sitting, zero GPU; do not start S1–S3
+- 2 Oct 01:08 | bench `21942378` COMPLETED | 1.25 h, TB=0; EFFICIENCY §5.3 | never ledger
+- 2 Oct 01:04 | budgetstop `21940311` + factored `21940316` **started** | FLAGS ok, `Requeue=0`; budgetstop PPO-3 ev −0.822 | report, never scancel; freeze after update 20 only
+- 2 Oct 00:54 | h2h `21943448` started | Torch-Pruning v1.6.1, TB=0 | never ledger, never “beats”
+- 2 Oct 01:29 | pf **6/6 COMPLETED** `21941348` | ceiling **+0.41 < 0.5** uninformative §189 | **21940321 stays held**; next sitting: widen cuts
+- 2 Oct 01:40 | budgetstop froze **ep0011** score 0.060 | PPO-4 ev 0.132 | **not a TEST**; never scancel
+- 2 Oct 03:54 | **3h briefing** | M8 §188; pf 6/6 ceiling dead §189; SSH down since 02:23 | last confirmed 7/8; never TEST ep0011; 21940321 held; do not invent
+- 2 Oct 06:54 | **3h briefing** | SSH still down (~4.5 h); no new numbers since 01:53 | VPN is the login fix; do not invent; canvas 09:30
+- 2 Oct 02:01 | C-PCA zoo R56 `21940188` COMPLETED | TEST −2.1 / −2.4 / −2.7 vs mild §190 | construction **4/4**; do not resubmit
+- 2 Oct 03:11 | h2h `21943448` COMPLETED | R56 85 min / 93.80; VGG-19 45 min / 70.78 | never ledger, never “beats”; EFFICIENCY §4.5
+- 2 Oct 08:10 | VPN back; QOS **5/8** (3 idle since ~03:11) | Stage-4 PPO-16 freeze ep0011; C1 PPO-9; C2 PPO-9; budgetstop PPO-10 ev −0.05; factored PPO-3 | **trigger sitting now**; do not invent from ops; 21940321 held
+- 2 Oct 09:23 | sitting filled QOS: pf-w `21970086/87/88` R keep 0.6; `21970089` PD keep 0.36 | start flags ok (proxy=0.6, WHERE_ROWS=8, FT_AUG=1, VAL_FROM_TEST=1) | never TRAJ rows; readout at 4/4; 21940321 held
+- 2 Oct 09:31 | **S1 G1 3/3** `tree_v9d/runs/selection_scorer_s1/s1_result.json` | held-out τ 0.572 / 0.657 / 0.643 vs hand 0.240 / 0.417 / 0.170 | never TEST; sitting pastes design §8 + tracker B7; S2 afterok first pf-w, not from ops
+- 2 Oct 19:08 | Stage-4 **PPO-20 / ep 80** freeze still ep0011; QOS 8/8; pf-w ~9.75 h TB=0 | **not a TEST**; wait new freeze after update 20 (or ep 120); evening prompt `docs/PROMPT_FABLE_OCT2_EVENING.md`
+- 2 Oct 21:39 | pf-w `21970086` (15 cand) + `21970088` (15 cand) COMPLETED; `21970087` already 19:36 | **3/4**; do not readout; slots → S2 r56c100 `21982335` + pf-w `21970089`
+- 2 Oct 22:11 | **3h briefing** | S1 pasted §191; S2 both R; pf-w 89 R 32 min; Stage-4 PPO-21 freeze ep0011 | never TEST ep0011; readout at 4/4; S2 G2 is H_40 not Kendall; canvas 23:00
+- 2 Oct 22:51 | S2 mbv2 `21982334` COMPLETED exit 0 | Kendall nap_f vs ablation 0.25 < L1 0.29; [lever] budget 40 best=ablation +0.23 (σ 0.72) — G2 after both cells; never TEST
+- 2 Oct 22:51–52 | H0 `21982353` SVHN + `21982354` FMNIST **FAILED** 37s/51s | input JSON still 3 C10 thins vs `--datasets` svhn/fmnist; do not resubmit from ops
+- 2 Oct 22:53 | D5-off `21982372` started (slot after H0 fail); D5-on `21982373` PD | SPECTRA_FT_AUG_GPU=0; FT_AUG=1 VAL_FROM_TEST=1 size_match 0.6
+- 2 Oct 23:11 | **23:00 canvas** | QOS 8/8; Budget+STOP PPO-20 freeze still ep0023 ev −0.07 rewind; pf-w 89 step ~47 | do not TEST ep0011/ep0023; readout at 4/4
 

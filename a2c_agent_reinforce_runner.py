@@ -1,3 +1,4 @@
+import contextlib
 import copy
 import os
 import sys
@@ -366,12 +367,26 @@ def counterfactual_probe(agent, state, legal, real_rate_idx, conf, fortify_mod):
     return out
 
 
+def _decide_timer(fortify_mod):
+    """A ``step.decide`` stage around one eval-walk decision when ``SPECTRA_TIME_DECIDE=1``."""
+    if not fortify_mod.time_decide():
+        return contextlib.nullcontext()
+    return logging_utils.stage("step.decide", level=logging.DEBUG)
+
+
+def _heuristic_action(legal, conf, fortify_mod, eval_policy):
+    with _decide_timer(fortify_mod):
+        return fortify_mod.heuristic_eval_action(
+            legal, conf.compression_rates_dict, policy=eval_policy, device=conf.device)
+
+
 def _actor_action(agent, state, legal, conf, fortify_mod):
     """(rate action tensor, ranking index or None) from the frozen policy, plain or factored."""
-    with torch.no_grad():
-        dist = agent.actor_model(state)
-    rate_idx, rank_idx, _ = fortify_mod.pick_action(
-        dist, legal, deterministic=fortify_mod.eval_deterministic(), device=conf.device)
+    with _decide_timer(fortify_mod):
+        with torch.no_grad():
+            dist = agent.actor_model(state)
+        rate_idx, rank_idx, _ = fortify_mod.pick_action(
+            dist, legal, deterministic=fortify_mod.eval_deterministic(), device=conf.device)
     counterfactual_probe(agent, state, legal, rate_idx, conf, fortify_mod)
     return torch.tensor([rate_idx], device=conf.device), rank_idx
 
@@ -502,9 +517,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                     at_budget, floor_kind = fortify_mod.eval_at_size_floor(env)
                     if traj:
                         if eval_policy not in ("actor",):
-                            action = fortify_mod.heuristic_eval_action(
-                                legal, conf.compression_rates_dict,
-                                policy=eval_policy, device=conf.device)
+                            action = _heuristic_action(legal, conf, fortify_mod, eval_policy)
                         else:
                             action, chosen_rank = _actor_action(agent, state, legal, conf, fortify_mod)
                         if not traj_phase_b:
@@ -544,9 +557,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             0)
                         action = torch.tensor([identity], device=conf.device)
                     elif eval_policy not in ("actor",):
-                        action = fortify_mod.heuristic_eval_action(
-                            legal, conf.compression_rates_dict,
-                            policy=eval_policy, device=conf.device)
+                        action = _heuristic_action(legal, conf, fortify_mod, eval_policy)
                     else:
                         action, chosen_rank = _actor_action(agent, state, legal, conf, fortify_mod)
 

@@ -43,7 +43,7 @@
 | B4 | NAP2 as decision support | **NAPv2 code read**, quirks documented. NAP-F (its statistics per filter) built and checked against NAPv2's own code to 1e-9. Three roles defined; S0 records NAPv2 maps over its ResNet-56 fine-tunes | — | design §5–6 |
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
-| B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** Held-out τ +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17; the signal is NAPv2 gradient statistics. S2 (does it *recover* better?) `21982334` / `21982335` PD; prior FAIL at 40 | **yes** | design §8 "S1 results"; ledger §191 |
+| B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** Held-out τ +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17; the signal is NAPv2 gradient statistics. S2 (does it *recover* better?): **3 Oct 00:07** MBV2 `21982334` done, CHEAP-FT-like (+2.80 at BN, +0.21 at 40); PASS already out; R56-C100 `21982335` R, call ~02:10 | **yes** | design §8 "S1 results", "S2 status"; ledger §191 |
 
 ---
 
@@ -139,6 +139,10 @@
 - **2 Oct 19:12** — S2 `21982334` (MBV2 ×0.5 C10) / `21982335` (R56 C100) **submitted** (PD, nice 5/6), sitting GO under Ido's delegation. Calls registered in the queue file. Prior: FAIL at 40. S3 still needs Ido.
 - **2 Oct 19:21** — H0 `21982353` (SVHN) / `21982354` (Fashion-MNIST) mild walks on the A1 hold-outs **submitted**. They need the new default-off loader flag `SPECTRA_FT_AUG_HOLDOUT` (until now these datasets fine-tuned unaugmented).
 - **2 Oct 19:31** — D5 `21982372` / `21982373` GPU-resident crop+flip speed A/B **submitted**.
+- **2 Oct 21:39** — pf-w `21970086` / `88` **COMPLETED** (`87` at 19:36; all TB 0). `21970089` (DepGraph R56, keep ≤ 0.36) R. Readout at 4/4 with `--sets where`; if 89 hits its 24 h wall, read what it wrote.
+- **2 Oct 22:51** — S2 MBV2 `21982334` **COMPLETED**. On this cell alone: nap_f − L1 +2.80 at BN (SE 0.07), +1.83 at 1 epoch, +0.21 at 40 (σ 0.72), so CHEAP-FT-like and **PASS already out**. Kendall vs oracle: MBV2 nap_f 0.254 < L1 0.286; R56-C100 0.423 > L1 0.292. The scorer transfers across datasets in the ResNet family, not to a new family. Design §8 "S2 status". The call waits for `21982335` (~02:10).
+- **2 Oct 22:52** — H0 `21982353` / `54` **FAILED** at start: the profile's default database is three C10 nets, filtered to zero under `--datasets svhn`. The loader flag itself worked. Fixed with `SPECTRA_DATABASE` = the input JSON, rehearsed, resubmitted **`21986700` / `21986701`** (23:51, PD).
+- **3 Oct 00:02** — Code deployed to `tree_v9d`, default off; running processes keep the code they loaded. `SPECTRA_TIME_DECIDE=1` times each eval-walk decision (`cost_readout.py` prints `decide … ms`). `policy_config.json` now records today's augmentation flags. `submit.sh` exports the three new flags. 13 test files green on a staged copy before deploy.
 
 ---
 
