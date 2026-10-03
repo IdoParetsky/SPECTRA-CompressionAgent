@@ -3430,7 +3430,20 @@ Paired val never hit the kill (60 pairs, mean −1.23 pp, 10 % better). TEST sti
 
 **M8 re-read with the selection effect** (max over 9 named criteria vs pooled fine-tune noise). At keep 0.6 and trained budgets 1 / 3 / 10 / 40, p-null is 0.10–0.95; at budget 40 it is 0.91 / 0.95 / 0.49. So §188's M8 fire rests on budget 0 / BN and is noise-level once fine-tuned. The oracle's own masks are below L1 at 40 on all three cells (−0.55 / −0.30 / −0.71).
 
-**Read.** A transferable selection *ranking* exists (S1). Whether it *recovers* better is S2 (**21982334** / **21982335**, registered calls in `docs/SITTING_GPU_QUEUE.md`), with a FAIL-at-40 prior. Do **not** quote as a method row. Do **not** lock. Full tables: design §8 "S1 results".
+**Read.** A transferable selection *ranking* exists (S1). Whether it *recovers* better is S2 (**21982334** / **21982335**, registered calls in `docs/SITTING_GPU_QUEUE.md`), with a FAIL-at-40 prior. Do **not** quote as a method row. Do **not** lock. Full tables: design §8 "S1 results". S2 landed as **§192 HARM**.
+
+---
+
+## 192. S2 nap_f vs L1 recovery — a lever measurement, never a TEST row
+
+`scripts/selection_probe_s2.py --readout` on `tree_v9d` run dirs `s2_mbv2_21982334` (COMPLETED 2 Oct 22:51) and `s2_r56c100_21982335` (COMPLETED 3 Oct 02:09). Scorer md5 `2a3bf48db614`. Keep 0.6, five shared fine-tune seeds, protocol P + crop+flip. Jobs `21982334` / `21982335`.
+
+| Cell | *H_BN* | *H_1* | *H_3* | *H_40* (σ_ft) | vs G2 |
+|---|---|---|---|---|---|
+| MBV2 ×0.5 C10 | +2.80 (SE 0.07) | +1.83 (SE 0.54) | −0.25 | **+0.21** (0.72) | PASS already out (+0.21 < 1.44); BN would be cheap-FT on this cell alone |
+| chenyaofo R56 C100 | −0.54 (SE 0.03) | +2.86 (SE 1.24) | −0.43 | **−0.87** (0.86) | *H_40* < −σ_ft |
+
+**G2 call: HARM.** Cheap-FT budgets passing on every cell: none. Keep L1. Do **not** start S3. Kendall vs the single-channel oracle: MBV2 nap_f 0.254 < L1 0.286; R56-C100 nap_f 0.423 > L1 0.292. Oracle − L1 at 40: +0.57 / −1.03. Full table: design §8 "S2 result". Do **not** quote as a method row. Do **not** lock.
 
 ---
 

@@ -91,6 +91,39 @@ The sitting ran under Ido's delegated GO. Its record is `docs/RUN_RECORD_02OCT_S
 - On COMPLETED, `python scripts/cost_readout.py <job>` prints `decide … ms`. Paste it into EFFICIENCY §3.4 beside the upper bound.
 - Stage-4 freeze TESTs run in `tree_v9c`, which has no timer. Leave that line unchanged.
 
+### 10.0c 3 Oct morning sitting addendum (~11:45; Ido GO 10:36; supersedes §10.0b and §10.3 where they differ)
+
+A short sitting: docs and the next-cell register, no build. Record: `docs/RUN_RECORD_02OCT_SITTING.md` §8.
+
+**Confirmed (ops asked).**
+- The H0 resubmit stands (21986700 / 01; start checks and origin TESTs inside 0.12 pp).
+- `SPECTRA_TIME_DECIDE=1` stays pre-authorized on `tree_v9d` freeze TESTs. Stage-4's 21990060 runs in `tree_v9c` without it, which is correct.
+
+**Closed.**
+- *G2 is HARM.* The paper-facing wording is in design §0 item 7, §6.5 and §8: "beyond magnitude, which channels survive did not change recovered accuracy at our fine-tune budget". Keep L1. S3 is closed. S1b is not scheduled.
+- *D5 is ADOPT-PENDING.* The 1.41× holds per epoch actually run (5.29 vs 3.75 s/epoch); the old 2.78 / 1.97 divided by 40 the FT time of all 57 steps, including the non-cut ones. D5-bis settles it at TEST. Until then no cell sets `SPECTRA_FT_AUG_GPU`.
+
+**Next independent cells** (queue file sections "D5-bis" and "RW43"; PD behind 21990060, which keeps priority 202):
+
+| Job | Name | Ops action |
+|---|---|---|
+| 21990184 | d5b-gpuaug-thin (`tree_v9d`, `rtx_4090` only, nice 30, wall 10 h) | **Start check:** `FT aug on cifar-10: RandomCrop+Flip on the GPU, train split device-resident (n_train=50000, batch=256)`; env `SPECTRA_FT_AUG_GPU': '1'` and `SPECTRA_EVAL_PASSES': '2'`; profile line `input=configs/input_c10_thin.json database=configs/database_c10_thin.json`. **Kill:** Traceback or OOM ⇒ scancel, report. **On COMPLETED:** read the five points against 21729557: size 0.80 on both nets, size 0.60 on R20-w2, the terminal row on both. Apply the queue file's calls: EQUIVALENT (all \|ΔTEST\| ≤ 1.0 pp) ⇒ ADOPT for new cells; DIVERGE (two or more points > 1.0, or one > 2.0) ⇒ drop D5; exactly one point in (1.0, 2.0] ⇒ wait for RW43. Then `python scripts/cost_readout.py 21990184`: s/epoch = FT time ÷ epochs run, beside 4.29 / 5.24. One EFFICIENCY §3.3 line |
+| 21990185 | rw43-mild-thin (`tree_v9b`, seed 43, `rtx_6000\|rtx_4090`, nice 31, wall 14 h) | **Start check:** env `SPECTRA_SEED': '43'` and `SPECTRA_FT_AUG': '1'`, no `SPECTRA_FT_AUG_GPU`; `FT aug on cifar-10: RandomCrop+Flip on train only`; `split_seed=0`. **Kill:** Traceback ⇒ report. **On COMPLETED:** the same five points against 21729557, the five \|ΔTEST\| and the largest. Write it beside M1 (§10.4): "re-walk noise of the control, seeds 42 vs 43: …". If the largest exceeds 0.5 pp, say in the M1 verdict that its 0.5 pp margin is inside re-walk noise; never change the bar. Then the D5-bis UNCLEAR rule if it applies. One ledger *probe* section for both re-walks |
+
+After these two the ladder is empty. If a slot idles for more than 1 h, ping Ido; do not invent a cell.
+
+**Freeze TESTs of the arms (C1 21938807, C2 21938810, budgetstop 21940311, factored 21940316, and any held arm Ido releases). Replaces §10.3 item 1's episode-120 fallback for these trains only; Stage-4 is unchanged.**
+- **Never TEST a freeze written before PPO update 20.** There is no episode-120 fallback for an arm. A pre-update-20 snapshot is the actor after ≤ 20 of ≥ 250 episodes: it measures the start, not the arm's change.
+- **At episode 120 with no freeze after update 20:** write `ARM-FLAT <job> <name>: best probe <score> at ep<N>, last three probes <a> / <b> / <c>` at the top of way-ahead §7 and ping Ido once. Add Stage-4's best (0.286 at ep0095) as context only: probe scores are train-health notes, never results. No TEST, no scancel, no flag change.
+- **A later freeze after update 20:** the normal rule. TEST it with the §10.5 (a) line plus `SPECTRA_TIME_DECIDE=1` (`tree_v9d`). At most one freeze TEST in flight across all trains; at most one a day per train; if two trains are waiting, Stage-4 goes first.
+- **The train stops (governor: ≥ 250 episodes and 150 since the best probe; or the fuse) with no freeze after update 20:** write `ARM-NEG <job>: no probe after PPO update 20 beat ep<N>` and ping Ido. No TEST. A final-policy TEST needs a sitting.
+- *Now:* budgetstop 21940311 was at episode 108 at 10:14 with its only freeze at ep0023 (probe 0.133). Expect its ARM-FLAT line in a few hours.
+
+**Never (adds to §10.6 and §10.0b):**
+- Put `SPECTRA_FT_AUG_GPU` on a freeze TEST, a live train or a resume, or on any cell before D5-bis reads EQUIVALENT.
+- TEST an arm's pre-update-20 freeze, whatever the episode.
+- Resubmit `d5b-*` or `rw43-*` with changed flags.
+
 ### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |
@@ -135,7 +168,7 @@ Done since the 03:30 handoff:
 ### 10.3 Pre-authorized actions (no GO needed)
 
 1. **Freeze TESTs of the Stage-4 train** (Ido GO 30 Sep 11:08).
-   - *Which.* The first `Snapshot frozen` written **after PPO update 20** (episode ≥ 80). After that, at most **one a day**: the newest freeze since the last TEST. Never two freeze TESTs in flight. If no freeze comes after update 20 by episode 120, TEST the newest existing freeze, once.
+   - *Which.* The first `Snapshot frozen` written **after PPO update 20** (episode ≥ 80). After that, at most **one a day**: the newest freeze since the last TEST. Never two freeze TESTs in flight. If no freeze comes after update 20 by episode 120, TEST the newest existing freeze, once (Stage-4 only; the arms follow §10.0c).
    - *Line.* §10.5 (a), nice 0, then `Features`. A freeze made after the resume has its `SNAP` under `runs/job21767188/`.
    - *Read.* TRAJ rows on both thin nets against **21729557** (mild, the same P + crop+flip walk, 40/10) at equal keep: size 0.80, size 0.60 where both walks reach it, and `val_best` (keep and Δ). The no-aug column is 21726335. Run the compression-rate census on r56-w4: a 0.9 rate on ≥ 95 % of legal rows means "mild clone under P+aug" (the §136 read).
    - *Ledger.* One new § per TEST, PRELIM: "frozen actor ep#### of <job>, P + crop+flip TEST walk 40/10, deterministic, vs 21729557". Then check §10.4 M1 / M1-neg.
@@ -226,7 +259,7 @@ Then `Features`. Its walk re-runs 21737104's VGG-16 and 21729553's R56 twin unde
 ### 10.6 Never (adds to §5, §8 and §9.5)
 
 - Start a train (N8, N9, N10, attribution) or any resume beyond §10.3 item 2, including `scontrol release` of the held arms 21940319 / 21940321. Change the train's env or card. Scancel 21737123 or 21767188, or any `ab-*` train. Set `Requeue=1`.
-- TEST a freeze from before PPO update 20 (except the episode-120 fallback), more than one a day, or two at once.
+- TEST a freeze from before PPO update 20 (except Stage-4's episode-120 fallback; the arms have none, §10.0c), more than one a day, or two at once.
 - Resubmit 21809595 or 21814029 with changed flags; report a wall-out instead.
 - Edit `configs/v7_c100_gate.json` or `configs/database_offline_v7_diverse_admitted.json`, or call the emit "N8 started". Put an SVHN or Fashion-MNIST net into any training file: N8 holds both datasets out (roadmap §2b). Launch N8: G5 belongs to the science sitting.
 - Patch `tree_v9b` / `tree_v9c`; overlay leap `src/`; edit `SPECTRA_draft.md`.

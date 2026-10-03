@@ -46,6 +46,16 @@ Every claim about another paper below was checked against its primary source by 
 6. **What we expect.** The literature predicts that selection matters with short or no fine-tuning and at high sparsity, and fades after about 40 epochs. MFP's matched comparison: no FT 84.80 vs 77.45, 40 epochs 93.26 vs 93.22.
    - SPECTRA's reward is computed after short in-loop fine-tunes (12/4 or 40/10). So a better selector could matter *for the agent's signal and cost* even if the final accuracy converges.
    - S0 measures exactly that curve: budgets 0, BN-only, 1, 3, 10 and 40 epochs.
+7. **What we found (closed 3 Oct; S0 §188, S1 §191, S2 §192; probes, never TEST rows).** At SPECTRA's budget, nothing beats magnitude once allocation is fixed. Allocation decides recovered accuracy.
+   - **S0, three nets** (DepGraph R56 C10, VGG-16 C10, DepGraph VGG-19 C100; keep 0.6, paired fine-tune seeds). After 40 epochs, none of nine named criteria beats L1 beyond noise. The single-channel ablation oracle's own masks end below L1: −0.55 / −0.30 / −0.71 pp.
+   - **S1, zero GPU.** A learned score built from NAPv2's per-filter statistics ranks channels like that oracle on a held-out net. Its τ is 0.57–0.66, against 0.17–0.42 for the best hand criterion picked on that net. Nearly all the signal is in the gradient statistics.
+   - **S2, two nets S1 never saw.** That ranking does not buy recovery. nap_f − L1 at 40 epochs is +0.21 pp on MobileNet-V2 ×0.5 C10 (L1 seed SD 0.72) and −0.87 pp on ResNet-56 C100 (SE 0.44). The second is the registered **HARM** call, 0.01 pp past its bar of −0.86. No budget of 3 epochs or less passes on both nets.
+   - **On ResNet-56 C100 at 40 epochs, every non-L1 mask ends below L1:** the oracle −1.03, random −1.44, anti-L1 −1.72 pp.
+   - **Magnitude is necessary.** Random masks lose 1.4–1.5 pp to L1 at 40 epochs on both S2 nets. Anti-L1 is catastrophic on MobileNet-V2 (−79 pp: it keeps dead channels).
+   - **Ranking quality transfers within a family, not across families.** τ vs the oracle is 0.423 vs L1 0.292 on ResNet-56 C100 (the ResNet family was in S1's fit). On MobileNet-V2 it is 0.254 vs L1 0.286, with Taylor at 0.352.
+   - **Consequences.**
+     - SPECTRA keeps the L1 group vote; the agent stays an allocation agent; S3, the selection agent, is closed.
+     - The one budget where masks differ a lot is BN recalibration with no fine-tune. There, the MobileNet oracle is +17.0 pp, but nap_f captures only +2.8 of it, and on ResNet-56 C100 nap_f is −0.54. That matters only if a BN-only proxy becomes the in-loop reward (the pf line), which is the one condition for reopening S1b (§8).
 
 ---
 
@@ -291,6 +301,10 @@ The shield makes the second agent no worse than L1, up to δ, on calibration dat
 - **Breakthrough:** a frozen, transferable selector that improves short-fine-tune recovery at matched allocation on held-out networks. That makes the agent's reward truer and its walk cheaper (shorter in-loop FT), and no published method has it.
 - **Also publishable:** a clean negative. "At SPECTRA's budget, which filters survive does not matter once allocation is fixed; allocation is the whole game." That is the first matched measurement of its kind on these cells, and it closes the second-agent question for good.
 - **Not a breakthrough:** a selector that wins only at budget 0 and loses after 3 epochs, or one that wins only on the network it was fit on.
+- **Outcome (3 Oct): the clean negative** (§0 item 7).
+  - The learned score transfers as a *ranking* within a family but not across families. It does not recover better at 40 epochs (G2 HARM by the registered rule).
+  - Its only gain sits at budgets the walk does not use: BN-only on MobileNet-V2, which is not repeated on ResNet-56 C100.
+  - Paper wording: "beyond magnitude, which channels survive did not change recovered accuracy at our fine-tune budget; allocation is what the agent must learn." Not "selection never matters": anti-L1 and random masks lose.
 
 ---
 
@@ -517,7 +531,37 @@ MBV2, from `selection_probe_s2.py --readout runs/selection_probe/s2_mbv2_2198233
 
    S1's leave-one-net-out τ (0.57–0.66) holds across datasets within the ResNet family (DepGraph R56 C10 was in S1's fit). It fails on MobileNet's inverted residuals and depthwise groups, a block type S1 never saw. Any later use of a learned score needs a family hold-out in its fit, not only a net hold-out.
 
-The call, the ledger *probe* section, and the tracker B7 line are written when 21982335 completes. The command is `python scripts/selection_probe_s2.py --readout runs/selection_probe/s2_mbv2_21982334 runs/selection_probe/s2_r56c100_21982335` in `tree_v9d`.
+The combined readout is under **S2 result** below. Ledger probe **§192**. Do not start S3.
+
+### S2 result (3 Oct 09:54; both cells; probe, never a TEST row)
+
+**21982335** (chenyaofo R56 C100) COMPLETED 02:09, 17/17 masks, TB 0. Combined readout (`selection_probe_s2.py --readout` of both run dirs):
+
+| cell | budget | L1 seed SD | nap_f − L1 (SE, n) | oracle − L1 (SE, n) | random − L1 (n) | anti-L1 − L1 |
+|---|---|---|---|---|---|---|
+| cy-mbv2x05-c10 | 0 | 0.00 | −3.98 (0.00, 5) | −3.92 (0.00, 3) | −4.14 (3) | −4.22 |
+| cy-mbv2x05-c10 | bn | 0.11 | **+2.80** (0.07, 5) | +17.01 (0.11, 3) | −12.59 (3) | −14.80 |
+| cy-mbv2x05-c10 | 1 | 0.98 | +1.83 (0.54, 5) | +1.29 (1.02, 3) | −9.64 (3) | −70.18 |
+| cy-mbv2x05-c10 | 3 | 0.52 | −0.25 (0.43, 5) | +0.83 (0.33, 3) | −6.76 (3) | −75.94 |
+| cy-mbv2x05-c10 | 10 | 0.76 | −0.04 (0.34, 5) | +0.16 (0.38, 3) | −3.66 (3) | −77.62 |
+| cy-mbv2x05-c10 | 40 | 0.72 | **+0.21** (0.28, 5) | +0.57 (0.29, 3) | −1.49 (3) | −79.28 |
+| cy-r56-c100 | 0 | 0.00 | +0.12 (0.00, 5) | +0.00 (0.00, 3) | +0.31 (3) | +0.32 |
+| cy-r56-c100 | bn | 0.05 | **−0.54** (0.03, 5) | +2.35 (0.04, 3) | −0.91 (3) | −0.94 |
+| cy-r56-c100 | 1 | 3.29 | +2.86 (1.24, 5) | +3.52 (1.73, 3) | −3.73 (3) | −8.74 |
+| cy-r56-c100 | 3 | 2.69 | −0.43 (0.90, 5) | +2.56 (2.03, 3) | −0.70 (3) | −9.50 |
+| cy-r56-c100 | 10 | 2.02 | +0.62 (1.06, 5) | +3.51 (1.17, 3) | +2.37 (3) | −2.26 |
+| cy-r56-c100 | 40 | 0.86 | **−0.87** (0.44, 5) | −1.03 (0.65, 3) | −1.44 (3) | −1.72 |
+
+**G2 call: HARM** (harm on `cy-r56-c100`; cheap-FT budgets passing on every cell: none). PASS was already impossible from MBV2 *H_40* +0.21 < 1.44. R56-C100 *H_40* = −0.87 < −σ_ft = −0.86. No *b* ∈ {BN, 1, 3} clears *H_b* ≥ max(0.5, 2σ) on **both** cells: MBV2 BN does (+2.80); R56-C100 BN is −0.54, and its 1-epoch +2.86 is under 2σ = 6.58. **Do not start S3.** Keep L1. Ledger probe **§192**.
+
+Oracle line: *O_40* is +0.57 on MBV2 (under 1.44) and −1.03 on R56-C100, so the 40-epoch label is not worth learning on the ResNet-C100 cell. S1b (mask datamodel) remains the only open variant in the registered oracle line.
+
+**Sitting decision (3 Oct ~11:00, under Ido's GO): G2 closed.**
+- **The call stands as HARM.** Keep L1. S3 is closed, not deferred.
+- **How to report it.** The paper reports the magnitude beside the call: −0.87 pp against a bar of −0.86, SE 0.44. Write "no gain, at most a slight loss", never "the learned score harms recovery".
+- **S1b is not scheduled.** Its label would have to beat L1 at 40 epochs, and the oracle masks do not beat L1 on any of the five nets: four end below it (−0.55, −0.30, −0.71, −1.03) and MBV2's +0.57 is inside noise.
+- **S1b reopens only if** the pf-w readout makes `bn` a valid in-loop proxy (queue file, "wider cuts" calls). BN-only is the one budget where masks differ by several pp (MBV2 oracle +17.0, R56-C100 +2.35). Then a selector good after BN recalibration would sharpen the agent's reward.
+- **The family lesson stands for any later learned score.** Fit it with a family hold-out, not only a net hold-out.
 
 ---
 
@@ -526,6 +570,9 @@ The call, the ledger *probe* section, and the tracker B7 line are written when 2
 - That the two-decision head, a learned criterion, or a filter-selection agent is new as such (§4). Only the frozen, transferable setting is.
 - That NAP2 or NAPv2 predicts SPECTRA's recovered accuracy before R2 shows it on held-out masks, or that its pretrained weights apply to pruned networks.
 - That any selection result beats a published number. S0 is a lever measurement on our own loop.
+- That the learned NAP-F score "harms" recovery. G2's HARM is a decision rule at its edge (−0.87 vs −0.86, SE 0.44). The supportable sentence is "no gain over L1 at 40 epochs on two held-out nets".
+- That S1's ranking transfers across families. It held on ResNet-56 C100 and failed on MobileNet-V2.
+- That selection does not matter at all. Random and anti-L1 masks lose to L1; only *beyond magnitude* is there no lever at our budget.
 - Any formal guarantee for the agent or the pruned network beyond what §7 states (smoothing certificates cover the smoothed policy; the shield covers its calibration data).
 
 ## 10. Sources

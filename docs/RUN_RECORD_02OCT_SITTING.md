@@ -142,14 +142,50 @@ QOS gpu-part stays 8/8 R. The other five running GPUs are ops' jobs:
 
 - `1dc7e3c` S1, S2, `--sets`, the two loader flags, the jobs and calls.
 - `b77f39a` the S1 artifact path and the times corrected to Slurm.
-- The close-out commit: the decision timer, provenance keys, `submit.sh`, this record, the doc restamps, and ops' pending hunks in the runbook, way-ahead and EFFICIENCY files.
+- `617d626` the close-out: the decision timer, provenance keys, `submit.sh`, this record, the doc restamps, and ops' pending hunks in the runbook, way-ahead and EFFICIENCY files.
+- The 3 Oct morning commit: §8 below, and ops' hunks from their 09:54–10:14 catch-up.
 
 ## 7. Open at hand-off (ops reads these; rules in runbook §10.0b)
 
 | When | What | Readout | Then |
 |---|---|---|---|
-| 21982335 COMPLETED (~02:10) | S2 call | `python scripts/selection_probe_s2.py --readout runs/selection_probe/s2_mbv2_21982334 runs/selection_probe/s2_r56c100_21982335` | paste into design §8 and tracker B7; ledger *probe* §192; ping Ido |
-| 21982372 + 21982373 COMPLETED | D5 call | `scripts/cost_readout.py` on both run dirs + TRAJ TEST points | EFFICIENCY §3.3; never ledger |
-| 21986700 / 01 start | H0 start check | env + `FT aug on svhn: crop on train only`; origin TEST within 1.0 pp of nominal | kill on mismatch |
+| 21982335 COMPLETED (~02:10) | S2 call | `--readout` both dirs **done 09:54** | **G2 HARM**; design §8; tracker B7; ledger **§192**; do not S3 |
+| 21982372 + 21982373 COMPLETED | D5 call | `cost_readout.py` **done 09:54** | 1.41×; no registered call; EFFICIENCY §3.3; never ledger |
+| 21986700 / 01 start | H0 start check | **passed** (database + aug banners; origin TEST inside 0.12 pp) | leave running; kill only if a later net >1.0 pp off |
 | 21986700 / 01 COMPLETED | H0 bars | `[eval] TRAJ` val_best + size points per net | ledger baseline rows |
-| 21970089 COMPLETED or TIMEOUT | pf-w calls | `proxy_fidelity_readout.py --sets where` over the four run dirs | ledger *probe* section; ping Ido |
+| 21970089 COMPLETED or TIMEOUT | pf-w calls | `proxy_fidelity_readout.py --sets where` over the four run dirs | ledger *probe* section; ping Ido; freeze TEST **21990060** takes the GPU |
+
+## 8. 3 Oct morning sitting (~10:40–11:50; Ido GO 10:36)
+
+**Mandate.** Ops' 10:14 status asked for a short sitting: docs and the next-cell register, not a GPU build. Ido: "You have my authorization to GO as you deem proper. Adhere to Ops recommendation, and polish them as you deem fit - implemented and enqueue as you deem beneficial". Ops' items: close G2 as HARM in the paper-facing text; name D5; write the Budget+STOP freeze rule; register the next independent cell after 21990060; confirm or veto the H0 resubmit and the decision timer.
+
+**Done.**
+- *G2 closed as HARM.* Design §0 item 7 ("what we found"), §6.5 ("the clean negative", with its paper wording), §8 (sitting decision) and §9 (three non-claims). Tracker: B3 and B7 closed; slides 3–4 rewritten; question 3 now asks whether the negative is a thesis section. Keep L1; S3 closed; S1b not scheduled.
+- *D5 named ADOPT-PENDING* (queue file "D5", EFFICIENCY §3.3 and §11 item 5).
+- *Two cells registered, then submitted* (queue file "D5-bis" and "RW43"):
+  - **21990184** `d5b-gpuaug-thin`: `tree_v9d`, the 21729557 line plus `SPECTRA_FT_AUG_GPU=1`, `rtx_4090` only, nice 30, priority 171.
+  - **21990185** `rw43-mild-thin`: `tree_v9b`, the 21729557 line with seed 43, `rtx_6000|rtx_4090`, nice 31, priority 170.
+  - Both PD behind 21990060 (priority 202). Before submit, the thin input and database md5 matched across the two trees, and the profile block was identical (49 lines, empty diff).
+- *The arms' freeze-TEST rule* (runbook §10.0c): never a pre-update-20 freeze; ARM-FLAT at episode 120; ARM-NEG at the stop. Stage-4 is unchanged.
+- *Confirmed:* the H0 resubmit, and `SPECTRA_TIME_DECIDE=1` on `tree_v9d` freeze TESTs.
+
+**Evidence read (zero GPU).**
+- `cost_readout.py` on 21982372 / 73 / 21729557. Both D5 arms ran `epochs run 1200@40`: off 5.29, on 3.75 s/epoch. The control ran R56-w4 at 5.24 and R20-w2 at 4.29 s/epoch (`ise-4090-20`).
+- `paired_steps.py` D5 on vs off: 30 paired cuts, mean −0.00 pp val, arm better on 50 %.
+- The control's TRAJ rows (the five D5-bis points) and its env dump, so the D5-bis line is the control's line plus one flag.
+
+**Corrections.**
+- The D5 per-epoch figures first quoted on 3 Oct (2.78 / 1.97 s/epoch) divided by 40 the FT time of all 57 steps; only 30 fine-tune. The 1.41× ratio stands. Fixed in the queue file, EFFICIENCY §3.3 and §11, and the tracker.
+- The D5 registration's missing 0.6 point was a pass-count error in the registration (one pass of mild ends at keep 0.757), not `SPECTRA_EVAL_MIN_PARAM_RATIO`.
+- RW43's rationale first said thin-net re-walk noise was never measured. Same-seed re-walks were (§149 up to 0.8 pp TEST; §154 vs §143 paired val −0.06 / −0.51 pp). What is new is a new-seed re-walk of M1's own crop+flip control.
+
+**Not done, by design.** No build, no S3 / N8 / O39 / train, no S1b. `SPECTRA_draft.md` untouched. Ops' own files (`docs/PROMPT_FABLE_V6.md`, `docs/paper/GILAD_NEWS_30SEP.md`) untouched.
+
+**Open after this sitting** (rules in runbook §10.0c):
+
+| When | What | Readout | Then |
+|---|---|---|---|
+| 21990060 COMPLETED | M1 / M1-neg | TRAJ vs 21729557 at equal keep, plus the census | ledger §; §10.4; call the sitting on M1 or M1-neg |
+| 21990184 COMPLETED | D5-bis call | the five points vs 21729557; `cost_readout.py` | EQUIVALENT ⇒ ADOPT for new cells; DIVERGE ⇒ drop; UNCLEAR ⇒ RW43 decides |
+| 21990185 COMPLETED | re-walk noise | the five \|ΔTEST\| vs 21729557 | beside M1; one ledger *probe* section with D5-bis |
+| budgetstop 21940311 at episode 120 | ARM-FLAT if still only ep0023 | `grep "Snapshot frozen"` in its rank0.log | way-ahead §7 line, one ping; no TEST |

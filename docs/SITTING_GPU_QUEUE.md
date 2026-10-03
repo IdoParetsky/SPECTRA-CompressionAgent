@@ -9,22 +9,26 @@
 
 Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10** (current), §8 (cells). Options, decisions and dev items: `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`. N8: `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. What was built and run: `docs/RUN_RECORD_29SEP_V9C.md`. Schema: `docs/PROMPT_FABLE_NEXT_SITTING.md` §12.
 
-**Stamped:** 3 Oct 2026, 00:50 IDT (sitting close-out, Ido's delegated GO; poll 00:05; clock times checked against Slurm). **QOS 8/8 R:** Stage-4 21737123, C1 21938807, C2 21938810, budgetstop 21940311, factored 21940316, pf-w **21970089** (R 21:39), S2 **21982335** (R 21:39, 9/17 masks at 00:05), D5-off **21982372** (R 22:53). **PD, in this order:** D5-on **21982373** (priority 179), H0 **21986700** (SVHN, 175) and **21986701** (Fashion-MNIST, 174). They refill the QOS as jobs finish; no laptop needed. Sitting record: `docs/RUN_RECORD_02OCT_SITTING.md`. Ops hand-off: runbook §10.0b.
-- *Done today:* S1 **G1 PASS 3/3** (zero GPU; design §8; ledger §191). pf-w **21970086 / 87 / 88 COMPLETED** 21:39 / 19:36 / 21:39 (readout waits for 89). S2 MBV2 **21982334 COMPLETED** 22:51 (interim below; the G2 call needs both cells). H0's first submit **21982353 / 54 FAILED** at start (database, not loader; fixed, rehearsed, resubmitted as 21986700 / 01). C items built in `tree_v9d` (decide timer, provenance keys; record §1).
+**Sitting 3 Oct ~11:40 (Ido GO 10:36; docs and register, no build).** G2 HARM closed in the paper-facing text (design §0 item 7, §6.5, §8): keep L1, S3 closed, S1b not scheduled. D5 named **ADOPT-PENDING** (1.41× confirmed per epoch actually run; section "D5"). Next independent cells, PD behind 21990060: **D5-bis 21990184**, then **RW43 21990185**. After those the ladder is empty: if a slot idles, ping. The arms' freeze-TEST rule and the confirmations are in runbook **§10.0c**.
+
+**Stamped:** 3 Oct 2026, 10:00 IDT (ops catch-up after VPN; sitting close-out was 00:50). **QOS 8/8 R:** Stage-4 21737123 (PPO-25 / **ep 100**, freeze **ep0095**), C1 21938807 (PPO-18), C2 21938810 (PPO-18), budgetstop 21940311 (PPO-27 / ep 107, freeze still ep0023), factored 21940316 (PPO-12), pf-w **21970089**, H0 **21986700 / 21986701**. **PD:** freeze TEST **21990060** (`traj-v9c-paug-ep0095`, Features `rtx_6000|rtx_4090`). S2 and D5 COMPLETED. Sitting record: `docs/RUN_RECORD_02OCT_SITTING.md`. Ops hand-off: runbook §10.0b.
+- *Done today:* S1 **G1 PASS 3/3** (zero GPU; design §8; ledger §191). pf-w **21970086 / 87 / 88 COMPLETED** 21:39 / 19:36 / 21:39 (readout waits for 89). S2 **G2 HARM** both cells (design §8 "S2 result"; ledger **§192**). H0's first submit **21982353 / 54 FAILED** at start (database, not loader; fixed, rehearsed, resubmitted as 21986700 / 01, now R). D5 pair COMPLETED, **1.41×**, no registered call. Stage-4 freeze TEST **21990060** PD. C items built in `tree_v9d` (decide timer, provenance keys; record §1).
 - *S2 interim, MBV2 only (not the call):* nap_f − L1 = **+2.80** at BN (SE 0.07), **+1.83** at 1 epoch (SE 0.54), then −0.25 / −0.04 / **+0.21** at 3 / 10 / 40 (L1 seed SD 0.72). The cheap-FT shape the prior expected, nothing at 40. Kendall vs the oracle on the held-out cells: MBV2 nap_f **0.254** vs L1 0.286 (Taylor 0.352): the scorer does not transfer to MobileNet's inverted residuals. R56-C100 nap_f **0.423** vs L1 0.292 (L2 0.312): it does transfer across datasets within the ResNet family.
 - *Trains at 23:47:* Stage-4 PPO-21 (ev 0.795), C1 PPO-15 (ev 0.499), C2 PPO-15 (ev 0.154), budgetstop PPO-21 (ev 0.136), factored PPO-9 (ev 0.690). No freeze after PPO update 20 on any train: Stage-4's only freeze is still ep0011. Freeze TESTs are ops'. Held trains stay held.
 
 | Sitting cell | Job | State (00:05) | Check | Hope | Cross-off | Adopt |
 |---|---|---|---|---|---|---|
 | pf-w (proxy fidelity, keep ≤ 0.6 / 0.36) | 21970086–88 / **21970089** | 3 COMPLETED / R (walk step 70) | readout `--sets where` at 4/4 | ceiling ≥ 0.5 so the calls bite | ceiling < 0.5 ⇒ stop the pf line | 12x4 valid ⇒ 12/4 stays; 40x10-only ⇒ ping Ido |
-| S2 (learned score vs L1) | 21982334 / **21982335** | COMPLETED / R 9/17 masks | `--readout` on both run dirs | CHEAP-FT at most (prior) | FAIL ⇒ keep L1, no S3 | PASS ⇒ ranking-switch A/B (S3 still Ido's GO) |
-| H0 (hold-out mild bars) | **21986700 / 21986701** | PD (after D5-on) | start + 1.0 pp origin kill rule | 8 per-net bars at 0.8 / 0.6 / val_best | — (a baseline) | ledger rows on COMPLETED |
-| D5 (GPU crop+flip speed) | 21982372 / **21982373** | R / PD | on-arm banner; s/epoch | ≥ 2× per epoch | < 1.2× ⇒ drop | ≥ 1.5× and \|ΔTEST\| ≤ 1 pp ⇒ new cells only |
+| S2 (learned score vs L1) | 21982334 / **21982335** | both COMPLETED | `--readout` on both run dirs | CHEAP-FT at most (prior) | **HARM** ⇒ keep L1, no S3 | PASS ⇒ ranking-switch A/B (S3 still Ido's GO) |
+| H0 (hold-out mild bars) | **21986700 / 21986701** | R ~8 h (start checks ok) | start + 1.0 pp origin kill rule | 8 per-net bars at 0.8 / 0.6 / val_best | — (a baseline) | ledger rows on COMPLETED |
+| D5 (GPU crop+flip speed) | 21982372 / **21982373** | both COMPLETED | on-arm banner; s/epoch | ≥ 2× per epoch | < 1.2× ⇒ drop | **1.41×** (5.29 vs 3.75 s/epoch); ADOPT-PENDING on D5-bis |
+| D5-bis (TEST equivalence + one re-walk) | **21990184** | PD (priority 171) | GPU banner; 5 points vs 21729557 | EQUIVALENT | DIVERGE ⇒ drop D5 | EQUIVALENT ⇒ new cells only |
+| RW43 (re-walk noise of the M1 control) | **21990185** | PD (priority 170) | seed 43, loader banner | largest \|ΔTEST\| ≤ 0.5 pp | — (a measurement) | beside M1 |
 - *09:20 KILL confirmed.* C-G / producers-only thin **CANCELLED+** §176–§177. C-PCA r20 §178. C-PCA r56: 7 pairs, mean **−0.13 pp**, CONTINUE.
 - *09:20 KILL.* C-G thin **21940176/177** §176; producers-only thin **21940178/179** §177. C-PCA r20 **21940180** COMPLETED §178 (harsher at equal keep). Full-width LR still PD.
 - *G2 sitting (charge 1 Oct 01:03).* **A1** hold-outs 8/8. **A2** greedy §173; random r20 §174; random r56 **§175**. **A3–A5** CROSS-OFF / KILL. **C** C1/C2 R (PPO-2). **D** smoke passed; **no N8**.
 - *Overnight COMPLETED.* N3 **21767189** §157 **M4**; scratch-thin **21730507** §158 CROSS-OFF; scratch-DG **21730516** §159 ADOPT; N1 **21767190** §160 mixed; N2 **21767192** §161 not M5; streams **21729558** §162 split.
-- *Ledger.* Next **§192** (S1 probe is §191). S0 probe **§188 M8**. Proxy fidelity **§189** (ceiling dead). C-PCA **§190 4/4**. LR KILLs §176–§187 (C-G / producers-only / C-G+ **4/4**).
+- *Ledger.* Next **§193** (S2 probe is **§192 HARM**; S1 is §191). S0 probe **§188 M8**. Proxy fidelity **§189** (ceiling dead). C-PCA **§190 4/4**. LR KILLs §176–§187 (C-G / producers-only / C-G+ **4/4**).
 - *Trees.* `tree_v9b` / `tree_v9c` frozen. **`tree_v9d`** = v9c + the G2 dev pass, default-off for every existing profile (`PROVENANCE_v9d.txt`). Train `Requeue=0`.
 
 **P0** = `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256` (clean val = half of the CIFAR test set; TEST = the other 5k half). **FT** = `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1` (+ `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1` on `tree_v9c`). **Paired read** = `readers_s30/scripts/paired_steps.py <arm> <control>`: val only, same step = same widths under mild. **Honest gain**: only `readers_s30/scripts/final_ft_readout.py` (prints `ORIGIN-HURT` when the origin loses > 0.5 pp).
@@ -57,7 +61,8 @@ Equal keep = the size points (`param:0.8,0.6` thin; `0.9,0.8` C100) and `val_bes
 | N8 | diverse P train (8 C10 + 8 C100, catalog A): profile **`offline_train_v9_diverse`** in `tree_v9d` | roadmap §3: G1 (M1) + G2 (**smoke passed 04:44**) + G5 | NEON's multi-dataset offline train; then frozen → ImageNet, SVHN, Fashion-MNIST | roadmap §4 | roadmap §4 |
 | H0 | mild walks on the G2 hold-out checkpoints | **PD 21986700 / 21986701** (section "H0" below). Loader flag `SPECTRA_FT_AUG_HOLDOUT` built and checked. The first submit 21982353 / 54 failed on the C10 default database; fixed | the hold-out bar for N8 H5 / H7 | — | sitting GO (Ido's 2 Oct delegation) |
 | LA | accuracy look-ahead heuristic | today "look-ahead" = the floor guard, off under TRAJ, so it equals greedy | a one-step look-ahead costs ~3× FT per step | — | design question for Gilad |
-| D5 | GPU-side crop+flip (roadmap §5 item 5) | **off 21982372 R, on 21982373 PD** (section "D5" below), flag `SPECTRA_FT_AUG_GPU` | ≥ 1.5× per epoch at equal TEST ⇒ adopt for new cells | never into a live train | — |
+| D5 | GPU-side crop+flip (roadmap §5 item 5) | pair COMPLETED, **1.41×**; call ADOPT-PENDING (section "D5"). **D5-bis 21990184** settles it at TEST | EQUIVALENT at 5 points ⇒ adopt for new cells | never into a live train, a resume or a freeze TEST | — |
+| RW43 | the M1 control re-walked, seed 43 (`tree_v9b`) | **PD 21990185** (section "RW43") | re-walk noise beside M1 | — (a measurement) | — |
 | N8b | N8 + SVHN nets in training (pre-registered, roadmap §2b) | N8 passes on CIFAR (H2, H3) but is below mild on the dataset hold-outs (H5, H7) | read on Fashion-MNIST, ImageNet and the unlike families | — | — |
 | N9 | attribution train: P-only (the 21737095 line) | Pri 1 leaves mild | P vs P + aug in training | — | — |
 | O26 | `scripts/memorization_census.py` | **built 1 Oct** (ledger §169) | legacy v3 train 21385158: 24 / 24 MEMORIZED, val − TEST +3.35 to +7.19 pp; Stage-4 P train 21737123: 0 / 10, −0.63 to +0.08 pp | — | done |
@@ -92,6 +97,7 @@ Each arm is 21737123's recipe with one switch changed: P5-B2 catalog (CIFAR-10 +
 
 - *Order.* Smokes run right after the five running LR jobs; the released trains start once the whole LR grid has started.
 - *Slots.* Slurm does not preempt, so a train holds its GPU ~6 days per leg. At most **5 trains R** (Stage-4, C1, C2 and the two released arms): that leaves 3 GPUs for freeze TESTs, the LR grid and the fidelity cell. When a held arm's gate passes, ops pings Ido; the release (`scontrol release <id>`) is his call, best timed with the end of a train leg (Stage-4 fuse ~6 Oct, C1 / C2 ~7 Oct). N8 on GO goes ahead of any held arm.
+- *Freeze TESTs of the arms (3 Oct sitting; runbook §10.0c).* Never a freeze from before PPO update 20; the arms have no episode-120 fallback. At episode 120 without a post-update-20 freeze: an `ARM-FLAT` line in way-ahead §7 and one ping. At the governor stop without one: `ARM-NEG`, a negative for that change at this budget, and no TEST.
 - *Smoke pass.* `Stopping PPO training after 4 episodes`, one `PPO update`, no Traceback. A failed smoke leaves its train in `DependencyNeverSatisfied`: report; do not patch `tree_v9d` from ops.
 - *Progress.* Per PPO update vs 21737123, indexed by episode, not wall clock (40/10 runs ~2–3× slower per episode): probe area, critic ev, `gap_to_uniform`, `batch_score`.
 - *Preliminary read.* Each arm's first freeze after PPO update 20, TESTed exactly like Stage-4's (runbook §10.3: thin pair, P + crop+flip 40/10, vs mild 21729557 at equal keep, with the compression-rate census).
@@ -200,18 +206,16 @@ Nice 5 / 6 puts both ahead of `21970089` (nice 26, already aged); S2 is about 2 
 - *Greps:* `grep -E "\[s2\]|\[sel\]|\[lever\]|Kendall|Traceback" runs/slurm_logs/sel_<id>.out`.
 - *Never* TEST rows. One ledger *probe* section after both readouts.
 
-**Status (3 Oct 00:07).** Each started at the next free slot: **21982334** at 19:37 on `cs-pheno-12` (COMPLETED 22:51, 3.2 h, 17/17 masks, TB 0), **21982335** at 21:39 on `ise-pheno-08`. Start checks passed. Scorer md5 `2a3bf48db614` on both. Baseline TEST 92.36 vs nominal 92.99, and 73.16 vs 72.63, inside 1.5 pp. nap_f scored 25/25 and 30/30 groups, no L1 fallback. **21982335 R56-C100** is R, 9/17 masks (~950 s each, ETA ~02:10). MBV2 readout alone (`--readout runs/selection_probe/s2_mbv2_21982334`), val Δ in pp:
+**Status (3 Oct 09:54). G2 call: HARM.** **21982334** COMPLETED 22:51 (3.2 h, 17/17, TB 0). **21982335** COMPLETED 02:09 (4.5 h, 17/17, TB 0). Combined `--readout`:
 
-| budget | L1 seed SD | nap_f − L1 (SE, n 5) | oracle − L1 (SE, n 3) | random − L1 | anti-L1 − L1 |
-|---|---|---|---|---|---|
-| 0 | 0.00 | −3.98 (0.00) | −3.92 (0.00) | −4.14 | −4.22 |
-| BN | 0.11 | **+2.80** (0.07) | +17.01 (0.11) | −12.59 | −14.80 |
-| 1 | 0.98 | +1.83 (0.54) | +1.29 (1.02) | −9.64 | −70.18 |
-| 3 | 0.52 | −0.25 (0.43) | +0.83 (0.33) | −6.76 | −75.94 |
-| 10 | 0.76 | −0.04 (0.34) | +0.16 (0.38) | −3.66 | −77.62 |
-| 40 | 0.72 | **+0.21** (0.28) | +0.57 (0.29) | −1.49 | −79.28 |
+| cell | budget | L1 seed SD | nap_f − L1 (SE, n 5) | oracle − L1 (SE, n 3) |
+|---|---|---|---|---|
+| MBV2 | BN | 0.11 | **+2.80** (0.07) | +17.01 (0.11) |
+| MBV2 | 40 | 0.72 | **+0.21** (0.28) | +0.57 (0.29) |
+| R56-C100 | BN | 0.05 | **−0.54** (0.03) | +2.35 (0.04) |
+| R56-C100 | 40 | 0.86 | **−0.87** (0.44) | −1.03 (0.65) |
 
-On this cell alone the registered rule reads **CHEAP-FT**: BN passes (2.80 ≥ max(0.5, 0.22)); 1 epoch misses (1.83 < 2σ = 1.96); no harm. *H_40* is +0.21, inside noise, as the prior said. The oracle's BN gain (+17.0) is six times nap_f's, so the scorer captures little of what makes ablation masks recalibrate well. Kendall vs the oracle on this net is nap_f **0.254** vs L1 0.286 (Taylor 0.352). On R56-C100 (from that log), nap_f is **0.423** vs L1 0.292 (L2 0.312). The G2 call needs both cells: CHEAP-FT on both requires R56-C100's *H_BN* (or *H_1*, *H_3*) to clear its bar as well.
+*H_40* on R56-C100 is −0.87 < −σ_ft = −0.86 → **HARM**. Cheap-FT needs a budget ≤ 3 that clears both cells: MBV2 BN does; R56-C100 does not (BN −0.54; 1-epoch +2.86 < 2σ = 6.58). Keep L1. **Do not start S3.** Ledger **§192**. Full table: design §8 "S2 result".
 
 ## H0: mild walks on the G2 hold-out checkpoints (registered before submit (Slurm submit 2 Oct 19:21); sitting GO under Ido's delegation)
 
@@ -231,7 +235,7 @@ Nice 27 / 28: after S2 and after `21970089`. No final FT.
 - *Kill (loader mismatch):* the first net's unpruned TEST on the P half more than **1.0 pp** off the accuracy in its checkpoint name ⇒ scancel and report. A Traceback: report, no resubmit without a sitting.
 - *Read:* `[eval] TRAJ val_best` and the two size points, TEST on the P half, per net. These **are** baseline TEST rows (mild, same loop). Ledger them when each job completes. Never mix them with 10k legacy rows. Never put SVHN / Fashion-MNIST into a training catalog.
 
-**Status (3 Oct 00:05): first submit failed, resubmitted.**
+**Status (3 Oct 09:54): resubmits R, start checks passed, do not kill.** **21986700** SVHN since 01:57 on `cs-4090-10`; **21986701** Fashion-MNIST since 02:09 on `cs-4090-10`. Profile line shows `database=configs/input_g2_holdout_{svhn,fmnist}.json`. Hold-out aug banners match. Origin TEST (P half) vs nominal: SVHN DN-40 97.0 vs 96.88, MBV2 97.1 vs 97.03; FMNIST DN-40 95.3 vs 95.29, MBV2 94.9 vs 94.93 — all inside 0.12 pp. First-net TRAJ val_best in (SVHN DN-40 −0.99 pp @ keep 0.687; FMNIST DN-40 −1.24 pp @ 0.687). RepVGG / ShuffleNet not yet. Ledger on COMPLETED.
 - *What failed.* 21982353 / 21982354 started 22:51 / 22:52 on `cs-4090-07` and FAILED with exit 1 after 37 s / 51 s. The datasets loaded with the hold-out recipe: the keys are `svhn|haug=crop` and `fashion-mnist|haug=crop+flip`, so the flag works in a real job. The crash came next, in `parse_input_argument(args.database, …)`: `ValueError: None of the 3 configured networks could be instantiated … 3 were skipped as outside --datasets ['svhn|haug=crop']`. The profile `baseline_c10_mild_traj_gonce` defaults `SPECTRA_DATABASE=configs/database_c10_thin.json`, which holds three CIFAR-10 nets. The input JSON was fine. (The 22:51 ops note blames the input JSON; it was the database.)
 - *Fix.* Single-dataset walks off CIFAR-10 set `SPECTRA_DATABASE` to the input JSON, as the C100 walks did. Rehearsed on the login node (CPU, the job's flags): `preload_datasets` then `parse_input_argument` with the input JSON as both input and database. That gave 4 / 4 nets on SVHN and 4 / 4 on Fashion-MNIST (`scripts/_tmp_h0_rehearse.sh`).
 - *Resubmitted* with the same recipe, flags, wall and calls: **21986700** h0-svhn-mild (nice 27) and **21986701** h0-fmnist-mild (nice 28), `tree_v9d`. PD behind D5-on 21982373. Start check and kill rule unchanged. One addition: the log's `profile baseline_c10_mild_traj_gonce: input=… database=…` line must show `configs/input_g2_holdout_{svhn,fmnist}.json` for both. The origin TEST for the kill rule is the first `| Accuracy: 0.xxx` line per net, which comes right after `[reset.baseline_accuracy]`. `scripts/_tmp_oct3_ops_poll.sh` prints both.
@@ -273,7 +277,61 @@ Nice 27 / 28: after S2 and after `21970089`. No final FT.
 - *Kill:* Traceback or CUDA OOM on the on-arm ⇒ scancel, report.
 - *Never* ledger these as SPECTRA rows; one EFFICIENCY §3.3 line after the readout.
 
-**Status (3 Oct 00:05).** **21982372 d5-off R** since 22:53 on `cs-4090-07` (RTX 4090), no Traceback. **21982373 d5-on PD**, first in line (priority 179). Read after **both** COMPLETE, from each job's events: `python scripts/cost_readout.py <run dir>` (s/epoch per net), then the two TEST points from `[eval] TRAJ`. The arms may land on different 4090 nodes; the calls stand, but name both nodes in the readout.
+**Status (3 Oct 09:54): both COMPLETED; no registered call.** Off `21982372` COMPLETED 00:40 on `cs-4090-07` (1.78 h). On `21982373` COMPLETED 01:57 on `cs-4090-10` (1.26 h), GPU-aug banner and `FT_AUG_GPU=1` present, TB 0, no OOM. `cost_readout.py`: off 111.3 s FT/step, on 78.8 s (**1.41×**, on-arm 0.71× off). Per epoch actually run: **5.29 vs 3.75 s** (corrected by the 3 Oct sitting; the 2.78 / 1.97 first written here divided by 40 the FT time of all 57 steps, but only 30 fine-tune). TRAJ val_best keep 0.757: TEST −2.8 vs −2.7 pp; val −2.48 vs −3.18. Size-match 0.6 **NONE** (`SPECTRA_EVAL_MIN_PARAM_RATIO=0.70`). Not ADOPT, not NO-GAIN, not DIVERGE. EFFICIENCY §3.3. Never ledger. Sitting names the gap.
+
+**Call (sitting 3 Oct ~11:30, under Ido's GO): ADOPT-PENDING. The speed is accepted; TEST equivalence is still owed.**
+- *The speed is real.* The status line divided the per-step FT time by 40, but only 30 of the 57 steps fine-tune. Per epoch actually run (`epochs run 1200@40` on both arms): off **5.29**, on **3.75** s/epoch, still **1.41×**. The control 21729557 ran the same net with the loader on another 4090 node (`ise-4090-20`) at **5.24** s/epoch. So sharing `cs-4090-07` with C1 did not slow the off-arm.
+- *1.41× is this net's ceiling, not the method's.* Without the loader, R56-w4 (8.5 M params) is GPU-bound at 3.75 s/epoch. Smaller nets are loader-bound: the control's R20-w2, ten times smaller, still took 4.29 s/epoch. The 1.5× bar came from the ≥ 2× hope; it is retired.
+- *Equivalence so far.* At the one shared point (keep 0.757) TEST is 0.862 vs 0.863. Paired val over all 30 cuts at identical widths: mean arm − control **−0.00 pp**, arm better on 50 %. This is supporting evidence only: the runbook never adopts on a paired val read.
+- *What is missing.* The registered 0.6 point was out of reach: one pass of mild ends at keep 0.757, whatever `SPECTRA_EVAL_MIN_PARAM_RATIO` says. The registration should have asked for 2 passes (a sitting error). A second net is missing too.
+- *Therefore* D5-bis below. EQUIVALENT ⇒ **ADOPT for new cells**; DIVERGE ⇒ drop D5. Until then no cell sets the flag.
+- *Scope of an ADOPT:* new CIFAR cells that bring their own controls, and the next train if Ido starts one. Never a live train or a resume (§10.0b). Never the freeze TESTs: they are read against 21729557's loader walk, so they stay on the loader.
+
+## D5-bis: the M1 control re-walked with GPU crop+flip (registered before submit, 3 Oct ~11:30; sitting GO under Ido's delegation)
+
+**Why.** It settles D5 at TEST. As a by-product, it gives one re-walk sample of the M1 control at M1's own points.
+
+| Job name | Tree | Line | GPU | Wall | Nice |
+|---|---|---|---|---|---|
+| d5b-gpuaug-thin **21990184** (PD 3 Oct 11:41, priority 171, behind 21990060's 202) | `tree_v9d` | 21729557's line verbatim (`scripts/_tmp_v9c_wave1.sh`, id7) plus `SPECTRA_FT_AUG_GPU=1`. That line is profile `baseline_c10_mild_traj_gonce`, P0, `SPECTRA_FT_AUG=1`, seed 42, `SPECTRA_EVAL_PASSES=2`, `SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6`, deterministic, and the profile's thin input / database (md5-checked against `tree_v9b`) | `rtx_4090` only, the control's card | 10 h | 30 |
+
+**Points.** Under mild, the same step means the same widths. TEST is on the 5k P half. Five points:
+- size 0.80 on both nets;
+- size 0.60 on R20-w2 only (R56-w4 never reaches 0.6 in 2 passes);
+- the **terminal** row on both nets. `val_best` may pick different steps; terminal cannot.
+
+Control 21729557 TEST: R20-w2 0.637 / 0.600 / 0.596 (base 0.649); R56-w4 0.864 / — / 0.844 (base 0.890).
+
+**Calls:**
+- **EQUIVALENT ⇒ ADOPT D5 for new cells:** |ΔTEST| ≤ 1.0 pp at all five points.
+- **DIVERGE ⇒ drop D5:** |ΔTEST| > 1.0 pp at two or more points, or > 2.0 pp at any one.
+- **UNCLEAR (exactly one point in (1.0, 2.0]):** RW43 decides. If RW43 is also > 1.0 pp from 21729557 at that point, it is re-walk noise ⇒ EQUIVALENT. Otherwise DIVERGE.
+- *Reported, not gated:* s/epoch per net (FT time ÷ epochs run, from `cost_readout.py`), beside the control's 4.29 (R20-w2) and 5.24 (R56-w4). Caption it: another node.
+- *Noise:* the five |ΔTEST| go beside M1 (runbook §10.4) as one re-walk sample.
+
+**Running it.**
+- *Start check:* `FT aug on cifar-10: RandomCrop+Flip on the GPU, train split device-resident (n_train=50000, batch=256)`; env `SPECTRA_FT_AUG_GPU': '1'` and `SPECTRA_EVAL_PASSES': '2'`; profile line `input=configs/input_c10_thin.json database=configs/database_c10_thin.json`.
+- *Kill:* Traceback or CUDA OOM ⇒ scancel, report. Never resubmit with changed flags.
+- *Ledger:* one *probe* section shared with RW43, "re-walks of the M1 control". Never a method row.
+
+## RW43: the M1 control re-walked with a new fine-tune seed (registered before submit, 3 Oct ~11:30; sitting GO under Ido's delegation)
+
+**Why.** M1 reads a freeze TEST against a single mild walk with 0.5 pp and 1.0 pp margins. Every re-walk so far kept the seed:
+- the zoo twins (§164) moved 0.1–0.4 pp TEST;
+- VGG-19 C100 moved a size point by up to 0.8 pp across GPU types (§149; way-ahead insight 7: "caption gaps below ~1 pp as noise");
+- the no-aug thin walk re-walked at a paired val mean of −0.06 (R20-w2) and −0.51 pp (R56-w4) (§154 vs §143).
+
+So same-seed noise already reaches M1's 0.5 pp margin. A freeze takes a different path, which re-draws the fine-tune randomness. The noise that matters is therefore a **new seed** on M1's own control (crop+flip thin, 21729557), which has never been run.
+
+| Job name | Tree | Line | GPU | Wall | Nice |
+|---|---|---|---|---|---|
+| rw43-mild-thin **21990185** (PD 3 Oct 11:41, priority 170) | `tree_v9b` (the control's code; nothing in the tree is edited) | 21729557's line verbatim with `SPECTRA_SEED=43` | `rtx_6000\|rtx_4090`, as the freeze TESTs | 14 h | 31 |
+
+**Read:** the five D5-bis points against 21729557. Mild widths do not depend on the seed (`split_seed` is fixed at 0), so the steps line up. **No call: this is a measurement.**
+- Report the five |ΔTEST| and the largest. Write it beside M1 in runbook §10.4: "re-walk noise of the control, seeds 42 vs 43: …".
+- If the largest exceeds 0.5 pp, M1's "no point more than 0.5 pp worse" can fail on noise alone, and its "≥ 1 pp kinder" can pass on noise if the largest nears 1 pp. Say so in the M1 verdict; do not change the bar.
+- The seed-43 rows are a real mild TEST. The mild bar may be quoted as the 42/43 mean beside the single walk, never instead of it.
+- *Start check:* env `SPECTRA_SEED': '43'` and `SPECTRA_FT_AUG': '1'`, no `SPECTRA_FT_AUG_GPU`; log `FT aug on cifar-10: RandomCrop+Flip on train only (n_train=50000, n_val=5000)` and `split_seed=0`. *Kill:* Traceback ⇒ report.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 

@@ -86,3 +86,56 @@ Never (in addition to §10.6):
 - quote S2, pf-w or D5 numbers as TEST;
 - patch tree_v9b / tree_v9c, or edit SPECTRA_draft.md.
 ```
+
+---
+
+## 3 Oct ~11:50 addendum (short morning sitting, Ido GO 10:36)
+
+Paste the block below into the ops chat. It answers ops' 10:14 status and adds runbook §10.0c.
+
+```
+Sitting answer to your 10:14 status (Opus 5.5, Ido GO 10:36; docs + register, no build). Committed
+in this working copy ("Sitting 3 Oct"). New rules: runbook §10.0c. Record: docs/RUN_RECORD_02OCT_SITTING.md §8.
+
+Confirmed: the H0 resubmit stands. SPECTRA_TIME_DECIDE=1 stays pre-authorized on tree_v9d freeze
+TESTs; 21990060 (tree_v9c) correctly has none.
+
+1. G2 = HARM, closed in the paper-facing text: design §0 item 7, §6.5, §8 sitting decision, §9 non-claims;
+   tracker B3 / B7, slides 3-4, question 3. Keep L1. S3 closed. S1b not scheduled (it reopens only if pf-w
+   makes a BN-only in-loop proxy valid). Nothing for you to do beyond leaving it closed.
+
+2. D5 = ADOPT-PENDING. Correction: the s/epoch you wrote (2.78 / 1.97) divided by 40 the FT time of all
+   57 steps; only 30 fine-tune. Per epoch actually run: 5.29 vs 3.75 s, still 1.41x. The control 21729557
+   ran the same net on ise-4090-20 at 5.24, so the off-arm was not slowed by sharing cs-4090-07 with C1.
+   Paired val over 30 cuts: mean -0.00 pp, 50 % better (supporting only; never adopt on paired val).
+   Fixed in the queue file, EFFICIENCY §3.3 / §11 and the tracker. Nothing sets SPECTRA_FT_AUG_GPU until
+   D5-bis reads EQUIVALENT, and never a freeze TEST, a live train or a resume.
+
+3. Next independent cells, PD behind 21990060 (priority 202). Registered in the queue file; ops rows in
+   §10.0c:
+   - 21990184 d5b-gpuaug-thin (tree_v9d, rtx_4090 only, nice 30, priority 171): the 21729557 line plus
+     SPECTRA_FT_AUG_GPU=1. Start check: the GPU-aug banner, env FT_AUG_GPU 1 and EVAL_PASSES 2, profile
+     line input_c10_thin / database_c10_thin. On COMPLETED: five TEST points vs 21729557 (size 0.80 both
+     nets, size 0.60 R20-w2, terminal both). EQUIVALENT (all |dTEST| <= 1.0) => ADOPT for new cells;
+     DIVERGE (>= 2 points > 1.0, or one > 2.0) => drop D5; exactly one point in (1.0, 2.0] => RW43 decides.
+     Plus cost_readout s/epoch beside 4.29 / 5.24. One EFFICIENCY §3.3 line.
+   - 21990185 rw43-mild-thin (tree_v9b, seed 43, rtx_6000|rtx_4090, nice 31, priority 170): the
+     21729557 line with seed 43. No call. Report the five |dTEST| vs 21729557 and the largest, and write
+     them beside M1 in §10.4. If the largest exceeds 0.5 pp, the M1 verdict says its margin is inside
+     re-walk noise; the bar does not change. One ledger probe section for both re-walks.
+   After these the ladder is empty: ping Ido if a slot idles > 1 h; do not invent a cell.
+
+4. Freeze TESTs of the arms (C1, C2, budgetstop, factored), §10.0c, replacing the episode-120 fallback for
+   them only (Stage-4 unchanged):
+   - never TEST a freeze written before PPO update 20;
+   - episode 120 with no post-update-20 freeze => "ARM-FLAT <job> <name>: best probe <score> at ep<N>,
+     last three probes a / b / c" at the top of way-ahead §7, one ping, no TEST, no scancel;
+   - a later post-update-20 freeze => the normal rule (+ SPECTRA_TIME_DECIDE=1; one freeze TEST in flight
+     across trains; Stage-4 first);
+   - governor stop or fuse with none => "ARM-NEG <job>: no probe after PPO update 20 beat ep<N>", ping,
+     no TEST.
+   Budgetstop (ep0023 only, episode 108 at 10:14) should hit ARM-FLAT this afternoon.
+
+Unchanged: 21940319 / 21940321 stay held; no N8 / N9 / S3 / train; never patch tree_v9b / v9c; no
+SPECTRA_draft.md until the freeze TEST lands; the ledger's next section is §193.
+```

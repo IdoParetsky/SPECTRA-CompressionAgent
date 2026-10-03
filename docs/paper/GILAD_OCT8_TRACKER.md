@@ -39,11 +39,11 @@
 | A7 | Open items for Ido (NVML, an agent timer, PUE / CO2e, a GPU-side augmentation A/B, a val-selected DepGraph) | Open | his call | EFFICIENCY §11 |
 | B1 | "How filters are chosen (how many · which)" column | **Done.** 49 published methods in the canonical table; the column added to every living SOTA table (news §2.4–2.5, benchmark setup §3, Catalog-L §2.4 and §5.3, efficiency §4.1–4.3 and §8.1, directives §5, skeleton T1–T2) and to the literature canvas | — | design §2 |
 | B2 | "Is the two-decision head backed by literature?" | **Answered: yes.** LFPC (CVPR 2020), MFP, Blending, and closest, Balaskas et al. (IEEE TETC 2024); action branching and parameterized actions in RL. All are per-target; ours is the frozen, transferable setting | — | design §4.1 |
-| B3 | A second DRL agent for which filters | **Designed:** hierarchical; a set transformer over channel tokens; Plackett–Luce / Gumbel-top-k; reward paired against L1; a selection shield. Gated by S0 → S1 → S2. Training it (S3) needs Ido's GO | design only | design §6.4, §8 |
+| B3 | A second DRL agent for which filters | **Designed:** hierarchical; a set transformer over channel tokens; Plackett–Luce / Gumbel-top-k; reward paired against L1; a selection shield. Gated by S0 → S1 → S2. **Closed 3 Oct:** G2 HARM, so S3 is not trained | design only; closed | design §6.4, §8, §0 item 7 |
 | B4 | NAP2 as decision support | **NAPv2 code read**, quirks documented. NAP-F (its statistics per filter) built and checked against NAPv2's own code to 1e-9. Three roles defined; S0 records NAPv2 maps over its ResNet-56 fine-tunes | — | design §5–6 |
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
-| B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** Held-out τ +0.57 / +0.66 / +0.64 vs best hand +0.24 / +0.42 / +0.17; the signal is NAPv2 gradient statistics. S2 (does it *recover* better?): **3 Oct 00:07** MBV2 `21982334` done, CHEAP-FT-like (+2.80 at BN, +0.21 at 40); PASS already out; R56-C100 `21982335` R, call ~02:10 | **yes** | design §8 "S1 results", "S2 status"; ledger §191 |
+| B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
 
 ---
 
@@ -57,15 +57,17 @@
    - The K-th network costs one final fine-tune.
    - Break-even against DepGraph on the same GPU, plus their re-run on our 4090 (A3) and the deployment bench (A4) if they landed.
    - State where we lose: the first network's wall-clock.
-3. **Which filters?**
-   - Allocation vs selection.
-   - Our four null ranking A/Bs compared near-copies of L1: within-group τ 0.83–0.90 (S0 smoke).
-   - S0's lever curve, budgets 0 → 40, on the three literature cells, if it landed.
-   - The literature's prediction: selection matters with short or no fine-tuning, and fades by ~40 epochs.
-4. **The NAP2 avenue.**
-   - NAPv2 is network-level; NAP-F is the filter-level rebuild.
-   - Three roles: selector features, an anytime recovery predictor (also a cost lever), agent state.
-   - The second-agent design, its gates and its kill rule.
+3. **Which filters? Allocation is the whole game at our budget** (design §0 item 7).
+   - Allocation vs selection in 49 methods.
+   - Our four null ranking A/Bs compared near-copies of L1: within-group τ 0.83–0.90.
+   - S0's lever curve, budgets 0 → 40, on three literature cells. Nothing beats L1 beyond noise after fine-tuning; even the ablation oracle's masks end below it.
+   - S2 on two unseen nets: the learned score does not recover better (+0.21 / −0.87 pp at 40 epochs; G2 HARM at its bar).
+   - Magnitude is still necessary: random −1.4 / −1.5 pp, and anti-L1 −79 pp on MobileNet-V2.
+   - It matches the literature's prediction (MFP: 93.26 vs 93.22 at 40 epochs).
+4. **The NAP2 avenue: what survives.**
+   - NAP-F's per-filter *gradient* statistics rank channels like the oracle on held-out nets (S1, τ 0.57–0.66 vs ≤ 0.42 by hand). That ranking transfers within a family, not to MobileNet-V2.
+   - The second agent is closed by S2. NAP-F moves to the anytime recovery predictor (a cost lever) and to agent state.
+   - Lesson for any learned score: hold out a family, not only a net.
 5. **Robustness vs verification.** One table and three hooks: an action-stability certificate for the frozen actor, choosing among frozen seeds by agreement, and the selection shield. Then ask which line he meant.
 
 ---
@@ -102,7 +104,7 @@
 2. **NAP2:**
    - Can Michael share his trained autoencoder / BiGRU weights and his NAS-Bench-201 snapshots? The code we have is main as of 1 Oct; it ships test reference outputs (autoencoder embeddings, BiGRU predictions), not trained models.
    - What acknowledgement or co-authorship is expected if NAP-F builds on NAPv2?
-3. **The second agent:** a thesis chapter, or the follow-up paper? After S0–S2 it is about one GPU-day per training round.
+3. **The selection negative** (replaces "the second agent: chapter or follow-up?", which S2 closed): is S0–S2 a thesis section, i.e. "allocation is what a pruning agent must learn; beyond magnitude, selection is not a lever at a 40-epoch recovery", with S1's transferable ranking as the positive side result?
 4. **The two-decision head** has precedent (LFPC 2020, Balaskas 2024). Is it fine to present it as applied in the transfer setting rather than as a contribution?
 5. **Side metrics:** which to headline? Per-target search cost (ours is zero by construction), the cost of the K-th network, or deployment latency at equal FLOPs (pending)?
 
@@ -143,6 +145,14 @@
 - **2 Oct 22:51** — S2 MBV2 `21982334` **COMPLETED**. On this cell alone: nap_f − L1 +2.80 at BN (SE 0.07), +1.83 at 1 epoch, +0.21 at 40 (σ 0.72), so CHEAP-FT-like and **PASS already out**. Kendall vs oracle: MBV2 nap_f 0.254 < L1 0.286; R56-C100 0.423 > L1 0.292. The scorer transfers across datasets in the ResNet family, not to a new family. Design §8 "S2 status". The call waits for `21982335` (~02:10).
 - **2 Oct 22:52** — H0 `21982353` / `54` **FAILED** at start: the profile's default database is three C10 nets, filtered to zero under `--datasets svhn`. The loader flag itself worked. Fixed with `SPECTRA_DATABASE` = the input JSON, rehearsed, resubmitted **`21986700` / `21986701`** (23:51, PD).
 - **3 Oct 00:02** — Code deployed to `tree_v9d`, default off; running processes keep the code they loaded. `SPECTRA_TIME_DECIDE=1` times each eval-walk decision (`cost_readout.py` prints `decide … ms`). `policy_config.json` now records today's augmentation flags. `submit.sh` exports the three new flags. 13 test files green on a staged copy before deploy.
+- **3 Oct 09:54** — B7 S2 **G2 HARM**. Combined readout of `21982334` / `21982335`. *H_40* MBV2 **+0.21** / R56-C100 **−0.87** (σ 0.86). Cheap-FT on both cells: none. Design §8 "S2 result"; ledger probe **§192**. Never a TEST row. **Do not start S3.**
+- **3 Oct 09:54** — D5 pair COMPLETED. Off `21982372` (`cs-4090-07`) 5.29 s/epoch; on `21982373` (`cs-4090-10`) 3.75 s/epoch = **1.41×** (per epoch actually run; corrected by the 3 Oct sitting from 2.78 / 1.97) (between NO-GAIN <1.2× and ADOPT ≥1.5×). TRAJ TEST at val_best keep 0.757: −2.8 vs −2.7 pp; size_match NONE (`MIN_PARAM_RATIO=0.70`). EFFICIENCY §3.3. Never ledger.
+- **3 Oct 10:00** — Stage-4 freeze **ep0095** (score 0.286, written 06:52, after PPO-20). Freeze TEST **21990060** submitted (`tree_v9c`, no timer), PD Features `rtx_6000\|rtx_4090`, vs 21729557. Do not TEST ep0011.
+- **3 Oct ~11:45** — Sitting (Ido GO 10:36; docs and register, no build).
+  - *G2 closed as HARM* in the paper-facing text (design §0 item 7, §6.5, §8): beyond magnitude, selection is not a lever at our budget; keep L1; S3 closed; S1b only if pf-w makes a BN-only in-loop proxy valid. Slides 3–4 and question 3 above rewritten.
+  - *D5 ADOPT-PENDING:* 1.41× confirmed per epoch run, and not node contention (the control ran 5.24 s/epoch on another node). TEST equivalence owed.
+  - *Next cells,* PD behind 21990060: **D5-bis `21990184`** (the M1 control re-walked with GPU crop+flip; five TEST points; EQUIVALENT ⇒ adopt for new cells) and **RW43 `21990185`** (the control re-walked with seed 43; re-walk noise beside M1's 0.5 pp margin).
+  - *Arms' freeze rule:* no TEST of a pre-update-20 freeze; ARM-FLAT at episode 120, ARM-NEG at the stop (runbook §10.0c).
 
 ---
 
