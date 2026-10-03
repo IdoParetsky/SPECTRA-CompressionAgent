@@ -139,3 +139,53 @@ TESTs; 21990060 (tree_v9c) correctly has none.
 Unchanged: 21940319 / 21940321 stay held; no N8 / N9 / S3 / train; never patch tree_v9b / v9c; no
 SPECTRA_draft.md until the freeze TEST lands; the ledger's next section is §193.
 ```
+
+---
+
+## 4 Oct ~02:30 hand-off (sitting close; Ido "complete your last effort", GO "fill all 3" ~01:55)
+
+Paste the block below into the ops chat. It supersedes the 11:50 addendum's open items and adds runbook §10.0d.
+
+```
+Sitting close (Opus 5.5, 4 Oct 01:29-02:30). Committed and pushed ("Sitting close 4 Oct"). New rules:
+runbook §10.0d. Record: docs/RUN_RECORD_02OCT_SITTING.md §9. Your 01:31-01:38 work (§193-§196, D5
+ADOPT, H0, pf-w, the C2 TEST) agrees with my reads on every number. I committed your hunks with mine.
+
+1. Ido's one-time exception: two arm freeze TESTs in flight at once. QOS is 8/8.
+   - 22056144 traj-c2-ep0083 (yours): unchanged.
+   - 22059501 traj-v9d-bstop-ep0131 (mine): budgetstop's first freeze after update 20; tree_v9d, seed 42,
+     TIME_DECIDE=1. Start check passed 02:25 (SPECTRA_ACTION_MENU None -> 'budget').
+   - 22059502 traj-v9c-paug-ep0095-s43 = FR43 (mine): the Stage-4 ep0095 TEST re-walked with seed 43,
+     tree_v9c, nice 5. Start check passed.
+   - 22059499 was my duplicate of 22056144. Scancelled 02:03; never resubmit.
+   After both arm TESTs end, "at most one freeze TEST in flight" applies again.
+
+2. M1 / M1-neg: the two arm TESTs land ~30 min apart. Read both before writing either milestone. M1 on
+   either wins. Otherwise M1-neg fires on 21990060 plus whichever arm TEST is also > 0.5 pp worse than mild
+   on both nets. If STOP ends a budgetstop net above keep 0.80: write "STOP-EARLY <net> keep <k>" with its
+   terminal TEST and ping once. That TEST counts toward neither milestone.
+   Equal-keep tool: scripts/_tmp_oct4_m1read.sh via rexec. Set AGENTS at the top: $D/runs/job22056144 or
+   $D/runs/job22059501 for one arm; "$C/runs/job21990060 $C/runs/job22059502" for FR43.
+
+3. Ledger: I added two marked addenda and did not rewrite yours.
+   - §193, equal keep: your table sets points at different keeps side by side. At equal keep, r56 is kinder
+     than the three-walk mild mean at 16 of 19 shared keeps (+0.3 to +1.2 over 0.72-0.62). Both nets are
+     worse at their first cut (-1.2 / -1.4). The verdict stands. "Deeper and harsher" fits the first cut
+     and the keeps mild never reaches. Do not repeat "not kinder" in new text.
+   - §196, noise: per-walk mild SD is ~0.15 pp (r20 0.80), 0.9-1.1 (r20 <= 0.6) and ~0.4 (r56).
+   - Next section: §197.
+   Way-ahead §7 has your "M1 does not fire" paragraph twice (01:31 and "3 Oct 15:40"); keep one.
+
+4. On COMPLETED:
+   - 22059501: the §10.3 item 1 read + census; one PRELIM section; decide ms into EFFICIENCY §3.4.
+   - 22059502: FR43's three reads (queue file): width stability vs 21990060; |dTEST| at shared widths; the
+     two-walk agent mean vs the three-walk mild mean ("R56 kinder band replicates" if >= +0.5 pp on at
+     least half of the shared keeps in 0.72-0.62). No call. One PRELIM section beside §193. M1's verdict on
+     ep0095 stays 21990060's.
+   - 22056144: as you registered.
+
+5. Unchanged: 21940319 / 21940321 stay held; no N8 / N9 / S3 / train; never patch tree_v9b / v9c; never
+   FT_AUG_GPU on a live train, a resume or a freeze TEST; no SPECTRA_draft.md edit without Ido's GO; C1's
+   ARM-FLAT watch at episode 120; factored ep0047 is never TESTed. When a slot frees, the ladder is empty:
+   ping Ido, do not invent.
+```

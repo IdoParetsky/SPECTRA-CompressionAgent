@@ -189,3 +189,22 @@ QOS gpu-part stays 8/8 R. The other five running GPUs are ops' jobs:
 | 21990184 COMPLETED | D5-bis call | the five points vs 21729557; `cost_readout.py` | EQUIVALENT ⇒ ADOPT for new cells; DIVERGE ⇒ drop; UNCLEAR ⇒ RW43 decides |
 | 21990185 COMPLETED | re-walk noise | the five \|ΔTEST\| vs 21729557 | beside M1; one ledger *probe* section with D5-bis |
 | budgetstop 21940311 at episode 120 | ARM-FLAT if still only ep0023 | `grep "Snapshot frozen"` in its rank0.log | way-ahead §7 line, one ping; no TEST |
+
+## 9. 4 Oct close (01:29–02:30; Ido "complete your last effort", then GO "fill all 3" ~01:55)
+
+**What landed while the PC was off** (ops wrote the ledger sections at 01:31–01:38; the sitting read the same jobs in parallel and agrees on every number):
+- *D5-bis 21990184:* one point in (1.0, 2.0] (R20-w2 terminal +1.10). RW43 is −1.12 at that point ⇒ EQUIVALENT ⇒ **D5 ADOPTED for new cells** (§196). Speed: R20-w2 1.47 vs 4.29 / 4.10 s/epoch (~2.8×), R56-w4 3.73 vs 5.24 / 5.10 (~1.4×); walk 2.78 h vs 4.23 / 4.15 h.
+- *RW43 21990185:* largest |ΔTEST| vs seed 42 is 1.16 pp. Per-walk SD ≈ 0.15 (R20-w2 size 0.80), 0.9–1.1 (R20-w2 keep ≤ 0.6), ≈ 0.4 (R56-w4) pp. M1's 0.5 pp margin is inside the noise; the bar is unchanged (§196 + addendum).
+- *Stage-4 freeze TEST 21990060:* M1 does not fire, not a mild clone (§193). The sitting added an equal-keep addendum: R56-w4 is kinder than the three-walk mild mean at 16 of 19 shared keeps (+0.3 to +1.2 over 0.72–0.62), and worse at its first cut on both nets (−1.2 / −1.4).
+- *H0* (§194) and *pf-w* (§195): ops' reads; the sitting did not re-derive them.
+
+**Submitted on Ido's GO** (registered first, queue file "FR43" and "The two arm freeze TESTs"; runbook §10.0d):
+- **22059501** `traj-v9d-bstop-ep0131`: budgetstop's first post-update-20 freeze. It runs beside ops' C2 TEST 22056144, by Ido's one-time exception. Start check passed: the budget menu is pinned.
+- **22059502** `traj-v9c-paug-ep0095-s43` (FR43): the Stage-4 ep0095 TEST re-walked with seed 43. It measures the agent's own walk-to-walk noise and whether its widths survive another fine-tune seed. Start check passed.
+- **22059499** was the sitting's duplicate of ops' 22056144, which started 26 min earlier while the sitting was registering. Scancelled at 02:03.
+
+**Tool.** `scripts/_tmp_oct4_m1read.sh` (local, not committed; ops runs it through `rexec.ps1`) interpolates each mild walk at an agent walk's keeps. Set `AGENTS` at the top: one run for an M1 read, two for FR43.
+
+**Not done, by design.** No build, no train, no N8 / S3. `SPECTRA_draft.md` untouched. Ops' files (`docs/PROMPT_FABLE_V6.md`, `docs/paper/GILAD_NEWS_30SEP.md`) untouched. Ops' ledger §193–§196 were not rewritten; the two addenda are marked.
+
+**Open at hand-off** (runbook §10.0d): 22056144 + 22059501 → read both, then M1 / M1-neg; 22059502 → FR43's three reads, one PRELIM section; C1's ARM-FLAT watch at episode 120; ping on an idle slot.

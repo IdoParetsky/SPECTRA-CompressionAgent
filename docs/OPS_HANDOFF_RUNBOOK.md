@@ -101,7 +101,7 @@ A short sitting: docs and the next-cell register, no build. Record: `docs/RUN_RE
 
 **Closed.**
 - *G2 is HARM.* The paper-facing wording is in design §0 item 7, §6.5 and §8: "beyond magnitude, which channels survive did not change recovered accuracy at our fine-tune budget". Keep L1. S3 is closed. S1b is not scheduled.
-- *D5 is ADOPT-PENDING.* The 1.41× holds per epoch actually run (5.29 vs 3.75 s/epoch); the old 2.78 / 1.97 divided by 40 the FT time of all 57 steps, including the non-cut ones. D5-bis settles it at TEST. Until then no cell sets `SPECTRA_FT_AUG_GPU`.
+- *D5 is ADOPT for new cells* (ops 4 Oct 01:38). D5-bis `21990184` + RW43 `21990185`: EQUIVALENT (re-walk noise), ledger **§196**. Never `SPECTRA_FT_AUG_GPU` on a live train, a resume, or a freeze TEST. New independent cells may set it.
 
 **Next independent cells** (queue file sections "D5-bis" and "RW43"; PD behind 21990060, which keeps priority 202):
 
@@ -110,7 +110,7 @@ A short sitting: docs and the next-cell register, no build. Record: `docs/RUN_RE
 | 21990184 | d5b-gpuaug-thin (`tree_v9d`, `rtx_4090` only, nice 30, wall 10 h) | **Start check:** `FT aug on cifar-10: RandomCrop+Flip on the GPU, train split device-resident (n_train=50000, batch=256)`; env `SPECTRA_FT_AUG_GPU': '1'` and `SPECTRA_EVAL_PASSES': '2'`; profile line `input=configs/input_c10_thin.json database=configs/database_c10_thin.json`. **Kill:** Traceback or OOM ⇒ scancel, report. **On COMPLETED:** read the five points against 21729557: size 0.80 on both nets, size 0.60 on R20-w2, the terminal row on both. Apply the queue file's calls: EQUIVALENT (all \|ΔTEST\| ≤ 1.0 pp) ⇒ ADOPT for new cells; DIVERGE (two or more points > 1.0, or one > 2.0) ⇒ drop D5; exactly one point in (1.0, 2.0] ⇒ wait for RW43. Then `python scripts/cost_readout.py 21990184`: s/epoch = FT time ÷ epochs run, beside 4.29 / 5.24. One EFFICIENCY §3.3 line |
 | 21990185 | rw43-mild-thin (`tree_v9b`, seed 43, `rtx_6000\|rtx_4090`, nice 31, wall 14 h) | **Start check:** env `SPECTRA_SEED': '43'` and `SPECTRA_FT_AUG': '1'`, no `SPECTRA_FT_AUG_GPU`; `FT aug on cifar-10: RandomCrop+Flip on train only`; `split_seed=0`. **Kill:** Traceback ⇒ report. **On COMPLETED:** the same five points against 21729557, the five \|ΔTEST\| and the largest. Write it beside M1 (§10.4): "re-walk noise of the control, seeds 42 vs 43: …". If the largest exceeds 0.5 pp, say in the M1 verdict that its 0.5 pp margin is inside re-walk noise; never change the bar. Then the D5-bis UNCLEAR rule if it applies. One ledger *probe* section for both re-walks |
 
-After these two the ladder is empty. If a slot idles for more than 1 h, ping Ido; do not invent a cell.
+**Done 3 Oct:** D5-bis COMPLETED 18:28; RW43 COMPLETED 22:38. Ladder empty. **4 Oct 01:35:** C2 freeze TEST **22056144 R** (`tree_v9d`, ep0083, `TIME_DECIDE=1`, `Requeue=0`) fills one idle slot. QOS **6/8**. If a slot idles for more than 1 h, ping Ido; do not invent a cell. Do not TEST Budget ep0131 while 22056144 is in flight. **Superseded by §10.0d:** Ido's one-time exception put Budget ep0131's TEST (**22059501**) in flight beside it.
 
 **Freeze TESTs of the arms (C1 21938807, C2 21938810, budgetstop 21940311, factored 21940316, and any held arm Ido releases). Replaces §10.3 item 1's episode-120 fallback for these trains only; Stage-4 is unchanged.**
 - **Never TEST a freeze written before PPO update 20.** There is no episode-120 fallback for an arm. A pre-update-20 snapshot is the actor after ≤ 20 of ≥ 250 episodes: it measures the start, not the arm's change.
@@ -120,9 +120,25 @@ After these two the ladder is empty. If a slot idles for more than 1 h, ping Ido
 - *Now:* budgetstop 21940311 was at episode 108 at 10:14 with its only freeze at ep0023 (probe 0.133). Expect its ARM-FLAT line in a few hours.
 
 **Never (adds to §10.6 and §10.0b):**
-- Put `SPECTRA_FT_AUG_GPU` on a freeze TEST, a live train or a resume, or on any cell before D5-bis reads EQUIVALENT.
+- Put `SPECTRA_FT_AUG_GPU` on a freeze TEST, a live train or a resume. New independent cells may set it after the 4 Oct EQUIVALENT call.
 - TEST an arm's pre-update-20 freeze, whatever the episode.
 - Resubmit `d5b-*` or `rw43-*` with changed flags.
+
+### 10.0d 4 Oct sitting close (~02:20; Ido GO "fill all 3" ~01:55; supersedes §10.0c where they differ)
+
+**Ido's one-time exception.** Two arm freeze TESTs run at once, this time only. When both have ended, §10.0c's "at most one freeze TEST in flight" applies again. QOS **8/8**: five trains plus the three jobs below. Queue file sections "FR43" and "The two arm freeze TESTs".
+
+| Job | Name | What | Ops action |
+|---|---|---|---|
+| 22056144 | traj-c2-ep0083 | ops' C2 freeze TEST (§10.0c), R since 01:35 | Unchanged |
+| 22059501 | traj-v9d-bstop-ep0131 | budgetstop 21940311 freeze ep0131 (probe 0.1339, after update 20). §10.5 (a) in `tree_v9d`, seed 42, `TIME_DECIDE=1`, nice 0. R since 02:01 | **Start check:** the policy_config pin lines in the log include `SPECTRA_ACTION_MENU` → `budget` (the snapshot pins it, with rates [1.0, 0.01, 0.02, 0.04, −1.0]). If the pin is missing: scancel, report. **On COMPLETED:** the §10.3 item 1 read (equal keep against 21729557, plus the census), using `scripts/_tmp_oct4_m1read.sh` with `AGENTS="$D/runs/job22059501"`. If STOP ends a net's walk above keep 0.80, that net has no size point. Write `STOP-EARLY <net> keep <k>` with its terminal TEST and ping Ido once; that TEST counts toward neither M1 nor M1-neg. One PRELIM ledger section. `decide … ms` goes into EFFICIENCY §3.4 |
+| 22059502 | traj-v9c-paug-ep0095-s43 | FR43: Stage-4 ep0095 re-walked with seed 43 (`tree_v9c`, nice 5). R since ~02:03 | **Start check:** env `SPECTRA_SEED': '43'`, actor path ending `job21737123/snapshots/ep0095/latest_best_actor.pt`. **On COMPLETED:** the queue file's three FR43 reads (stability, noise, replication), using `_tmp_oct4_m1read.sh` with `AGENTS="$C/runs/job21990060 $C/runs/job22059502"`. No call. One PRELIM ledger section beside §193. M1's verdict on ep0095 stays 21990060's |
+
+- **Milestones with two arm TESTs landing together.** They started 26 min apart and take ~4 h each, so read both before writing M1 or M1-neg. M1 on either one wins. Otherwise M1-neg fires on 21990060 plus whichever arm TEST is also more than 0.5 pp worse than mild on both nets. Quote the M1 margin with the RW43 noise line (§196).
+- `22059499` was my duplicate of 22056144. I scancelled it at 02:03; never resubmit it.
+- The sitting added two ledger addenda: §193's equal-keep read (r56 kinder at 16 of 19 shared keeps; the verdict stands) and §196's per-walk noise. The ledger's next section is **§197**.
+- C1 still has only ep0011, so its ARM-FLAT watch at episode 120 stands. Budgetstop's ARM-FLAT is moot: it froze ep0131 after update 20. Factored's ep0047 is pre-update-20: never TEST it.
+- When a TEST ends the ladder is empty again: ping, do not invent. Next cell candidates for a sitting: SGD-proxy variants on the pf finals (§195); a two-walk mild bar for M1 (RW43 shows 1.2 pp of noise).
 
 ### 10.1 Live jobs (30 Sep 13:20)
 

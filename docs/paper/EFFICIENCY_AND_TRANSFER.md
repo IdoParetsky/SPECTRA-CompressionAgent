@@ -87,6 +87,7 @@ So the CIFAR walk is bound by the CPU augmentation pipeline, not by the GPU. Und
   - *Not node contention:* the control 21729557 ran the same net with the loader on `ise-4090-20` at 5.24 s/epoch, against the off-arm's 5.29 on `cs-4090-07`, which it shared with C1.
   - *A ceiling for this net:* without the loader, R56-w4 (8.5 M params) is GPU-bound. Loader-bound nets should gain more; the control's R20-w2, ten times smaller, still took 4.29 s/epoch.
   - *Call (sitting, 3 Oct): ADOPT-PENDING.* Paired val over all 30 cuts: mean −0.00 pp, 50 % better (supporting only). D5-bis `21990184` re-walks the M1 control with the flag on: EQUIVALENT at five TEST points ⇒ adopt for new cells; DIVERGE ⇒ drop. Never into a live train, a resume or a freeze TEST.
+  - *Call (ops, 4 Oct 01:38): EQUIVALENT ⇒ ADOPT for new cells.* D5-bis `21990184` (`cs-4090-01`, GPU-aug banner, 2-pass) vs mild `21729557` at the five registered TEST points: four |ΔTEST| ≤ 0.7 pp; r20 terminal **1.1 pp**. RW43 `21990185` (seed 43) is also 1.1 pp off s42 at that point and 1.2 pp at r20 size 0.60 → re-walk noise, not DIVERGE. Ledger probe **§196**. s/epoch (FT ÷ epochs run): r20 **1.47**, r56 **3.73** vs control 4.29 / 5.24 on another 4090. Never into a live train, a resume, or a freeze TEST. Never a SPECTRA method row.
 
 ### 3.4 The agent's overhead, and its caveats
 
@@ -374,8 +375,8 @@ The paper's novelty sentence, supported by both fact-checks: no published CNN pr
 3. **Add an explicit `agent.decide` stage timer and a per-walk cost event to the runner,** in the next tree only, never under live jobs. It replaces the §3.4 upper bound with a measurement. *The timer is built (2 Oct):*
    - `SPECTRA_TIME_DECIDE=1` in `tree_v9d`, default off; `submit.sh` exports it.
    - Tests: `tests/test_decide_timer.py` 8/8.
-   - No job sets it yet. Set it on the next frozen-actor TEST.
+   - First job that sets it: C2 freeze TEST **22056144** (in flight 4 Oct 01:35). Read `decide … ms` on COMPLETED.
    - The per-walk cost event is not built: `cost_readout.py` already derives per-net cost from the stage events.
 4. **Get BGU's PUE and grid carbon intensity for CO2e,** or quote the conventional defaults with a caveat.
-5. **Run a GPU-side CIFAR augmentation equivalence A/B as its own cell** (§3.3), since the walk is input-bound. *Done 3 Oct* as D5 (`21982372` / `21982373`). Speedup **1.41×** on two 4090s (5.29 vs 3.75 s/epoch); |ΔTEST| 0.1 pp at keep 0.757; no 0.6 size point. No registered call fired. **Sitting call: ADOPT-PENDING** on D5-bis `21990184` (five TEST points against 21729557). Never into a live train.
+5. **Run a GPU-side CIFAR augmentation equivalence A/B as its own cell** (§3.3), since the walk is input-bound. *Done 3 Oct* as D5 (`21982372` / `21982373`). Speedup **1.41×** on two 4090s (5.29 vs 3.75 s/epoch); |ΔTEST| 0.1 pp at keep 0.757; no 0.6 size point. No registered call fired. **Ops call 4 Oct: EQUIVALENT ⇒ ADOPT for new cells** (D5-bis `21990184` + RW43 `21990185`; §196). Never into a live train, a resume, or a freeze TEST.
 6. **Optional: a val-selected DepGraph variant.** Pick DepGraph's sparse-learning and fine-tune epochs on our 5k val half, and quote our 5k P TEST half. That puts DepGraph on SPECTRA's own protocol. It needs a patched copy of their `main.py`, so it is no longer their exact pipeline. Run it only if the paper puts DepGraph and SPECTRA in the same accuracy table.

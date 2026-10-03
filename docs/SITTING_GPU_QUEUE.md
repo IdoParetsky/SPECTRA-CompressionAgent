@@ -11,6 +11,13 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 
 **Sitting 3 Oct ~11:40 (Ido GO 10:36; docs and register, no build).** G2 HARM closed in the paper-facing text (design §0 item 7, §6.5, §8): keep L1, S3 closed, S1b not scheduled. D5 named **ADOPT-PENDING** (1.41× confirmed per epoch actually run; section "D5"). Next independent cells, PD behind 21990060: **D5-bis 21990184**, then **RW43 21990185**. After those the ladder is empty: if a slot idles, ping. The arms' freeze-TEST rule and the confirmations are in runbook **§10.0c**.
 
+**Sitting close, 4 Oct ~02:25 (Ido GO "fill all 3", ~01:55). QOS 8/8 R:** five trains plus three TESTs: C2 freeze TEST **22056144** (ops), budgetstop freeze TEST **22059501** and FR43 **22059502** (the Stage-4 ep0095 TEST re-walked with seed 43). Both arm TESTs run at once by Ido's one-time exception (runbook **§10.0d**). D5 is ADOPTED for new cells (D5-bis + RW43; §196). RW43 puts the noise of one mild walk at up to 1.2 pp. The ledger's next section is **§197**. When a slot frees the ladder is empty: ping, do not invent.
+
+**Stamped:** 4 Oct 2026, 01:38 IDT (PC-off catch-up). **QOS 6/8 R:** Stage-4 21737123 (freeze still **ep0095**, TESTed), C1 21938807 (freeze still **ep0011**), C2 21938810 (freeze **ep0083**), Budget+STOP 21940311 (freeze **ep0131**), factored 21940316 (freeze **ep0047**), C2 freeze TEST **22056144** (`ise-4090-21`, `TIME_DECIDE=1`). **PD:** five train resumes `afterok` + two held trains and their r1s. Ladder empty. **2 idle — ping, do not invent.**
+- *Overnight COMPLETED:* pf-w 89 **§195** (no proxy valid; 21940321 held); freeze TEST **21990060 §193 M1 does not fire**; D5-bis+RW43 **§196 EQUIVALENT ⇒ ADOPT new cells**; H0 **§194 TESTs**.
+- *In flight (one freeze TEST):* **22056144** C2 ep0083. Do not TEST Budget ep0131 until it ends.
+- *Ledger.* Next **§197**. Do not N8 / S3. Do not release 21940319/21.
+
 **Stamped:** 3 Oct 2026, 10:00 IDT (ops catch-up after VPN; sitting close-out was 00:50). **QOS 8/8 R:** Stage-4 21737123 (PPO-25 / **ep 100**, freeze **ep0095**), C1 21938807 (PPO-18), C2 21938810 (PPO-18), budgetstop 21940311 (PPO-27 / ep 107, freeze still ep0023), factored 21940316 (PPO-12), pf-w **21970089**, H0 **21986700 / 21986701**. **PD:** freeze TEST **21990060** (`traj-v9c-paug-ep0095`, Features `rtx_6000|rtx_4090`). S2 and D5 COMPLETED. Sitting record: `docs/RUN_RECORD_02OCT_SITTING.md`. Ops hand-off: runbook §10.0b.
 - *Done today:* S1 **G1 PASS 3/3** (zero GPU; design §8; ledger §191). pf-w **21970086 / 87 / 88 COMPLETED** 21:39 / 19:36 / 21:39 (readout waits for 89). S2 **G2 HARM** both cells (design §8 "S2 result"; ledger **§192**). H0's first submit **21982353 / 54 FAILED** at start (database, not loader; fixed, rehearsed, resubmitted as 21986700 / 01, now R). D5 pair COMPLETED, **1.41×**, no registered call. Stage-4 freeze TEST **21990060** PD. C items built in `tree_v9d` (decide timer, provenance keys; record §1).
 - *S2 interim, MBV2 only (not the call):* nap_f − L1 = **+2.80** at BN (SE 0.07), **+1.83** at 1 epoch (SE 0.54), then −0.25 / −0.04 / **+0.21** at 3 / 10 / 40 (L1 seed SD 0.72). The cheap-FT shape the prior expected, nothing at 40. Kendall vs the oracle on the held-out cells: MBV2 nap_f **0.254** vs L1 0.286 (Taylor 0.352): the scorer does not transfer to MobileNet's inverted residuals. R56-C100 nap_f **0.423** vs L1 0.292 (L2 0.312): it does transfer across datasets within the ResNet family.
@@ -314,6 +321,18 @@ Control 21729557 TEST: R20-w2 0.637 / 0.600 / 0.596 (base 0.649); R56-w4 0.864 /
 - *Kill:* Traceback or CUDA OOM ⇒ scancel, report. Never resubmit with changed flags.
 - *Ledger:* one *probe* section shared with RW43, "re-walks of the M1 control". Never a method row.
 
+**Status (4 Oct 01:45, sitting close): COMPLETED 3 Oct 18:28** on `cs-4090-01` (2 h 47 m), TB 0, OOM 0. The GPU banner is present (`RandomCrop+Flip on the GPU, train split device-resident (n_train=50000, batch=256)`), and the env shows `FT_AUG_GPU 1` and `EVAL_PASSES 2`. Same widths at every step as the control.
+
+| Point | Keep | 21729557 TEST | D5-bis TEST | Δ (pp) |
+|---|---|---|---|---|
+| R20-w2 size 0.80 | 0.7739 | 0.6368 | 0.6344 | −0.24 |
+| R20-w2 size 0.60 | 0.5838 | 0.5998 | 0.6066 | +0.68 |
+| R20-w2 terminal | 0.5356 | 0.5960 | 0.6070 | **+1.10** |
+| R56-w4 size 0.80 | 0.7947 | 0.8640 | 0.8678 | +0.38 |
+| R56-w4 terminal | 0.6222 | 0.8444 | 0.8368 | −0.76 |
+
+**Call: EQUIVALENT ⇒ ADOPT D5 for new cells.** Exactly one point was in (1.0, 2.0] (R20-w2 terminal, +1.10), so the registered UNCLEAR rule went to RW43. RW43 is −1.12 pp from the control at that same point, so the gap is re-walk noise. *Speed* (FT time ÷ epochs run, `cs-4090-01`): R20-w2 **1.47 s/epoch** against 4.29 (control) and 4.10 (RW43), about **2.8×**; R56-w4 **3.73** against 5.24 and 5.10, about **1.4×**. Whole walk 2.78 h against 4.23 / 4.15 h. Scope: new CIFAR cells with their own controls, and the next train if Ido starts one. Never a live train, a resume, or a freeze TEST read against a loader walk.
+
 ## RW43: the M1 control re-walked with a new fine-tune seed (registered before submit, 3 Oct ~11:30; sitting GO under Ido's delegation)
 
 **Why.** M1 reads a freeze TEST against a single mild walk with 0.5 pp and 1.0 pp margins. Every re-walk so far kept the seed:
@@ -332,6 +351,38 @@ So same-seed noise already reaches M1's 0.5 pp margin. A freeze takes a differen
 - If the largest exceeds 0.5 pp, M1's "no point more than 0.5 pp worse" can fail on noise alone, and its "≥ 1 pp kinder" can pass on noise if the largest nears 1 pp. Say so in the M1 verdict; do not change the bar.
 - The seed-43 rows are a real mild TEST. The mild bar may be quoted as the 42/43 mean beside the single walk, never instead of it.
 - *Start check:* env `SPECTRA_SEED': '43'` and `SPECTRA_FT_AUG': '1'`, no `SPECTRA_FT_AUG_GPU`; log `FT aug on cifar-10: RandomCrop+Flip on train only (n_train=50000, n_val=5000)` and `split_seed=0`. *Kill:* Traceback ⇒ report.
+
+**Status (4 Oct 01:45, sitting close): COMPLETED 3 Oct 22:38** on `cs-4090-08` (4 h 10 m), TB 0, no GPU banner, seed 43. Same widths at every step as the control. Against 21729557 at the five points: −0.26 / **−1.16** / **−1.12** (R20-w2: size 0.80 / size 0.60 / terminal) and −0.42 / −0.10 (R56-w4: size 0.80 / terminal). **The largest is 1.16 pp,** above 0.5, so M1's "no point more than 0.5 pp worse" can fail on noise alone on R20-w2 below keep 0.6.
+
+*The three walks together* (seed 42 loader, seed 42 GPU, seed 43 loader; D5-bis is EQUIVALENT): the per-walk TEST SD is about **0.15 pp** at R20-w2 size 0.80, **0.9–1.1 pp** at R20-w2 keep ≤ 0.6, and **0.4 pp** on R56-w4 at both points. The difference between two walks is √2 larger. Ledger probe §193.
+
+## FR43: the Stage-4 ep0095 freeze TEST re-walked with seed 43 (registered before submit, 4 Oct ~01:55; Ido GO "fill all 3")
+
+**Why.** The first freeze TEST, 21990060, is a single walk. At equal keep against the mean of the three mild walks:
+- *R56-w4:* **kinder at 16 of 19 shared keeps**, by 0.3–1.2 pp over keep 0.72–0.62, where mild's spread is 0.2–0.8. Worse at its first point below 0.8 (−1.22 at 0.743, mild spread 0.05) and at one transient (−2.49 at 0.628, recovered the next step). It continues to keep 0.389; mild stops at 0.622.
+- *R20-w2:* **worse at 5 of 7 shared keeps.** −1.42 at its first point (0.702, mild spread 0.55), mixed at 0.65–0.60 (−0.76 / +0.95 / +0.06), then −1.0 to −1.4 at 0.55–0.54, inside mild's 1.8–2.2 pp spread there.
+- Ledger §193 (ops) plus its equal-keep addendum (sitting).
+
+The agent's own walk-to-walk noise is the unknown. A second agent walk tells whether those gaps hold. It also checks whether the frozen actor's widths survive a different fine-tune seed, a first action-stability read for Gilad's robustness question.
+
+| Job name | Tree | Line | GPU | Wall | Nice |
+|---|---|---|---|---|---|
+| traj-v9c-paug-ep0095-s43 | `tree_v9c` | runbook §10.5 (a) with `SNAP=…/job21737123/snapshots/ep0095` and `SPECTRA_SEED=43`; nothing else changed | `rtx_6000\|rtx_4090` | 7 d (the line's default) | 5 |
+
+**Reads (no call; a measurement):**
+- *Stability:* per net, the share of cut steps whose keep matches 21990060's (|Δkeep| < 0.001), and the first step that differs.
+- *Noise:* at the shared widths, |ΔTEST| between the two agent walks (largest and mean).
+- *Replication:* the two-walk agent mean against the three-walk mild mean at the agent's keeps (`scripts/_tmp_oct4_m1read.sh` with both agent run dirs). Write "R56 kinder band replicates" if the mean gap is ≥ +0.5 pp on at least half of the shared keeps in 0.72–0.62; otherwise "R56 advantage inside the agent's noise". The same for R20-w2's first-point deficit (≤ −1.0 pp at 0.70 in both walks ⇒ "replicates").
+- The M1 verdict stays 21990060's alone, as registered; FR43 is context. Never a second freeze TEST of ep0095 on any other seed without a sitting.
+- *Start check:* env `SPECTRA_SEED': '43'`, `SPECTRA_REPO_DIR` `tree_v9c`, the actor path ending `job21737123/snapshots/ep0095/latest_best_actor.pt`; the policy_config pin lines as in 21990060's log. *Kill:* Traceback ⇒ report. *Ledger:* one PRELIM section beside 21990060's.
+
+**The two arm freeze TESTs** (ops' pre-authorized cells). Under Ido's one-time exception (4 Oct ~01:55), both run at once; the "one freeze TEST in flight" rule resumes after them. Runbook §10.0d.
+- **22056144** `traj-c2-ep0083` (ops, R since 01:35, `ise-4090-21`): C2 21938810, freeze ep0083 (score 0.2893, written 3 Oct 20:12), its first after PPO update 20. The sitting's duplicate submit, 22059499, was scancelled at 02:03.
+- **22059501** `traj-v9d-bstop-ep0131` (sitting, R since 02:01, `ise-4090-03`): budgetstop 21940311, freeze ep0131 (score 0.1339, written 3 Oct 19:47), its first after update 20. Budgetstop passed episode 120 before ep0131 was written, while ops was offline, so its ARM-FLAT line was never written. Moot now. *Start check passed 02:25:* `SPECTRA_ACTION_MENU: None -> 'budget'`, `SPECTRA_BUDGET_IN_STATE: None -> '1'`, rankings all L1, `TIME_DECIDE` 1, crop+flip on, no errors.
+- **22059502** FR43 (sitting, R since ~02:03, `ise-4090-03`). *Start check passed 02:25:* seed 43, `tree_v9c`, actor `job21737123/snapshots/ep0095`, crop+flip on, `split_seed=0`, no errors.
+- Line: §10.5 (a) in `tree_v9d` with the arm's `SNAP`, `SPECTRA_SEED=42`, `SPECTRA_TIME_DECIDE=1`, nice 0, `rtx_6000|rtx_4090`.
+- *Start check:* the policy_config pin lines. Budgetstop must show its budget menu (`SPECTRA_ACTION_MENU` / budget keys) pinned; a missing pin ⇒ scancel and report. A STOP ends that net's walk, so a NONE size point is a result, not a failure.
+- *Read:* §10.3 item 1 (vs 21729557 at equal keep, with the census), plus RW43's noise and `_tmp_oct4_m1read.sh` for the interpolated equal-keep curve. Paste `decide … ms` into EFFICIENCY §3.4.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 

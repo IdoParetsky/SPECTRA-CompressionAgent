@@ -170,6 +170,10 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
+**M1 does not fire** (4 Oct 01:31, ops). Stage-4 freeze TEST **21990060** ep0095 vs mild 21729557: r56 `val_best` −7.1 @ 0.389 vs −4.5 @ 0.622; r20 `val_best` −7.7 @ 0.417 vs −5.3 @ 0.536. Deeper and harsher, not a mild clone. Ledger **§193**. M1-neg needs the second freeze TEST (C2 **22056144** in flight). Re-walk noise of the control (RW43) is 1.2 pp — M1’s 0.5 pp margin is inside that noise; do not change the bar.
+
+**M1 does not fire** (3 Oct 15:40, ops). Stage-4 freeze TEST **21990060** (§193) vs mild 21729557: r56 `val_best` **−7.1 @ 0.389** vs **−4.5 @ 0.622**. Deeper and harsher, not a 0.9 mild clone. M1-neg waits on C2 **22056144**. Re-walk noise of the control (RW43) is **1.2 pp** — M1’s 0.5 pp margin is inside noise; do not change the bar.
+
 **MILESTONE M8** (2 Oct 01:04, ops). S0 `21945105/06/07` all COMPLETED. Keep 0.6 lever ≥ threshold on **3 of 3** cells (r56 budget 0; vgg16 budgets 0 and 1; vgg19 budgets 0, 1 **and 40**). Not M8-neg. Not only ≤ 3. Ledger probe **§188**. S1 is sitting, zero GPU. Do **not** start S1–S3 from ops.
 
 **MILESTONE M6** (weak, 30 Sep 19:15, ops). N4 **21737105** census: 2/46 full-width cuts with val Δ > 0 (max +0.28). Letter of M6; N10 still a sitting design, not a launch.
@@ -276,6 +280,18 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 3 Oct 09:54 | D5 **1.41×** `21982372/73` both 4090 | TEST −2.8 vs −2.7 @ keep 0.757; size_match NONE (min_param 0.70) | no ADOPT/NO-GAIN/DIVERGE; EFFICIENCY §3.3; never ledger
 - 3 Oct 10:00 | Stage-4 freeze **ep0095** score 0.286; TEST **21990060** PD | first snapshot after PPO-20; `tree_v9c` no timer; vs 21729557 | do not TEST ep0011; Budget+STOP still freeze ep0023 at PPO-27 / ep 107
 - 3 Oct 10:58 | PC-off prep | QOS 8/8 R; PD fill (no laptop): freeze TEST **21990060** (nice 0) → D5-bis **21990184** (nice 30, 4090) → RW43 **21990185** (nice 31). All three `Requeue=0`. Train resumes afterok. Held 21940319/21 stay held. After RW43 the ladder is empty — ping, do not invent
+- 3 Oct 11:30 | pf-w `21970089` COMPLETED (13.9 h, 9 cand) | readout `--sets where` **§195**: 2/6 ranked sets, ceiling +0.71; bn/none/12x4/40x10 all not valid; 12x4 NOT validated; 40x10−12x4 **−0.07** | **21940321 stays held**; next = SGD-proxy sitting
+- 3 Oct 15:40 | Stage-4 freeze TEST `21990060` COMPLETED (`cs-4090-01`, 4.2 h) | **§193** vs mild 21729557: r56 `val_best` **−7.1 @ 0.389** vs **−4.5 @ 0.622** | **M1 does not fire**; not a mild clone; M1-neg waits on a second freeze TEST
+- 3 Oct 18:27–19:30 | H0 `21986700` SVHN + `21986701` FMNIST COMPLETED | **§194** TESTs (P half); origin inside 0.2 pp; size 0.8/0.6 not printed | never in a training catalog
+- 3 Oct 18:28 | D5-bis `21990184` COMPLETED (`cs-4090-01`, GPU banner, 2-pass) | r20 terminal |ΔTEST| 1.1 pp vs 21729557 = UNCLEAR until RW43 | s/epoch r20 1.47 / r56 3.73 vs control 4.29 / 5.24
+- 3 Oct 20:12 | C2 froze **ep0083** score 0.2893 (after PPO-20) | first arm freeze eligible for TEST | wait until no freeze TEST in flight, then `TIME_DECIDE=1`
+- 3 Oct 22:38 | RW43 `21990185` COMPLETED (`cs-4090-08`, seed 43) | largest |ΔTEST| vs s42 **1.2 pp** (r20 size 0.60); r20 terminal also 1.1 | D5-bis UNCLEAR → **EQUIVALENT (re-walk noise) ⇒ ADOPT D5 for new cells**; M1 0.5 pp margin is inside noise (do not change the bar)
+- 4 Oct 01:38 | PC-off catch-up; C2 freeze TEST **22056144 R** `ise-4090-21` | `tree_v9d`, ep0083, `TIME_DECIDE=1`, `Requeue=0`, Features 6000\|4090, P+aug, size 0.8/0.6 | at most one freeze TEST in flight; do **not** TEST Budget ep0131 until 22056144 ends
+- 4 Oct 01:38 | afterok audit | 21767188 / 21938809 / 21938811 / 21940314 / 21940317 all PD `afterok` of live trains, `Requeue=0`; held 21940319/21 + their r1s | nothing waits on a laptop GO; fuse ~6 Oct 03:15 still covered
+- 4 Oct 01:38 | QOS **6/8** (2 idle) | 5 trains + C2 TEST; ladder empty | **ping**; do not invent; do not N8/S3; do not release held trains
+- 4 Oct 01:38 | ARM notes | Budget **did** freeze ep0131 after PPO-20 (not ARM-FLAT). C1 freeze still **only ep0011** (ARM-FLAT if still true at ep 120). Factored freeze **ep0047** is pre-PPO-20 — never TEST it
+- 4 Oct 02:01 | Sitting close (Ido GO "fill all 3"): budgetstop freeze TEST **22059501** + FR43 **22059502** (Stage-4 ep0095, seed 43) R; the sitting's duplicate C2 TEST 22059499 scancelled | QOS **8/8**; budget menu pinned (start check 02:25) | both arm TESTs at once by a one-time exception (runbook §10.0d); read both before writing M1 or M1-neg
+- 4 Oct 02:15 | §193 equal-keep addendum (sitting) | r56 kinder than the three-walk mild mean at **16 of 19** shared keeps (+0.3 to +1.2 over 0.72–0.62); first cut −1.2 (r56) / −1.4 (r20); r20 worse at 5 of 7 | verdict unchanged; FR43 tests whether the r56 band replicates; per-walk mild SD on §196
 - 3 Oct 10:00 | H0 retries `21986700/01` R ~8 h | origin TEST DN-40 / MBV2 inside 0.12 pp; start checks ok | first net TRAJ in; do not kill; ledger on COMPLETED
 - 3 Oct 10:00 | pf-w 89 still R step 281, 7 `[proxy]` lines | 24 h wall ~21:39 | readout at end; freeze TEST takes that GPU; 21940321 held
 

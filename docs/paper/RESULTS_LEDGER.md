@@ -3447,5 +3447,73 @@ Paired val never hit the kill (60 pairs, mean −1.23 pp, 10 % better). TEST sti
 
 ---
 
+## 193. Stage-4 freeze TEST ep0095 (**21990060**) vs mild 21729557 — PRELIM; M1 does not fire
+
+Skip-train `eval_c10_thin_traj` of **21737123** `snapshots/ep0095` (probe 0.286; first freeze after PPO-20). `tree_v9c`, P + crop+flip, 40/10, 2-pass, det=1, seed 42. COMPLETED 4 h 10 m, 3 Oct 15:40, `cs-4090-01`, TB 0. Control = mild **21729557** (§152), same walk recipe. TEST = 5k P half. Unpruned: r20-w2 0.649, r56-w4 0.890.
+
+| Point | Actor 21990060 TEST (keep) | Mild 21729557 TEST (keep) |
+|---|---|---|
+| r20 size 0.80 | **−5.2 @ 0.702** | −1.2 @ 0.774 |
+| r20 size 0.60 | −4.7 @ 0.595 | −4.9 @ 0.584 |
+| r20 `val_best` | **−7.7 @ 0.417** | −5.3 @ 0.536 |
+| r56 size 0.80 | **−4.5 @ 0.743** | −2.6 @ 0.795 |
+| r56 size 0.60 | −5.3 @ 0.600 | NONE (mild ends 0.622) |
+| r56 `val_best` | **−7.1 @ 0.389** | −4.5 @ 0.622 |
+
+**Read.** Not a mild clone (r56 `val_best` keep 0.389 vs mild 0.622). Not M1: on both nets the named size / `val_best` points are more than 0.5 pp worse than mild, except r20 size 0.60 (≈ equal keep, 0.2 pp kinder). The first honest-protocol actor TEST is **deeper and harsher** than mild, not kinder. M1-neg needs a second freeze TEST; C2 ep0083 **22056144** is that TEST (in flight). Do **not** lock. Do not start N8.
+
+**Equal-keep addendum (sitting, 4 Oct ~02:15; same TEST numbers).** The table above sets points at different keeps side by side, but M1 is defined at equal keep. Below, the agent's walk is read against the three mild walks of this recipe (21729557, RW43 21990185, D5-bis 21990184), interpolated linearly in keep (`scripts/_tmp_oct4_m1read.sh`):
+- *r56-w4* (19 shared keeps, 0.743–0.622): kinder than the mild mean at **16**, by +0.3 to +1.2 pp over keep 0.72–0.62 (mild spread 0.2–0.8). It is worse at its first cut (**−1.2 @ 0.743**, mild spread 0.05) and at one transient step (−2.5 @ 0.628; +0.0 at the next step). It then continues to keep 0.389, which mild never reaches.
+- *r20-w2* (7 shared keeps, 0.702–0.536): worse at 5. At the first cut it is **−1.4 @ 0.702** (mild spread 0.55). At keep 0.552–0.536 it is −1.0 to −1.4, inside mild's 1.8–2.2 pp spread.
+
+The verdict stands: at equal keep against 21729557, the first size point is worse by more than 0.5 pp on both nets (r20 −1.7, r56 −1.2). "Harsher" holds for the first cut and for the keeps mild never reaches. Through keep 0.72–0.62, r56 is kinder on this one walk. FR43 **22059502** (this actor re-walked with seed 43, Ido GO 4 Oct) measures whether that replicates.
+
+---
+
+## 194. H0 hold-out bars, mild, P, hold-out crop(+flip), 40/10, 2 passes, seed 42 — PRELIM TEST
+
+Jobs **21986700** SVHN (COMPLETED 3 Oct 18:27, 16.5 h, `cs-4090-10`) and **21986701** Fashion-MNIST (COMPLETED 19:30, 17.3 h, `cs-4090-10`). `tree_v9d`, profile `baseline_c10_mild_traj_gonce`, `SPECTRA_FT_AUG_HOLDOUT=1`, `SPECTRA_VAL_FROM_TEST=1`. Origin TEST on the P half inside 0.2 pp of the checkpoint names. Size points 0.8 / 0.6 were **not** printed (resubmit did not pin `SPECTRA_EVAL_SIZE_POINTS`). Quote `[eval] TRAJ` TEST (`acc`). Never mix with 10k. Never put these nets in a training catalog.
+
+| Net | Origin TEST | `val_best` TEST (keep) | `floor_hold` TEST (keep) |
+|---|---|---|---|
+| SVHN DenseNet-40 | 0.968 | **−0.8 @ 0.687** | −0.8 @ 0.701 |
+| SVHN MBV2 ×0.5 | 0.969 | **−0.5 @ 0.672** | −0.5 @ 0.726 |
+| SVHN RepVGG-A0 | 0.966 | **−0.3 @ 0.659** | −0.4 @ 0.802 |
+| SVHN ShuffleNetV2 ×1 | 0.967 | **−0.3 @ 0.786** | −0.3 @ 0.786 |
+| FMNIST DenseNet-40 | 0.953 | **−0.6 @ 0.687** | −0.9 @ 0.701 |
+| FMNIST MBV2 ×0.5 | 0.949 | **−0.1 @ 0.672** | −0.1 @ 0.726 |
+| FMNIST RepVGG-A0 | 0.947 | **+0.3 @ 0.659** | +0.2 @ 0.802 |
+| FMNIST ShuffleNetV2 ×1 | 0.945 | **+0.2 @ 0.786** | +0.2 @ 0.786 |
+
+Do **not** lock.
+
+---
+
+## 195. Wider proxy fidelity (`where`, keep ≤ 0.6 / 0.36) — probe, never TRAJ TEST rows
+
+`proxy_fidelity_readout.py --sets where` on `21970086/87/88/89` (89 COMPLETED 3 Oct 11:30, 13.9 h, 9 candidates, not wall-truncated). Ranked `where` sets with n ≥ 3: **2 of 6** (MBV2 keep 0.6 n=9 ceiling **+0.69**; r56-w4 keep 0.6 n=9 ceiling **+0.74**). Mean ceiling **+0.71** (bar 0.60). All four proxies **not valid** (bn / none / 12x4 / 40x10 mean ρ +0.48 / +0.45 / +0.39 / +0.32). **12x4 NOT validated.** ρ(40x10) − ρ(12x4) = **−0.07** → do **not** ping to release 21940321. Neither budget valid → next cell is SGD-proxy variants on the saved finals (sitting). Ceiling ≥ 0.5, so this is not the “stop the pf line” call. Do **not** quote as TEST. **21940321 stays held.**
+
+---
+
+## 196. D5-bis and RW43 re-walks of mild 21729557 — probe + D5 call EQUIVALENT; RW43 is a seed-43 mild TEST
+
+D5-bis **21990184** (`tree_v9d`, `SPECTRA_FT_AUG_GPU=1`, seed 42, 2-pass) COMPLETED 3 Oct 18:28, 2.8 h, `cs-4090-01`, GPU-aug banner present, TB 0. RW43 **21990185** (`tree_v9b`, seed 43, loader aug) COMPLETED 22:38, 4.2 h, `cs-4090-08`, TB 0. Same mild widths as 21729557 at the named steps. Five registered TEST points (`acc`, origin 0.649 / 0.890):
+
+| Point | 21729557 s42 | D5-bis GPU | RW43 s43 | \|Δ\| D5 vs 42 | \|Δ\| 43 vs 42 |
+|---|---|---|---|---|---|
+| r20 size 0.80 | 0.637 (−1.2) | 0.634 | 0.634 | 0.3 pp | 0.3 pp |
+| r20 size 0.60 | 0.600 (−4.9) | 0.607 | 0.588 | 0.7 | **1.2** |
+| r20 terminal | 0.596 (−5.3) | 0.607 | 0.585 | **1.1** | **1.1** |
+| r56 size 0.80 | 0.864 (−2.6) | 0.868 | 0.860 | 0.4 | 0.4 |
+| r56 terminal | 0.844 (−4.6) | 0.837 | 0.843 | 0.7 | 0.1 |
+
+**D5 call: EQUIVALENT ⇒ ADOPT for new cells.** Exactly one D5-bis point in (1.0, 2.0] (r20 terminal 1.1 pp); RW43 is also > 1.0 pp from s42 at that point → re-walk noise, not DIVERGE. Never into a live train, a resume, or a freeze TEST. s/epoch (FT ÷ epochs run): r20 **1.47**, r56 **3.73** vs control 4.29 / 5.24 on another 4090.
+
+**RW43:** largest |ΔTEST| vs s42 = **1.2 pp**. M1’s 0.5 pp “no worse than mild” margin is inside re-walk noise; do not change the bar. Seed-43 rows are a real mild TEST; the bar may be quoted as the 42/43 mean **beside** the single walk, never instead of it. Do **not** lock the D5-bis columns as a SPECTRA method row.
+
+*Per-walk noise (sitting addendum, 4 Oct; three walks, D5-bis counted since EQUIVALENT):* TEST SD ≈ **0.15 pp** at r20 size 0.80, **0.9–1.1 pp** at r20 keep ≤ 0.6, **≈ 0.4 pp** on r56 at both points. Two single walks differ by √2 × that.
+
+---
+
 
 
