@@ -3466,7 +3466,7 @@ Skip-train `eval_c10_thin_traj` of **21737123** `snapshots/ep0095` (probe 0.286;
 - *r56-w4* (19 shared keeps, 0.743–0.622): kinder than the mild mean at **16**, by +0.3 to +1.2 pp over keep 0.72–0.62 (mild spread 0.2–0.8). It is worse at its first cut (**−1.2 @ 0.743**, mild spread 0.05) and at one transient step (−2.5 @ 0.628; +0.0 at the next step). It then continues to keep 0.389, which mild never reaches.
 - *r20-w2* (7 shared keeps, 0.702–0.536): worse at 5. At the first cut it is **−1.4 @ 0.702** (mild spread 0.55). At keep 0.552–0.536 it is −1.0 to −1.4, inside mild's 1.8–2.2 pp spread.
 
-The verdict stands: at equal keep against 21729557, the first size point is worse by more than 0.5 pp on both nets (r20 −1.7, r56 −1.2). "Harsher" holds for the first cut and for the keeps mild never reaches. Through keep 0.72–0.62, r56 is kinder on this one walk. FR43 **22059502** (this actor re-walked with seed 43, Ido GO 4 Oct) measures whether that replicates.
+The verdict stands: at equal keep against 21729557, the first size point is worse by more than 0.5 pp on both nets (r20 −1.7, r56 −1.2). "Harsher" holds for the first cut and for the keeps mild never reaches. Through keep 0.72–0.62, r56 is kinder on this one walk. FR43 **22059502** (§199) re-walked this actor with seed 43: widths match; **R56 kinder band replicates**; r20 first-point deficit does not. M1 on ep0095 stays this section’s.
 
 ---
 
@@ -3512,6 +3512,122 @@ D5-bis **21990184** (`tree_v9d`, `SPECTRA_FT_AUG_GPU=1`, seed 42, 2-pass) COMPLE
 **RW43:** largest |ΔTEST| vs s42 = **1.2 pp**. M1’s 0.5 pp “no worse than mild” margin is inside re-walk noise; do not change the bar. Seed-43 rows are a real mild TEST; the bar may be quoted as the 42/43 mean **beside** the single walk, never instead of it. Do **not** lock the D5-bis columns as a SPECTRA method row.
 
 *Per-walk noise (sitting addendum, 4 Oct; three walks, D5-bis counted since EQUIVALENT):* TEST SD ≈ **0.15 pp** at r20 size 0.80, **0.9–1.1 pp** at r20 keep ≤ 0.6, **≈ 0.4 pp** on r56 at both points. Two single walks differ by √2 × that.
+
+---
+
+## 197. Budget+STOP freeze TEST ep0131 (**22059501**) vs mild 21729557 — PRELIM; M1 waits on C2
+
+Skip-train `eval_c10_thin_traj` of **21940311** `snapshots/ep0131` (probe 0.1339; first freeze after PPO-20). `tree_v9d`, P + crop+flip, 40/10, 2-pass, det=1, seed 42, `SPECTRA_TIME_DECIDE=1`. COMPLETED 1 h 52 m, 4 Oct 03:53, `ise-4090-03`, TB 0, exit 0. Budget menu pinned (`SPECTRA_ACTION_MENU` → `budget`). Control = mild **21729557** (§152). TEST = 5k P half. Unpruned TRAJ origin 0.649 / 0.890. **Not STOP-EARLY:** both nets have a size 0.80 point (r20 ended keep 0.618; r56 ended 0.399). r20 size 0.60 is NONE because the walk stopped at 0.618.
+
+| Point | Actor 22059501 TEST (keep) | Mild 21729557 TEST (keep) |
+|---|---|---|
+| r20 size 0.80 | **−2.7 @ 0.792** | −1.2 @ 0.774 |
+| r20 size 0.60 | NONE (ends 0.618) | −4.9 @ 0.584 |
+| r20 `val_best` | −4.5 @ 0.618 | −5.3 @ 0.536 |
+| r56 size 0.80 | **−3.8 @ 0.779** | −2.6 @ 0.795 |
+| r56 size 0.60 | −8.3 @ 0.586 | NONE (mild ends 0.622) |
+| r56 `val_best` | **−7.3 @ 0.399** | −4.5 @ 0.622 |
+
+Equal keep vs the three-walk mild mean (`_tmp_oct4_m1read.sh`): r20 first cut **−1.39 @ 0.792** (5 of 7 shared keeps > 0.5 pp worse; 0 kinder ≥ 0.5). r56 first cut **−1.27 @ 0.779** (1 of 6 shared keeps > 0.5 pp worse; 0 kinder ≥ 0.5); then continues past mild’s floor to 0.399. Not a 0.9 mild clone (budget menu; 22 cuts / 114 r56 steps). **M1-neg** with §193 and §198 (4 Oct 06:16). Do **not** lock.
+
+---
+
+## 198. C2 NEON-raw freeze TEST ep0083 (**22056144**) vs mild 21729557 — PRELIM; **M1-neg**
+
+Skip-train `eval_c10_thin_traj` of **21938810** `snapshots/ep0083` (probe 0.2893; first freeze after PPO-20). `tree_v9d`, P + crop+flip, 40/10, 2-pass, det=1, seed 42, `SPECTRA_TIME_DECIDE=1`. COMPLETED 4 h 12 m, 4 Oct 05:47, `ise-4090-21`, TB 0, exit 0. Control = mild **21729557** (§152). TEST = 5k P half. Unpruned TRAJ origin 0.649 / 0.890.
+
+| Point | Actor 22056144 TEST (keep) | Mild 21729557 TEST (keep) |
+|---|---|---|
+| r20 size 0.80 | **−4.8 @ 0.702** | −1.2 @ 0.774 |
+| r20 size 0.60 | −3.9 @ 0.595 | −4.9 @ 0.584 |
+| r20 `val_best` | **−7.6 @ 0.417** | −5.3 @ 0.536 |
+| r56 size 0.80 | **−4.2 @ 0.743** | −2.6 @ 0.795 |
+| r56 size 0.60 | −5.6 @ 0.600 | NONE (mild ends 0.622) |
+| r56 `val_best` | **−7.2 @ 0.389** | −4.5 @ 0.622 |
+
+Equal keep vs the three-walk mild mean: r20 first cut **−1.02 @ 0.702** (3 of 7 shared keeps > 0.5 pp worse; 2 kinder ≥ 0.5 at 0.61–0.60). r56 first cut **−0.90 @ 0.743**; then kinder ≥ 0.5 at **14 of 19** shared keeps in 0.73–0.62 (peak +1.48 @ 0.665). Not a 0.9 mild clone (60 cuts / 114 r56 steps). Decide: r20 **8.2 ms**, r56 **3.0 ms**.
+
+**M1 does not fire** on C2 or on Budget §197 (first cut > 0.5 pp worse on both nets). **M1-neg fires:** Stage-4 **21990060** plus C2 (and Budget) are each > 0.5 pp worse than mild on both nets at the first cut. Quote the margin with RW43 noise (§196: up to 1.2 pp at r20 keep ≤ 0.6; ≈ 0.4 pp on r56). Do **not** start N8. Do **not** lock.
+
+---
+
+## 199. FR43 — Stage-4 ep0095 freeze TEST re-walked seed 43 (**22059502**) — PRELIM; no call
+
+Skip-train `eval_c10_thin_traj` of **21737123** `snapshots/ep0095`, seed 43, `tree_v9c`, P + crop+flip, 40/10, 2-pass. COMPLETED 4 h 18 m, 4 Oct 06:20, `ise-4090-03`, TB 0. Pair with seed-42 TEST **21990060** (§193). TEST = 5k P half. Unpruned TRAJ origin 0.649 / 0.890. M1 on ep0095 stays 21990060’s.
+
+| Point | 21990060 s42 TEST (keep) | FR43 s43 TEST (keep) | \|ΔTEST\| |
+|---|---|---|---|
+| r20 size 0.80 | −5.2 @ 0.702 | −4.2 @ 0.702 | 1.0 |
+| r20 size 0.60 | −4.7 @ 0.595 | −3.7 @ 0.595 | 1.0 |
+| r20 `val_best` | −7.7 @ 0.417 | −7.7 @ 0.417 | 0.0 |
+| r56 size 0.80 | −4.5 @ 0.743 | −6.2 @ 0.743 | 1.7 |
+| r56 size 0.60 | −5.3 @ 0.600 | −5.0 @ 0.600 | 0.3 |
+| r56 `val_best` | −7.1 @ 0.389 | −6.8 @ 0.389 | 0.3 |
+
+- **Stability.** Traj-point keeps match **17/17 (r20)** and **61/61 (r56)** (\|Δkeep\| < 0.001). First differing step: none. The frozen actor’s widths survive seed 43. *(4 Oct: trivially, since the actor plays one action at every decision — §200. Not robustness evidence.)*
+- **Noise.** Mean \|ΔTEST\| at shared widths: r20 **0.53 pp**, r56 **0.52 pp**. Largest: r20 **1.56** @ 0.519; r56 **3.18** @ 0.985 (near origin). Named-point largest is r56 size 0.80 **1.7 pp**.
+- **Replication.** Two-walk agent mean vs three-walk mild: **R56 kinder band replicates** (14/17 keeps in 0.72–0.62 with gap ≥ +0.5). R20 first-point deficit vs mild at 0.702 is −1.42 (s42) and −0.42 (s43) — **does not replicate** (s43 inside mild spread 0.55).
+
+No call. Do **not** lock.
+
+---
+
+## 200. Constant-policy census + O38b reward replay — the M1-neg mechanism (zero GPU; probe section, never a TEST row)
+
+4 Oct sitting (Opus 5.5, opened 11:41 on ops' hand-over: "diagnose before any new train"). Read-only on the login node. Sources:
+- *Walks:* the `step` events of the TEST walks (`events/rank0.jsonl`) and the five trains' sbatch profiles.
+- *Replay:* `scripts/reward_replay.py` (O38, 1 Oct) through the live `compute_reward`, val only.
+- *Sitting scripts:* `_tmp_s4oct_census*.sh`, `_tmp_s4oct_rewardflags.sh`, `_tmp_s4oct_replay*.sh` (not committed).
+
+Full write-up: `docs/paper/GILAD_1OCT_POINTS_REPORT.md` Part III.
+
+**Census: one action at every decision.** "Free" means the env did not force identity.
+
+| Walk (TEST job) | r20 free decisions | r56 free decisions | Forced identity (r20 / r56) |
+|---|---|---|---|
+| mild 21729557 | 16 at 0.9 | 60 at 0.9 | 26 / 54 |
+| Stage-4 ep0095 s42 **21990060** | 16 at **0.8** | 60 at **0.8** | 26 / 54 |
+| Stage-4 ep0095 s43 FR43 **22059502** | 16 at 0.8 | 60 at 0.8 | 26 / 54 |
+| C2 ep0083 **22056144** | 16 at 0.8 | 60 at 0.8 | 26 / 54 |
+| Stage-4 ep0131 **22124693** (R) | 16 at 0.8 | 12 / 12 so far at 0.8 | 26 / 10 so far |
+| Budget+STOP ep0131 **22059501** | the largest budget (4 % of origin) at every cut | same | never STOP |
+
+The 0.8 decisions realize 13 / 51 cuts; at the rest, 0.8 rounds to the same width. Mild's 0.9 realizes 12 / 52. **M1-neg (§198) compares two fixed schedules: uniform 0.8 vs uniform 0.9.** §193 / §198 / §199 still stand as TEST numbers of that comparison.
+
+**Why: the reward pays size inside a 10 pp band.**
+- All five trains use `SPECTRA_REWARD_MODE=structural`, τ = `--allowed_acc_reduction` 10, no `SPECTRA_TRAIN_TAU`. Scales: `cbrt_cubes` (Stage-4, Budget, factored), `cbrt_miss` (C1), `raw` (C2); Budget adds STOP = 100 × `episode_inband_area`.
+- Per step, with Δ cumulative against the origin's val accuracy: in band (−10 ≤ Δ ≤ 0) the reward is +ρ (the realized % param cut) **whatever Δ is**; gain +ρ or +ρ³; miss −ρ or −ρ³.
+- The thin walks end 4–5 pp below origin on val, so the band never binds. Episodes have a fixed number of decisions. Hence "the largest cut at every decision" maximizes the return.
+
+| Net | Walks (val replay) | Return over the walk: live (C1 = C2) | Return to equal depth | Val Δ at that depth (pp) |
+|---|---|---|---|---|
+| R56-w4 | mild × 3 (21729557, RW43 21990185, D5-bis 21990184) | 126.6 (126.6), to keep 0.622 | **126.0** @ 0.626 | −4.94 / −4.76 / −5.12 |
+| R56-w4 | 0.8 × 3 (21990060, 22059502, 22056144) | **270.5** (270.5), to keep 0.389 | **124.9** @ 0.628 | −7.98 / −4.64 / −5.70 |
+| R20-w2 | mild × 3 | 102.9 (1,566–2,267), to keep 0.522 | 91.5 @ 0.587 | −4.36 / −4.82 / −3.52 |
+| R20-w2 | 0.8 × 3 | **144.2** (**8,255–8,544**), to keep 0.413 | 70.5 @ 0.587 | −2.94 / −3.22 / −3.34 |
+
+At equal depth the live reward is blind to accuracy: on R56-w4 it pays 126.0 vs 124.9 across a 3 pp val spread. Over the walk it pays the 0.8 schedule about twice as much. C1 / C2's cubic gain arm makes it starker on R20-w2.
+
+**Reward pre-check by replay (candidates; whole walk | equal depth; mean of 3 walks each):**
+
+| Shape | R20-w2 mild vs 0.8 | R56-w4 mild vs 0.8 |
+|---|---|---|
+| live (`structural` / `cbrt_cubes`, τ 10) | 102.9 vs **144.2** \| **91.5** vs 70.5 | 126.6 vs **270.5** \| **126.0** vs 124.9 |
+| live with τ 5 | **102.9** vs 99.7 \| **91.5** vs 70.5 | 118.1 vs **165.4** \| **117.9** vs 108.8 |
+| F1 `structural_unified` (in band ρ · (τ + Δ) / τ), τ 10 | 90.6 vs **107.2** \| **83.7** vs 66.8 | 84.8 vs **154.3** \| 84.5 vs **87.7** |
+| F1, τ 5 | **78.3** vs 69.3 \| **76.0** vs 63.1 | **43.0** vs −16.0 \| 43.0 vs **50.5** |
+| F1, τ 3 | **66.1** vs 17.9 \| **70.3** vs 58.9 | **−81.4** vs −360.2 \| −72.0 vs **3.5** |
+
+F1 with τ 5 (config only: `SPECTRA_REWARD_MODE=structural_unified SPECTRA_TRAIN_TAU=5`) is the mildest shape that stops paying the 0.8 schedule more over the walk on both nets. At equal depth on R56-w4 it still prefers the 0.8 walk, which agrees with TEST there (§198, §199: 0.8 kinder at keep 0.73–0.62). Val replay on six walks is a pre-check, not a train result.
+
+**Consequences.**
+- M1-neg is a reward-design result: PPO found the reward's optimum.
+- §199's stability is trivial for a constant policy.
+- A new action menu alone cannot help: the agent picks its largest entry.
+- N10 (cubic reward) is covered by C1 / C2, which collapsed the same way.
+- N8 waits for (i) a reward that passes this replay check and (ii) A0 headroom on at least one family.
+- A0 (`22127527` / `28` / `29`, queue file "A0") is the allocation-headroom probe.
+- No train without Ido's GO.
 
 ---
 

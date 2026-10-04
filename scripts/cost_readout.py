@@ -9,6 +9,9 @@ GPU-hours. Per run: the GPU named in the manifest (the Slurm label is not the ca
 ``rtx_6000`` nodes carry an RTX 6000 Ada), peak GPU memory from the heartbeat, and board energy when
 the run has ``gpu_samples.csv`` (spectra.sbatch's 1 s nvidia-smi sampler).
 
+Per final-fine-tuned TRAJ point: the cost of getting only that network, i.e. the walk from its first
+step to the point's step plus the point's own final fine-tune, in minutes and (with samples) Wh.
+
     python scripts/cost_readout.py <run dir | job id> ... [--jsonl out.jsonl]
 
 Standard library only, so it runs on the login node.
@@ -82,6 +85,8 @@ def _blank():
     row = defaultdict(float)
     row["gaps"] = []
     row["finals"] = []
+    row["points"] = []
+    row["step_t"] = {}
     row["first_t"] = None
     row["last_t"] = None
     return row
@@ -123,10 +128,17 @@ def read_events(run):
                 last_end[name] = t
                 row["first_t"] = t - seconds if row["first_t"] is None else row["first_t"]
                 row["last_t"] = t
+                index = event.get("step_index")
+                row["step_t"][int(index) if index is not None else int(row["steps"]) - 1] = t
             elif kind == "eval_traj_final_ft":
                 name = os.path.basename(str(event.get("network", "?")))
                 row = nets[name]
-                row["finals"].append((float(event.get("minutes") or 0.0), int(event.get("epochs") or 0)))
+                minutes = float(event.get("minutes") or 0.0)
+                row["finals"].append((minutes, int(event.get("epochs") or 0)))
+                step = event.get("step")
+                row["points"].append({"label": event.get("label"), "step": int(step) if step is not None else -1,
+                                      "param": event.get("param"), "flop": event.get("flop"),
+                                      "final_min": minutes, "t": t})
                 row["last_t"] = t if row["last_t"] is None else max(row["last_t"], t)
             elif kind == "episode":
                 run_info["episodes"] += 1
@@ -233,7 +245,32 @@ def summarize(arg):
             start = manifest["started"] + timedelta(seconds=row["first_t"])
             end = manifest["started"] + timedelta(seconds=row["last_t"])
             net["energy_wh"] = round(energy_wh(samples, start, end), 1)
+        net["points"] = [_point_cost(point, row, samples, manifest["started"]) for point in row["points"]]
         out["networks"].append(net)
+    return out
+
+
+def _point_cost(point, row, samples, started):
+    """Cost of only this network: the walk up to the point's step plus its own final fine-tune.
+
+    The origin (step < 0) costs its final alone; a step the events never logged gives no walk number.
+    """
+    out = {key: point[key] for key in ("label", "step", "param", "flop", "final_min")}
+    if point["step"] < 0:
+        walk_s = 0.0
+    elif point["step"] in row["step_t"] and row["first_t"] is not None:
+        walk_s = row["step_t"][point["step"]] - row["first_t"]
+    else:
+        walk_s = None
+    out["walk_min"] = round(walk_s / 60.0, 1) if walk_s is not None else None
+    out["total_min"] = round(walk_s / 60.0 + point["final_min"], 1) if walk_s is not None else None
+    if samples and started and walk_s is not None:
+        final_wh = energy_wh(samples, started + timedelta(seconds=point["t"] - 60.0 * point["final_min"]),
+                             started + timedelta(seconds=point["t"]))
+        walk_wh = (energy_wh(samples, started + timedelta(seconds=row["first_t"]),
+                             started + timedelta(seconds=row["step_t"][point["step"]])) if walk_s > 0 else 0.0)
+        out["walk_wh"], out["final_wh"] = round(walk_wh, 1), round(final_wh, 1)
+        out["total_wh"] = round(walk_wh + final_wh, 1)
     return out
 
 
@@ -253,6 +290,14 @@ def _print(summary):
               f"decide {net['decide_ms'] if net['decide_ms'] is not None else '-'} ms | "
               f"epochs run {epochs} | finals {net['finals']} x {net['final_min'] / max(1, net['finals']):.1f} min "
               f"| {net['gpu_h']} GPU-h" + (f" | {net['energy_wh']} Wh" if "energy_wh" in net else ""))
+        for point in net["points"]:
+            size = (f"params x{point['param']:.3f} FLOPs x{point['flop']:.3f}"
+                    if point["param"] is not None and point["flop"] is not None else "size ?")
+            walk = f"{point['walk_min']} min" if point["walk_min"] is not None else "? (step not logged)"
+            print(f"    to {point['label']} (step {point['step']}, {size}): walk {walk} + final "
+                  f"{point['final_min']:.1f} min = {point['total_min']} min"
+                  + (f" | {point['walk_wh']} + {point['final_wh']} = {point['total_wh']} Wh"
+                     if "total_wh" in point else ""))
 
 
 def main(argv=None):

@@ -170,9 +170,15 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
-**M1 does not fire** (4 Oct 01:31, ops). Stage-4 freeze TEST **21990060** ep0095 vs mild 21729557: r56 `val_best` −7.1 @ 0.389 vs −4.5 @ 0.622; r20 `val_best` −7.7 @ 0.417 vs −5.3 @ 0.536. Deeper and harsher, not a mild clone. Ledger **§193**. M1-neg needs the second freeze TEST (C2 **22056144** in flight). Re-walk noise of the control (RW43) is 1.2 pp — M1’s 0.5 pp margin is inside that noise; do not change the bar.
+**M1-neg mechanism** (4 Oct ~12:45, sitting; ledger **§200**, report `docs/paper/GILAD_1OCT_POINTS_REPORT.md` Part III).
+- *Census:* every TESTed actor plays one action at every free decision. Stage-4 (×2 seeds), C2 and ep0131 play 0.8: 16/16 on r20, 60/60 on r56. Budget plays its largest budget and never STOPs.
+- *Cause:* the trains' reward (`structural`, τ 10, cumulative vs origin) pays +ρ inside the band whatever the accuracy. With a fixed number of decisions, "always the largest cut" maximizes the return. The val replay pays R56-w4's 0.8 walk 270.5 vs mild's 126.6 (equal depth: 124.9 vs 126.0, across 3 pp of val).
+- *Implication:* M1-neg = uniform 0.8 vs uniform 0.9. FR43's stability is trivial. A menu change alone cannot help. N10 is covered by C1 / C2.
+- *Next:* A0 (allocation headroom, 22127527–29), then a reward that passes the replay check. F1 `structural_unified` with `SPECTRA_TRAIN_TAU=5` is the first shape that pays mild's walks more on both nets. A train needs Ido's GO.
 
-**M1 does not fire** (3 Oct 15:40, ops). Stage-4 freeze TEST **21990060** (§193) vs mild 21729557: r56 `val_best` **−7.1 @ 0.389** vs **−4.5 @ 0.622**. Deeper and harsher, not a 0.9 mild clone. M1-neg waits on C2 **22056144**. Re-walk noise of the control (RW43) is **1.2 pp** — M1’s 0.5 pp margin is inside noise; do not change the bar.
+**MILESTONE M1-neg** (4 Oct 06:16, ops). Stage-4 freeze TEST **21990060** (§193) plus C2 **22056144** (§198) and Budget **22059501** (§197) are each > 0.5 pp worse than mild on both thin nets at the first equal-keep cut. FR43 **22059502** (§199) COMPLETED 06:20: widths match 17/17 and 61/61; **R56 kinder band replicates**; r20 first-point deficit does not. M1 on ep0095 stays 21990060’s. Do **not** start N8.
+
+**M1 does not fire** (4 Oct 01:31 / 06:16, ops; sitting equal-keep addendum ~02:15). Stage-4 **21990060** vs 21729557: first size points worse by > 0.5 pp on both nets. At equal keep vs the three-walk mild mean, r56 is kinder at 16 of 19 shared keeps. Closed as **M1-neg** above.
 
 **MILESTONE M8** (2 Oct 01:04, ops). S0 `21945105/06/07` all COMPLETED. Keep 0.6 lever ≥ threshold on **3 of 3** cells (r56 budget 0; vgg16 budgets 0 and 1; vgg19 budgets 0, 1 **and 40**). Not M8-neg. Not only ≤ 3. Ledger probe **§188**. S1 is sitting, zero GPU. Do **not** start S1–S3 from ops.
 
@@ -291,7 +297,12 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 4 Oct 01:38 | QOS **6/8** (2 idle) | 5 trains + C2 TEST; ladder empty | **ping**; do not invent; do not N8/S3; do not release held trains
 - 4 Oct 01:38 | ARM notes | Budget **did** freeze ep0131 after PPO-20 (not ARM-FLAT). C1 freeze still **only ep0011** (ARM-FLAT if still true at ep 120). Factored freeze **ep0047** is pre-PPO-20 — never TEST it
 - 4 Oct 02:01 | Sitting close (Ido GO "fill all 3"): budgetstop freeze TEST **22059501** + FR43 **22059502** (Stage-4 ep0095, seed 43) R; the sitting's duplicate C2 TEST 22059499 scancelled | QOS **8/8**; budget menu pinned (start check 02:25) | both arm TESTs at once by a one-time exception (runbook §10.0d); read both before writing M1 or M1-neg
-- 4 Oct 02:15 | §193 equal-keep addendum (sitting) | r56 kinder than the three-walk mild mean at **16 of 19** shared keeps (+0.3 to +1.2 over 0.72–0.62); first cut −1.2 (r56) / −1.4 (r20); r20 worse at 5 of 7 | verdict unchanged; FR43 tests whether the r56 band replicates; per-walk mild SD on §196
+- 4 Oct 02:13 | ops absorbed sitting close / §10.0d | QOS **8/8**; 22056144 + 22059501 + 22059502 all R, TB 0; 22059499 stays cancelled; `Requeue=0` set on 01/02 | read both arm TESTs before M1/M1-neg; FR43 three reads on COMPLETED; STOP-EARLY ping if Budget ends a net above keep 0.80; after the three, ping, do not invent
+- 4 Oct 06:20 | FR43 **22059502 COMPLETED** (`ise-4090-03`, 4.3 h) | **§199**; keeps match 17/17 + 61/61; mean \|ΔTEST\| 0.53 / 0.52; **R56 kinder band replicates** (14/17); r20 first-cut deficit does not | no call; M1 on ep0095 stays 21990060; QOS 5/8; **3 idle — ping, do not invent**; ladder empty
+- 4 Oct 09:46 | **3h briefing** | QOS **5/8** (3 idle); freezes still ep0095 / ep0011 / ep0083 / ep0131 / ep0047; C2 ev 0.024; canvas 09:16 | **M1-neg is the sitting call**; register SGD-proxy + two-walk mild; ops does not invent; C1 ARM-FLAT at ep 120 if freeze still ep0011
+- 4 Oct 10:48 | Stage-4 freeze **ep0131** (probe 0.2863); TEST **22124693 R** (`cs-4090-01`, `tree_v9c`, no timer, `Requeue=0`, Features) | §10.3 one-a-day newest since **21990060** | one freeze TEST in flight; do not queue a second; 2 idle remain — ping, do not invent
+- 4 Oct 12:18 | sitting (Ido GO 11:41, metrics/dev) filled QOS: FW **22127216 R** `ise-4090-03`; A0 **22127527 R** `cs-pheno-03`, **22127528/29 PD** QOS | QOS **8/8**; ops does not invent; freeze TEST **22124693** still R 1.5 h TB=0; C1 freeze still ep0011
+- 4 Oct 12:45 | sitting: §200 constant-policy census + reward replay; runbook **§10.0e** rows for FW and A0; report `GILAD_1OCT_POINTS_REPORT.md` | ep0131's TEST (22124693) is already 0.8 at 16/16 r20 and 12/12 r56 decisions | its M1 read will repeat M1-neg's comparison; next sitting: A0 calls, FW call, reward design (GO)
 - 3 Oct 10:00 | H0 retries `21986700/01` R ~8 h | origin TEST DN-40 / MBV2 inside 0.12 pp; start checks ok | first net TRAJ in; do not kill; ledger on COMPLETED
 - 3 Oct 10:00 | pf-w 89 still R step 281, 7 `[proxy]` lines | 24 h wall ~21:39 | readout at end; freeze TEST takes that GPU; 21940321 held
 

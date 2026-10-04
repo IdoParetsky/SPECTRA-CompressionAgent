@@ -36,7 +36,8 @@
 | A4 | Deployment bench, job `21942378` (latency, throughput, peak memory, energy per image) | **COMPLETED** 01:08 (1.25 h, TB=0, 0 template failed). 3 repeats, 270 jsonl rows. Summary in EFFICIENCY §5.3. Never ledger | yes | EFFICIENCY §5.3 |
 | A5 | Proxy fidelity, `21941343–48`: does the 12/4 fine-tune, or no fine-tune at all, keep the agent's ranking? | **6/6 COMPLETED**. Ceiling **+0.41 < 0.5 → uninformative** (§189). **Widen 4/4 COMPLETED** (`21970086–89`, 89 at 11:30 3 Oct). `--sets where`: **2/6** ranked sets, ceiling **+0.71**; bn/none/12x4/40x10 all **not valid**. 12x4 NOT validated. 40x10−12x4 ρ **−0.07**. **21940321 stays held.** Ledger probe **§195**. Next cell: SGD-proxy sitting | yes | queue file; ledger §189 / **§195** |
 | A6 | Measuring as we go | `gpu_samples.csv` in every `tree_v9d` job since ~11:00 1 Oct; `scripts/cost_readout.py` at each COMPLETED | ongoing | EFFICIENCY §9 |
-| A7 | Open items for Ido (NVML, an agent timer, PUE / CO2e, a GPU-side augmentation A/B, a val-selected DepGraph) | Timer: built (`TIME_DECIDE=1` on C2 TEST **22056144**). D5 GPU-aug: **ADOPT for new cells** (D5-bis+RW43 EQUIVALENT, §196). NVML / PUE / val-selected DepGraph still open | his call | EFFICIENCY §11, §3.3 |
+| A7 | Open items for Ido (NVML, an agent timer, PUE / CO2e, a GPU-side augmentation A/B, a val-selected DepGraph) | Timer: built and measured (**4 Oct:** 3.0–8.2 ms per decision on a 4090; Budget 22059501, C2 22056144). D5 GPU-aug: **ADOPT for new cells** (D5-bis+RW43 EQUIVALENT, §196). NVML / PUE / val-selected DepGraph still open | his call | EFFICIENCY §11, §3.3, §3.4 |
+| A8 | **Metrics dev phase** (Ido GO 4 Oct 11:41: "IF you agree, you have my GO") | **4 Oct:** taken narrowly. **FW `22127216` R** measures K = 1 time-to-target with the fast walk (12/4 + GPU crop+flip) on DepGraph's R56 vs DepGraph's 85.1 min; calls K1-PARITY / K1-TRADE / SLOWER. Built: a time-and-Wh-to-each-size-point readout in `cost_readout.py` (reproduces N3's 405.6 + 15.8 min). Not taken: NVML, val-selected DepGraph, benching agent nets (the agent is a uniform 0.8 schedule today) | FW yes | report Part I; EFFICIENCY §11; queue file "FW" |
 | B1 | "How filters are chosen (how many · which)" column | **Done.** 49 published methods in the canonical table; the column added to every living SOTA table (news §2.4–2.5, benchmark setup §3, Catalog-L §2.4 and §5.3, efficiency §4.1–4.3 and §8.1, directives §5, skeleton T1–T2) and to the literature canvas | — | design §2 |
 | B2 | "Is the two-decision head backed by literature?" | **Answered: yes.** LFPC (CVPR 2020), MFP, Blending, and closest, Balaskas et al. (IEEE TETC 2024); action branching and parameterized actions in RL. All are per-target; ours is the frozen, transferable setting | — | design §4.1 |
 | B3 | A second DRL agent for which filters | **Designed:** hierarchical; a set transformer over channel tokens; Plackett–Luce / Gumbel-top-k; reward paired against L1; a selection shield. Gated by S0 → S1 → S2. **Closed 3 Oct:** G2 HARM, so S3 is not trained | design only; closed | design §6.4, §8, §0 item 7 |
@@ -44,6 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | **Census + reward replay (§200, zero GPU):** every TESTed actor plays one action at every decision; the band reward pays size, not accuracy at equal size. M1-neg = uniform 0.8 vs uniform 0.9. **A0 probe** `22127527` R / `28` / `29` PD: does any allocation (sensitivity rule, its reverse, random) beat uniform at equal params after 40 epochs on thin R56-w4, DepGraph R56, VGG-16? Smoke `22127526` COMPLETED (plumbing; matching fixed before the cells) | A0 likely | report Part III; ledger §200; queue file "A0" |
 
 ---
 
@@ -69,6 +71,12 @@
    - The second agent is closed by S2. NAP-F moves to the anytime recovery predictor (a cost lever) and to agent state.
    - Lesson for any learned score: hold out a family, not only a net.
 5. **Robustness vs verification.** One table and three hooks: an action-stability certificate for the frozen actor, choosing among frozen seeds by agreement, and the selection shield. Then ask which line he meant.
+6. **(Added 4 Oct) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200).
+   - Every TESTed actor plays one action at every decision: M1-neg compared uniform 0.8 with uniform 0.9.
+   - The band reward pays size, whatever the accuracy, inside 10 pp.
+   - A0 (allocation headroom) and the replay pre-check of a reward that prices accuracy at equal size come next.
+   - Show the replay table (equal depth: 124.9 vs 126.0 across 3 pp of val) and A0's calls if they have landed.
+   - Ask question 6 below.
 
 ---
 
@@ -107,6 +115,9 @@
 3. **The selection negative** (replaces "the second agent: chapter or follow-up?", which S2 closed): is S0–S2 a thesis section, i.e. "allocation is what a pruning agent must learn; beyond magnitude, selection is not a lever at a 40-epoch recovery", with S1's transferable ranking as the positive side result?
 4. **The two-decision head** has precedent (LFPC 2020, Balaskas 2024). Is it fine to present it as applied in the transfer setting rather than as a contribution?
 5. **Side metrics:** which to headline? Per-target search cost (ours is zero by construction), the cost of the K-th network, or deployment latency at equal FLOPs (pending)?
+6. **NEON's reward on long walks (added 4 Oct).** Under NEON's three-way reward with a 10 pp band, our CNN agent learns "the largest cut at every decision": inside the band, a cut pays its size whatever it costs.
+   - Did NEON's dense agents vary their actions, or was the band binding more often on their shorter walks?
+   - Would he accept a tighter training band with a slack taper (F1, τ 5, which passes our replay check), or fixed-budget episodes (AMC-style), as a faithful extension of NEON's reward?
 
 ---
 
@@ -158,7 +169,10 @@
 - **3 Oct 18:28 / 22:38** — D5-bis **21990184** and RW43 **21990185 COMPLETED**. Call: **EQUIVALENT ⇒ ADOPT `FT_AUG_GPU` for new cells.** Never a live train / resume / freeze TEST. Ledger **§196**. RW43 largest |ΔTEST| vs s42 = **1.2 pp**.
 - **3 Oct 11:30** — pf-w 89 COMPLETED. Widen readout **§195**: no proxy valid; **21940321 stays held**.
 - **4 Oct 01:35** — C2 freeze TEST **22056144 R** (`ise-4090-21`, ep0083 after PPO-20, `TIME_DECIDE=1`). Do not TEST Budget ep0131 while this is in flight. QOS 6/8; 2 idle; do not invent.
-- **4 Oct ~02:25** — Sitting close (Ido GO "fill all 3"): budgetstop freeze TEST **22059501** and FR43 **22059502** (the Stage-4 ep0095 TEST re-walked with seed 43) R beside 22056144, by a one-time exception. QOS 8/8. §193 equal-keep addendum: r56 kinder at 16 of 19 shared keeps; the M1 verdict is unchanged. For the meeting: FR43 is the first read of the agent's own walk-to-walk noise (Gilad's robustness question).
+- **4 Oct 06:20** — FR43 **22059502 COMPLETED** (4.3 h, `ise-4090-03`). Ledger **§199**. Widths match 17/17 and 61/61. **R56 kinder band replicates.** R20 first-point deficit does not. No call. M1 on ep0095 stays 21990060. QOS 5/8; three idle; do not invent.
+- **4 Oct 11:56** — Sitting (Ido GO 11:41). A8 FW **22127216** R (`ise-4090-03`, start check passed). The metrics dev phase is taken narrowly (report Part I §I.6).
+- **4 Oct 12:13** — B8 A0 smoke **22127526** COMPLETED (2.6 min; plumbing). The size-matching fix was deployed before the cells: `allocation_probe.py` md5 `7f4d0e1aac22`, tests 6/6. Cells **22127527** R (`cs-pheno-03`), **22127528 / 29** PD.
+- **4 Oct 12:45** — B8 ledger **§200** (zero GPU): constant-policy census + reward replay. M1-neg = uniform 0.8 vs uniform 0.9. FR43's stability is trivial. Report `docs/paper/GILAD_1OCT_POINTS_REPORT.md` written for Ido (Parts I–III). Runbook §10.0e.
 
 ---
 

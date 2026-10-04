@@ -81,6 +81,31 @@ def test_cost_readout_splits_a_walk(tmp_path):
     assert net["energy_wh"] == pytest.approx(300 * 1053 / 3600, rel=1e-2)
 
 
+def test_cost_readout_prices_each_final_point_alone(tmp_path):
+    readout = _script("cost_readout")
+    run = _fake_run(tmp_path)
+    path = run / "events" / "rank0.jsonl"
+    events = [json.loads(line) for line in path.read_text().splitlines()]
+    index = 0
+    for event in events:
+        if event["event"] == "step":
+            event["step_index"] = index
+            index += 1
+        elif event["event"] == "eval_traj_final_ft":
+            event.update(step=1, label="size_flop0.47", param=0.5, flop=0.47)
+    events.insert(-1, {"event": "eval_traj_final_ft", "network": "/x/r56.pth", "label": "origin", "step": -1,
+                       "param": 1.0, "flop": 1.0, "minutes": 1.0, "epochs": 100, "t": 1099.0})
+    path.write_text("\n".join(json.dumps(e) for e in events) + "\n")
+    (net,) = readout.summarize(str(run))["networks"]
+    point, origin = net["points"]
+    assert (point["label"], point["step"], point["walk_min"]) == ("size_flop0.47", 1, round(152.0 / 60, 1))
+    assert point["total_min"] == pytest.approx(152.0 / 60 + 15.0, abs=0.06)
+    assert point["walk_wh"] == pytest.approx(300 * 152 / 3600, rel=0.02)
+    assert point["final_wh"] == pytest.approx(300 * 900 / 3600, rel=0.01)
+    assert (origin["walk_min"], origin["total_min"]) == (0.0, 1.0)
+    assert origin["final_wh"] == pytest.approx(300 * 60 / 3600, rel=0.05) and origin["walk_wh"] == 0.0
+
+
 def test_cost_readout_resolves_job_ids_under_run_roots(tmp_path, monkeypatch):
     readout = _script("cost_readout")
     _fake_run(tmp_path)

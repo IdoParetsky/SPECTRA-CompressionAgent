@@ -13,6 +13,14 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 
 **Sitting close, 4 Oct ~02:25 (Ido GO "fill all 3", ~01:55). QOS 8/8 R:** five trains plus three TESTs: C2 freeze TEST **22056144** (ops), budgetstop freeze TEST **22059501** and FR43 **22059502** (the Stage-4 ep0095 TEST re-walked with seed 43). Both arm TESTs run at once by Ido's one-time exception (runbook **§10.0d**). D5 is ADOPTED for new cells (D5-bis + RW43; §196). RW43 puts the noise of one mild walk at up to 1.2 pp. The ledger's next section is **§197**. When a slot frees the ladder is empty: ping, do not invent.
 
+**Sitting 4 Oct ~12:45 (Opus 5.5; Ido GO 11:41).**
+- *QOS:* **8/8** with two new independent cells: **FW 22127216** (section "FW") and **A0** **22127527** R, **22127528 / 29** PD (section "A0"); A0's smoke **22127526** COMPLETED.
+- *Diagnosis (zero GPU, ledger **§200**):* every TESTed actor plays one action at every decision (0.8, or the Budget arm's largest budget), and the band reward pays exactly that. M1-neg is uniform 0.8 vs uniform 0.9.
+- *Report for Ido on Gilad's two points:* `docs/paper/GILAD_1OCT_POINTS_REPORT.md`.
+- *Next:* no train before A0 reads and Ido's GO on a reward that passes the replay check (§200).
+
+**Ops 4 Oct 10:48.** Stage-4 wrote freeze **ep0131** (probe 0.2863). Pre-authorized one-a-day TEST **22124693 R** (`traj-v9c-paug-ep0131`, `cs-4090-01`, `tree_v9c`, no `TIME_DECIDE`, `Requeue=0`). Control 21729557. One freeze TEST in flight. Do not TEST another freeze until it ends. Ledger next **§200**. **2 idle — ping, do not invent.**
+
 **Stamped:** 4 Oct 2026, 01:38 IDT (PC-off catch-up). **QOS 6/8 R:** Stage-4 21737123 (freeze still **ep0095**, TESTed), C1 21938807 (freeze still **ep0011**), C2 21938810 (freeze **ep0083**), Budget+STOP 21940311 (freeze **ep0131**), factored 21940316 (freeze **ep0047**), C2 freeze TEST **22056144** (`ise-4090-21`, `TIME_DECIDE=1`). **PD:** five train resumes `afterok` + two held trains and their r1s. Ladder empty. **2 idle — ping, do not invent.**
 - *Overnight COMPLETED:* pf-w 89 **§195** (no proxy valid; 21940321 held); freeze TEST **21990060 §193 M1 does not fire**; D5-bis+RW43 **§196 EQUIVALENT ⇒ ADOPT new cells**; H0 **§194 TESTs**.
 - *In flight (one freeze TEST):* **22056144** C2 ep0083. Do not TEST Budget ep0131 until it ends.
@@ -383,6 +391,74 @@ The agent's own walk-to-walk noise is the unknown. A second agent walk tells whe
 - Line: §10.5 (a) in `tree_v9d` with the arm's `SNAP`, `SPECTRA_SEED=42`, `SPECTRA_TIME_DECIDE=1`, nice 0, `rtx_6000|rtx_4090`.
 - *Start check:* the policy_config pin lines. Budgetstop must show its budget menu (`SPECTRA_ACTION_MENU` / budget keys) pinned; a missing pin ⇒ scancel and report. A STOP ends that net's walk, so a NONE size point is a result, not a failure.
 - *Read:* §10.3 item 1 (vs 21729557 at equal keep, with the census), plus RW43's noise and `_tmp_oct4_m1read.sh` for the interpolated equal-keep curve. Paste `decide … ms` into EFFICIENCY §3.4.
+
+## FW: the fast walk to DepGraph's sizes on its own checkpoint (metrics dev phase, cell 1; registered before submit, 4 Oct ~12:50; Ido GO 11:41 "IF you agree, you have my GO")
+
+**Why.** At one target (K = 1) this is the one cost row where the paper must say "slower". The 40/10 mild walk N3 (21767189, `ise-4090-19`) needs **405.6 min** of walk to DepGraph's 2.11× FLOPs point on DepGraph's own ResNet-56, plus 15.8 min of final fine-tune. DepGraph's whole run takes **85.1 min** on the same GPU model (21943448, RTX 4090).
+
+Two recipe changes are already in hand:
+- *D5* (GPU crop+flip, adopted for new cells, §196): 1.4–2.8× per epoch on the thin nets.
+- *The train recipe 12/4*: 3.3× fewer epochs.
+
+Projected together: about 50–100 min to 2.11×. The cell measures what the fast walk costs at K = 1 and what it gives up in accuracy. It is a measurement of the no-agent pipeline (mild), never an agent row. The walk to each N3 size point is 264.8 / 405.6 / 518.1 min (flop 0.60 / 0.47 / 0.39 at steps 136 / 210 / 267), and every final fine-tune takes 15.5–15.9 min.
+
+| Job name | Tree | Line | GPU | Wall | Nice |
+|---|---|---|---|---|---|
+| v9d-fw-dg-r56 | `tree_v9d` | N3's line: P + FT + `SPECTRA_FT_AUG=1`, 5 passes, `flop:0.6,0.47,0.39`, `input_catalog_l_depgraph_r56.json` (md5 `792854c8…`, the same in both trees), profile `baseline_c10_mild_traj_gonce`. **Plus** `SPECTRA_FT_AUG_GPU=1 SPECTRA_NUM_EPOCHS=12 SPECTRA_FINETUNE_PATIENCE=4`. The final fine-tune also runs on the GPU loader (`final_ft_train_loader` keeps a `GpuCropFlipLoader`) | `rtx_4090` only: DepGraph's and N3's model | 14 h | 5 |
+
+**Reads:**
+- *Widths:* mild is deterministic, so the size points must land on N3's steps (136 / 210 / 267) at N3's params and FLOPs. Any difference ⇒ report before reading cost.
+- *Cost at each point:* minutes from the walk's first step to that step, plus that point's final fine-tune minutes. Wh over the same windows from `gpu_samples.csv` (`scripts/cost_readout.py`). Seconds per epoch actually run.
+- *Accuracy:* the 10k final TEST at each point against N3 (2.11×: −0.46; 2.57×: −1.63) and against DepGraph's own numbers. Also the 5k walk TEST against N3's walk.
+
+**Calls** at 2.11× FLOPs. The read is the 10k final TEST, and K = 1 cost = walk to the point + its final fine-tune, on the same GPU model:
+- **K1-PARITY:** cost ≤ 85.1 min **and** 10k final ≥ −0.96 (within 0.5 pp of N3). Then the cost table gets a K = 1 row against DepGraph's 85.1 min, and the break-even K* falls to 1. The accuracy row stays N3's unless FW's is at least as good.
+- **K1-TRADE:** cost ≤ 85.1 min and 10k final < −0.96. Then two rows (fast and full), a cost-accuracy knob, no adoption.
+- **SLOWER:** cost > 85.1 min. The K = 1 deficit stands, with the fast walk's number, and K* is recomputed.
+- *Noise:* one walk. RW43 put one thin walk's TEST noise at 0.15–1.1 pp; the 10k final's noise on this net is unmeasured. A K1-TRADE within 1 pp of the bar is "unresolved", not a loss.
+
+*Start check:* env `SPECTRA_FT_AUG_GPU': '1'`, `SPECTRA_NUM_EPOCHS': '12'`, `SPECTRA_FINETUNE_PATIENCE': '4'`, `SPECTRA_REPO_DIR` `tree_v9d`; log `FT aug on cifar-10: RandomCrop+Flip on the GPU`; a 4090 node; `gpu_samples.csv` growing. *Kill:* Traceback ⇒ report. *Ledger:* one PRELIM section on COMPLETED. Never a SPECTRA-agent row.
+
+**Status (4 Oct 12:00): 22127216 R** on `ise-4090-03` since 11:56, `Requeue=0` (set after submit). *Start check passed:* the three flags in the env, `tree_v9d`, the GPU-loader banner (`batch=256`), `split_seed=0`, `gpu_samples.csv` growing. *12:18:* 45 steps in 21.7 min (~29 s per step vs N3's ~116). If the pace holds, step 210 lands ~100 min after the start, before its final fine-tune, so SLOWER is the likelier call. The read decides, not this projection. *Progress:* `grep -cE '"event": "step"' runs/job22127216/events/rank0.jsonl`. *Cost read:* `python scripts/cost_readout.py 22127216 21767189` in `tree_v9d` prints each point's `walk + final = … min | … Wh` (built 4 Oct; reproduces N3's 405.6 + 15.8).
+
+## A0: allocation headroom probe (registered before submit, 4 Oct ~13:05; sitting, "diagnose before any new train", runbook §10.4 M1-neg)
+
+**Why.** The constant policy behind M1-neg is diagnosed (ledger §200; report `docs/paper/GILAD_1OCT_POINTS_REPORT.md` Part III). Every TESTed actor plays its menu's largest cut at every decision. The trained reward pays the size cut inside a 10 pp band and never prices accuracy at equal size, so "always the largest cut" is what it pays for.
+
+Any fix (fixed-budget episodes, or a reward that prices accuracy at equal size) assumes there is something state-dependent to learn: some allocation of channels across groups that beats uniform at equal size under our fine-tune.
+- S0 settled *which* channels: no lever after 40 epochs (§188).
+- Nobody has measured *how many per group* on these cells.
+- If uniform is as good as a sensitivity rule and random draws, a reward fix can at best relearn mild. The agent's case then rests on schedule, stopping and transfer cost.
+- *Prior.* Liu et al. (ICLR 2019, "Rethinking the value of network pruning") found learned allocations help VGG more than ResNets on CIFAR. So a split (VGG-16 HEADROOM, ResNets FLAT) is plausible.
+
+**Built** in `tree_v9d` (default-off; nothing else changed): `scripts/allocation_probe.py` + `.sbatch`, `tests/test_allocation_probe.py`, **6/6 pass** on the login node. It reuses S0's plan, calibration batches and `recover()`. Each group is cut once at its own keep with the walk's edit and L1 survivors. Keeps are scaled by bisection to the target params.
+
+| Job name | Tree | Line | GPU | Wall | Nice |
+|---|---|---|---|---|---|
+| alloc-smoke | `tree_v9d` | `AL_NET=thin-r56w4 AL_ARGS="--keep 0.6 --budgets 0 bn 1 --uniform_seeds 2 --random_draws 1"` | untyped, runbook exclude list | 1 h | 15 |
+| alloc-thin-r56w4 / alloc-dg-r56 / alloc-cy-vgg16 | `tree_v9d` | `AL_NET=<net>`, defaults: keeps 0.6 and 0.35 of params; budgets 0 / bn / 40; uniform × 3 fine-tune seeds; sens, sens2, anti (α 0.5, sensitivity = calibration-loss rise with the group alone at keep 0.5); random × 4 (σ 0.35); min keep 0.1; recipe A 40/10 with crop+flip on the GPU; P | `afterok:` smoke, untyped | 14 h | 24–26 |
+
+**Calls** per net, keep and budget, printed by the script as `[alloc-call]`. Only budget 40 is read for the call.
+- bar = max(0.5, 2 × uniform's fine-tune-seed SD of val Δ).
+- **HEADROOM:** sens, sens2 or the val-best random draw is ≥ bar above uniform on val **and** above it on TEST.
+- **HARM:** every params-matched allocation is ≥ bar below uniform on val.
+- **FLAT:** otherwise. Allocations more than 0.02 params from uniform are printed but not counted.
+
+**Reading across nets (budget 40, both keeps):**
+- **A0-HEADROOM** on a net ⇒ allocation is a lever there. A reward that prices accuracy at equal size has something to learn, and that net type belongs in the agent's TEST suite. The next train design (fixed-budget episodes or an accuracy-priced band) goes to a sitting with Ido's GO.
+- **A0-FLAT** on all three at both keeps ⇒ at these sizes and under our fine-tune, uniform is as good as a sensitivity rule or random allocations. A reward fix alone would relearn mild. The agent's remaining levers are step size and count, when to stop, and transfer cost; way-ahead and the 8 Oct slides say so.
+- **A0-HARM** ⇒ uniform is a strong prior; any future agent acts as a residual on uniform.
+- Budgets 0 and bn answer only the proxy question: does a no-fine-tune signal order allocations as 40 epochs does (Kendall τ per net and keep)? Never a call.
+- *Caveats:* a one-shot cut and a 40-epoch recovery, not the iterative walk. Only uniform has fine-tune seeds. One cheap sensitivity rule. Three candidates against one bar, guarded by the TEST same-sign rule.
+
+*Start check:* `alloc-probe <net> … aug=1 aug_gpu=1`; `Allocation probe … FT_AUG=1 FT_AUG_GPU=1 VAL_FROM_TEST=1`; `Sensitivity at keep 0.5: N groups`; the GPU-loader banner. *Progress:* one `[alloc] <net> keep=<k> <kind><draw>/s<seed> budget=<b>` line per allocation and budget: 30 per keep, 60 per cell. *Matching check (from the first non-uniform row):* its `params x…` is within 0.02 of that keep's uniform rows, and no `(unmatched)` appears at budget 40. *Kill:* Traceback ⇒ report; the rows written so far survive. *On COMPLETED:* paste the budget-40 `[alloc-call]` lines here, write one ledger *probe* section, ping Ido with the per-net calls. Never a TEST row.
+
+**Status (4 Oct 12:20).**
+- *Smoke `22127526` COMPLETED* in 2.6 min (exit 0). Plumbing passed with the GPU loader; sensitivity for 30 groups took 5 s.
+- *It exposed a matching flaw.* On the thin net, uniform at keep 0.6 realizes 0.567 params (4- to 16-channel groups round coarsely), while every other allocation landed at 0.600–0.606. All of them were therefore `(unmatched)`.
+- *Fix (before any cell started).* The cells were held. Non-uniform allocations now bisect to **uniform's realized** params (16 iterations, tolerance 0.003). Redeployed (md5 `7f4d0e1aac22`), tests 6/6, cells released 12:13.
+- *Smoke at 1 epoch (unmatched; never a call):* against uniform's two-seed mean of −23.10 pp on val: sens +8.7, sens2 +4.8, anti −18.1, one random draw +2.3.
+- **22127527** alloc-thin-r56w4 R on `cs-pheno-03` since 12:13 (start lines ok); **22127528 / 29** PD on the QOS.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 

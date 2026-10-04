@@ -140,6 +140,34 @@ A short sitting: docs and the next-cell register, no build. Record: `docs/RUN_RE
 - C1 still has only ep0011, so its ARM-FLAT watch at episode 120 stands. Budgetstop's ARM-FLAT is moot: it froze ep0131 after update 20. Factored's ep0047 is pre-update-20: never TEST it.
 - When a TEST ends the ladder is empty again: ping, do not invent. Next cell candidates for a sitting: SGD-proxy variants on the pf finals (§195); a two-walk mild bar for M1 (RW43 shows 1.2 pp of noise).
 
+### 10.0e 4 Oct science sitting (Opus 5.5, ~12:45; Ido GO 11:41; supersedes §10.0d where they differ)
+
+**Ido's asks:**
+- the report on Gilad's two points (`docs/paper/GILAD_1OCT_POINTS_REPORT.md`);
+- diagnose before any new train;
+- a narrow metrics dev phase on his GO.
+
+**Diagnosis, ledger §200 (zero GPU).** Every TESTed actor plays one action at every decision: 0.8 for Stage-4, C2 and FR43; the largest budget for Budget. The trains' band reward pays exactly that: inside τ = 10 a cut earns its size whatever it costs. So M1-neg compares uniform 0.8 with uniform 0.9.
+
+**Pending decisions (unchanged; a sitting decides on Ido's GO):**
+- the SGD-proxy cells;
+- the two-walk mild bar;
+- what the five live trains are for.
+
+Ops keeps running freeze TESTs per §10.3 / §10.0c.
+
+| Job | Name | What | Ops action |
+|---|---|---|---|
+| 22127216 | v9d-fw-dg-r56 (`tree_v9d`, `rtx_4090` only, nice 5, wall 14 h, `Requeue=0`) | FW: N3's mild walk on DepGraph's ResNet-56 with GPU crop+flip and 12/4, to DepGraph's three sizes (queue file "FW"). R since 11:56 on `ise-4090-03`; start check passed | **Progress:** `grep -cE '"event": "step"' runs/job22127216/events/rank0.jsonl` (DepGraph's 2.11× is step 210).<br>**Kill:** Traceback or OOM ⇒ report; no resubmit.<br>**On COMPLETED:**<br>• *Widths:* the three size points must land at N3's steps 136 / 210 / 267, at N3's params and FLOPs; if not, report before reading cost.<br>• *Cost:* `python scripts/cost_readout.py 22127216 21767189` in `tree_v9d`. Each `to size_flop… (step …): walk … + final … = … min | … Wh` line is that point's K = 1 cost. N3's lines are the 40/10 reference (405.6 + 15.8 min at step 210).<br>• *Call:* the queue file's K1-PARITY / K1-TRADE / SLOWER at 2.11×, with DepGraph's 85.1 min and N3's 10k −0.46.<br>• *Write-up:* one PRELIM ledger section (a no-agent cost cell; never a SPECTRA-agent row), one EFFICIENCY §3.1 line, tracker A8 and §6, ping Ido with the call |
+| 22127526 | alloc-smoke | A0 plumbing | **Done** (COMPLETED 2.6 min). Never quoted |
+| 22127527 / 28 / 29 | alloc-thin-r56w4 / alloc-dg-r56 / alloc-cy-vgg16 (`tree_v9d`, untyped, nice 24–26, wall 14 h) | A0: does any allocation beat uniform at equal params after 40 epochs? (queue file "A0"). 527 R since 12:13 on `cs-pheno-03`; 528 / 529 PD | **Start check:** `Allocation probe … FT_AUG=1 FT_AUG_GPU=1 VAL_FROM_TEST=1` and the GPU-loader banner. **Matching check:** in each keep, the first non-uniform `[alloc]` row's `params x…` is within 0.02 of uniform's, and no `(unmatched)` appears at budget 40. If it fails, report; do not resubmit.<br>**Progress:** `grep -c "\[alloc\]" runs/slurm_logs/alloc_<job>.out` (60 rows per cell).<br>**Kill:** Traceback ⇒ report.<br>**On COMPLETED:** paste the budget-40 `[alloc-call]` lines into the queue file's A0 section and tracker B8 / §6. After all three cells, write one ledger *probe* section ("A0 allocation headroom — a lever measurement, never a TEST row") and ping Ido with the per-net calls. **Never a TEST row; never a reason to change a live train** |
+
+**Never (adds to §10.6):**
+- Quote FW as an agent result.
+- Quote an A0 number as a TEST.
+- Start a train on A0's call; that needs a sitting and Ido's GO.
+- Change any live train's reward because of §200.
+
 ### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |
