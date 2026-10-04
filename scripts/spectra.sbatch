@@ -685,7 +685,7 @@ case "$PROFILE" in
                   --compression_rates 1.0 0.9 0.8)
     fi
     ;;
-  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse)
+  offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse|offline_train_v10_fixed_target)
     export SPECTRA_INPUT="${SPECTRA_INPUT:-${REPO_DIR}/configs/input_offline_similar.json}"
     export SPECTRA_DATABASE="${SPECTRA_DATABASE:-${REPO_DIR}/configs/database_offline_train.json}"
     if [[ "$PROFILE" == offline_train_v5_p5b3* ]]; then
@@ -909,7 +909,7 @@ case "$PROFILE" in
       export SPECTRA_CONTINUE_TRAIN=0
       export SPECTRA_SKIP_TRAIN=0
     fi
-    if [[ "$PROFILE" == offline_train_v3_* || "$PROFILE" == offline_train_v4_* || "$PROFILE" == offline_train_v5_* || "$PROFILE" == offline_train_v6_* || "$PROFILE" == offline_train_v7_* || "$PROFILE" == offline_train_v8_* || "$PROFILE" == offline_train_v9_* ]]; then
+    if [[ "$PROFILE" == offline_train_v3_* || "$PROFILE" == offline_train_v4_* || "$PROFILE" == offline_train_v5_* || "$PROFILE" == offline_train_v6_* || "$PROFILE" == offline_train_v7_* || "$PROFILE" == offline_train_v8_* || "$PROFILE" == offline_train_v9_* || "$PROFILE" == offline_train_v10_* ]]; then
       # ---- v3 (16 Sep last train). Everything v2a/v2b had, plus what the v2 traces showed
       # was missing: (1) band-edge exposure — B saw the τ edge on 2.5 % of steps, so "stop
       # from slack" had no signal → --passes 2 in training (TEST replays 2 passes via
@@ -978,8 +978,10 @@ case "$PROFILE" in
         offline_train_v3_fpgm_structraw)
           # Fallback if neonraw collapses like v2c: NEON trichotomy on the realised cut, no cube-root.
           export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=raw ;;
-        offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse)
+        offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse|offline_train_v10_fixed_target)
           # Ido 19 Sep GO: cbrt on cubed arms only; in-band stays linear +ρ.
+          # (v10 replaces this reward in the env; the setting only keeps its reward trace
+          # comparable with Stage 4.)
           # Isolated vs live v3-fpgm 21385158 (same 24-net, same PPO, same fpgm menu).
           export SPECTRA_REWARD_MODE=structural; export SPECTRA_REWARD_SCALE=cbrt_cubes
           # G2 one-change reward trains (Ido 1 Oct GO): the arm swaps the scale and nothing else.
@@ -1036,6 +1038,39 @@ case "$PROFILE" in
         export SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1 SPECTRA_PROBE_SCORE=area
         export SPECTRA_PROBE_NETS="resnet56-width6,resnet20-width10,resnet20-width13_cifar100"
         export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0
+      fi
+      if [[ "$PROFILE" == "offline_train_v10_fixed_target" ]]; then
+        # ---- v10 fixed-target train (Ido GO 4 Oct 19:23; registered in docs/SITTING_GPU_QUEUE.md
+        # "v10"). In the τ band the trained reward paid each cut its size, so every TESTed actor
+        # learned the largest cut everywhere (ledger §200, M1-neg). At equal kept parameters a
+        # sensitivity-guided allocation beat uniform by 1.6–8 pp after recovery (A0, §201/§204/
+        # §205). Here each episode draws a target keep in [0.35, 0.85] and ends when the network
+        # reaches it (the last cut is narrowed to land on it); each step pays its change in val
+        # accuracy, so the return is the val Δacc at the target (γ = 1). The state adds the target
+        # and each layer's group sensitivity (src/group_sensitivity.py). Otherwise Stage 4's
+        # recipe: P5-B2 catalog, P, crop+flip 12/4 train FT (on the GPU for the CIFAR nets, D5
+        # adopted for the next train, §196), PPO + governor, slack, group-cost, group-once.
+        # Menu keep 1.0/0.9/0.8/0.7/0.6 with L1 (the criterion lever closed, §196–§199); six
+        # passes so a mild walk can reach 0.35. The probe walks the thin pair at targets
+        # 0.8/0.6/0.4; every new best freezes and the registered TEST rule picks among them.
+        export SPECTRA_DATABASE="${SPECTRA_V10_DATABASE:-${REPO_DIR}/configs/database_offline_v6_p5b2.json}"
+        export SPECTRA_DATASET_NAMES="cifar-10 svhn"
+        if [[ ! -s "$SPECTRA_DATABASE" ]]; then
+          echo "offline_train_v10_fixed_target: ${SPECTRA_DATABASE} missing" >&2; exit 1
+        fi
+        export SPECTRA_FT_REINIT_EDITED=0 SPECTRA_FT_REINIT_THEN_POLISH=0
+        export SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_FT_AUG=1
+        export SPECTRA_FT_AUG_GPU="${SPECTRA_V10_FT_AUG_GPU:-1}"
+        export SPECTRA_FIXED_TARGET=1 SPECTRA_STATE_SENS=1 SPECTRA_PROBE_SCORE=target
+        export SPECTRA_TARGET_KEEP_RANGE="${SPECTRA_TARGET_KEEP_RANGE:-0.35:0.85}"
+        export SPECTRA_TARGET_MISS_PENALTY="${SPECTRA_TARGET_MISS_PENALTY:-2}"
+        export SPECTRA_TARGET_PROBE_KEEPS="${SPECTRA_TARGET_PROBE_KEEPS:-0.8:0.6:0.4}"
+        export SPECTRA_PASSES=6
+        export SPECTRA_ROLLOUT_LIMIT=1000
+        export SPECTRA_PROBE_EVERY="${SPECTRA_V10_PROBE_EVERY:-16}"
+        export SPECTRA_SNAPSHOT_BASELINE="${SPECTRA_V10_SNAPSHOT_BASELINE:--1000}"
+        unset SPECTRA_WIDTH_LADDER SPECTRA_ACTION_MENU SPECTRA_FACTORED_HEAD SPECTRA_STATE_TOKENS
+        unset SPECTRA_ACTION_DEDUPE SPECTRA_PROTECT_STREAMS SPECTRA_REWARD_SCALE_ARM
       fi
       if [[ "$PROFILE" == offline_train_v5_* ]]; then
         # ---- V5 (18 Sep, Fable sitting). One cell per profile on the v3-fpgm recipe
@@ -1125,6 +1160,12 @@ case "$PROFILE" in
         EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
                     --train_compressed_layer_only False
                     --compression_rates 1.0 0.01 0.02 0.04 -1
+                    --action_rankings l1 l1 l1 l1 l1)
+      elif [[ "$PROFILE" == "offline_train_v10_fixed_target" ]]; then
+        # γ = 1: the per-step Δacc rewards then sum to the val Δacc at the target.
+        EXTRA_ARGS=(--runtime_limit "${SPECTRA_RUNTIME_LIMIT:-518400}" --allowed_acc_reduction 10
+                    --train_compressed_layer_only False --discount_factor 1.0
+                    --compression_rates 1.0 0.9 0.8 0.7 0.6
                     --action_rankings l1 l1 l1 l1 l1)
       elif [[ "$PROFILE" == "offline_train_v8_grouptoken" ]]; then
         # ---- V8 representation cell (Fable 28 Sep): the prune unit is the token. One token per

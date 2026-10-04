@@ -282,6 +282,9 @@ class A2CAgentReinforce:
         # V9 action geometry (what an action index removes on a narrow group) and recovery.
         "SPECTRA_WIDTH_LADDER", "SPECTRA_ACTION_DEDUPE", "SPECTRA_PROTECT_STREAMS",
         "SPECTRA_FT_GROUP_FIRST_EPOCHS",
+        # v10: fixed-target episodes (two target channels, landing, telescoping reward) and the
+        # per-group sensitivity channels both change the token width and what the actor sees.
+        "SPECTRA_FIXED_TARGET", "SPECTRA_STATE_SENS",
     )
     # Contract keys that change what an action index means. An actor whose config predates
     # them was trained with them off, so a replay turns them off (the other contract keys
@@ -309,6 +312,8 @@ class A2CAgentReinforce:
         # The fine-tune's augmentation (Stage 4 trains with crop+flip), the hold-out datasets'
         # recipe and where CIFAR crop+flip runs (loader or GPU).
         "SPECTRA_FT_AUG", "SPECTRA_FT_AUTOAUG", "SPECTRA_FT_AUG_HOLDOUT", "SPECTRA_FT_AUG_GPU",
+        # v10 train-side target distribution, miss penalty and probe targets.
+        "SPECTRA_TARGET_KEEP_RANGE", "SPECTRA_TARGET_MISS_PENALTY", "SPECTRA_TARGET_PROBE_KEEPS",
     )
 
     def write_policy_config(self):
@@ -414,6 +419,21 @@ class A2CAgentReinforce:
             with torch.no_grad():
                 bootstrap = float(self.critic_model(state).reshape(-1)[0].item())
         n = max(step_count, 1)
+        if getattr(self.env, "target_keep", None) is not None:
+            # v10: both selection scores are the episode's fixed-target return (val Δacc in pp
+            # at the target, miss-penalised); a walk cut off by the rollout limit is scored
+            # where it stopped, with the penalty for the parameters still above the target.
+            score = float(self.env.episode_target_score())
+            return {
+                "steps": steps, "bootstrap": bootstrap, "done": bool(done),
+                "network": self.env.selected_net_path,
+                "episode_reward": float(sum(s["reward"] for s in steps)),
+                "pmax": pmax_sum / n, "gap": gap_sum / n, "entropy": ent_sum / n,
+                "actions": [s["action"] for s in steps],
+                "ranks": [s["rank"] for s in steps] if factored else None,
+                "inbudget_score": score, "val_best_score": score,
+                "target_keep": float(self.env.target_keep),
+            }
         return {
             "steps": steps,
             "bootstrap": bootstrap,
@@ -550,7 +570,12 @@ class A2CAgentReinforce:
         Deterministic (argmax) walk over each probe net; mean ``1 − kept`` at the deepest
         in-band point (the TRAJ ``val_best`` object). No gradient, no batch, no return
         statistics. Costs one episode per probe net.
+
+        Under ``SPECTRA_PROBE_SCORE=target`` (v10): one walk per probe net per
+        ``fortify.target_probe_keeps`` target, scored by its fixed-target return.
         """
+        if fortify.probe_score_kind() == "target":
+            return self._probe_score_target(nets)
         conf = self.conf
         scores = {}
         for path in nets:
@@ -577,6 +602,57 @@ class A2CAgentReinforce:
         utils.print_flush(
             f"PROBE ep={self.episode_idx} kind={fortify.probe_score_kind()} score={mean:.4f} "
             + " ".join(f"{k[:24]}={v:.3f}" for k, v in scores.items()))
+        return mean
+
+    def _probe_walk(self, path, keep, policy):
+        """Fixed-target return (pp) of one walk at ``keep``: ``actor`` (argmax) or ``mild`` (keep 0.9)."""
+        conf = self.conf
+        rates = conf.compression_rates_dict
+        identity = next((i for i, r in rates.items() if abs(float(r) - 1.0) < 1e-9), None)
+        mild = min((abs(float(r) - 0.9), i) for i, r in rates.items() if float(r) < 1.0)[1]
+        state = self.env.reset(test_net_path=path, target_keep=keep)
+        done, steps = False, 0
+        while not done and (conf.rollout_limit is None or steps < conf.rollout_limit):
+            legal = self.env.legal_action_mask(device=conf.device)
+            if policy == "mild":
+                idx = mild if bool(legal[mild]) or identity is None else identity
+                rank_idx = None
+            else:
+                with torch.no_grad():
+                    dist = self.actor_model(state)
+                idx, rank_idx, _ = fortify.pick_action(dist, legal, deterministic=True, device=conf.device)
+            state, _, done = self.env.step(rates[idx], ranking=self._action_ranking(idx, rank_idx))
+            steps += 1
+        return float(self.env.episode_target_score())
+
+    def _probe_score_target(self, nets):
+        """
+        Mean fixed-target return (pp) of argmax walks over probe nets × probe targets. The first
+        probe also walks mild (keep 0.9 wherever legal, same targets and landing) once; every
+        probe line then reads against that reference, which the v10 TEST rule uses.
+        """
+        keeps = fortify.target_probe_keeps()
+        cells = [(path, keep) for path in nets for keep in keeps]
+        ref = getattr(self, "_probe_mild_ref", None)
+        if ref is None and cells:
+            ref_scores = {f"{os.path.basename(p)}@{k:g}": self._probe_walk(p, k, "mild") for p, k in cells}
+            ref = self._probe_mild_ref = float(np.mean(list(ref_scores.values())))
+            recorder.record("probe_mild_ref", episode=self.episode_idx, score=round(ref, 5),
+                            per_net={k: round(v, 5) for k, v in ref_scores.items()})
+            utils.print_flush(
+                f"PROBE mild reference (walked once) score={ref:+.3f} pp "
+                + " ".join(f"{k.split('_')[0][:16]}@{k.rsplit('@', 1)[1]}={v:+.2f}" for k, v in ref_scores.items()))
+        scores = {f"{os.path.basename(p)}@{k:g}": self._probe_walk(p, k, "actor") for p, k in cells}
+        mean = float(np.mean(list(scores.values()))) if scores else 0.0
+        vs_mild = mean - ref if ref is not None else None
+        recorder.record("probe", episode=self.episode_idx, score=round(mean, 5), kind="target",
+                        mild_ref=(round(ref, 5) if ref is not None else None),
+                        vs_mild=(round(vs_mild, 5) if vs_mild is not None else None),
+                        per_net={k: round(v, 5) for k, v in scores.items()})
+        utils.print_flush(
+            f"PROBE ep={self.episode_idx} kind=target score={mean:+.3f} pp"
+            + (f" vs_mild={vs_mild:+.3f}" if vs_mild is not None else "") + " "
+            + " ".join(f"{k.split('_')[0][:16]}@{k.rsplit('@', 1)[1]}={v:+.2f}" for k, v in scores.items()))
         return mean
 
     def rewind_to_best(self, checkpoint_folder):
@@ -658,7 +734,14 @@ class A2CAgentReinforce:
             f"train_tau={self.env.tau():g} probe_every={probe_every} "
             f"probe_nets={[os.path.basename(p)[:24] for p in probe_set]} "
             f"min_episodes={min_episode_num} patience={reward_patience} "
-            f"rewind={int(fortify.rewind_best())}/{fortify.rewind_patience()}/max{fortify.rewind_max()}")
+            f"rewind={int(fortify.rewind_best())}/{fortify.rewind_patience()}/max{fortify.rewind_max()} "
+            f"| v10: fixed_target={int(fortify.fixed_target())} state_sens={int(fortify.state_sens())} "
+            f"target_range={fortify.target_keep_range()} miss_penalty={fortify.target_miss_penalty():g} "
+            f"probe_keeps={fortify.target_probe_keeps()} probe_score={fortify.probe_score_kind()} "
+            f"gamma={float(conf.discount_factor):g}")
+        if fortify.fixed_target() and float(conf.discount_factor) != 1.0:
+            utils.print_flush(f"WARNING: SPECTRA_FIXED_TARGET with discount {conf.discount_factor}: the "
+                              f"return no longer telescopes to the val Δacc at the target (use 1.0)")
         recorder.record(
             "train_config", algo="ppo", num_networks=len(self.env.networks),
             episodes_per_update=n_per_update, ppo_epochs=fortify.ppo_epochs(),
@@ -674,7 +757,12 @@ class A2CAgentReinforce:
             state_align="next" if fortify.state_align_next() else "prev",
             train_ft_epochs=fortify.train_ft_epochs(),
             action_rankings=[self.conf.action_rankings_dict.get(i) for i in sorted(self.conf.action_rankings_dict)],
-            inbudget_checkpoint=fortify.inbudget_checkpointing(), snapshot_baseline=fortify.snapshot_baseline())
+            inbudget_checkpoint=fortify.inbudget_checkpointing(), snapshot_baseline=fortify.snapshot_baseline(),
+            fixed_target=fortify.fixed_target(), state_sens=fortify.state_sens(),
+            target_keep_range=list(fortify.target_keep_range()),
+            target_miss_penalty=fortify.target_miss_penalty(),
+            target_probe_keeps=list(fortify.target_probe_keeps()),
+            probe_score=fortify.probe_score_kind(), discount_factor=float(conf.discount_factor))
 
         # Running std of per-step discounted returns → reward scale (PPO "reward scaling").
         ret_count, ret_mean, ret_m2 = 0, 0.0, 0.0
@@ -745,12 +833,14 @@ class A2CAgentReinforce:
                 actions=ep["actions"], best_return=round(float(gov.best_score), 4),
                 episodes_since_improvement=gov.since_improvement,
                 seconds=round(episode_timer.seconds, 3), uniform=bool(self.episode_idx < warmup_eps),
+                target_keep=(round(ep["target_keep"], 5) if "target_keep" in ep else None),
                 **logging_utils.resource_snapshot())
             utils.print_flush(
                 f"DONE Episode {self.episode_idx} in {episode_timer.seconds:.1f}s | "
                 f"steps={len(ep['steps'])} return={disc_return:.2f} ckpt={ckpt_score:.3f} "
                 f"val_best_cut={ep['val_best_score']:.3f} entropy={ep['entropy']:.4f} "
-                f"pmax={ep['pmax']:.3f} gap_to_uniform={ep['gap']:+.4f}")
+                f"pmax={ep['pmax']:.3f} gap_to_uniform={ep['gap']:+.4f}"
+                + (f" target={ep['target_keep']:.3f}" if "target_keep" in ep else ""))
             logging_utils.set_context(ep=None, step=None, layer=None, net=None)
             self.episode_idx += 1
 

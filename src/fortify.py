@@ -180,6 +180,94 @@ def is_factored_dist(dist) -> bool:
     return hasattr(dist, "rate") and hasattr(dist, "rank") and hasattr(dist, "log_prob")
 
 
+# ---------------------------------------------------------------- v10 (4 Oct): fixed-target episodes
+#
+# Ledger §200: inside the τ band the trained reward pays each cut its size whatever it costs, so
+# every TESTed actor learned "the largest cut at every decision" (M1-neg = uniform 0.8 vs mild's
+# uniform 0.9). A0 (§201 / §204 / §205): at equal kept parameters a sensitivity-guided allocation
+# beats uniform by 1.6–8 pp on both ResNet-56 cells after a 40-epoch recovery. v10 asks the agent
+# for that allocation directly, as AMC (He et al., ECCV 2018) does: each episode draws a target
+# keep, the walk ends when the network reaches it, and the return is the val accuracy there.
+# Ido's GO 4 Oct 19:23 ("fixed_target"). All default off.
+
+STATE_TARGET_DIM = 2  # target keep, share of the required cut still to do
+STATE_SENS_DIM = 2    # owning group's sensitivity: log-ratio to the net's median, percentile
+
+
+def fixed_target() -> bool:
+    """
+    ``SPECTRA_FIXED_TARGET=1``: fixed-target episodes (block comment above).
+
+    * A target keep is drawn per AGENT_TRAIN episode (``target_keep_range``); eval reads it from
+      ``SPECTRA_EVAL_SIZE_MATCH=param:<keep>``. Two state channels carry it (``target_channels``).
+    * A cut that would take the network below the target is narrowed to the mildest keep rate
+      that still reaches it, and the episode ends there.
+    * Each step's reward is the change in val accuracy (pp), so the return is the val Δacc at the
+      target. An episode that runs out of passes above its target loses
+      ``target_miss_penalty`` pp per percentage point of parameters missed.
+
+    Changes the token width: pin it (new actors only).
+    """
+    return _flag("SPECTRA_FIXED_TARGET")
+
+
+def _float_list(raw: str):
+    return [float(x) for x in raw.replace(",", ":").replace(";", ":").split(":") if x.strip()]
+
+
+def target_keep_range() -> Tuple[float, float]:
+    """``SPECTRA_TARGET_KEEP_RANGE=lo:hi`` (default 0.35:0.85): train targets, uniform per episode."""
+    raw = os.environ.get("SPECTRA_TARGET_KEEP_RANGE", "").strip() or "0.35:0.85"
+    values = sorted(_float_list(raw))
+    lo, hi = (values[0], values[-1]) if values else (0.35, 0.85)
+    return max(0.05, lo), min(0.99, hi)
+
+
+def target_miss_penalty() -> float:
+    """
+    Return lost per percentage point of parameters an episode ends above its target
+    (``SPECTRA_TARGET_MISS_PENALTY``, default 2): missing by 5 % of the network costs 10 pp.
+    """
+    raw = os.environ.get("SPECTRA_TARGET_MISS_PENALTY", "").strip()
+    return float(raw) if raw else 2.0
+
+
+def target_probe_keeps() -> Tuple[float, ...]:
+    """Probe targets under ``SPECTRA_PROBE_SCORE=target`` (``SPECTRA_TARGET_PROBE_KEEPS``, default 0.8:0.6:0.4)."""
+    raw = os.environ.get("SPECTRA_TARGET_PROBE_KEEPS", "").strip() or "0.8:0.6:0.4"
+    return tuple(v for v in _float_list(raw) if 0.0 < v < 1.0)
+
+
+def target_channels(kept: float, target: float) -> list:
+    """
+    ``[target keep, share of the required cut still to do]`` for the state.
+
+    The share is ``(kept − target) / (1 − target)``: 1 at reset, 0 at the target, clipped to [−1, 1].
+    """
+    t = min(max(float(target), 0.0), 1.0)
+    remaining = (float(kept) - t) / max(1.0 - t, 0.05)
+    return [t, max(-1.0, min(1.0, remaining))]
+
+
+def target_score(delta_pp: float, kept: float, target: float) -> float:
+    """
+    An episode's fixed-target return: val Δacc (pp) where it ended, minus the miss penalty.
+    Any miss counts: a free margin above the target would pay an actor to idle just short of it,
+    and that walk has no size point at TEST.
+    """
+    miss = max(0.0, float(kept) - float(target))
+    return float(delta_pp) - target_miss_penalty() * miss * 100.0
+
+
+def state_sens() -> bool:
+    """
+    ``SPECTRA_STATE_SENS=1``: two per-layer channels with the sensitivity of the coupled group the
+    layer produces (``src/group_sensitivity.py``), measured once per episode on the origin.
+    Changes the token width: pin it (new actors only).
+    """
+    return _flag("SPECTRA_STATE_SENS")
+
+
 # ---------------------------------------------------------------- v5 P8 (18 Sep): NEON layer replacement
 #
 # Hirsch & Katz 2022, Sec. 3 "Layer replacement": rather than removing neurons, NEON generated
@@ -813,9 +901,12 @@ def probe_score_kind() -> str:
     * ``area``: mean slack-weighted in-band cut area (``NetworkEnv.episode_inband_area``):
       Σ_in-band steps (size removed) × (remaining slack / τ). Deeper-in-band and
       kinder-at-equal-depth both raise it; an over-budget walk earns nothing past the band.
+    * ``target`` (v10, ``SPECTRA_FIXED_TARGET``): mean fixed-target return (val Δacc in pp at
+      the target, minus any miss penalty) of argmax walks at each ``target_probe_keeps`` target.
+      Accuracy at equal size, which is what ``cut`` and ``area`` could not see.
     """
     raw = os.environ.get("SPECTRA_PROBE_SCORE", "cut").strip().lower()
-    return "area" if raw == "area" else "cut"
+    return raw if raw in ("area", "target") else "cut"
 
 
 def state_tokens() -> str:
@@ -1017,6 +1108,10 @@ def fortify_token_dim() -> int:
         n += STATE_SLACK_DIM
     if state_groupcost():
         n += STATE_GROUPCOST_DIM
+    if fixed_target():
+        n += STATE_TARGET_DIM
+    if state_sens():
+        n += STATE_SENS_DIM
     return n
 
 

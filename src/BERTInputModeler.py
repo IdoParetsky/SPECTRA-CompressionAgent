@@ -245,10 +245,12 @@ class BERTInputModeler:
 
     def _build_layer_tokens(self, feature_maps, curr_layer_idx,
                             action_costs=None, coupling_ids=None,
-                            param_ratio=None, extras=None, layer_extras=None) -> torch.Tensor:
+                            param_ratio=None, extras=None, layer_extras=None,
+                            target_extras=None, layer_sens=None) -> torch.Tensor:
         from src.fortify import (fortify_enabled, build_fortify_features, budget_in_state,
                                  state_slack, STATE_SLACK_DIM, state_groupcost,
-                                 STATE_GROUPCOST_DIM)
+                                 STATE_GROUPCOST_DIM, fixed_target, STATE_TARGET_DIM,
+                                 state_sens, STATE_SENS_DIM)
 
         maps = dict(feature_maps)
         maps["Topology"] = spoof_classifier_topology(list(feature_maps.get("Topology") or []))
@@ -281,6 +283,23 @@ class BERTInputModeler:
                 d = min(STATE_GROUPCOST_DIM, layer_extras.size(1))
                 gc[:n, :d] = layer_extras[:n, :d].to(device=base.device, dtype=base.dtype)
             base = torch.cat([base, gc], dim=1)
+        if fixed_target() and base.size(0):
+            # v10 episode context on every token: the target keep and the share of the required
+            # cut still to do (fortify.target_channels); reset values when the caller has none.
+            vals = list(target_extras) if target_extras is not None else []
+            vals = (vals + [0.0, 1.0])[:STATE_TARGET_DIM]
+            vals = [min(1.0, max(-1.0, float(v))) for v in vals]
+            cols = torch.tensor(vals, device=base.device, dtype=base.dtype).expand(base.size(0), -1)
+            base = torch.cat([base, cols], dim=1)
+        if state_sens() and base.size(0):
+            # Per-layer group sensitivity (src/group_sensitivity.py); zeros when unavailable.
+            L = base.size(0)
+            sens = torch.zeros(L, STATE_SENS_DIM, device=base.device, dtype=base.dtype)
+            if layer_sens is not None and torch.is_tensor(layer_sens) and layer_sens.dim() == 2:
+                n = min(L, layer_sens.size(0))
+                d = min(STATE_SENS_DIM, layer_sens.size(1))
+                sens[:n, :d] = layer_sens[:n, :d].to(device=base.device, dtype=base.dtype)
+            base = torch.cat([base, sens], dim=1)
         target = min(curr_layer_idx, base.size(0) - 1) if base.size(0) else 0
         return self._attach_action_cost_slots(base, target, action_costs)
 
@@ -309,14 +328,18 @@ class BERTInputModeler:
                                    action_costs=None,
                                    param_ratio=None,
                                    extras=None,
-                                   layer_extras=None) -> Dict[str, torch.Tensor]:
+                                   layer_extras=None,
+                                   target_extras=None,
+                                   layer_sens=None) -> Dict[str, torch.Tensor]:
         """
         Package CNN features as an agent state.
 
         Always returns encoder-agnostic fields consumed by ``SpectraStateEncoder``. When
         ``SPECTRA_STATE_ENCODER=bert``, also fills a ``bert`` entry for the frozen ablation.
         ``extras`` = ``[accuracy_slack, pass_progress]`` (used under ``SPECTRA_STATE_SLACK``);
-        ``layer_extras`` = per-layer group-cost rows (``SPECTRA_STATE_GROUPCOST``).
+        ``layer_extras`` = per-layer group-cost rows (``SPECTRA_STATE_GROUPCOST``);
+        ``target_extras`` = ``fortify.target_channels`` (``SPECTRA_FIXED_TARGET``);
+        ``layer_sens`` = per-layer group-sensitivity rows (``SPECTRA_STATE_SENS``).
         """
         with torch.no_grad():
             topology = spoof_classifier_topology(feature_maps["Topology"])
@@ -329,7 +352,8 @@ class BERTInputModeler:
 
             layer_tokens = self._build_layer_tokens(
                 feature_maps, curr_layer_idx, action_costs, coupling_ids=coupling,
-                param_ratio=param_ratio, extras=extras, layer_extras=layer_extras)
+                param_ratio=param_ratio, extras=extras, layer_extras=layer_extras,
+                target_extras=target_extras, layer_sens=layer_sens)
             coupling = coupling[: layer_tokens.size(0)]
             layer_types = torch.tensor(
                 [int(row[0]) if row else 0 for row in topology],

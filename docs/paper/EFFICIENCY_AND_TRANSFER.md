@@ -36,6 +36,7 @@ From `scripts/cost_readout.py` over each run's manifest, `events/*.jsonl` and lo
 | 21729556 | mild, P+aug, 12/4 | RTX 3090 (cs-pheno-06) | R20-w2 | 42 (16) | 16.4 min | 98.1% | 23.0 | 0.46 | 192 | — | 0.36 GB |
 | 21729556 | same | same | R56-w4 | 114 (60) | 67.8 min | 98.2% | 35.1 | 0.92 | 714 | — | 0.36 GB |
 | 21767189 | mild, P+aug, 40/10 + final | RTX 4090 (ise-4090-19) | DepGraph R56 | 285 (150) | 545.5 min | 99.5% | 114.2 | 0.89 | 5884 | 5 × 15.7 min | 1.32 GB |
+| 22127216 | mild, P+aug, 12/4 + GPU crop+flip + final | RTX 4090 (ise-4090-03) | DepGraph R56 | 285 (150) | 126.1 min | 97.6% | 25.9 | 0.36 | 1752 | 5 × 13.2 min | 1.56 GB |
 | 21809595 | same | RTX 4090 (cs-4090-07) | chenyaofo R56 | 114 (60) | 213.5 min | 99.5% | 111.7 | 0.89 | 2334 | 4 × 16.6 min | 3.17 GB (job) |
 | 21809595 | same | same | VGG-16-BN | 30 (28) | 77.4 min | 99.7% | 154.2 | 0.83 | 1099 | 4 × 8.8 min | (job) |
 | 21814029 | same, L2 ranking | RTX 4090 (ise-4090-18) | VGG-16-BN | 150 (140) | 371.7 min | 99.7% | 148.2 | 0.76 | 5479 | 4 × 8.6 min | 3.17 GB |
@@ -47,7 +48,7 @@ From `scripts/cost_readout.py` over each run's manifest, `events/*.jsonl` and lo
 | 20360208 | frozen actor (pre-audit), 3-epoch budget | RTX 4090 (ise-4090-14) | MobileNet-V2, ImageNet | 104 (62) | 105.0 h | 84.3% | 3062 | 572 | 126 | — | 11.05 GB |
 | 20382192 | same | RTX 4090 (ise-4090-14) | MobileNet-V2, ImageNet | 104 (67) | 122.3 h | 84.9% | 3594 | 639 | 132 | — | 10.98 GB |
 
-These rows are cost only. Accuracy for the walks that have it is in the ledger: §152 for 21729557, §157 for 21767189, §164 for 21809595. The actor rows (21512868, 21725472) used the legacy 10k evaluation split without augmentation, so they don't share a column with the P rows on accuracy. The ImageNet runs predate the 4 Sep audit: their policy was sampled. Their cost is valid; their accuracy is not quoted.
+These rows are cost only. Accuracy for the walks that have it is in the ledger: §152 for 21729557, §157 for 21767189, §164 for 21809595, **§203 for 22127216 (SLOWER at K=1)**. The actor rows (21512868, 21725472) used the legacy 10k evaluation split without augmentation, so they don't share a column with the P rows on accuracy. The ImageNet runs predate the 4 Sep audit: their policy was sampled. Their cost is valid; their accuracy is not quoted.
 
 ### 3.2 Training (one-time)
 
@@ -93,7 +94,7 @@ So the CIFAR walk is bound by the CPU augmentation pipeline, not by the GPU. Und
 
 The cleanest pair available today is on the same GPU type (RTX 3090): the actor walk 21512868 against the mild walk 21729556, on the same two thin nets. The gap between steps is 0.666 s against 0.34 s on R56-w4, and 0.044 s against 0.040 s on R20-w2. State features cost the same (0.21 vs 0.19 s). So the actor adds at most about 0.33 s per step, about 0.4% of the actor walk's 80 s step.
 
-That is an upper bound: the two runs differ in protocol (legacy vs P), and the gap between steps also holds bookkeeping. Their validation pass differs too (0.7 s vs 0.33 s), which reflects the 10k vs 5k evaluation split, not the agent. Peak allocation is 0.36 GB for both. The explicit timer is built (2 Oct, `tree_v9d`, default off). Under `SPECTRA_TIME_DECIDE=1` each eval-walk decision becomes a `step.decide` stage: the actor's forward and pick, or the heuristic's pick, timed the same way for both. `scripts/cost_readout.py` prints `decide … ms` per net. **First measurements (RTX 4090, 4 Oct):** Budget freeze TEST 22059501 (`ise-4090-03`): r20-w2 **7.4 ms** (11 / 42), r56-w4 **3.4 ms** (22 / 114). C2 freeze TEST 22056144 (`ise-4090-21`): r20-w2 **8.2 ms** (16 / 42), r56-w4 **3.0 ms** (60 / 114). That is ~1–2 % of the previous 0.33 s upper bound, and ~0.01 % of an 80 s actor step.
+That is an upper bound: the two runs differ in protocol (legacy vs P), and the gap between steps also holds bookkeeping. Their validation pass differs too (0.7 s vs 0.33 s), which reflects the 10k vs 5k evaluation split, not the agent. Peak allocation is 0.36 GB for both. The explicit timer is built (2 Oct, `tree_v9d`, default off). Under `SPECTRA_TIME_DECIDE=1` each eval-walk decision becomes a `step.decide` stage: the actor's forward and pick, or the heuristic's pick, timed the same way for both. `scripts/cost_readout.py` prints `decide … ms` per net. **First measurements (RTX 4090, 4 Oct):** Budget freeze TEST 22059501 (`ise-4090-03`): r20-w2 **7.4 ms** (11 / 42), r56-w4 **3.4 ms** (22 / 114). C2 freeze TEST 22056144 (`ise-4090-21`): r20-w2 **8.2 ms** (16 / 42), r56-w4 **3.0 ms** (60 / 114). Factored freeze TEST 22132735 (`ise-4090-21`): r20-w2 **5.4 ms** (11 / 42), r56-w4 **3.6 ms** (22 / 114). That is ~1–2 % of the previous 0.33 s upper bound, and ~0.01 % of an 80 s actor step.
 
 ## 4. Literature: what pruning costs other methods
 
@@ -316,14 +317,14 @@ SPECTRA(K) = W + K·F, where W is the walk to the deepest target and F is one fi
 
 One-time costs are excluded on both sides: SPECTRA's agent train (§3.2) and the graph-metanetwork meta-train (357 min). Counting them would favour neither side cleanly, since our train serves every family and dataset while theirs serves one setting.
 
-| Comparator | C per target | K*, walk to 0.70 kept (W = 213.5 min) | K*, walk to 0.36 kept (W = 545.5 min) | K*, 12/4 recovery (W ≈ 165 min, deep walk ÷ 3.3) |
+| Comparator | C per target | K*, walk to 0.70 kept (W = 213.5 min) | K*, walk to 0.36 kept (W = 545.5 min) | K*, 12/4 recovery (W = 127.3 min, FW 22127216) |
 |---|---|---|---|---|
-| DepGraph, 100 SL + 100 FT | **85 min** | 3.1 | 8.0 | 2.4 |
-| Graph metanetworks, 100 + 100 | 67 min | 4.2 | 10.6 | 3.2 |
-| Graph metanetworks, 60 + 60 | 43 min | 8.1 | 20 | 6.0 |
-| OCSPruner, from scratch | 26 min | 23 | 53 | 16 |
+| DepGraph, 100 SL + 100 FT | **85 min** | 3.1 | 8.0 | **1.8** |
+| Graph metanetworks, 100 + 100 | 67 min | 4.2 | 10.6 | 2.4 |
+| Graph metanetworks, 60 + 60 | 43 min | 8.1 | 20 | 4.3 |
+| OCSPruner, from scratch | 26 min | 23 | 53 | 10 |
 
-A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows it) brings W to minutes. K* then drops to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. DepGraph’s **C = 85 min** is now **our** 4090 (job 21943448, ResNet-56 5104 s) and replaces the third-party 84 min; K* is unchanged at ~3 / ~8. The graph-metanetwork rows stay third-party.
+A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows it) brings W to minutes. K* then drops to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. DepGraph’s **C = 85 min** is now **our** 4090 (job 21943448, ResNet-56 5104 s) and replaces the third-party 84 min. The 12/4 column is **measured** on FW **22127216** (W = 127.3 min to keep 0.36, F = 13.0): K* vs DepGraph is **1.8**, not the earlier 2.4 projection (W ≈ 165). At DepGraph's 2.11× point alone, W = 95.0 min and K=1 cost is **108.4 min > 85.1** (**SLOWER**, ledger §203). The graph-metanetwork rows stay third-party.
 
 ## 8. Transfer: closest prior work and the evaluation protocol
 
@@ -371,17 +372,17 @@ The paper's novelty sentence, supported by both fact-checks: no published CNN pr
    - torch-pruning 1.6.1, plus einops 0.8.1 because it imports einops. Both went in with `--no-deps`, so torch 2.4.1 and numpy 1.24.4 are unchanged.
    - The Torch-Pruning repo (v1.6.1) is cloned at `scratch_audit/third_party/Torch-Pruning`.
    - The head-to-head re-run is job 21943448 (§4.5).
-2. **Install `nvidia-ml-py`.** In-process NVML energy readings are more precise than sampling `power.draw`.
+2. **Install `nvidia-ml-py`.** In-process NVML energy readings are more precise than sampling `power.draw`. **Declined by Ido (4 Oct 19:23).** Every job keeps the 1 s `nvidia-smi` sampler (`gpu_samples.csv`); energy is quoted from it, labelled as sampled.
 3. **Add an explicit `agent.decide` stage timer and a per-walk cost event to the runner,** in the next tree only, never under live jobs. It replaces the §3.4 upper bound with a measurement. *The timer is built (2 Oct):*
    - `SPECTRA_TIME_DECIDE=1` in `tree_v9d`, default off; `submit.sh` exports it.
    - Tests: `tests/test_decide_timer.py` 8/8.
-   - First measurement: Budget freeze TEST **22059501** COMPLETED 4 Oct 03:53. r20 **7.4 ms**, r56 **3.4 ms** (EFFICIENCY §3.4). C2 **22056144** still R.
+   - First measurement: Budget freeze TEST **22059501** COMPLETED 4 Oct 03:53. r20 **7.4 ms**, r56 **3.4 ms**. C2 **22056144** r20 **8.2** / r56 **3.0**. Factored **22132735** r20 **5.4** / r56 **3.6** (EFFICIENCY §3.4).
    - The per-walk cost event is not built: `cost_readout.py` already derives per-net cost from the stage events.
 4. **Get BGU's PUE and grid carbon intensity for CO2e,** or quote the conventional defaults with a caveat.
 5. **Run a GPU-side CIFAR augmentation equivalence A/B as its own cell** (§3.3), since the walk is input-bound. *Done 3 Oct* as D5 (`21982372` / `21982373`). Speedup **1.41×** on two 4090s (5.29 vs 3.75 s/epoch); |ΔTEST| 0.1 pp at keep 0.757; no 0.6 size point. No registered call fired. **Ops call 4 Oct: EQUIVALENT ⇒ ADOPT for new cells** (D5-bis `21990184` + RW43 `21990185`; §196). Never into a live train, a resume, or a freeze TEST.
 6. **Optional: a val-selected DepGraph variant.** Pick DepGraph's sparse-learning and fine-tune epochs on our 5k val half, and quote our 5k P TEST half. That puts DepGraph on SPECTRA's own protocol. It needs a patched copy of their `main.py`, so it is no longer their exact pipeline. Run it only if the paper puts DepGraph and SPECTRA in the same accuracy table.
 7. **Metrics dev phase (Ido GO 4 Oct 11:41), taken narrowly.** Report: `docs/paper/GILAD_1OCT_POINTS_REPORT.md` Part I.
-   - **K = 1 time-to-target with the fast walk: FW `22127216`, R since 11:56** (`ise-4090-03`). N3's mild walk on DepGraph's ResNet-56 with GPU crop+flip and 12/4, against DepGraph's 85.1 min on the same GPU model. Calls: K1-PARITY / K1-TRADE / SLOWER (queue file "FW"). At 12:18: 45 steps in 21.7 min (~29 s per step vs N3's ~116).
+   - **K = 1 time-to-target with the fast walk: FW `22127216` COMPLETED 4 Oct 15:10** (`ise-4090-03`). **SLOWER:** 2.11× cost **108.4 min > 85.1**; 10k **−1.24** vs N3 −0.46. Walk 95.0 min vs N3 405.6 (4.3×). Ledger **§203**. Never an agent row.
    - **Time and Wh to each size point: built 4 Oct.** `cost_readout.py` now prints, for every final-fine-tuned TRAJ point, `to <label> (step …): walk … + final … = … min | … Wh`. That is the cost of getting only that network (wall-clock walk to the point's step, plus its own final). Tests `tests/test_cost_readout.py` 6/6 on the login node; deployed to `tree_v9d` (md5 `e27be610…`). On N3 21767189 it reproduces the hand-mined numbers: 264.8 / 405.6 / 518.1 min of walk to steps 136 / 210 / 267, finals 15.5 / 15.8 / 15.9 min.
    - **The one-time train's energy.** None of the five running trains has `gpu_samples.csv`: all were submitted before 1 Oct ~11:00. Quote their energy as GPU-hours × a measured mean power per SKU, labelled an estimate. The next train records it by default.
-   - **Not taken:** NVML (item 2), CO2e (item 4) and the val-selected DepGraph (item 6) stay with Ido. Deployment rows for agent-chosen networks wait until an agent differs from a uniform schedule (ledger §200).
+   - **Not taken:** NVML (item 2; declined 4 Oct 19:23), CO2e (item 4) and the val-selected DepGraph (item 6) stay with Ido. Deployment rows for agent-chosen networks wait until an agent differs from a uniform schedule (ledger §200).

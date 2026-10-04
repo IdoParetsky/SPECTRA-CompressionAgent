@@ -21,6 +21,8 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 
 **Ops 4 Oct 10:48.** Stage-4 wrote freeze **ep0131** (probe 0.2863). Pre-authorized one-a-day TEST **22124693 R** (`traj-v9c-paug-ep0131`, `cs-4090-01`, `tree_v9c`, no `TIME_DECIDE`, `Requeue=0`). Control 21729557. One freeze TEST in flight. Do not TEST another freeze until it ends. Ledger next **§200**. **2 idle — ping, do not invent.**
 
+**Ops 4 Oct 15:25.** Stage-4 freeze TEST **22124693 COMPLETED** §202 (not M1). FW **22127216 COMPLETED** §203 **SLOWER**. Factored freeze TEST **22132735 R** (`traj-v9d-factored-ep0083`, `ise-4090-21`, `TIME_DECIDE=1`, 24G). A0 dg **22127528 R**; cy **22127529 R**. QOS **8/8**. One freeze TEST in flight. Ledger next **§204**.
+
 **Stamped:** 4 Oct 2026, 01:38 IDT (PC-off catch-up). **QOS 6/8 R:** Stage-4 21737123 (freeze still **ep0095**, TESTed), C1 21938807 (freeze still **ep0011**), C2 21938810 (freeze **ep0083**), Budget+STOP 21940311 (freeze **ep0131**), factored 21940316 (freeze **ep0047**), C2 freeze TEST **22056144** (`ise-4090-21`, `TIME_DECIDE=1`). **PD:** five train resumes `afterok` + two held trains and their r1s. Ladder empty. **2 idle — ping, do not invent.**
 - *Overnight COMPLETED:* pf-w 89 **§195** (no proxy valid; 21940321 held); freeze TEST **21990060 §193 M1 does not fire**; D5-bis+RW43 **§196 EQUIVALENT ⇒ ADOPT new cells**; H0 **§194 TESTs**.
 - *In flight (one freeze TEST):* **22056144** C2 ep0083. Do not TEST Budget ep0131 until it ends.
@@ -419,7 +421,7 @@ Projected together: about 50–100 min to 2.11×. The cell measures what the fas
 
 *Start check:* env `SPECTRA_FT_AUG_GPU': '1'`, `SPECTRA_NUM_EPOCHS': '12'`, `SPECTRA_FINETUNE_PATIENCE': '4'`, `SPECTRA_REPO_DIR` `tree_v9d`; log `FT aug on cifar-10: RandomCrop+Flip on the GPU`; a 4090 node; `gpu_samples.csv` growing. *Kill:* Traceback ⇒ report. *Ledger:* one PRELIM section on COMPLETED. Never a SPECTRA-agent row.
 
-**Status (4 Oct 12:00): 22127216 R** on `ise-4090-03` since 11:56, `Requeue=0` (set after submit). *Start check passed:* the three flags in the env, `tree_v9d`, the GPU-loader banner (`batch=256`), `split_seed=0`, `gpu_samples.csv` growing. *12:18:* 45 steps in 21.7 min (~29 s per step vs N3's ~116). If the pace holds, step 210 lands ~100 min after the start, before its final fine-tune, so SLOWER is the likelier call. The read decides, not this projection. *Progress:* `grep -cE '"event": "step"' runs/job22127216/events/rank0.jsonl`. *Cost read:* `python scripts/cost_readout.py 22127216 21767189` in `tree_v9d` prints each point's `walk + final = … min | … Wh` (built 4 Oct; reproduces N3's 405.6 + 15.8).
+**Status (4 Oct 15:10): 22127216 COMPLETED** on `ise-4090-03` (3 h 14 m), TB 0, exit 0. Widths match N3 at steps **136 / 210 / 267**. **Call: SLOWER.** 2.11× K=1 cost **108.4 min** (95.0 + 13.4) > DepGraph 85.1; 10k **−1.24** vs N3 −0.46. Ledger **§203**. Never an agent row.
 
 ## A0: allocation headroom probe (registered before submit, 4 Oct ~13:05; sitting, "diagnose before any new train", runbook §10.4 M1-neg)
 
@@ -458,7 +460,7 @@ Any fix (fixed-budget episodes, or a reward that prices accuracy at equal size) 
 - *It exposed a matching flaw.* On the thin net, uniform at keep 0.6 realizes 0.567 params (4- to 16-channel groups round coarsely), while every other allocation landed at 0.600–0.606. All of them were therefore `(unmatched)`.
 - *Fix (before any cell started).* The cells were held. Non-uniform allocations now bisect to **uniform's realized** params (16 iterations, tolerance 0.003). Redeployed (md5 `7f4d0e1aac22`), tests 6/6, cells released 12:13.
 - *Smoke at 1 epoch (unmatched; never a call):* against uniform's two-seed mean of −23.10 pp on val: sens +8.7, sens2 +4.8, anti −18.1, one random draw +2.3.
-- **22127527** alloc-thin-r56w4 R on `cs-pheno-03` since 12:13 (start lines ok); **22127528 / 29** PD on the QOS.
+- **22127527** alloc-thin-r56w4 R on `cs-pheno-03` since 12:13 (start lines ok); **22127528** R; **22127529** R on `cs-pheno-09` since 15:07.
 - *12:28, matching check passed:* sens0 at keep 0.6 realizes params x0.565 against uniform's 0.567. Its FLOPs are x0.519 against 0.568: allocations are matched on params, not FLOPs, so quote both with any call. Uniform's three 40-epoch seeds: val −7.42 / −8.58 / −8.66, putting this keep's bar near 1.4 pp. One 40-epoch recovery takes ~4.6 min here, so the cell takes ~1.6 h.
 - *13:15, interim (keep 0.6 only; the per-net call waits for keep 0.35):* `[alloc-call] thin-r56w4-c10 keep=0.6 budget=40 … HEADROOM`. Uniform val −8.22 (SD 0.69), bar 1.39. Against uniform, val / TEST:
   - sens **+1.62 / +1.95** at FLOPs x0.519;
@@ -467,6 +469,106 @@ Any fix (fixed-budget episodes, or a reward that prices accuracy at equal size) 
   - random −1.12 / −10.50 / +0.86 / −5.34 (val), the val-best draw being random2.
 
   BN-recalibrated accuracy (budget bn) orders the seven non-uniform allocations nearly as budget 40 does (Kendall τ 0.71 by hand, 3 of 21 pairs swapped); budget 0 does not. Never a TEST row.
+- **COMPLETED 13:40** (1 h 28 m, exit 0, TB 0). Keep 0.35 budget 40 also **HEADROOM** (uniform −17.81 / −18.19, bar 2.00; sens **+7.81 / +7.69**, sens2 **+8.33 / +7.93**). **Per-net A0-HEADROOM** on thin r56-w4. Ledger probe **§201**. **22127528** alloc-dg-r56 R on `cs-pheno-03` from 13:40 (`ReqTRES mem=24G`). **22127529** alloc-cy-vgg16 R on `cs-pheno-09` from 15:07 (`mem=24G`). Cross-net call waits. Never a TEST row.
+- *15:48, dg keep 0.6 only (per-net waits on keep 0.35):* `[alloc-call] dg-r56-c10 keep=0.6 budget=40 … HEADROOM`. Uniform val −2.36 (SD 0.18) / TEST −2.63, bar 0.50. vs uniform val/TEST: sens **+0.60 / +0.61** (FLOPs 0.503 vs uniform 0.596); random0 **+0.76 / +0.81**; sens2 −0.42 / +0.03. Tight vs the thin-net HEADROOM. Keep 0.35 uniform0/s0 budget 40 at −4.32 / −3.74. Never a TEST row.
+- *16:24, cy-vgg16 keep 0.6 only (per-net waits on keep 0.35):* `[alloc-call] cy-vgg16-c10 keep=0.6 budget=40 … HEADROOM`. Uniform val −2.44 (SD 0.54) / TEST −2.23, bar **1.09**. vs uniform val/TEST: random1 **+1.76 / +1.33**; sens +0.32 / +0.57 (does not clear the bar); sens2 +0.58 / −0.07. Never a TEST row.
+- **22127528 COMPLETED 17:01** (3 h 21 m, exit 0, TB 0). Keep 0.35 budget 40 also **HEADROOM** (uniform −4.08 / −4.03, bar 0.94; sens **+2.24 / +1.99** FLOPs 0.277 vs 0.343; sens2 **+1.50 / +1.33**). **Per-net A0-HEADROOM** on DepGraph R56 C10. Ledger probe **§204**. **22127529** still R keep 0.35. Cross-net waits. Never a TEST row.
+- **22127529 COMPLETED 17:28** (2 h 21 m, exit 0, TB 0). Keep 0.35 budget 40 **HEADROOM** (uniform −2.61 / −2.72, bar 0.50; sens2 **+0.57 / +0.72** FLOPs 0.713 vs 0.354; sens +0.25 / −0.04). Keep 0.6 was random1, not the sensitivity rule. **Per-net A0-HEADROOM** on VGG-16. Ledger probe **§205**. **Cross-net A0-HEADROOM 3/3.** Never a TEST row. Next train needs Ido's GO.
+
+## A0b: allocation headroom where the fixed-target train will be read (registered before submit, 4 Oct ~19:50; Ido GO 19:23 "fixed_target")
+
+**Why.** A0 is HEADROOM on 3 of 3 nets (§201 / §204 / §205), and Ido gave the fixed-target train a GO (4 Oct 19:23). Its pre-registered reads need four facts A0 did not measure:
+- *Thin R20-w2*, the other M1 TEST net: is there headroom on it at all?
+- *Keep 0.8*: M1 reads the first equal-keep cut (keep 0.70–0.80). Is there headroom that shallow, or only at 0.6 and 0.35?
+- *VGG-16 at equal FLOPs*: matched on params, its winners kept up to twice uniform's FLOPs (0.71 vs 0.35, §205). Is there headroom at equal FLOPs?
+- *A CIFAR-100 ResNet-56*: does a C100 net carry the lever (train-catalog question)?
+
+**Built** in `tree_v9d` (A0 cells untouched; default behaviour unchanged): `--match params|flops`. With `flops`, the bisection and the matched check read kept FLOPs instead of params. New sbatch cases `thin-r20w2` and `cy-r56-c100`. `tests/test_allocation_probe.py` **8/8** on the login node (md5 `eeb5743b8499` / sbatch `5a71cfe6c2ac`).
+
+| Job name | Line | Rows |
+|---|---|---|
+| alloc-r20w2 | `AL_NET=thin-r20w2 AL_ARGS="--keep 0.8 0.6 0.35"` | 90 |
+| alloc-r56w4-k08 | `AL_NET=thin-r56w4 AL_ARGS="--keep 0.8"` | 30 |
+| alloc-vgg16-flops | `AL_NET=cy-vgg16 AL_ARGS="--match flops"` (keeps 0.6 / 0.35 of FLOPs) | 60 |
+| alloc-r56-c100 | `AL_NET=cy-r56-c100` (keeps 0.6 / 0.35 of params) | 60 |
+
+All four: `tree_v9d`, untyped GPU (A0 ran on GTX 1080s), runbook exclude list, wall 14 h, nice 24, `--no-requeue`. Protocol P, recipe A 40/10, crop+flip on the GPU, A0's defaults otherwise.
+
+**Calls:** A0's, unchanged (budget 40 only; bar = max(0.5, 2 × uniform's val SD); HEADROOM / HARM / FLAT; "matched" = within 0.02 of uniform on the matched quantity).
+
+**What each call changes (registered now, before the fixed-target train's first TEST):**
+- *R20-w2:* FLAT or HARM at keeps 0.8 and 0.6 ⇒ the fixed-target train's M1 is read on R56-w4 only; R20-w2 is reported, not gated.
+- *Keep 0.8:* FLAT on both thin nets ⇒ the fixed-target train's M1 is read at the 0.6 size point, not at the first cut. HEADROOM on either ⇒ M1's first-cut read stands.
+- *VGG-16, equal FLOPs:* HEADROOM ⇒ allocation is a lever at equal FLOPs too, so FLOPs targets (DepGraph's cells) belong in the train's TEST suite. FLAT or HARM ⇒ on VGG the params headroom is bought with FLOPs; params targets come first.
+- *R56-C100:* HEADROOM ⇒ C100 nets carry the lever and may join the train catalog. FLAT ⇒ the first fixed-target train stays C10.
+
+*Start check:* `Allocation probe … keep [...] (match params|flops)`, `FT_AUG=1 FT_AUG_GPU=1 VAL_FROM_TEST=1`, `Sensitivity at keep 0.5: N groups`. *Matching check:* the first non-uniform row is within 0.02 of uniform on the matched quantity (`FLOPs x…` for vgg16-flops). *Progress:* `grep -c "\[alloc\]" runs/slurm_logs/alloc_<job>.out`. *Kill:* Traceback ⇒ report. *On COMPLETED:* paste the budget-40 `[alloc-call]` lines here, one ledger probe section per cell (never a TEST row), and apply the consequences above.
+
+**Status (4 Oct 20:21).** **22155641 COMPLETED** 20:11 (40 min, `cs-pheno-11`, TB 0). Budget-40: keep 0.8 **HEADROOM** (random1 +1.93 / +2.86; sens +0.73 / +0.52; bar 0.70); keep 0.6 **FLAT** (bar 1.55; best +0.17); keep 0.35 **HEADROOM** (random1 +2.24 / +3.11). Ledger **§207**. R20-w2 stays in the v10 M1 read.
+
+**22155642 COMPLETED** 20:04 (32 min, `ise-pheno-01`, TB 0). Keep 0.8 budget-40 **HEADROOM** (sens +2.63 / +2.01; bar 1.33). Ledger **§208**. κ = 0.8 first-cut read **stands**.
+
+**22155643 / 44 still R** (~49 min; alloc rows 28 / 16 of 60). Leave. Never a TEST row. No train action from ops.
+
+## v10: fixed-target train (registered before launch, 4 Oct ~20:15; Ido GO 19:23 "fixed_target"; gate A0 HEADROOM ≥ 2 of 6 cells: met, 6/6)
+
+**Why.**
+- Inside the τ band the trained reward pays each cut its size whatever it costs. Every TESTed actor therefore learned "the largest cut at every decision", and M1-neg compares uniform 0.8 with uniform 0.9 (ledger §200).
+- At equal kept parameters, a sensitivity-guided allocation beat uniform after a 40-epoch recovery on both ResNet-56 cells, by 1.6–8 pp (A0, §201 / §204). VGG-16 is weaker evidence: its keep-0.6 winner was a random draw, and its keep-0.35 winner kept twice uniform's FLOPs (§205; A0b's equal-FLOPs cell answers that).
+- So fix the size and reward the accuracy, as AMC does (He et al., ECCV 2018). The agent's job becomes the allocation A0 shows is worth learning.
+
+**Design.** Built in `tree_v10` (= `tree_v9d` code + the v10 files; md5s in `PROVENANCE_v10.txt`). Everything is default-off outside the new profile `offline_train_v10_fixed_target`.
+- *Episode.* Each train episode draws a target keep κ ~ U[0.35, 0.85] (seeded stream of its own). The walk ends at the first step with kept ≤ κ. A cut that would pass κ is narrowed to the mildest keep rate that still reaches it (10-step bisection on the previewed size), so the walk lands on κ instead of past it. The same landing applies to heuristics, which makes a "mild-landed" control possible.
+  - *Done rule fixed before the train (20:13).* The first build ended a walk at kept ≤ κ + 0.005. The smoke showed this happens often: 3 of its first 5 walks stopped just above κ (0.6655 against κ 0.6617; 0.5275 against 0.5266; the mild reference 0.8035 against 0.8). Under the TEST protocol such a walk has no size point, so no final-FT read. The walk now ends only at kept ≤ κ.
+  - *Miss penalty, same reason (20:30).* The penalty first forgave misses ≤ 0.005. With the exact done rule, that margin would pay an actor to play identity just short of κ until its passes ran out, and that walk has no size point either. Any miss is now penalised.
+  - Train smoke 22155996 ran both old rules. The eval smoke and the train run the new ones. The controls are evals and run the exact done rule. Tests **14/14** + 163/163. Job log: `tree_v10/PROVENANCE_v10_log.txt`.
+- *Reward.* Each step pays its change in val accuracy (pp), and γ = 1, so an episode's return is exactly its val Δacc at the target. Running out of passes above κ costs 2 pp per percentage point of parameters left above it.
+- *State.* Two channels on every token: κ, and the share of the required cut still to do. Two per-layer channels: the sensitivity of the group the layer produces (log-ratio to the net's median, and percentile). Sensitivity is A0's measure: calibration-loss rise when the group alone is cut to keep 0.5 with L1, no fine-tune, 4 train batches. It is measured once per catalog net, on its origin.
+- *Menu.* Keep 1.0 / 0.9 / 0.8 / 0.7 / 0.6, all L1 (the criterion lever is closed, §196–§199). Six passes, so mild can reach 0.35. Rollout limit 1000.
+- *Probe (selection score).* Argmax walks on the thin probe pair (r56-w6, r20-w10) at κ = 0.8 / 0.6 / 0.4, every 16 episodes. Score: mean fixed-target return in pp. The first probe also walks mild once (keep 0.9 wherever legal, same targets, same landing) and prints `PROBE mild reference`. Every later `PROBE` line prints `vs_mild`. Every new best freezes (`SNAPSHOT_BASELINE=-1000`); the TEST rule below picks among the freezes.
+- *Otherwise Stage-4's recipe.* P5-B2 catalog (cifar-10 + svhn), P, crop+flip 12/4 train FT (on the GPU for the CIFAR nets: D5 adopted "for the next train", §196), PPO with 4 episodes per update, the governor (min 250 episodes, patience 150, rewind), slack, group-cost, group-once, budget-in-state.
+- *Tests.* `tests/test_v10_fixed_target.py` **13/13**, plus the regression set **163/163** (tokens, env, probe, PPO recipe, P8 flow, group-once, allocation probe) on the login node.
+
+**Smokes (never quoted).**
+
+| Job | Line |
+|---|---|
+| **22155996** v10-smoke-train | seed 50, 8 episodes (2 PPO updates), train FT 1/1, probe every 4 episodes at κ 0.8 / 0.5 |
+| **22155997** v10-smoke-eval | afterok 22155996. Its `latest_best` on the thin pair, `SIZE_MATCH=param:0.8`, `SIZE_POINTS=param:0.8`, `MIN_PARAM_RATIO=0`, `EVAL_PASSES=6`, walk FT 1 epoch, final FT 1 epoch from the origin |
+
+The train is released only when all six checks hold:
+1. Banner: `| v10: fixed_target=1 state_sens=1 target_range=(0.35, 0.85) miss_penalty=2 … gamma=1`.
+2. Each reset prints `fixed target: keep x…`. `group sensitivity: N groups …` appears once per net, in ≤ 60 s.
+3. At least one `fixed target: rate … lands at params x… (target x…)`. Every `episode ends at params x…` is at or below its target, or within 0.005 above it under the train smoke's old rule. A walk that runs out of passes ends above it, with the penalty in the return.
+4. `PROBE mild reference …` appears once, then a `PROBE ep=… kind=target … vs_mild=…` line at each probe.
+5. `policy_config.json` pins `SPECTRA_FIXED_TARGET=1`, `SPECTRA_STATE_SENS=1`, rates [1.0, 0.9, 0.8, 0.7, 0.6] and passes 6.
+6. Eval smoke: `[eval] … fixed_target=1 state_sens=1`, then `fixed target: keep x0.800 … (eval…)`. The walk ends at the target, the size_match point is ≤ 0.8 and gets a final FT, and there is no Traceback.
+
+**Train.** **22156018** `v10-fixedtarget-train`: `tree_v10`, seed 42, nice 30, wall 7 d (runtime 6 d), `rtx_6000|rtx_4090`. Submitted **held**, afterok both smokes. Resume **22156019** `-r1` afterok the train. Requeue 0 on both.
+
+**Mild-landed controls (submitted 20:17, before any freeze; the TEST rule's control, run once).** **22156061** κ 0.8 / **22156062** κ 0.6. Setup: `baseline_c10_mild_traj_gonce` + `SPECTRA_FIXED_TARGET=1`, `tree_v10`, the TEST lines below, `rtx_6000|rtx_4090`, nice 10, wall 20 h. Start lines are green: `policy=mild det=1 traj=1 min_param=0.00 group_once=1 passes=6`, and `fixed target: keep x0.800` / `x0.600 … (eval_test)` on r20-w2.
+
+**Train-health watch.** These are notes, never results; probe scores are never quoted as results.
+- By PPO update 10: critic `ev` > 0, and no single action is ≥ 95 % of the last 4 updates' actions.
+- By update 20: best probe ≥ first probe + 1.0 pp, or `vs_mild` ≥ 0.
+- **NO-GO** if, by update 40, the best probe has not beaten the first by 0.5 pp *and* one action is ≥ 95 %. Write `V10-NO-GO <job>` at the top of way-ahead §7 and ping Ido. Never scancel.
+
+**TEST rule (registered before the first freeze).**
+- *Candidates:* freezes after PPO update 20 only. One freeze TEST in flight at a time.
+- *First TEST:* the first freeze after update 20 with `vs_mild ≥ +0.5` pp. If there is none by update 60 (episode 240), TEST the best freeze after update 20 anyway, as the null read.
+- *Lines.* Both arms run in `tree_v10` on the thin pair (r20-w2, r56-w4): seed 42, P, `SPECTRA_FT_AUG=1` in the loader (never `FT_AUG_GPU`: freeze TEST), walk FT 40/10, deterministic TRAJ, `SPECTRA_EVAL_PASSES=6`, `SPECTRA_EVAL_MIN_PARAM_RATIO=0`, `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`. One job per target κ ∈ {0.8, 0.6}, with `SPECTRA_EVAL_SIZE_MATCH=param:κ SPECTRA_EVAL_SIZE_POINTS=param:κ`.
+  - *Actor:* `eval_c10_thin_traj` on the frozen snapshot. Its policy_config pins the target and sensitivity channels, the menu and passes 6.
+  - *Control, "mild-landed":* `baseline_c10_mild_traj` with `SPECTRA_FIXED_TARGET=1` and the same size lines, so mild lands on κ by the same bisection. Two jobs (κ 0.8 and 0.6), run once and reused for every v10 freeze TEST. Mild 21729557 cannot serve: it has no r56 0.6 point at 2 passes, and its first cut is not landed.
+- *Read (M1-v10).* Per net and κ: Δ = actor − mild-landed, on the 100-epoch final-FT TEST of the size_match point. Both arms land within 0.005 of κ, so the point is fixed by κ and never picked on test.
+  - **WIN:** Δ ≥ +0.5 pp on r56-w4 at κ = 0.6, and no read cell at ≤ −0.5.
+  - **NEG:** Δ ≤ −0.5 pp on r56-w4 at κ = 0.6.
+  - **FLAT:** otherwise.
+  - The read cells follow A0b's registered consequences: r20-w2 is read only if A0b finds headroom on it, and κ = 0.8 only if keep 0.8 has headroom on a thin net. Quote every margin with the RW43 re-walk noise line (§196); the 0.5 pp bar is never changed.
+  - **MISS:** an actor walk that ends above κ (`TRAJ … param:κ … NONE`) is a MISS for that cell, and a MISS counts as NEG there. Never skip it, and never read its terminal point instead.
+- *What it decides.*
+  - WIN: the first learned-allocation result at equal size on a held-out net. Next: more targets; FLOPs targets if A0b's VGG equal-FLOPs cell is HEADROOM; C100 in the catalog if A0b's R56-C100 is HEADROOM; then the frozen actor on ImageNet.
+  - FLAT: compare the actor's per-group allocation with A0's sens rule at the same κ.
+  - NEG: report and diagnose (critic, probe, state channels).
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 

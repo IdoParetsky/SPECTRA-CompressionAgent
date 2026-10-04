@@ -67,7 +67,7 @@ class FeatureExtractor:
 
     def encode_to_bert_input(self, model_with_rows, curr_layer_idx, update_indices=None,
                              dependency_groups=None, param_ratio=None, extras=None,
-                             episode_cuts=None):
+                             episode_cuts=None, target_extras=None, layer_sens=None):
         """
         Converts the extracted CNN features into the agent's state representation.
 
@@ -82,6 +82,8 @@ class FeatureExtractor:
             extras (list, optional): ``[accuracy_slack, pass_progress]`` for SPECTRA_STATE_SLACK.
             episode_cuts (dict, optional): ``{frozenset(owner layer indices): n_cuts}`` this
                                     episode, for the SPECTRA_STATE_GROUPCOST channel.
+            target_extras (list, optional): ``fortify.target_channels`` for SPECTRA_FIXED_TARGET.
+            layer_sens (Tensor, optional): per-layer group sensitivity for SPECTRA_STATE_SENS.
 
         Returns:
             Dict[str, torch.Tensor]: The agent state.
@@ -92,7 +94,8 @@ class FeatureExtractor:
         state = self.state_builder.encode_model_to_bert_input(
             model_with_rows, feature_maps, curr_layer_idx,
             dependency_groups=dependency_groups, action_costs=costs,
-            param_ratio=param_ratio, extras=extras, layer_extras=layer_extras)
+            param_ratio=param_ratio, extras=extras, layer_extras=layer_extras,
+            target_extras=target_extras, layer_sens=layer_sens)
         return state
 
     def _group_costs(self, model_with_rows, dependency_groups, episode_cuts):

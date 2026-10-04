@@ -53,7 +53,7 @@ Part III adds today's diagnosis of why no trained agent beat mild (M1-neg).
   - deployment rows for agent-chosen networks;
   - precise energy (NVML) and CO2e (BGU's PUE).
 - **My view.** I agree: moderately high priority, below fixing the agent's reward (Part III). I took your GO for a narrow, cheap dev phase:
-  - the FW cell is running (22127216);
+  - the FW cell **COMPLETED** 15:10 (**SLOWER**, ledger §203: 108.4 min > 85.1 at 2.11×);
   - this report and the efficiency file are updated;
   - a time-and-Wh-to-each-size-point readout is built (`cost_readout.py`).
 
@@ -96,9 +96,9 @@ Part III adds today's diagnosis of why no trained agent beat mild (M1-neg).
 
 | Job | What | State (4 Oct ~12:15) | Read |
 |---|---|---|---|
-| **22127216** `v9d-fw-dg-r56` | FW: the fast walk (12/4 + GPU crop+flip) to DepGraph's sizes on its ResNet-56, RTX 4090 | R since 11:56, `ise-4090-03`, 30 steps in 14 min | K = 1 cost vs DepGraph 85.1 min; calls K1-PARITY / K1-TRADE / SLOWER (queue file "FW") |
+| **22127216** `v9d-fw-dg-r56` | FW: the fast walk (12/4 + GPU crop+flip) to DepGraph's sizes on its ResNet-56, RTX 4090 | **COMPLETED** 15:10, 3.2 h, `ise-4090-03` | **SLOWER** §203: 108.4 min > 85.1 at 2.11×; 10k −1.24 vs N3 −0.46 |
 | 22127526 `alloc-smoke` | A0 plumbing, thin R56-w4 | **COMPLETED** in 2.6 min | plumbing only; it exposed a size-matching flaw, fixed before the cells started |
-| **22127527 / 28 / 29** `alloc-thin-r56w4` / `alloc-dg-r56` / `alloc-cy-vgg16` | A0: allocation headroom at keep 0.6 and 0.35, 40-epoch recovery | PD (QOS) | calls HEADROOM / FLAT / HARM per net (queue file "A0") |
+| **22127527 / 28 / 29** `alloc-thin-r56w4` / `alloc-dg-r56` / `alloc-cy-vgg16` | A0: allocation headroom at keep 0.6 and 0.35, 40-epoch recovery | 527 **COMPLETED HEADROOM** §201; 528 / 529 R | calls HEADROOM / FLAT / HARM per net (queue file "A0") |
 
 ---
 
@@ -149,7 +149,7 @@ SOTA accuracy at their compression is out of reach on their home networks, so ge
 | **Per-target search and agent-training cost** | **Zero**, by construction | AMC ≤ 1 h, AGMC 320 s, GNN-RL 0.5 GPU-h, TAS 3.83 GPU-h on CIFAR; 25–864 GPU-h on ImageNet; RL-Pruner "several hours"; AgenticPruner 7.5 epochs plus LLM calls | Certain. Shared with every heuristic, so it argues for SPECTRA over learned pruners only if the agent at least matches mild |
 | **Marginal cost of the K-th target** | One final fine-tune: ~16 min ResNet-56, ~9 min VGG (4090) | DepGraph 85 min per target (our 4090); graph metanetworks 43–67 min; ResRep / CHIP / OTO 180–480 epochs | Measured. A win from K ≈ 3 (shallow walk) or 8 (deep walk). Same caveat |
 | **No per-target hyperparameters** (layer ratios, regularizer strengths) | None to tune | CHIP takes per-layer counts as input; GReg: "We do not have strong rules to set them"; DepGraph needs a global ratio and sparse-learning settings | Qualitative, but reviewers recognize it |
-| **Wall-clock at one target** | 405.6 + 15.8 min at 40/10 (a loss) | DepGraph 85.1 min | **Being measured (FW, 22127216):** the train recipe 12/4 plus GPU augmentation. The one metric where a dev phase could turn a stated loss into parity |
+| **Wall-clock at one target** | 405.6 + 15.8 min at 40/10 (a loss). Fast walk **108.4 min** at 2.11× (still a loss) | DepGraph 85.1 min | **SLOWER** (FW 22127216, §203). 4.3× N3, 1.27× DepGraph. K* measured **1.8** to keep 0.36 |
 | **Energy per target (Wh)** | Sampler in place; FW gives the first walk Wh to a DepGraph size | DepGraph's re-run was sampled too | Comes with FW's read |
 | **Decision overhead** | 3–8 ms per decision | RL searchers train per target; LLM agents pay inference per target | A footnote, not a headline |
 
@@ -176,7 +176,7 @@ The case for it: the paper's argument is transfer and cost, not accuracy at home
 The limit: every cost advantage over learned pruners is shared with mild, the no-agent walk. The cost story becomes an agent story only when the agent at least matches mild. Part III shows the agent is currently a constant schedule, so metrics alone cannot carry the paper. That is why the dev phase is narrow.
 
 **Done under the GO today:**
-- **FW (22127216).** N3's exact line plus GPU augmentation and 12/4, on a 4090, with registered calls. It reports K = 1 minutes, Wh and accuracy at DepGraph's 1.67× / 2.11× / 2.57× FLOPs points.
+- **FW (22127216) COMPLETED.** **SLOWER:** 2.11× **108.4 min > 85.1**; 10k **−1.24** vs N3 −0.46. Widths matched. Ledger **§203**. Never an agent row.
 - **This report.**
 - **Efficiency file updated** (§11 open items).
 

@@ -36,8 +36,8 @@
 | A4 | Deployment bench, job `21942378` (latency, throughput, peak memory, energy per image) | **COMPLETED** 01:08 (1.25 h, TB=0, 0 template failed). 3 repeats, 270 jsonl rows. Summary in EFFICIENCY §5.3. Never ledger | yes | EFFICIENCY §5.3 |
 | A5 | Proxy fidelity, `21941343–48`: does the 12/4 fine-tune, or no fine-tune at all, keep the agent's ranking? | **6/6 COMPLETED**. Ceiling **+0.41 < 0.5 → uninformative** (§189). **Widen 4/4 COMPLETED** (`21970086–89`, 89 at 11:30 3 Oct). `--sets where`: **2/6** ranked sets, ceiling **+0.71**; bn/none/12x4/40x10 all **not valid**. 12x4 NOT validated. 40x10−12x4 ρ **−0.07**. **21940321 stays held.** Ledger probe **§195**. Next cell: SGD-proxy sitting | yes | queue file; ledger §189 / **§195** |
 | A6 | Measuring as we go | `gpu_samples.csv` in every `tree_v9d` job since ~11:00 1 Oct; `scripts/cost_readout.py` at each COMPLETED | ongoing | EFFICIENCY §9 |
-| A7 | Open items for Ido (NVML, an agent timer, PUE / CO2e, a GPU-side augmentation A/B, a val-selected DepGraph) | Timer: built and measured (**4 Oct:** 3.0–8.2 ms per decision on a 4090; Budget 22059501, C2 22056144). D5 GPU-aug: **ADOPT for new cells** (D5-bis+RW43 EQUIVALENT, §196). NVML / PUE / val-selected DepGraph still open | his call | EFFICIENCY §11, §3.3, §3.4 |
-| A8 | **Metrics dev phase** (Ido GO 4 Oct 11:41: "IF you agree, you have my GO") | **4 Oct:** taken narrowly. **FW `22127216` R** measures K = 1 time-to-target with the fast walk (12/4 + GPU crop+flip) on DepGraph's R56 vs DepGraph's 85.1 min; calls K1-PARITY / K1-TRADE / SLOWER. Built: a time-and-Wh-to-each-size-point readout in `cost_readout.py` (reproduces N3's 405.6 + 15.8 min). Not taken: NVML, val-selected DepGraph, benching agent nets (the agent is a uniform 0.8 schedule today) | FW yes | report Part I; EFFICIENCY §11; queue file "FW" |
+| A7 | Open items for Ido (NVML, an agent timer, PUE / CO2e, a GPU-side augmentation A/B, a val-selected DepGraph) | Timer: built and measured (**4 Oct:** 3.0–8.2 ms per decision on a 4090; Budget 22059501, C2 22056144). D5 GPU-aug: **ADOPT for new cells** (D5-bis+RW43 EQUIVALENT, §196). NVML **declined** (Ido 4 Oct 19:23; the 1 s nvidia-smi sampler stays). PUE / val-selected DepGraph still open | his call | EFFICIENCY §11, §3.3, §3.4 |
+| A8 | **Metrics dev phase** (Ido GO 4 Oct 11:41: "IF you agree, you have my GO") | **4 Oct 15:10:** FW **22127216 COMPLETED**. **SLOWER:** 2.11× **108.4 min > 85.1**; 10k **−1.24** vs N3 −0.46. K* measured **1.8** to keep 0.36. Ledger **§203**. Built: `cost_readout.py` to-each-point minutes and Wh. Not taken: NVML, val-selected DepGraph, benching agent nets | yes | report Part I; EFFICIENCY §7 / §11; ledger §203 |
 | B1 | "How filters are chosen (how many · which)" column | **Done.** 49 published methods in the canonical table; the column added to every living SOTA table (news §2.4–2.5, benchmark setup §3, Catalog-L §2.4 and §5.3, efficiency §4.1–4.3 and §8.1, directives §5, skeleton T1–T2) and to the literature canvas | — | design §2 |
 | B2 | "Is the two-decision head backed by literature?" | **Answered: yes.** LFPC (CVPR 2020), MFP, Blending, and closest, Balaskas et al. (IEEE TETC 2024); action branching and parameterized actions in RL. All are per-target; ours is the frozen, transferable setting | — | design §4.1 |
 | B3 | A second DRL agent for which filters | **Designed:** hierarchical; a set transformer over channel tokens; Plackett–Luce / Gumbel-top-k; reward paired against L1; a selection shield. Gated by S0 → S1 → S2. **Closed 3 Oct:** G2 HARM, so S3 is not trained | design only; closed | design §6.4, §8, §0 item 7 |
@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | **Census + reward replay (§200, zero GPU):** every TESTed actor plays one action at every decision; the band reward pays size, not accuracy at equal size. M1-neg = uniform 0.8 vs uniform 0.9. **A0 probe** `22127527` R / `28` / `29` PD: does any allocation (sensitivity rule, its reverse, random) beat uniform at equal params after 40 epochs on thin R56-w4, DepGraph R56, VGG-16? Smoke `22127526` COMPLETED (plumbing; matching fixed before the cells) | A0 likely | report Part III; ledger §200; queue file "A0" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | **Census + reward replay (§200).** **A0 3/3 COMPLETED: HEADROOM** thin §201, dg §204, VGG-16 §205 (both keeps). **Cross-net A0-HEADROOM.** Never TEST. **4 Oct 19:23 Ido GO: fixed-target train.** A0b **22155641–44** (r20-w2, keep 0.8, VGG equal-FLOPs, R56-C100) registered its consequences for the train's reads. **v10 built** in `tree_v10` (tests 14/14 + 163/163). Smokes **22155996 / 97**; train **22156018** held until the smoke checks pass; mild-landed controls **22156061 / 62** R | yes | report Part III; ledger §200 / §201 / §204 / **§205**; queue file "A0" |
 
 ---
 
@@ -173,6 +173,23 @@
 - **4 Oct 11:56** — Sitting (Ido GO 11:41). A8 FW **22127216** R (`ise-4090-03`, start check passed). The metrics dev phase is taken narrowly (report Part I §I.6).
 - **4 Oct 12:13** — B8 A0 smoke **22127526** COMPLETED (2.6 min; plumbing). The size-matching fix was deployed before the cells: `allocation_probe.py` md5 `7f4d0e1aac22`, tests 6/6. Cells **22127527** R (`cs-pheno-03`), **22127528 / 29** PD.
 - **4 Oct 12:45** — B8 ledger **§200** (zero GPU): constant-policy census + reward replay. M1-neg = uniform 0.8 vs uniform 0.9. FR43's stability is trivial. Report `docs/paper/GILAD_1OCT_POINTS_REPORT.md` written for Ido (Parts I–III). Runbook §10.0e.
+- **4 Oct 13:40** — B8 A0 thin **22127527 COMPLETED**. Ledger **§201 HEADROOM** both keeps. Never TEST.
+- **4 Oct 15:07** — Stage-4 freeze TEST **22124693 COMPLETED**. Ledger **§202**. First cut −1.04 / −0.62 vs mild. **M1 does not fire; M1-neg stands.**
+- **4 Oct 15:10** — A8 FW **22127216 COMPLETED**. Ledger **§203 SLOWER**: 108.4 min > 85.1 at 2.11×; 10k −1.24 vs N3 −0.46. Never an agent row. K* 1.8 to keep 0.36.
+- **4 Oct 15:21** — Factored freeze TEST **22132735 R** (`ise-4090-21`, ep0083, `TIME_DECIDE=1`, `FACTORED_HEAD` pin). One freeze TEST in flight. QOS 8/8.
+- **4 Oct 17:01** — B8 A0 dg **22127528 COMPLETED**. Ledger **§204 HEADROOM** both keeps (0.6 tight; 0.35 sens +2.24 / +1.99). Never TEST. QOS 7/8; 1 idle; do not invent.
+- **4 Oct 17:28** — B8 A0 VGG-16 **22127529 COMPLETED**. Ledger **§205 HEADROOM** both keeps. **Cross-net A0-HEADROOM 3/3.** Never TEST. No train from ops. QOS 6/8; 2 idle; do not invent.
+- **4 Oct 19:26** — Ido **"stop3"**: C1 / C2 / factored trains + held 21940319/21 CANCELLED. Do not resubmit. Do not write ARM-NEG.
+- **4 Oct 19:34** — Factored freeze TEST **22132735 COMPLETED**. Ledger **§206**. First cut vs mild **+0.38 / +0.30** (not M1). Taylor vs L1 mean **+0.43 / −0.17** (inside FR43 noise). Decide 5.4 / 3.6 ms.
+- **4 Oct 19:32** — A0b **22155641–44 R**. Never TEST. One idle held for the fixed-target smoke; ops does not fill.
+- **4 Oct 20:04 / 20:11** — A0b **22155642 §208 HEADROOM** keep 0.8; **22155641 §207** HEADROOM at 0.8 and 0.35, FLAT at 0.6. κ = 0.8 first-cut stands; R20 stays in v10 M1. Never TEST.
+- **4 Oct 20:05–20:45** — Sitting (Ido GO 19:23 "fixed_target"; NVML declined). **v10 built** in `tree_v10`:
+  - fixed-target episodes, κ ~ U[0.35, 0.85], landed by bisection;
+  - per-step Δval reward with γ = 1, so the return is the val Δ at κ;
+  - target and group-sensitivity state channels;
+  - probe scored against a once-walked mild reference.
+
+  Tests 14/14 + 163/163. Smoke train **22155996** R; eval smoke **22155997** afterok. Train **22156018** HELD (resume 22156019). Mild-landed controls **22156061 / 62** R (κ 0.8 / 0.6, full TEST protocol). The TEST rule and the M1-v10 read are registered in the queue file "v10". Probe scores are never results.
 
 ---
 

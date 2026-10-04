@@ -483,7 +483,14 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         f"{'+kd' if fortify_mod.eval_final_ft_kd() else ''}"
                         f"{'+scratch:' + fortify_mod.eval_final_ft_scratch() if fortify_mod.eval_final_ft_scratch() else ''}"
                         f"{' from=' + fortify_mod.eval_final_ft_from() if fortify_mod.eval_final_ft_from() else ''}"
-                        f"{' proxy=' + ','.join(f'{t:g}' for t in fortify_mod.eval_proxy_fidelity()) if fortify_mod.eval_proxy_fidelity() else ''}")
+                        f"{' proxy=' + ','.join(f'{t:g}' for t in fortify_mod.eval_proxy_fidelity()) if fortify_mod.eval_proxy_fidelity() else ''}"
+                        f" fixed_target={int(fortify_mod.fixed_target())} state_sens={int(fortify_mod.state_sens())}")
+                    match = fortify_mod.eval_size_match()
+                    if fortify_mod.fixed_target() and (match is None or match[0] != "param"):
+                        utils.print_flush(
+                            "[eval] WARNING: SPECTRA_FIXED_TARGET without SPECTRA_EVAL_SIZE_MATCH=param:<keep>; "
+                            "the actor is told the deepest param size point (else 0.6) and the walk is "
+                            "not ended at it")
                 if traj and mode == EVAL_TEST and fortify_mod.eval_final_ft_from():
                     _final_ft_from_saved(env, net_path, fortify_mod.eval_final_ft_from(),
                                          fortify_mod.eval_final_ft_epochs())

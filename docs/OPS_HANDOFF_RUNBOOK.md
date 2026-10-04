@@ -158,15 +158,53 @@ Ops keeps running freeze TESTs per §10.3 / §10.0c.
 
 | Job | Name | What | Ops action |
 |---|---|---|---|
-| 22127216 | v9d-fw-dg-r56 (`tree_v9d`, `rtx_4090` only, nice 5, wall 14 h, `Requeue=0`) | FW: N3's mild walk on DepGraph's ResNet-56 with GPU crop+flip and 12/4, to DepGraph's three sizes (queue file "FW"). R since 11:56 on `ise-4090-03`; start check passed | **Progress:** `grep -cE '"event": "step"' runs/job22127216/events/rank0.jsonl` (DepGraph's 2.11× is step 210).<br>**Kill:** Traceback or OOM ⇒ report; no resubmit.<br>**On COMPLETED:**<br>• *Widths:* the three size points must land at N3's steps 136 / 210 / 267, at N3's params and FLOPs; if not, report before reading cost.<br>• *Cost:* `python scripts/cost_readout.py 22127216 21767189` in `tree_v9d`. Each `to size_flop… (step …): walk … + final … = … min | … Wh` line is that point's K = 1 cost. N3's lines are the 40/10 reference (405.6 + 15.8 min at step 210).<br>• *Call:* the queue file's K1-PARITY / K1-TRADE / SLOWER at 2.11×, with DepGraph's 85.1 min and N3's 10k −0.46.<br>• *Write-up:* one PRELIM ledger section (a no-agent cost cell; never a SPECTRA-agent row), one EFFICIENCY §3.1 line, tracker A8 and §6, ping Ido with the call |
+| 22127216 | v9d-fw-dg-r56 (`tree_v9d`, `rtx_4090` only, nice 5, wall 14 h, `Requeue=0`) | FW: N3's mild walk on DepGraph's ResNet-56 with GPU crop+flip and 12/4, to DepGraph's three sizes (queue file "FW"). **COMPLETED 4 Oct 15:10** on `ise-4090-03` (3 h 14 m) | **Done.** Widths 136 / 210 / 267. **SLOWER:** 2.11× **108.4 min > 85.1**; 10k **−1.24** vs N3 −0.46. Ledger **§203**. EFFICIENCY §3.1 / §7. Never an agent row |
 | 22127526 | alloc-smoke | A0 plumbing | **Done** (COMPLETED 2.6 min). Never quoted |
-| 22127527 / 28 / 29 | alloc-thin-r56w4 / alloc-dg-r56 / alloc-cy-vgg16 (`tree_v9d`, untyped, nice 24–26, wall 14 h) | A0: does any allocation beat uniform at equal params after 40 epochs? (queue file "A0"). 527 R since 12:13 on `cs-pheno-03`; 528 / 529 PD | **Start check:** `Allocation probe … FT_AUG=1 FT_AUG_GPU=1 VAL_FROM_TEST=1` and the GPU-loader banner. **Matching check:** in each keep, the first non-uniform `[alloc]` row's `params x…` is within 0.02 of uniform's, and no `(unmatched)` appears at budget 40. If it fails, report; do not resubmit.<br>**Progress:** `grep -c "\[alloc\]" runs/slurm_logs/alloc_<job>.out` (60 rows per cell).<br>**Kill:** Traceback ⇒ report.<br>**On COMPLETED:** paste the budget-40 `[alloc-call]` lines into the queue file's A0 section and tracker B8 / §6. After all three cells, write one ledger *probe* section ("A0 allocation headroom — a lever measurement, never a TEST row") and ping Ido with the per-net calls. **Never a TEST row; never a reason to change a live train** |
+| 22127527 / 28 / 29 | alloc-thin-r56w4 / alloc-dg-r56 / alloc-cy-vgg16 (`tree_v9d`, untyped, nice 24–26, wall 14 h) | A0. **527 §201 HEADROOM**; **528 §204 HEADROOM**; **529 COMPLETED 17:28 §205 HEADROOM**. **Cross-net A0-HEADROOM 3/3** | **Done.** Ping Ido with the three per-net calls. Never a TEST row. Do not start a train; that needs a sitting and Ido's GO |
 
 **Never (adds to §10.6):**
 - Quote FW as an agent result.
 - Quote an A0 number as a TEST.
 - Start a train on A0's call; that needs a sitting and Ido's GO.
 - Change any live train's reward because of §200.
+
+### 10.0f 4 Oct evening sitting (Opus 5.5, ~19:45; Ido's decisions 19:23; supersedes §10.0e where they differ)
+
+**Ido's four decisions (questionnaire, 4 Oct 19:23):**
+- **Trains: "stop3". Done 19:40 by the sitting.**
+  - Scancelled: C1 **21938807**, C2 **21938810**, factored **21940316**; their resumes 21938809 / 21938811 / 21940317; the held arms 21940319 (grouptoken) and 21940321 (ft40) and their resumes 21940320 / 21940322.
+  - The `train_resume.pt` bundles stay on disk (C1 16:46, C2 17:40, factored 18:31).
+  - Last state: C1 PPO 28, probe 0.290 at ep108, freeze still ep0011. C2 PPO 28, probe 0.273 at ep108, freezes ep0011 / 0023 / 0083. Factored PPO 23, best probe 0.2947 at ep84, freezes ep0011 / 0047 / 0083.
+  - **Live trains now:** Stage-4 21737123 (→ r1 21767188) and Budget 21940311 (→ r1 21940314) only. §10.0c's freeze rule still applies to both.
+- **Factored ep0083 TEST: the recommendation stands, and ops' 22132735 (submitted 15:21) is that TEST.** Nothing new was submitted. So far it plays (0.8, Taylor) at every free decision on both nets, which is what makes it a Taylor-vs-L1 read at identical widths.
+- **Next train: "fixed_target", GO.**
+  - What: AMC-style fixed-target episodes plus a per-group sensitivity input.
+  - Launch gate: A0 HEADROOM on ≥ 2 of 6 cells (it is 6 of 6) and a passing smoke.
+  - A sitting builds it in a **new tree** (not `tree_v9b` / `c` / `d`). Ops does not build, smoke or launch it.
+- **NVML: no.** Keep the 1 s nvidia-smi sampler on every job.
+
+| Job | Name | What | Ops action |
+|---|---|---|---|
+| 22132735 | traj-v9d-factored-ep0083 | ops' §10.0c freeze TEST. **COMPLETED 19:34** on `ise-4090-21` (4 h 14 m) | **Done.** Ledger **§206**: first cut vs mild mean **+0.38 / +0.30** (not M1-neg, not M1). Taylor vs L1 mean **+0.43 / −0.17** (inside FR43 noise). Decide 5.4 / 3.6 ms. Never resubmit the cancelled train |
+| 22155641 / 42 / 43 / 44 | alloc-r20w2 / alloc-r56w4-k08 / alloc-vgg16-flops / alloc-r56-c100 (`tree_v9d`, untyped, nice 24, `--no-requeue`) | A0b | **41 COMPLETED 20:11 §207 HEADROOM** at 0.8 and 0.35, FLAT at 0.6. **42 COMPLETED 20:04 §208 HEADROOM** at keep 0.8. **43 / 44 still R** (n=28 / 16 of 60). Never a TEST row. No train action from ops |
+
+QOS **7/8** at 19:56. The free slot is held for the fixed-target smoke. Ops does not fill it.
+
+**v10 fixed-target train (sitting, 20:05–20:45; registered in the queue file "v10"; all in `/home/paretsky/scratch_audit/tree_v10`, provenance `PROVENANCE_v10.txt`).**
+
+| Job | Name | What | Ops action |
+|---|---|---|---|
+| 22155996 | v10-smoke-train | Smoke: seed 50, 8 episodes, FT 1/1, probes at κ 0.8 / 0.5 | None. **Never quoted.** Traceback ⇒ report |
+| 22155997 | v10-smoke-eval | afterok 22155996: the smoke actor on the thin pair at `SIZE_MATCH=param:0.8`, FT 1 epoch | None. **Never quoted.** Traceback ⇒ report |
+| **22156018** | v10-fixedtarget-train | The train: seed 42, nice 30, 7 d wall. **HELD**, afterok both smokes | **The sitting releases it** after the six smoke checks in the queue file. If the sitting has ended and both smokes COMPLETED, ops may `scontrol release 22156018` only when all six checks read green; otherwise report. **Start check:** banner `\| v10: fixed_target=1 state_sens=1 … gamma=1`; `SPECTRA_FT_AUG_GPU': '1'`; `fixed target: keep x…` at each reset. **Health (notes, never results):** `PPO update`, `PROBE … vs_mild=…`, `Snapshot frozen`. Apply the queue file's NO-GO rule at update 40. **Freeze TEST:** only freezes after update 20, by the queue file's v10 TEST rule (actor at κ 0.8 and 0.6 against the two mild-landed controls below). **Never** TEST a pre-update-20 freeze. Never change its recipe; its resume carries its own `FT_AUG_GPU=1` from episode 0 |
+| 22156019 | v10-fixedtarget-train-r1 | Resume afterok 22156018 (nice 0) | None |
+| **22156061 / 62** | v10-mildland-k080 / k060 | The mild-landed controls: `baseline_c10_mild_traj_gonce` + `SPECTRA_FIXED_TARGET=1`, thin pair, P, loader crop+flip, walk 40/10, 6 passes, floor off, `SIZE_MATCH` = `SIZE_POINTS` = `param:κ`, final FT 100 from the origin, seed 42. R since 20:17 on `ise-4090-16` / `-21` | **Start check:** `fixed target: keep x0.800` (or `x0.600`) `… (eval…)` per net, and the walk plays 0.9. **On COMPLETED:** one PRELIM ledger control section with the `[eval] TRAJ param:κ` lines and the final-FT TEST of the size point per net. It is the control for every v10 freeze TEST; never resubmit it per freeze. A net with `TRAJ … param:κ … NONE` ⇒ report |
+
+**Never (adds to §10.6 and §10.0e):**
+- Resubmit, release or resume a stopped train or held arm (C1, C2, factored, grouptoken, ft40). Their resume bundles are for a sitting.
+- Write ARM-FLAT or ARM-NEG lines for the stopped arms. Ido stopped them; the rule did not.
+- Build or smoke the fixed-target train from ops, change its recipe, or point any other train's resume at `tree_v10`.
+- Quote a v10 probe score or a smoke number as a result.
 
 ### 10.1 Live jobs (30 Sep 13:20)
 

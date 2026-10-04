@@ -170,6 +170,8 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
+- 4 Oct 20:45 | **v10 fixed-target train** (sitting, Ido GO 19:23; gate A0 HEADROOM 6/6) | Code in `tree_v10`. Smokes 22155996 / 97. Train **22156018** HELD with resume 22156019. Mild-landed controls **22156061 / 62** (κ 0.8 / 0.6) R | The next sitting reads M1-v10 by the queue file's "v10" rule: freezes after update 20 only; actor vs mild-landed at κ 0.6 on r56-w4, Δ ≥ +0.5 pp = WIN. A0b's consequences decide whether r20-w2 and κ 0.8 also gate. Probe scores are never results. The walk's done rule was changed to "kept ≤ κ" after the smoke; the train runs the new rule.
+
 **M1-neg mechanism** (4 Oct ~12:45, sitting; ledger **§200**, report `docs/paper/GILAD_1OCT_POINTS_REPORT.md` Part III).
 - *Census:* every TESTed actor plays one action at every free decision. Stage-4 (×2 seeds), C2 and ep0131 play 0.8: 16/16 on r20, 60/60 on r56. Budget plays its largest budget and never STOPs.
 - *Cause:* the trains' reward (`structural`, τ 10, cumulative vs origin) pays +ρ inside the band whatever the accuracy. With a fixed number of decisions, "always the largest cut" maximizes the return. The val replay pays R56-w4's 0.8 walk 270.5 vs mild's 126.6 (equal depth: 124.9 vs 126.0, across 3 pp of val).
@@ -302,6 +304,21 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 4 Oct 09:46 | **3h briefing** | QOS **5/8** (3 idle); freezes still ep0095 / ep0011 / ep0083 / ep0131 / ep0047; C2 ev 0.024; canvas 09:16 | **M1-neg is the sitting call**; register SGD-proxy + two-walk mild; ops does not invent; C1 ARM-FLAT at ep 120 if freeze still ep0011
 - 4 Oct 10:48 | Stage-4 freeze **ep0131** (probe 0.2863); TEST **22124693 R** (`cs-4090-01`, `tree_v9c`, no timer, `Requeue=0`, Features) | §10.3 one-a-day newest since **21990060** | one freeze TEST in flight; do not queue a second; 2 idle remain — ping, do not invent
 - 4 Oct 12:18 | sitting (Ido GO 11:41, metrics/dev) filled QOS: FW **22127216 R** `ise-4090-03`; A0 **22127527 R** `cs-pheno-03`, **22127528/29 PD** QOS | QOS **8/8**; ops does not invent; freeze TEST **22124693** still R 1.5 h TB=0; C1 freeze still ep0011
+- 4 Oct 12:47 | **3h briefing** | QOS **8/8**; FW R 52 min TB=0; A0 thin R 35 min; **22124693** R 2.0 h no TRAJ val_best; C1 freeze still ep0011 ev 0.722 | leave sitting cells; one freeze TEST in flight; canvas 16:00
+- 4 Oct 13:17 | factored **21940316** froze **ep0083** (probe 0.2947; episode ≥ 80) | first post-update-20 freeze | do **not** TEST while **22124693** is R; after it, §10.5 (a) + `TIME_DECIDE=1` in `tree_v9d`; never TEST ep0047
+- 4 Oct 13:40 | A0 thin **22127527 COMPLETED** | **§201** budget-40 **HEADROOM** both keeps (0.6 bar 1.39; 0.35 bar 2.00) | per-net A0-HEADROOM on r56-w4; dg **22127528 R**; cy **22127529 PD**; never TEST
+- 4 Oct 15:07 | Stage-4 freeze TEST **22124693 COMPLETED** (`cs-4090-01`, 4.3 h) | **§202** vs mild: first cut **−1.04 / −0.62**; r56 kinder **16/19**; named TEST r20 −4.8 @ 0.702 / r56 −3.9 @ 0.743 | **M1 does not fire; M1-neg stands**; same 0.8 keeps as ep0095
+- 4 Oct 15:10 | FW **22127216 COMPLETED** (`ise-4090-03`, 3.2 h) | **§203 SLOWER**: 2.11× **108.4 min** > 85.1; 10k **−1.24** vs N3 −0.46; widths 136/210/267 | never an agent row; K* measured **1.3** (2.11×) / **1.8** (keep 0.36)
+- 4 Oct 15:21 | factored freeze TEST **22132735 R** `ise-4090-21` | `tree_v9d` ep0083, `TIME_DECIDE=1`, `SPECTRA_FACTORED_HEAD` pin, 24G, `Requeue=0` | one freeze TEST in flight; never TEST ep0047
+- 4 Oct 17:01 | A0 dg-r56 **22127528 COMPLETED** | **§204** budget-40 **HEADROOM** both keeps (0.6 bar 0.50 tight; 0.35 bar 0.94, sens +2.24 / +1.99) | per-net A0-HEADROOM on DepGraph R56; cy **22127529** still R keep 0.35; never TEST; QOS 7/8 — 1 idle, do not invent
+- 4 Oct 17:28 | A0 cy-vgg16 **22127529 COMPLETED** | **§205** budget-40 **HEADROOM** both keeps (0.6 random1 +1.76 / +1.33; 0.35 sens2 +0.57 / +0.72) | **cross-net A0-HEADROOM 3/3**; never TEST; no train from ops; QOS 6/8 — 2 idle, do not invent
+- 4 Oct 18:20 | **3h briefing** | QOS **6/8** (2 idle); A0 3/3 HEADROOM; factored TEST **22132735** R 3.0 h r20 TRAJ in r56 walking; C1 ep 113 freeze ep0011 | do not invent; ARM-FLAT at 120; canvas 23:00
+- 4 Oct 19:26 | Ido **"stop3"**: C1 / C2 / factored trains + held 21940319/21 scancelled | bundles on disk | do **not** resubmit; do **not** write ARM-NEG (Ido stopped them)
+- 4 Oct 19:34 | factored freeze TEST **22132735 COMPLETED** | **§206** first cut vs mild **+0.38 / +0.30**; Taylor vs L1 mean **+0.43 / −0.17** (inside FR43 noise) | not M1; not M1-neg; ranking-menu mean is noise; decide 5.4 / 3.6 ms
+- 4 Oct 19:32 | A0b **22155641–44 R** (r20 / r56 keep 0.8 / VGG FLOPs / R56-C100) | start checks green | never TEST; idle slot for the fixed-target smoke; ops does not fill
+- 4 Oct 20:04 | A0b r56-w4 keep 0.8 **22155642 COMPLETED** | **§208 HEADROOM** (sens +2.63 / +2.01) | κ = 0.8 first-cut read stands; never TEST
+- 4 Oct 20:11 | A0b r20-w2 **22155641 COMPLETED** | **§207** HEADROOM at 0.8 and 0.35; **FLAT at 0.6** | R20 stays in v10 M1 (drop needed FLAT at both 0.8 and 0.6)
+- 4 Oct 20:21 | v10 smoke **22155996 R** 13 min; mild-landed **22156061 / 62 R** start checks green (keep x0.800 / x0.600, rate=0.9); train **22156018 HELD** | do not release; do not quote smoke; A0b 43/44 still R
 - 4 Oct 12:45 | sitting: §200 constant-policy census + reward replay; runbook **§10.0e** rows for FW and A0; report `GILAD_1OCT_POINTS_REPORT.md` | ep0131's TEST (22124693) is already 0.8 at 16/16 r20 and 12/12 r56 decisions | its M1 read will repeat M1-neg's comparison; next sitting: A0 calls, FW call, reward design (GO)
 - 3 Oct 10:00 | H0 retries `21986700/01` R ~8 h | origin TEST DN-40 / MBV2 inside 0.12 pp; start checks ok | first net TRAJ in; do not kill; ledger on COMPLETED
 - 3 Oct 10:00 | pf-w 89 still R step 281, 7 `[proxy]` lines | 24 h wall ~21:39 | readout at end; freeze TEST takes that GPU; 21940321 held

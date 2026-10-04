@@ -10,7 +10,7 @@
 #SBATCH --qos=normal
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=12
-#SBATCH --mem-per-gpu=40G
+#SBATCH --mem-per-gpu=24G
 #SBATCH --time=0-16:00:00
 
 set -uo pipefail

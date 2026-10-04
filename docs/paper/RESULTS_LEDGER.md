@@ -3626,8 +3626,137 @@ F1 with τ 5 (config only: `SPECTRA_REWARD_MODE=structural_unified SPECTRA_TRAIN
 - A new action menu alone cannot help: the agent picks its largest entry.
 - N10 (cubic reward) is covered by C1 / C2, which collapsed the same way.
 - N8 waits for (i) a reward that passes this replay check and (ii) A0 headroom on at least one family.
-- A0 (`22127527` / `28` / `29`, queue file "A0") is the allocation-headroom probe.
+- A0 thin **22127527 COMPLETED** — **§201 HEADROOM** on both keeps at budget 40. dg **22127528** R; cy **22127529** PD. Cross-net A0 call waits.
 - No train without Ido's GO.
+
+---
+
+## 201. A0 allocation headroom, thin r56-w4 (**22127527**) — probe, never a TEST row
+
+`scripts/allocation_probe.py` on ResNet-56-w4 C10 (`tree_v9d`). COMPLETED 1 h 28 m, 4 Oct 13:40, `cs-pheno-03` (GTX 1080), TB 0, exit 0. Protocol P, recipe A 40/10, crop+flip on the GPU. Uniform × 3 FT seeds; sens / sens2 / anti; random × 4. Matched to uniform's realized params (tolerance 0.003). Start checks green (`aug=1 aug_gpu=1`, GPU-loader banner, `Sensitivity at keep 0.5: 30 groups`). Log `runs/slurm_logs/alloc_22127527.out`.
+
+**Call = budget 40 only** (bar = max(0.5, 2 × uniform val-Δ SD)). Allocations > 0.02 params from uniform are unmatched and not counted. Quote params-matched FLOPs: they differ.
+
+| Keep | Uniform val Δ (SD) / TEST Δ | Bar | sens val/TEST | sens2 val/TEST | Call |
+|---|---|---|---|---|---|
+| 0.6 | −8.22 (0.69) / −8.63 | 1.39 | **+1.62 / +1.95** (FLOPs 0.519) | **+1.68 / +2.25** (0.466) | **HEADROOM** |
+| 0.35 | −17.81 (1.00) / −18.19 | 2.00 | **+7.81 / +7.69** | **+8.33 / +7.93** | **HEADROOM** |
+
+Anti and three of four random draws are at or below uniform at budget 40. Budgets 0 / bn are proxy orderings, never a call.
+
+**Per-net:** A0-HEADROOM on thin r56-w4 (both keeps). A reward that prices accuracy at equal size has something to learn on this net. **22127528 dg-r56 COMPLETED — §204 HEADROOM both keeps.** **22127529 cy-vgg16 COMPLETED — §205 HEADROOM both keeps.** **Cross-net A0-HEADROOM 3/3.** One-shot cut + 40-ep recovery, not the iterative walk. Do **not** quote as TEST. Do **not** lock.
+
+---
+
+## 202. Stage-4 freeze TEST ep0131 (**22124693**) vs mild 21729557 — PRELIM; M1 does not fire (M1-neg stands)
+
+Skip-train `eval_c10_thin_traj` of **21737123** `snapshots/ep0131` (probe 0.2863; newest freeze since 21990060). `tree_v9c`, P + crop+flip, 40/10, 2-pass, det=1, seed 42. No `TIME_DECIDE`. COMPLETED 4 h 18 m, 4 Oct 15:07, `cs-4090-01`, TB 0, exit 0. Control = mild **21729557** (§152). TEST = 5k P half. Unpruned TRAJ origin 0.649 / 0.890. Same named keeps as ep0095 (constant 0.8).
+
+| Point | Actor 22124693 TEST (keep) | Mild 21729557 TEST (keep) | ep0095 21990060 |
+|---|---|---|---|
+| r20 size 0.80 | **−4.8 @ 0.702** | −1.2 @ 0.774 | −5.2 @ 0.702 |
+| r20 size 0.60 | −4.6 @ 0.595 | −4.9 @ 0.584 | −4.7 @ 0.595 |
+| r20 `val_best` | **−8.7 @ 0.417** | −5.3 @ 0.536 | −7.7 @ 0.417 |
+| r56 size 0.80 | **−3.9 @ 0.743** | −2.6 @ 0.795 | −4.5 @ 0.743 |
+| r56 size 0.60 | −6.2 @ 0.600 | NONE (mild ends 0.622) | −5.3 @ 0.600 |
+| r56 `val_best` | **−7.3 @ 0.389** | −4.5 @ 0.622 | −7.1 @ 0.389 |
+
+Equal keep vs the three-walk mild mean (`_tmp_oct4_m1read.sh`): r20 first cut **−1.04 @ 0.702** (5 of 7 shared keeps > 0.5 pp worse; 0 kinder ≥ 0.5). r56 first cut **−0.62 @ 0.743** (2 of 19 shared keeps > 0.5 pp worse; **16 kinder ≥ 0.5** in 0.72–0.62). Not a mild clone (`val_best` keep 0.389 vs 0.622). **M1 does not fire:** the first equal-keep cut is still more than 0.5 pp worse than mild on both nets. **M1-neg stands.** Do **not** lock. Do not start N8.
+
+---
+
+## 203. FW — 12/4 + GPU crop+flip mild walk to DepGraph R56 sizes (**22127216**) — PRELIM probe; **SLOWER**; never an agent row
+
+N3's line with `SPECTRA_FT_AUG_GPU=1 SPECTRA_NUM_EPOCHS=12 SPECTRA_FINETUNE_PATIENCE=4`, 5-pass, `flop:0.6,0.47,0.39`, `tree_v9d`, RTX 4090 `ise-4090-03`. COMPLETED 3 h 14 m, 4 Oct 15:10, TB 0, exit 0. Widths match N3 **21767189**: steps 136 / 210 / 267, params 0.638 / 0.470 / 0.382, FLOPs 0.599 / 0.463 / 0.380. Origin TEST 0.934. 10k = both CIFAR halves. Cost = walk to the point + that point's 100-ep final (`cost_readout.py 22127216 21767189`). DepGraph's whole pipeline is **85.1 min** on the same GPU model (21943448).
+
+| Point | Params / FLOPs | Walk 5k | Final 5k | Honest | 10k final | N3 10k | DepGraph | K=1 cost (walk+final) | N3 cost |
+|---|---|---|---|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | −0.60 | −0.34 | −0.06 CROSS-OFF | **−0.24** | −0.03 | — | 61.8 + 13.0 = **74.8 min** | 264.8 + 15.5 = 280.2 |
+| size_flop0.47 (2.11×) | 0.470 / 0.463 | −1.64 | −1.76 | −0.44 CROSS-OFF | **−1.24** | **−0.46** | **+0.24** | 95.0 + 13.4 = **108.4 min** | 405.6 + 15.8 = 421.4 |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | −1.90 | −1.84 | −0.26 CROSS-OFF | **−1.25** | −1.63 | +0.11 | 120.4 + 13.3 = 133.6 min | 518.1 + 15.9 = 534.0 |
+| `val_best` | 0.356 / 0.369 | −1.96 | −1.94 | −0.30 CROSS-OFF | n/a | n/a | — | 127.3 + 13.0 = 140.3 min | 546.6 + 15.6 = 562.2 |
+| origin | 1.000 / 1.000 | 0.00 | +0.32 | — | +0.48 | — | — | 13.4 min | 15.9 |
+
+**Call at 2.11×: SLOWER.** K=1 cost **108.4 min > 85.1**. 10k **−1.24** is 0.78 pp behind N3's −0.46 and 1.48 pp behind DepGraph's +0.24. The walk itself is **4.3×** faster than N3 to the same step (95.0 vs 405.6 min) and still **1.27×** DepGraph at one target. Peak alloc 1.56 GB; 439.2 Wh to 2.11×. Final FT CROSS-OFF (same as N3). K* vs DepGraph, measured 12/4 W: **1.3** at the 2.11× point (95.0 / (85.1 − 13.4)); **1.8** to keep 0.36 (127.3 / (85.1 − 13.0)). The projected 12/4 column in EFFICIENCY §7 used W ≈ 165 min (K* 2.4); replace that projection with these numbers. Do **not** quote as a SPECTRA-agent row. Do **not** lock.
+
+---
+
+## 204. A0 allocation headroom, DepGraph ResNet-56 C10 (**22127528**) — probe, never a TEST row
+
+`scripts/allocation_probe.py` on DepGraph's ResNet-56 C10 (`tree_v9d`). COMPLETED 3 h 21 m, 4 Oct 17:01, `cs-pheno-03` (GTX 1080), TB 0, exit 0. Same recipe as §201: P, 40/10, GPU crop+flip. Uniform × 3 FT seeds; sens / sens2 / anti; random × 4. Matched to uniform's realized params. Call = budget 40 only. Log `runs/slurm_logs/alloc_22127528.out`.
+
+| Keep | Uniform val Δ (SD) / TEST Δ | Bar | sens val/TEST | sens2 val/TEST | Call |
+|---|---|---|---|---|---|
+| 0.6 | −2.36 (0.18) / −2.63 | 0.50 | **+0.60 / +0.61** (FLOPs 0.503 vs 0.596) | −0.42 / +0.03 (0.458) | **HEADROOM** |
+| 0.35 | −4.08 (0.47) / −4.03 | 0.94 | **+2.24 / +1.99** (FLOPs 0.277 vs 0.343) | **+1.50 / +1.33** (0.281) | **HEADROOM** |
+
+Keep 0.6 is tight: random0 **+0.76 / +0.81** also clears the 0.50 bar; sens just clears. Keep 0.35 is the lever (sens +2.24 val). Anti is below uniform at budget 40. Budgets 0 / bn are proxy orderings, never a call.
+
+**Per-net:** A0-HEADROOM on DepGraph R56 C10 (both keeps). Together with thin r56-w4 §201, allocation is a lever on both ResNet-56 cells. VGG-16 **22127529 COMPLETED — §205 HEADROOM** both keeps. **Cross-net A0-HEADROOM 3/3.** Do **not** quote as TEST. Do **not** lock. Do not start a train from this.
+
+---
+
+## 205. A0 allocation headroom, chenyaofo VGG-16 C10 (**22127529**) — probe, never a TEST row; **cross-net A0-HEADROOM 3/3**
+
+`scripts/allocation_probe.py` on chenyaofo VGG-16 C10 (`tree_v9d`). COMPLETED 2 h 21 m, 4 Oct 17:28, `cs-pheno-09` (GTX 1080), TB 0, exit 0. Same recipe as §201. Call = budget 40 only. Log `runs/slurm_logs/alloc_22127529.out`.
+
+| Keep | Uniform val Δ (SD) / TEST Δ | Bar | sens val/TEST | sens2 val/TEST | Call |
+|---|---|---|---|---|---|
+| 0.6 | −2.44 (0.54) / −2.23 | 1.09 | +0.32 / +0.57 (FLOPs 0.818 vs 0.601) | +0.58 / −0.07 (0.821) | **HEADROOM** (random1 **+1.76 / +1.33**) |
+| 0.35 | −2.61 (0.24) / −2.72 | 0.50 | +0.25 / −0.04 (FLOPs 0.729 vs 0.354) | **+0.57 / +0.72** (0.713) | **HEADROOM** |
+
+Keep 0.6: the sensitivity rule does **not** clear the bar; a random allocation does. Keep 0.35: sens2 just clears (0.57 ≥ 0.50); matched params, unmatched FLOPs (0.71 vs 0.35). Anti is below uniform at budget 40.
+
+**Per-net:** A0-HEADROOM on VGG-16 C10 (both keeps).
+
+**Cross-net (budget 40, both keeps):** thin r56-w4 §201, DepGraph R56 §204, VGG-16 this section — **A0-HEADROOM 3/3**. Allocation is a lever on these cells. Ido GO 19:23: next train is fixed-target (sitting builds a new tree). Do **not** quote as TEST. Do **not** lock. Do **not** start that train from ops.
+
+---
+
+## 206. Factored freeze TEST ep0083 (**22132735**) vs mild 21729557 — PRELIM; Taylor vs L1; not M1
+
+Skip-train `eval_c10_thin_traj` of **21940316** `snapshots/ep0083` (probe 0.2947; first freeze after PPO-20). `tree_v9d`, P + crop+flip, 40/10, 2-pass, det=1, seed 42, `SPECTRA_TIME_DECIDE=1`. COMPLETED 4 h 14 m, 4 Oct 19:34, `ise-4090-21`, TB 0, exit 0. `SPECTRA_FACTORED_HEAD` pin. Constant policy **(keep 0.8, Taylor)** at every free decision; same named keeps as Stage-4 ep0095 / ep0131 (L1 at 0.8). Control = mild **21729557**. TEST = 5k P half. Origin 0.649 / 0.890. The train was scancelled 19:26 (Ido); this TEST had already started.
+
+| Point | Actor 22132735 TEST (keep) | Mild 21729557 TEST (keep) | Stage-4 ep0131 22124693 |
+|---|---|---|---|
+| r20 size 0.80 | **−3.4 @ 0.702** | −1.2 @ 0.774 | −4.8 @ 0.702 |
+| r20 size 0.60 | −3.1 @ 0.595 | −4.9 @ 0.584 | −4.6 @ 0.595 |
+| r20 `val_best` | **−7.3 @ 0.417** | −5.3 @ 0.536 | −8.7 @ 0.417 |
+| r56 size 0.80 | **−3.0 @ 0.743** | −2.6 @ 0.795 | −3.9 @ 0.743 |
+| r56 size 0.60 | −5.6 @ 0.600 | NONE (mild ends 0.622) | −6.2 @ 0.600 |
+| r56 `val_best` | **−8.0 @ 0.389** | −4.5 @ 0.622 | −7.3 @ 0.389 |
+
+Equal keep vs the three-walk mild mean: r20 first cut **+0.38 @ 0.702** (3 of 7 shared keeps > 0.5 pp worse; 2 kinder ≥ 0.5). r56 first cut **+0.30 @ 0.743** (2 of 19 worse ≥ 0.5; 9 kinder ≥ 0.5). **Not M1-neg** on the first-cut bar. **Not M1:** the first-cut gaps are inside RW43 noise (≤ 1.2 pp) and r56 `val_best` is harsher than Stage-4.
+
+**Taylor vs L1** at shared keeps (same widths): vs ep0095 **21990060** mean TEST **+0.43 pp** on r20 (n=11) and **−0.17 pp** on r56 (n=39). FR43 |s42−s43| means **0.68 / 0.55**. The ranking-menu mean is inside re-walk noise. First cut is kinder than L1 (r20 +1.80, r56 +1.52 at keep 0.702 / 0.743); `val_best` on r56 is harsher (−8.0 vs −7.1 / −7.3). Adopt-vs-Stage-4 (> 1 pp on **both** nets) does **not** fire (r20 +1.4, r56 +0.9 at the first named keep). Decide **5.4 / 3.6 ms**. Do **not** lock. Do not start N8. Do not resubmit the cancelled factored train.
+
+---
+
+## 207. A0b allocation headroom, thin ResNet-20-w2 C10 (**22155641**) — probe, never a TEST row
+
+`scripts/allocation_probe.py` on thin r20-w2 C10 (`tree_v9d`). COMPLETED 40 min, 4 Oct 20:11, `cs-pheno-11` (GTX 1080), TB 0, exit 0. Call = budget 40 only. Match params. Keeps 0.8 / 0.6 / 0.35. Log `runs/slurm_logs/alloc_22155641.out`. Keep 0.8 uniform realizes params ~0.70 (coarse groups).
+
+| Keep | Uniform val Δ (SD) / TEST Δ | Bar | sens val/TEST | Call |
+|---|---|---|---|---|
+| 0.8 | −6.19 (0.35) / −7.70 | 0.70 | +0.73 / +0.52 | **HEADROOM** (random1 **+1.93 / +2.86**) |
+| 0.6 | −9.09 (0.78) / −10.52 | 1.55 | −2.97 / −2.62 | **FLAT** (best random1 +0.17 / +1.22) |
+| 0.35 | −17.08 (0.86) / −18.33 | 1.72 | −0.40 / −1.43 | **HEADROOM** (random1 **+2.24 / +3.11**) |
+
+Keep 0.8: sens just clears the bar; a random draw is the winner. Keep 0.6: nothing clears 1.55. Keep 0.35: random, not sensitivity.
+
+**Per-net:** A0b-HEADROOM on thin r20-w2 at keep 0.8 and 0.35; **FLAT at 0.6**. Registered consequence: R20-w2 stays in the v10 M1 read (the drop rule needed FLAT/HARM at **both** 0.8 and 0.6). Do **not** quote as TEST. Do **not** lock. No train action from ops.
+
+---
+
+## 208. A0b allocation headroom, thin ResNet-56-w4 C10 keep 0.8 (**22155642**) — probe, never a TEST row
+
+`scripts/allocation_probe.py` on thin r56-w4 C10 (`tree_v9d`), keep **0.8** only. COMPLETED 32 min, 4 Oct 20:04, `ise-pheno-01` (GTX 1080), TB 0, exit 0. Call = budget 40. Match params. Log `runs/slurm_logs/alloc_22155642.out`. Keep 0.8 realizes params ~0.84 (coarse groups). Anti unmatched.
+
+| Keep | Uniform val Δ (SD) / TEST Δ | Bar | sens val/TEST | Call |
+|---|---|---|---|---|
+| 0.8 | −4.69 (0.67) / −4.19 | 1.33 | **+2.63 / +2.01** (params 0.842) | **HEADROOM** (random0 +2.53 / +2.25) |
+
+**Per-net:** A0b-HEADROOM on thin r56-w4 at keep 0.8. Together with §207, keep 0.8 has headroom on a thin net ⇒ v10 M1's first-cut (κ = 0.8) read **stands**. Do **not** quote as TEST. Do **not** lock. No train action from ops.
 
 ---
 

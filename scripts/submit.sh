@@ -181,7 +181,7 @@ case "$PROFILE" in
   offline_train|offline_train_cbrt|offline_train_unified)
     # 10-net leap catalog (C10 families + SVHN + Fashion-MNIST). Floor-constrained eval.
     GPUS="${GPU_COUNT:-1}"; TIME="0-16:00:00"; CPUS=6; TRAIN_SEC=43200 ;;
-  offline_train_band_cbrt|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse)
+  offline_train_band_cbrt|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse|offline_train_v10_fixed_target)
     # Wall=7d (submit.sh default). Python runtime 6d fuse; patience is the stop.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=6; TRAIN_SEC=518400 ;;
   eval_offline_similar|eval_offline_similar_det|eval_offline_novel)
@@ -337,7 +337,7 @@ else
     eval_imagenet_short)
       _strong="$(_pick_gpu rtx_4090 || true)"
       GPU_GRES="${_strong:-rtx_4090}:${GPUS}" ;;
-    offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse)
+    offline_train|offline_train_cbrt|offline_train_band_cbrt|offline_train_unified|offline_train_prefer|offline_train_unified_full|offline_train_prefer_floor|offline_train_neon_full|offline_train_gonce_cold|offline_train_v2a|offline_train_v2b|offline_train_v2c|offline_train_v3_fpgm|offline_train_v3_svd|offline_train_v3_bnscale|offline_train_v3_fpgm_neonraw|offline_train_v3_fpgm_structraw|offline_train_v4_factored|offline_train_v4_factored_tau6|offline_train_v5_p5b3|offline_train_v5_p5b3_cgp|offline_train_v5_ft40|offline_train_v6_inband|offline_train_v6_inband_p5b2|offline_train_v6_inband_p5b2_factored|offline_train_v7_budget|offline_train_v8_grouptoken|offline_train_v9_diverse|offline_train_v10_fixed_target)
       _strong="$(_pick_gpu || true)"
       if [[ -n "${_strong:-}" ]]; then
         GPU_GRES="${_strong}:${GPUS}"
@@ -421,7 +421,10 @@ for _k in SPECTRA_EVAL_DETERMINISTIC SPECTRA_REWARD_MODE SPECTRA_REWARD_SCALE \
           SPECTRA_FT_GROUP_FIRST_PATIENCE SPECTRA_FT_COSINE SPECTRA_FT_MIXUP SPECTRA_FT_LABEL_SMOOTH \
           SPECTRA_FT_KD SPECTRA_FT_KD_T SPECTRA_FT_KD_ALPHA SPECTRA_PROBE_SET SPECTRA_RESUME_TRAIN \
           SPECTRA_REWARD_SCALE_ARM SPECTRA_FT_AUG SPECTRA_FT_AUTOAUG SPECTRA_VAL_FROM_TEST SPECTRA_BATCH_SIZE \
-          SPECTRA_FT_AUG_HOLDOUT SPECTRA_FT_AUG_GPU SPECTRA_TIME_DECIDE; do
+          SPECTRA_FT_AUG_HOLDOUT SPECTRA_FT_AUG_GPU SPECTRA_TIME_DECIDE \
+          SPECTRA_FIXED_TARGET SPECTRA_STATE_SENS SPECTRA_TARGET_KEEP_RANGE SPECTRA_TARGET_MISS_PENALTY \
+          SPECTRA_TARGET_PROBE_KEEPS SPECTRA_EVAL_SIZE_POINTS SPECTRA_V10_PROBE_EVERY \
+          SPECTRA_V10_SNAPSHOT_BASELINE SPECTRA_V10_FT_AUG_GPU SPECTRA_EVAL_MIN_PARAM_RATIO; do
   _v="${!_k-}"
   if [[ -n "$_v" ]]; then
     if [[ "$_v" == *,* ]]; then

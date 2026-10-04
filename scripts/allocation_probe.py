@@ -18,7 +18,8 @@ walk's own structural edit, scaled to the same kept-parameter fraction, then rec
 s = a group's calibration-loss increase when it alone is cut to --sens_keep (train batches, no fine-tune).
 Keeps are clip(c · weight, --min_keep, 1), with c found by bisection. Uniform is cut first, as close to --keep
 as integer widths allow; every other allocation is bisected to uniform's realised params, so they compare
-at equal size even on nets whose groups are a few channels wide.
+at equal size even on nets whose groups are a few channels wide. ``--match flops`` bisects on kept FLOPs
+instead: on VGG-16, allocations matched on params kept up to twice uniform's FLOPs (ledger §205).
 
     python scripts/allocation_probe.py --checkpoint NET.pth --script thin_res_net.py --arch resnet56 \
         --width 4 --dataset cifar-10 --keep 0.6 0.35 --budgets 0 bn 40
@@ -120,11 +121,13 @@ def allocation_weights(kind, plan, sens=None, alpha=0.5, sigma=0.35, rng=None):
     return {key: (s[key] / mid) ** (POWERS[kind] * alpha) for key in keys}
 
 
-def match_params(model, plan, weights, target, input_shape, params0, min_keep=0.1, iters=16, tol=0.003):
+def match_params(model, plan, weights, target, input_shape, params0, min_keep=0.1, iters=16, tol=0.003,
+                 measure=None):
     """Keeps clip(c · w, min_keep, 1), with c bisected so the cut keeps ``target`` of the params.
 
-    Returns ``(keeps, params_kept, cut_model, modes)`` of the closest cut found. Widths are integers, so the
-    kept fraction is a step function of c and may stop short of ``tol``.
+    ``measure(cut_model)`` replaces the kept-params fraction when given (``--match flops``). Returns
+    ``(keeps, kept, cut_model, modes)`` of the closest cut found. Widths are integers, so the kept fraction
+    is a step function of c and may stop short of ``tol``.
     """
     def keeps_at(c):
         return {key: min(1.0, max(min_keep, c * w)) for key, w in weights.items()}
@@ -135,7 +138,7 @@ def match_params(model, plan, weights, target, input_shape, params0, min_keep=0.
         c = 0.5 * (lo + hi)
         keeps = keeps_at(c)
         cut_model, modes = cut_alloc(model, plan, keeps, input_shape)
-        frac = utils.calc_num_parameters(cut_model) / params0
+        frac = measure(cut_model) if measure is not None else utils.calc_num_parameters(cut_model) / params0
         if best is None or abs(frac - target) < abs(best[1] - target):
             best = (keeps, frac, cut_model, modes)
         else:
@@ -149,13 +152,14 @@ def match_params(model, plan, weights, target, input_shape, params0, min_keep=0.
     return best
 
 
-def summarize(rows, keep, budget, matched_tol=0.02):
+def summarize(rows, keep, budget, matched_tol=0.02, match_key="params_kept"):
     """The registered A0 call for one keep and budget (queue file "A0").
 
     bar = max(0.5, 2 × the uniform allocation's fine-tune-seed SD of val Δ). HEADROOM: sens, sens2 or the
     val-best random draw is ≥ bar above uniform on val **and** above it on test. HARM: every matched
-    allocation is ≥ bar below uniform on val. FLAT otherwise. Allocations whose params differ from
-    uniform's by more than ``matched_tol`` are reported but never counted.
+    allocation is ≥ bar below uniform on val. FLAT otherwise. Allocations whose ``match_key`` fraction
+    (params, or FLOPs under ``--match flops``) differs from uniform's by more than ``matched_tol`` are
+    reported but never counted.
     """
     cell = [r for r in rows if r.get("keep") == keep and r.get("budget") == str(budget)]
     uni = [r for r in cell if r["alloc"] == "uniform"]
@@ -166,6 +170,7 @@ def summarize(rows, keep, budget, matched_tol=0.02):
     sd = statistics.stdev(r["d_val_pp"] for r in uni)
     bar = max(0.5, 2.0 * sd)
     params_uni = statistics.mean(r["params_kept"] for r in uni)
+    size_uni = statistics.mean(r[match_key] for r in uni)
     allocs = {}
     for r in cell:
         if r["alloc"] == "uniform":
@@ -173,11 +178,12 @@ def summarize(rows, keep, budget, matched_tol=0.02):
         name = f"random{r['draw']}" if r["alloc"] == "random" else r["alloc"]
         allocs[name] = {"dval": round(r["d_val_pp"] - mean_val, 3), "dtest": round(r["d_test_pp"] - mean_test, 3),
                         "params": r["params_kept"], "flops": r["flops_kept"],
-                        "matched": abs(r["params_kept"] - params_uni) <= matched_tol}
+                        "matched": abs(r[match_key] - size_uni) <= matched_tol}
     candidates = [(name, v) for name, v in allocs.items() if name in ("sens", "sens2") and v["matched"]]
     randoms = [(name, v) for name, v in allocs.items() if name.startswith("random") and v["matched"]]
     out = {"uniform_dval": round(mean_val, 3), "uniform_dtest": round(mean_test, 3), "uniform_val_sd": round(sd, 3),
-           "bar": round(bar, 3), "uniform_params": round(params_uni, 4), "allocs": allocs, "random_valbest": None}
+           "bar": round(bar, 3), "uniform_params": round(params_uni, 4), "match": match_key.split("_")[0],
+           "allocs": allocs, "random_valbest": None}
     if randoms:
         best = max(randoms, key=lambda kv: kv[1]["dval"])
         out["random_valbest"] = best[0]
@@ -206,7 +212,9 @@ def main():
     parser.add_argument("--tag", default=None, help="Network label in the results (default: checkpoint stem)")
     parser.add_argument("--width", type=int, default=None, help="Width kwarg for thin-ResNet constructors")
     parser.add_argument("--keep", type=float, nargs="+", default=[0.6, 0.35],
-                        help="Target fraction of the network's parameters kept")
+                        help="Target fraction of the network's parameters (or FLOPs, --match flops) kept")
+    parser.add_argument("--match", choices=("params", "flops"), default="params",
+                        help="Size every allocation is bisected to and the matched check reads")
     parser.add_argument("--budgets", type=_budget, nargs="+", default=[0, "bn", 40],
                         help="Fine-tune epochs per allocation; 'bn' = BatchNorm re-estimation only")
     parser.add_argument("--uniform_seeds", type=int, default=3)
@@ -253,7 +261,8 @@ def main():
     utils.print_flush(
         f"Allocation probe {tag} ({args.dataset}) on {device}: val {base_val:.4f} test {base_test:.4f}, "
         f"{params0 / 1e6:.3f} M params, {len(plan)} groups / {sum(g.width for _, g, _ in plan)} channels; "
-        f"keep {args.keep} budgets {args.budgets}; uniform x{args.uniform_seeds}, random x{args.random_draws} "
+        f"keep {args.keep} (match {args.match}) budgets {args.budgets}; uniform x{args.uniform_seeds}, "
+        f"random x{args.random_draws} "
         f"(sigma {args.sigma}), alpha {args.alpha}, sens_keep {args.sens_keep}, min_keep {args.min_keep}; "
         f"FT_AUG={os.environ.get('SPECTRA_FT_AUG', '0')} FT_AUG_GPU={os.environ.get('SPECTRA_FT_AUG_GPU', '0')} "
         f"VAL_FROM_TEST={os.environ.get('SPECTRA_VAL_FROM_TEST', '0')}")
@@ -278,6 +287,9 @@ def main():
     specs = [("uniform", 0, list(range(args.uniform_seeds)))]
     specs += [(kind, 0, [0]) for kind in ("sens", "sens2", "anti")]
     specs += [("random", draw, [0]) for draw in range(args.random_draws)]
+    measure = ((lambda cut: utils.calc_flops(cut, input_shape, device) / flops0)
+               if args.match == "flops" else None)
+    match_key = f"{args.match}_kept"
     rows = []
     for keep in args.keep:
         reference = None
@@ -286,15 +298,16 @@ def main():
             weights = allocation_weights(kind, plan, sens, args.alpha, args.sigma,
                                          np.random.default_rng([args.seed, draw]))
             target = keep if reference is None else reference
-            keeps, params_kept, cut_model, modes = match_params(model, plan, weights, target, input_shape, params0,
-                                                                args.min_keep)
+            keeps, kept, cut_model, modes = match_params(model, plan, weights, target, input_shape, params0,
+                                                         args.min_keep, measure=measure)
             if kind == "uniform":
-                reference = params_kept
+                reference = kept
+            params_kept = utils.calc_num_parameters(cut_model) / params0
             flops_kept = utils.calc_flops(cut_model, input_shape, device) / flops0
             widths = group_widths(cut_model)
             with open(keeps_path, "a", encoding="utf-8") as handle:
                 handle.write(json.dumps({"net": tag, "keep": keep, "alloc": kind, "draw": draw, "target": target,
-                                         "params_kept": params_kept, "flops_kept": flops_kept,
+                                         "match": args.match, "params_kept": params_kept, "flops_kept": flops_kept,
                                          "keeps": {"|".join(k): round(v, 4) for k, v in keeps.items()},
                                          "widths": {"|".join(k): widths.get(k) for k, _, _ in plan},
                                          "origin_widths": {"|".join(k): g.width for k, g, _ in plan},
@@ -304,8 +317,9 @@ def main():
                     t1 = time.perf_counter()
                     val, test, _ = sp.recover(cut_model, budget, loaders, device, seed,
                                               patience=args.patience, bn_batches=args.bn_batches)
-                    row = {"net": tag, "dataset": args.dataset, "keep": keep, "alloc": kind, "draw": draw,
-                           "ft_seed": seed, "budget": str(budget), "val": round(val, 5), "test": round(test, 5),
+                    row = {"net": tag, "dataset": args.dataset, "keep": keep, "match": args.match, "alloc": kind,
+                           "draw": draw, "ft_seed": seed, "budget": str(budget), "val": round(val, 5),
+                           "test": round(test, 5),
                            "base_val": round(base_val, 5), "base_test": round(base_test, 5),
                            "d_val_pp": round((val - base_val) * 100, 3),
                            "d_test_pp": round((test - base_test) * 100, 3),
@@ -323,13 +337,14 @@ def main():
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
         for budget in args.budgets:
-            cell = summarize(rows, keep, budget, args.matched_tol)
+            cell = summarize(rows, keep, budget, args.matched_tol, match_key)
             if cell is None:
                 continue
             parts = " ".join(f"{name} {v['dval']:+.2f}/{v['dtest']:+.2f}{'' if v['matched'] else '(unmatched)'}"
                              for name, v in cell["allocs"].items())
             utils.print_flush(
-                f"[alloc-call] {tag} keep={keep} budget={budget}: uniform val {cell['uniform_dval']:+.2f} "
+                f"[alloc-call] {tag} keep={keep} match={args.match} budget={budget}: "
+                f"uniform val {cell['uniform_dval']:+.2f} "
                 f"(sd {cell['uniform_val_sd']:.2f}) test {cell['uniform_dtest']:+.2f} | bar {cell['bar']:.2f} | "
                 f"vs uniform, val/test: {parts} | random val-best {cell['random_valbest']} | {cell['call']}")
             with open(results_path, "a", encoding="utf-8") as handle:

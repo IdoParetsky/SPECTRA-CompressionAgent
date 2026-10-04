@@ -169,6 +169,16 @@ class NetworkEnv:
         # t_start is assigned in a2c_agent_reinforce_runner.py's evaluate_model(),
         # and utilized in NetworkEnv's compute_and_log_results()
         self.t_start = None  # a Model's evaluation start time
+        # v10 fixed-target episodes (fortify.fixed_target): this episode's target keep, the val
+        # accuracy the last step ended at, where the episode ended, and the per-layer group
+        # sensitivity channels (fortify.state_sens). The target stream has its own generator so
+        # the network shuffle above is unchanged.
+        self.target_keep = None
+        self._target_prev_acc = None
+        self._target_final = None
+        self._layer_sens = None
+        self._sens_cache = {}
+        self._target_rng = np.random.default_rng([int(self.conf.seed), ddp.get_rank(), 10])
         self._reset_episode_reward_stats()
 
     def _reset_episode_reward_stats(self):
@@ -208,8 +218,90 @@ class NetworkEnv:
         """``1 − kept`` at the deepest in-band point of this episode (0 when nothing was cut in band)."""
         return max(0.0, 1.0 - float(self.episode_best_inband_kept))
 
-    def reset(self, test_net_path=None, test_model=None, test_loaders=None):
-        """ Reset environment with a new CNN model & dataset """
+    # ------------------------------------------------------------------ v10 fixed-target episodes
+
+    def _episode_target(self, explicit=None) -> float:
+        """This episode's target keep: ``explicit``; a draw in training; the size match in eval."""
+        if explicit is not None:
+            return float(explicit)
+        if self.mode == AGENT_TRAIN:
+            lo, hi = fortify.target_keep_range()
+            return float(self._target_rng.uniform(lo, hi))
+        match = fortify.eval_size_match()
+        if match is not None and match[0] == "param":
+            return float(match[1])
+        points = [t for kind, t in fortify.eval_size_points() if kind == "param"]
+        if points:
+            return float(min(points))
+        utils.print_flush("fixed target: eval without SPECTRA_EVAL_SIZE_MATCH=param:<keep>; "
+                          "the actor is given 0.6")
+        return 0.6
+
+    def _group_sensitivity_features(self):
+        """
+        Per-layer group-sensitivity channels of the origin (``SPECTRA_STATE_SENS``); None on
+        failure. Every episode on a network starts from the same checkpoint, so the channels are
+        measured the first time the network comes round and reused after that.
+        """
+        import src.group_sensitivity as group_sensitivity
+        cache = getattr(self, "_sens_cache", None)
+        if cache is None:
+            cache = self._sens_cache = {}
+        if self.selected_net_path in cache:
+            return cache[self.selected_net_path]
+        try:
+            with logging_utils.stage("reset.group_sensitivity"):
+                model = self.current_model.to(self.conf.device)
+                batches = group_sensitivity.calibration_batches(
+                    self.train_loader, group_sensitivity.CALIB_BATCHES, self.conf.device)
+                features, summary = group_sensitivity.layer_features(model, batches, self._input_shape())
+        except Exception as error:  # noqa: BLE001 - the channels are an enrichment, not a precondition
+            utils.print_flush(f"group sensitivity unavailable ({type(error).__name__}: {error}); zeros")
+            return None
+        utils.print_flush(
+            f"group sensitivity: {summary['groups']} groups on {summary['layers']} layers, loss rise "
+            f"median {summary['median']:.4f} min {summary['min']:.4f} max {summary['max']:.4f} "
+            f"(base {summary['base_loss']:.4f}) in {summary['seconds']:.1f}s")
+        cache[self.selected_net_path] = features
+        return features
+
+    def episode_target_score(self) -> float:
+        """Fixed-target return of this episode: val Δacc (pp) where it ended minus any miss penalty."""
+        if self.target_keep is None:
+            return 0.0
+        final = self._target_final
+        if final is None:
+            kept = self.param_ratio()
+            delta_pp = (float(self.last_val_acc) - float(self.original_acc)) * 100.0
+        else:
+            kept, delta_pp = final["kept"], final["delta_pp"]
+        return fortify.target_score(delta_pp, kept, self.target_keep)
+
+    def _land_on_target(self, rate: float):
+        """
+        ``(rate, landed kept)``: when a cut at ``rate`` would take the network below the target,
+        the mildest keep rate that still reaches it (bisection on the previewed size); else
+        ``(rate, None)``. The episode then ends at the target instead of past it.
+        """
+        target = float(self.target_keep) + 1e-9
+        if self.preview_param_ratio(rate) > target:
+            return rate, None
+        lo, hi = float(rate), 1.0
+        for _ in range(10):
+            mid = 0.5 * (lo + hi)
+            if self.preview_param_ratio(mid) <= target:
+                lo = mid
+            else:
+                hi = mid
+        return lo, self.preview_param_ratio(lo)
+
+    def reset(self, test_net_path=None, test_model=None, test_loaders=None, target_keep=None):
+        """
+        Reset environment with a new CNN model & dataset.
+
+        ``target_keep`` fixes a ``SPECTRA_FIXED_TARGET`` episode's target (the fixed probe);
+        otherwise training draws one and eval reads ``SPECTRA_EVAL_SIZE_MATCH``.
+        """
         # Ensure prior memory is cleaned
         if hasattr(self, "feature_extractor"):
             del self.feature_extractor
@@ -276,20 +368,31 @@ class NetworkEnv:
         logging_utils.set_context(net=os.path.basename(self.selected_net_path), mode=self.mode)
         utils.print_flush(f"Loading {self.selected_net_path}")
 
+        self.target_keep = self._episode_target(target_keep) if fortify.fixed_target() else None
+        self._target_final = None
+        self._layer_sens = self._group_sensitivity_features() if fortify.state_sens() else None
+        target_extras = (fortify.target_channels(1.0, self.target_keep)
+                         if self.target_keep is not None else None)
+
         # Prepare feature extractor with training data
         self.feature_extractor = FeatureExtractor(self.train_loader, self.conf.device)
         with logging_utils.stage("reset.feature_extraction"):
             fm = self.feature_extractor.encode_to_bert_input(
                 model_with_rows, model_with_rows.row_to_main_layer[self.row_idx - 1],
                 dependency_groups=self._dependency_groups(model_with_rows),
-                param_ratio=1.0, extras=[1.0, 0.0], episode_cuts={})
+                param_ratio=1.0, extras=[1.0, 0.0], episode_cuts={},
+                target_extras=target_extras, layer_sens=self._layer_sens)
 
         # Evaluate original model accuracy
         learning_handler_original_model = self.create_learning_handler(self.current_model)
         with logging_utils.stage("reset.baseline_accuracy"):
             self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
         self.last_val_acc = float(self.original_acc)
+        self._target_prev_acc = float(self.original_acc)
         self._origin_test_acc = None
+        if self.target_keep is not None:
+            utils.print_flush(f"fixed target: keep x{self.target_keep:.3f} of the parameters "
+                              f"({self.mode}); origin val {float(self.original_acc):.4f}")
 
         num_rows = max(len(model_with_rows.all_rows) - 1, 0)
         recorder.record(
@@ -299,6 +402,7 @@ class NetworkEnv:
             num_layers=len(model_with_rows.all_layers),
             num_prunable_rows=num_rows,
             params_m=round(self.original_params / 1e6, 4),
+            target_keep=(round(float(self.target_keep), 5) if self.target_keep is not None else None),
         )
 
         # After feature extraction and setup
@@ -753,6 +857,13 @@ class NetworkEnv:
             compression_rate = self._ladder_keep_rate(model_with_rows, self.row_idx - 1, requested_rate)
             if abs(compression_rate - requested_rate) > 1e-9:
                 utils.print_flush(f"width ladder: rate {requested_rate} -> keep rate {compression_rate:.4f}")
+        if self.target_keep is not None and 0.0 < float(compression_rate) < 1.0:
+            landed_rate, landed_kept = self._land_on_target(float(compression_rate))
+            if landed_kept is not None:
+                utils.print_flush(
+                    f"fixed target: rate {float(compression_rate):.4f} -> {landed_rate:.4f} lands at "
+                    f"params x{landed_kept:.4f} (target x{self.target_keep:.4f})")
+                compression_rate = landed_rate
 
         # Determine affected layers (from current row up to start of next row)
         current_layer_idx = model_with_rows.row_to_main_layer[self.row_idx - 1]
@@ -828,6 +939,14 @@ class NetworkEnv:
         utils.trace_reward(
             self.selected_net_path, reward_rate, new_acc, self.original_acc, reward,
             params_before=params_before, params_after=params_after)
+        target_step_reward = None
+        if self.target_keep is not None:
+            # v10: the step's change in val accuracy, so the return telescopes to the val Δacc
+            # where the episode ends; the miss penalty is added below once it is done.
+            prev = self._target_prev_acc if self._target_prev_acc is not None else self.original_acc
+            target_step_reward = (float(new_acc) - float(prev)) * 100.0
+            reward = target_step_reward
+            self._target_prev_acc = float(new_acc)
         delta_pp = (new_acc - self.original_acc) * 100.0
         nominal = (1.0 - float(reward_rate)) * 100.0
         rho_step = utils.unified_rho(
@@ -872,6 +991,20 @@ class NetworkEnv:
             # the network removed): area is a fraction × slack fraction, hence ×100.
             done = True
             reward = fortify.stop_reward_scale() * float(self.episode_inband_area())
+        if self.target_keep is not None:
+            kept_now = params_after / max(float(self.original_params), 1.0)
+            # Only at or below the target: the eval's size point (first point <= target) must exist
+            # on every walk that reached it.
+            if kept_now <= float(self.target_keep) + 1e-9:
+                done = True
+            reward = target_step_reward
+            if done:
+                self._target_final = {"kept": kept_now, "delta_pp": delta_pp}
+                reward += fortify.target_score(delta_pp, kept_now, self.target_keep) - delta_pp
+                utils.print_flush(
+                    f"fixed target: episode ends at params x{kept_now:.4f} (target "
+                    f"x{self.target_keep:.4f}) with val Δacc {delta_pp:+.2f} pp; return "
+                    f"{fortify.target_score(delta_pp, kept_now, self.target_keep):+.2f}")
         # A completed pass releases the group-once locks so the next pass may cut again.
         self._end_of_pass_reset(num_actions, num_rows)
         encode_idx = current_layer_idx
@@ -891,11 +1024,14 @@ class NetworkEnv:
             # step every layer's activation moments are re-extracted — the edit changed the
             # input of every downstream layer, not only the edited row's span.
             refresh = None if (fortify.refresh_all_features() and compression_rate != 1) else update_indices
+            target_extras = (fortify.target_channels(kept, self.target_keep)
+                             if self.target_keep is not None else None)
             fm = self.feature_extractor.encode_to_bert_input(
                 model_with_rows, encode_idx, refresh,
                 dependency_groups=self._dependency_groups(model_with_rows),
                 param_ratio=min(1.0, max(0.0, kept)), extras=extras,
-                episode_cuts=self.episode_group_cuts())
+                episode_cuts=self.episode_group_cuts(),
+                target_extras=target_extras, layer_sens=self._layer_sens)
 
         step_timer.__exit__(None, None, None)
         # One record per transition: enough to reconstruct the trajectory, the policy's
@@ -930,6 +1066,7 @@ class NetworkEnv:
                            if prune_outcome.get("old_width") else None),
             seconds=round(step_timer.seconds, 3),
             done=bool(done),
+            target_keep=(round(float(self.target_keep), 5) if self.target_keep is not None else None),
         )
         utils.print_flush(
             f"Step {step_index} done in {step_timer.seconds:.1f}s | rate={compression_rate} "

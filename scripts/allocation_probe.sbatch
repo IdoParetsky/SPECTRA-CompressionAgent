@@ -2,13 +2,13 @@
 # Allocation headroom probe (A0, docs/SITTING_GPU_QUEUE.md "A0") on one network: every coupled group cut once
 # with L1 survivors, each allocation matched to the same kept params, then the walk's recipe A. Protocol P
 # (val from the test split, batch 256) with the walk's crop+flip fine-tune, on the GPU (D5, §196).
-#   AL_NET=thin-r56w4|dg-r56|cy-vgg16 [AL_ARGS="..."] sbatch --gpus=1 scripts/allocation_probe.sbatch
+#   AL_NET=thin-r56w4|thin-r20w2|dg-r56|cy-vgg16|cy-r56-c100 [AL_ARGS="..."] sbatch --gpus=1 scripts/allocation_probe.sbatch
 #SBATCH --job-name=alloc-probe
 #SBATCH --partition=main
 #SBATCH --qos=normal
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=6
-#SBATCH --mem-per-gpu=32G
+#SBATCH --mem-per-gpu=24G
 #SBATCH --time=0-14:00:00
 
 set -uo pipefail
@@ -16,9 +16,13 @@ REPO_DIR="${SPECTRA_REPO_DIR:-$PWD}"
 PYTHON="${SPECTRA_PYTHON:-$HOME/.conda/envs/spectra/bin/python}"
 NETS="${SPECTRA_NETS_DIR:-$HOME/spectra_pretrained_networks}"
 INST="${SPECTRA_INST_DIR:-$HOME/spectra_models_instantiation}"
-case "${AL_NET:?set AL_NET=thin-r56w4|dg-r56|cy-vgg16}" in
+case "${AL_NET:?set AL_NET=thin-r56w4|thin-r20w2|dg-r56|cy-vgg16|cy-r56-c100}" in
   thin-r56w4) NET=(--checkpoint "$NETS/resnet56-width4_cifar10_thin-res-net_88.80_0.054_8.49.pt"
                    --script "$INST/thin_res_net.py" --arch resnet56 --width 4 --dataset cifar-10 --tag thin-r56w4-c10) ;;
+  thin-r20w2) NET=(--checkpoint "$NETS/resnet20-width2_cifar10_thin-res-net_64.79_0.005_0.79.pt"
+                   --script "$INST/thin_res_net.py" --arch resnet20 --width 2 --dataset cifar-10 --tag thin-r20w2-c10) ;;
+  cy-r56-c100) NET=(--checkpoint "$NETS/resnet56_cifar100_chenyaofo_72.63_0.86_251.5.pt"
+                   --script "$INST/resnet_chenyaofo.py" --arch resnet56 --dataset cifar-100 --tag cy-r56-c100) ;;
   dg-r56)     NET=(--checkpoint "$NETS/resnet56_cifar10_dep_graph_93.53.pth" --script "$INST/resnet_chenyaofo.py"
                    --arch resnet56 --dataset cifar-10 --tag dg-r56-c10) ;;
   cy-vgg16)   NET=(--checkpoint "$NETS/vgg16_bn_cifar10_chenyaofo_94.16_15.25_627.46.pt" --script "$INST/vgg_chenyaofo.py"

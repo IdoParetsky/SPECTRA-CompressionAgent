@@ -89,6 +89,22 @@ def test_match_params_reaches_the_target_for_uniform_and_random_weights():
     assert all(0.1 <= v <= 1.0 for v in keeps.values())
 
 
+def test_match_params_bisects_on_a_given_measure():
+    model = _model(2)
+    plan = sp.cut_plan(model)
+    params0 = utils.calc_num_parameters(model)
+    cpu = torch.device("cpu")
+    flops0 = utils.calc_flops(model, SHAPE, cpu)
+
+    def measure(cut):
+        return utils.calc_flops(cut, SHAPE, cpu) / flops0
+
+    weights = ap.allocation_weights("random", plan, rng=np.random.default_rng([0, 1]), sigma=0.35)
+    keeps, frac, cut_model, _ = ap.match_params(model, plan, weights, 0.5, SHAPE, params0, measure=measure)
+    assert abs(frac - 0.5) < 0.06
+    assert measure(cut_model) == pytest.approx(frac)
+
+
 def test_sensitivity_is_the_loss_after_cutting_that_group_alone():
     model = _model(3)
     plan = sp.cut_plan(model)
@@ -145,3 +161,12 @@ def test_summarize_applies_the_registered_calls():
     best_but_test_worse = uniform + [_row("random", -1.1, -2.5, draw=1)]
     assert ap.summarize(best_but_test_worse, 0.6, 40)["call"] == "FLAT"
     assert ap.summarize(uniform[:1], 0.6, 40) is None
+
+
+def test_summarize_reads_the_matched_check_on_flops_when_asked():
+    uniform = [dict(_row("uniform", v, v, seed=i), flops_kept=0.5) for i, v in enumerate((-2.0, -2.2, -1.8))]
+    sens = dict(_row("sens", -1.2, -1.5, params=0.7), flops_kept=0.5)
+    assert ap.summarize(uniform + [sens], 0.6, 40)["allocs"]["sens"]["matched"] is False
+    cell = ap.summarize(uniform + [sens], 0.6, 40, match_key="flops_kept")
+    assert cell["allocs"]["sens"]["matched"] is True
+    assert cell["call"] == "HEADROOM" and cell["match"] == "flops"
