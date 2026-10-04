@@ -460,6 +460,13 @@ Any fix (fixed-budget episodes, or a reward that prices accuracy at equal size) 
 - *Smoke at 1 epoch (unmatched; never a call):* against uniform's two-seed mean of −23.10 pp on val: sens +8.7, sens2 +4.8, anti −18.1, one random draw +2.3.
 - **22127527** alloc-thin-r56w4 R on `cs-pheno-03` since 12:13 (start lines ok); **22127528 / 29** PD on the QOS.
 - *12:28, matching check passed:* sens0 at keep 0.6 realizes params x0.565 against uniform's 0.567. Its FLOPs are x0.519 against 0.568: allocations are matched on params, not FLOPs, so quote both with any call. Uniform's three 40-epoch seeds: val −7.42 / −8.58 / −8.66, putting this keep's bar near 1.4 pp. One 40-epoch recovery takes ~4.6 min here, so the cell takes ~1.6 h.
+- *13:15, interim (keep 0.6 only; the per-net call waits for keep 0.35):* `[alloc-call] thin-r56w4-c10 keep=0.6 budget=40 … HEADROOM`. Uniform val −8.22 (SD 0.69), bar 1.39. Against uniform, val / TEST:
+  - sens **+1.62 / +1.95** at FLOPs x0.519;
+  - sens2 **+1.68 / +2.25** at x0.466;
+  - anti −4.88 / −4.91;
+  - random −1.12 / −10.50 / +0.86 / −5.34 (val), the val-best draw being random2.
+
+  BN-recalibrated accuracy (budget bn) orders the seven non-uniform allocations nearly as budget 40 does (Kendall τ 0.71 by hand, 3 of 21 pairs swapped); budget 0 does not. Never a TEST row.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 

@@ -3618,7 +3618,7 @@ At equal depth the live reward is blind to accuracy: on R56-w4 it pays 126.0 vs 
 | F1, τ 5 | **78.3** vs 69.3 \| **76.0** vs 63.1 | **43.0** vs −16.0 \| 43.0 vs **50.5** |
 | F1, τ 3 | **66.1** vs 17.9 \| **70.3** vs 58.9 | **−81.4** vs −360.2 \| −72.0 vs **3.5** |
 
-F1 with τ 5 (config only: `SPECTRA_REWARD_MODE=structural_unified SPECTRA_TRAIN_TAU=5`) is the mildest shape that stops paying the 0.8 schedule more over the walk on both nets. At equal depth on R56-w4 it still prefers the 0.8 walk, which agrees with TEST there (§198, §199: 0.8 kinder at keep 0.73–0.62). Val replay on six walks is a pre-check, not a train result.
+F1 with τ 5 (config only: `SPECTRA_REWARD_MODE=structural_unified SPECTRA_TRAIN_TAU=5`) is the mildest shape that stops paying the 0.8 schedule more over the walk on both nets. At equal depth on R56-w4 it still pays the 0.8 walks more (50.5 vs 43.0), although their val there is lower on average (−6.11 vs −4.94 pp). The slack-weighted sum pays early cuts, not the accuracy reached, so F1 τ 5 does **not** price accuracy at equal size. *(Corrected 4 Oct ~13:30: an earlier line read this as agreeing with TEST; the replay is on val.)* Val replay on six walks is a pre-check, not a train result.
 
 **Consequences.**
 - M1-neg is a reward-design result: PPO found the reward's optimum.

@@ -117,7 +117,7 @@
 5. **Side metrics:** which to headline? Per-target search cost (ours is zero by construction), the cost of the K-th network, or deployment latency at equal FLOPs (pending)?
 6. **NEON's reward on long walks (added 4 Oct).** Under NEON's three-way reward with a 10 pp band, our CNN agent learns "the largest cut at every decision": inside the band, a cut pays its size whatever it costs.
    - Did NEON's dense agents vary their actions, or was the band binding more often on their shorter walks?
-   - Would he accept a tighter training band with a slack taper (F1, τ 5, which passes our replay check), or fixed-budget episodes (AMC-style), as a faithful extension of NEON's reward?
+   - Would he accept fixed-budget episodes (AMC-style: reward = accuracy at a target size) as a faithful extension of NEON's reward? A tighter band with a slack taper (F1, τ 5) passes our whole-walk replay check, but still pays early cuts over the accuracy reached.
 
 ---
 
