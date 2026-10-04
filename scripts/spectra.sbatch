@@ -1051,8 +1051,8 @@ case "$PROFILE" in
         # recipe: P5-B2 catalog, P, crop+flip 12/4 train FT (on the GPU for the CIFAR nets, D5
         # adopted for the next train, §196), PPO + governor, slack, group-cost, group-once.
         # Menu keep 1.0/0.9/0.8/0.7/0.6 with L1 (the criterion lever closed, §196–§199); six
-        # passes so a mild walk can reach 0.35. The probe walks the thin pair at targets
-        # 0.8/0.6/0.4; every new best freezes and the registered TEST rule picks among them.
+        # passes so a mild walk can reach 0.35. The probe walks the thin pair at the TEST's targets
+        # 0.8 and 0.6; every new best freezes and the registered TEST rule picks among them.
         export SPECTRA_DATABASE="${SPECTRA_V10_DATABASE:-${REPO_DIR}/configs/database_offline_v6_p5b2.json}"
         export SPECTRA_DATASET_NAMES="cifar-10 svhn"
         if [[ ! -s "$SPECTRA_DATABASE" ]]; then
@@ -1064,7 +1064,7 @@ case "$PROFILE" in
         export SPECTRA_FIXED_TARGET=1 SPECTRA_STATE_SENS=1 SPECTRA_PROBE_SCORE=target
         export SPECTRA_TARGET_KEEP_RANGE="${SPECTRA_TARGET_KEEP_RANGE:-0.35:0.85}"
         export SPECTRA_TARGET_MISS_PENALTY="${SPECTRA_TARGET_MISS_PENALTY:-2}"
-        export SPECTRA_TARGET_PROBE_KEEPS="${SPECTRA_TARGET_PROBE_KEEPS:-0.8:0.6:0.4}"
+        export SPECTRA_TARGET_PROBE_KEEPS="${SPECTRA_TARGET_PROBE_KEEPS:-0.8:0.6}"
         export SPECTRA_PASSES=6
         export SPECTRA_ROLLOUT_LIMIT=1000
         export SPECTRA_PROBE_EVERY="${SPECTRA_V10_PROBE_EVERY:-16}"

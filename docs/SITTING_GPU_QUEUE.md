@@ -19,6 +19,12 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 - *Report for Ido on Gilad's two points:* `docs/paper/GILAD_1OCT_POINTS_REPORT.md`.
 - *Next:* no train before A0 reads and Ido's GO on a reward that passes the replay check (§200).
 
+**Sitting 4 Oct ~21:05 (Opus 5.5; Ido's decisions 19:23).**
+- *Ido's decisions:* "stop3" done at 19:40. Factored TEST: ops' 22132735 (§206). Fixed-target train: GO. NVML: no.
+- *A0b* **22155641–44** (section "A0b"). §207 / §208 resolved the v10 read cells: all four are read.
+- *v10 train* **22156116 R** since 21:04 (`cs-4090-04`), resume 22156117. Mild-landed controls **22156061 / 62 R**. Both smokes COMPLETED with all six checks green (section "v10").
+- *QOS:* **7/8** (Stage-4, Budget, A0b ×2, v10 train, two controls). One idle: ping, do not invent.
+
 **Ops 4 Oct 10:48.** Stage-4 wrote freeze **ep0131** (probe 0.2863). Pre-authorized one-a-day TEST **22124693 R** (`traj-v9c-paug-ep0131`, `cs-4090-01`, `tree_v9c`, no `TIME_DECIDE`, `Requeue=0`). Control 21729557. One freeze TEST in flight. Do not TEST another freeze until it ends. Ledger next **§200**. **2 idle — ping, do not invent.**
 
 **Ops 4 Oct 15:25.** Stage-4 freeze TEST **22124693 COMPLETED** §202 (not M1). FW **22127216 COMPLETED** §203 **SLOWER**. Factored freeze TEST **22132735 R** (`traj-v9d-factored-ep0083`, `ise-4090-21`, `TIME_DECIDE=1`, 24G). A0 dg **22127528 R**; cy **22127529 R**. QOS **8/8**. One freeze TEST in flight. Ledger next **§204**.
@@ -525,7 +531,7 @@ All four: `tree_v9d`, untyped GPU (A0 ran on GTX 1080s), runbook exclude list, w
 - *Reward.* Each step pays its change in val accuracy (pp), and γ = 1, so an episode's return is exactly its val Δacc at the target. Running out of passes above κ costs 2 pp per percentage point of parameters left above it.
 - *State.* Two channels on every token: κ, and the share of the required cut still to do. Two per-layer channels: the sensitivity of the group the layer produces (log-ratio to the net's median, and percentile). Sensitivity is A0's measure: calibration-loss rise when the group alone is cut to keep 0.5 with L1, no fine-tune, 4 train batches. It is measured once per catalog net, on its origin.
 - *Menu.* Keep 1.0 / 0.9 / 0.8 / 0.7 / 0.6, all L1 (the criterion lever is closed, §196–§199). Six passes, so mild can reach 0.35. Rollout limit 1000.
-- *Probe (selection score).* Argmax walks on the thin probe pair (r56-w6, r20-w10) at κ = 0.8 / 0.6 / 0.4, every 16 episodes. Score: mean fixed-target return in pp. The first probe also walks mild once (keep 0.9 wherever legal, same targets, same landing) and prints `PROBE mild reference`. Every later `PROBE` line prints `vs_mild`. Every new best freezes (`SNAPSHOT_BASELINE=-1000`); the TEST rule below picks among the freezes.
+- *Probe (selection score).* Argmax walks on the thin probe pair (r56-w6, r20-w10) at the TEST's targets κ = 0.8 and 0.6, every 16 episodes. (First registered with 0.4 as well. Cut at 20:35, before the train started: at the 12/4 fine-tune a probe walk costs about an episode, so three targets would add ~37 % to the train; two add ~25 %, and they match the read.) Score: mean fixed-target return in pp. The first probe also walks mild once (keep 0.9 wherever legal, same targets, same landing) and prints `PROBE mild reference`. Every later `PROBE` line prints `vs_mild`. Every new best freezes (`SNAPSHOT_BASELINE=-1000`); the TEST rule below picks among the freezes.
 - *Otherwise Stage-4's recipe.* P5-B2 catalog (cifar-10 + svhn), P, crop+flip 12/4 train FT (on the GPU for the CIFAR nets: D5 adopted "for the next train", §196), PPO with 4 episodes per update, the governor (min 250 episodes, patience 150, rewind), slack, group-cost, group-once, budget-in-state.
 - *Tests.* `tests/test_v10_fixed_target.py` **13/13**, plus the regression set **163/163** (tokens, env, probe, PPO recipe, P8 flow, group-once, allocation probe) on the login node.
 
@@ -544,7 +550,23 @@ The train is released only when all six checks hold:
 5. `policy_config.json` pins `SPECTRA_FIXED_TARGET=1`, `SPECTRA_STATE_SENS=1`, rates [1.0, 0.9, 0.8, 0.7, 0.6] and passes 6.
 6. Eval smoke: `[eval] … fixed_target=1 state_sens=1`, then `fixed target: keep x0.800 … (eval…)`. The walk ends at the target, the size_match point is ≤ 0.8 and gets a final FT, and there is no Traceback.
 
-**Train.** **22156018** `v10-fixedtarget-train`: `tree_v10`, seed 42, nice 30, wall 7 d (runtime 6 d), `rtx_6000|rtx_4090`. Submitted **held**, afterok both smokes. Resume **22156019** `-r1` afterok the train. Requeue 0 on both.
+**Smoke results (never quoted).**
+- *Train smoke 22155996: COMPLETED 20:57* (exit 0, 50 min, `cs-4090-04`).
+  - Checks 1–5 green. The banner reads as registered, with `probe_keeps=(0.8, 0.5)`.
+  - Sensitivity took 0.5–4.0 s per net.
+  - Landing hit κ on all 8 episodes and the probe walks, 0.000–0.020 below it. Ends under the old rule were within 0.005 above.
+  - `PROBE mild reference (walked once) score=-8.865`, then `PROBE ep=4 … score=-9.710 vs_mild=-0.845` (freeze ep0003) and `PROBE ep=8 … -10.595 vs_mild=-1.730` (no freeze).
+  - PPO updates 1–2: critic ev 0.113 → 0.367.
+  - `policy_config` pins `SPECTRA_FIXED_TARGET` / `SPECTRA_STATE_SENS` = 1, the 5-rate menu and passes 6.
+- *Eval smoke 22155997: COMPLETED 21:03* (exit 0, 5 min). Check 6 green:
+  - `policy=actor … min_param=0.00 … passes=6 … size_match=('param', 0.8)`;
+  - fixed-target and sensitivity active from the pins alone;
+  - r20-w2 landed at 0.7818 and r56-w4 at 0.7884, both ≤ κ under the new done rule;
+  - `[final FT size_param0.80]` ran;
+  - no Traceback.
+- **Released 21:04.** Start lines green: `probe_keeps=(0.8, 0.6) … gamma=1`, `FT_AUG_GPU 1`, train FT 12, seed 42, first episode κ 0.386.
+
+**Train.** **22156116** `v10-fixedtarget-train`: `tree_v10`, seed 42, nice 30, wall 7 d (runtime 6 d), `rtx_6000|rtx_4090`. Submitted **held**, afterok both smokes. Resume **22156117** `-r1` afterok the train. Requeue 0 on both. These replace 22156018 / 19, which were cancelled at 20:26 before they ever started, so the train would take the two probe targets.
 
 **Mild-landed controls (submitted 20:17, before any freeze; the TEST rule's control, run once).** **22156061** κ 0.8 / **22156062** κ 0.6. Setup: `baseline_c10_mild_traj_gonce` + `SPECTRA_FIXED_TARGET=1`, `tree_v10`, the TEST lines below, `rtx_6000|rtx_4090`, nice 10, wall 20 h. Start lines are green: `policy=mild det=1 traj=1 min_param=0.00 group_once=1 passes=6`, and `fixed target: keep x0.800` / `x0.600 … (eval_test)` on r20-w2.
 
@@ -564,7 +586,9 @@ The train is released only when all six checks hold:
   - **NEG:** Δ ≤ −0.5 pp on r56-w4 at κ = 0.6.
   - **FLAT:** otherwise.
   - The read cells follow A0b's registered consequences: r20-w2 is read only if A0b finds headroom on it, and κ = 0.8 only if keep 0.8 has headroom on a thin net. Quote every margin with the RW43 re-walk noise line (§196); the 0.5 pp bar is never changed.
+  - *Resolved 20:11 (ops, §207 / §208):* r20-w2 is HEADROOM at keeps 0.8 and 0.35 and FLAT at 0.6, and r56-w4 is HEADROOM at keep 0.8. So all four cells are read: r20-w2 and r56-w4 at κ 0.8 and 0.6. Expect r20-w2 at κ 0.6 near zero, since A0b found no allocation lever there.
   - **MISS:** an actor walk that ends above κ (`TRAJ … param:κ … NONE`) is a MISS for that cell, and a MISS counts as NEG there. Never skip it, and never read its terminal point instead.
+  - *Landed keeps.* Landing is limited by channel granularity: the smoke's walks landed 0.000–0.020 below κ (one channel of a wide stream is ~2 % of a thin net). Quote both arms' landed params and FLOPs beside every Δ. Flag a cell where they differ by more than 0.02 (A0's matching tolerance), and never re-pick a point to close the gap.
 - *What it decides.*
   - WIN: the first learned-allocation result at equal size on a held-out net. Next: more targets; FLOPs targets if A0b's VGG equal-FLOPs cell is HEADROOM; C100 in the catalog if A0b's R56-C100 is HEADROOM; then the frozen actor on ImageNet.
   - FLAT: compare the actor's per-group allocation with A0's sens rule at the same κ.

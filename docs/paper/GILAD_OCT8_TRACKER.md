@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | **Census + reward replay (§200).** **A0 3/3 COMPLETED: HEADROOM** thin §201, dg §204, VGG-16 §205 (both keeps). **Cross-net A0-HEADROOM.** Never TEST. **4 Oct 19:23 Ido GO: fixed-target train.** A0b **22155641–44** (r20-w2, keep 0.8, VGG equal-FLOPs, R56-C100) registered its consequences for the train's reads. **v10 built** in `tree_v10` (tests 14/14 + 163/163). Smokes **22155996 / 97**; train **22156018** held until the smoke checks pass; mild-landed controls **22156061 / 62** R | yes | report Part III; ledger §200 / §201 / §204 / **§205**; queue file "A0" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | **Census + reward replay (§200).** **A0 3/3 COMPLETED: HEADROOM** thin §201, dg §204, VGG-16 §205 (both keeps). **Cross-net A0-HEADROOM.** Never TEST. **4 Oct 19:23 Ido GO: fixed-target train.** A0b **22155641–44** (r20-w2, keep 0.8, VGG equal-FLOPs, R56-C100) registered its consequences for the train's reads. **v10 built** in `tree_v10` (tests 14/14 + 163/163). Smokes **22155996 / 97** COMPLETED, six checks green; train **22156116 R** since 21:04; mild-landed controls **22156061 / 62** R | yes | report Part III; ledger §200 / §201 / §204 / **§205**; queue file "A0" |
 
 ---
 
@@ -189,7 +189,8 @@
   - target and group-sensitivity state channels;
   - probe scored against a once-walked mild reference.
 
-  Tests 14/14 + 163/163. Smoke train **22155996** R; eval smoke **22155997** afterok. Train **22156018** HELD (resume 22156019). Mild-landed controls **22156061 / 62** R (κ 0.8 / 0.6, full TEST protocol). The TEST rule and the M1-v10 read are registered in the queue file "v10". Probe scores are never results.
+  Tests 14/14 + 163/163. Smoke train **22155996** R; eval smoke **22155997** afterok. Train **22156116** HELD (resume 22156117; they replace the never-started 22156018 / 19, re-submitted for probe targets 0.8 and 0.6). Mild-landed controls **22156061 / 62** R (κ 0.8 / 0.6, full TEST protocol). The TEST rule and the M1-v10 read are registered in the queue file "v10". Probe scores are never results.
+- **4 Oct 21:04** — v10 smokes COMPLETED (train 20:57, eval 21:03), six checks green. Train **22156116 released, R** (`cs-4090-04`; probe targets 0.8 / 0.6, train FT 12/4, seed 42). Expect update 20 in ~2 days. A first TEST is possible after that, so probably not before 8 Oct. For the slides: the design, the smoke and the registered read, not results.
 
 ---
 
