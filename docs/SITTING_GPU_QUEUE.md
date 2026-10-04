@@ -459,6 +459,7 @@ Any fix (fixed-budget episodes, or a reward that prices accuracy at equal size) 
 - *Fix (before any cell started).* The cells were held. Non-uniform allocations now bisect to **uniform's realized** params (16 iterations, tolerance 0.003). Redeployed (md5 `7f4d0e1aac22`), tests 6/6, cells released 12:13.
 - *Smoke at 1 epoch (unmatched; never a call):* against uniform's two-seed mean of −23.10 pp on val: sens +8.7, sens2 +4.8, anti −18.1, one random draw +2.3.
 - **22127527** alloc-thin-r56w4 R on `cs-pheno-03` since 12:13 (start lines ok); **22127528 / 29** PD on the QOS.
+- *12:28, matching check passed:* sens0 at keep 0.6 realizes params x0.565 against uniform's 0.567. Its FLOPs are x0.519 against 0.568: allocations are matched on params, not FLOPs, so quote both with any call. Uniform's three 40-epoch seeds: val −7.42 / −8.58 / −8.66, putting this keep's bar near 1.4 pp. One 40-epoch recovery takes ~4.6 min here, so the cell takes ~1.6 h.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 
