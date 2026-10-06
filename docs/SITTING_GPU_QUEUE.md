@@ -1,5 +1,31 @@
 # SPECTRA sitting GPU queue
 
+**Sitting 7 Oct ~03:10 (Opus 5.5; `docs/PROMPT_FABLE_OCT7_SITTING.md`, Recommended on every fork, Ido asleep).** Calls, the B3 correction and both lead answers: section "Sitting 7 Oct".
+- *QOS:* the live cap is **11**, not 8: `sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13. **11/11 R:** the Stage-4 resume, v10 and nine sitting cells. **PD:** three sitting cells (QOS) and the v10 resume (Dependency).
+- *Leads 1–2 (zero GPU, answered):* NAP-F's group mean does **not** track A0's sensitivity (ρ +0.25 / −0.47 / +0.38; the sign follows depth), so C is not run. The summed single-channel ablation does track it (ρ 0.77–0.92). Budget STOP was played 74 times, then extinguished (none after ep 231). The late policy is "remove 4 %" in 97.5 % of decisions.
+- *B3 correction:* §212 is already 3-rate and mild never plays 0.7 / 0.6. The menu A/B becomes a greedy step-size ladder at κ 0.6.
+- *Trees:* `tree_v10` is untouched (sbatch heuristics and from-saved final FTs only). New **`tree_v10h`** = `tree_v10` + the default-off allocation walk and final-FT schedule (`PROVENANCE_v10h.txt`; staged tests green before the first submit).
+- *Ops:* PRELIM §221+ on COMPLETED (the sitting writes the ones it sees). Readers: `final_ft_readout.py` for L3; the TRAJ size point plus the `[alloc]` plan line for alloc walks. Do not TEST v10 ep0111.
+
+| Cell | Job | Tree | Against | Call |
+|---|---|---|---|---|
+| Ladder: greedy 4-rate (0.7 steps), landed κ 0.6, thin | **22340232** | v10 | §216 (greedy 3-rate), §212 | r56-w4: HELP ≥ +1.0 / HURT ≤ −1.0 vs §216 |
+| Ladder: greedy 5-rate (0.6 steps) | **22340233** | v10 | same | same |
+| L3a: cosine from lr 0.1, final FT on N3's saved candidates | **22340234** | v10 | N3 21767189 §157 | ADOPT: honest ≥ +0.5 pp at 2.11× |
+| L3a on §212's thin saved candidates | **22340235** | v10 | 22156062 §212 | same rule, r56-w4 κ 0.6 |
+| L3b: 1-cycle (30-ep warmup to 0.1, cosine), N3 | **22340387** | v10h | N3 | as L3a |
+| L3b on §212 thin | **22340388** | v10h | §212 | as L3a |
+| Alloc walk sens, κ 0.6 thin | **22340391** | v10h | uniform 22340392; §212 | SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 (r56-w4) |
+| Alloc walk uniform, κ 0.6 thin | **22340392** | v10h | — | control |
+| Alloc walk sens, κ 0.8 thin | **22340393** | v10h | uniform 22340394; §211 | as κ 0.6 |
+| Alloc walk uniform, κ 0.8 thin | **22340394** PD | v10h | — | control |
+| Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** PD | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
+| Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** PD | v10h | — | control |
+
+**Ops 7 Oct 02:28 (3h).** QOS **6/8**. Sitting jobs **22340232–35 R** ~8 min, TB=0, `tree_v10` sbatch (no src overlay). **22340232** greedy 4-rate (1.0/0.9/0.8/0.7) landed κ 0.6; **22340233** greedy 5-rate (+0.6); **22340234** cosine-100 from-saved N3 `flop0.39`; **22340235** cosine-100 thin `param0.60`. **2 idle — sitting fills, ops does not invent.** Do not TEST v10 ep0111. Resume ep **218**. Next canvas **09:30**. Next 3h **05:28**.
+
+**Sitting 7 Oct ~02:10 (Ido §2.6+; fire `docs/PROMPT_FABLE_OCT7_SITTING.md`).** QOS **2/8**. Fill 6 idle. **Recommended = GO; Ido asleep.** Do not overlay `tree_v9c` / `tree_v10` src. Do not TEST v10 ep0111. Do not resume Budget. Do not start N8/S3/a second train. First hour: Le & Hua 2.11× final FT; menu 3-rate vs 5-rate κ 0.6; lead 1/2 zero GPU; afterok children. Answers: way-ahead **§5.2**. S3: tracker **§8**.
+
 **Owner:** Opus 5.5 science sitting. **Ops:** heartbeat, paired early reads, ledger, and the pre-authorized actions in the runbook §10.3 — do not invent cells.
 **Rule (Ido 29 Sep 15:49):** QOS stays full with **independent** no-agent TESTs. Sitting **sbatches**. No second GO on those cells. Cap is **live `gpu-part` MaxTRESPU** (8 as of 1 Oct 00:09). Do not invent cells when the ladder is empty.
 **Pre-authorized (Ido 30 Sep 11:08):** freeze TESTs of the Stage-4 train (first after PPO update 20, then ≤ 1 a day); its resume past the 6-day fuse (chained: 21767188). **Done on that GO:** 21716380 scancelled; C100 catalog emitted (§148). **Done on Ido's 12:34 GO:** 21730506 converted to the crop+flip walk → **21809595**.
@@ -22,8 +48,74 @@ Ops handoff, lines, greps and kill rules: **`docs/OPS_HANDOFF_RUNBOOK.md` §10**
 **Sitting 4 Oct ~21:05 (Opus 5.5; Ido's decisions 19:23).**
 - *Ido's decisions:* "stop3" done at 19:40. Factored TEST: ops' 22132735 (§206). Fixed-target train: GO. NVML: no.
 - *A0b* **22155641–44** (section "A0b"). §207 / §208 resolved the v10 read cells: all four are read.
-- *v10 train* **22156116 R** since 21:04 (`cs-4090-04`), resume 22156117. Mild-landed controls **22156061 / 62 R**. Both smokes COMPLETED with all six checks green (section "v10").
-- *QOS:* **7/8** (Stage-4, Budget, A0b ×2, v10 train, two controls). One idle: ping, do not invent.
+- *v10 train* **22156116 R** since 21:04 (`cs-4090-04`), resume 22156117. Mild-landed **22156061 COMPLETED §211**; **22156062 COMPLETED §212**. Both smokes COMPLETED with all six checks green (section "v10").
+- *QOS:* **3/8** as of 02:21 (Stage-4, Budget, v10). **5 idle:** ping, do not invent.
+
+**Ops 4 Oct 23:20.** A0b **22155644 COMPLETED §210 FLAT** both keeps → first v10 catalog stays C10. Mild-landed κ 0.8 **22156061 COMPLETED §211:** r20 **−0.4 @ 0.774** (landed gap 0.026), r56 **−2.1 @ 0.799**. Ledger next **§212**. v10 still PPO-2 / ep 10. Never TEST pre-update-20. Do not invent.
+
+**Ops 5 Oct 00:20 (3h).** QOS **4/8**. v10 **22156116** PPO-3 / ep 12, TB=0. **22156062** still R 4.1 h. Four idle; do not invent. Next canvas **09:30**. Next 3h **03:20**.
+
+**Ops 5 Oct 02:21.** Mild-landed κ 0.6 **22156062 COMPLETED 02:14 §212:** r20 **−2.9 @ 0.584**, r56 **−5.1 @ 0.600**. Both v10 controls in. v10 PPO-4 / ep 15. QOS **3/8**; **5 idle**; do not invent. Ledger next **§213**. Never TEST pre-update-20.
+
+**Ops 5 Oct 03:20 (3h).** QOS **3/8**. v10 first `PROBE mild reference` in (never quote). Stage-4 fuse ~6 Oct 03:15. Five idle; do not invent. Next canvas **09:30**. Next 3h **06:20**.
+
+**Ops 6 Oct 23:28 (3h).** QOS **2/8**. Resume ep **214/250** best 0.2888. v10 freeze **ep0111** `vs_mild=+0.275` — do not TEST. Tau-off **§220**. Budget PREEMPTED (NO-GO resume). Next canvas **09:30**. Next 3h **02:28**. Do not invent.
+
+**Ops 6 Oct 23:00 canvas.** QOS **2/8**. Resume ep **213/250** best 0.2888. v10 freeze **ep0111** `vs_mild=+0.275` — do not TEST. Tau-off **§220**. Budget PREEMPTED (NO-GO resume). Next canvas **09:30**. Next 3h **23:28**. Do not invent.
+
+**Ops 6 Oct 21:58.** v10 wrote freeze **ep0111** (score −4.230). Probe ep=112 `vs_mild=+0.275` — **do not TEST** (gate +0.5 not met). ep0015/ep0031 still NEVER TEST. QOS **2/8**. Resume ep **212**. Next canvas **23:00**. Next 3h **23:28**. Do not invent.
+
+**Ops 6 Oct 21:28 (TEST land §220).** **22288423 COMPLETED** 21:06. PATH-SAME vs N3; 2.11× 10k **−0.94**; honest CROSS-OFF; `val_best` keep 0.123. Do **not** put τ-off into a DRL train. QOS **2/8** (6 idle — do not invent). Resume ep **212/250**. v10 **PPO-28** freeze **ep0095** — do not TEST. Budget PREEMPTED (NO-GO resume). Ledger next **§221**. Next canvas **23:00**. Next 3h **23:28**.
+
+**Ops 6 Oct 20:28 (3h).** QOS **3/8**. Resume ep **212/250** best 0.2888. v10 **PPO-28** freeze **ep0095** — do not TEST. Tau-off **22288423** still R: walk TRAJ in, **PATH-SAME** vs N3 (steps 136/210/267), origin FT `size_flop0.47` Epoch ~85/100. Do not quote walk. **§220** on COMPLETED. Budget PREEMPTED (NO-GO resume). Next canvas **23:00**. Next 3h **23:28**. Do not invent.
+
+**Ops 6 Oct 17:28 (3h).** QOS **3/8**. Resume ep **208/250** best 0.2888 green. v10 **PPO-26** freeze **ep0095** — do not TEST (`vs_mild=−0.125`). Tau-off step 497 in-walk, no TRAJ. Budget PREEMPTED (ops **NO-GO** resume; Ido has not overridden). Next canvas **23:00**. Next 3h **20:28**. Do not invent.
+
+**Ops 6 Oct 16:00 canvas.** QOS **3/8**. Resume ep **204/250** best 0.2888. v10 **PPO-25** freeze **ep0095** — do not TEST. Tau-off step 450 in-walk. Budget PREEMPTED (NO-GO resume). Next canvas **23:00**. Next 3h **17:28**. Do not invent.
+
+**Ops 6 Oct 14:58.** v10 wrote freeze **ep0095** (first after PPO-20). Probe ep=96 `vs_mild` is **not** ≥ +0.5 — **do not TEST**. ep0015/ep0031 still NEVER TEST. QOS **3/8**. Resume ep **203**. Tau-off step 418 in-walk. Budget stays PREEMPTED (Ido NO-GO resume unless he overrides). Next canvas **16:00**. Next 3h **17:28**. Do not invent.
+
+**Ops 6 Oct 14:28 (3h). Budget PREEMPTED.** **21940311** PREEMPTED 14:01 `cs-4090-01` ep **299/250** TB=0; afterok **21940314 CANCELLED**. Bundle `train_resume.pt` 12:09. **Ido GO** for a Budget resume; do **not** TEST ep0251; do **not** ARM-NEG. QOS **3/8** (5 idle — do not invent). Resume **21767188** ep **203/250** best 0.2888 green. v10 **PPO-24** / ep 95 freeze still **ep0031 NEVER TEST**. Tau-off **22288423** step 401 in-walk. Ledger next **§220**. Next canvas **16:00**. Next 3h **17:28**. Do not N8/S3.
+
+**Ops 6 Oct 11:29 (3h).** QOS **4/8**. Resume **21767188** ep **200/250**, `best_score=0.2888` green. v10 **PPO-23** / ep 93, freeze still **ep0031 NEVER TEST** (next probe ~ep 96). Tau-off **22288423** step 311 in-walk, no TRAJ. Budget ep0251 NO-GO. Ledger next **§220**. Next canvas **16:00**. Next 3h **14:29**. Do not invent. Do not N8/S3.
+
+**Sitting later 6 Oct (Ido 11:22 — required, not leftovers).** Four cheap leads: way-ahead **§5.1** / tracker **§3.1**. (1) Zero GPU: nap_f **group** vs A0 sensitivity as allocation prior. (2) Zero GPU: Budget STOP census on **21940311**. (3) One-cycle / cosine **final** FT on N3's saved 2.11× vs 100-ep SGD CROSS-OFF. (4) NAP-F remaining uses (v10 `STATE_SENS` freeze; not S3 / in-loop predictor / pf walk-stopper). Literature-first pin on each. Sitting sbatches. Ops does not invent these from heartbeat. HPC `/mnt/archive`→`/archive` at 16:00 does **not** touch SPECTRA.
+
+**Ops 6 Oct 09:20 (VPN catch-up, 09:30 canvas).** QOS **4/8**. Resume **21767188** ep **198/250**, `best_score=0.2888` green. v10 **PPO-21** / ep 87, freeze still **ep0031 NEVER TEST** (probe ep=80, no freeze). Tau-off **22288423** pass **4/10**, FLOPs x0.448, in-walk. Budget ep 288, freeze ep0251 NO-GO. Ledger next **§220**. Next canvas **16:00**. Next 3h **11:26**. Do not invent. Do not N8/S3.
+
+**Ops 6 Oct 08:26 (3h).** SSH still down since 04:56 (~3.5 h). Last live **04:27** QOS **4/8**. Ledger next **§220**. Next canvas **09:30** (live poll or say last-live). Next 3h **11:26**. Do not invent. Do not N8/S3.
+
+**Ops 6 Oct 05:26 (3h).** SSH timeout ×2 since 04:56. Last live **04:27** QOS **4/8**: resume **21767188** ep 190, v10 PPO-20 freeze ep0031 NEVER TEST, tau-off step 87. Ledger next **§220**. Next canvas **09:30**. Next 3h **08:26**. Do not invent. Do not N8/S3.
+
+**Ops 6 Oct 03:56.** v10 **PPO-20** (ev 0.359); freeze still **ep0031 NEVER TEST**. Resume **21767188** Episode **190/250**. QOS **4/8**. tau-off **22288423** R 2.3 h step 72. Ledger next **§220**. Next canvas **09:30**. Next 3h **05:26**. Do not invent. Do not N8/S3.
+
+**Ops 6 Oct 03:27 (fuse).** Stage-4 parent **21737123 COMPLETED** 03:16 ep **189**. Resume **21767188 R** `ise-4090-07`, start checks 1–3 green, Episode 189/250. QOS **4/8**. tau-off **22288423** R 1.8 h. Ledger next **§220**. Next canvas **09:30**. Next 3h **05:26**. Do not invent. Do not N8/S3.
+
+**Ops 6 Oct 02:56 (TEST land).** **22260374 COMPLETED §218** — M1 does not fire (census 0.8 only; r56 first cut −0.74 @ 0.743). **22288374 COMPLETED §219** — keep 0.35 / 40-ep nap_f −0.42 vs L1; stop ranking ladder. QOS **4/8**. tau-off **22288423** still R. Ledger next **§220**. Fuse ~**03:15**. Next canvas **09:30**. Next 3h **05:26**. Do not invent. Do not N8/S3.
+
+**Ops 6 Oct 02:26 (3h).** QOS **6/8**. **22260374** R 4.0 h, still walking r56-w4 (no honest TEST). v10 **PPO-19** / freeze ep0031 NEVER TEST. tau-off **22288423** R 49 min. sel-k035 **22288374** R 7 masks (never TEST). Fuse ~**03:15**. Ledger next **§218**. Next canvas **09:30**. Next 3h **05:26**. Do not invent.
+
+**Ops 6 Oct 01:38 (Ido GO 01:32).** M1 bar **1.0 pp**; r56-w4 WIN net; r20-w2 disaster guard only. **22288423 R** tau-off mild 10-pass DG R56 (τ=30, pair N3). **22288374 R** sel keep 0.35 (never TEST). QOS **6/8**. Ledger next **§218** (freeze TEST) then tau-off PRELIM; sel = probe section.
+
+**Ops 5 Oct 23:24 (3h).** Ido **NO-GO** v10 ep0015/ep0031 and Budget ep0251. **22260374** R 59 min, walking r56-w4, no honest TEST yet. v10 PPO-17 / ep 68; freeze still ep0031. QOS **4/8** (4 idle — do not invent). Fuse ~6 Oct 03:15. Ledger next **§218**. Next canvas **09:30**. Next 3h **02:24**.
+
+**Ops 5 Oct 22:26.** Stage-4 freeze **ep0179** (probe 0.2888). Pre-authorized one-a-day TEST **22260374 R** (`traj-v9c-paug-ep0179`, `ise-4090-11`, `tree_v9c`, no `TIME_DECIDE`, no `FT_AUG_GPU`, `Requeue=0`). Control 21729557. One freeze TEST in flight. Do not TEST Budget ep0251 until it ends. Ledger next **§218**. **4 idle — do not invent.**
+
+**Ops 5 Oct 20:24 (VPN back; 3h + TEST land §217).** FLOPs mild DepGraph R56 **22228976 COMPLETED 13:06 §217:** **−0.1 @ FLOPs 0.599** (params 0.638). All five Pareto heur in. QOS **3/8** (5 idle — do not invent). v10 PPO-16 / ep 63; freeze **ep0031** never TEST. Budget freeze **ep0251** — do not TEST from ops. Stage-4 fuse ~6 Oct 03:15. Living tracker `docs/NEXT_DEV_PHASE.md`. Ledger next **§218**. Next canvas **23:00**. Next 3h **23:24**.
+
+**Ops 5 Oct 12:22 (3h + TEST land).** Greedy-landed κ 0.6 **22228973 COMPLETED 11:56 §216:** r20 **−2.4 @ 0.595**, r56 **−4.7 @ 0.600** (+0.4 pp vs mild §212 at equal keep). QOS **4/8** (4 idle — do not invent). DepGraph FLOPs **76** still R. v10 freeze **ep0031** — never TEST. Ledger next **§217**. Next canvas **16:00**. Next 3h **15:22**.
+
+**Ops 5 Oct 11:52.** Random-landed κ 0.6 r56 **22228974 COMPLETED 11:49 §215:** **−5.1 @ 0.564** (gap 0.036 — flag, not equal-size vs mild §212). QOS **5/8** (3 idle — do not invent). 73/76 still R. v10 freeze **ep0031** — never TEST. Ledger next **§216**. Next canvas **16:00**. Next 3h **12:21**.
+
+**Ops 5 Oct 10:52.** Greedy-landed κ 0.8 **22228972 COMPLETED 10:37 §214:** r20 **−0.2 @ 0.782**, r56 **−2.4 @ 0.788**. v10 wrote freeze **ep0031** — **never TEST** (pre-update-20; ep0015 also ineligible). QOS **6/8** (2 idle — do not invent). 73/74/76 still R. Ledger next **§215**. Next canvas **16:00**. Next 3h **12:21**.
+
+**Ops 5 Oct 10:22.** FLOPs mild VGG-16 **22228975 COMPLETED 10:02 §213:** **−0.0 @ FLOPs 0.593** (params 0.623). QOS **7/8** (1 idle — do not invent). 72/73/74/76 still R. v10 freeze **ep0015** — never TEST. Ledger next **§214**. Next canvas **16:00**. Next 3h **12:21**.
+
+**Ops 5 Oct 09:21 (3h + canvas).** QOS **8/8**. v10 **22156116** 12.3 h, TB=0, freeze **ep0015** — **never TEST**. Pareto heur **22228972–76 R** ~1.1 h (greedy 72/73 on r56-w4; no COMPLETED TEST). Next canvas **16:00**. Next 3h **12:21**. Do not invent more.
+
+**Ops 5 Oct 08:13 (Ido GO 08:06).** Pareto heuristic counterparts submitted from `tree_v10` (section "v10"): greedy-landed **22228972 / 73**, random-landed r56 **22228974**, FLOPs mild **22228975 / 76**. All **R**, start checks green. **QOS 8/8.** On COMPLETED: PRELIM §§213+. Do not invent more. Never TEST v10 ep0015. Next canvas **09:30**. Next 3h **09:20**.
+
+**Ops 5 Oct 06:20 (3h).** QOS **3/8**. v10 **22156116** PPO-5 / ep 22, freeze **ep0015** on disk — **never TEST**. Five idle; do not invent. Next canvas **09:30**. Next 3h **09:20**.
 
 **Ops 4 Oct 10:48.** Stage-4 wrote freeze **ep0131** (probe 0.2863). Pre-authorized one-a-day TEST **22124693 R** (`traj-v9c-paug-ep0131`, `cs-4090-01`, `tree_v9c`, no `TIME_DECIDE`, `Requeue=0`). Control 21729557. One freeze TEST in flight. Do not TEST another freeze until it ends. Ledger next **§200**. **2 idle — ping, do not invent.**
 
@@ -510,11 +602,9 @@ All four: `tree_v9d`, untyped GPU (A0 ran on GTX 1080s), runbook exclude list, w
 
 *Start check:* `Allocation probe … keep [...] (match params|flops)`, `FT_AUG=1 FT_AUG_GPU=1 VAL_FROM_TEST=1`, `Sensitivity at keep 0.5: N groups`. *Matching check:* the first non-uniform row is within 0.02 of uniform on the matched quantity (`FLOPs x…` for vgg16-flops). *Progress:* `grep -c "\[alloc\]" runs/slurm_logs/alloc_<job>.out`. *Kill:* Traceback ⇒ report. *On COMPLETED:* paste the budget-40 `[alloc-call]` lines here, one ledger probe section per cell (never a TEST row), and apply the consequences above.
 
-**Status (4 Oct 20:21).** **22155641 COMPLETED** 20:11 (40 min, `cs-pheno-11`, TB 0). Budget-40: keep 0.8 **HEADROOM** (random1 +1.93 / +2.86; sens +0.73 / +0.52; bar 0.70); keep 0.6 **FLAT** (bar 1.55; best +0.17); keep 0.35 **HEADROOM** (random1 +2.24 / +3.11). Ledger **§207**. R20-w2 stays in the v10 M1 read.
+**Status (4 Oct 23:20).** **22155641–44 all COMPLETED.** 44 **§210 FLAT** both keeps after 40-ep (3 h 24 m, `ise-pheno-04`, TB 0). First v10 catalog **stays C10**. Never a TEST row. No train action from ops. QOS **4/8**; 4 idle; nothing registered waits; do not invent.
 
-**22155642 COMPLETED** 20:04 (32 min, `ise-pheno-01`, TB 0). Keep 0.8 budget-40 **HEADROOM** (sens +2.63 / +2.01; bar 1.33). Ledger **§208**. κ = 0.8 first-cut read **stands**.
-
-**22155643 / 44 still R** (~49 min; alloc rows 28 / 16 of 60). Leave. Never a TEST row. No train action from ops.
+- *23:20, 22155644 COMPLETED:* `[alloc-call] cy-r56-c100 keep=0.6 match=params budget=40 … FLAT`. Uniform val −6.91 (SD 0.79) / TEST −7.19, bar 1.58. vs uniform val/TEST: sens −1.61/−2.41; best random2 +0.01/−1.13. `[alloc-call] … keep=0.35 … budget=40 … FLAT` (sens +1.71/+0.95 does not clear bar 2.92). BN-only HEADROOM is not the call. Ledger **§210**.
 
 ## v10: fixed-target train (registered before launch, 4 Oct ~20:15; Ido GO 19:23 "fixed_target"; gate A0 HEADROOM ≥ 2 of 6 cells: met, 6/6)
 
@@ -533,7 +623,7 @@ All four: `tree_v9d`, untyped GPU (A0 ran on GTX 1080s), runbook exclude list, w
 - *Menu.* Keep 1.0 / 0.9 / 0.8 / 0.7 / 0.6, all L1 (the criterion lever is closed, §196–§199). Six passes, so mild can reach 0.35. Rollout limit 1000.
 - *Probe (selection score).* Argmax walks on the thin probe pair (r56-w6, r20-w10) at the TEST's targets κ = 0.8 and 0.6, every 16 episodes. (First registered with 0.4 as well. Cut at 20:35, before the train started: at the 12/4 fine-tune a probe walk costs about an episode, so three targets would add ~37 % to the train; two add ~25 %, and they match the read.) Score: mean fixed-target return in pp. The first probe also walks mild once (keep 0.9 wherever legal, same targets, same landing) and prints `PROBE mild reference`. Every later `PROBE` line prints `vs_mild`. Every new best freezes (`SNAPSHOT_BASELINE=-1000`); the TEST rule below picks among the freezes.
 - *Otherwise Stage-4's recipe.* P5-B2 catalog (cifar-10 + svhn), P, crop+flip 12/4 train FT (on the GPU for the CIFAR nets: D5 adopted "for the next train", §196), PPO with 4 episodes per update, the governor (min 250 episodes, patience 150, rewind), slack, group-cost, group-once, budget-in-state.
-- *Tests.* `tests/test_v10_fixed_target.py` **13/13**, plus the regression set **163/163** (tokens, env, probe, PPO recipe, P8 flow, group-once, allocation probe) on the login node.
+- *Tests.* `tests/test_v10_fixed_target.py` **14/14**, plus the regression set **163/163** (tokens, env, probe, PPO recipe, P8 flow, group-once, allocation probe) on the login node.
 
 **Smokes (never quoted).**
 
@@ -568,7 +658,15 @@ The train is released only when all six checks hold:
 
 **Train.** **22156116** `v10-fixedtarget-train`: `tree_v10`, seed 42, nice 30, wall 7 d (runtime 6 d), `rtx_6000|rtx_4090`. Submitted **held**, afterok both smokes. Resume **22156117** `-r1` afterok the train. Requeue 0 on both. These replace 22156018 / 19, which were cancelled at 20:26 before they ever started, so the train would take the two probe targets.
 
-**Mild-landed controls (submitted 20:17, before any freeze; the TEST rule's control, run once).** **22156061** κ 0.8 / **22156062** κ 0.6. Setup: `baseline_c10_mild_traj_gonce` + `SPECTRA_FIXED_TARGET=1`, `tree_v10`, the TEST lines below, `rtx_6000|rtx_4090`, nice 10, wall 20 h. Start lines are green: `policy=mild det=1 traj=1 min_param=0.00 group_once=1 passes=6`, and `fixed target: keep x0.800` / `x0.600 … (eval_test)` on r20-w2.
+**Mild-landed controls (submitted 20:17, before any freeze; the TEST rule's control, run once).** **22156061** κ 0.8 / **22156062** κ 0.6. Setup: `baseline_c10_mild_traj_gonce` + `SPECTRA_FIXED_TARGET=1`, `tree_v10`, the TEST lines below, `rtx_6000|rtx_4090`, nice 10, wall 20 h. Start lines are green: `policy=mild det=1 traj=1 min_param=0.00 group_once=1 passes=6`, and `fixed target: keep x0.800` / `x0.600 … (eval_test)` on r20-w2. **61 COMPLETED 22:53 §211:** r20 final-FT **−0.4 @ 0.774** (landed 0.774 vs κ 0.800, gap 0.026 — flag), r56 **−2.1 @ 0.799**. **62 COMPLETED 02:14 §212:** r20 **−2.9 @ 0.584** (gap 0.016), r56 **−5.1 @ 0.600**. No `TRAJ … NONE`. Never resubmit per freeze.
+
+**Pareto heuristic counterparts (Ido GO 08:06, submitted 08:12; paper TEST recipe; `tree_v10`; `--mem-per-gpu=24G`; Features `rtx_6000|rtx_4090`; nice 12–15; `Requeue=0`).** Same walk as the v10 TEST lines (P, loader crop+flip never `FT_AUG_GPU`, 40/10, 6 passes, 100-ep origin final FT, seed 42, det TRAJ, group-once). Heuristic stars only — never agent rows. On COMPLETED: PRELIM; `TRAJ … NONE` ⇒ report; flag a keep gap > 0.02.
+
+| Job | Name | Cell |
+|---|---|---|
+| **22228972 / 73** | v10-greedyland-k080 / k060 | Gilad greedy = profile `baseline_c10_l1_traj_gonce` + `FIXED_TARGET=1` at param κ 0.8 / 0.6 on the thin pair (same lines as 61/62). Menu is the baseline 1.0/0.9/0.8 (no overlay of the actor's 0.7/0.6). **72 COMPLETED §214:** r20 **−0.2 @ 0.782**, r56 **−2.4 @ 0.788**. **73 COMPLETED §216:** r20 **−2.4 @ 0.595**, r56 **−4.7 @ 0.600** |
+| **22228974** | v10-randland-k060-r56 | One random-landed seed at κ 0.6 on r56-w4 only (`baseline_c10_random` + TRAJ/gonce overlay + `FIXED_TARGET=1`, `input_c10_thin_r56w4.json`). **COMPLETED §215:** r56 **−5.1 @ 0.564** (gap 0.036 — flag) |
+| **22228975 / 76** | v10-mildflop-k060-vgg16 / dgr56 | FLOPs column at keep 0.6: chenyaofo VGG-16 C10 / DepGraph R56. `baseline_c10_mild_traj_gonce`, **no `FIXED_TARGET`** (v10 landing is params-only), `SIZE_MATCH=SIZE_POINTS=flop:0.6`. **75 COMPLETED §213:** VGG-16 **−0.0 @ FLOPs 0.593**. **76 COMPLETED §217:** DepGraph R56 **−0.1 @ FLOPs 0.599** (params 0.638). |
 
 **Train-health watch.** These are notes, never results; probe scores are never quoted as results.
 - By PPO update 10: critic `ev` > 0, and no single action is ≥ 95 % of the last 4 updates' actions.
@@ -581,18 +679,131 @@ The train is released only when all six checks hold:
 - *Lines.* Both arms run in `tree_v10` on the thin pair (r20-w2, r56-w4): seed 42, P, `SPECTRA_FT_AUG=1` in the loader (never `FT_AUG_GPU`: freeze TEST), walk FT 40/10, deterministic TRAJ, `SPECTRA_EVAL_PASSES=6`, `SPECTRA_EVAL_MIN_PARAM_RATIO=0`, `SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`. One job per target κ ∈ {0.8, 0.6}, with `SPECTRA_EVAL_SIZE_MATCH=param:κ SPECTRA_EVAL_SIZE_POINTS=param:κ`.
   - *Actor:* `eval_c10_thin_traj` on the frozen snapshot. Its policy_config pins the target and sensitivity channels, the menu and passes 6.
   - *Control, "mild-landed":* `baseline_c10_mild_traj` with `SPECTRA_FIXED_TARGET=1` and the same size lines, so mild lands on κ by the same bisection. Two jobs (κ 0.8 and 0.6), run once and reused for every v10 freeze TEST. Mild 21729557 cannot serve: it has no r56 0.6 point at 2 passes, and its first cut is not landed.
-- *Read (M1-v10).* Per net and κ: Δ = actor − mild-landed, on the 100-epoch final-FT TEST of the size_match point. Both arms land within 0.005 of κ, so the point is fixed by κ and never picked on test.
-  - **WIN:** Δ ≥ +0.5 pp on r56-w4 at κ = 0.6, and no read cell at ≤ −0.5.
-  - **NEG:** Δ ≤ −0.5 pp on r56-w4 at κ = 0.6.
+- *Read (M1-v10).* Per net and κ: Δ = actor − mild-landed, on the 100-epoch final-FT TEST of the size_match point. The done rule is kept ≤ κ; landings can sit up to ~0.026 below κ on r20-w2 (one channel). The point is still named by κ and never picked on test.
+  - **WIN:** Δ ≥ **+1.0 pp** on r56-w4 at κ = 0.6, and no read cell at ≤ **−1.0**. (Ido 6 Oct 01:32: M1 kinder/worse bar moved 0.5 → 1.0; r20-w2 is not a veto.)
+  - **NEG:** Δ ≤ **−1.0 pp** on r56-w4 at κ = 0.6.
   - **FLAT:** otherwise.
-  - The read cells follow A0b's registered consequences: r20-w2 is read only if A0b finds headroom on it, and κ = 0.8 only if keep 0.8 has headroom on a thin net. Quote every margin with the RW43 re-walk noise line (§196); the 0.5 pp bar is never changed.
+  - The read cells follow A0b's registered consequences: r20-w2 is a disaster guard, not a WIN veto. Quote every margin with the RW43 re-walk noise line (§196). **M1 equal-keep bar is 1.0 pp** (Ido 6 Oct 01:32).
   - *Resolved 20:11 (ops, §207 / §208):* r20-w2 is HEADROOM at keeps 0.8 and 0.35 and FLAT at 0.6, and r56-w4 is HEADROOM at keep 0.8. So all four cells are read: r20-w2 and r56-w4 at κ 0.8 and 0.6. Expect r20-w2 at κ 0.6 near zero, since A0b found no allocation lever there.
   - **MISS:** an actor walk that ends above κ (`TRAJ … param:κ … NONE`) is a MISS for that cell, and a MISS counts as NEG there. Never skip it, and never read its terminal point instead.
-  - *Landed keeps.* Landing is limited by channel granularity: the smoke's walks landed 0.000–0.020 below κ (one channel of a wide stream is ~2 % of a thin net). Quote both arms' landed params and FLOPs beside every Δ. Flag a cell where they differ by more than 0.02 (A0's matching tolerance), and never re-pick a point to close the gap.
+  - *Landed keeps.* Landing is limited by channel granularity: smoke walks landed 0.000–0.020 below κ; expect up to **~0.026** below κ on r20-w2. Quote both arms' landed params and FLOPs beside every Δ. Flag a cell where they differ by more than 0.02 (A0's matching tolerance), and never re-pick a point to close the gap.
 - *What it decides.*
-  - WIN: the first learned-allocation result at equal size on a held-out net. Next: more targets; FLOPs targets if A0b's VGG equal-FLOPs cell is HEADROOM; C100 in the catalog if A0b's R56-C100 is HEADROOM; then the frozen actor on ImageNet.
+  - WIN: the first learned-allocation result at equal size on a held-out net. Next: more targets; FLOPs targets at keep 0.6 if the sitting adds them (§209: VGG equal-FLOPs HEADROOM at 0.6, FLAT at 0.35); first v10 catalog stays C10 (§210: R56-C100 **FLAT** both keeps); then the frozen actor on ImageNet.
   - FLAT: compare the actor's per-group allocation with A0's sens rule at the same κ.
   - NEG: report and diagnose (critic, probe, state channels).
+
+## Tau-off / τ=30 deep mild on DepGraph R56 (Ido GO 6 Oct 01:32; ops submitted 01:38)
+
+**Why.** If in-walk τ / early-stop is the limiter vs DepGraph, a no-agent walk with τ off (or τ=30), more passes, land on 2.11× / 2.57×, then 100-ep SGD + origin control, would close the ~0.70 pp M4 gap. If it still sits ~0.7–1.7 pp behind, the limiter is allocation / grouping / inherited weights — then dropping τ in DRL is a cost with no prize. Do **not** put τ-off into a live train before this cell. C1/C2 already had a cubic gain arm and still collapsed to largest-cut because thin walks never miss.
+
+**Job.** **22288423** `v9d-tauoff-mild-dgr56`, `tree_v9d`, `ise-4090-08`, Features `rtx_6000|rtx_4090`, `Requeue=0`, wall 2-06, runtime 48 h, `--mem-per-gpu=24G`. Profile `baseline_c10_mild_traj_gonce` + `SPECTRA_EXTRA_ARGS="--runtime_limit 172800 --allowed_acc_reduction 30"`. **N3-paired:** P, loader crop+flip, **never** `FT_AUG_GPU`. `EVAL_PASSES=10`, `MIN_PARAM_RATIO=0`, `EVAL_ROLLBACK=0`, `SIZE_MATCH`/`SIZE_POINTS=flop:0.6,0.47,0.39`, 100-ep origin final FT.
+
+**Start (green 01:38).** Namespace `allowed_acc_reduction=30`, `passes=10`, `runtime_limit=172800`, `FT_AUG=1`, `ROLLBACK=0`, `MIN_PARAM=0`, `SIZE_POINTS=flop:0.6,0.47,0.39`, `FINAL_FT=100` origin, policy=mild, input DepGraph R56, no `FT_AUG_GPU`.
+
+**Read.** Pair N3 **21767189** / ledger **§157**. On COMPLETED: PRELIM. Quote `[eval] TRAJ` `val_best` / size_match only. If widths at 2.11× match N3 steps, **PATH-SAME** (τ did not bind); extra value is the deeper `val_best`. Never quote in-walk val.
+
+## S0 keep 0.35 on DepGraph R56 (Ido GO 6 Oct 01:32; ops submitted 01:32)
+
+**Why.** Ranking at keep 0.6 / 40-ep was FLAT/HARM (S2 G2). S0 said a ranking breakthrough would show at no/short FT or much higher sparsity than 0.6. This is that A/B, not a new actor. L1 vs Taylor vs nap_f vs random vs anti-L1; budgets **0 and 40** only (drop 1/3/10). If 40-ep still FLAT, ranking at high sparsity is also dead under our FT. If HARM again, write the paper sentence and stop. Remaining NAP idea = cheap proxy for stopping a walk (the pf line already hurt that).
+
+**Job.** **22288374 COMPLETED** 6 Oct 02:47, 1.2 h, `ise-pheno-09`. Ledger **§219**. Keep **[0.35]**, criteria l1 / taylor / nap_f / random / anti_l1, budgets **[0, 40]**, scorer md5 `2a3bf48db614`, `FT_AUG=1 VAL_FROM_TEST=1`. **Never a TEST row.** Call: 40-ep does not beat L1 (nap_f −0.42; Taylor −5.7). Stop ranking ladder.
+
+**Read.** `python scripts/selection_probe_s2.py --readout` on the run dir **with keep=0.35** (do not trust the default 0.6 readout). Ledger one *probe* section. Compare vs S0 keep 0.6. Flag as they arrive.
+
+## Sitting 7 Oct: step-size ladder, Le & Hua final FT, allocation-following walk, leads 1–2 (prompt `docs/PROMPT_FABLE_OCT7_SITTING.md`, Recommended on every fork)
+
+Calls fixed before any cell read. Written here at ~03:10, after the 02:20–02:45 submits; nothing had COMPLETED. Two single-candidate lines were already visible; they are listed under Lead 3. Paper TEST protocol throughout: P, loader crop+flip (never `FT_AUG_GPU`), walk 40/10, seed 42, deterministic, 100-ep final FT with the origin control, 5k TEST half. Landed params and FLOPs are quoted beside every Δ, and a pair whose landed keeps differ by more than 0.02 is flagged.
+
+### B3' step-size ladder (the prompt's menu A/B, corrected)
+
+- **Premise fix.** The prompt asks whether "3-rate mild on §212" lands κ 0.6. §212 already *is* 3-rate: the baseline profile hard-sets `BASELINE_RATES=(1.0 0.9 0.8)`. It landed 0.600 without a MISS. Mild plays 0.9 whenever 0.9 is legal (`heuristic_eval_action`), so a 5-rate mild walk would replay §212 cut for cut. Whether 0.7 / 0.6 earn their place needs a policy that plays them: greedy, the strongest legal cut.
+- **Ladder at landed κ 0.6, thin pair.**
+
+  | Cut per step | Walk | Job |
+  |---|---|---|
+  | 0.9 | mild | §212 |
+  | 0.8 | greedy, 3-rate menu | §216 |
+  | 0.7 | greedy, 4-rate menu | **22340232** |
+  | 0.6 | greedy, 5-rate menu (v10's) | **22340233** |
+
+  The menu is set through `SPECTRA_EXTRA_ARGS="--compression_rates …"`: argparse keeps the last occurrence. `tree_v10`, no src edit.
+- **Caveat.** Bigger steps reach κ in fewer decisions, so later groups are cut less. The ladder measures step size together with walk-order front-loading, as an agent playing that action would.
+- **Call.** r56-w4 decides; r20-w2 is the disaster guard.
+  - **HELP:** the better of greedy-4 / greedy-5 is at least §216 (−4.7) + 1.0 pp.
+  - **HURT:** at most §216 − 1.0.
+  - **FLAT:** otherwise. The menu is then a cost lever only; report decisions and walk minutes.
+- **For the v10 read.** HURT means an actor that plays 0.7 / 0.6 pays for it, so its census matters. FLAT means the 5-rate menu changes cost, not accuracy.
+- **Flag (03:40).** Greedy 5-rate on r20-w2 landed at params **0.538**, 0.062 below κ: one 0.6 step overshoots on a 2/4/8-wide net. That row is not equal-size with §216 (0.595). r20-w2 is the guard net only.
+
+### Lead 3 (B1 / B2): Le & Hua (ICLR 2021) large-LR final fine-tune on saved architectures
+
+- **Why.** Le & Hua show that retraining a pruned net at a large learning rate (LR rewinding, scaled-LR restart, 1-cycle CLR) beats the small-LR fine-tune at equal budget. Ours is SGD 0.01 cosine for 100 epochs, and it was CROSS-OFF at 2.11× (§157 / §220: honest −1.00).
+- **Arms.** Each runs on the same saved candidates through `SPECTRA_EVAL_FINAL_FT_FROM`: no new walk, batch 128, same split, plus the origin control.
+  - **L3a, cosine from lr 0.1** (Le & Hua's scaled-LR restart family). `tree_v10`, `SPECTRA_EVAL_FINAL_FT_LR=0.1`. N3 **22340234**; §212 thin **22340235**.
+  - **L3b, 1-cycle**: linear warmup over 30 epochs to 0.1, then cosine to 1e-5 (CLR's shape, without momentum cycling). `tree_v10h`, `SPECTRA_EVAL_FINAL_FT_SCHEDULE=warmcos SPECTRA_EVAL_FINAL_FT_WARMUP=30`. N3 **22340387**; §212 thin **22340388**.
+- **Read.** `readers_s30/scripts/final_ft_readout.py` on each new run dir and on the reference run dirs (`tree_v9c/runs/job21767189`, `tree_v10/runs/job22156062`). At one label, honest Δ = (final_new − final_old) − (origin gain_new − origin gain_old) on the 5k TEST, which is the new honest minus the reference honest. The reader's own ADOPT / KILL flags are the 29 Sep walk-vs-final rule, not this call.
+- **Call (prompt).**
+  - **ADOPT** a schedule if honest Δ ≥ +0.5 pp at 2.11× (`size_flop0.47`) and raw final_new ≥ final_old there.
+  - **CROSS-OFF** that schedule otherwise.
+  - 2.57×, FLOPs 0.60 and `val_best` are reported but do not gate.
+  - The thin pair uses the same rule at r56-w4 κ 0.6, reported separately. Adopting a schedule into the thin protocol needs the thin pass as well. Before any comparison, every compared row is then re-finalised from its saved candidates: never mix recipes inside a comparison.
+- **Visible at registration (one candidate each; not a call).**
+  - N3 `size_flop0.39` under cosine 0.1: 0.927, against 0.920 under 0.01 (raw +0.7 pp).
+  - Thin r20-w2 origin under lr 0.1: 0.649 → 0.692 (+4.4 pp). The undertrained origin gains most, which is what the honest rule subtracts.
+
+### Allocation-following walk (`SPECTRA_EVAL_POLICY=alloc`, `tree_v10h`)
+
+- **Why.** A0 found allocation headroom with a one-shot cut and 40-epoch recovery (§201 / §204 / §205 / §208). v10 is graded at r56-w4 κ 0.6, with a bar of +1.0 pp over mild. Before its first TEST, the read needs two answers:
+  - Does the lever survive the walk protocol (per-step recovery plus the 100-ep final FT)?
+  - Does a non-learned allocation already clear the WIN bar?
+- **Policy.**
+  - **Plan.** Once per net, on the origin, apply A0's rule: `uniform`, or `sens` with α 0.5 (keep ∝ (s / median s)^α, where s is the loss rise with the group alone cut to half). The scale is bisected so the one-shot cut keeps κ − 0.02 of the parameters.
+  - **Decisions.** Each decision plays the legal cut whose resulting group width is closest to that group's target. Ties go to the milder cut; identity once the group is there.
+  - **Unchanged.** The walk's own menu (v10's 5-rate), group-once, landing at κ, 40/10 recovery and final FT.
+  - **Fallback.** If a whole pass idles above κ, the walk switches to the strongest cut and logs it.
+  - **Code.** `src/alloc_walk.py`, profile `baseline_c10_alloc_traj_gonce`, `tests/test_alloc_walk.py`. 8 tests pass; the end-to-end test lands on κ and follows the plan.
+- **Jobs.**
+  - Thin pair κ 0.6: sens **22340391**, uniform **22340392**.
+  - Thin pair κ 0.8: sens **22340393**, uniform **22340394** (PD on QOS).
+  - DepGraph R56 C10 landed at params 0.47 (N3's 2.11× point): sens **22340523**, uniform **22340524** (PD on QOS).
+- **Start check (02:45).** `[alloc]` on r20-w2: sens plan x0.566 (target x0.580), group keeps 0.20–1.00 (median 0.73); uniform plan 0.75 in every group (x0.554).
+- **Calls.**
+  - **Lever (sens − uniform, both alloc walks).** At r56-w4, κ 0.6 and κ 0.8 each: **SURVIVES** if ≥ +1.0 pp, **ABSORBED** if ≤ +0.3, **WEAK** in between. r20-w2 (A0b FLAT at 0.6) is reported but does not gate. DepGraph R56 at params 0.47: **SURVIVES** if ≥ +0.5 (A0 §204 keep 0.6: +0.61), **ABSORBED** if ≤ +0.15.
+  - **Bar (sens walk vs mild-landed §212, r56-w4 κ 0.6).** If the sens walk is ≥ §212 + 1.0 pp, a non-learned allocation clears the v10 WIN bar. This is an interpretation rule for the v10 read and does not change ops' gate. A v10 WIN is then quoted as "learned allocation at heuristic level"; "beyond heuristic" needs the actor ≥ sens walk + 0.5 pp at the same landed keep.
+  - **DepGraph R56.** Also quoted against N3's 2.11× row (−0.4 @ params 0.470 / FLOPs 0.463, 5k), with FLOPs beside it: A0 §204's sens allocation removed more FLOPs at equal params.
+
+### Lead 1 (zero GPU): group-level NAP-F vs A0 sensitivity. Call: does not correlate; C not run
+
+Spearman ρ across a net's groups between A0's sensitivity and each group-level statistic. Groups are joined on `cut_plan` keys; p-values come from 5,000 permutations.
+
+| Net (S0/S2 cell ↔ A0 job) | Groups | NAP-F group mean | Ablation, summed over the half a 0.5 cut removes | Taylor, same half | Depth | Width |
+|---|---|---|---|---|---|---|
+| DepGraph R56 C10 (21945105 ↔ 22127528; in S1's fit) | 30 | +0.25 (p 0.19) | **+0.77** (p 0.0002) | **+0.77** | +0.12 | +0.27 |
+| chenyaofo VGG-16 C10 (21945106 ↔ 22127529; in S1's fit) | 15 | −0.47 (p 0.08) | **+0.86** (p 0.0004) | −0.06 | −0.78 | −0.84 |
+| chenyaofo R56 C100 (21982335 ↔ 22155644; held out from S1) | 30 | +0.38 (p 0.04) | **+0.92** (p 0.0002) | **+0.89** | +0.48 | +0.61 |
+
+- **Call.** NAP-F's group mean changes sign between nets and follows depth and width, its only group-level inputs. By construction it cannot rank groups: S1's label is the within-group rank of the ablation oracle, and its features are normalised within each group (group-mean SD ≈ 0.01). The descriptor stays per-channel; the v10 state only. C, a NAP-F-weighted allocation, is not sbatched.
+- **Insight.** The group-level information sits in the oracle itself. Single-channel ablation, summed over the channels a half cut removes, tracks A0's group cut on all three nets (ρ 0.77 / 0.86 / 0.92), so group damage is close to additive over channels. First-order Taylor tracks it on both ResNets but not on VGG-16. A0's measured sensitivity, already v10's state channel, stays the allocation descriptor. Taylor-half is a ResNet-only cheap stand-in, if the measurement ever costs too much.
+
+### Lead 2 (zero GPU): Budget STOP census on 21940311 (300 train episodes, ep 0–299)
+
+- **Budget cuts.** 5,909 in total (`budget action:` lines = `prune` events).
+
+  | Share removed | All cuts | Last 60 episodes |
+  |---|---|---|
+  | 0.04 | 79.5 % | 97.5 % (1,099) |
+  | 0.01 | 17.5 % | 2.5 % (28) |
+  | 0.02 | 3.0 % | 0 |
+
+- **STOP.** 74 explicit STOPs: `step` events with `stop=1` in `agent_train` mode, from the run's event stream.
+  - By 50-episode bucket: 31 / 15 / 16 / 9 / 3 / 0. The last is at episode 231.
+  - Keep at STOP: median 0.951 (range 0.287–1.000). 24 came at keep 1.000, six of them at step 0, and 53 of 74 were above keep 0.80.
+  - After episode 199: three STOPs, at 0.655 / 0.857 / 0.776.
+- **Against ops' expectation.**
+  - "STOP never an agent action" is false (74 STOPs).
+  - "Remove 0.0400 dominates" is true.
+  - "No net parked above keep 0.80 as a STOP" is false overall (53), but holds for the last ~70 episodes.
+- **Reading.** STOP was explored and then extinguished; it never became a size choice. The policy converged to "remove 4 % until the walk ends": the same one-action collapse §200 found in every TESTed actor. This is consistent with the NO-GO on the Budget resume and on TESTing ep0251. No action.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 

@@ -125,9 +125,13 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
             param.requires_grad = False
         env.kd_teacher = teacher
     loader, aug = utils.final_ft_train_loader(env.train_loader, fortify_mod.eval_final_ft_batch())
-    recipe = dict(zip(_FINAL_FT_ENV_KEYS, ("sgd", f"{lr:g}", "0.9", "5e-4", "1", "", "0", "0",
+    schedule, warmup = fortify_mod.eval_final_ft_schedule(), fortify_mod.eval_final_ft_warmup()
+    recipe = dict(zip(_FINAL_FT_ENV_KEYS, ("sgd", f"{lr:g}", "0.9", "5e-4", "1", schedule, "0", "0",
                                            "1" if kd else "0")))
-    saved = {k: os.environ.get(k) for k in _FINAL_FT_ENV_KEYS}
+    if schedule:
+        recipe["SPECTRA_FT_WARMUP_EPOCHS"] = f"{warmup:g}"
+    shape = f"warmcos w{warmup:g}" if schedule else "cos"
+    saved = {k: os.environ.get(k) for k in recipe}
     t0 = time.perf_counter()
     try:
         os.environ.update(recipe)
@@ -150,7 +154,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         f"acc {test_origin:.3f} -> {test_acc:.3f} ({test_acc - test_origin:+.3f}) | "
         f"params x{point['param']:.3f} | FLOPs x{point['flop']:.3f} | "
         f"val Δacc {(val_acc - val_origin) * 100.0:+.2f} pp | walk acc {float(point['test_acc']):.3f} | "
-        f"sgd lr={lr:g} m=0.9 wd=5e-4 cos e{epochs} bs={loader.batch_size} aug={aug} kd={int(kd)} "
+        f"sgd lr={lr:g} m=0.9 wd=5e-4 {shape} e{epochs} bs={loader.batch_size} aug={aug} kd={int(kd)} "
         f"init={'scratch' if scratch else 'inherit'} | {minutes:.1f} min")
     run_recorder.record(
         "eval_traj_final_ft", network=net_path, label=label, step=int(point["step"]),
@@ -158,12 +162,14 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         test_origin=test_origin, test_walk=float(point["test_acc"]), test_final=test_acc,
         val_origin=val_origin, val_walk=float(point["val_acc"]), val_final=val_acc,
         epochs=int(epochs), lr=float(lr), batch=int(loader.batch_size), aug=aug, kd=bool(kd),
-        scratch=bool(scratch), minutes=round(minutes, 2))
+        scratch=bool(scratch), schedule=schedule or "cos", warmup=float(warmup) if schedule else 0.0,
+        minutes=round(minutes, 2))
     if save_dir:
         traj_models.save_candidate(
             model, traj_models.candidate_stem(save_dir, name, label, point["step"], f"__ft{epochs}"), point,
             {"network": net_path, "label": label, "final_ft": {
                 "epochs": int(epochs), "lr": float(lr), "scratch": bool(scratch), "kd": bool(kd),
+                "schedule": schedule or "cos", "warmup": float(warmup) if schedule else 0.0,
                 "test_final": test_acc, "val_final": val_acc}})
     return test_acc
 
@@ -374,8 +380,11 @@ def _decide_timer(fortify_mod):
     return logging_utils.stage("step.decide", level=logging.DEBUG)
 
 
-def _heuristic_action(legal, conf, fortify_mod, eval_policy):
+def _heuristic_action(legal, conf, fortify_mod, eval_policy, env=None):
     with _decide_timer(fortify_mod):
+        if eval_policy == "alloc":
+            from src import alloc_walk
+            return alloc_walk.action(env, legal, conf.compression_rates_dict, conf.device)
         return fortify_mod.heuristic_eval_action(
             legal, conf.compression_rates_dict, policy=eval_policy, device=conf.device)
 
@@ -524,7 +533,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                     at_budget, floor_kind = fortify_mod.eval_at_size_floor(env)
                     if traj:
                         if eval_policy not in ("actor",):
-                            action = _heuristic_action(legal, conf, fortify_mod, eval_policy)
+                            action = _heuristic_action(legal, conf, fortify_mod, eval_policy, env)
                         else:
                             action, chosen_rank = _actor_action(agent, state, legal, conf, fortify_mod)
                         if not traj_phase_b:
@@ -564,7 +573,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             0)
                         action = torch.tensor([identity], device=conf.device)
                     elif eval_policy not in ("actor",):
-                        action = _heuristic_action(legal, conf, fortify_mod, eval_policy)
+                        action = _heuristic_action(legal, conf, fortify_mod, eval_policy, env)
                     else:
                         action, chosen_rank = _actor_action(agent, state, legal, conf, fortify_mod)
 

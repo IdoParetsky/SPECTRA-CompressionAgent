@@ -205,7 +205,7 @@ case "$PROFILE" in
     # Plain C10-thin held-out eval (no FLOP floor) — the §17 r20-w2 / r56-w4 comparison.
     # _traj is the unconstrained curve (floor-hold then continue); _gonce adds group-once.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;
-  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce|baseline_c10_mildest95_traj_gonce)
+  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce|baseline_c10_mildest95_traj_gonce|baseline_c10_alloc_traj_gonce)
     # Same-loop L1 / mild-0.9 / random rate policies on C10-thin held-out (r20-w2, r56-w4).
     # *_traj / *_traj_gonce: TRAJ protocol, optionally with group-once. mildest95: V9 fine menu.
     GPUS="${GPU_COUNT:-1}"; TIME="7-00:00:00"; CPUS=8; TRAIN_SEC=0 ;;

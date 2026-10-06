@@ -9,6 +9,8 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 Status of this file: **DRAFT**. **Training freeze night of 17 Sep 2026** (no new reward A/Bs after that). **Paper including TESTs 30 Sep 2026** — no 6 Oct coverage buffer. First new-actor TESTs are in (§68–70); remaining spectrum catalogs must finish before 30 Sep.  
 Section order matches NEON [1]: Introduction → Related Work → Approach → Evaluation → Results → Discussion → Conclusions.  
 **Last restamp: 16 Sep 2026 10:55 IDT (Fable: §3, §4.1–4.2, §7 rewritten to the v3 method of record; §5 numbers unchanged).** Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md). Paper skeleton: [PAPER_SKELETON.md](PAPER_SKELETON.md). Cubes matching-std traj **21235566** r20 §75. Log1p cubes **21233227 COMPLETED** §73 is not the z-score curve. Prefer **21233371** r20 §74 / Path 3 **21233223** r20 §72 (r56 in FT). Similar **21230664** MobileNet **−2.1**. Train freeze **night of 17 Sep**. Keep L1. Queue **6 R**.
+**Ops pin 6 Oct 21:28 (TEST land §220, not a §5 fill):** τ-off **22288423** PATH-SAME vs N3 at DepGraph sizes; 100-ep CROSS-OFF; `val_best` keep 0.123. Paper DepGraph walk rows stay **N3 §157**. Ledger §220 / §2.4. Do not fill §5 from ops.
+**Ops pin 6 Oct 09:47 (not a TEST restamp):** paper freeze uses a **10k companion / labelled cross-fit** beside literature, different-FT caption; live recipe stays P 5k. Ledger §2.4. Do not fill §5 from ops.
 
 ### Durable snapshot — 18 Aug 2026 08:55 IDT (do not rely on chat)
 
@@ -393,6 +395,12 @@ genericity map.
   (r20-w2, r56-w4), CIFAR-100 (5 nets), ImageNet (frozen probe). Skip akamaster ResNet-32.
 - **Quote `eval_test` TRAJ lines only.** Log `eval_train` scores the CNN's training loader and is
   never a result.
+- **10k companion (Ido 6 Oct 09:47 — paper freeze).** Live decisions stay on protocol P's 5k TEST
+  half. Beside every literature row, add a companion **10k** column (or labelled cross-fit of both
+  halves) and a **different-FT** caption. Do not switch the live recipe to full-10k val/TEST.
+  `crossfit_readout.py` is valid only for walks that do not read val for rollback. Draft tables
+  that quote DepGraph / OCS / HRank / Slimming must carry this column at finalization. Ledger
+  quoting rules + §2.4.
 
 ---
 
@@ -509,6 +517,8 @@ win criterion (for Gilad to approve; not this freeze's GPU plan).**
 8. **Preference sweep as product knobs** (τ ∈ {5, 10, 15}; FLOP-matched labels) — NEON's Pareto
    family, not a new architecture search. **No ImageNet DRL train** (Gilad 18 Aug); broader
    *frozen* ImageNet transfer stays in scope as coverage.
+9. **10k companion column at paper freeze (Ido 6 Oct).** Do not change the live P recipe. Add the
+   10k / cross-fit column beside literature; caption different-FT. Ledger §2.4.
 
 Closed lines (do not retry as future work): encoder / BERT / AMP / skinny-in-train A/Bs
 (ledger §16–§18); finer rate rungs (audit §2.1); Taylor ranking without a cost calibration;

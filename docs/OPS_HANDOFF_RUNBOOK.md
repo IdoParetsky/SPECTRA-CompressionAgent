@@ -186,9 +186,9 @@ Ops keeps running freeze TESTs per §10.3 / §10.0c.
 | Job | Name | What | Ops action |
 |---|---|---|---|
 | 22132735 | traj-v9d-factored-ep0083 | ops' §10.0c freeze TEST. **COMPLETED 19:34** on `ise-4090-21` (4 h 14 m) | **Done.** Ledger **§206**: first cut vs mild mean **+0.38 / +0.30** (not M1-neg, not M1). Taylor vs L1 mean **+0.43 / −0.17** (inside FR43 noise). Decide 5.4 / 3.6 ms. Never resubmit the cancelled train |
-| 22155641 / 42 / 43 / 44 | alloc-r20w2 / alloc-r56w4-k08 / alloc-vgg16-flops / alloc-r56-c100 (`tree_v9d`, untyped, nice 24, `--no-requeue`) | A0b | **41 COMPLETED 20:11 §207 HEADROOM** at 0.8 and 0.35, FLAT at 0.6. **42 COMPLETED 20:04 §208 HEADROOM** at keep 0.8. **43 / 44 still R** (n=28 / 16 of 60). Never a TEST row. No train action from ops |
+| 22155641 / 42 / 43 / 44 | alloc-r20w2 / alloc-r56w4-k08 / alloc-vgg16-flops / alloc-r56-c100 | A0b | **41–43 Done §207–209.** **44 COMPLETED 22:55 §210 FLAT** both keeps. First v10 catalog stays C10. Never a TEST row |
 
-QOS **7/8** at 19:56. The free slot is held for the fixed-target smoke. Ops does not fill it. *21:05:* QOS **7/8** (Stage-4, Budget, A0b 43 / 44, v10 train 22156116, controls 22156061 / 62). The idle slot is not held any more: ping, do not invent.
+QOS **7/8** at 19:56. The free slot is held for the fixed-target smoke. Ops does not fill it. *21:05:* QOS **7/8**. *22:09 sitting close:* QOS **6/8** (A0b 43 COMPLETED). Two idle; nothing registered waits; do not invent.
 
 **v10 fixed-target train (sitting, 20:05–20:45; registered in the queue file "v10"; all in `/home/paretsky/scratch_audit/tree_v10`, provenance `PROVENANCE_v10.txt`).**
 
@@ -198,13 +198,60 @@ QOS **7/8** at 19:56. The free slot is held for the fixed-target smoke. Ops does
 | 22155997 | v10-smoke-eval | afterok 22155996: the smoke actor on the thin pair at `SIZE_MATCH=param:0.8`, FT 1 epoch. **COMPLETED 21:03** (exit 0) | None. **Never quoted** |
 | **22156116** | v10-fixedtarget-train | The train: seed 42, nice 30, 7 d wall, probe targets 0.8 / 0.6. Replaces 22156018, cancelled at 20:26 before it ever started. **R since 21:04** on `cs-4090-04`: the sitting released it after both smokes COMPLETED with all six checks green | **Never scancel; never change its recipe.** **Start check (green at 21:05):** banner `\| v10: fixed_target=1 state_sens=1 … gamma=1`; `SPECTRA_FT_AUG_GPU': '1'`; `fixed target: keep x…` at each reset. **Health (notes, never results):** `PPO update`, `PROBE … vs_mild=…`, `Snapshot frozen`. Apply the queue file's NO-GO rule at update 40. **Freeze TEST:** only freezes after update 20, by the queue file's v10 TEST rule (actor at κ 0.8 and 0.6 against the two mild-landed controls below). **Never** TEST a pre-update-20 freeze. Never change its recipe; its resume carries its own `FT_AUG_GPU=1` from episode 0 |
 | 22156117 | v10-fixedtarget-train-r1 | Resume afterok 22156116 (nice 0). Replaces 22156019 | None |
-| **22156061 / 62** | v10-mildland-k080 / k060 | The mild-landed controls: `baseline_c10_mild_traj_gonce` + `SPECTRA_FIXED_TARGET=1`, thin pair, P, loader crop+flip, walk 40/10, 6 passes, floor off, `SIZE_MATCH` = `SIZE_POINTS` = `param:κ`, final FT 100 from the origin, seed 42. R since 20:17 on `ise-4090-16` / `-21` | **Start check:** `fixed target: keep x0.800` (or `x0.600`) `… (eval…)` per net, and the walk plays 0.9. **On COMPLETED:** one PRELIM ledger control section with the `[eval] TRAJ param:κ` lines and the final-FT TEST of the size point per net. It is the control for every v10 freeze TEST; never resubmit it per freeze. A net with `TRAJ … param:κ … NONE` ⇒ report |
+| **22156061 / 62** | v10-mildland-k080 / k060 | Mild-landed controls | **61 §211:** r20 **−0.4 @ 0.774**, r56 **−2.1 @ 0.799**. **62 COMPLETED 02:14 §212:** r20 **−2.9 @ 0.584**, r56 **−5.1 @ 0.600**. Never resubmit per freeze |
+| **22228972 / 73** | v10-greedyland-k080 / k060 | Ido GO 08:06: greedy-landed Pareto counterparts (profile `l1_traj_gonce` = Gilad greedy), same TEST lines as 61/62 | **72 COMPLETED 10:37 §214:** r20 **−0.2 @ 0.782**, r56 **−2.4 @ 0.788**. **73 COMPLETED 11:56 §216:** r20 **−2.4 @ 0.595**, r56 **−4.7 @ 0.600**. Never agent rows |
+| **22228974** | v10-randland-k060-r56 | Ido GO 08:06: one random-landed seed at κ 0.6 on r56-w4 (WIN cell) | **COMPLETED 11:49 §215:** r56 **−5.1 @ 0.564** (gap 0.036 — flag). Never agent rows |
+| **22228975 / 76** | v10-mildflop-k060-vgg16 / dgr56 | Ido GO 08:06: FLOPs-column mild at keep 0.6 (chenyaofo VGG-16 C10 / DepGraph R56). **No `FIXED_TARGET`** — v10 landing is params-only; `SIZE_MATCH=flop:0.6` is the first point at/below | **75 COMPLETED 10:02 §213:** VGG-16 **−0.0 @ FLOPs 0.593** (params 0.623, gap 0.007). **76 COMPLETED 13:06 §217:** DepGraph R56 **−0.1 @ FLOPs 0.599** (params 0.638, gap 0.001). Never agent rows |
 
 **Never (adds to §10.6 and §10.0e):**
 - Resubmit, release or resume a stopped train or held arm (C1, C2, factored, grouptoken, ft40). Their resume bundles are for a sitting.
 - Write ARM-FLAT or ARM-NEG lines for the stopped arms. Ido stopped them; the rule did not.
 - Build or smoke the fixed-target train from ops, change its recipe, or point any other train's resume at `tree_v10`.
 - Quote a v10 probe score or a smoke number as a result.
+
+### 10.0g 4 Oct sitting close (Opus 5.5 hand-off ~22:08; Ido paste)
+
+Absorb; does not reopen stop3 / NVML / factored. Canonical v10 rows stay in §10.0f. Queue file "v10" is the TEST rule.
+
+**Smoke bugs, all fixed in `tree_v10` before 22156116 started (train smoke 22155996 ran the old rules; eval smoke + train run the new ones):**
+- Walks end only at kept ≤ κ (not κ + 0.005). A TEST walk that stops above κ has no size point.
+- Any miss is penalised (the 0.005 forgiveness would pay stalling just short of κ).
+- Probe targets are the TEST's 0.8 and 0.6 only (22156116 replaced never-started 22156018). Tests **14/14** + 163/163.
+
+**Ops until the first eligible freeze:**
+- **22156116** R since 21:04 on `cs-4090-04`. Health notes only (`PPO update`, `PROBE … vs_mild`, `Snapshot frozen`). **NO-GO at update 40:** write `V10-NO-GO 22156116` at the top of way-ahead §7 and ping Ido; never scancel.
+- Freeze TEST only after PPO update 20, by the queue file. First TEST: first such freeze with `vs_mild ≥ +0.5`; if none by update 60, TEST the best post-20 freeze as the null read. **Never** TEST a pre-update-20 freeze. One freeze TEST in flight. Actor vs mild-landed **22156061 / 62** at κ 0.8 and 0.6 on both thin nets (A0b §207 / §208: all four cells). WIN: ≥ **+1.0 pp** on r56-w4 at κ 0.6 and no cell ≤ **−1.0** (Ido 6 Oct 01:32; r20-w2 is a disaster guard, not a veto). Probe TEST-trigger stays `vs_mild ≥ +0.5` after update 20. A walk that never reaches κ is a MISS = NEG for that cell. Quote landed sizes; flag a gap > 0.02. Expect r20-w2 landings up to ~0.026 below κ (channel granularity). Freeze TEST: loader crop+flip, **never** `FT_AUG_GPU`.
+- Timing: update 20 ~2 days (VGG-13 step ~23 s at 12/4). First TEST likely ~8 Oct. **Gilad 8 Oct slides: v10 is the design, the smoke, and the registered read — not a result.**
+- Mild-landed **22156061 / 62** On COMPLETED: one PRELIM control §; `TRAJ … NONE` ⇒ report.
+- A0b **22155644 COMPLETED** §210. First v10 catalog stays C10.
+- **Ops 6 Oct 01:38 (Ido GO 01:32).** M1 kinder/worse bar **1.0 pp**; WIN net **r56-w4**; r20-w2 disaster guard only. **22288423 R** `v9d-tauoff-mild-dgr56` (`tree_v9d`, `ise-4090-08`): N3 line + τ=30, 10 passes, `MIN_PARAM=0`, `ROLLBACK=0`, P + loader crop+flip, never `FT_AUG_GPU`, `flop:0.6,0.47,0.39`, 100-ep origin FT. Pair N3 **21767189**. On COMPLETED: PRELIM vs §157 at flop 0.47/0.39; PATH-SAME if widths match N3. **22288374 R** `sel-k035-dgr56` (`tree_v9d`, `ise-pheno-09`): keep **0.35**, l1/taylor/nap_f/random/anti_l1, budgets **0+40**. **Never a TEST row.** Read jsonl with keep=0.35. QOS **6/8**. M1-v10 WIN +1.0. Living tracker `docs/NEXT_DEV_PHASE.md`. Never N8/S3.
+- **Ops 5 Oct 20:24 (VPN back).** Pareto heur **22228972–76 all COMPLETED** §§213–**217**. **QOS 3/8** (5 idle — do not invent). v10 PPO-16 / ep 63; freeze ep0015 / ep0031 NEVER TEST. Budget freeze **ep0251** — do not TEST from ops. Living tracker `docs/NEXT_DEV_PHASE.md`. Never N8/S3.
+- **Ops 5 Oct 08:13 (Ido GO 08:06).** Pareto heuristic counterparts **22228972–76** all **R**, start checks green (table rows above). Paper TEST pin: P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, 100-ep origin final FT, seed 42. On COMPLETED: PRELIM §§213+; never agent rows; `TRAJ … NONE` ⇒ report. **QOS 8/8.** Do not invent more. Never TEST v10 ep0015. Never N8/S3.
+- QOS **6/8** at 22:09 (Stage-4, Budget, v10, two mild-landed, A0b 44). **Two idle. Nothing registered waits on them. Do not invent.** Commits `62149cf` / `909f81f` already pushed; ops does not restamp those.
+
+### 10.0h 7 Oct science sitting (Opus 5.5, ~03:10; Ido's prompt `docs/PROMPT_FABLE_OCT7_SITTING.md`; supersedes §10.0g where they differ)
+
+Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This block is what ops needs to heartbeat.
+
+- **QOS.** The live cap is **11** (`sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13), not 8. At 03:40: 11 R (two trains, nine sitting cells) and 3 sitting PD on QOS, which start by themselves. When the queue empties and nothing registered waits: ping, do not invent.
+- **Jobs.** All are independent no-agent cells under the paper TEST pin, Features `rtx_6000|rtx_4090`, 24G, `Requeue=0`.
+  - `tree_v10`, sbatch only, src untouched:
+    - **22340232 / 33**: greedy 4-rate / 5-rate walks landed at κ 0.6, thin pair (the step-size ladder).
+    - **22340234 / 35**: L3a, cosine from lr 0.1, final FT from N3 21767189's / §212 22156062's saved `traj_models`.
+  - `tree_v10h` = `tree_v10` + default-off `src/alloc_walk.py` + the final-FT schedule (`PROVENANCE_v10h.txt`). **Never point a train, a resume or a freeze TEST at it.**
+    - **22340387 / 88**: L3b, 1-cycle final FT.
+    - **22340391–94**: allocation walks, sens vs uniform, κ 0.6 and 0.8, thin.
+    - **22340523 / 24**: allocation walks, sens vs uniform, DepGraph R56 landed params 0.47.
+- **Logs.** `/home/paretsky/scratch_audit/tree_v10{,h}/runs/slurm_logs/spectra_<job>.out`.
+  - Grep: `\[alloc\]|\[eval\] TRAJ|final_ft|fallback|Traceback`.
+  - Start checks: an alloc job prints one `[alloc] <net>: <kind> alpha=0.5 plan keeps x… (target x… = walk target − 0.02)` line per net. An L3 job prints `final_ft from …/traj_models` and its recipe, `sgd lr=0.1 … cos e100` (L3a) or `warmcos w30 e100` (L3b).
+  - An `[alloc] … fallback` line means the walk stalled above κ. Report it; it is not a crash.
+- **On COMPLETED.**
+  - One PRELIM ledger § per cell from **§221**; the sitting writes the ones it sees.
+  - Quote only `[eval] TRAJ final_ft` TEST lines, with landed params and FLOPs. The walk's own TRAJ lines (before the final FT) and in-walk val are never quoted.
+  - L3 honest gain: `python readers_s30/scripts/final_ft_readout.py <new run dir> <reference run dir>`. New run dirs are `tree_v10{,h}/runs/job<id>`; references are `tree_v9c/runs/job21767189` (N3) and `tree_v10/runs/job22156062` (§212). Each run is read on its own. The L3 Δ is the new honest minus the reference honest at the same label. The printed ADOPT / KILL flags are the 29 Sep walk-vs-final rule, not the L3 call.
+- **Flag already seen.** Greedy 5-rate on r20-w2 landed at params **0.538**, a gap of 0.062 below κ (one 0.6 step overshoots on a 2/4/8-wide net). Not equal-size; r20-w2 is the guard net, and r56-w4 decides.
+- **Failure:** report with the last 30 lines, and do not resubmit without the sitting or Ido. Unchanged: never scancel the trains; do not TEST v10 ep0111; Budget resume NO-GO; never N8 / S3.
 
 ### 10.1 Live jobs (30 Sep 13:20)
 
@@ -283,8 +330,8 @@ When one fires, write "MILESTONE <id>" with its numbers and ledger § at the top
 
 | Id | Fires when | Why it matters | The next sitting then |
 |---|---|---|---|
-| **M1** | A freeze TEST is at or above mild (21729557) on **both** thin nets: no size point more than 0.5 pp worse at equal keep. **And** it is ≥ 1 pp kinder at a size point, or its `val_best` is deeper (keep ≥ 0.03 lower) at a Δ no more than 0.5 pp worse. **And** the census says it is not a mild clone | The first SPECTRA agent to beat its own heuristic under an honest protocol: the thesis claim | Coverage-set TEST of that freeze; N8 under roadmap G5 (a pre-registered conditional GO, if Ido adopts it; otherwise ask him) |
-| **M1-neg** | Two freeze TESTs are mild clones, or both are more than 0.5 pp worse than mild on both nets | Clean val and crop+flip were not enough to leave mild | Diagnose before any new train: reward replay (O38); N10 if a census allows it; the action menu |
+| **M1** | **(Ido 6 Oct 01:32: 1.0 pp bar; r56-w4 is the WIN net.)** A freeze TEST vs mild 21729557 at equal keep: **r56-w4** has no point more than **1.0 pp** worse, **and** is ≥ **1.0 pp** kinder at a size point or its `val_best` is deeper (keep ≥ 0.03 lower) at a Δ no more than 1.0 pp worse. **Census:** not a mild clone **and** ≥ 2 distinct actions on the TEST net. **r20-w2 is a disaster guard only** (cliff / first-cut worse by ≳ 3 pp fails M1); it does **not** veto on 1 pp noise (RW43). Historical M1-neg (4 Oct, 0.5 pp / both nets) stays on the record; **new TESTs use this bar** | The first SPECTRA agent to beat its own heuristic under an honest protocol: the thesis claim | Coverage-set TEST of that freeze; N8 under roadmap G5 only after a v10-class recipe, not the band-reward clone |
+| **M1-neg** | Two freeze TESTs are mild clones / constant-one-action, or both are more than **1.0 pp** worse than mild on **r56-w4** at equal keep | Clean val and crop+flip were not enough to leave mild | Diagnose before any new train: reward replay (O38); do not start N8 on this recipe |
 | **M2** | PPO update 10 (~episode 40): ev > 0 on the last 3 updates **and** `gap_to_uniform` > +0.05 over the last 8 episodes. Or §9.2 flag 1 fires | Early health. ev was ~0 at updates 1–3, against 0.45–0.88 in the control | Note only; a flag is not a kill |
 | **G2 trigger** | The first of: (a) you submit the first M1 freeze TEST (the first freeze after update 20, or the episode-120 fallback); (b) the no-agent ladder has drained: two QOS slots free and nothing PD to fill them (likely first, ~2 Oct) | `tree_v9d` is mostly recipe-independent; building it before the M1 verdict saves ~half a day of an N8-ready slot (roadmap §3) | Build `tree_v9d` + smoke; submit the SVHN / Fashion-MNIST hold-out checkpoints (roadmap §2b) |
 | **M3** | (d) met (§10.3 item 3). **Fired 30 Sep 11:55** (§152); twins 3/3 at 12:50 | Every TEST walk moves to crop+flip | Done: 21730506 → 21809595 (Ido GO 12:34) |

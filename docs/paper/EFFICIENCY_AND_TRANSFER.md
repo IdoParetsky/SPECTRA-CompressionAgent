@@ -8,18 +8,26 @@ Tools: `scripts/cost_readout.py` (login node, zero GPU), `scripts/bench_deploy.p
 
 On accuracy at a given compression, focused SOTA on its home benchmark is ahead. On DepGraph's own ResNet-56 checkpoint, our no-agent walk plus final fine-tune lands at −0.46 pp at 2.11× FLOPs on the full 10k test set, against DepGraph's +0.24 pp (ledger §157). Gilad's directive stands: never claim a beat there. SPECTRA's contribution is a **frozen generic agent**. It is trained once offline, then applied to unseen CNN families and datasets with no per-target search, no agent training and no per-layer ratio tuning. The paper should argue from the costs that design removes, and from the breadth of transfer, not from the accuracy column. It should also say plainly where the design does not pay yet (§6.2).
 
-## 2. Bottom line (1 Oct)
+## 2. Bottom line (1 Oct; Point A and stale lines refreshed 7 Oct)
 
-- **The agent's own cost is negligible.** The Stage-4 actor has 2.73 M parameters (10.9 MB in FP32). Compared with a heuristic walk on the same GPU type, an actor adds at most 0.33 s per step on R56-w4 and 0.004 s on R20-w2. That is about 0.4% of a step. Peak GPU memory is the same, 0.36 GB, for actor and heuristic walks on an RTX 3090. Both figures are upper bounds until the runner has an explicit agent timer (§3.4).
+- **Point A: what we aim to win against SOTA (7 Oct).** Not accuracy at DepGraph's, AMC's or HRank's home cells. The claims, in order:
+  1. Per-target search cost is zero: one frozen agent.
+  2. Wall-clock for K ≥ 2 targets against a per-target method. K* = 1.8 to keep 0.36 against DepGraph on a 4090 with the 12/4 fast walk; about 3 / 8 with the 40/10 walk (§7).
+  3. Transfer and genericity: unseen families and datasets, no per-target agent (§8).
+  4. Decision time of 3–8 ms, as a footnote (§3.4).
+  5. Deployment throughput on VGG. CIFAR-ResNet GPU latency is almost flat for every method, so it is not a headline (§5.3).
+  - **We lose at K = 1:** 108.4 min against DepGraph's 85.1 at its 2.11× point, even with the fast walk (FW 22127216, §203). Never claim K = 1.
+  - **The catch, said on the slide:** every cost win is also true of a no-agent mild walk until the frozen actor matches mild at TEST (M1-neg; §6.2).
+- **The agent's own cost is negligible.** The Stage-4 actor has 2.73 M parameters (10.9 MB in FP32). Compared with a heuristic walk on the same GPU type, an actor adds at most 0.33 s per step on R56-w4 and 0.004 s on R20-w2. That is about 0.4% of a step. Peak GPU memory is the same, 0.36 GB, for actor and heuristic walks on an RTX 3090. The explicit timer (4 Oct) puts a decision at 3.0–8.2 ms on a 4090, about 1–2 % of that upper bound (§3.4).
 - **A TEST's cost is recovery fine-tuning.** Fine-tuning is 97.9–99.7% of every CIFAR walk measured (8 jobs, 13 network walks). The rest (pruning surgery, validation pass, state features, bookkeeping and the agent) is 0.4–2.0 s per step. On ImageNet MobileNet-V2, fine-tuning is 84–85% of the walk, and the per-step validation pass is the other 15%.
 - **Per-target search cost is zero.** Per-target learned searches cost 320 s to 3.8 GPU-hours on CIFAR. On ImageNet they cost 25 GPU-hours (EagleEye) up to 864 (NetAdapt, by EagleEye's estimate) (§4.1–4.2).
-- **One target on CIFAR is not a win at the current TEST recipe.** On an RTX 4090, our 40/10 walk on ResNet-56 takes 3.6 h (down to 0.70 of params kept) or 9.1 h (down to 0.36), plus 16 min per final fine-tune. DepGraph takes **85 min** per target on our 4090 (job 21943448). OCSPruner takes 26 min on a 4090, including training the network from scratch.
+- **One target on CIFAR is not a win at the current TEST recipe.** On an RTX 4090, our 40/10 walk on ResNet-56 takes 3.6 h (down to 0.70 of params kept) or 9.1 h (down to 0.36), plus 16 min per final fine-tune. DepGraph takes **85 min** per target on our 4090 (job 21943448). OCSPruner takes 26 min on a 4090, including training the network from scratch. The 12/4 fast walk does not change that: at DepGraph's 2.11× point it costs 108.4 min against 85.1 (FW 22127216, SLOWER, ledger §203).
 - **DepGraph re-run on our GPU is in.** Job **21943448** COMPLETED 2 Oct 03:11 (2.3 h, TB=0): Torch-Pruning v1.6.1 official pipeline on an RTX 4090 from the same released checkpoints we prune. Numbers in §4.5. Never a ledger row. Never “beats.”
-- **Several targets amortize.** One walk passes through every size point, so each extra target costs one final fine-tune: 15.7–16.6 min for R56, 8.6–8.8 min for VGG on a 4090. Against DepGraph on a 4090, break-even is about 3 targets for the 0.70-deep walk and about 8 for the 0.36-deep walk (§7).
+- **Several targets amortize.** One walk passes through every size point, so each extra target costs one final fine-tune: 15.7–16.6 min for R56, 8.6–8.8 min for VGG on a 4090. Against DepGraph on a 4090, break-even is about 3 targets for the 0.70-deep walk and about 8 for the 0.36-deep walk at 40/10. With the 12/4 recovery, measured on FW 22127216, it is **1.8** targets to keep 0.36 (§7).
 - **Three cost levers are measured or measurable.**
   - The 12/4 recovery budget runs 3.3× fewer fine-tune epochs than 40/10 (measured).
-  - A no-fine-tune proxy, such as BN recalibration, would make the walk take minutes. The proxy-fidelity cell (21941343–48, **COMPLETED**, ledger §189) is **uninformative** at these cut sizes (ceiling ρ +0.41). Widen cuts before reading 12/4 vs 40/10.
-  - CIFAR fine-tuning is input-pipeline-bound, so GPU-side augmentation is a free speedup if an equivalence A/B passes (§3.3).
+  - A no-fine-tune proxy, such as BN recalibration, would make the walk take minutes. No proxy passed. The first proxy-fidelity cell (21941343–48, ledger §189) was **uninformative** at its cut sizes (ceiling ρ +0.41). With wider cuts (21970086–89, §195), none of BN, no fine-tune, 12/4 or 40/10 ranked validly. The lever is closed for now.
+  - CIFAR fine-tuning is input-pipeline-bound. GPU-side crop+flip runs 1.41× faster per epoch and passed its TEST equivalence (D5-bis + RW43, §196). It is adopted for new cells, never for a live train, a resume or a freeze TEST (§3.3).
 - **No CNN work transfers a frozen agent across families and unseen datasets.** The closest works either transfer within one architecture or warm-start a new search (§8).
 - **Deployment metrics were measured on our GPUs.** Job **21942378** (RTX 4090, COMPLETED 01:08) records latency at batch 1, 64 and 256, throughput, peak memory and energy per image. Most pruning papers report FLOPs only (§5).
 
@@ -310,6 +318,7 @@ Table to fill (one row per architecture; Δacc from the ledger section of that r
 3. **The one-time train is not free.** It is 31.8+ GPU-h so far, and the chain total gets reported. It pays back only if the agent is reused across targets.
 4. **Accuracy at equal compression on home benchmarks** (ledger §157).
 5. **The NEON precedent has the same shape.** NEON's frozen agent (NEON 5) beats AMC 4 on time, but it is slower than AMC 1 on all three dataset sizes: 0.67 vs 0.62, 5.81 vs 3.25 and 13.35 vs 4.03 min (Table 7, §8). NEON's own time is "dedicated to the re-training of the pruned layers", just as SPECTRA's is the recovery fine-tune.
+6. **Every cost claim above is also true of a no-agent mild walk.** That holds until a frozen actor matches mild at TEST, which no TESTed actor has done yet (M1-neg; ledger §200, §218). Present cost and transfer as properties of the frozen-policy pipeline, with this caveat, until an actor row clears M1.
 
 ## 7. Break-even over K size targets
 
@@ -324,7 +333,7 @@ One-time costs are excluded on both sides: SPECTRA's agent train (§3.2) and the
 | Graph metanetworks, 60 + 60 | 43 min | 8.1 | 20 | 4.3 |
 | OCSPruner, from scratch | 26 min | 23 | 53 | 10 |
 
-A walk without per-step fine-tuning (a proxy, if the proxy-fidelity cell allows it) brings W to minutes. K* then drops to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. DepGraph’s **C = 85 min** is now **our** 4090 (job 21943448, ResNet-56 5104 s) and replaces the third-party 84 min. The 12/4 column is **measured** on FW **22127216** (W = 127.3 min to keep 0.36, F = 13.0): K* vs DepGraph is **1.8**, not the earlier 2.4 projection (W ≈ 165). At DepGraph's 2.11× point alone, W = 95.0 min and K=1 cost is **108.4 min > 85.1** (**SLOWER**, ledger §203). The graph-metanetwork rows stay third-party.
+A walk without per-step fine-tuning would bring W to minutes, and K* to about 1 against everything except OCSPruner, where the final fine-tune alone (16 min) is most of its 26 min. No proxy passed the fidelity cells (§189, §195), so that remains a projection. DepGraph’s **C = 85 min** is now **our** 4090 (job 21943448, ResNet-56 5104 s) and replaces the third-party 84 min. The 12/4 column is **measured** on FW **22127216** (W = 127.3 min to keep 0.36, F = 13.0): K* vs DepGraph is **1.8**, not the earlier 2.4 projection (W ≈ 165). At DepGraph's 2.11× point alone, W = 95.0 min and K=1 cost is **108.4 min > 85.1** (**SLOWER**, ledger §203). The graph-metanetwork rows stay third-party.
 
 ## 8. Transfer: closest prior work and the evaluation protocol
 

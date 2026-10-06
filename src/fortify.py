@@ -591,6 +591,23 @@ def eval_final_ft_lr() -> float:
     return max(1e-6, _env_float_or("SPECTRA_EVAL_FINAL_FT_LR", 0.01))
 
 
+def eval_final_ft_schedule() -> str:
+    """
+    ``SPECTRA_EVAL_FINAL_FT_SCHEDULE``: "" (default) = cosine from the peak, stepped per epoch;
+    ``warmcos`` = linear warmup over :func:`eval_final_ft_warmup` epochs to the peak, then cosine per
+    batch. A large peak with ~30 % warmup is the 1-cycle retraining shape of Le & Hua (ICLR 2021).
+    """
+    name = os.environ.get("SPECTRA_EVAL_FINAL_FT_SCHEDULE", "").strip().lower()
+    if name not in ("", "warmcos"):
+        raise ValueError(f"SPECTRA_EVAL_FINAL_FT_SCHEDULE={name!r}: expected '' or 'warmcos'")
+    return name
+
+
+def eval_final_ft_warmup() -> float:
+    """``SPECTRA_EVAL_FINAL_FT_WARMUP`` (1): warmup epochs of the ``warmcos`` final schedule."""
+    return max(0.0, _env_float_or("SPECTRA_EVAL_FINAL_FT_WARMUP", 1.0))
+
+
 def eval_final_ft_batch() -> int:
     """``SPECTRA_EVAL_FINAL_FT_BATCH`` (128): fixed, so the final recipe does not follow the GPU model."""
     return max(2, _env_int_or("SPECTRA_EVAL_FINAL_FT_BATCH", 128))

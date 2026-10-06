@@ -1,5 +1,9 @@
 # Way ahead — for the next science sitting (written 30 Sep ~03:00 IDT, Opus 5.5 MAX; restamped 30 Sep ~13:20 after Ido's 12:34 GO)
 
+**Sitting 7 Oct (Ido §2.6+ paste ~01:58, GO fill QOS).** Fire-ready prompt: `docs/PROMPT_FABLE_OCT7_SITTING.md`. Answers: **§5.2**. S3 for Gilad: `docs/paper/GILAD_OCT8_TRACKER.md` **§8**. Apply **Recommended** on every fork; Ido is asleep. Do **not** start N8 / S3 / a second DRL train / Budget resume.
+
+**Prior must-do still in (Ido 11:22) — the four cheap leads, not leftovers.** Full text: **§5.1**. (1) Zero GPU: nap_f **group** vs A0 sensitivity as an allocation prior. (2) Zero GPU: Budget STOP census on **21940311**. (3) One-cycle / cosine **final** FT on N3's saved 2.11× vs 100-ep SGD CROSS-OFF. (4) NAP-F remaining uses: descriptor / v10 `STATE_SENS` freeze; **not** S3 / in-loop `NAP2Predictor.score()` / pf walk-stopper. Sitting sbatches. Ops does not invent from heartbeat.
+
 Read this first, then the §7 log at the bottom (what ops saw since the handoff), `docs/SITTING_GPU_QUEUE.md` (live queue) and the ledger rows it cites. The ops handoff, pre-authorized actions and milestones M1–M7 are `docs/OPS_HANDOFF_RUNBOOK.md` §10. The diverse train is `docs/N8_DIVERSE_TRAIN_ROADMAP.md`. The Gilad explanation of the three 29–30 Sep findings is `docs/paper/GILAD_NEWS_30SEP.md`. What was built and run is in `docs/RUN_RECORD_29SEP_V9C.md`. The earlier option list and ladder are `docs/PROMPT_FABLE_NEXT_SITTING.md` §13. This file supersedes §13.3's statuses.
 
 ## 0. State of play
@@ -162,6 +166,85 @@ P = projected probability that the option passes its own adopt rule. Cells: `SIT
 8. **Gilad 8 Oct.** Tracker B3 / B7, slides 3–4 and question 3 carry the selection negative. Add M1 when 21990060 lands.
 9. **After D5-bis and RW43 the GPU ladder is empty.** The next cells depend on M1 (21990060) and on the pf-w calls. Register them in that sitting; ops pings if a slot idles.
 
+### 5.1 Sitting brief — 6 Oct 09:47 (Ido). Continuous method + action menu + cheap cells
+
+Living tracker: `docs/NEXT_DEV_PHASE.md`. Do **not** start from ops. Ido pastes. Wait commute **§2.6+** before a new tree. Do not overlay `tree_v9c` / `tree_v9d` / `tree_v10` while those jobs are R/PD.
+
+**Literature-first is the standing method (Ido 6 Oct).** The last development breakthroughs (protocol P, crop+flip as the walk lever, allocation vs selection, A0 sensitivity, PruningBench-style 100-ep caption) came from a **pinpointed literature pass**, then a small registered cell — not from another ranking-menu train. Every action item below opens with a 1–2 hour Scholar / primary-source pin on that topic, then a one-change design. Do not skip the pin because the cell looks cheap.
+
+**10k companion (paper freeze).** Live recipe stays P (5k). Align to SOTA with a 10k / labelled cross-fit column beside literature and a different-FT caption. Do not switch the live recipe. Ledger quoting rules + §2.4; draft §4.2 / §7 item 9.
+
+**Action menu (required sitting topic).** Current heuristic menu is **1.0 / 0.9 / 0.8**; v10 adds **0.7 / 0.6** so six passes can reach keep 0.35. Scan:
+
+- AMC-style **per-layer (per-group) ratios**
+- **continuous keep** vs a discrete menu
+- **importance-threshold** (cut until a budget)
+- whether cuts **> 0.2** or **< 0.1** are justified vs **more passes**
+- dynamic keep from sensitivity is already **A0**; a learned rate-head is a **next tree**, not a patch on **22156116**
+- the collapse to 0.8 was the **band reward**, not a missing 0.05 step
+
+NEON (Hirsch & Katz 2022 §3): the action **is** a pruning ratio; each step **replaces** the layer at the new width, random-init, trains that layer **to convergence**, then continues. SPECTRA's **proposal** listed keep-rates including **0.7 / 0.6**; the implementation dropped them when rates ≤ 0.7 never recovered under layer-only / old FT (draft A.8). **Now that those root causes are cleared** (P, crop+flip, inherit-survivors, 40/10):
+
+| NEON piece | Try / don't | Why |
+|---|---|---|
+| Keep 0.6 / 0.7 on the menu | **Try on the next tree** (v10 already has them for TEST walks) | Old “≤0.7 never recovers” was the FT, not the menu |
+| More passes / walk until τ | **In flight:** tau-off **22288423** (10-pass, τ=30). Do not a DRL τ-off train before that read | Analog of NEON iterating until the preference is met |
+| Layer replacement + train new layer to convergence | **Do not** | C-G / C-G+ **12–54 pp worse** under P+aug (§156 / §163) |
+| Cubic / NEON-raw reward | **Do not another band train** | C1/C2 collapsed to largest-cut; thin walks never miss |
+| Preference sweep τ ∈ {0,1,5,50} as product knobs | Design-only until a non-constant policy exists | Draft §7 item 8; NEON Fig. 5 family |
+
+**Required sitting work today (Ido 11:22) — four cheap leads after §218 / §219.** These are the sitting's first independent items, not optional leftovers. Open each with a literature pin. Register sbatches here; ops does **not** invent them from heartbeat. None overlay live trees.
+
+1. **Zero GPU — NAP-F as allocation descriptor.** On existing S0 jsonl + A0 sensitivity traces: does nap_f **group** score correlate with per-group fragility? If yes, a sensitivity-weighted keep (not a new ranker) is a one-net no-agent A/B. Ranking ladder stays **stopped** (§219).
+2. **Zero GPU — Budget STOP census** on 21940311 (does STOP ever fire? any net above keep 0.80?). Cheaper than TESTing ep0251 (Ido NO-GO that freeze).
+3. **FT, from-saved:** one-cycle / cosine **final** FT only (Le & Hua) on N3's saved 2.11× architecture vs the 100-ep SGD that was CROSS-OFF. Not a train-FT change. Literature pin: Le & Hua ICLR 2021.
+4. **NAP-F smarter uses that are still open:** (a) v10 `SPECTRA_STATE_SENS` already — wait for a post-20 freeze; (b) group-level allocation prior from (1); (c) **not** L1 replacement, **not** S3, **not** `NAP2Predictor.score()` in the loop, **not** pf walk-stopper (pf-w already hurt).
+5. **Do not:** another L1 vs Taylor vs nap_f at 40-ep; S3; ranking-menu train; seed-43 random re-walk; N8; overlay 22156116.
+
+M1 bar **1.0 pp**, WIN net **r56-w4**, r20 disaster guard only, census ≥ 2. Paper table = equal-keep vs mild on r56 **plus** SOTA 10k caption.
+
+### 5.2 Sitting brief — 7 Oct ~02:10 (Ido commute §2.6+). Recommended = GO
+
+Ido pastes `docs/PROMPT_FABLE_OCT7_SITTING.md`. He is asleep: **take Recommended, fill QOS, do not wait.** Cluster at stamp: QOS **2/8**, Stage-4 resume **21767188** ep **218/250**, v10 **22156116** freeze **ep0111** do not TEST, Budget PREEMPTED NO-GO resume. Ledger **§§218–220**. Trees: do not overlay `tree_v9c` / `tree_v10` src.
+
+**Point A — what we aim to win vs SOTA (Recommended).** Not home-court Δacc vs DepGraph/AMC. Win: (1) per-target search = 0; (2) wall-clock for **K ≥ 2** (FW K* **1.8** to keep 0.36 vs DepGraph 4090; do not claim K=1, FW **SLOWER** 108 vs 85 min); (3) frozen transfer; (4) decide ms footnote; (5) VGG deployment throughput, not CIFAR-R56 latency. Caption: mild shares the cost story until the agent matches it (M1-neg).
+
+**How the agent should “think” (Recommended).** Menu = keep-rates; L1 picks *which*. Thinking = action **depends on state** (κ remaining, group sensitivity, last val cost). Stage-4 band reward made always-0.8 optimal. v10 prices val Δacc at a landed κ so allocation can differ. Health = census ≥ 2, `pmax` not ≥ 0.95 clone. Do not patch 22156116.
+
+**0.7/0.6, FPGM, dual MDP (Recommended).** Agent 0.7/0.6: unknown until v10 TEST + census. Heuristic: 6-pass 3-rate vs 5-rate landed κ 0.6 r56 tonight (B3 in the prompt). FPGM ≈ L1 (τ 0.85–0.89); keep L1; ranking ladder stopped §219. Dual MDP / factored: closed (§137, §206). Benchmark: equal keep, same FT, census, M1-v10 1.0 pp on r56-w4, family hold-out for learned scores, 10k companion beside SOTA.
+
+**Three seeds (Recommended).** DRL convention (Henderson 2018) ≥ 3 *training* seeds. Pruning SOTA often 1 or 3. SPECTRA s42/s43/s44 = three trains, not a NEON-paper rule (NEON = 28-dataset CV). Audit §54 killed sampled “seed” spreads. Deterministic eval. 3 seeds for random; 3 DRL seeds only for a non-constant actor. No 3-GPU clone of uniform 0.8.
+
+**Widen catalog (Recommended).** Catalog A emitted. **N8 after M1-v10** on a v10-class reward, not tonight. First v10 catalog stays C10 (A0b C100 FLAT). Hold-outs stay hold-outs.
+
+**G1 PASS row (Recommended).** ADOPT **descriptor / v10 state**, not ranker. τ 0.57–0.66 vs hand ≤ 0.42 is ranking quality (gradients). S2 HARM = it does not recover better at 40 ep. Improvement already in SPECTRA: `SPECTRA_STATE_SENS`. Lead 1 tonight; not S3.
+
+**B4 Michael (Recommended).** Not GPU. Tracker §5 Q2 for 8 Oct. Code absorbed; weights not. Do not `NAP2Predictor.score()` in-loop.
+
+**R3 (Recommended).** Per-group sensitivity is an **observation channel** so “how many” can depend on which group. Not a second agent. v10 already has it.
+
+**NAP avenue (Recommended).** Lead 1 → optional weighted-keep allocation A/B. Wait v10 freeze. Not S3 / in-loop predictor / pf stopper.
+
+**HEADROOM (Recommended).** Sitting jargon, **4 Oct A0**: some allocation beats uniform at equal keep after 40-ep. **A0 3/3 is why v10 exists.** Do **not** start a second DRL train. Fill idle with no-agent cells.
+
+**Stage-4 (Recommended).** Fuse done; resume R to governor. No second resume. No scancel. No re-TEST ep0179. Exciting GPUs are the no-agent list.
+
+**K (Recommended).** Number of targets the **same frozen agent** prunes. Product = K≫1. Paper = K≥2 wall-clock. K=1 we lose.
+
+**S3 (Recommended).** Closed. Tracker **§8** is the Gilad write-up. Do not train.
+
+**Fill QOS (first hour):** prompt **B1–B3** + afterok; **A1–A2** on login; **C** only if A1 correlates. Never-list in the prompt.
+
+**Sitting answers (7 Oct ~03:10, Opus 5.5).** Details and calls: queue file, section "Sitting 7 Oct".
+- **A1 does not correlate, so C is not run.** NAP-F's group mean against A0's sensitivity: ρ +0.25 / −0.47 / +0.38 (DepGraph R56, VGG-16, R56-C100). The sign follows depth.
+  - Correction to "G1 PASS row" and "R3" above: `SPECTRA_STATE_SENS` is A0's *measured* loss rise (`src/group_sensitivity.py`), not NAP-F. NAP-F stays a per-channel descriptor.
+  - The summed single-channel ablation does track group sensitivity (ρ 0.77–0.92).
+- **A2.** Budget STOP was played 74 times and extinguished by episode 231. The late policy removes 4 % at 97.5 % of decisions. Same collapse as §200; no action.
+- **B3 premise.** §212 is already 3-rate, and mild never plays 0.7 / 0.6, so 3-rate vs 5-rate mild is the same walk. Run instead: a greedy step-size ladder (4-rate, 5-rate) at κ 0.6 against §216 / §212.
+- **B1 / B2.** Two Le & Hua recipes on the same saved candidates (N3 2.11× / 2.57× / 0.60, and §212 thin): cosine from 0.1 (`tree_v10`) and 1-cycle (`tree_v10h`).
+- **Added cell.** An allocation-following walk (A0's sens rule vs uniform, as an eval policy): thin κ 0.6 / 0.8 and DepGraph R56 at params 0.47. It asks whether the A0 lever survives the walk, and whether a non-learned allocation already clears the v10 WIN bar. This is not a train and not a second actor.
+- **QOS.** The live cap is 11: 11 R + 3 PD at 03:40.
+
 ## 6. Literature used in this cycle
 
 He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, FT recipe, per-stage sensitivity) · Liu et al. ICLR 2019 (rethinking pruning: scratch-B) · Le & Hua ICLR 2021 (retraining schedule matters) · Fang et al. CVPR 2023 (DepGraph; published R56 / VGG-19 rows) · PruningBench 2024 (100-ep FT protocol) · Cai et al. ICLR 2022 (NetAug: augmentation hurts tiny nets) · Hinton et al. 2015 (KD) · Cubuk et al. CVPR 2019 (AutoAugment) · Izmailov et al. 2018 (SWA) · Hirsch & Katz, Information Sciences 2022 (NEON: cubic reward, train-loss stop, patience 10).
@@ -170,7 +253,9 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
-- 4 Oct 20:45 | **v10 fixed-target train** (sitting, Ido GO 19:23; gate A0 HEADROOM 6/6) | Code in `tree_v10`. Smokes 22155996 / 97. Train **22156116** HELD with resume 22156117 (they replace the never-started 22156018 / 19; probe targets cut to the TEST's 0.8 and 0.6). Mild-landed controls **22156061 / 62** (κ 0.8 / 0.6) R | The next sitting reads M1-v10 by the queue file's "v10" rule: freezes after update 20 only; actor vs mild-landed at κ 0.6 on r56-w4, Δ ≥ +0.5 pp = WIN. A0b's consequences decide whether r20-w2 and κ 0.8 also gate. Probe scores are never results. The walk's done rule was changed to "kept ≤ κ" after the smoke; the train runs the new rule.
+- 7 Oct ~02:28 | 3h briefing | QOS **6/8**; sitting **22340232–35 R**; resume ep 218; v10 ep0111 do not TEST | 2 idle sitting; do not invent; next 3h 05:28; canvas 09:30
+- 7 Oct ~02:10 | Ido commute **§2.6+** sitting kickoff | prompt `PROMPT_FABLE_OCT7_SITTING.md`; way-ahead **§5.2**; tracker **§8** S3 closed write-up | sitting fills 6 idle; ops does not overlay trains; no N8/S3/Budget resume/v10 TEST
+- 4 Oct 20:45 | **v10 fixed-target train** (sitting, Ido GO 19:23; gate A0 HEADROOM 6/6) | Code in `tree_v10`. Smokes 22155996 / 97. Train **22156116** (resume 22156117). Mild-landed **22156061 / 62** | M1-v10: freezes after update 20 only; actor vs mild-landed at κ 0.6 on r56-w4. Probe scores are never results.
 
 **M1-neg mechanism** (4 Oct ~12:45, sitting; ledger **§200**, report `docs/paper/GILAD_1OCT_POINTS_REPORT.md` Part III).
 - *Census:* every TESTed actor plays one action at every free decision. Stage-4 (×2 seeds), C2 and ep0131 play 0.8: 16/16 on r20, 60/60 on r56. Budget plays its largest budget and never STOPs.
@@ -321,6 +406,44 @@ Format: `- <date time> | <job / event> | <number, ledger §> | <implication for 
 - 4 Oct 20:21 | v10 smoke **22155996 R** 13 min; mild-landed **22156061 / 62 R** start checks green (keep x0.800 / x0.600, rate=0.9); train **22156018 HELD** | do not release; do not quote smoke; A0b 43/44 still R
 - 4 Oct 20:27 | sitting: held train **22156018 / 19 cancelled before it ever started**; resubmitted as **22156116** (HELD, afterok both smokes) / **22156117** (r1) with probe targets 0.8 and 0.6 | runbook §10.0f has the new ids; the sitting releases 22156116 after the six smoke checks; all four M1-v10 cells are read (A0b §207 / §208)
 - 4 Oct 21:04 | sitting: v10 smokes **22155996 / 97 COMPLETED**, six checks green; train **22156116 released, R** (`cs-4090-04`) | probe walks landed 0.000–0.020 below κ (channel granularity) | ops: start-check lines green; health notes only; NO-GO rule at update 40; freeze TEST only after update 20 by the queue file's rule
+- 4 Oct 21:20 | **3h briefing** | QOS **7/8** (1 idle); v10 **22156116 R** 16 min start-check green (ops confirm); A0b 43/44 still R (58/36 of 60; VGG keep 0.6 budget-40 HEADROOM in-log, not a call yet) | do not invent; never TEST v10 pre-update-20; canvas 23:00
+- 4 Oct 21:48 | A0b VGG equal-FLOPs **22155643 COMPLETED** | **§209** keep 0.6 **HEADROOM** (random1 +1.27 / +1.17); keep 0.35 **FLAT** | FLOPs targets at 0.6; equal-FLOPs 0.35 on VGG is not a lever; never TEST; 2 idle, do not invent
+- 4 Oct 22:08 | sitting close absorbed **§10.0g** | v10 **22156116 R** (PPO-1 in, TB=0); mild-landed 61/62 R; A0b 44 still R; QOS **6/8** (2 idle, nothing waiting) | never TEST pre-update-20; Gilad slides = design/smoke/read, not a result; do not invent
+- 4 Oct 23:20 | A0b R56-C100 **22155644 COMPLETED**; mild-landed κ 0.8 **22156061 COMPLETED** | **§210 FLAT** both keeps (first v10 catalog stays C10); **§211** r20 **−0.4 @ 0.774** (landed gap 0.026), r56 **−2.1 @ 0.799** | 62 still R; v10 PPO-2 / ep 10; QOS **4/8** (4 idle, do not invent); never TEST; never N8
+- 5 Oct 00:20 | **3h briefing** | QOS **4/8** (4 idle); v10 PPO-3 / ep 12 TB=0; 62 still R 4.1 h (r20 FT in-log; r56 walking); A0b 4/4 Done | do not invent; never TEST v10 pre-update-20; canvas 09:30
+- 5 Oct 02:21 | mild-landed κ 0.6 **22156062 COMPLETED** | **§212** r20 **−2.9 @ 0.584**, r56 **−5.1 @ 0.600** | both v10 controls in; v10 PPO-4; QOS **3/8** (5 idle, do not invent); never TEST; never N8
+- 5 Oct 03:20 | **3h briefing** | QOS **3/8** (5 idle); v10 PPO-4 TB=0; first PROBE mild reference in (never quote); Stage-4 fuse ~6 Oct 03:15 | do not invent; never TEST v10 pre-update-20; canvas 09:30
+- 5 Oct 06:20 | **3h briefing** | QOS **3/8** (5 idle); v10 PPO-5 / ep 22 TB=0; freeze ep0015 on disk (NEVER TEST); Stage-4 fuse ~6 Oct 03:15 | do not invent; never TEST v10 pre-update-20; canvas 09:30
+- 5 Oct 08:13 | Ido GO 08:06: Pareto heuristic counterparts **22228972–76 R** | greedy-landed κ 0.8/0.6 thin; random-landed κ 0.6 r56; FLOPs mild flop:0.6 VGG-16 + DG R56 | QOS **8/8**; start checks green; PRELIM on COMPLETED; never TEST v10 ep0015; do not invent more
+- 5 Oct 09:21 | **3h briefing** | QOS **8/8**; v10 12.3 h TB=0 freeze ep0015 (NEVER TEST); Pareto heur 72–76 R ~1.1 h (greedy on r56; no COMPLETED TEST) | do not invent more; PRELIM on COMPLETED; canvas 16:00; next 3h 12:21
+- 5 Oct 10:22 | FLOPs mild VGG-16 **22228975 COMPLETED §213** | **−0.0 @ FLOPs 0.593** (params 0.623, gap 0.007) | QOS **7/8** (1 idle, do not invent); 72/73/74/76 still R; never TEST v10 ep0015; ledger next §214
+- 5 Oct 10:52 | greedy-landed κ 0.8 **22228972 COMPLETED §214** | r20 **−0.2 @ 0.782**, r56 **−2.4 @ 0.788** | v10 freeze **ep0031** on disk (NEVER TEST, still pre-update-20); QOS **6/8** (2 idle, do not invent); 73/74/76 still R; ledger next §215
+- 5 Oct 11:52 | random-landed κ 0.6 r56 **22228974 COMPLETED §215** | **−5.1 @ 0.564** (gap 0.036 — flag; not equal-size vs mild §212 −5.1 @ 0.600) | QOS **5/8** (3 idle, do not invent); 73/76 still R; never TEST v10 ep0031; ledger next §216
+- 5 Oct 22:26 | Stage-4 freeze **ep0179** (probe 0.2888); TEST **22260374 R** (`ise-4090-11`, `tree_v9c`, no timer, `Requeue=0`) | §10.3 one-a-day newest since **22124693** (4 Oct 15:07) | one freeze TEST in flight; do not TEST Budget ep0251; 4 idle remain — do not invent; do not quote the probe as TEST
+- 5 Oct 22:56 | Ido **NO-GO both**: never TEST v10 ep0015/ep0031; never TEST Budget ep0251 | default locked | later v10 TEST only after PPO-20 by the registered gate; do not scancel trains
+- 5 Oct 23:24 | **3h briefing** | QOS **4/8** (4 idle); **22260374** R 59 min TB=0, walking r56-w4 (r20-w2 walk TRAJ in — do not quote); v10 PPO-17 / ep 68 freeze ep0031; probe ep=64 no freeze (never quote); Stage-4 ep 180; Budget ep 263 `pmax=0.995`; fuse ~6 Oct 03:15 | do not invent; Ido NO-GO extra TESTs; canvas 09:30; next 3h 02:24
+- 6 Oct 01:32 | Ido GO (commute §2.5 follow-up): τ-off N3-line cell + S0 keep 0.35; M1 bar **1.0 pp**; r20-w2 not a veto | ops executes, no new tree | sitting: action-menu literature; allocation not a new ranker
+- 6 Oct 01:38 | **22288423 R** tau-off mild 10-pass DG R56 (`ise-4090-08`, τ=30, min_param=0, rollback=0, 100-ep origin); **22288374 R** sel-k035 (`ise-pheno-09`, keep 0.35, l1/taylor/nap_f/random/anti_l1, budgets 0+40) | start checks green; pair N3 21767189; sel never TEST | QOS **6/8**; M1-v10 WIN now +1.0 pp on r56 κ 0.6
+- 6 Oct 02:26 | **3h briefing** | QOS **6/8**; **22260374** R 4.0 h walking r56-w4 (no honest TRAJ); tau-off 49 min step 24; sel-k035 7 masks; v10 PPO-19 ev 0.334 freeze ep0031 NEVER TEST; fuse ~03:15 | do not invent; M1 1.0 pp on §218; canvas 09:30; next 3h 05:26
+- 6 Oct 02:56 | **22260374 COMPLETED §218** M1 does not fire (census 0.8; r56 first −0.74 @ 0.743); **22288374 COMPLETED §219** keep 0.35 40-ep nap_f −0.42 vs L1 HARM | stop ranking ladder; keep L1; no N8/S3 | QOS **4/8**; tau-off still R; fuse ~03:15; ledger next §220
+- 6 Oct 03:16 | Stage-4 **21737123 COMPLETED** fuse at **ep 189**; resume **21767188 R** `ise-4090-07` | start checks 1–3 green; Episode 189/250 continues; `best_score=` pending first episode | not a death; second resume still Ido GO; QOS **4/8**
+- 6 Oct 03:46 | v10 **PPO update 20** (ev 0.359); freeze still **ep0031** | eligibility gate open for a *later* freeze only; NEVER TEST ep0015/ep0031; do not invent a TEST | next probe ~ep 80
+- 6 Oct 05:26 | **3h briefing** | SSH timeout since 04:56 (retry ×2); last live 04:27 QOS **4/8**; resume ep 190; v10 PPO-20 freeze ep0031 NEVER TEST; tau-off step 87 | do not invent while blind; VPN reconnect; canvas 09:30; next 3h 08:26
+- 6 Oct 08:26 | **3h briefing** | SSH still down (~3.5 h, retry ×2); last live still 04:27 | do not invent; catch up tau-off / resume / v10 freeze when VPN; canvas 09:30; next 3h 11:26
+- 6 Oct 09:20 | **VPN catch-up** | QOS **4/8**; resume **21767188** ep **198/250** best_score=0.2888 green; v10 PPO-21 / ep 87 freeze still ep0031 NEVER TEST (probe ep=80 no freeze); tau-off pass **4/10** FLOPs x0.448 in-walk; Budget ep 288 freeze ep0251 NO-GO | do not invent; §220 on tau-off COMPLETED; canvas 16:00; next 3h 11:26
+- 6 Oct 09:47 | Ido pins | 10k companion at freeze; literature-first sitting method; action-menu required (way-ahead **§5.1**); ledger **§2.4**; Pareto canvas restamp | do not switch live P; do not overlay 22156116; NAP-F = state not ranker
+- 6 Oct 11:22 | Ido: four cheap leads are **required sitting work today**, not leftovers | §5.1 items 1–4; tracker §3.1; queue sitting block | (1) nap_f group vs A0 zero GPU (2) Budget STOP census 21940311 (3) one-cycle final FT on N3 2.11× (4) NAP-F remaining uses; HPC `/mnt/archive`→`/archive` at 16:00 does **not** touch SPECTRA (no `paretsky` archive dir, no path refs)
+- 6 Oct 11:29 | **3h briefing** | QOS **4/8**; resume ep **200/250** best 0.2888 green PPO-50; v10 PPO-23 / ep 93 freeze still ep0031 NEVER TEST; tau-off step 311 in-walk, no TRAJ | do not invent; next probe ~ep 96 (never quote); canvas 16:00; next 3h 14:29
+- 6 Oct 14:28 | **3h briefing. Budget PREEMPTED.** | **21940311** PREEMPTED 14:01 `cs-4090-01` ep 299/250 TB=0; **21940314 CANCELLED**; `train_resume.pt` 12:09 in job dir | **Ido GO** for a Budget resume; do not TEST ep0251; do not ARM-NEG; QOS **3/8** (5 idle, do not invent); resume Stage-4 ep 203; v10 PPO-24 / ep 95 freeze ep0031; tau-off step 401; canvas 16:00; next 3h 17:28
+- 6 Oct 14:37 | Ido: Budget resume GO/NO-GO? | ops **NO-GO** (collapsed 4% menu, STOP never fired, completeness curve is not a method cell); bundle exists if he later overrides | do not sbatch; do not ARM-NEG
+- 6 Oct 14:58 | v10 freeze **ep0095** (first after PPO-20, score −4.630); probe ep=96 `vs_mild=−0.125` | **do not TEST** (gate `vs_mild ≥ +0.5` not met); ep0015/ep0031 still NEVER TEST | next probe ~ep 112; update-60 null read still needs GO
+- 6 Oct 17:28 | **3h briefing** | QOS **3/8**; resume ep **208/250** best 0.2888 green; v10 PPO-26 ev 0.561 freeze still **ep0095** do not TEST; tau-off step 497 in-walk no TRAJ; Budget still PREEMPTED (NO-GO resume) | do not invent; sit §3.1; §220 on tau-off COMPLETED; next canvas 23:00; next 3h 20:28
+- 6 Oct 19:58 | tau-off **22288423** walk TRAJ in (still R) | widths **PATH-SAME** vs N3: steps 136/210/267 | do not quote walk; origin FT started; §220 on COMPLETED
+- 6 Oct 20:28 | **3h briefing** | QOS **3/8**; resume ep **212/250** best 0.2888; v10 PPO-28 freeze **ep0095** do not TEST; tau-off R 18.9 h, PATH-SAME, origin FT `size_flop0.47` Epoch ~85/100; Budget NO-GO | do not quote walk / lone 0.60 final; §220 on COMPLETED; next canvas 23:00; next 3h 23:28
+- 6 Oct 21:28 | **22288423 COMPLETED §220** | PATH-SAME steps 136/210/267; 2.11× 10k **−0.94** vs N3 **−0.46**; honest **CROSS-OFF**; `val_best` keep **0.123** walk **−5.42** | do **not** put τ-off into a DRL train; paper DepGraph rows stay N3; QOS **2/8**; 6 idle do not invent; ledger next §221
+- 6 Oct 21:58 | v10 freeze **ep0111** (score −4.230); probe ep=112 `vs_mild=+0.275` | **do not TEST** (gate +0.5 not met); next probe ~ep 128 | never quote probe
+- 6 Oct 23:28 | **3h briefing** | QOS **2/8**; resume ep **214/250** best 0.2888; v10 freeze **ep0111** do not TEST; tau-off **§220** in; Budget NO-GO | sit §3.1; do not train τ-off; next canvas 09:30; next 3h 02:28
+
 - 4 Oct 12:45 | sitting: §200 constant-policy census + reward replay; runbook **§10.0e** rows for FW and A0; report `GILAD_1OCT_POINTS_REPORT.md` | ep0131's TEST (22124693) is already 0.8 at 16/16 r20 and 12/12 r56 decisions | its M1 read will repeat M1-neg's comparison; next sitting: A0 calls, FW call, reward design (GO)
 - 3 Oct 10:00 | H0 retries `21986700/01` R ~8 h | origin TEST DN-40 / MBV2 inside 0.12 pp; start checks ok | first net TRAJ in; do not kill; ledger on COMPLETED
 - 3 Oct 10:00 | pf-w 89 still R step 281, 7 `[proxy]` lines | 24 h wall ~21:39 | readout at end; freeze TEST takes that GPU; 21940321 held

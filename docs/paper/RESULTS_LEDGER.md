@@ -14,6 +14,7 @@
 - Do **not** quote overnight-matrix “Eval Δacc” or train-step “within −10 %” as paper TEST. Those mixes are in §10 and §13–15 for archaeology only.
 - Do **not** describe early C100 failure as “C100 was missing from the 10-net train set.” Early tests were recovery probes and mixed-catalog RL. Frozen 10-net → C100 numbers remain §21. **Ido 17 Sep 14:45:** C9 as *C10→C100 transfer* was **never** the intended paper claim. The claim is NEON-style diverse **train** (architectures × datasets, including C100) preparing a still-more-diverse **TEST**. Recaption §21; do not sell it as dataset-transfer of a C10-only agent.
 - A probe cell `within_budget=True` at ≥98% params is **not** a 2–5% cut.
+- **Paper finalization (Ido 6 Oct 09:47) — 10k companion, do not drop.** Live recipe stays protocol **P** (5k TEST half) for every agent decision, freeze TEST, and same-loop heuristic. Align to SOTA convention **only** with a companion **10k** column (or labelled `crossfit_readout.py` both-halves) beside literature rows, plus a **different-FT** caption. Do **not** switch the live walk/train recipe to full-10k val/TEST. Do not mix 5k P TEST with published 10k numbers in one cell without that caption. At paper freeze: every SOTA-facing table (DepGraph / OCS / HRank / Slimming / SPA) carries the 10k companion; the 5k P half remains the audit / agent-decision column.
 
 ---
 
@@ -39,6 +40,8 @@
 ## 2. Headline Pareto (C10 TEST)
 
 NEON Figure 5 grammar (Gilad 18 Aug): plot **compression vs TEST Δacc** for DRL operating points **and** same-loop heuristics. Coverage matrix is a different artifact (family × dataset transfer). See `GILAD_DIRECTIVES_18AUG.md`. Maintain by appending TEST rows; do not rebuild from chat.
+
+**Current paper-facing frontier is §2.4** (protocol P). §§2.1–2.3 are the legacy-val 10-net actor (do not mix). 10k companion + different-FT caption at freeze (quoting rules). Ops plot: `spectra-pareto-6oct.canvas.tsx`.
 
 ### 2.1 Easy thin ResNet-20 w2 · CIFAR-10 (held out)
 
@@ -67,6 +70,47 @@ Same frozen 10-net actors unless noted. One net, several stop rules. Not a fix o
 | DRL + SVD ranking s42 / s43 / s44 | **20353536 / 20353575 / 20357696** | **−25.6 / −19.8 / −23.7** | unmatched (s43 0.593; s44 0.685) | miss — keep L1 |
 
 Unmatched always-0.8 greedy / mild / random sit near **−24 @ 0.667** (not size-matched to DRL 0.704). Overlay literature ResNet-56 CIFAR-10 stars only with a different-FT caption; do not invent numbers here.
+
+### 2.4 Protocol P Pareto (current recipe; Ido 6 Oct 09:47) — PRELIM; do not mix with §2.1–2.3
+
+§2.1–2.3 are the **legacy-val** 10-net frontier (memorized val; prefer is a heuristic). This subsection is the **paper-facing** frontier under protocol P + crop+flip. **5k** = P TEST half (agent / same-loop). **10k** = literature companion (`crossfit` / both halves). Caption different-FT on every published star. **v10 actor: no TEST yet** (ep0015/ep0031 NEVER TEST).
+
+**DepGraph ResNet-56 CIFAR-10** (home cell L1; FLOPs kept):
+
+| Series | Point | FLOPs / params | Δacc | Protocol | Ledger |
+|---|---|---|---|---|---|
+| DepGraph published | 2.11× | 0.474 / 0.470 | **+0.24** | their sparse+FT, 10k | quote |
+| DepGraph published | 2.57× | 0.389 / 0.382 | **+0.11** | their sparse+FT, 10k | quote |
+| OCSPruner Table 5 pretrained | — | 0.388 / 0.423 | **−0.51** | their one-cycle, 10k | draft §4.1 |
+| N3 mild 5-pass + 100-ep | flop 0.60 | 0.599 / 0.638 | 10k **−0.03** | P 10k companion | §157 |
+| N3 | 2.11× | 0.463 / 0.470 | 10k **−0.46** (walk 5k **−0.22**) | P; M4 | §157 |
+| N3 | 2.57× | 0.380 / 0.382 | 10k **−1.63** (walk 5k **−1.32**) | P | §157 |
+| Scratch-B 200-ep | 2.11× | 0.463 / 0.470 | 10k **−0.16** | Liu et al. architecture | §159 |
+| Mild-landed 6-pass 100-ep | flop 0.60 | 0.599 / 0.638 | 5k **−0.1** | v10 heuristic pin | **§217** |
+| τ-off 10-pass τ=30 | 2.11× | 0.463 / 0.470 | 10k **−0.94** (walk 5k **−0.76**) | PATH-SAME vs N3; not a new star | **§220** |
+
+**Thin r56-w4 CIFAR-10** (thesis WIN cell; params kept; 5k P; M1 bar **1.0 pp**, census ≥ 2):
+
+| Series | Point | params | 5k TEST | Ledger |
+|---|---|---|---|---|
+| Mild 2-pass | size 0.80 / `val_best` | 0.795 / 0.622 | **−2.6 / −4.5** | §152 (21729557) |
+| Greedy 2-pass | first | 0.743 | **−5.7** | §173 |
+| Stage-4 DRL ep0179 | size 0.80 / 0.60 / `val_best` | 0.743 / 0.600 / 0.389 | **−4.0 / −5.0 / −7.6** | **§218** (census 0.8 only; M1 does not fire) |
+| Mild-landed 6-pass | κ 0.8 / 0.6 | 0.799 / 0.600 | **−2.1 / −5.1** | §211 / §212 |
+| Greedy-landed 6-pass | κ 0.8 / 0.6 | 0.788 / 0.600 | **−2.4 / −4.7** | §214 / §216 |
+| Random-landed 6-pass | κ 0.6 | **0.564** (gap 0.036) | **−5.1** | §215 (not equal-size) |
+
+**VGG-16 C10** (L2; FLOPs kept; param mismatch vs HRank/OCS):
+
+| Series | FLOPs / params | Δacc | Protocol | Ledger |
+|---|---|---|---|---|
+| HRank | 0.465 / **0.171** | **−0.53** | published 10k | quote; params not matched |
+| OCSPruner | 0.212 / **0.137** | **−0.44** | published 10k | quote |
+| Mild 10-pass + 100-ep | 0.464 / 0.444 | 10k **−0.25** | P companion | §165 |
+| Mild 10-pass | 0.211 / 0.187 | 10k **−2.02** | P companion | §165 |
+| Mild-landed 6-pass | 0.593 / 0.623 | 5k **−0.0** | v10 pin | **§213** |
+
+Do **not** lock. Do not put Stage-4 §218 on the same-loop WIN line (constant 0.8). Do not plot v10 probes. Ops canvas (6 Oct): `spectra-pareto-6oct.canvas.tsx`. At paper freeze, promote this table and the 10k companion; leave §2.1–2.3 as provenance of the legacy actor.
 
 ### 2.3 Similar thin ResNet-56 w10 · CIFAR-10 — second NEON-style frontier
 
@@ -3757,6 +3801,183 @@ Keep 0.8: sens just clears the bar; a random draw is the winner. Keep 0.6: nothi
 | 0.8 | −4.69 (0.67) / −4.19 | 1.33 | **+2.63 / +2.01** (params 0.842) | **HEADROOM** (random0 +2.53 / +2.25) |
 
 **Per-net:** A0b-HEADROOM on thin r56-w4 at keep 0.8. Together with §207, keep 0.8 has headroom on a thin net ⇒ v10 M1's first-cut (κ = 0.8) read **stands**. Do **not** quote as TEST. Do **not** lock. No train action from ops.
+
+---
+
+## 209. A0b allocation headroom, chenyaofo VGG-16 C10 equal FLOPs (**22155643**) — probe, never a TEST row
+
+`scripts/allocation_probe.py` on chenyaofo VGG-16 C10 (`tree_v9d`), `--match flops`. COMPLETED 2 h 16 m, 4 Oct 21:48, `ise-pheno-01` (GTX 1080), TB 0, exit 0. Call = budget 40. Keeps 0.6 / 0.35 of FLOPs. Log `runs/slurm_logs/alloc_22155643.out`. Matching: first non-uniform FLOPs within 0.02 of uniform (0.601 / 0.601 and 0.352 / 0.351). Sensitivity at those FLOPs keeps far fewer params (0.180 vs 0.599 at keep 0.6; 0.078 vs 0.348 at 0.35).
+
+| Keep | Uniform val Δ (SD) / TEST Δ | Bar | sens val/TEST | Call |
+|---|---|---|---|---|
+| 0.6 | −2.25 (0.27) / −2.33 | 0.54 | +0.21 / +0.25 (params 0.180 vs 0.599) | **HEADROOM** (random1 **+1.27 / +1.17**) |
+| 0.35 | −2.65 (0.24) / −2.91 | 0.50 | −0.31 / −0.47 (params 0.078 vs 0.348) | **FLAT** (best random0 +0.37 / +0.01) |
+
+Keep 0.6: sensitivity does **not** clear 0.54; a random allocation does. Keep 0.35: nothing clears 0.50. Compare §205 (params-matched): both keeps were HEADROOM, and the 0.35 winner kept twice uniform's FLOPs.
+
+**Per-net:** A0b equal-FLOPs HEADROOM at keep 0.6, **FLAT at 0.35**. Registered consequence: FLOPs targets belong at the 0.6 operating point; equal-FLOPs 0.35 on VGG is not a lever. No train action from ops. Do **not** quote as TEST. Do **not** lock.
+
+---
+
+## 210. A0b allocation headroom, chenyaofo ResNet-56 CIFAR-100 (**22155644**) — probe, never a TEST row
+
+`scripts/allocation_probe.py` on chenyaofo ResNet-56 C100 (`tree_v9d`). COMPLETED 3 h 24 m, 4 Oct 22:55, `ise-pheno-04` (GTX 1080), TB 0, exit 0. Call = budget 40. Match params. Keeps 0.6 / 0.35. Log `runs/slurm_logs/alloc_22155644.out`. Matching: first non-uniform params within 0.02 of uniform (0.595 / 0.592 and 0.354 / 0.354). Sensitivity unmatched on FLOPs (0.385 vs 0.588 at keep 0.6; 0.237 vs 0.343 at 0.35).
+
+| Keep | Uniform val Δ (SD) / TEST Δ | Bar | sens val/TEST | Call |
+|---|---|---|---|---|
+| 0.6 | −6.91 (0.79) / −7.19 | 1.58 | −1.61 / −2.41 | **FLAT** (best random2 +0.01 / −1.13) |
+| 0.35 | −10.39 (1.46) / −10.89 | 2.92 | +1.71 / +0.95 | **FLAT** (sens does not clear 2.92) |
+
+BN-only budgets show HEADROOM (not a call). After 40-ep recovery nothing clears the bar.
+
+**Per-net:** A0b **FLAT** on R56-C100 at both keeps. Registered consequence: **the first fixed-target train stays C10**; C100 nets do not join that catalog. No train action from ops. Do **not** quote as TEST. Do **not** lock.
+
+---
+
+## 211. v10 mild-landed control κ = 0.8 (**22156061**) — PRELIM control; not an agent row
+
+`baseline_c10_mild_traj_gonce` + `SPECTRA_FIXED_TARGET=1`, `tree_v10`, thin pair, P, loader crop+flip, walk 40/10, 6 passes, floor off, `SIZE_MATCH=SIZE_POINTS=param:0.8`, final FT 100 from the origin, seed 42. COMPLETED 2 h 36 m, 4 Oct 22:53, `ise-4090-16`, TB 0, exit 0. Walk plays 0.9 and lands by bisection. Control for every v10 freeze TEST at κ = 0.8. κ = 0.6 control is **§212**.
+
+| Net | Landed params (κ 0.800) | Walk TEST | Final-FT TEST (size_param0.80 = `val_best`) | FLOPs |
+|---|---|---|---|---|
+| r20-w2 | **0.774** (gap 0.026) | −1.1 @ 0.774 | **−0.4 @ 0.774** | 0.818 |
+| r56-w4 | **0.799** (gap 0.001) | −2.2 @ 0.799 | **−2.1 @ 0.799** | 0.716 |
+
+No `TRAJ … param:0.8 … NONE`. Origin final-FT TEST r20 +3.2 / r56 +0.3. **Flag:** r20 landed keep differs from κ by 0.026 (channel granularity; registered). Quote this landed size beside every actor Δ; do not re-pick a point. Do **not** lock. Never resubmit per freeze.
+
+---
+
+## 212. v10 mild-landed control κ = 0.6 (**22156062**) — PRELIM control; not an agent row
+
+Same recipe as §211 at `param:0.6`. COMPLETED 5 h 57 m, 5 Oct 02:14, `ise-4090-21`, TB 0, exit 0. The registered M1-v10 WIN cell is r56 at this κ.
+
+| Net | Landed params (κ 0.600) | Walk TEST | Final-FT TEST (size_param0.60 = `val_best`) | FLOPs |
+|---|---|---|---|---|
+| r20-w2 | **0.584** (gap 0.016) | −4.7 @ 0.584 | **−2.9 @ 0.584** | 0.674 |
+| r56-w4 | **0.600** (gap 0.000) | −6.0 @ 0.600 | **−5.1 @ 0.600** | 0.453 |
+
+No `TRAJ … param:0.6 … NONE`. Origin final-FT TEST r20 +3.3 / r56 +0.1. r20 land is within the 0.02 matching bar (unlike §211). Quote this landed size beside every actor Δ; do not re-pick a point. Do **not** lock. Never resubmit per freeze.
+
+---
+
+## 213. v10 FLOPs mild keep 0.6, chenyaofo VGG-16 C10 (**22228975**) — PRELIM heuristic; not an agent row
+
+Ido GO 08:06 Pareto counterpart. `baseline_c10_mild_traj_gonce`, **no** `SPECTRA_FIXED_TARGET` (v10 landing is params-only), `SIZE_MATCH=SIZE_POINTS=flop:0.6`, `tree_v10`, P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, floor off, final FT 100 from the origin, seed 42. COMPLETED 1 h 51 m, 5 Oct 10:02, `ise-4090-02`, TB 0, exit 0. Walk ends at the first point with FLOPs ≤ 0.6 (step 37). `TRAJ floor_cross … NONE` is expected (floor off). DepGraph R56 twin **22228976** still R.
+
+| Net | FLOPs (target 0.600) | params | Walk TEST | Final-FT TEST (`size_flop0.60` = `val_best`) |
+|---|---|---|---|---|
+| VGG-16 BN C10 | **0.593** (gap 0.007) | 0.623 | −0.0 @ 0.593 | **−0.0 @ 0.593** |
+
+No `TRAJ … flop:0.6 … NONE`. Origin final-FT TEST **+0.8**. FLOPs gap 0.007 is inside the 0.02 matching bar — do not re-pick a point. Do **not** quote in-walk val −0.38 as TEST. Do **not** lock. Never resubmit.
+
+---
+
+## 214. v10 greedy-landed control κ = 0.8 (**22228972**) — PRELIM heuristic; not an agent row
+
+Ido GO 08:06 Pareto counterpart. `baseline_c10_l1_traj_gonce` + `SPECTRA_FIXED_TARGET=1` (Gilad greedy = L1), `tree_v10`, thin pair, P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, floor off, `SIZE_MATCH=SIZE_POINTS=param:0.8`, final FT 100 from the origin, seed 42. COMPLETED 2 h 25 m, 5 Oct 10:37, `ise-4090-21`, TB 0, exit 0. Menu is baseline 1.0/0.9/0.8 (no overlay of the actor's 0.7/0.6). Mild-landed κ 0.8 control remains **§211**. κ = 0.6 greedy twin **22228973** still R.
+
+| Net | Landed params (κ 0.800) | Walk TEST | Final-FT TEST (size_param0.80 = `val_best`) | FLOPs |
+|---|---|---|---|---|
+| r20-w2 | **0.782** (gap 0.018) | −1.2 @ 0.782 | **−0.2 @ 0.782** | 0.821 |
+| r56-w4 | **0.788** (gap 0.012) | −3.2 @ 0.788 | **−2.4 @ 0.788** | 0.663 |
+
+No `TRAJ … param:0.8 … NONE`. Origin final-FT TEST r20 +3.8 / r56 +0.3. Both landed gaps inside the 0.02 matching bar. Beside mild-landed §211 (r20 **−0.4 @ 0.774**, r56 **−2.1 @ 0.799**): not a lock, not an actor Δ. Do **not** lock. Never resubmit.
+
+---
+
+## 215. v10 random-landed κ = 0.6, r56-w4 only (**22228974**) — PRELIM heuristic; not an agent row
+
+Ido GO 08:06 Pareto counterpart (WIN cell, one seed). `baseline_c10_random` + TRAJ/gonce overlay + `SPECTRA_FIXED_TARGET=1`, `tree_v10`, `input_c10_thin_r56w4.json`, P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, floor off, `SIZE_MATCH=SIZE_POINTS=param:0.6`, final FT 100 from the origin, seed 42. COMPLETED 3 h 37 m, 5 Oct 11:49, `ise-4090-20`, TB 0, exit 0. Mild-landed κ 0.6 r56 remains **§212**. Greedy κ 0.6 twin **22228973** still R.
+
+| Net | Landed params (κ 0.600) | Walk TEST | Final-FT TEST (size_param0.60 = `val_best`) | FLOPs |
+|---|---|---|---|---|
+| r56-w4 | **0.564** (gap 0.036) | −6.3 @ 0.564 | **−5.1 @ 0.564** | 0.436 |
+
+No `TRAJ … param:0.6 … NONE`. Origin final-FT TEST **+0.3**. **Flag:** landed keep differs from κ by 0.036 (above the 0.02 matching bar). Quote 0.564 beside any Δ; do not re-pick a point; do not call this equal-size vs mild §212 (**−5.1 @ 0.600**). Do **not** quote in-walk val −6.80 as TEST. Do **not** lock. Never resubmit.
+
+---
+
+## 216. v10 greedy-landed control κ = 0.6 (**22228973**) — PRELIM heuristic; not an agent row
+
+Ido GO 08:06 Pareto counterpart. Same recipe as **§214** at `param:0.6`. COMPLETED 3 h 44 m, 5 Oct 11:56, `ise-4090-20`, TB 0, exit 0. The registered M1-v10 WIN cell is r56 at this κ. Mild-landed control remains **§212**. Random-landed r56 is **§215** (not equal-size).
+
+| Net | Landed params (κ 0.600) | Walk TEST | Final-FT TEST (size_param0.60 = `val_best`) | FLOPs |
+|---|---|---|---|---|
+| r20-w2 | **0.595** (gap 0.005) | −4.0 @ 0.595 | **−2.4 @ 0.595** | 0.734 |
+| r56-w4 | **0.600** (gap 0.000) | −4.3 @ 0.600 | **−4.7 @ 0.600** | 0.453 |
+
+No `TRAJ … param:0.6 … NONE`. Origin final-FT TEST r20 +3.5 / r56 +0.5. Both landed gaps inside the 0.02 matching bar. Beside mild-landed §212 (r20 **−2.9 @ 0.584**, r56 **−5.1 @ 0.600**): greedy r56 is **+0.4 pp** at equal keep 0.600 — not a lock, not an actor Δ. Do **not** lock. Never resubmit.
+
+---
+
+## 217. v10 FLOPs mild keep 0.6, DepGraph ResNet-56 C10 (**22228976**) — PRELIM heuristic; not an agent row
+
+Ido GO 08:06 Pareto counterpart. Twin of **§213**. `baseline_c10_mild_traj_gonce`, **no** `SPECTRA_FIXED_TARGET` (v10 landing is params-only), `SIZE_MATCH=SIZE_POINTS=flop:0.6`, `tree_v10`, `input_catalog_l_depgraph_r56.json`, P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, floor off, final FT 100 from the origin, seed 42. COMPLETED 4 h 54 m, 5 Oct 13:06, `ise-4090-01`, TB 0, exit 0. Walk ends at the first point with FLOPs ≤ 0.6 (step 136). `TRAJ floor_cross … NONE` is expected (floor off). Quote `[eval] TRAJ final_ft size_flop0.60` (= `val_best`); do **not** quote in-walk val +0.10 as TEST.
+
+| Net | FLOPs (target 0.600) | params | Walk TEST | Final-FT TEST (`size_flop0.60` = `val_best`) |
+|---|---|---|---|---|
+| DepGraph R56 C10 | **0.599** (gap 0.001) | 0.638 | −0.1 @ 0.599 | **−0.1 @ 0.599** |
+
+No `TRAJ … flop:0.6 … NONE`. Origin final-FT TEST **+0.2**. FLOPs gap 0.001 is inside the 0.02 matching bar — do not re-pick a point. This is the v10-recipe FLOPs heuristic star, not a 10k N3 / DepGraph-published comparison. Do **not** lock. Never resubmit.
+
+---
+
+## 218. Stage-4 freeze TEST ep0179 (**22260374**) vs mild 21729557 — PRELIM; M1 does not fire (M1-neg stands; 1.0 pp bar)
+
+Skip-train `eval_c10_thin_traj` of **21737123** `snapshots/ep0179` (probe 0.2888; newest freeze since 22124693 / ep0131). `tree_v9c`, P + crop+flip, 40/10, 2-pass, det=1, seed 42. No `TIME_DECIDE`, no `FT_AUG_GPU`. COMPLETED 4 h 20 m, 6 Oct 02:46, `ise-4090-11`, TB 0, exit 0. Control = mild **21729557** (§152). TEST = 5k P half. Unpruned TRAJ origin 0.649 / 0.890. Same named keeps as ep0095 / ep0131 (constant 0.8).
+
+| Point | Actor 22260374 TEST (keep) | Mild 21729557 TEST (keep) | ep0131 22124693 |
+|---|---|---|---|
+| r20 size 0.80 | **−5.1 @ 0.702** | −1.2 @ 0.774 | −4.8 @ 0.702 |
+| r20 size 0.60 | −4.1 @ 0.595 | −4.9 @ 0.584 | −4.6 @ 0.595 |
+| r20 `val_best` | **−7.0 @ 0.417** | −5.3 @ 0.536 | −8.7 @ 0.417 |
+| r56 size 0.80 | **−4.0 @ 0.743** | −2.6 @ 0.795 | −3.9 @ 0.743 |
+| r56 size 0.60 | −5.0 @ 0.600 | NONE (mild ends 0.622) | −6.2 @ 0.600 |
+| r56 `val_best` | **−7.6 @ 0.389** | −4.5 @ 0.622 | −7.3 @ 0.389 |
+| r56 `floor_hold` | −3.5 @ 0.704 | — | — |
+
+**Census (r56-w4):** 60 cuts at **0.8**, 54 identity at 1.0. Distinct prune actions = **1**. r20: 16 at 0.8, 26 identity. **M1 cannot fire** (Ido 6 Oct 01:32: census ≥ 2 distinct actions). Not a mild clone on keep (`val_best` 0.389 vs mild 0.622).
+
+**Equal keep** vs the three-walk mild mean (`_tmp_oct4_m1read.sh`; bar now **1.0 pp**):
+- *r56-w4* (19 shared keeps): first cut **−0.74 @ 0.743** (inside 1.0 pp). One kinder ≥ 1.0 (**+1.21 @ 0.717**). One worse ≤ −1.0 (**−2.31 @ 0.628**).
+- *r20-w2* (7 shared): first cut **−1.36 @ 0.702** — disaster guard only; not a ≳ 3 pp cliff; does not veto.
+
+**M1 does not fire.** Historical M1-neg (4 Oct, 0.5 pp / both nets) **stands**. New bar: first r56 cut is inside 1.0 pp, but the policy is still constant 0.8 and one shared keep is −2.3 pp. Do **not** start N8. Do **not** lock. Never quote probe 0.2888.
+
+---
+
+## 219. S0 keep 0.35 on DepGraph R56 — L1 vs Taylor vs nap_f vs random vs anti-L1 (**22288374**) — probe, never a TEST row
+
+`tree_v9d`, keep **0.35**, budgets **0 and 40**, scorer md5 `2a3bf48db614`. COMPLETED 1 h 10 m, 6 Oct 02:47, `ise-pheno-09`, TB 0. Per-group keep 0.35 ⇒ **params 0.121 / FLOPs 0.129**. Protocol P + crop+flip. Read jsonl at keep=0.35 (do not use the default 0.6 readout).
+
+| Budget | L1 val (sd, n=3) | nap_f − L1 | taylor − L1 | random − L1 | anti-L1 − L1 |
+|---|---|---|---|---|---|
+| 0 | −82.82 (0.00) | **+0.06** | −0.46 | −0.26 | −0.68 |
+| 40 | −8.03 (0.12) | **−0.42** | −5.74 | −2.09 | −2.46 |
+
+Lever budget 40: best named = nap_f, `best_minus_l1_pp` **−0.42**. L1 still beats random (+2.09) and anti-L1 (+2.33). Kendall vs ablation: nap_f **0.628** (descriptor); vs L1 0.225. Jaccard nap_f vs L1 0.31.
+
+**Call.** 40-ep does **not** beat L1. nap_f *H_40* < −σ_ft (**HARM** vs L1). Budget 0 is ~−83 pp on every mask. Ranking at high sparsity is dead under our FT. Keep L1. Do **not** start S3. Write the paper sentence and stop the ranking ladder. Remaining NAP idea = cheap proxy for stopping a walk (pf line already hurt). Design paste: `FILTER_SELECTION_NAP_DESIGN.md` "S0 keep 0.35". Do **not** quote as TEST. Do **not** lock.
+
+---
+
+## 220. τ-off mild — 10-pass, τ=30, no param floor, DepGraph ResNet-56 C10 (**22288423**) — PRELIM; PATH-SAME vs N3; 100-ep CROSS-OFF; do not train this recipe
+
+Ido GO 6 Oct 01:32. N3 line (`tree_v9d`) + `allowed_acc_reduction=30` + **10 passes** + `MIN_PARAM=0` + `EVAL_ROLLBACK=0` + P + loader crop+flip never `FT_AUG_GPU` + walk 40/10 + `flop:0.6,0.47,0.39` + 100-ep origin SGD final FT. Pair: N3 **21767189** (§157). COMPLETED 19 h 28 m, 6 Oct 21:06, `ise-4090-08`, TB 0, exit 0. Reader: `final_ft_readout.py` + `crossfit_readout.py`. TEST = 5k P half (unpruned 0.934). Origin change **+0.86** (10k **+0.73**).
+
+**PATH-SAME widths vs N3:** steps **136 / 210 / 267**, params 0.638 / 0.470 / 0.382, FLOPs 0.599 / 0.463 / 0.380.
+
+| Point | Params / FLOPs | Walk (5k) | Final (5k) | Honest | 10k final | N3 walk 5k | N3 10k | DepGraph |
+|---|---|---|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | **+0.18** | −0.20 | **−1.24 CROSS-OFF** | **−0.16** | +0.08 | −0.03 | — |
+| size_flop0.47 (2.11×) | 0.470 / 0.463 | **−0.76** | −0.90 | **−1.00 CROSS-OFF** | **−0.94** | −0.22 | **−0.46** | **+0.24** |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | **−1.22** | −1.34 | **−0.98 CROSS-OFF** | **−1.52** | −1.32 | −1.63 | **+0.11** |
+| `val_best` | 0.123 / 0.121 | −5.42 | −5.02 | −0.46 CROSS-OFF | n/a | −1.12 @ 0.356 | n/a | — |
+| origin | 1 | 0 | +0.86 | +0.86 | +0.73 | 0 | +0.60 | — |
+
+`TRAJ floor_cross … NONE` (floor off). `floor_hold` = `val_best` keep 0.123 — do **not** quote as the DepGraph comparison. Census: 301 cuts, val Δ>0 on 71 (max +0.96).
+
+**Read.** τ=30 + more passes + no floor did **not** change the architectures at DepGraph's sizes. Extra passes only walked **past** them to keep **0.123** (walk **−5.42**). τ did not stop the mild walk. 100-ep origin FT is **CROSS-OFF** at every size point (same pattern as N3). 2.11× walk 5k **−0.76** vs N3 **−0.22** is **0.54 pp** at identical widths (`det=1`, different 4090) — inside the 1.2 pp re-walk band (RW43); not a τ effect. 10k at 2.11× **−0.94** vs N3 **−0.46** / DepGraph **+0.24**. Paper DepGraph rows stay **N3**. Do **not** put τ-off into a DRL train. Do **not** lock. Never resubmit.
 
 ---
 

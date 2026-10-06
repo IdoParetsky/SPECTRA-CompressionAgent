@@ -146,6 +146,6 @@ The second NAP paper is Bohadana, Schneider & Katz, TMLR, July 2026. The repo is
 1. Coverage matrix still maintained (family × dataset).
 2. At least one **NEON-style Pareto** panel in the draft (skinny ResNet-56 · CIFAR-10 is the first; add VGG · CIFAR-100 and an easy CIFAR-10 net).
 3. Heuristic story: greedy / mild / random / look-ahead on the same plot; ranking A/B if jobs finish.
-4. Literature table: SPECTRA TEST vs quoted SOTA on the same nets, with the “we do not claim to win their home cell” sentence.
+4. Literature table: SPECTRA TEST vs quoted SOTA on the same nets, with the “we do not claim to win their home cell” sentence. **At paper freeze (Ido 6 Oct):** keep protocol P (5k) for agent rows; put a **10k companion / labelled cross-fit** beside every literature star; caption different-FT. Do not switch the live recipe. Ledger §2.4.
 5. ImageNet: frozen transfer probe or an honest limitation — **not** DRL train.
 6. NAP2: scanned 20 Aug. Michael’s NAPv2 is NAS performance prediction (NB-201), not a pruner. Complementary; do not lift into SPECTRA this fortnight. **Superseded 1 Oct:** see the §6 update. The selection-headroom probe (S0) runs first; it decides whether a NAP-informed selector or second agent can move accuracy at all.

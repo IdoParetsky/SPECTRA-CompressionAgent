@@ -40,12 +40,12 @@
 | A8 | **Metrics dev phase** (Ido GO 4 Oct 11:41: "IF you agree, you have my GO") | **4 Oct 15:10:** FW **22127216 COMPLETED**. **SLOWER:** 2.11× **108.4 min > 85.1**; 10k **−1.24** vs N3 −0.46. K* measured **1.8** to keep 0.36. Ledger **§203**. Built: `cost_readout.py` to-each-point minutes and Wh. Not taken: NVML, val-selected DepGraph, benching agent nets | yes | report Part I; EFFICIENCY §7 / §11; ledger §203 |
 | B1 | "How filters are chosen (how many · which)" column | **Done.** 49 published methods in the canonical table; the column added to every living SOTA table (news §2.4–2.5, benchmark setup §3, Catalog-L §2.4 and §5.3, efficiency §4.1–4.3 and §8.1, directives §5, skeleton T1–T2) and to the literature canvas | — | design §2 |
 | B2 | "Is the two-decision head backed by literature?" | **Answered: yes.** LFPC (CVPR 2020), MFP, Blending, and closest, Balaskas et al. (IEEE TETC 2024); action branching and parameterized actions in RL. All are per-target; ours is the frozen, transferable setting | — | design §4.1 |
-| B3 | A second DRL agent for which filters | **Designed:** hierarchical; a set transformer over channel tokens; Plackett–Luce / Gumbel-top-k; reward paired against L1; a selection shield. Gated by S0 → S1 → S2. **Closed 3 Oct:** G2 HARM, so S3 is not trained | design only; closed | design §6.4, §8, §0 item 7 |
-| B4 | NAP2 as decision support | **NAPv2 code read**, quirks documented. NAP-F (its statistics per filter) built and checked against NAPv2's own code to 1e-9. Three roles defined; S0 records NAPv2 maps over its ResNet-56 fine-tunes | — | design §5–6 |
+| B3 | A second DRL agent for which filters | **Closed 3 Oct (G2 HARM).** Design only; **not trained.** Slide write-up: this file **§8** (7 Oct). Keep L1 | no | design §6.4, §8, §0 item 7; this file **§8** |
+| B4 | NAP2 as decision support | **Code absorbed; weights not.** NAP-F bit-matched to 1e-9. AE/BiGRU is a *network-level* NAS predictor — not a filter chooser as shipped. Michael’s trained weights / NAS-Bench-201 snapshots = **§5 Q2 for 8 Oct**, not a sitting GPU. Survived: gradient stats as a **per-channel descriptor** (S1). **7 Oct:** NAP-F's group mean does not track A0's group sensitivity (ρ +0.25 / −0.47 / +0.38), so it is not a group-level state. v10's state channel is A0's *measured* sensitivity, not NAP-F (§8.6) | ask him 8 Oct | design §5–6; queue "Sitting 7 Oct" Lead 1 |
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | **Census + reward replay (§200).** **A0 3/3 COMPLETED: HEADROOM** thin §201, dg §204, VGG-16 §205 (both keeps). **Cross-net A0-HEADROOM.** Never TEST. **4 Oct 19:23 Ido GO: fixed-target train.** A0b **22155641–44** (r20-w2, keep 0.8, VGG equal-FLOPs, R56-C100) registered its consequences for the train's reads. **v10 built** in `tree_v10` (tests 14/14 + 163/163). Smokes **22155996 / 97** COMPLETED, six checks green; train **22156116 R** since 21:04; mild-landed controls **22156061 / 62** R | yes | report Part III; ledger §200 / §201 / §204 / **§205**; queue file "A0" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R** (Ido GO 4 Oct 19:23). Freeze **ep0111** `vs_mild=+0.275` — **not a result**; first TEST only if `vs_mild ≥ +0.5`. Do **not** a second allocation train before that read. Mild-landed **§211–212**. First catalog C10 (A0b C100 FLAT §210) | running | report Part III; ledger §200–§212, §218–220; queue "v10" |
 
 ---
 
@@ -55,10 +55,12 @@
    - Every published method learns *how many* on each target or sets it by hand. Their *which* is mostly a magnitude read-out after sparsity training.
    - SPECTRA learned *how many* once and runs frozen. On accuracy at their sizes they are ahead; we say so.
 2. **Cost and transfer: what we beat.**
-   - Per-target search is zero; fine-tuning is the whole cost.
-   - The K-th network costs one final fine-tune.
-   - Break-even against DepGraph on the same GPU, plus their re-run on our 4090 (A3) and the deployment bench (A4) if they landed.
-   - State where we lose: the first network's wall-clock.
+   - Per-target search is zero; fine-tuning is the whole cost. The agent is milliseconds (3–8 ms/decision).
+   - **K** = how many target nets (or size points) the *same frozen agent* prunes. SPECTRA(K) = W + K·F. Per-target methods cost K·C. Break-even K* = W/(C−F).
+   - **K = 1 we lose** vs DepGraph on a 4090 even with the fast walk (108 vs 85 min, FW). **K ≥ 2 we start to win** (FW K* = 1.8 to keep 0.36).
+   - **Product:** SPECTRA is the K≫1 story (train once, freeze, prune the user's CNNs). Do not headline K=1.
+   - **Catch:** mild shares W+K·F until the frozen actor matches it (M1-neg). Present as a pipeline/transfer claim with that caveat.
+   - CIFAR ResNet-56 GPU latency is almost flat for everyone; VGG is the deployment example.
 3. **Which filters? Allocation is the whole game at our budget** (design §0 item 7).
    - Allocation vs selection in 49 methods.
    - Our four null ranking A/Bs compared near-copies of L1: within-group τ 0.83–0.90.
@@ -68,13 +70,15 @@
    - It matches the literature's prediction (MFP: 93.26 vs 93.22 at 40 epochs).
 4. **The NAP2 avenue: what survives.**
    - NAP-F's per-filter *gradient* statistics rank channels like the oracle on held-out nets (S1, τ 0.57–0.66 vs ≤ 0.42 by hand). That ranking transfers within a family, not to MobileNet-V2.
-   - The second agent is closed by S2. NAP-F moves to the anytime recovery predictor (a cost lever) and to agent state.
+   - The second agent is closed by S2. The anytime-predictor use closed with pf-w (no valid proxy, §195).
+   - What survives is a per-channel descriptor. The group-level signal the allocation agent uses is each group's *measured* sensitivity, in v10's state. NAP-F's group mean does not reproduce it (7 Oct: ρ +0.25 / −0.47 / +0.38 on three nets; the summed single-channel ablation does, at 0.77–0.92).
    - Lesson for any learned score: hold out a family, not only a net.
 5. **Robustness vs verification.** One table and three hooks: an action-stability certificate for the frozen actor, choosing among frozen seeds by agreement, and the selection shield. Then ask which line he meant.
 6. **(Added 4 Oct) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200).
    - Every TESTed actor plays one action at every decision: M1-neg compared uniform 0.8 with uniform 0.9.
    - The band reward pays size, whatever the accuracy, inside 10 pp.
    - A0 (allocation headroom) and the replay pre-check of a reward that prices accuracy at equal size come next.
+   - The Budget arm shows the same collapse (7 Oct census). STOP was played 74 times early and never after episode 231. Late in training, 97.5 % of decisions remove 4 %: STOP never became a size choice.
    - Show the replay table (equal depth: 124.9 vs 126.0 across 3 pp of val) and A0's calls if they have landed.
    - Ask question 6 below.
 
@@ -191,6 +195,98 @@
 
   Tests 14/14 + 163/163. Smoke train **22155996** R; eval smoke **22155997** afterok. Train **22156116** HELD (resume 22156117; they replace the never-started 22156018 / 19, re-submitted for probe targets 0.8 and 0.6). Mild-landed controls **22156061 / 62** R (κ 0.8 / 0.6, full TEST protocol). The TEST rule and the M1-v10 read are registered in the queue file "v10". Probe scores are never results.
 - **4 Oct 21:04** — v10 smokes COMPLETED (train 20:57, eval 21:03), six checks green. Train **22156116 released, R** (`cs-4090-04`; probe targets 0.8 / 0.6, train FT 12/4, seed 42). Expect update 20 in ~2 days. A first TEST is possible after that, so probably not before 8 Oct. For the slides: the design, the smoke and the registered read, not results.
+- **4 Oct 21:20** — 3h briefing. Ops start-check on **22156116** green. A0b 43/44 still R. QOS 7/8; 1 idle; do not invent.
+- **4 Oct 21:48** — A0b VGG equal-FLOPs **22155643 COMPLETED**. Ledger **§209**: keep 0.6 HEADROOM, keep 0.35 FLAT. Never TEST. QOS 6/8; 2 idle; do not invent.
+- **4 Oct 22:08** — Sitting close absorbed (runbook §10.0g). v10 **22156116 R**; first TEST after update 20, likely ~8 Oct. Slides: design / smoke / registered read, not a result. A0b 44 still R. Two idle; do not invent.
+- **4 Oct 23:20** — A0b R56-C100 **22155644 COMPLETED**. Ledger **§210 FLAT** both keeps. First v10 catalog stays C10. Mild-landed κ 0.8 **22156061 COMPLETED §211:** r20 **−0.4 @ 0.774** (landed gap 0.026), r56 **−2.1 @ 0.799**. κ 0.6 control still R. v10 PPO-2 / ep 10. QOS 4/8; 4 idle; do not invent.
+- **5 Oct 02:21** — Mild-landed κ 0.6 **22156062 COMPLETED**. Ledger **§212:** r20 **−2.9 @ 0.584**, r56 **−5.1 @ 0.600**. Both v10 controls in. v10 PPO-4. QOS 3/8; 5 idle; do not invent.
+- **6 Oct 02:46** — Stage-4 freeze TEST ep0179 **22260374 COMPLETED §218**. Census 0.8 only. M1 does not fire (1.0 pp bar).
+- **6 Oct 02:47** — S0 keep 0.35 **22288374 COMPLETED §219**. nap_f −0.42 vs L1 at 40-ep. Ranking ladder stops.
+- **6 Oct 03:16** — Stage-4 fuse: **21737123 COMPLETED** ep 189; resume **21767188 R**.
+- **6 Oct 03:46** — v10 PPO-20. Later freezes ep0095 / ep0111: `vs_mild` −0.125 / **+0.275**. Gate +0.5 not met. Do not TEST. Slides: design/smoke/read, not a result.
+- **6 Oct 21:06** — τ-off **22288423 COMPLETED §220**. PATH-SAME vs N3. Do not train τ-off.
+- **7 Oct ~02:10** — Ido commute **§2.6+**. Sitting prompt `docs/PROMPT_FABLE_OCT7_SITTING.md`. This file **§8** is the S3 write-up. A0-HEADROOM train remains **v10**, not a second actor. Point A headline: **K≥2 / search=0 / transfer**, not K=1 vs DepGraph.
+- **7 Oct ~03:10** — Sitting (Opus 5.5).
+  - *Lead 1, zero GPU.* NAP-F's group mean does not track A0's sensitivity, so C is not run. The NAP-F wording in §8 is corrected: v10's state is the measured sensitivity, not NAP-F.
+  - *Lead 2.* Budget STOP was extinguished, not learned (slide 6).
+  - *Twelve cells* (9 R, 3 PD; live QOS cap 11): the Le & Hua large-LR final FT on N3's and §212's saved candidates; a greedy step-size ladder at κ 0.6; and an allocation-following walk (A0's sens rule vs uniform) on the thin pair and DepGraph R56.
+  - No results yet. Calls are in the queue file, section "Sitting 7 Oct". EFFICIENCY §2 Point A refreshed.
+
+---
+
+
+
+## 8. S3 / the second selection agent (for the 8 Oct table — high-level + detail)
+
+Ido asked (7 Oct) that this be explained here from every angle. **Decision: S3 is closed. We do not train it.** The negative is the result.
+
+### 8.1 One-minute version (say this)
+
+Every structured cut is two decisions: **how many** filters each layer-group keeps (allocation) and **which** ones survive (selection). Almost all published CNN pruners, including the DRL ones (AMC, AGMC), learn or hand-set *how many* and then cut by **magnitude**. Gilad asked us to consider a *second* DRL agent for *which*.
+
+We measured that, under SPECTRA’s own fine-tune, at matched widths:
+
+1. After **40 epochs**, no named criterion beats L1, and even an oracle’s own masks end **below** L1 (S0, three nets).
+2. A learned score built from NAPv2’s **per-filter gradient** statistics *ranks* channels like that oracle on a held-out net (S1, Kendall τ 0.57–0.66 vs hand ≤ 0.42). That is real transferable ranking signal.
+3. That ranking **does not recover better** than L1 on two nets the scorer never saw (S2: +0.21 / **−0.87** pp at 40 epochs). Gate **G2 HARM**.
+
+So: **allocation is what a pruning agent must learn at our budget; beyond magnitude, selection is not a lever.** Magnitude is still necessary (random −1.4 pp; anti-L1 −79 pp on MobileNet-V2). That matches MFP’s published “L1 ≈ learned at 40 epochs.” We keep L1. What the allocation agent needs is a **group-level** signal, and v10 already has one in its state: each group's *measured* sensitivity (A0's calibration-loss rise; Li et al. 2017). NAP-F does not supply it. Its group mean does not track that sensitivity on three nets (7 Oct). NAP-F stays a per-channel descriptor, not a second actor and not v10's state.
+
+### 8.2 Why a second agent looked attractive
+
+- Gilad 1 Oct: SOTA’s *which* column; a second DRL agent; NAP2 as a richer CNN representation than L1 / FPGM / the two-decision head.
+- Literature: every *learned* filter selector is **per-target** (Huang 2018, DECORE, Chen 2020). A **frozen, transferable** selector would have been new.
+- SPECTRA already splits the two decisions: the PPO actor picks a keep-rate; `group_importance` (L1 vote) picks survivors. A second policy could replace that vote.
+- Cheap fine-tunes (0–3 epochs) *do* care which filters you keep (S0 at budget 0). If the in-loop reward used a tiny FT, a better selector could have made the *allocation* agent’s signal cleaner. That was the hope, and why we gated instead of training S3 first.
+
+### 8.3 What S3 was *designed* to be (never built)
+
+Full design: `docs/paper/FILTER_SELECTION_NAP_DESIGN.md` §6.4.
+
+- **Level 1** = today’s allocation actor, unchanged (group + keep-rate).
+- **Level 2** = a small set transformer (~50K params) over channel tokens (NAP-F row + level-1 embedding). It scores channels; we keep the top *k*. Training: Plackett–Luce / Gumbel-top-k. Reward = recovered val of the policy mask **minus** L1’s mask at the **same** allocation, so credit is selection, not “how many.”
+- **Init** from the S1 scorer. **Shield:** if BN-recalibrated calibration loss is worse than L1 by more than δ, fall back to L1 (verification-flavoured, not a proof).
+- Cost estimate was ~1 GPU-day. It needed Ido’s GO **and** S2 PASS.
+
+We did **not** skip it for lack of GPU. We skipped it because the gate said it would learn to copy L1, or lose.
+
+### 8.4 The gate, in order (why closed is justified)
+
+| Step | Question | Result | Why that order |
+|---|---|---|---|
+| **S0** (3 nets, GPU) | At *fixed* keep, does *which* move recovered accuracy as FT grows 0 → 40 ep? | Large effects at 0–1 ep. After 40 ep **nothing beats L1**, including the ablation oracle’s masks. **M8** fired on the *cheap-FT* lever, which is why S1 was allowed | If S0 is flat at 40 ep, a second agent has nothing to harvest at our TEST budget. We still asked S1 because a *ranking* signal can exist even when *masks* fail after FT |
+| **S1** (zero GPU) | Can NAP-F stats predict the oracle ranking on a **held-out** net? | **G1 PASS 3/3.** τ **0.572 / 0.657 / 0.643** vs best hand **0.240 / 0.417 / 0.170**. Ablating feature families: **gradient** stats carry almost all of it; weights/activations do not | Supervised ranking is cheap and tells you whether NAP2-style descriptors contain filter information *before* RL |
+| **S2** (2 unseen nets, GPU) | Does that ranking **recover** better than L1 after 40 ep? | MBV2 +0.21 (σ 0.72); R56-C100 **−0.87** (σ 0.86, bar −0.86). **G2 HARM.** Ranking transferred in-ResNet (τ 0.423 vs L1 0.292), **failed** on MobileNet (0.254 < 0.286) | Transfer of *ranking* ≠ transfer of *accuracy*. A family hold-out is mandatory. HARM closes S3 |
+| **S0 keep 0.35** (6 Oct, §219) | Same question, harder sparsity | 40-ep nap_f **−0.42** vs L1. Ranking ladder **stops** | High sparsity was the last place selection might still matter. It did not |
+
+**What would have opened S3:** S2 PASS at 40 ep on held-out nets (recovery ≥ bar vs L1, not worse by σ). That did not happen. **What would reopen a *cousin* of S1, not S3:** a BN-only in-loop proxy that is rank-faithful (the pf line). pf-w: **no proxy valid**. So that door is closed too.
+
+### 8.5 Dual MDP / two-decision head — not S3, also closed as a contribution
+
+A *single* actor with two heads (keep-rate × criterion) is **not** a second agent. It has precedent (LFPC 2020; Balaskas IEEE TETC 2024). SPECTRA ran it: drop after §137; freeze TEST **§206** first cut vs mild +0.38 / +0.30 (not M1); Taylor vs L1 inside re-walk noise. The menu was almost all **norm** criteria, which rank filters nearly identically (Huang et al. NeurIPS 2021; our S0 FPGM vs L1 τ 0.85–0.89). So a criterion head had nothing to choose. Present as **applied in the transfer setting**, not as a SPECTRA invention (tracker §5 Q4).
+
+### 8.6 What we *do* take from this work (ADOPT vs closed)
+
+| Take | Status |
+|---|---|
+| L1 group vote as default selection | **Keep** |
+| *Measured* per-group sensitivity (A0's loss rise when the group alone is cut to half) as agent state | **ADOPT**: v10 `SPECTRA_STATE_SENS=1` trains with it in the observation. It is A0's measurement, not NAP-F |
+| NAP-F gradient statistics as a **per-channel** descriptor (R3) | **Kept as an option.** Ranks channels like the oracle within a family (S1); not wired into any agent state |
+| NAP-F as a **group-level** descriptor (allocation prior) | **Closed (7 Oct, Lead 1).** Spearman ρ with A0's sensitivity: +0.25 (DepGraph R56), −0.47 (VGG-16), +0.38 (R56-C100). The sign follows depth, NAP-F's only group-level input: by construction its label is a within-group rank. The summed single-channel ablation tracks it at ρ 0.77 / 0.86 / 0.92 |
+| Learned NAP-F as a **ranker replacing L1** | **Closed** (S2, §219) |
+| Second DRL selector (S3) | **Closed** |
+| `NAP2Predictor.score()` in the prune loop | **Closed** (wrong object; extra partial training per step) |
+| Michael’s AE/BiGRU weights | **Open question for him** (§5 Q2). Not required for the negative, and not a filter signal as shipped |
+
+Paper sentence: *“At our fine-tune budget, which channels survive did not change recovered accuracy once allocation was fixed; allocation is what the agent must learn. Magnitude remains necessary.”*
+
+### 8.7 Angles Gilad may still push — answers ready
+
+- *“But S1 passed.”* Ranking like an oracle whose **masks lose after 40 ep** is expected to fail S2. We measured both, on purpose.
+- *“Try a different selector / FPGM / Taylor.”* Same magnitude family, τ 0.83–0.90 vs L1. Factored TEST is noise. Keep-0.35 did not save nap_f.
+- *“Train S3 anyway; the shield makes it safe.”* The shield caps *harm*, it does not create a lever. A GPU-day to copy L1 is not science.
+- *“NAP2 as representation.”* Its per-filter gradients rank channels *within* a group (S1), but they say nothing about *which group* to keep (7 Oct, Lead 1). The representation that carries the allocation signal is the measured group sensitivity in v10's state. The shipped NAS predictor is a different object.
+- *“Is this a thesis section?”* That is tracker **§5 Q3** — ask him. We recommend yes: a clean matched negative plus a transferable ranking side-result.
 
 ---
 

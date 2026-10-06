@@ -54,6 +54,7 @@ NEON has nine figures. SPECTRA should feel like the same paper with CNN guts.
 | **F10** | *(optional)* | Sampled vs argmax on thin r20 / r56 | r20 holds; r56 argmax **−25.2 @ 0.667/0.465** vs sampled **−25.4 @ 0.667/0.482** vs locked **−15.9 @ 0.704/0.550** | **Draw** — policy is the cliff |
 
 Caption rules: X is fraction **kept** (or 1/kept as a second axis). Y is `eval_test` FINAL only. Prefer series is a **heuristic**, one run not three-seed DRL. Skip masked ShuffleNet keep. Skip wrap job-means. Skip r32. Do not claim home-court DepGraph wins.
+**F5 at freeze (Ido 6 Oct):** live numbers from ledger **§2.4** (protocol P). Literature stars use a **10k companion** column or labelled cross-fit, plus a different-FT caption — do **not** switch the live 5k P recipe. Do not plot v10 probes or Stage-4 as a WIN (census 0.8). Ops plot restamped 6 Oct: `spectra-pareto-6oct.canvas.tsx`.
 
 ---
 

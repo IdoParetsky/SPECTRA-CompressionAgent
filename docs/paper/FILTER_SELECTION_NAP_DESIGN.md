@@ -56,6 +56,15 @@ Every claim about another paper below was checked against its primary source by 
    - **Consequences.**
      - SPECTRA keeps the L1 group vote; the agent stays an allocation agent; S3, the selection agent, is closed.
      - The one budget where masks differ a lot is BN recalibration with no fine-tune. There, the MobileNet oracle is +17.0 pp, but nap_f captures only +2.8 of it, and on ResNet-56 C100 nap_f is −0.54. That matters only if a BN-only proxy becomes the in-loop reward (the pf line), which is the one condition for reopening S1b (§8).
+     - **S0 keep 0.35 (22288374, ledger §219, 6 Oct).** 40-ep still does not beat L1 (nap_f −0.42 HARM). Ranking ladder **stops**. Keep L1.
+     - **NAP-F remaining uses (Ido 6 Oct; required sitting work today 11:22).** ADOPT as **descriptor / v10 state**, not as a ranker. Today's sitting: (1) group-level nap_f vs A0 sensitivity (allocation prior, not selection) — zero GPU; (2) wait for a v10 freeze after PPO-20 with `SPECTRA_STATE_SENS`; (3) Budget STOP census on 21940311 is the cheap substitute for TESTing ep0251; (4) one-cycle final FT on N3 2.11× is the FT lead, not a NAP lead. Closed: S3, `NAP2Predictor.score()` in the loop, pf walk-stopper, another 40-ep L1 vs nap_f cell. Full list: way-ahead **§5.1**, tracker **§3.1**.
+     - **7 Oct sitting answers.**
+       - *(1), zero GPU.* nap_f's group mean does **not** track A0's sensitivity: Spearman ρ +0.25 on DepGraph R56, −0.47 on VGG-16, +0.38 on R56-C100. The sign follows depth, its only group-level input; by construction S1's label is a within-group rank. The allocation A/B (C) is not run.
+       - *Correction to "v10 state" above.* `SPECTRA_STATE_SENS` feeds A0's *measured* loss rise (`src/group_sensitivity.py`), not NAP-F. NAP-F stays a per-channel descriptor (R3, unbuilt).
+       - *Side result.* The summed single-channel ablation over the half a cut removes does track group sensitivity (ρ 0.77 / 0.86 / 0.92), and Taylor does on the ResNets only.
+       - *(3).* The census is done: STOP was extinguished, not learned.
+       - *(4).* Le & Hua final-FT cells are R.
+       - Details: queue file, section "Sitting 7 Oct".
 
 ---
 
@@ -464,7 +473,21 @@ What it shows:
 
 Do not pick a criterion on the test half. Do not start S1–S3.
 
+### S0 keep 0.35, DepGraph R56 C10 (`22288374`; 6 Oct 02:47) — probe, never a TEST row
+
+Ido GO 01:32. `tree_v9d`, keep **[0.35]**, budgets **0 and 40**, criteria l1 / taylor / nap_f / random / anti_l1, scorer md5 `2a3bf48db614`, P + crop+flip. COMPLETED 1.2 h, `ise-pheno-09`, TB 0. Per-group keep 0.35 lands at **params 0.121 / FLOPs 0.129** (every group cut, not a walk to global keep 0.35).
+
+| Budget | L1 val (sd) | nap_f − L1 | taylor − L1 | random − L1 | anti − L1 |
+|---|---|---|---|---|---|
+| 0 | −82.82 (0.00) | **+0.06** | −0.46 | −0.26 | −0.68 |
+| 40 | −8.03 (0.12) | **−0.42** | −5.74 | −2.09 | −2.46 |
+
+`[lever] keep=0.35 budget=40:` best_named nap_f, `best_minus_l1_pp` **−0.42**, L1 − random **+2.09**, L1 − anti **+2.33**. Kendall vs ablation: nap_f **0.628** (descriptor still ranks the oracle); vs L1 0.225. Jaccard nap_f vs L1 0.31.
+
+**Call.** 40-ep still does not beat L1 (best named **−0.42**). nap_f *H_40* < −σ_ft (**HARM** vs L1). Budget 0 is ~−83 pp for every mask — no ranking lever when every group is cut to 0.35 with no FT. Ranking at high sparsity is dead under our FT. Keep L1. Do **not** start S3. Paper sentence: filter ranking does not recover better than L1 at keep 0.35 after 40-ep FT. Remaining NAP idea = cheap proxy for stopping a walk (the pf line already hurt that). Ledger **§219**.
+
 ### S1 results (2 Oct, sitting; zero GPU; never a TEST row)
+
 
 `scripts/selection_scorer_s1.py` over the three S0 run dirs. Leave one network out (LONO). The learner and its hyperparameters are chosen by an inner cross-fit between the two training nets only, never on the held-out net. Metric: width-weighted within-group Kendall τ against the single-channel oracle (`ablation`), on live channels (L1 > 0) of groups with ≥ 2 of them. Before any fit, the script aborts unless every hand τ reproduces S0's printed `tau_vs_ablation` within 2e-3; all 27 reproduced. Tests: `tests/test_selection_scorer_s1.py` 5/5.
 

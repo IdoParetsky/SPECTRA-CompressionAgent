@@ -1737,7 +1737,7 @@ case "$PROFILE" in
                 --train_compressed_layer_only False
                 --compression_rates 1.0 0.9 0.8)
     ;;
-  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce|baseline_c10_mildest95_traj_gonce)
+  baseline_c10_l1|baseline_c10_mild|baseline_c10_random|baseline_c10_mild_traj|baseline_c10_mild_traj_gonce|baseline_c10_l1_traj|baseline_c10_l1_traj_gonce|baseline_c10_mildest95_traj_gonce|baseline_c10_alloc_traj_gonce)
     # Same-loop structured baselines vs DRL: same rates, FT, fortify, floor 0.70.
     # Env still L1-ranks filters; these policies only pick the compression rate.
     # *_traj: unconstrained TRAJ protocol (quote [eval] TRAJ). *_gonce: plus
@@ -1772,6 +1772,8 @@ case "$PROFILE" in
         export SPECTRA_ACTION_DEDUPE=1
         BASELINE_RATES=(1.0 0.95 0.9 0.8) ;;
       baseline_c10_random) export SPECTRA_EVAL_POLICY=random ;;
+      # src/alloc_walk.py: follow SPECTRA_ALLOC_KIND's per-group target widths (A0's rule) through the walk.
+      baseline_c10_alloc_traj_gonce) export SPECTRA_EVAL_POLICY=alloc ;;
       *) export SPECTRA_EVAL_POLICY=l1 ;;
     esac
     if [[ "$PROFILE" == *_traj || "$PROFILE" == *_traj_gonce ]]; then

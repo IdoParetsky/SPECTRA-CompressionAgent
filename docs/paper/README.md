@@ -33,5 +33,6 @@ matrix) are for live ops; they go stale and they are not in git.
 5. Skip akamaster ResNet-32 (`origin_acc` broken).
 6. `param_ratio` / `flops_ratio` = fraction **kept** (shapes, not masked zeros).
 7. A C100 probe cell inside val τ at ≥98% params is not a 2–5% cut.
+8. **Paper freeze (Ido 6 Oct):** 5k P stays the live recipe. Literature tables need a **10k companion** (or labelled cross-fit) and a different-FT caption. Ledger quoting rules + §2.4. Do not mix 5k with published 10k in one cell.
 
 Paper due **30 Sep 2026**. Train freeze **night of 17 Sep 2026**. Git checkpoint for night code: `e985d5e` (16 Aug). Live leap tree may still be an older SHA until overlay is allowed.

@@ -33,7 +33,9 @@ REPO = Path(__file__).resolve().parents[1]
 V9C_KEYS = ("SPECTRA_EVAL_SAVE_TRAJ_MODELS", "SPECTRA_EVAL_FINAL_FT_SCRATCH", "SPECTRA_EVAL_FINAL_FT_SCRATCH_EPOCHS",
             "SPECTRA_EVAL_FINAL_FT_SCRATCH_LR", "SPECTRA_EVAL_FINAL_FT_FROM", "SPECTRA_EVAL_FINAL_FT_ORIGIN",
             "SPECTRA_EVAL_FINAL_FT_EPOCHS", "SPECTRA_EVAL_FINAL_FT_BATCH", "SPECTRA_EVAL_FINAL_FT_KD",
-            "SPECTRA_FT_AUG", "SPECTRA_FT_AUTOAUG")
+            "SPECTRA_FT_AUG", "SPECTRA_FT_AUTOAUG", "SPECTRA_EVAL_FINAL_FT_LR",
+            "SPECTRA_EVAL_FINAL_FT_SCHEDULE", "SPECTRA_EVAL_FINAL_FT_WARMUP", "SPECTRA_FT_SCHEDULE",
+            "SPECTRA_FT_WARMUP_EPOCHS")
 
 
 @pytest.fixture(autouse=True)
@@ -257,6 +259,43 @@ def test_final_ft_kd_builds_a_frozen_teacher_from_the_original(monkeypatch):
     assert env.kd_teacher is not None and env.kd_teacher is not original
     assert not any(p.requires_grad for p in env.kd_teacher.parameters())
     assert torch.equal(env.kd_teacher.weight, original.weight)
+
+
+def test_final_ft_schedule_reaches_the_handler_and_the_walk_value_comes_back(monkeypatch):
+    import a2c_agent_reinforce_runner as runner
+    lines, _ = _quiet(monkeypatch, runner)
+    keys = ("SPECTRA_FT_SCHEDULE", "SPECTRA_FT_WARMUP_EPOCHS", "SPECTRA_FT_SGD_LR")
+    seen = []
+
+    class _SchedEnv(_Env):
+        def create_learning_handler(self, model):
+            handler = super().create_learning_handler(model)
+            train = handler.train_model
+
+            def train_model(loader, **kwargs):
+                seen.append({k: os.environ.get(k) for k in keys})
+                return train(loader, **kwargs)
+
+            handler.train_model = train_model
+            return handler
+
+    assert fortify.eval_final_ft_schedule() == "" and fortify.eval_final_ft_warmup() == 1.0
+    monkeypatch.setenv("SPECTRA_FT_WARMUP_EPOCHS", "1")
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_LR", "0.1")
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_SCHEDULE", "warmcos")
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_WARMUP", "30")
+    runner._run_final_ft(_SchedEnv(), "net.pt", {"val_best": _point(5, 0.7, -9.0)}, _candidates(), 100)
+    assert len(seen) == 2 and all(s == dict(zip(keys, ("warmcos", "30", "0.1"))) for s in seen)
+    assert "SPECTRA_FT_SCHEDULE" not in os.environ and os.environ["SPECTRA_FT_WARMUP_EPOCHS"] == "1"
+    assert any("sgd lr=0.1 m=0.9 wd=5e-4 warmcos w30 e100 " in ln for ln in lines)
+    seen.clear()
+    monkeypatch.delenv("SPECTRA_EVAL_FINAL_FT_SCHEDULE")
+    runner._run_final_ft(_SchedEnv(), "net.pt", {"val_best": _point(5, 0.7, -9.0)}, _candidates(), 10)
+    assert all(s["SPECTRA_FT_SCHEDULE"] == "" and s["SPECTRA_FT_WARMUP_EPOCHS"] == "1" for s in seen)
+    assert any(" cos e10 " in ln for ln in lines)
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_SCHEDULE", "onecycle")
+    with pytest.raises(ValueError):
+        fortify.eval_final_ft_schedule()
 
 
 def test_saved_files_are_state_dicts_with_arch_json(monkeypatch, tmp_path):
