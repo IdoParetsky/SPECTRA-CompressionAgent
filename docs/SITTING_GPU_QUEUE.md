@@ -1,7 +1,7 @@
 # SPECTRA sitting GPU queue
 
 **Sitting 7 Oct ~03:10 (Opus 5.5; `docs/PROMPT_FABLE_OCT7_SITTING.md`, Recommended on every fork, Ido asleep).** Calls, the B3 correction and both lead answers: section "Sitting 7 Oct".
-- *QOS:* the live cap is **11**, not 8: `sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13. **11/11 R:** the Stage-4 resume, v10 and nine sitting cells. **PD:** three sitting cells (QOS) and the v10 resume (Dependency).
+- *QOS:* the live cap is **11**, not 8: `sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13. **11/11 R:** the Stage-4 resume, v10 and nine sitting cells. **PD:** six sitting cells (QOS; wave 4 added 03:55) and the v10 resume (Dependency).
 - *Leads 1–2 (zero GPU, answered):* NAP-F's group mean does **not** track A0's sensitivity (ρ +0.25 / −0.47 / +0.38; the sign follows depth), so C is not run. The summed single-channel ablation does track it (ρ 0.77–0.92). Budget STOP was played 74 times, then extinguished (none after ep 231). The late policy is "remove 4 %" in 97.5 % of decisions.
 - *B3 correction:* §212 is already 3-rate and mild never plays 0.7 / 0.6. The menu A/B becomes a greedy step-size ladder at κ 0.6.
 - *Trees:* `tree_v10` is untouched (sbatch heuristics and from-saved final FTs only). New **`tree_v10h`** = `tree_v10` + the default-off allocation walk and final-FT schedule (`PROVENANCE_v10h.txt`; staged tests green before the first submit).
@@ -21,6 +21,9 @@
 | Alloc walk uniform, κ 0.8 thin | **22340394** PD | v10h | — | control |
 | Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** PD | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
 | Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** PD | v10h | — | control |
+| Alloc walk sens, κ 0.35 thin (wave 4) | **22340636** PD | v10h | uniform 22340637 | SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 (r56-w4) |
+| Alloc walk uniform, κ 0.35 thin | **22340637** PD | v10h | — | control |
+| Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** PD | v10h | sens 22340391 | dose-response, reported |
 
 **Ops 7 Oct 02:28 (3h).** QOS **6/8**. Sitting jobs **22340232–35 R** ~8 min, TB=0, `tree_v10` sbatch (no src overlay). **22340232** greedy 4-rate (1.0/0.9/0.8/0.7) landed κ 0.6; **22340233** greedy 5-rate (+0.6); **22340234** cosine-100 from-saved N3 `flop0.39`; **22340235** cosine-100 thin `param0.60`. **2 idle — sitting fills, ops does not invent.** Do not TEST v10 ep0111. Resume ep **218**. Next canvas **09:30**. Next 3h **05:28**.
 
@@ -771,6 +774,9 @@ Calls fixed before any cell read. Written here at ~03:10, after the 02:20–02:4
   - **Lever (sens − uniform, both alloc walks).** At r56-w4, κ 0.6 and κ 0.8 each: **SURVIVES** if ≥ +1.0 pp, **ABSORBED** if ≤ +0.3, **WEAK** in between. r20-w2 (A0b FLAT at 0.6) is reported but does not gate. DepGraph R56 at params 0.47: **SURVIVES** if ≥ +0.5 (A0 §204 keep 0.6: +0.61), **ABSORBED** if ≤ +0.15.
   - **Bar (sens walk vs mild-landed §212, r56-w4 κ 0.6).** If the sens walk is ≥ §212 + 1.0 pp, a non-learned allocation clears the v10 WIN bar. This is an interpretation rule for the v10 read and does not change ops' gate. A v10 WIN is then quoted as "learned allocation at heuristic level"; "beyond heuristic" needs the actor ≥ sens walk + 0.5 pp at the same landed keep.
   - **DepGraph R56.** Also quoted against N3's 2.11× row (−0.4 @ params 0.470 / FLOPs 0.463, 5k), with FLOPs beside it: A0 §204's sens allocation removed more FLOPs at equal params.
+- **Wave 4 (registered 03:55, before submit).** Same protocol, thin pair, 5-rate menu.
+  - **κ 0.35, sens 22340636 vs uniform 22340637** (PD on QOS). This is A0's largest lever: r56-w4 keep 0.35 sens +7.81 / +7.69 val / TEST (§201). On r20-w2 at 0.35, random beat sens (§207). Call on r56-w4: **SURVIVES** if ≥ +2.0 pp, **ABSORBED** if ≤ +0.5, **WEAK** in between. r20-w2 is reported.
+  - **sens2 (α 1.0) at κ 0.6, 22340638** (PD on QOS), a dose-response point beside the κ 0.6 pair. A0 §201 had sens2 +2.25 vs sens +1.95 TEST. Reported, no separate call.
 
 ### Lead 1 (zero GPU): group-level NAP-F vs A0 sensitivity. Call: does not correlate; C not run
 
