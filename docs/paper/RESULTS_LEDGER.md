@@ -5694,3 +5694,24 @@ Mild, cosine against lr 0.01: seed 42 +2.88 at 5k (+3.09 at 10k), seed 43 +1.80 
 
 ---
 
+## 299. Wave 20 (b): DepGraph R56 sens / uniform under cosine-0.1-last at seed 43 (**22376025 / 22376026**, re-fine-tuned from 22344275 / 76) — PRELIM, reported; two-seed lever_cos **0.00** at 5k (−0.12 / +0.12; lr 0.01 +0.78) and **+0.06** at 10k (lr 0.01 +0.48): ABSORBED on §236's bars, so the lr 0.01 lever was the walk + 1 epoch restore; under cosine both arms end level with each other and with DepGraph's own 2.11× model (+0.24 at 10k), sens on 10–16 % fewer FLOPs
+
+`tree_v10k`, wave 19's recipe on wave 13's seed-43 walks' saved candidates (`tree_v10h/runs/job22344275` / `76`), `SPECTRA_SEED=43` (verified in the env). 22376025 COMPLETED 33 m, 8 Oct 01:45, `ise-4090-19`; 22376026 COMPLETED 34 m, 01:05, `ise-4090-12`; both exit 0, TB 0, no fallback, lr 0.1 cosine, `select=last`, and both kept the last epoch on the pruned point and the origin. Registration (wave 20, 13:43): the two-seed mean of wave 18's DepGraph-pair lever under cosine-0.1 is reported beside §280's lr 0.01 call (SURVIVES +0.78 on §236's bars: SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15).
+
+| DepGraph R56 C10, landed ~0.47 | Params / FLOPs (s42; s43) | Seed 42 cos 5k / val / 10k (§275) | Seed 43 cos 5k / val / 10k (this) | Two-seed cos 5k / 10k | lr 0.01 two-seed 5k / 10k (§280) |
+|---|---|---|---|---|---|
+| Sens | 0.469 / 0.398; 0.469 / 0.425 | +0.06 / +0.46 / +0.26 | **+0.26** / +0.32 / **+0.29** | +0.16 / +0.275 | −0.14 / −0.29 |
+| Uniform | 0.465 / 0.472 on both | +0.18 / +0.36 / +0.27 | **+0.14** / +0.18 / **+0.16** | +0.16 / +0.215 | −0.92 / −0.77 |
+| **Lever_cos, sens − uniform** | | −0.12 / +0.10 / −0.01 | +0.12 / +0.14 / +0.13 | **0.00** / **+0.06** | +0.78 / +0.48 |
+| Origin control, 5k (sens run / uniform run) | | +0.70 / +0.60 | +0.82 / +1.02 | — | s42 +0.60 / +0.46; s43 +0.24 / +0.40 |
+
+Cosine minus lr 0.01, per cell (5k / 10k): sens s42 +0.40 / +0.55, s43 +0.20 / +0.58; uniform s42 +0.92 / +1.03, s43 +1.24 / +0.94. Seed 43's sens walk lands at step 201 (seed 42: 165); uniform lands at step 113 on both seeds.
+
+**Read (reported).**
+- *ABSORBED under cosine on two seeds.* Sens − uniform is 0.00 at 5k and +0.06 at 10k (val +0.12), against +0.78 / +0.48 at lr 0.01. Every lr 0.01 pruned row in wave 13 was walk + 1 epoch (§280); at a genuine endpoint uniform recovers +1.08 at 5k on average and sens +0.30, and the gap closes. Seed 42 alone read the same (§275); seed 43, which carried most of the lr 0.01 lever (+1.16), now reads +0.12. §280's lr 0.01 call (SURVIVES) stands as registered; if Q7 adopts cosine-0.1, this is the paper's read.
+- *Level with DepGraph, on fewer FLOPs.* Under cosine both arms end at +0.16 at 5k and +0.2 to +0.3 at 10k on two seeds, level with DepGraph's own 2.11× model (+0.24 at 10k, §275), never a beat. Sens gets there keeping FLOPs 0.398 / 0.425 against uniform's 0.472, 10–16 % fewer. At equal params and equal accuracy, what the sensitivity plan still buys on DepGraph R56 is FLOPs, not accuracy.
+- *The unpruned control gains more.* The origin controls gain +0.6 to +1.0 at 5k under cosine, so both pruned arms end 0.5–0.9 below the unpruned net fine-tuned the same way.
+- The transplant under cosine (22376027, R) completes wave 18's lift on two seeds. Do not lock. Never an agent row.
+
+---
+
