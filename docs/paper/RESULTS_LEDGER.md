@@ -5423,3 +5423,51 @@ Sitting 7 Oct wave 21 (registered 14:06, before submit). MobileNetV2 ×0.5 C10 (
 
 ---
 
+## 288. Wave 20 (b) at κ 0.6, seed 43: wave 9's `inner` cell under cosine-0.1-last (**22376022**, re-fine-tuned from 22341867) — PRELIM, reported; two-seed sens − inner **−0.28** at 5k (lr 0.01 +0.18) and +0.16 at 10k (−0.28), so κ 0.6 stays on the STRUCTURAL side under cosine; inner − uniform **+1.72** at 5k on both seeds (lr 0.01 +0.91)
+
+Sitting 7 Oct wave 20 (b), as §285. `tree_v10k`, from `tree_v10i/runs/job22341867/traj_models`; final-FT seed 43 (verified in the env and the submit line). COMPLETED 50 m, 23:59, `ise-4090-10`, exit 0, TB 0, kept the last epoch. Sens and uniform under cosine at seed 43 are §268's (22374686 / 87). Reported beside wave 9's call; not called.
+
+| r56-w4, κ 0.6, seed 43 | Params | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / 10k | Origin 5k (lr 0.01) | cos − lr 0.01, 5k / 10k |
+|---|---|---|---|---|---|---|
+| Inner (this run; §265) | 0.595 | −2.74 / −3.40 / **−3.07** | −0.54 | −2.84 / −2.50 | +0.52 | +0.10 / −0.57 |
+| Sens (§268) | 0.597 | −3.06 / −2.70 / **−2.88** | −0.44 | −2.08 / −2.45 | +0.00 | −0.98 / −0.43 |
+| Uniform (§268) | 0.599 | −4.46 / −3.94 / **−4.20** | −0.54 | −3.72 / −3.82 | +0.52 | −0.74 / −0.38 |
+| **Gap, sens − inner** | | **−0.32** / +0.70 / **+0.19** | | +0.76 / +0.05 | | −1.08 / +0.14 |
+| Inner − uniform | | +1.72 / +0.54 / +1.13 | | +0.88 / +1.32 | | +0.84 / −0.19 |
+
+| r56-w4, κ 0.6, two-seed mean | cosine-0.1-last 5k / val / **10k** | lr 0.01 5k / 10k |
+|---|---|---|
+| **Gap, sens − inner** (cosine seeds −0.24 / −0.32 at 5k) | **−0.28** / +0.60 / **+0.16** | +0.18 / −0.28 (§265) |
+| Inner − uniform | **+1.72** / +0.84 / +1.28 | +0.91 / +1.39 |
+| Lever, sens − uniform (§268) | +1.44 / +1.44 / +1.44 | +1.09 |
+
+Guard, r20-w2, seed 43 (inner at 0.582), cosine 5k / 10k: inner −0.68 / +0.55 (lr 0.01 −1.18 / −0.46), against sens −2.92 / −2.19 and uniform −1.92 / −1.18. Reported only.
+
+**Read.**
+- *STRUCTURAL under cosine too, at κ 0.6.* The two-seed sens − inner is −0.28 at 5k, inside wave 9's STRUCTURAL band (≤ +0.3); +0.16 at 10k, +0.60 on val. Under lr 0.01 it was +0.18 (§265). The seed spread of the gap falls from 1.16 (lr 0.01: −0.40 / +0.76) to 0.08.
+- *The lever is the structure.* Inner − uniform is +1.72 at 5k on both seeds (lr 0.01 +0.91; 10k +1.28 against +1.39). The two-seed lever_cos (+1.44, §268) is the residual-full structure less 0.28: sens adds nothing at 5k under the stronger fine-tune.
+- *Origins agree on seed 43.* The three seed-43 cosine runs' origins change −0.44 to −0.54 at 5k, so §285's 0.72 origin spread was a seed-42 case.
+- *Pending.* κ 0.8 (22376021 / 23) is running and κ 0.35 (22376024) is queued; wave 9's two-κ framing is read under cosine when κ 0.8 lands. Do not lock. Never an agent row.
+
+---
+
+## 289. Wave 18: the DepGraph VGG-19 C100 transplant re-fine-tuned under cosine from lr 0.1, keep last (**22374249**, from 22342030's saved candidates) — PRELIM, reported; 10k **−2.72**, above the MATCH bar (≥ −3.47) and level with DepGraph's own −2.97 on the same architecture; +3.13 over the paper recipe's keep-last (§286), so §286's 2.9 pp gap was the fine-tune
+
+Sitting 7 Oct wave 18 (registered 13:04, before submit). `tree_v10k`, wave 19's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, keep last, origin control, P), from-saved `tree_v10j/runs/job22342030/traj_models`, seed 42. COMPLETED 18 m, 23:59, `ise-4090-12`, exit 0, TB 0, no restarts. Start check green: `final_ft from` names 22342030, env `select=last`, recipe `lr=0.1 cosine=1`, and both final FTs print "kept the last epoch". The pruned model's last train loss is 0.277, against 0.039 under lr 0.01 (§286). Registered (queue row 67): reported beside wave 10's MATCH bar (≥ −3.47 at 10k); not called. The 10k is `full_test_dacc` at the size point (step 46, the walk's one landed candidate).
+
+| VGG-19 C100 transplant, params 0.061 / FLOPs 0.109 | Final FT | 5k / val / **10k** | Origin 5k / val / 10k |
+|---|---|---|---|
+| Walk endpoint (§267) | none | −6.64 / −5.90 / −6.27 | — |
+| Epoch-1 restore (§267, 22342030) | lr 0.01, lowest train loss (epoch 1) | −8.20 / −6.66 / −7.43 | +0.42 / +0.80 / +0.61 |
+| Keep last (§286, 22342668) | lr 0.01 cosine, epoch 100 | −6.06 / −5.64 / −5.85 | +0.30 / +1.48 / +0.89 |
+| **Keep last (this)** | cosine from lr 0.1, epoch 100 | −2.84 / −2.60 / **−2.72** | +0.50 / +1.24 / +0.87 |
+| DepGraph's own model (h2h 21943448), exact copy 0.0608 / 0.1104 | DepGraph's | 10k **−2.97** | — |
+
+**Read.**
+- *Registered read: MATCH.* At 10k the copy is −2.72, 0.75 above the −3.47 bar and 0.25 above DepGraph's own model on the same architecture. 0.25 is inside the origin control's run-to-run spread (up to 0.72 at 5k, §285), so the wording is "level with DepGraph", never a beat. Reported, not gating.
+- *The fine-tune was the gap.* The stronger fine-tune adds +3.13 at 10k over the paper recipe's keep-last and +3.55 over the walk. The origin gains +0.87, the same as under lr 0.01 (+0.89), so the extra is on the pruned model: honest +2.68 at 10k (+3.30 at 5k). §286's "about 2.9 pp beyond the widths" was therefore the fine-tune. Given DepGraph's widths and a cosine-0.1 fine-tune, our pipeline reaches DepGraph's accuracy at 9× on VGG-19 C100, as it did at 2.11× on R56 (§262, +0.69 against +0.24).
+- *What it does not say.* No SPECTRA allocation was run at params 0.061, so this shows the architecture DepGraph found is reachable by our walk and fine-tune, not that our allocation would find it. One seed.
+- Do not lock. Never an agent row. Never a DepGraph beat.
+
+---
+
