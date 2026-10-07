@@ -4679,6 +4679,25 @@ Sitting 7 Oct, wave 11 (registered before submit). `tree_v10k`, `SPECTRA_EVAL_FI
 - *Lead 3 rule at 2.11×, both walks (honest Δ ≥ +0.5 and raw final ≥ the reference's):* raw holds on both (+0.04, +0.56), but honest Δ is **−0.68** (N3) and **−0.18** (τ-off). **FAILS on both walks.** §235's VOID becomes a fail on genuine endpoints, and the caption does not move to 1-cycle.
 - *Why:* with the endpoint kept, 1-cycle's peak lr 0.1 does what cosine-0.1 does to the pruned points (10k within ±0.3 of cosine-0.1 at every point). It lifts the unpruned origin more, though (+1.06 / +1.02 at 5k against cosine-0.1's +0.62 / +0.74), so its honest gain is lower. Cosine-0.1 (§252) remains the only large-lr candidate for Q7. 1-cycle adds nothing beside it.
 
+## 254. Wave 8 at κ 0.6: uniform allocation at seed 43 (**22341282**) — PRELIM; two-seed lever sens − uniform **+1.09 → SURVIVES** (seed 42 +0.54, seed 43 +1.64), 0.09 above the line; uniform already holds +1.45 of sens's +2.54 over mild
+
+`tree_v10h`, `SPECTRA_ALLOC_KIND=uniform`, §230's recipe (`param:0.6`, 6 passes, P, loader crop+flip, walk 40/10, 100-ep final FT + origin, deterministic) with `SPECTRA_SEED=43`. COMPLETED 3 h 5 m, 7 Oct 12:59, `ise-4090-02`, exit 0, TB 0, no fallback. `[alloc]` uniform plan keeps x0.554 on r20-w2 (every group 0.75). Reader `final_ft_readout.py`. Rule (wave 8, registered 04:10): at r56-w4 the lever (sens − uniform: SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between) is read on the two-seed mean, and where the seed-42 call and the two-seed call disagree, the two-seed call stands.
+
+| r56-w4, κ 0.6 | Seed 42 | Seed 43 | Mean | Residual widths (s42 / s43) |
+|---|---|---|---|---|
+| Sens α 0.5 (§230 / §242) | −2.80 | −2.08 | **−2.44** | 4 / 8 / 16 both |
+| Uniform (§230 / this) | −3.34 | **−3.72** | **−3.53** | s42 not read here; s43 3 / 6 / 12 |
+| Mild-landed (§212 / §247) | −5.06 | −4.90 | **−4.98** | 2 / 5 / 13 both |
+| **Lever sens − uniform** | +0.54 | +1.64 | **+1.09** | |
+| Uniform − mild | +1.72 | +1.18 | +1.45 | |
+
+Uniform seed 43: r56-w4 walk −4.88, final −3.72 @ params 0.599 / FLOPs 0.582, honest +0.64, inner medians 3 / 6 / 13. r20-w2 guard: −2.70 @ 0.581 (sens seed 43: −3.46).
+
+**Read.**
+- *Lever at κ 0.6: **SURVIVES**.* The two-seed mean is +1.09, so the seed-42 call (WEAK, §230) is replaced. It clears by 0.09 on a per-seed spread of 1.1. "Survives" here means about +1 pp, not a precise number.
+- *Decomposition of the bar.* Sens beats mild by +2.54 on two seeds (§247). Uniform already supplies +1.45 of it: it keeps residual streams 3 / 6 / 12 where mild keeps 2 / 5 / 13. Sens adds +1.09 and keeps them full (4 / 8 / 16). So about 60 % of the non-learned allocation's lead over mild comes from spreading the cut evenly, and about 40 % from what sens does beyond that. Whether that 40 % is the full residual streams is wave 9's question (`inner`, the residual-full rule alone; 22341865 R, the rest PD).
+- κ 0.8's two-seed lever waits on 22341283 / 84 (both R).
+
 ---
 
 
