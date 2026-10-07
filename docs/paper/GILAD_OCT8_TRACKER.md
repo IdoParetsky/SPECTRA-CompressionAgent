@@ -332,6 +332,8 @@
   - With §262 (cosine-0.1: +0.69), the 15:45 slide line holds under both genuine fine-tunes: given DepGraph's widths, our walk and fine-tune reach its accuracy. Never "beats".
 - **7 Oct ~18:25 (sitting)** — At κ 0.35, seed 42, the lever stays WEAK under cosine-0.1 (ledger §273, provisional). Sens − uniform is **+1.72** at 5k (+1.45 at 10k), against +1.90 at lr 0.01; the SURVIVES bar there is +2.0.
   - Unlike κ 0.6, the stronger fine-tune trims this lever slightly, and sens keeps 24 % more FLOPs than uniform at this keep. Seed 43's κ 0.35 pair is running.
+- **7 Oct ~18:35 (sitting)** — At κ 0.8 too, v10's reward sees the allocation lever at v10's own walk budget (ledger §274, seed 42). Sens − mild on the return is **+1.58** (VISIBLE ≥ +1.0), against +2.14 at 40/10, at equal params and FLOPs.
+  - So the M1-v10 FLAT is a learning failure at both probe keeps, not a budget that hid the lever. Unlike κ 0.6, the short budget shrinks this lever (×0.74). After the final FT it is +1.36 (40/10 +0.82).
 
 ---
 

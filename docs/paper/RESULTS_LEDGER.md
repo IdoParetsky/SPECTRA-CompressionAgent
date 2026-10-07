@@ -5100,6 +5100,27 @@ The lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2
 - *Guard.* On r20-w2 uniform is 3.2 ahead of sens at κ 0.35 under both fine-tunes. Reported only.
 - The seed-43 κ 0.35 walks (22344456 / 57) are R, and their cosine re-reads follow by `afterok`. The mild-landed κ 0.35 re-read gives bar_cos. Do not lock. Never an agent row.
 
+## 274. Wave 17 at κ 0.8, seed 42: the allocation lever under v10's walk FT 12/4 (**22372634 / 22372635**) — PRELIM, reported beside §259; sens − mild on the reward's own view **+1.58 → VISIBLE** (40/10 +2.14, ×0.74): at κ 0.8 the reward also sees the lever, but the short budget shrinks it instead of growing it; after the 100-epoch final FT the lever is **+1.36** (40/10 +0.82)
+
+Sitting 7 Oct, wave 17 (registered 12:30, submitted 12:31). §259's recipe at landed κ 0.8: sens α 0.5 in `tree_v10h` (§227's recipe) against mild-landed in `tree_v10` (§211's), thin pair, seed 42. The only change from 40/10 is `SPECTRA_NUM_EPOCHS=12 SPECTRA_FINETUNE_PATIENCE=4`. 22372634 COMPLETED 1 h 20 m, 18:17, `ise-4090-18`; 22372635 COMPLETED 1 h 22 m, 18:22, `ise-4090-21`; both exit 0. The start check is green on both: env `NUM_EPOCHS` 12 / `FINETUNE_PATIENCE` 4 / seed 42, walk FT lines `Epoch …/12`, no Traceback, no fallback, and the sens job prints its `[alloc]` plan line. Every final FT in these two jobs and in the 40/10 references kept a late epoch (90–100), so all are genuine 100-epoch finals. Call (registered): §259's bars on seed 42, reported beside. d = sens − mild on r56-w4's return (`fixed target: episode ends … return`); **VISIBLE** ≥ +1.0, **HIDDEN** ≤ +0.3, PARTIAL between.
+
+| r56-w4 at κ 0.8, seed 42 | Landed params / FLOPs, 12/4 | Residual s1 / s2 / s3; inner median | **Return 12/4** | Return 40/10 (job) | 12/4 − 40/10 |
+|---|---|---|---|---|---|
+| Sens | 0.7996 / 0.717 | 4 / 8 / 16; 2 / 5 / 14 | −2.84 | −0.80 (22340393) | −2.04 |
+| Mild | 0.7994 / 0.716 | 3 / 7 / 14; 3 / 7 / 15 | −4.42 | −2.94 (22156061) | −1.48 |
+| **d** | | | **+1.58** | +2.14 | ×0.74 |
+
+TEST on the 5k half at the landed point (walk / final FT, 100 epochs). Sens at 12/4: −2.54 / **−0.82** (honest +1.12, origin +0.60). Mild at 12/4: −4.50 / **−2.18** (honest +2.04, origin +0.28), on the 40/10 architecture exactly (step 47, identical widths). At 40/10 (§227 / §211): sens −1.30 / −1.30 (honest −0.46), mild −2.22 / −2.12. Sens's 40/10 final kept epoch 95: its walk had already converged this net (train loss 0.197 at final-FT epoch 1, 0.189 when kept), so §227's zero gain is real, not a restored epoch. Final-FT d: **+1.36** at 12/4 against **+0.82** at 40/10.
+
+Guard, r20-w2 (sens at 0.799, mild at 0.774; unequal size, flagged as in §227): the return d is +0.60 at 12/4 (−0.58 vs −1.18) and +1.58 at 40/10 (+2.04 vs +0.46). Final-FT TEST at 12/4: sens +0.52, mild −0.32 (d +0.84); at 40/10, +1.30 vs −0.44 (d +1.74). Both r20 origins gain +3.6 to +4.0 under the same final FT, so these finals are final-FT gains, not pruning gains (honest −1.90 / −0.16 at 12/4).
+
+**Read.**
+- *Call: VISIBLE at κ 0.8, seed 42.* At v10's own walk budget, its reward puts sens 1.58 pp above mild on r56-w4 at κ 0.8, at equal params and equal FLOPs (0.717 vs 0.716). With §259 (+4.05 on two seeds at κ 0.6) the lever is in v10's reward at both of its probe keeps. κ 0.8 does not disagree with κ 0.6, so neither keep shows the budget hiding the lever, and the M1-v10 FLAT (§248) reads as a learning failure at both.
+- *At κ 0.8 the short budget shrinks the lever.* 12/4 costs sens 2.04 pp of return and mild 1.48. At κ 0.6 the order was reversed (mild lost 2.0–2.8, sens 0.3–1.1), which §259 traced to mild's thin residual streams (2 / 5 / 13) recovering slowly. At κ 0.8 mild thins the streams less (3 / 7 / 14), and that premium is gone: the lever is ×0.74 of 40/10's, against ×1.36 at κ 0.6 on the same seed.
+- *Final FT.* Mild's 12/4 final (−2.18) matches its 40/10 final (−2.12) on the same architecture: 100 epochs erase the walk budget, as at κ 0.6. Sens's 12/4 walk lands on a slightly different architecture from its 40/10 walk (step 112 against 169; FLOPs 0.717 against 0.696; the same full residual streams, more kept in s2 and less in s3). Its final is 0.48 better (−0.82 against −1.30), close to this net's same-architecture noise (0.38, §226). So the final-FT lever is +1.36 at 12/4 and +0.82 at 40/10. On one seed, read that as the same sign at both budgets, not as a budget effect.
+- *For v10.* On this seed the reward's lever (+1.58) is close to the final-FT lever at the same budget (+1.36). At κ 0.6 the reward overstated it about 1.8× (§259). It points the same way at both keeps.
+- Seed 42 only, as registered. Not a train and not a v10 TEST; ops' M1-v10 FLAT (§248) stands. Never quote the in-walk returns as TEST. Do not lock. Never an agent row.
+
 ---
 
 
