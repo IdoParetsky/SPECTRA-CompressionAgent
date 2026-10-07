@@ -125,6 +125,7 @@
 7. **Final fine-tune recipe (added 7 Oct; ledger §235, §240).** The registered paper recipe is SGD lr 0.01, cosine, 100 epochs. After a crop+flip walk it kept epoch 1, and its true endpoint adds only +0.15 to +0.43 pp. Cosine from lr 0.1 (Le & Hua, ICLR 2021) lands 0.83 / 0.95 pp better at 2.57× FLOPs on DepGraph R56 and level at 2.11×.
    - *Recommended:* keep the registered recipe for every row, and report cosine-0.1 beside it as a sensitivity row.
    - *Alternative:* adopt cosine-0.1 for every row, justified from the literature rather than from TEST, and re-finalise every row from its saved candidates.
+   - *Selection (added 10:40; §244, §245).* The +0.15 to +0.43 above is DepGraph R56 (a seed-43 repeat moves it ≤ 0.14). On VGG-19 C100 the endpoint is worth **+0.69 / +1.34** at 10k, and on equal epochs the crop+flip walk would move bar-3 VGG-19 by +1.4 pp (§245). The question becomes: does every final-FT row keep its endpoint? The case rests on §235's mechanism, not on TEST: "100 epochs" is then true, and every row has been or can be re-finalised from its saved candidates. *Recommended:* keep train-loss selection as registered (wave 11 is NEUTRAL) and report the endpoint rows beside. *Alternative:* adopt `select=last` for every row; bar-3 VGG-19 then moves to N4-last by its registered 1 pp rule.
 
 ---
 
@@ -250,6 +251,10 @@
 - **7 Oct ~10:15 (sitting)** — Sens vs uniform at κ 0.35 (ledger §243): **WEAK +1.90**, 0.10 short of SURVIVES (r56-w4 −6.00 @ 0.338 / FLOPs 0.409 vs −7.90 @ 0.349 / 0.331). Residual streams are nearly full (4 / 8 / 15). The r20-w2 guard goes the other way (−3.26; its plan's floor binds before κ).
   - *Insight for slide 3:* under the walk protocol about a quarter of A0's one-shot allocation lever survives: +1.9 of +7.7 at keep 0.35, +0.54 of +1.95 at 0.6. Iterative recovery absorbs most of what a one-shot cut shows. That suggests allocation matters most where recovery is short, as in one-shot pruning; it is a reading, not yet a tested claim.
   - Wave 14 (**22344456 / 57**) is the seed-43 pair; the call moves to the two-seed mean.
+- **7 Oct ~10:40 (sitting)** — Endpoint noise and VGG-19 C100 (ledger §244, §245).
+  - *Seed 43 of N3's endpoint FT* moves it by ≤ 0.14 at 10k (0.05 at 2.11×), under the registered 0.3. The wave 11 NEUTRAL call stands. One final FT re-seeded moves ≤ 0.32 at 5k; walk plus FT re-seeded moved 0.72 (§242), so the seed spread is mostly the walk.
+  - *VGG-19 C100 (N4):* keeping the endpoint is worth **+0.69 / +1.34** at 10k (size 0.70 / 0.60), three times DepGraph R56's +0.10 to +0.57. On equal epochs the crop+flip walk lands **+1.46 / +1.41** above §149, clearing the registered 1 pp N4 line that §155 missed (+0.77) because of the selection. Honest is +0.48 / +0.66, now 100 epochs against 100.
+  - Bar-3 VGG-19 stays on §149 (−2.39 / −3.04 at 10k) while the paper keeps train-loss selection; N4-last (−0.93 / −1.63) goes beside it as a sensitivity row. Q7 now asks about the selection rule as well. DepGraph's own: −3.11 at 8.92× params; far less compression on our side, so not a beat.
 
 ---
 

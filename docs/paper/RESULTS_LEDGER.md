@@ -4484,4 +4484,29 @@ Sitting 7 Oct wave 11b, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, `SPECT
 
 ---
 
+## 245. Wave 11 N4: select=last re-FT, DepGraph VGG-19 C100 (**22342661**) — PRELIM; endpoint **+0.69 / +1.34** over the train-loss pick at 10k; on equal epochs the aug walk clears the N4 adopt line vs §149 (**+1.46 / +1.41**); bar-3 VGG-19 stays §149 under the NEUTRAL selection call
+
+Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-saved N4 `job21737105/traj_models`, paper recipe otherwise (SGD lr 0.01, cosine, 100 epochs, P, seed 42, origin control). COMPLETED 36 min, 7 Oct 10:29, `cs-4090-04`, exit 0, TB 0. Start check green on all four final FTs (env 1, `select=last` 4, kept last 4, `keep=last` 4). Checkpoint `vgg19_cifar100_dep_graph_73.5.pth`; TEST = 5k half (unpruned 0.740). Registered read (wave 11, reported, not gating): N4 against §149 on equal epochs, re-reading §155; the N4 adopt line is "≥ 1 pp after final FT" against 21729551 (way-ahead §3, 30 Sep).
+
+| Point | Keep params / FLOPs | Walk (5k) | **Last** (5k) | Honest | **10k last** | §155 10k (epoch 1) | §149 10k (no-aug walk, late) | Last − §149, 10k |
+|---|---|---|---|---|---|---|---|---|
+| size 0.70 step 29 | 0.684 / 0.686 | −2.24 | **−1.34** | +0.48 | **−0.93** | −1.62 | −2.39 | **+1.46** |
+| size 0.60 step 42 | 0.599 / 0.590 | −2.52 | **−1.44** | +0.66 | **−1.63** | −2.97 | −3.04 | **+1.41** |
+| `val_best` step 47 | 0.534 / 0.550 | −2.16 | **−1.74** | +0.00 | n/a | n/a | n/a | 5k +1.90 |
+| origin | 1 | 0 | +0.42 | — | +0.61 | +0.96 | +0.56 | — |
+
+Kept epoch: every pruned final FT ends at train loss 0.0089–0.0099 against a best of 0.0027–0.0049, which is where §155 restored to (epoch 1 or 5, §235). The origin's best and last are adjacent (0.0104 / 0.0109).
+
+**Read.**
+- *Selection.* The endpoint beats the train-loss pick by **+0.69 / +1.34** at 10k (5k +0.90 / +1.50; `val_best` +0.86), against +0.10 to +0.57 on DepGraph R56 (§239, §244). Off R56 the restore costs much more: here the lowest-train-loss epoch is the most overfit state the Adam walk left (§235's mechanism), and C100 has more room to recover.
+- *§155 re-read on equal epochs.* Both rows are genuine ~100-epoch final FTs now (§149 kept epochs ~90–95 at near-zero cosine lr). The crop+flip walk lands **+1.46 / +1.41** above §149 at 10k, clearing the 1 pp N4 adopt line by 0.41–0.46 at both size points (5k: +1.18 / +1.84). §155's "+0.77, under the line" was the selection.
+- *Honest is now 100 epochs against 100:* +0.48 / +0.66 / 0.00. The finish adds about half a point beyond what it gives the unpruned net; §155's CROSS-OFF (−0.50 / −0.92 / −0.94) was one epoch against 100.
+- *Noise.* This is a from-saved re-FT; §155's final FTs ran inside the walk, so the trajectories are not identical. The origin, which kept a late epoch in both, moved −0.08 (5k) / −0.35 (10k); every Δsel at 10k is above that. One run each.
+- *What it moves.* Nothing in the quoted rows yet. The wave 11 call is NEUTRAL (§240): the paper keeps train-loss selection with the caption disclosing it. Under that selection §155 does not clear the line, so bar-3 VGG-19 stays on **§149** (−2.39 / −3.04 at 10k). Quoting N4-last as the row would change the selection for one net after reading its TEST. N4-last is reported beside it as the endpoint sensitivity row. If the paper adopts endpoint selection for every final FT on §235's mechanism (tracker Q7), bar-3 VGG-19 moves to N4-last by the registered 1 pp rule.
+- DepGraph's own VGG-19 C100: 73.50 → 70.39 (**−3.11**) at **8.92×** params (keep ≈ 0.11); we are at keep 0.68 / 0.60, far less compression. Quote beside; **never "beats"**.
+- 22342768 (cosine from lr 0.1, select=last, same candidates) is the "across architectures" read against these rows.
+- Do not lock. Never an agent row.
+
+---
+
 
