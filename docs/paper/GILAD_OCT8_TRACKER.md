@@ -316,6 +316,9 @@
 - **7 Oct ~16:35 (sitting)** — On seed 42 the bar over mild also grows under cosine-0.1 (ledger §266, reported): sens − mild is **+2.92** at 5k and +2.71 at 10k, against +2.26 / +2.33 at lr 0.01. The stronger fine-tune keeps or widens both gaps on every view. The two-seed reads wait on seed 43 (R).
 - **7 Oct ~16:50 (sitting)** — On VGG-19 C100 at DepGraph's 9× architecture, our lr 0.01 pipeline lands far below DepGraph's own model (ledger §267, transplant 22342030, reported): **−7.43** at 10k against −2.97, below the −3.47 MATCH bar.
   - The final FT kept epoch 1 and lost 1.56 against the walk. That artefact hid the R56 result until its cosine re-read (§262), so the VGG cosine re-read 22374249 decides. Not for slides yet.
+- **7 Oct ~16:55 (sitting)** — The κ 0.6 allocation lever **SURVIVES** the fine-tune Q7 recommends, on two seeds (ledger §268, wave 19): sens − uniform at r56-w4 is **+1.44** at 5k, on the val half and at 10k, against +1.09 at lr 0.01.
+  - The seeds now agree (+1.48 / +1.40, against +0.54 / +1.64 at lr 0.01). A stronger fine-tune does not repair what uniform cut.
+  - Slide line: "under the recommended fine-tune, the non-learned sensitivity plan keeps a 1.4 pp lead over uniform at 60 % params, on two seeds and both test halves." The bar over mild waits on 22374688.
 
 ---
 

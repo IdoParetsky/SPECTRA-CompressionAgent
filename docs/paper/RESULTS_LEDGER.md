@@ -4961,6 +4961,25 @@ Sitting 7 Oct, wave 10 (registered 06:50, before submit). `tree_v10j`, `SPECTRA_
 - *What decides it.* On R56 the same epoch-1 pattern read PARTIAL, and the cosine-0.1-last re-read reversed it to ALLOCATION, +0.83 at 10k over the lr 0.01 final (§249 → §262). Wave 18 (d) **22374249** (cosine-0.1-last) and wave 11's **22342668** (select=last) re-fine-tune this run's saved candidate, and both have their `afterok` met. Do not quote −7.43 as what our pipeline reaches at DepGraph's widths. Never "beats" either way.
 - Do not lock. Never an agent row.
 
+## 268. Wave 19 at κ 0.6, seed 43: sens / uniform under cosine-0.1-last (**22374686 / 22374687**, re-fine-tuned from 22341281 / 82) — PRELIM; two-seed lever_cos **+1.44 → SURVIVES** at 5k (seed 42 +1.48, seed 43 +1.40), and +1.44 on val and at 10k; lr 0.01 two-seed +1.09, so the lever holds under the stronger fine-tune and its seed spread falls from 1.10 to 0.08
+
+Sitting 7 Oct wave 19 (registered 13:14, before submit). §264's recipe at final-FT seed 43, the walk's (verified: `seed=43`, `SPECTRA_SEED': '43'` in the env, `SPECTRA_SEED=43` in the submit line). 22374686 COMPLETED 52 m, `cs-4090-07`; 22374687 COMPLETED 50 m, `ise-4090-06`; both ~16:45, exit 0, TB 0, and every final FT kept the last epoch. Call (registered): r56-w4 5k at the landed point, two-seed mean of lever_cos = sens − uniform. **SURVIVES** ≥ +1.0, **ABSORBED** ≤ +0.3, WEAK between. Reported: lever_cos − 1.09, the two-seed bar_cos against +2.54, 10k, honest, and r20-w2.
+
+| r56-w4, κ 0.6 | Seed 42, cos: 5k / val / 10k (§264) | Seed 43, cos: 5k / val / 10k | **Two-seed, cos** | Two-seed, lr 0.01 (§254, §265) | cos − lr 0.01, two-seed |
+|---|---|---|---|---|---|
+| Sens (0.600 / 0.597) | −2.68 / −2.40 / −2.54 | −3.06 / −2.70 / −2.88 | −2.87 / −2.55 / −2.71 | −2.44 / −2.88 / −2.66 | −0.43 / +0.33 / −0.05 |
+| Uniform (0.599) | −4.16 / −4.04 / −4.10 | −4.46 / −3.94 / −4.20 | −4.31 / −3.99 / −4.15 | −3.53 / −4.00 / −3.77 | −0.78 / +0.01 / −0.38 |
+| **Lever, sens − uniform** | +1.48 / +1.64 / +1.56 | +1.40 / +1.24 / +1.32 | **+1.44 / +1.44 / +1.44** | +1.09 / +1.12 / +1.11 | +0.35 / +0.32 / +0.33 |
+
+Seed 43's thin r56-w4 origins lose 0.44 / 0.54 at 5k under cosine-0.1 (lr 0.01: +0.00 / +0.52). Honest, two-seed under cosine: sens +0.46, uniform +0.88 (lr 0.01: +0.08 / +0.56). Guard, r20-w2 (sens 0.595, uniform 0.581), seed 43 under cosine: sens −2.92 / −2.19, uniform −1.92 / −1.18 (5k / 10k); two-seed sens − uniform **−0.68 / −0.59** (lr 0.01: −0.38 / −0.43).
+
+**Read.**
+- *Call: **SURVIVES**.* The two-seed lever under cosine-0.1-last is +1.44 at 5k, 0.44 above the bar, and the val half and 10k give the same +1.44. lever_cos − 1.09 = +0.35. A stronger fine-tune does not absorb the lever, which is the capacity branch of wave 19's question, now on two seeds.
+- *The seeds agree.* Seed 42 gives +1.48 and seed 43 +1.40 under cosine-0.1, against +0.54 / +1.64 at lr 0.01. Seed 43's sens loses 0.98 at 5k but gains 0.12 on val: its lr 0.01 5k read was the high one (§265).
+- *Where the lever sits.* At the walk's end the two-seed lever is +1.76 (seed 42 +1.38, seed 43 +2.14). The lr 0.01 fine-tune recovers more of uniform's loss and leaves +1.09; cosine-0.1 leaves +1.44. The thin r56 origins of all four sens / uniform runs lose 0.44–0.78 at 5k under cosine-0.1, so it is not a free gain on this net.
+- *Guard.* On r20-w2 uniform is ahead of sens under both fine-tunes, by 0.68 at 5k under cosine-0.1, at 0.014 fewer params. Reported only, as registered.
+- *For Q7 and the paper.* If Q7 adopts cosine-0.1, the paper's κ 0.6 lever is +1.44 on two seeds, with both halves agreeing. Of that, wave 9 attributes most to holding the residual streams full at lr 0.01 (§265); wave 20 re-reads `inner` under cosine-0.1. The bar_cos (sens − mild) waits on 22374688 (R). Do not lock. Never an agent row.
+
 ---
 
 
