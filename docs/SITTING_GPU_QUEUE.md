@@ -10,8 +10,8 @@
 
 | Cell | Job | Tree | Against | Call |
 |---|---|---|---|---|
-| Ladder: greedy 4-rate (0.7 steps), landed κ 0.6, thin | **22340232** | v10 | §216 (greedy 3-rate), §212 | r56-w4: HELP ≥ +1.0 / HURT ≤ −1.0 vs §216 |
-| Ladder: greedy 5-rate (0.6 steps) | **22340233** | v10 | same | same |
+| Ladder: greedy 4-rate (0.7 steps), landed κ 0.6, thin | **22340232** COMPLETED 05:07 **§226** | v10 | §216 (greedy 3-rate), §212 | r56-w4: HELP ≥ +1.0 / HURT ≤ −1.0 vs §216 → **FLAT**: better arm +0.52, at FLOPs 0.582 vs 0.453; a cost lever (45 / 39 decisions vs 79) |
+| Ladder: greedy 5-rate (0.6 steps) | **22340233** COMPLETED 04:42 **§225**, §226 | v10 | same | r56 **FLAT** −0.38 pp vs §216 (−4.68); r20 overshoot 0.538 |
 | L3a: cosine from lr 0.1, final FT on N3's saved candidates | **22340234** COMPLETED 03:45 **§223** | v10 | N3 21767189 §157 | ADOPT: honest ≥ +0.5 pp at 2.11× → **CROSS-OFF** (Δ honest −0.14; raw +0.12). 2.57× raw +0.72 (10k +1.26), honest +0.46, not gating |
 | L3a on §212's thin saved candidates | **22340235** COMPLETED 03:11 **§221** | v10 | 22156062 §212 | same rule, r56-w4 κ 0.6: **thin CROSS-OFF** (raw −0.16 at r56; origin −0.64) |
 | L3b: 1-cycle (30-ep warmup to 0.1, cosine), N3 | **22340387** COMPLETED 03:56 **§224** | v10h | N3 | as L3a: **ADOPT by the rule** (honest Δ +0.56, raw +0.20; origin +0.00 vs +0.36), margin 0.06 pp: the caption waits on wave 7 |
@@ -27,13 +27,15 @@
 | Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** PD | v10h | sens 22340391 | dose-response, reported |
 | Mild-landed κ 0.35 control, thin (wave 5) | **22340796** PD | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
 | L3a-deep: lr 0.1 final FT on τ-off's saved candidates (wave 6) | **22341051** R 03:56 | v10 | §220 | TREND: Δ honest ≥ +1.0 at keep 0.123 and 2.57× ≥ +0.3; its 2.11× row is L3a's replicate read |
-| L3-ctrl: the paper's lr 0.01 final FT re-run from N3's saved candidates (wave 7) | **22341277** PD | v10 | §157; paired with 22340234 / 22340387 | paired reference for both schedules; final-FT noise floor |
+| L3-ctrl: the paper's lr 0.01 final FT re-run from N3's saved candidates (wave 7) | **22341277** R | v10 | §157; paired with 22340234 / 22340387 | paired reference for both schedules; final-FT noise floor |
 | L3b-rep: 1-cycle on τ-off's saved candidates (wave 7) | **22341280** PD | v10h | §220 | replicate read of §224's ADOPT |
 | Seed-43 alloc walks sens / uniform, κ 0.6 thin (wave 8) | **22341281 / 82** PD | v10h | 22340391 / 92 | lever and bar on the two-seed mean |
 | Seed-43 alloc walks sens / uniform, κ 0.8 thin (wave 8) | **22341283 / 84** PD | v10h | 22340393 / 94 | lever on the two-seed mean |
 | Seed-43 mild-landed κ 0.6 / 0.8 thin (wave 8) | **22341278 / 79** PD | v10 | §212 / §211 | bar on the two-seed mean |
 
-**Ops 7 Oct 04:00 (TEST land).** **22340234 COMPLETED §223** N3 cosine **CROSS-OFF** at 2.11×. **22340387 COMPLETED §224** N3 1-cycle **CROSS-OFF** at 2.11×. Caption stays §157. Sitting **22341051** R (cosine on τ-off saves). QOS **11 R / 5 PD**. Do not TEST ep0111. Resume ep **220**. Ledger next **§225**. Next canvas **09:30**. Next 3h **05:28**.
+**Ops 7 Oct 05:00 (TEST land).** **22340233 COMPLETED §225** greedy 5-rate r56 **FLAT** (−0.36 pp vs §216). r20 overshoot 0.538. Pair **22340232** still R. Sitting correction carried: **§224 ADOPT-by-rule**, caption waits on wave 7. QOS **11 R / 12 PD**. Do not TEST ep0111. Resume ep **222**. Ledger next **§226**. Next canvas **09:30**. Next 3h **05:28**.
+
+**Ops 7 Oct 04:00 (TEST land).** **22340234 COMPLETED §223** N3 cosine **CROSS-OFF** at 2.11×. **22340387 COMPLETED §224** — ops first-wrote CROSS-OFF; sitting 04:10 **ADOPT-by-rule** (honest Δ +0.56, raw +0.20); caption stays §157 until wave 7. Sitting **22341051** R. Do not TEST ep0111. Resume ep **220**.
 
 **Ops 7 Oct 03:30 (TEST land).** **22340235 COMPLETED §221** cosine lr 0.1 thin **CROSS-OFF**. **22340388 COMPLETED §222** 1-cycle thin **CROSS-OFF**. N3 then still R. Do not TEST ep0111. Resume ep **220**.
 
@@ -749,6 +751,9 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
   - **FLAT:** otherwise. The menu is then a cost lever only; report decisions and walk minutes.
 - **For the v10 read.** HURT means an actor that plays 0.7 / 0.6 pays for it, so its census matters. FLAT means the 5-rate menu changes cost, not accuracy.
 - **Flag (02:51).** Greedy 5-rate on r20-w2 landed at params **0.538**, 0.062 below κ: one 0.6 step overshoots on a 2/4/8-wide net. That row is not equal-size with §216 (0.595). r20-w2 is the guard net only.
+- **Result (05:10; ledger §225 / §226): FLAT.** r56-w4: greedy-4 −4.16 @ 0.600 / FLOPs 0.582, greedy-5 −5.06 @ 0.594 / 0.436, against §216 −4.68 @ 0.600 / 0.453. The better arm is +0.52, under +1.0. Decisions to κ: 39 / 45 / 79 / 136 (greedy-5 / 4 / 3 / mild). Two findings beyond the call:
+  - mild §212 and greedy-3 §216 landed on the identical r56-w4 architecture by different paths, 0.38 pp apart; greedy-3 and greedy-4 share one r20-w2 architecture, 0.10 apart. Those are same-architecture noise reads.
+  - greedy-4's edge comes with 13 pp more FLOPs kept (more early channels), so v10's FLOPs are quoted beside its Δ.
 
 ### Lead 3 (B1 / B2): Le & Hua (ICLR 2021) large-LR final fine-tune on saved architectures
 

@@ -4063,5 +4063,48 @@ Pair of §223. `tree_v10h`, `SPECTRA_EVAL_FINAL_FT_SCHEDULE=warmcos SPECTRA_EVAL
 
 ---
 
+## 225. Greedy 5-rate menu (1.0/0.9/0.8/0.7/0.6) landed κ 0.6 thin (**22340233**) — PRELIM; r56 **FLAT** vs 3-rate §216; r20 overshoot
+
+Sitting 7 Oct B3 ladder (`docs/PROMPT_FABLE_OCT7_SITTING.md`; queue call HELP ≥ +1.0 / HURT ≤ −1.0 vs §216 on r56-w4). `tree_v10`, profile `baseline_c10_l1_traj_gonce`, `--compression_rates 1.0 0.9 0.8 0.7 0.6`, `FIXED_TARGET=1`, `SIZE_MATCH=param:0.6`, 6 passes, P, loader crop+flip, walk 40/10, 100-ep origin final FT lr 0.01, seed 42, det=1. COMPLETED 2 h 20 m, 7 Oct 04:42, `ise-4090-20`, exit 0. Reader `final_ft_readout.py` on the run dir. Pair **22340232** (4-rate, no 0.6) read in §226 — the ladder is closed there.
+
+| Net | Landed params (κ 0.600) | Walk 5k | Final 5k (`size_param0.60` = `val_best`) | FLOPs | vs §216 3-rate |
+|---|---|---|---|---|---|
+| r20-w2 | **0.538** (gap 0.062) | −8.28 | **−4.84 @ 0.538** | 0.657 | not equal-size (guard) |
+| r56-w4 | **0.594** (gap 0.006) | −7.02 | **−5.06 @ 0.594** | 0.436 | **−0.36 pp** vs −4.7 @ 0.600 |
+
+Origin final-FT TEST r20 **+3.40** / r56 **+0.24**. r56 gap 0.006 is inside the 0.02 matching bar. r20 gap 0.062 is the overshoot sitting flagged at 02:51: one 0.6 step on a 2/4/8-wide net.
+
+**Read.** r56 is inside the ±1.0 pp bar: **neither HELP nor HURT**. Adding 0.6 to the *greedy* menu at this κ does not beat 3-rate §216. Do **not** overlay 0.6 onto the paper greedy counterpart. Actor-menu 0.6 stays open until a v10 freeze TEST. r20 is the disaster guard only. Do not lock. Never an agent row.
+
+---
+
+## 226. Step-size ladder at landed κ 0.6, thin pair, both arms: greedy 4-rate (**22340232**) and 5-rate (**22340233**, §225) — PRELIM; **FLAT** (r56-w4 best +0.52 vs §216); step size is a cost lever; mild and greedy-3 land on the same r56-w4 architecture
+
+Sitting 7 Oct, B3' (the prompt's menu A/B, corrected; queue "Sitting 7 Oct"). Closes the ladder that §225 opened with greedy-5 alone. §225's −0.36 used §216 rounded to −4.7; the reader's −4.68 gives −0.38.
+- *Recipe.* `tree_v10`, sbatch only: §216's greedy walk (profile `baseline_c10_l1_traj_gonce`, `FIXED_TARGET=1`, `param:0.6`, 6 passes, P, loader crop+flip, 40/10, 100-ep final FT + origin, seed 42, deterministic), with the menu widened through `SPECTRA_EXTRA_ARGS="--compression_rates …"` to 1.0/0.9/0.8/0.7 (greedy-4) and 1.0/…/0.6 (greedy-5). Greedy plays the strongest legal cut, so the step is 0.7 / 0.6.
+- *Run.* 22340232 COMPLETED 2 h 44 m, 7 Oct 05:07, `ise-4090-19`; 22340233 COMPLETED 2 h 20 m, 04:42, `ise-4090-20`; exit 0, `floor_cross NONE` (floor off).
+- *Reader.* `final_ft_readout.py`; the landed point is `val_best` = `size_param0.60` (same step). Architectures are compared from the saved `traj_models` (out-channels of every conv).
+
+| Net | Walk (cut per step) | Step at landing | Params / FLOPs | Channels kept, thirds of the conv list | Walk Δ | Final (5k) | Origin change | Final − §216 |
+|---|---|---|---|---|---|---|---|---|
+| r56-w4 | mild §212 (0.9) | 136 | 0.600 / 0.453 | 38 / 102 / 247 | −5.96 | −5.06 | +0.12 | −0.38 |
+| r56-w4 | greedy-3 §216 (0.8) | 79 | 0.600 / 0.453 | 38 / 102 / 247 | −4.32 | −4.68 | +0.48 | — |
+| r56-w4 | **greedy-4 (0.7)** | 45 | 0.600 / **0.582** | 57 / 114 / 236 | −4.02 | **−4.16** | +0.38 | **+0.52** |
+| r56-w4 | **greedy-5 (0.6)** | 39 | 0.594 / 0.436 | 38 / 95 / 248 | −7.02 | **−5.06** | +0.24 | **−0.38** |
+| r20-w2 | mild §212 | 36 | 0.584 / 0.674 | 14 / 14 / 44 | −4.68 | −2.86 | +3.32 | −0.44 |
+| r20-w2 | greedy-3 §216 | 28 | 0.595 / 0.734 | 14 / 20 / 42 | −3.98 | −2.42 | +3.50 | — |
+| r20-w2 | greedy-4 | 28 | 0.595 / 0.734 | 14 / 20 / 42 | −4.24 | −2.32 | +3.48 | +0.10 |
+| r20-w2 | greedy-5 | 15 | **0.538** / 0.657 | 14 / 14 / 41 | −8.28 | −4.84 | +3.40 | not equal-size |
+
+**Read.**
+- *Call (r56-w4).* The better arm, greedy-4, is +0.52 pp over §216, under the +1.0 bar: **FLAT**. Greedy-5 is −0.38. At κ 0.6 the wider menu is a cost lever: 39 decisions with greedy-5, against 45 (greedy-4), 79 (greedy-3) and 136 (mild). Walk time is about 94 / 116 / 177 / 302 min in the same order (job wall minus final-FT minutes; different 4090 nodes and loads).
+- *Same architecture, different path.* On r56-w4, mild §212 and greedy-3 §216 landed on the identical architecture (all 57 conv widths equal) by different paths. Their 0.38 pp gap is path and fine-tune noise, not architecture. On r20-w2, greedy-3 and greedy-4 also share one architecture, 0.10 pp apart. These are the first same-architecture noise reads for the thin cells.
+- *FLOPs.* Greedy-4 kept FLOPs 0.582 at equal params, against 0.453. It kept more channels in the first third of the network (57 vs 38) and fewer in the last (236 vs 247). Its +0.52 comes with 13 pp more FLOPs kept: not an equal-cost gain.
+- *For the v10 read (not a call).* HURT did not fire: playing 0.7 / 0.6 does not cost accuracy at κ 0.6. But greedy-4 sits +0.90 over mild §212, just 0.10 under the v10 WIN bar (+1.0), with FLOPs 0.582. An actor that clears the bar while keeping FLOPs near 0.58 has shown no more than the 0.7 step does, so v10's FLOPs are quoted beside its Δ.
+- *Guard net.* r20-w2 greedy-5 overshoots κ (0.538): one 0.6 step on 2/4/8-wide groups. No disaster at equal size.
+- Do not lock. Never an agent row.
+
+---
+
 
 
