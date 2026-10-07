@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§263; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§266; queue "v10" |
 
 ---
 
@@ -314,6 +314,8 @@
   - Sens − inner at r56-w4 is **+0.18** at 5k, under the +0.3 STRUCTURAL line, and inner leads on the val half (−0.74) and at 10k (−0.28). The call also needs κ 0.8 (22341866 / 70, R).
   - Of sens's +2.54 over mild (5k, two seeds), the even cut gives +1.45, the full residual streams +0.91 and the sensitivity measurement +0.18. At κ 0.6 the non-learned lever is PFEC's residual rule (Li et al. 2017), so quote it as that, not as a SPECTRA finding.
 - **7 Oct ~16:35 (sitting)** — On seed 42 the bar over mild also grows under cosine-0.1 (ledger §266, reported): sens − mild is **+2.92** at 5k and +2.71 at 10k, against +2.26 / +2.33 at lr 0.01. The stronger fine-tune keeps or widens both gaps on every view. The two-seed reads wait on seed 43 (R).
+- **7 Oct ~16:50 (sitting)** — On VGG-19 C100 at DepGraph's 9× architecture, our lr 0.01 pipeline lands far below DepGraph's own model (ledger §267, transplant 22342030, reported): **−7.43** at 10k against −2.97, below the −3.47 MATCH bar.
+  - The final FT kept epoch 1 and lost 1.56 against the walk. That artefact hid the R56 result until its cosine re-read (§262), so the VGG cosine re-read 22374249 decides. Not for slides yet.
 
 ---
 

@@ -4943,6 +4943,24 @@ Mild's lr 0.01 val is 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2 (mil
 - *Seed-42 bar_cos +2.92 at 5k, +0.66 above its lr 0.01 read.* On the 5k half the stronger fine-tune costs both arms that cut the residual streams (uniform −0.82, mild −0.54) and lifts sens (+0.12). On the val half all three gain or hold (sens +0.54, mild +0.44, uniform +0.04), so the bar barely moves there (+0.10) while the lever still grows (+0.50). The three thin r56-w4 origins lose 0.68–0.78 at 5k under cosine-0.1.
 - *On seed 42 the stronger fine-tune keeps or widens both gaps on every view; it closes neither.* The two-seed bar_cos against +2.54 and the lever_cos call wait on 22374686 / 87 / 88 (R). Do not lock. Never an agent row.
 
+## 267. Wave 10 transplant: DepGraph's own VGG-19 C100 widths at params 0.061 / FLOPs 0.109, walked and fine-tuned by our pipeline (**22342030**) — PRELIM, reported; 10k **−7.43**, below the MATCH bar (≥ −3.47; DepGraph's own −2.97), but the final FT kept **epoch 1** and lost 1.56 at 5k against the walk; the genuine-endpoint reads are 22342668 / 22374249
+
+Sitting 7 Oct, wave 10 (registered 06:50, before submit). `tree_v10j`, `SPECTRA_ALLOC_KIND=widths` from `configs/widths_depgraph_vgg19_c100_8.84x.json`, undershoot 0, `SPECTRA_STEM_ROWS=0`, catalog `input_catalog_l_depgraph_vgg19_c100.json`, landed `param:0.061`, L1 ranking, P, loader crop+flip, walk 40/10, 100-ep lr 0.01 final FT + origin, deterministic, seed 42. COMPLETED 1 h 52 m, 7 Oct 16:44, `ise-4090-02`, exit 0, TB 0, no fallback. Start check green: `widths of widths_depgraph_vgg19_c100_8.84x.json plan keeps x0.061 … over 16 groups`, with no "not named" suffix. Checkpoint `vgg19_cifar100_dep_graph_73.5.pth` (5k 0.7396, val 0.7304). As in §249, the walk has one landed candidate (step 46), so `val_best` and the size point are one model. The 10k is `full_test_dacc` on that row, and nothing chose it on val: the widths plan fixed it. Read (registered): 10k against DepGraph's own −2.97 at 9.02× (paper −3.11 at 8.84×), **MATCH** if ≥ −3.47; reported, not gating.
+
+| Row | Params / FLOPs | Walk 5k / val / 10k | Final 5k / val / **10k** | Honest |
+|---|---|---|---|---|
+| **Transplant** | 0.0610 / 0.1094 | −6.64 / −5.90 / −6.27 | −8.20 / −6.66 / **−7.43** | −1.98 |
+| Origin (this run) | 1 / 1 | 0 | +0.42 / +0.80 / +0.61 | — |
+| DepGraph's own model (h2h 21943448) | exact copy 0.0608 / 0.1104 | — | 10k **−2.97** | — |
+
+**Widths (the copy).** Convs 4 / 30 / 38 / 109 / 102 / 166 / 66 / 243 / 256 / 34 / 30 / 14 / 18 / 23 / 25 / 46, of 64 / 64 / 128 / 128 / 256 ×4 / 512 ×8. DepGraph cuts the stem conv to 4 of 64, keeps 26–95 % of the 256-wide convs and half of the first 512-wide one, and cuts the last seven to 14–46 channels (3–9 %). Params sit mostly in those late convs and FLOPs in the early ones, so the copy keeps FLOPs 0.109 at params 0.061.
+
+**Read.**
+- *Registered read: below the MATCH bar.* At 10k the copy is −7.43, 3.96 under the −3.47 bar and 4.46 under DepGraph's own model on the same architecture. Reported, not gating.
+- *The final FT kept epoch 1* (train loss 0.0349 at e1, 0.0519 at e50, 0.0389 at e100), which is §235's pattern. The kept model is the walk plus one lr 0.01 epoch, and that epoch cost 1.56 at 5k (0.76 on val). The origin control kept a late epoch and gained +0.61 at 10k, so honest is −1.98, CROSS-OFF. Even the walk endpoint (10k −6.27) is 2.80 under the bar.
+- *What decides it.* On R56 the same epoch-1 pattern read PARTIAL, and the cosine-0.1-last re-read reversed it to ALLOCATION, +0.83 at 10k over the lr 0.01 final (§249 → §262). Wave 18 (d) **22374249** (cosine-0.1-last) and wave 11's **22342668** (select=last) re-fine-tune this run's saved candidate, and both have their `afterok` met. Do not quote −7.43 as what our pipeline reaches at DepGraph's widths. Never "beats" either way.
+- Do not lock. Never an agent row.
+
 ---
 
 
