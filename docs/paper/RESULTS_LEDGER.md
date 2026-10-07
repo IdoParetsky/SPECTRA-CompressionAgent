@@ -4925,6 +4925,24 @@ Guard, r20-w2 (reported; strongest-cut path), two-seed 5k / 10k: inner **−0.98
 - *Beside v10 (reported).* The two-seed inner mean (−2.62) is 2.66 above the v10 ep0127 TEST at κ 0.6 (−5.28, §248).
 - Wave 20's cosine-0.1-last re-read of this run (22376022) has its `afterok` met. κ 0.8 (22341866 / 70) and κ 0.35 (22341871) are R. Do not lock. Never an agent row.
 
+## 266. Wave 19 at κ 0.6, seed 42: mild-landed under cosine-0.1-last (**22374685**, re-fine-tuned from 22156062) — PRELIM, reported; bar_cos sens − mild **+2.92** at 5k (lr 0.01 +2.26) and **+2.71** at 10k (+2.33); mild changes −0.54 at 5k and −0.05 at 10k under the stronger fine-tune
+
+Sitting 7 Oct wave 19 (registered 13:14, before submit). `tree_v10k`, §264's recipe (cosine from lr 0.1, keep last, 100 epochs, origin control, P), from the saved candidates of §212's mild-landed κ 0.6 walk (`tree_v10/runs/job22156062`); final-FT seed 42 (verified, §264). COMPLETED 50 m, 16:31, `ise-4090-01`, exit 0, TB 0, kept the last epoch. Registered: the two-seed bar_cos = sens − mild is reported against +2.54 (§247), not called.
+
+| r56-w4, κ 0.6, seed 42 | Params / FLOPs | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / val / 10k | cos − lr 0.01, 5k / val / 10k |
+|---|---|---|---|---|---|
+| Mild-landed (§212) | 0.600 / 0.453 | −5.60 / −4.90 / **−5.25** | −0.76 | −5.06 / −5.34 / −5.20 | −0.54 / +0.44 / −0.05 |
+| Sens (§264) | 0.600 / 0.572 | −2.68 / −2.40 / **−2.54** | −0.68 | −2.80 / −2.94 / −2.87 | +0.12 / +0.54 / +0.33 |
+| Uniform (§264) | 0.599 / 0.582 | −4.16 / −4.04 / **−4.10** | −0.78 | −3.34 / −4.08 / −3.71 | −0.82 / +0.04 / −0.39 |
+| **Bar, sens − mild** | | **+2.92** / +2.50 / **+2.71** | | +2.26 / +2.40 / +2.33 | +0.66 / +0.10 / +0.38 |
+| Lever, sens − uniform (§264) | | +1.48 / +1.64 / +1.56 | | +0.54 / +1.14 / +0.84 | +0.94 / +0.50 / +0.72 |
+
+Mild's lr 0.01 val is 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2 (mild at 0.584 / FLOPs 0.674), cosine 5k / 10k: mild −2.84 / −1.87, so sens − mild is +0.34 / +0.17 (lr 0.01: −0.06 / −0.32). Mild's r20 origin gains +4.56 at 5k under cosine-0.1 (lr 0.01 +3.32).
+
+**Read (provisional).**
+- *Seed-42 bar_cos +2.92 at 5k, +0.66 above its lr 0.01 read.* On the 5k half the stronger fine-tune costs both arms that cut the residual streams (uniform −0.82, mild −0.54) and lifts sens (+0.12). On the val half all three gain or hold (sens +0.54, mild +0.44, uniform +0.04), so the bar barely moves there (+0.10) while the lever still grows (+0.50). The three thin r56-w4 origins lose 0.68–0.78 at 5k under cosine-0.1.
+- *On seed 42 the stronger fine-tune keeps or widens both gaps on every view; it closes neither.* The two-seed bar_cos against +2.54 and the lever_cos call wait on 22374686 / 87 / 88 (R). Do not lock. Never an agent row.
+
 ---
 
 

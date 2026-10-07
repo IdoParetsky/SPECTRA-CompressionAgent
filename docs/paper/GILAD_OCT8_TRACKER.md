@@ -313,6 +313,7 @@
 - **7 Oct ~16:25 (sitting)** — At κ 0.6, holding the residual streams full matches the sensitivity plan on two seeds (ledger §265, wave 9 `inner`, seed 43 22341867).
   - Sens − inner at r56-w4 is **+0.18** at 5k, under the +0.3 STRUCTURAL line, and inner leads on the val half (−0.74) and at 10k (−0.28). The call also needs κ 0.8 (22341866 / 70, R).
   - Of sens's +2.54 over mild (5k, two seeds), the even cut gives +1.45, the full residual streams +0.91 and the sensitivity measurement +0.18. At κ 0.6 the non-learned lever is PFEC's residual rule (Li et al. 2017), so quote it as that, not as a SPECTRA finding.
+- **7 Oct ~16:35 (sitting)** — On seed 42 the bar over mild also grows under cosine-0.1 (ledger §266, reported): sens − mild is **+2.92** at 5k and +2.71 at 10k, against +2.26 / +2.33 at lr 0.01. The stronger fine-tune keeps or widens both gaps on every view. The two-seed reads wait on seed 43 (R).
 
 ---
 
