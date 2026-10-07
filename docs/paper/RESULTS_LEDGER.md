@@ -4815,6 +4815,28 @@ Sitting 7 Oct wave 5 (registered 03:20, before submit), `tree_v10`, §211 / §21
 - Wave 19's cosine-0.1 re-read of this run (22374696, `afterok` met at 14:53) and the seed-43 κ 0.35 pair (22344456 / 57) are still queued. §243's WEAK call waits on the second seed.
 - Do not lock. Never an agent row.
 
+## 261. Wave 11: select=last re-FT of the DepGraph R56 sens allocation's saved candidates (**22342666**) against its train-loss final (22340523, §236) — PRELIM, reported; the endpoint moves sens **−0.34** at 5k (val +0.20, 10k −0.07); with §257, sens − uniform on genuine endpoints is **−0.16** at 5k / +0.26 val / **+0.05** at 10k, against §236's +0.40 / +0.54 / +0.47 under the epoch-1 restore
+
+`tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, lr 0.01 (default), P, seed 42, from `tree_v10h/runs/job22340523/traj_models`. COMPLETED 34 m, 15:04, `ise-4090-01`, exit 0, TB 0. Start check green (env 1, `select=last` 2, kept the last epoch 2, `keep=last` 2). The pruned final FT ends at train loss 0.00834 against a best of 0.00175; §236's restore had kept epoch 1 (0.00195). The origin ends at 0.00242 against 0.00230. The landed point is step 165 (params 0.469 / FLOPs 0.398). The parent labels it `val_best` but it was chosen by size, so its 10k is computed directly (`full_test_dacc`), as in §257. Registered (wave 11): allocation rows reported beside their lr 0.01 rows; no call.
+
+| Row | select=last 5k / val / 10k | train-loss final (§236) 5k / val / 10k | Δsel 5k / val / 10k |
+|---|---|---|---|
+| Landed sens, params 0.469 | −0.68 / −0.04 / −0.36 | −0.34 / −0.24 / −0.29 | **−0.34 / +0.20 / −0.07** |
+| Origin | +0.48 / +0.54 / +0.51 | +0.60 / +0.52 / +0.56 | −0.12 / +0.02 / −0.05 |
+
+| sens − uniform at the landed points (params 0.469 vs 0.465) | 5k | val | 10k |
+|---|---|---|---|
+| select=last (22342666 − 22342665, §257) | **−0.16** | +0.26 | **+0.05** |
+| train-loss pick (§236 − §233) | +0.40 | +0.54 | +0.47 |
+
+**Read.**
+- *Sens gains nothing from the endpoint.* Its 100th epoch is level with its epoch-1 restore (−0.34 at 5k, −0.07 at 10k, +0.20 on val). The uniform twin gained +0.22 / +0.35 (§257), and the other wave 11 R56 rows +0.10 to +0.57.
+- *The DepGraph R56 lever is level on genuine endpoints.* Sens − uniform is −0.16 at 5k and +0.05 at 10k, with the val half at +0.26; all three reads were +0.40 to +0.54 under the restore. Read against §236's bars (5k; reported, not a call), −0.16 sits in ABSORBED (≤ +0.15). §236 already put its gain in the walk (+0.24 at walk TEST, honest flat), and 100 genuine epochs remove it.
+- *The FLOPs saving stays.* At equal params and now equal accuracy, sens keeps 16 % fewer FLOPs (0.398 vs 0.472; 2.51× vs 2.12×), because it cuts inner convs instead of residual streams. On the FLOPs axis it is still the better architecture; on the accuracy axis at equal params it is not.
+- *What it does not touch.* Every landed-κ thin final kept a late epoch (§235, §238, §260), so the thin-pair levers (§254, §255, §259, §260) are on genuine endpoints already. Only the DepGraph R56 row changes.
+- One run per arm. Wave 13's seed-43 walks (22344275 / 76, PD) use the train-loss pick. Wave 18's cosine-0.1-last re-read of both arms (22374230 / 48, PD) is the next read of this lever on genuine endpoints, under the fine-tune Q7 recommends.
+- Never call DepGraph a beat. Do not lock. Never an agent row.
+
 ---
 
 
