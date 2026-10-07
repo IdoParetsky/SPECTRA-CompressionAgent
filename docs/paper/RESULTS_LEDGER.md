@@ -5359,3 +5359,25 @@ The transplant's seed spread |s43 − s42|: 0.64 at 5k (val 0.26, 10k 0.19). Its
 
 ---
 
+## 285. Wave 20 (b) at κ 0.6, seed 42: wave 9's `inner` cell under cosine-0.1-last (**22376020**, re-fine-tuned from 22341865) — PRELIM, reported, provisional (two-seed with 22376022); sens − inner **−0.24** at 5k (lr 0.01 −0.40) and +0.13 at 10k (−0.61), still the STRUCTURAL side; inner − uniform **+1.72** at 5k (lr 0.01 +0.94)
+
+Sitting 7 Oct wave 20 (registered 13:43, before submit), part (b). `tree_v10k` (wave 19's recipe: cosine from lr 0.1, keep last, 100 epochs, origin control, P), from the saved candidates of wave 9's κ 0.6 `inner` walk (`tree_v10i/runs/job22341865/traj_models`); final-FT seed 42 (verified in the env and the submit line). COMPLETED 40 m, 23:23, `ise-6000-09`, exit 0, TB 0, kept the last epoch. The walk is wave 9's own, so only the final FT differs. Registered: wave 9's sens − inner under cosine-0.1, reported beside its lr 0.01 call (STRUCTURAL at all three keeps, §271, §276); not called. Sens and uniform under cosine are §264's.
+
+| r56-w4, κ 0.6, seed 42 | Params | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / 10k | Origin 5k (lr 0.01) | cos − lr 0.01, 5k / 10k |
+|---|---|---|---|---|---|---|
+| Inner (this run; §263) | 0.595 | −2.44 / −2.90 / **−2.67** | −0.06 | −2.40 / −2.26 | +0.06 | −0.04 / −0.41 |
+| Sens (§264) | 0.600 | −2.68 / −2.40 / **−2.54** | −0.68 | −2.80 / −2.87 | +0.50 | +0.12 / +0.33 |
+| Uniform (§264) | 0.599 | −4.16 / −4.04 / **−4.10** | −0.78 | −3.34 / −3.71 | +0.36 | −0.82 / −0.39 |
+| **Gap, sens − inner** | | **−0.24** / +0.50 / **+0.13** | | −0.40 / −0.61 | | +0.16 / +0.74 |
+| Inner − uniform | | +1.72 / +1.14 / +1.43 | | +0.94 / +1.45 | | +0.78 / −0.02 |
+
+Guard, r20-w2 (inner at 0.582, by wave 9's logged strongest-cut path), cosine 5k / 10k: inner −1.06 / +0.12 (lr 0.01 −0.78 / −0.24), against sens −2.50 / −1.70 and uniform −2.14 / −1.54 at 0.595 / 0.581. Reported only; the r20 origin gains +4.20 at 5k under cosine-0.1.
+
+**Read (provisional).**
+- *Still STRUCTURAL on seed 42.* Under the stronger fine-tune the residual-full rule still carries the lever at κ 0.6: sens is 0.24 below inner at 5k and 0.13 above it at 10k, both inside wave 9's STRUCTURAL band (≤ +0.3). The 10k gap moves +0.74 toward sens because cosine costs inner 0.41 at 10k and gains sens 0.33.
+- *The structure is the lever.* Inner − uniform grows from +0.94 to +1.72 at 5k (10k unchanged, +1.43 against +1.45), because cosine costs uniform 0.82 at 5k and inner 0.04.
+- *Origin control.* This run's origin changes −0.06 at 5k under cosine against −0.68 / −0.78 in §264's two runs, with the same recipe and seed. The origin control therefore moves up to 0.72 at 5k between runs, more than §281's 0.32. Honest numbers carry that noise; the gap compares final points and does not use the origin.
+- *Pending.* The seed-43 re-read 22376022 is running; κ 0.8 (22376021 / 23) and κ 0.35 (22376024) are queued. Do not lock. Never an agent row.
+
+---
+

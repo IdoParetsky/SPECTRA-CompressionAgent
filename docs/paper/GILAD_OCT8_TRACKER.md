@@ -45,7 +45,23 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT** (learning failure: §259 VISIBLE +4.05). Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Wave 9 **§271 / §276 STRUCTURAL** at κ 0.35 / 0.6 / 0.8 (+0.12 / +0.18 / +0.06); PFEC residual-full, not SPECTRA. VGG **§279 SENS-MATTERS +2.77** at equal params, 1.36× FLOPs. Cosine-0.1 lever **§268 SURVIVES +1.44**. κ 0.8 cosine s43 **§281 reported +0.78 / +1.17**; cosine **hurts thin r56**. DG R56 walk **§280 SURVIVES +0.78** at 5k / **+0.48** at 10k (walk + 1 epoch). Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§281; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT** (learning failure: §259 VISIBLE +4.05). Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Wave 9 **§271 / §276 STRUCTURAL** at κ 0.35 / 0.6 / 0.8. κ 0.35 two-seed **§282 WEAK +1.64**. VGG **§279 SENS-MATTERS +2.77**; vs mild **§283 +1.09** at 1.27× FLOPs. Transplant two-seed **§284 PARTIAL +0.35**. Cosine-0.1 lever **§268 SURVIVES +1.44**. DG R56 walk **§280 SURVIVES +0.78**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§284; queue "v10" |
+
+---
+
+## 1b. Talking points for 11:30 (7 Oct 23:16; outsider one-liners)
+
+Prepared for **11:30**. Meeting time still unconfirmed. Ledger **§200–§284**. Do not quote probes. Never “beats” DepGraph. Sitting still owns overnight MobileNet / cosine re-reads.
+
+**Open with.** We do not beat focused SOTA on their home nets. We win if one frozen agent prunes many nets cheaper than training a pruner per net.
+
+1. **Cost.** Fine-tune is ~99% of the bill. The agent is milliseconds. One target we lose vs DepGraph (108 vs 85 min). Two targets we start to win (break-even ~1.8). Catch: a dumb heuristic shares that cost until the agent beats it.
+2. **Which filters.** Ranking (L1 vs FPGM vs a learned score) is not the bottleneck after 40 epochs of recovery. A second selection agent is **closed**. Keep L1 inside each layer.
+3. **How many per layer is the game.** On ResNets, “keep skip-connections full, cut the rest evenly” matches a fancy sensitivity plan. On VGG, which layers you cut matters (~1 pp above the heuristic at equal weights, 27% more compute). Copying DepGraph’s widths explains ~45% of its lead under our recovery; the rest is their training, not a width trick we missed.
+4. **The agent copied the heuristic.** Two trains, same collapse: one cut size at every step. The new reward *saw* the skip-connection plan (+4 pp on its own scoreboard) and still did not learn it. That is a learning failure, not a hidden recipe. Do not start the diverse-catalog train on this.
+5. **Ask him.** (Q1) robustness vs verification — which literature. (Q2) Michael’s NAP weights / authorship. (Q3) write the selection negative as a thesis section. (Q4) two-decision head as applied, not a claim. (Q5) which cost headline. (Q6) NEON’s band vs a fixed-size reward. (Q7) recovery recipe: cosine-from-0.1 helps full-width nets and hurts the skinny ResNet; Recommended = adopt it, val-chosen, quote raw and honest.
+
+**If short on time:** 1, 3, 4, then Q7 and Q1.
 
 ---
 
@@ -74,11 +90,12 @@
    - What survives is a per-channel descriptor. The group-level signal the allocation agent uses is each group's *measured* sensitivity, in v10's state. NAP-F's group mean does not reproduce it (7 Oct: ρ +0.25 / −0.47 / +0.38 on three nets; the summed single-channel ablation does, at 0.77–0.92).
    - Lesson for any learned score: hold out a family, not only a net.
 5. **Robustness vs verification.** One table and three hooks: an action-stability certificate for the frozen actor, choosing among frozen seeds by agreement, and the selection shield. Then ask which line he meant.
-6. **(Added 4 Oct; restamped 7 Oct 21:34) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200–§281).
+6. **(Added 4 Oct; restamped 7 Oct 22:04) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200–§284).
    - Every TESTed actor plays one action at every decision: M1-neg compared uniform 0.8 with uniform 0.9. v10's first freeze TEST is the same collapse (census 0.9 only; **M1-v10 FLAT**).
    - The band reward pays size, whatever the accuracy, inside 10 pp. v10 prices accuracy at equal size; its reward still *saw* the skip-connection lever (§259 VISIBLE +4.05 at the 12/4 train budget) and did not learn it.
-   - On thin ResNets the non-learned accuracy lever is **STRUCTURAL** (§271 / §276): hold residual streams full and cut the rest evenly (Li et al. 2017 PFEC). It matches sensitivity at keep 0.35 / 0.6 / 0.8. Sensitivity still buys ~9 % fewer FLOPs at keep 0.8 only.
-   - On a plain chain (VGG-19 C100, §279) per-layer sensitivity **SENS-MATTERS** at equal params (**+2.77** two-seed) but keeps **1.36× FLOPs**. Caption both axes. Equal-FLOPs is a next-sitting cell. Rows are walk + 1 epoch until cosine-0.1 re-reads land.
+   - On thin ResNets the non-learned accuracy lever is **STRUCTURAL** (§271 / §276): hold residual streams full and cut the rest evenly (Li et al. 2017 PFEC). It matches sensitivity at keep 0.6 / 0.8. At keep 0.35 the two-seed lever is **WEAK +1.64** (§282), bought with 24 % more FLOPs; residual-full already carries it.
+   - On a plain chain (VGG-19 C100, §279) per-layer sensitivity **SENS-MATTERS** at equal params (**+2.77** two-seed) but keeps **1.36× FLOPs**. Vs the mild heuristic that is **+1.09** at 5k (§283, 1.27× FLOPs); +1.68 of the even-cut gap is the heuristic itself. Caption both axes.
+   - Copying DepGraph's 2.11× widths into our walk is **PARTIAL +0.35** on two seeds (§284, walk + 1 epoch): about 45 % of the N3-to-DepGraph gap. Never “beats”.
    - Under cosine-0.1 the ResNet κ 0.6 lever **SURVIVES** (+1.44, §268). At κ 0.8 seed 43 the lever **holds** (+0.78 / +1.17, §281 reported) while cosine **hurts the thin r56-w4** including the origin. DepGraph R56 walk lever **SURVIVES** (+0.78 at 5k / +0.48 at 10k, §280, walk + 1 epoch); genuine-endpoint cosine **ABSORBED** it on seed 42 (§275). Do **not** start N8. Q7 (cosine-0.1 vs lr 0.01) is Gilad's; the rec rests on full-width nets.
    - The Budget arm shows the same collapse (7 Oct census). STOP was played 74 times early and never after episode 231.
 
@@ -357,6 +374,7 @@
   - *κ 0.35 lever: WEAK* (ledger §282). Sens − uniform on r56-w4 is **+1.64** at 5k (+1.90 / +1.38), between the bars (≤ +0.5 / ≥ +2.0); the 10k is +1.98. These are genuine lr 0.01 endpoints, and the lever is bought with 24 % more FLOPs. At this keep the residual rule already carries it (§276).
   - *VGG-19 beyond the heuristic* (ledger §283, reported). Sens beats mild by **+1.09** at 5k on two seeds (10k +1.50), at 1.27× mild's FLOPs. Of sens's +2.77 over uniform (§279), +1.68 is mild's own margin over uniform. Slide wording: "on VGG-19 C100 at equal params, the sensitivity plan is about 1 pp above the mild heuristic, keeping 27 % more FLOPs".
 - **7 Oct ~22:05 (sitting)** — *DepGraph transplant, two seeds: PARTIAL* (ledger §284). Seed 43 walks DepGraph's exact 2.11× widths to +0.05 at 10k (seed 42 −0.14). The registered lift over N3 after the size credit is **+0.35** (+0.25 / +0.44), between the bars (≤ +0.2 / ≥ +0.5). Under lr 0.01 (walk + 1 epoch on both sides), DepGraph's widths explain about 45 % of the 0.78 pp between N3 and DepGraph's own model. The remaining 0.29 to DepGraph's +0.24 is its training beyond widths, or noise. The cosine re-read of seed 43 (22376027) is unblocked and queued; it repeats the comparison under the genuine endpoint.
+- **7 Oct ~23:35 (sitting)** — *Residual-full rule under cosine, κ 0.6 seed 42* (ledger §285, reported, provisional). With the fine-tune Q7 recommends, sens − inner is **−0.24** at 5k (+0.13 at 10k), still inside wave 9's STRUCTURAL band. Inner − uniform grows to +1.72 at 5k. So on the thin ResNet the lever is still "keep the residual streams full" under the stronger fine-tune. Seed 43 is running.
 
 ---
 
