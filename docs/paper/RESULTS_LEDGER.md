@@ -4479,7 +4479,7 @@ Sitting 7 Oct wave 11b, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, `SPECT
 
 **Read.**
 - *Rule: not fired.* At 10k the endpoint moves 0.14 at 2.57× and 0.05 at 2.11×, both under 0.3. The wave 11 call stands as read in §240: **NEUTRAL** at 2.11×, now resolved on N3's side (two-seed Δsel +0.10 / +0.15). 2.57× stays **unresolved**, because τ-off sits inside the band (+0.21); N3's two-seed Δsel there is +0.50.
-- *Where the seed spread lives.* One final FT, re-seeded on the same walk, moves ≤ 0.32 at 5k and ≤ 0.14 at 10k (origin 0.14 / 0.00). ~~Most of the seed spread is therefore the walk.~~ **Corrected 12:15 (§247):** on the thin pair §242's 0.72 is in the final FT. The two sens walks end within 0.06 of each other (−2.80 / −2.74), and the final FT gains +0.00 against +0.66. On DepGraph R56 a re-seeded final FT moves ≤ 0.32 at 5k; on the thin r56-w4 it can move 0.6–0.7.
+- *Where the seed spread lives.* One final FT, re-seeded on the same walk, moves ≤ 0.32 at 5k and ≤ 0.14 at 10k (origin 0.14 / 0.00). ~~Most of the seed spread is therefore the walk.~~ **Corrected 12:05 (§247):** on the thin pair §242's 0.72 is in the final FT. The two sens walks end within 0.06 of each other (−2.80 / −2.74), and the final FT gains +0.00 against +0.66. On DepGraph R56 a re-seeded final FT moves ≤ 0.32 at 5k; on the thin r56-w4 it can move 0.6–0.7.
 - *Honest at 5k is the noisiest column* (−0.66 against −0.42 at 2.11×; −0.66 against −0.20 at 0.60), because it inherits the origin's 5k move (+0.14) on top of the point's own. Gate on 10k raw, as the wave 11 call does.
 - Do not lock. Never an agent row. Never call DepGraph a beat.
 
@@ -4577,6 +4577,52 @@ Skip-train `eval_c10_thin_traj` of **22156116** `snapshots/ep0127` (first freeze
 - *M1-v10: **FLAT**.* Registered: WIN Δ ≥ +1.0 on r56 κ 0.6 vs mild, no cell ≤ −1.0; NEG Δ ≤ −1.0 on r56 κ 0.6. Actor −5.28 vs mild −5.1 = **−0.18** (vs sitting's two-seed mild mean −4.98, §247: **−0.30**). κ 0.8 was −0.78 (§237). Neither WIN nor NEG. Census ≥ 2 also fails (0.9 only), as on Stage-4. r20 +0.42 is the disaster guard, not a veto.
 - *Allocation.* The frozen actor did not keep residual streams full. It walked 0.9 + skip to the mild architecture, 2.48 pp behind sens and 3.34 behind the two-seed beyond-heur bar (−1.94). Same-architecture noise vs mild is 0.14–0.38 pp (§231); −0.18 sits inside it.
 - *Never quote the probe* (`vs_mild=+0.505`). 10k n/a (`val_best`). Do not lock. Do not start N8 from this FLAT.
+
+## 249. Wave 10 transplant: DepGraph's own R56 C10 widths at 2.11×, walked and fine-tuned by our pipeline (**22342029**) — PRELIM; registered lift **+0.25 → PARTIAL** (10k −0.14 vs N3 −0.54, less the 0.15 size credit); the two halves disagree (TEST −0.42, val +0.92); the final FT kept epoch 1
+
+Sitting 7 Oct, wave 10 (registered before submit). `tree_v10j`, `SPECTRA_ALLOC_KIND=widths` from `configs/widths_depgraph_r56_c10_2.11x.json` (the widths of DepGraph's released 2.11× model; the plan keeps x0.504 over 30 groups against a target of x0.508; group keep min 0.22, median 0.67, max 0.97). L1 ranking, P, loader crop+flip, walk 40/10, landed `param:0.508`, 100-ep lr 0.01 final FT + origin, deterministic, seed 42. COMPLETED 3 h 31 m, 7 Oct ~12:10, `cs-4090-07`, exit 0, TB 0, no fallback, every group named. Checkpoint `resnet56_cifar10_dep_graph_93.53.pth`, the same unpruned DepGraph R56 as N3. TEST = 5k half (unpruned 0.9336, val half 0.9304). Reader `final_ft_readout.py`. The walk has one candidate, so `val_best` and the size point are the same model ("not fine-tuned twice"), and the reader prints "10k n/a" from the label alone. The 10k below is the reader's `full_test_dacc` on that row. Nothing chose the point on val: the widths plan fixed it, and the walk's per-step FT selects on train loss (`ClassificationHandler.train_model`; only P8 selects on val).
+
+| Row | Params / FLOPs | Walk 5k | Final 5k | Honest | 10k |
+|---|---|---|---|---|---|
+| **Transplant** | 0.508 / 0.480 | −0.56 | **−0.72** | −0.66 | **−0.14** |
+| N3 2.11× (§157 / §232, lr 0.01) | 0.470 / 0.463 | −0.22 | −0.44 / −0.46 | — | −0.46 / −0.62 (mean **−0.54**) |
+| Origin (this run) | 1 / 1 | 0 | +0.50 | — | +0.58 |
+| DepGraph's own 2.11× model (head-to-head) | — | — | — | — | +0.24 |
+
+| Half | Transplant walk / final | N3 walk / final (§157; §232) | Final lift after the 0.15 credit |
+|---|---|---|---|
+| TEST 5k | −0.56 / −0.72 | −0.22 / −0.44; −0.46 | **−0.42** |
+| val 5k | +0.52 / +0.44 | −0.58 / −0.48; −0.78 | **+0.92** |
+| 10k (registered) | −0.02 / −0.14 | −0.40 / −0.46; −0.62 | **+0.25** |
+
+**Widths (the copy).** Residual streams 13 / 32 / 42 (of 16 / 32 / 64). Block-inner convs min / median / max: stage 1 4 / 8 / 11, stage 2 7 / 12 / 28, stage 3 34 / 54 / 61. DepGraph keeps stage 2's residual stream full and stage 3's inner convs nearly full. It cuts the inner convs of stages 1–2 hard.
+
+**Read.**
+- *Call: **PARTIAL**.* Registered: lift = transplant − (−0.54) − 0.15 at 10k on the size point. ALLOCATION if ≥ +0.5, NOT-ALLOCATION if ≤ +0.2. The lift is −0.14 + 0.54 − 0.15 = **+0.25**, 0.05 above the NOT-ALLOCATION line and inside the 2.11× noise floor (0.20 honest, §232). The walk alone gives the same answer (+0.23). On one run, DepGraph's widths explain at most about a third of the 0.78 pp between N3 and DepGraph's own model, and possibly none of it. The rest is in what DepGraph does that we do not: its sparsity-regularised training and its own fine-tune.
+- *The two halves disagree.* On the TEST half the copy is 0.27 behind N3 (−0.42 after the credit). On the val half it is 1.07 ahead (+0.92). N3's halves agree within 0.04–0.36. Nothing selected on either half, so this is per-half noise on one point, and the 10k average is the most precise number available. That is why the call is registered on 10k. PARTIAL is therefore not distinguishable from NOT-ALLOCATION on one run.
+- *The final FT kept **epoch 1*** (best train loss 0.00155 at e1 against 0.00619 at e100). This is the §235 pattern, and N3's lr 0.01 rows did the same, so the comparison is like for like: walk + 1 epoch on both sides. The honest gain −0.66 is CROSS-OFF, because the origin gains +0.50 while the pruned point gains nothing. The genuine-endpoint re-read is wave 11's **22342667** (select=last, `afterok` 22342029, now released), reported beside.
+- *Size.* The copy keeps 0.038 more params and 0.017 more FLOPs than N3. The registered credit is on FLOPs; a params-based credit would be larger and the lift smaller.
+- The VGG-19 C100 transplant **22342030** is PD (MATCH if ≥ −3.47). This is a diagnostic on DepGraph's architecture, not a SPECTRA row, and never a beat.
+
+## 250. Wave 11 twins: select=last re-FT of the zoo twins, R56 + VGG-16 C10 (**22342662**) — PRELIM; R56 endpoint **+0.36 / +0.40** at 10k (sizes 0.70 / 0.80); the VGG-16 negative control moves ≤ 0.46 at 5k and ≤ 0.30 at 10k (under the 0.5 rule), so the R56 read stands, a little above the control's own spread
+
+Sitting 7 Oct, wave 11 (registered before submit). `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from the saved candidates of **21809595** (§164; chenyaofo R56 C10 94.37 and VGG-16-BN C10 94.16), the paper's lr 0.01 100-ep final FT + origin, P, deterministic, seed 42. COMPLETED 1 h 45 m, 7 Oct ~12:05, `cs-4090-08`, exit 0, TB 0. Start check: select=last on all 8 final FTs, and every one "finished all 100 epochs; kept the last epoch". Reader `final_ft_readout.py` against 21809595.
+
+| Net / point | Params | Final 5k last / §164 / Δsel | 10k last / §164 / Δsel |
+|---|---|---|---|
+| R56 size 0.70 | 0.694 | −0.48 / −0.62 / +0.14 | −0.40 / −0.76 / **+0.36** |
+| R56 size 0.80 | 0.794 | −0.08 / −0.38 / +0.30 | +0.01 / −0.39 / **+0.40** |
+| R56 `val_best` | 0.661 | −0.04 / −0.20 / +0.16 | n/a |
+| R56 origin | 1 | −0.04 / +0.00 / −0.04 | +0.13 / −0.01 / +0.14 |
+| VGG-16 size 0.70 | 0.698 | −0.22 / −0.20 / −0.02 | −0.09 / +0.01 / −0.10 |
+| VGG-16 size 0.80 | 0.796 | +0.36 / −0.10 / +0.46 | +0.30 / +0.00 / +0.30 |
+| VGG-16 `val_best` | 0.657 | −0.18 / +0.04 / −0.22 | n/a |
+| VGG-16 origin | 1 | +0.78 / +0.88 / −0.10 | +0.81 / +0.55 / +0.26 |
+
+**Read.**
+- *Rule (wave 11):* VGG-16 already kept late epochs, so it is the negative control. If its |Δsel| exceeds 0.5, the R56 read is noise-limited. Its largest |Δsel| is **0.46** (size 0.80, 5k) and 0.30 at 10k. The rule does not fire.
+- *R56:* the true endpoint adds **+0.36 / +0.40** at 10k on a second ResNet-56 checkpoint. DepGraph R56 gave +0.15 to +0.43 (§239, §240), so the ResNet-56 pattern holds. VGG-19 C100 is larger (+0.69 / +1.34, §245).
+- *Caveat beside it:* VGG-16's selection barely changed, so its Δsel is mostly re-run noise of one 100-ep final FT. That noise reaches +0.30 at 10k, close to R56's effect. One run gives "about +0.4 at 10k on a re-run spread of up to ~0.3". This does not touch the NEUTRAL call (§240), which is on DepGraph R56 and has its own seed repeat (§244).
 
 ---
 

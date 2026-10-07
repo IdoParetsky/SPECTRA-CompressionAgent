@@ -252,7 +252,7 @@
   - *Insight for slide 3:* under the walk protocol about a quarter of A0's one-shot allocation lever survives: +1.9 of +7.7 at keep 0.35, +0.54 of +1.95 at 0.6. Iterative recovery absorbs most of what a one-shot cut shows. That suggests allocation matters most where recovery is short, as in one-shot pruning; it is a reading, not yet a tested claim.
   - Wave 14 (**22344456 / 57**) is the seed-43 pair; the call moves to the two-seed mean.
 - **7 Oct ~10:40 (sitting)** — Endpoint noise and VGG-19 C100 (ledger §244, §245).
-  - *Seed 43 of N3's endpoint FT* moves it by ≤ 0.14 at 10k (0.05 at 2.11×), under the registered 0.3. The wave 11 NEUTRAL call stands. One final FT re-seeded moves ≤ 0.32 at 5k on DepGraph R56. *(Corrected 12:15: on the thin pair §242's 0.72 is the final FT's, not the walk's; see 12:15 below.)*
+  - *Seed 43 of N3's endpoint FT* moves it by ≤ 0.14 at 10k (0.05 at 2.11×), under the registered 0.3. The wave 11 NEUTRAL call stands. One final FT re-seeded moves ≤ 0.32 at 5k on DepGraph R56. *(Corrected 12:05: on the thin pair §242's 0.72 is the final FT's, not the walk's; see 12:05 below.)*
   - *VGG-19 C100 (N4):* keeping the endpoint is worth **+0.69 / +1.34** at 10k (size 0.70 / 0.60), three times DepGraph R56's +0.10 to +0.57. On equal epochs the crop+flip walk lands **+1.46 / +1.41** above §149, clearing the registered 1 pp N4 line that §155 missed (+0.77) because of the selection. Honest is +0.48 / +0.66, now 100 epochs against 100.
   - Bar-3 VGG-19 stays on §149 (−2.39 / −3.04 at 10k) while the paper keeps train-loss selection; N4-last (−0.93 / −1.63) goes beside it as a sensitivity row. Q7 now asks about the selection rule as well. DepGraph's own: −3.11 at 8.92× params; far less compression on our side, so not a beat.
   - Wave 15 (**22344788**) repeats N4's endpoint FT at seed 43 to put a noise bar on the +1.4.
@@ -261,14 +261,19 @@
   - The large-lr lead at 2.57× holds on all four walk × seed pairs (+0.42 to +1.21 over lr 0.01-last).
   - The 2.11× gap between walks (0.37 at seed 42) reverses at seed 43 (−0.04); a walk effect there is not established.
   - The cosine endpoint is noisier than lr 0.01's (up to 0.37 at 10k at a non-gating point, against ≤ 0.14).
-- **7 Oct ~12:15 (sitting)** — Mild at κ 0.6, seed 43 (ledger §247): r56-w4 **−4.90 @ 0.600**, on exactly seed 42's architecture (§212 −5.06).
+- **7 Oct ~12:05 (sitting)** — Mild at κ 0.6, seed 43 (ledger §247): r56-w4 **−4.90 @ 0.600**, on exactly seed 42's architecture (§212 −5.06).
   - Two-seed bar: sens −2.44 against mild −4.98, **+2.54** (seed 42 +2.26, seed 43 +2.82). The 06:20 slide line's "+2.3 pp over mild" holds on two seeds.
   - *Correction:* the 10:40 entry put the seed spread in the walk. On the thin r56-w4 it can sit in either piece: mild's walks end 0.76 apart and its final FTs pull them to 0.16; sens's walks end 0.06 apart and its final FTs end 0.72 apart. Single-seed gaps under ~0.8 pp on this net are noise.
   - The sens − uniform lever waits on 22341282.
-- **7 Oct ~12:45 (sitting)** — Why is v10 FLAT (ops §248)? Wave 16 registered and submitted (**22371882 / 92**).
+- **7 Oct ~12:15 (sitting)** — Why is v10 FLAT (ops §248)? Wave 16 registered and submitted (**22371882 / 92**).
   - v10's return is the val Δacc at the target. At the TEST walk budget (40/10) that return is −3.30 for the sens allocation and −5.86 for mild on r56-w4 at κ 0.6, so the reward does see a +2.56 lever there.
   - v10 trains with walk FT 12/4, where the lever has never been measured. Wave 16 walks sens and mild at 12/4. **VISIBLE** (≥ +1.0) means v10 failed to learn a lever its reward showed it. **HIDDEN** (≤ +0.3) means the training recipe hid it, and a next train needs a longer walk FT or a different reward.
   - Either way, the actor's census (0.9 or skip only, §248) shows it never tried a second rate.
+- **7 Oct ~12:25 (sitting)** — Is DepGraph's 2.11× lead its architecture? Mostly not (ledger §249, transplant 22342029).
+  - DepGraph's exact pruned widths, run through our L1 + walk + final FT, give **−0.14** at 10k. Our own walk gives −0.54 and DepGraph's model +0.24.
+  - After the registered FLOPs credit the lift is **+0.25, PARTIAL**: at most a third of the 0.78 pp gap, and within noise of none of it. The TEST half alone is −0.42 and the val half +0.92, so this is a one-run read.
+  - For Gilad: the remaining gap is in DepGraph's training (sparsity regularisation and its own fine-tune), not in where it cuts. That supports framing the slide line as "competitive while transferring" rather than as an allocation deficit. The genuine-endpoint re-read (22342667) and the VGG-19 C100 transplant (22342030) are queued.
+  - Twins (§250): the true endpoint adds +0.36 / +0.40 at 10k on the zoo R56, a second ResNet-56 checkpoint. The VGG-16 control stays under its 0.5 rule.
 
 ---
 
