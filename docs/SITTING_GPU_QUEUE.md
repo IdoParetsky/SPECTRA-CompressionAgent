@@ -18,7 +18,7 @@
 | L3b on §212 thin | **22340388** COMPLETED 03:24 **§222** | v10h | §212 | as L3a: **thin CROSS-OFF** (raw −1.06 at r56; origin −1.38) |
 | Alloc walk sens, κ 0.6 thin | **22340391** | v10h | uniform 22340392; §212 | SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 (r56-w4) |
 | Alloc walk uniform, κ 0.6 thin | **22340392** | v10h | — | control |
-| Alloc walk sens, κ 0.8 thin | **22340393** | v10h | uniform 22340394; §211 | as κ 0.6 |
+| Alloc walk sens, κ 0.8 thin | **22340393** COMPLETED 05:12 **§227** | v10h | uniform 22340394; §211 | as κ 0.6. r56 −1.30 @ 0.800 / FLOPs 0.696: +0.82 vs §211; the lever waits for 22340394 |
 | Alloc walk uniform, κ 0.8 thin | **22340394** R 03:10 | v10h | — | control |
 | Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** R 03:22 | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
 | Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** R 03:44 | v10h | — | control |

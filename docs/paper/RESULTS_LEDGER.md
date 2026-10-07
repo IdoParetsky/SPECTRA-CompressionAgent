@@ -4106,5 +4106,24 @@ Sitting 7 Oct, B3' (the prompt's menu A/B, corrected; queue "Sitting 7 Oct"). Cl
 
 ---
 
+## 227. Allocation-following walk, A0's sens rule, landed κ 0.8, thin pair (**22340393**) — PRELIM; r56-w4 **+0.82 over mild §211** at equal params; the lever call waits for uniform 22340394
+
+Sitting 7 Oct, allocation walk (queue "Sitting 7 Oct", allocation section).
+- *Recipe.* `tree_v10h`, profile `baseline_c10_alloc_traj_gonce`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), the v10 5-rate menu, `FIXED_TARGET=1`, `param:0.8`, 6 passes, P, loader crop+flip, walk 40/10, 100-ep final FT + origin, seed 42, deterministic.
+- *Run.* COMPLETED 2 h 36 m, 7 Oct 05:12, `ise-4090-21`, exit 0, no stall fallback.
+- *Plan lines.* r56-w4: plan keeps x0.781 (target x0.780) over 30 groups; group keeps min 0.19, median 0.67, max 1.00. r20-w2: x0.774 over 12 groups, min 0.23, median 0.87. On r20-w2 every group reached its target with params still at x0.827, above κ, so the walk finished with strongest legal cuts (logged).
+
+| Net | Params / FLOPs | Walk Δ | Final (5k) | Origin change | vs mild §211 | vs greedy §214 |
+|---|---|---|---|---|---|---|
+| r56-w4 | 0.800 / 0.696 | −1.30 | **−1.30** | +0.46 | **+0.82** (−2.12 @ 0.799 / 0.716) | +1.08 (−2.38 @ 0.788 / 0.663) |
+| r20-w2 | 0.799 / 0.880 | +0.16 | **+1.30** | +3.74 | +1.74; flagged, params 0.799 vs 0.774 | +1.50 (−0.20 @ 0.782 / 0.821) |
+
+**Read.**
+- *r56-w4.* +0.82 pp over mild at equal params, with slightly fewer FLOPs kept (0.696 vs 0.716). The registered call at κ 0.8 is the lever (sens − uniform), which waits for 22340394. The bar rule is set at κ 0.6; here the gap to mild is reported. The same-architecture noise read on this net is 0.38 pp (§226).
+- *r20-w2.* +1.30 is above the unpruned origin's TEST, but the origin control gains +3.74 under the same final FT (an undertrained 5k-param net): final-FT gain, not pruning gain (honest −2.60). The sens plan cut a few late, parameter-heavy groups hard and left the rest near full, so FLOPs stay at 0.880. Guard net only.
+- Seed-43 twins 22341283 / 84 (wave 8) PD. Do not lock. Never an agent row.
+
+---
+
 
 
