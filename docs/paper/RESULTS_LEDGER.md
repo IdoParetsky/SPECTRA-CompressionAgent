@@ -5768,3 +5768,32 @@ Origin val halves (2 × 10k − 5k) under cosine: sens s42 run −1.10, uniform 
 
 ---
 
+## 302. Wave 19 call at κ 0.35: sens / uniform under cosine-0.1-last at seed 43 (**22374697 / 22374698**, re-fine-tuned from 22344456 / 57) — PRELIM; two-seed lever_cos **+1.47** at 5k (seeds +1.72 / +1.22) → **WEAK** on §243's bars (SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5), as at lr 0.01 (+1.64, §282); 10k +1.65 (lr 0.01 +1.98); the stronger fine-tune trims the κ 0.35 lever by 0.17 at 5k (0.33 at 10k), and sens keeps 24 % more FLOPs
+
+Sitting 7 Oct wave 19 (registered 13:14, before submit). §264's recipe (`tree_v10k`: SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, origin control, P) on the saved candidates of wave 14's seed-43 κ 0.35 thin walks (`tree_v10h/runs/job22344456` / `57`). Final-FT seed 43, the walk's (verified on both jobs: `seed=43`, `SPECTRA_SEED': '43'` in the env, `SPECTRA_SEED=43` in the submit line). 22374697 COMPLETED 57 m, 8 Oct 02:08, `ise-4090-12`; 22374698 COMPLETED 59 m, 00:57, `ise-4090-10`; both exit 0, TB 0, `final_ft from` names the right walk, and every final FT kept the last epoch. Both arms land on seed 42's architectures (§282). Call (registered): r56-w4 5k at the landed point (`size_param0.35`), two-seed mean of lever_cos = sens − uniform, §243's bars: **SURVIVES** ≥ +2.0, **ABSORBED** ≤ +0.5, WEAK between.
+
+| r56-w4, κ 0.35 | Params / FLOPs | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / val / 10k (§243 / §238 / §282) | Origin 5k (lr 0.01) | cos − lr 0.01, 5k / 10k |
+|---|---|---|---|---|---|---|
+| Sens s42 (22374689, §273) | 0.338 / 0.409 | −6.20 / −6.46 / −6.33 | −1.20 | −6.00 / −6.36 / −6.18 | +0.46 | −0.20 / −0.15 |
+| Uniform s42 (22374690, §273) | 0.349 / 0.331 | −7.92 / −7.64 / −7.78 | −0.80 | −7.90 / −8.16 / −8.03 | +0.60 | −0.02 / +0.25 |
+| Sens s43 (22374697, this) | 0.338 / 0.409 | −6.16 / −5.78 / **−5.97** | −1.10 | −6.34 / −5.46 / −5.90 | +0.12 | +0.18 / −0.07 |
+| Uniform s43 (22374698) | 0.349 / 0.331 | −7.38 / −8.26 / **−7.82** | −1.18 | −7.72 / −8.30 / −8.01 | +0.20 | +0.34 / +0.19 |
+
+| Lever, sens − uniform | cosine 5k / val / **10k** | lr 0.01 5k / val / 10k | cos − lr 0.01, 5k / 10k | Against own origins (cos), 5k |
+|---|---|---|---|---|
+| Seed 42 | +1.72 / +1.18 / +1.45 | +1.90 / +1.80 / +1.85 | −0.18 / −0.40 | +2.12 |
+| Seed 43 | +1.22 / +2.48 / +1.85 | +1.38 / +2.84 / +2.11 | −0.16 / −0.26 | +1.14 |
+| **Two-seed mean** | **+1.47** / +1.83 / **+1.65** | +1.64 / +2.32 / +1.98 | −0.17 / −0.33 | +1.63 |
+
+The lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2 (sens 0.340, uniform 0.331), cosine 5k / 10k: seed 43 sens −14.38 / −13.56, uniform −9.54 / −8.99, so sens − uniform is −4.84 / −4.57 (lr 0.01 −3.88 / −4.22); two-seed −4.02 / −3.93 (lr 0.01 −3.57 / −3.475). The r20 origins gain +4.2 to +5.0 at 5k under cosine.
+
+**Read.**
+- *Call: **WEAK**.* The two-seed lever_cos is +1.47 at 5k, 0.53 short of SURVIVES and 0.97 above ABSORBED; val (+1.83) and 10k (+1.65) sit in the same band. It agrees with the lr 0.01 call (WEAK +1.64, §282). Seed 43's halves split (5k +1.22, val +2.48), as its lr 0.01 halves did (+1.38 / +2.84).
+- *The stronger fine-tune trims the κ 0.35 lever on both seeds* (−0.18 / −0.16 at 5k, −0.40 / −0.26 at 10k), as at κ 0.8 (two-seed +0.74 against +1.13 at 5k, §297), while at κ 0.6 it grew (+1.44 against +1.09, §268). Every κ 0.35 arm sits within 0.35 of its lr 0.01 value, while the four r56-w4 origin controls lose 0.80–1.20 at 5k under cosine (lr 0.01 +0.12 to +0.60). Against each run's own origin the two-seed lever is +1.63 (+2.12 / +1.14), the same band.
+- *What carries it.* At κ 0.35 under cosine, sens − inner is −0.08 and inner − uniform +1.80 (§295, seed 42), so the residual-full rule carries this lever too.
+- *FLOPs.* Sens keeps FLOPs 0.409 against uniform's 0.331 on both seeds, 24 % more at 0.011 fewer params, so at κ 0.35 the lever is bought with FLOPs, as §260 and §273 caption.
+- *Guard.* On r20-w2 uniform leads sens by about 4 pp at κ 0.35 under cosine on two seeds (lr 0.01 3.57). Reported only.
+- *Wave 19 under cosine:* κ 0.6 **SURVIVES** (+1.44, §268), κ 0.35 **WEAK** (+1.47, this), κ 0.8 reported (+0.74, §297). The third κ 0.6 seed under cosine (22375997 / 22376009, seed 44) is R. Do not lock. Never an agent row.
+
+---
+
