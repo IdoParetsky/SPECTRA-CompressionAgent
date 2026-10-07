@@ -265,6 +265,10 @@
   - Two-seed bar: sens −2.44 against mild −4.98, **+2.54** (seed 42 +2.26, seed 43 +2.82). The 06:20 slide line's "+2.3 pp over mild" holds on two seeds.
   - *Correction:* the 10:40 entry put the seed spread in the walk. On the thin r56-w4 it can sit in either piece: mild's walks end 0.76 apart and its final FTs pull them to 0.16; sens's walks end 0.06 apart and its final FTs end 0.72 apart. Single-seed gaps under ~0.8 pp on this net are noise.
   - The sens − uniform lever waits on 22341282.
+- **7 Oct ~12:45 (sitting)** — Why is v10 FLAT (ops §248)? Wave 16 registered and submitted (**22371882 / 92**).
+  - v10's return is the val Δacc at the target. At the TEST walk budget (40/10) that return is −3.30 for the sens allocation and −5.86 for mild on r56-w4 at κ 0.6, so the reward does see a +2.56 lever there.
+  - v10 trains with walk FT 12/4, where the lever has never been measured. Wave 16 walks sens and mild at 12/4. **VISIBLE** (≥ +1.0) means v10 failed to learn a lever its reward showed it. **HIDDEN** (≤ +0.3) means the training recipe hid it, and a next train needs a longer walk FT or a different reward.
+  - Either way, the actor's census (0.9 or skip only, §248) shows it never tried a second rate.
 
 ---
 
