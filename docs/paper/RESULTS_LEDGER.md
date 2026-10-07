@@ -5141,6 +5141,33 @@ References at 10k under the same cosine-0.1 fine-tune (§262): the transplant of
 - *What it changes in §262's read.* The registered call (lift_cos +0.87 over N3 → ALLOCATION) stands as a measurement. Its mechanism line does not. The uniform walk cuts the residual streams to 11 / 22 / 44, close to N3's 2/3 cut (§234), and still reaches DepGraph's level under cosine. So "its lead over N3 is where it cuts" and "the gap is an allocation gap the agent must learn" (§262) are not supported on one seed. What holds is that our walk and fine-tune reach DepGraph's own 10k accuracy at its size or smaller, starting from DepGraph's widths, from a uniform cut, or from the sens plan.
 - One walk and one fine-tune seed per arm. The seed-43 transplant walk (22374250, lr 0.01) is R. Do not lock. Never an agent row. Never call DepGraph a beat.
 
+## 276. Wave 9 at κ 0.35, seed 42: residual-full allocation walk (`inner`, **22341871**) — PRELIM; sens − inner **+0.12** at 5k (val −1.28, 10k −0.58) → **STRUCTURAL** (bar ≤ +0.5); with §271 the residual rule carries the non-learned lever at κ 0.35, 0.6 and 0.8 (94 % of sens − uniform here); at κ 0.35 inner and sens keep the same FLOPs
+
+Sitting 7 Oct wave 9 (registered 06:15, before submit). §263's recipe at `SIZE_MATCH = SIZE_POINTS = param:0.35`: `tree_v10i`, `SPECTRA_ALLOC_KIND=inner`, undershoot 0.02, 5-rate menu, landed, 6 passes, P, loader crop+flip, walk 40/10, 100-epoch final FT + origin, deterministic, seed 42. COMPLETED 4 h 35 m, 7 Oct ~19:08, `ise-4090-14`, exit 0, TB 0, no fallback. Start check green: env kind `inner`, the alloc lines end "3 coupled groups held at full width", and r56-w4 lands with every residual stream full (4 / 8 / 16) and the inner convs at one width per stage (2 / 3 / 5). r20-w2 reached every group target at x0.381, above κ, so it finished by the logged strongest-cut path; reported only. Every final FT kept a late epoch (best loss within 0.003 of epoch 100's). The size point was fixed by size, so its 10k is quoted (`full_test_dacc`). Call (registered 06:15): gap = sens − inner on r56-w4 at 5k, seed 42 against seed 42 (22340636). **STRUCTURAL** ≤ +0.5, **SENS-ADDS** ≥ +2.0, PARTIAL between.
+
+| r56-w4, κ 0.35, seed 42 | Params / FLOPs | Residual s1 / s2 / s3 | Inner median s1 / s2 / s3 | Walk 5k | **Final 5k** / val / 10k | Honest | Sens − arm, 5k / val / 10k |
+|---|---|---|---|---|---|---|---|
+| Sens α 0.5 (§243) | 0.338 / 0.409 | 4 / 8 / 15 | 2 / 2 / 5 | −8.42 | **−6.00** / −6.36 / −6.18 | +1.96 | — |
+| **Inner** (this) | 0.346 / 0.412 | **4 / 8 / 16** | 2 / 3 / 5 | −6.16 | **−6.12** / −5.08 / −5.60 | −0.42 | **+0.12** / −1.28 / −0.58 |
+| Uniform (§238) | 0.349 / 0.331 | 2 / 5 / 9 | 2 / 5 / 10 | −7.60 | −7.90 / −8.16 / −8.03 | −0.90 | +1.90 / +1.80 / +1.85 |
+| Mild-landed (§260) | 0.348 / 0.271 | 2 / 3 / 10 | — | −11.04 | −10.34 / −10.46 / −10.40 | +0.16 | +4.34 / +4.10 / +4.22 |
+
+| Decomposition, r56-w4 κ 0.35, seed 42 | 5k / val / 10k |
+|---|---|
+| Uniform − mild | +2.44 / +2.30 / +2.37 |
+| Inner − uniform (the residual rule) | +1.78 / +3.08 / +2.43 |
+| **Sens − inner (the call)** | **+0.12** / −1.28 / −0.58 |
+| Sens − uniform (the lever, §243) | +1.90 / +1.80 / +1.85 |
+
+Guard, r20-w2 (reported), 5k / val / 10k: inner (0.332 / FLOPs 0.623) −7.54 / −7.20 / −7.37; sens's size point (0.340 / 0.631) −13.06 / −12.04 / −12.55; uniform's (0.331 / 0.574) −9.80 / −9.84 / −9.82; mild (0.335 / 0.575) −9.70 / −8.16 / −8.93.
+
+**Read.**
+- *Call: **STRUCTURAL** at κ 0.35, seed 42.* Sens − inner is +0.12 at 5k, under +0.5, and inner is ahead on the val half (−1.28) and at 10k (−0.58). Inner keeps 0.008 more params, about 0.1 pp at sens's slope between κ 0.35 and 0.6; with that credit the gap is +0.22, still STRUCTURAL. With §271's two-seed STRUCTURAL at κ 0.6 and 0.8, the residual rule carries the non-learned lever at all three keeps. Here it gives +1.78 of sens's +1.90 over uniform at 5k (94 %; 83 % / 95 % at κ 0.6 / 0.8).
+- *FLOPs.* At κ 0.35 inner and sens keep the same FLOPs (0.412 against 0.409) and nearly the same architecture (inner medians 2 / 3 / 5 against 2 / 2 / 5; sens's s3 stream at 15 of 16). The 9 % FLOPs saving sens bought at κ 0.8 (§271) appears at neither κ 0.35 nor κ 0.6.
+- *Walk and final FT.* At the walk's TEST inner leads sens by 2.26 (−6.16 against −8.42), and the final FT closes it (sens +2.42, inner +0.04). Inner's pruned r56-w4 barely trains in the final FT (train loss 0.428 → 0.421, against the origin's 0.303 → 0.183), so its final is the walk's. The cosine-0.1-last re-read of this cell (22376024, queue row 72) now has its `afterok` met.
+- *Guard.* On r20-w2 inner lands at −7.54, 2.26 above uniform and 5.52 above sens's size point, as at κ 0.6 / 0.8. Reported only.
+- *For the paper (not decided here).* As §271 says, the rule is PFEC's (Li et al. 2017): quote it as known structure, and put `inner` beside sens in the same-loop table with its FLOPs. Seed 42 only at κ 0.35, as registered. Do not lock. Never an agent row.
+
 ---
 
 
