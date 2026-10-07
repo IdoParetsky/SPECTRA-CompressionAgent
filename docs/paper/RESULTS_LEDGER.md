@@ -5797,3 +5797,38 @@ The lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2
 
 ---
 
+## 303. Wave 21 (b): MobileNetV2 ×0.5 C10 `inner` and mild-landed under cosine-0.1-last, seeds 42 and 43 (**22376496 / 22376500** and **22376497 / 22376501**, re-fine-tuned from 22376486 / 91 and 22376487 / 92) — PRELIM, reported; two-seed sens − mild **+0.25** at 5k (lr 0.01 +0.53), +0.425 at 10k (+0.795), at 1.22× mild's FLOPs; inner − uniform **−0.68** (lr 0.01 −0.06), so residual-full is the worst arm on MBV2; at equal params the four arms order by the FLOPs they keep, and on the val half lr 0.01 beats cosine on all eight MBV2 rows
+
+`tree_v10k`, wave 19's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, origin control, P) on the saved candidates of wave 21's `inner` walks (`tree_v10i/runs/job22376486` / `91`) and mild-landed walks (`tree_v10/runs/job22376487` / `92`); final-FT seed = the walk's (42, 43, 42, 43; verified in each env). 22376496 COMPLETED 31 m, 8 Oct 01:52, `ise-4090-07`; 22376500 30 m, 02:22, `ise-4090-07`; 22376497 30 m, 02:21, `ise-4090-12`; 22376501 31 m, 02:27, `ise-4090-01`. All exit 0, TB 0, no fallback; `final_ft from` names the right walk; lr 0.1 cosine, `select=last`; every final FT kept the last epoch (`kept last` 2 each). The size point is `size_param0.60` on each walk's own architecture (inner step 124, FLOPs 0.508; mild step 152, FLOPs 0.582; the same on both seeds). Registration (wave 21, 14:06): reported, sens − mild (v10's bar on a third family), inner − uniform and sens − inner, 10k and honest, the same under cosine-0.1; if Q7 adopts cosine-0.1, the cosine version is the paper's. Sens and uniform under cosine are §301's.
+
+| MBV2 ×0.5 C10, params 0.6 | Params / FLOPs | Walk 5k | Cosine final 5k / val / **10k** | Origin (cosine) 5k / 10k | Against own origin, 5k | Honest | lr 0.01 final 5k / val / 10k (§293 / §296) | Cosine − lr 0.01, 5k / 10k |
+|---|---|---|---|---|---|---|---|---|
+| Inner s42 (22376496) | 0.600 / 0.508 | −0.58 | −1.42 / −1.56 / **−1.49** | −1.04 / −1.33 | −0.38 | +0.20 | −0.48 / −0.40 / −0.44 | −0.94 / −1.05 |
+| Inner s43 (22376500) | 0.600 / 0.508 | −0.26 | −2.36 / −1.68 / **−2.02** | −1.30 / −1.14 | −1.06 | −0.80 | +0.06 / −0.06 / +0.00 | −2.42 / −2.02 |
+| Mild s42 (22376497) | 0.600 / 0.582 | +0.10 | −1.50 / −1.36 / **−1.43** | −1.10 / −1.03 | −0.40 | −0.50 | −0.26 / −0.44 / −0.35 (epoch 1) | −1.24 / −1.08 |
+| Mild s43 (22376501) | 0.600 / 0.582 | +0.26 | −1.24 / −1.44 / **−1.34** | −0.88 / −1.12 | −0.36 | −0.62 | +0.24 / −0.04 / +0.10 | −1.48 / −1.44 |
+
+| Arm, two-seed mean | FLOPs | Cosine 5k / val / **10k** | Against own origin, 5k | lr 0.01 5k / 10k |
+|---|---|---|---|---|
+| Sens (§301) | 0.714 / 0.706 | −1.12 / −0.80 / **−0.96** | −0.15 | +0.52 / +0.67 |
+| Uniform (§301) | 0.591 | −1.21 / −1.33 / **−1.27** | −0.18 | −0.15 / −0.195 |
+| Mild | 0.582 | −1.37 / −1.40 / **−1.385** | −0.38 | −0.01 / −0.125 |
+| Inner | 0.508 | −1.89 / −1.62 / **−1.755** | −0.72 | −0.21 / −0.22 |
+
+| Two-seed difference, cosine (lr 0.01) | 5k | val | **10k** | Seeds, cosine 5k | FLOPs ratio |
+|---|---|---|---|---|---|
+| **Bar, sens − mild** | **+0.25** (+0.53) | +0.60 (+1.06) | **+0.425** (+0.795) | +0.32 / +0.18 | 1.22× |
+| Sens − inner | +0.77 (+0.73) | +0.82 (+1.05) | +0.795 (+0.89) | +0.24 / +1.30 | 1.40× |
+| **Inner − uniform** | **−0.68** (−0.06) | −0.29 (+0.01) | **−0.485** (−0.025) | −0.12 / −1.24 | 0.86× |
+| Mild − uniform | −0.16 (+0.14) | −0.07 (0.00) | −0.115 (+0.07) | −0.20 / −0.12 | 0.98× |
+| Lever, sens − uniform (§301) | +0.09 (+0.67) | +0.53 (+1.06) | +0.31 (+0.865) | +0.12 / +0.06 | 1.2× |
+
+**Read (reported).**
+- *Sens over mild: about a quarter of a point under cosine, at 1.22× mild's FLOPs.* Two-seed sens − mild is +0.25 at 5k and +0.425 at 10k, against +0.53 / +0.795 at lr 0.01 (§296), where mild s42's final FT restored epoch 1; on walk endpoints it was +0.16 (§296). Mild sits level with an even cut (−0.16 at 5k, at 0.98× uniform's FLOPs). v10's "beyond heuristic" bar on this third family is small, and it comes with FLOPs.
+- *Residual-full is the worst arm on MBV2.* Inner − uniform is −0.68 at 5k (−0.485 at 10k), seed 43 −1.24. At lr 0.01 it read −0.06 only because uniform s43 restored epoch 1; on walk endpoints inner was already 0.62 below uniform (§293). Holding MBV2's five narrow residual streams full puts the cut on the expansions (FLOPs 0.508 against 0.591), and that costs accuracy. Sens − inner (+0.77) therefore says "inner is worse", not "sens is better". With §293, the residual-full rule that carries the thin-ResNet lever (§288, §290, §295) does not transfer to the inverted-residual family.
+- *At equal params, accuracy follows the FLOPs kept.* Under cosine the two-seed 5k reads inner (FLOPs 0.508) −1.89, mild (0.582) −1.37, uniform (0.591) −1.21, sens (0.71) −1.12, and 10k gives the same order. On MobileNetV2 ×0.5 at params 0.6 the allocation choices trade FLOPs for accuracy along one front, and no arm sits above it. Two seeds; mild against uniform (0.16 at 1.5 % FLOPs) is inside noise.
+- *The recipe, read on val.* All eight cosine origin controls lose (5k −0.88 to −1.30, mean −1.04; 10k mean −1.14). On the val half, which no final FT reads, lr 0.01 beats cosine-0.1 on all eight pruned MBV2 rows, by 0.92–1.76 pp (sens 1.76 / 1.48, uniform 1.14 / 1.04, inner 1.16 / 1.62, mild 0.92 / 1.40), and on every origin. So a recipe chosen on val per family keeps lr 0.01 on MBV2; cosine-0.1 for every row would lower MBV2 by about 1.5 pp at 5k. Q7 is Gilad's.
+- Wave 21 is complete (§287, §291, §293, §296, §301, this). Do not lock. Never an agent row.
+
+---
+
