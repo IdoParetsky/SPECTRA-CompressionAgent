@@ -4736,6 +4736,17 @@ Seed 43 at r56-w4: sens walk −1.58, final −1.32 @ params 0.798 / FLOPs 0.708
 - *Level on the twins.* At keeps 0.7 / 0.8 on CIFAR-10 the large-lr fine-tune neither helps nor hurts: every 10k difference is within ±0.31, and at the pruned points the val half, which no final FT reads, is within ±0.22. Honest 5k gains on VGG-16 (+0.6 / +1.1) come from its origin dropping under cosine-0.1 (−0.50 at 5k), not from the pruned points rising.
 - *Depth dependence.* Cosine-0.1 over lr 0.01-last is about 0 here and at DepGraph R56 2.11× (§246), about +0.9 at R56 2.57× (§223, §228, §246) and +1.4 to +1.7 on VGG-19 C100 at 0.60 / 0.70 (§251). The larger the accuracy the walk removed, the more the large-lr fine-tune recovers, as Le & Hua (2021) report. For Q7 this means adopting cosine-0.1 moves the deep rows and leaves the shallow ones where they are.
 
+## 257. Wave 11: select=last re-FT of the DepGraph R56 uniform allocation's saved candidates (**22342665**) against its train-loss final (22340524, §233) — PRELIM, reported; **+0.35** at 10k at the landed point (+0.22 at 5k, +0.48 on the val half), inside wave 11's +0.15 to +0.43; the origin moves −0.39 the other way
+
+`tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, lr 0.01 (default), P, seed 42, from `tree_v10h/runs/job22340524/traj_models`. COMPLETED 36 m, 14:07, `ise-4090-01`, exit 0, TB 0; both final FTs kept the last epoch. The landed point is step 113 (params 0.465 / FLOPs 0.472). The parent labels that step `val_best`, so the readout withholds its 10k; the step was chosen by size, not val, so its 10k is computed directly here (`full_test_dacc`).
+
+| Row | select=last 5k / val / 10k | train-loss final (§233) 5k / val / 10k | Δsel 5k / val / 10k |
+|---|---|---|---|
+| Landed, params 0.465 | −0.52 / −0.30 / −0.41 | −0.74 / −0.78 / −0.76 | **+0.22 / +0.48 / +0.35** |
+| Origin | +0.16 / +0.34 / +0.25 | +0.46 / +0.82 / +0.64 | −0.30 / −0.48 / −0.39 |
+
+**Read.** Keeping the true endpoint lifts the pruned DepGraph uniform row by about a third of a point and lowers the unpruned origin by about as much, so the honest difference is +0.74 at 10k. That is the same pattern as N3 / τ-off (§239, §240: +0.15 to +0.43 at 10k, NEUTRAL) and the zoo R56 twin (§250: +0.36 / +0.40). It does not reopen wave 11's call. Reported beside §233 and wave 18's cosine-0.1 re-read of the same candidates (22374248, PD).
+
 ---
 
 
