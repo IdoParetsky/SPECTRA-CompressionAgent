@@ -348,6 +348,9 @@
 - **7 Oct ~20:40 (sitting)** — Seed 43 confirms it: on VGG-19 CIFAR-100 at params 0.6 the sensitivity plan beats uniform by **+2.77** at 5k on two seeds (+2.76 / +2.78; ledger §279, **SENS-MATTERS** ≥ +1.0). Both seeds land each arm on the same architecture, so the two seeds re-sample only the fine-tunes.
   - The caption stands: 1.36× uniform's FLOPs on both seeds. The result is at equal params. At equal FLOPs, the only evidence is A0b's VGG-16 C10 probe (§209): there the sensitivity rule did not clear its bar at keep 0.6 (+0.25 against 0.54). Do not say "allocation beats uniform on VGG" without "at equal params, keeping 36 % more FLOPs".
   - This is the first in-pipeline lever on a net without residual streams. On the thin ResNets the PFEC residual rule explains the lever; here per-layer sensitivity does (late 512-wide layers cut, as in PFEC's VGG-16 analysis).
+- **7 Oct ~20:55 (sitting)** — On DepGraph's ResNet-56 at params 0.47, the second seed gives the walk's allocation lever as **+0.78** at 5k (ledger §280, two-seed; SURVIVES ≥ +0.5 as registered). The 10k is **+0.48** on both seeds (+0.47 / +0.49), right on the bar, so say "about +0.5 pp".
+  - These rows are walk + 1 epoch (epoch-1 restore). Under a genuine fine-tune endpoint seed 42's lever disappeared (§261, §275). The seed-43 cosine re-reads are now unblocked and decide whether "absorbed by a real fine-tune" holds on two seeds.
+  - Sens gets this at 10–16 % fewer FLOPs than uniform, since it keeps the residual streams and cuts inner convs.
 
 ---
 

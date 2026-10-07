@@ -5240,3 +5240,27 @@ Seed spread |s43 − s42|: sens 0.14 at 5k (val 0.82, 10k 0.48), uniform 0.12 (v
 
 ---
 
+## 280. Wave 13, DepGraph R56 C10 at landed params 0.47, seed 43: sens / uniform (**22344275 / 22344276**) — PRELIM; two-seed sens − uniform **+0.78** at 5k (seeds +0.40 / +1.16) → **SURVIVES** (≥ +0.5) as registered, but the precise 10k is **+0.48** on both seeds (+0.47 / +0.49), on the bar; every pruned row is walk + 1 epoch, and sens keeps 10–16 % fewer FLOPs
+
+Sitting 7 Oct wave 13 (registered 10:05, before submit): the seed-43 repeat of §233 / §236 (`tree_v10h`, sens α 0.5 / uniform, `param:0.47`, the DepGraph R56 C10 catalog, 6 passes, P, loader crop+flip, walk 40/10, 100-epoch final FT at lr 0.01 + origin, deterministic), `SPECTRA_SEED=43`. 22344276 COMPLETED 2 h 43 m, 19:12, `ise-4090-15`; 22344275 COMPLETED 4 h 26 m, 20:44, `ise-4090-10`; both exit 0, TB 0, no fallback. Start check green: env kind, catalog, `param:0.47`, seed 43; walk lines `Epoch …/40`; both plans print 30 groups. Uniform lands on seed 42's architecture exactly (step 113, params 0.465 / FLOPs 0.472; plan at x0.490, then the logged strongest-cut finish, as §233). Sens does not: its plan moves slightly (median group keep 0.38 against 0.36) and the walk lands at step 201 (seed 42: 165) with FLOPs 0.425 (0.398). Both seeds keep every residual stream full (16 / 32 / 64); the inner convs differ (min–median–max s1 2–6–14 against 4–6–9, s2 4–7–32 against 7–7–32, s3 14–27–64 against 16–30–64). All four pruned final FTs kept **epoch 1** (seed 43 train loss 0.00159 / 0.00417) and all four origins a late epoch (90–100), so every pruned row is walk + 1 epoch (§235). The landed point is fixed by size, so its 10k is computed directly, as in §261. Call (queue row 88): §236's bars on the two-seed mean of sens − uniform, 5k at the landed point: **SURVIVES** ≥ +0.5 / **ABSORBED** ≤ +0.15 / WEAK between; per-arm seed spread beside it.
+
+| DepGraph R56 C10, landed params 0.47 | Params / FLOPs | In-walk return | Walk 5k | **lr 0.01 final** 5k / val / 10k | Origin 5k / val / 10k | Honest |
+|---|---|---|---|---|---|---|
+| Sens s42 (22340523, §236) | 0.469 / 0.398 | −0.36 | −0.32 | **−0.34** / −0.24 / −0.29 | +0.60 / +0.52 / +0.56 | −0.62 |
+| Sens s43 (22344275) | 0.469 / 0.425 | −0.94 | +0.16 | **+0.06** / −0.64 / −0.29 | +0.24 / +0.62 / +0.43 | −0.34 |
+| Uniform s42 (22340524, §233) | 0.465 / 0.472 | −0.84 | −0.56 | **−0.74** / −0.78 / −0.76 | +0.46 / +0.82 / +0.64 | −0.64 |
+| Uniform s43 (22344276) | 0.465 / 0.472 | −0.16 | −0.82 | **−1.10** / −0.46 / −0.78 | +0.40 / +0.48 / +0.44 | −0.68 |
+| Sens − uniform, s42 · s43 | | +0.48 · −0.78 | +0.24 · +0.98 | +0.40 / +0.54 / +0.47 · +1.16 / −0.18 / +0.49 | | +0.02 · +0.34 |
+| **Two-seed mean** | | −0.15 | +0.61 | **+0.78** / +0.18 / **+0.48** | | +0.18 |
+
+Seed spread |s43 − s42|: sens 0.40 at 5k (val 0.40, 10k 0.00), uniform 0.36 (val 0.32, 10k 0.02); the lever 0.76 at 5k (val 0.72, 10k 0.02). Across seeds both arms trade accuracy between the two halves and hold the 10k within 0.02. The per-arm 5k spread is about half of §242's 0.72 on the thin pair.
+
+**Read.**
+- *Call: SURVIVES as registered, on the bar at 10k.* The two-seed 5k mean is +0.78 against +0.5. It leans on seed 43's 5k half (+1.16): seed 42 alone was WEAK (+0.40, §236), and seed 43's val half reverses the sign (−0.18). The 10k has twice the images and is quiet across seeds (per-arm spread ≤ 0.02); it gives +0.47 / +0.49, on the +0.5 line. Quote both: "+0.78 at 5k (SURVIVES), +0.48 at 10k". Never pick the half.
+- *What it measures.* Every pruned row is walk + 1 epoch, so this is the walk's allocation effect: walk lever +0.61, honest +0.18 (two-seed). Under seed 42's genuine endpoints the lever was absorbed: select=last −0.16 at 5k (+0.05 at 10k, §261), cosine-0.1-last −0.12 (−0.01, §275). Seed 43's cosine re-reads (22376025 / 26, queue row 73) are unblocked now and give the two-seed endpoint read beside this call.
+- *FLOPs: saved, not bought.* At equal params sens keeps 10–16 % fewer FLOPs than uniform (0.425 / 0.398 against 0.472; 2.35× / 2.51× against 2.12×), because it cuts inner convs and keeps the streams. No caption needed.
+- *Against DepGraph.* These rows are walk + 1 epoch. The like-for-like comparison is §275's cosine read (both arms level with DepGraph's own +0.24 at 2.11×, seed 42); never a beat.
+- Do not lock. Never an agent row.
+
+---
+
