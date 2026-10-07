@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§260; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§261; queue "v10" |
 
 ---
 
@@ -276,7 +276,7 @@
 - **7 Oct ~12:25 (sitting)** — Is DepGraph's 2.11× lead its architecture? Mostly not (ledger §249, transplant 22342029).
   - DepGraph's exact pruned widths, run through our L1 + walk + final FT, give **−0.14** at 10k. Our own walk gives −0.54 and DepGraph's model +0.24.
   - After the registered FLOPs credit the lift is **+0.25, PARTIAL**: at most a third of the 0.78 pp gap, and within noise of none of it. The TEST half alone is −0.42 and the val half +0.92, so this is a one-run read.
-  - For Gilad: the remaining gap is in DepGraph's training (sparsity regularisation and its own fine-tune), not in where it cuts. That supports framing the slide line as "competitive while transferring" rather than as an allocation deficit. The genuine-endpoint re-read (22342667) and the VGG-19 C100 transplant (22342030) are queued.
+  - For Gilad: the remaining gap is in DepGraph's training (sparsity regularisation and its own fine-tune), not in where it cuts. That supports framing the slide line as "competitive while transferring" rather than as an allocation deficit. The genuine-endpoint re-read (22342667) and the VGG-19 C100 transplant (22342030) are queued. *(Superseded at 15:45 by §262: under the cosine-0.1 fine-tune the widths do close the gap.)*
   - Twins (§250): the true endpoint adds +0.36 / +0.40 at 10k on the zoo R56, a second ResNet-56 checkpoint. The VGG-16 control stays under its 0.5 rule.
 - **7 Oct ~12:50 (sitting)** — The final-FT recipe question (Q7) now has val-half evidence (ledger §251, §252).
   - N4 VGG-19 C100 with cosine from 0.1 (22342768) is +1.66 / +1.41 at 10k over lr 0.01-last. "Helps across architectures" is **MET**. About half is the unpruned origin improving as well (+0.87).
@@ -300,6 +300,10 @@
 - **7 Oct ~15:10 (sitting)** — On genuine endpoints the DepGraph R56 sens lever is level (ledger §261, `select=last` 22342666 with §257).
   - Sens − uniform at params 0.47 is −0.16 at 5k and +0.05 at 10k, against +0.40 / +0.47 under the epoch-1 restore (§236). The +0.40 was the walk's, and 100 real epochs remove it.
   - What survives is the FLOPs saving: equal accuracy at equal params with 16 % fewer FLOPs (2.51× vs 2.12×). The thin-pair levers are unaffected, because their finals already kept late epochs.
+- **7 Oct ~15:45 (sitting)** — DepGraph's 2.11× lead over N3 *is* its architecture, under a genuine fine-tune (ledger §262, transplant re-fine-tuned with cosine-0.1-last, 22374229). This supersedes the 12:25 entry.
+  - Registered lift **+0.87 → ALLOCATION** (bar +0.32). Our pipeline on DepGraph's exact widths gets **+0.69** at 10k, against our own N3 walk's −0.24 and DepGraph's own model's +0.24. Both halves clear the bar, and against each run's own retrained origin the lift is still +0.48.
+  - §249's PARTIAL was walk + 1 epoch (epoch-1 restore). On real endpoints, where it cuts explains the gap: DepGraph keeps the residual streams wide, as the thin-pair lever does.
+  - Slide line: "given DepGraph's widths, our walk and fine-tune reach its accuracy at 2.11×; the gap is allocation, which is what the agent must learn." **Never "beats"**: our origin also gains +1.02 under that fine-tune.
 
 ---
 

@@ -4838,6 +4838,29 @@ Sitting 7 Oct wave 5 (registered 03:20, before submit), `tree_v10`, §211 / §21
 - One run per arm. Wave 13's seed-43 walks (22344275 / 76, PD) use the train-loss pick. Wave 18's cosine-0.1-last re-read of both arms (22374230 / 48, PD) is the next read of this lever on genuine endpoints, under the fine-tune Q7 recommends.
 - Never call DepGraph a beat. Do not lock. Never an agent row.
 
+## 262. Wave 18 (a): the DepGraph R56 transplant re-fine-tuned under cosine from lr 0.1, keep last (**22374229**, from 22342029's saved candidates) — PRELIM; registered lift_cos **+0.87 → ALLOCATION** (10k **+0.69** against N3's cosine-0.1 two-seed −0.24, less the 0.06 size credit); both halves clear the bar (5k +1.32, val +0.41); under a genuine fine-tune DepGraph's widths close its 2.11× lead over N3
+
+Sitting 7 Oct wave 18 (registered 13:04, before submit). `tree_v10k`, wave 11b's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, origin control, P, seed 42), from `tree_v10j/runs/job22342029/traj_models`. That is wave 10's transplant walk: DepGraph's released 2.11× widths, L1 ranking, walk 40/10, landed `param:0.508`. COMPLETED 35 m, 7 Oct 15:40, `ise-4090-01`, exit 0, TB 0. Start check green: `final_ft from` names job22342029's `traj_models`, both recipe lines read `optim=sgd lr=0.1 cosine=1`, both final FTs kept the last epoch (pruned loss 0.01405, origin 0.00725, each equal to its best), `keep=last` 2. Checkpoint `resnet56_cifar10_dep_graph_93.53.pth`, as N3's. The size point is step 150 (params 0.508 / FLOPs 0.480). The widths plan fixed it and nothing chose it on val, so its 10k is quoted (`full_test_dacc`). Call (registered): lift_cos = T_cos − (−0.24) − 0.06 at 10k on the size point. The −0.24 is N3's two-seed cosine-0.1 mean at 2.11× (§223 / §246: −0.36 / −0.11) and the 0.06 the size credit. **ALLOCATION** ≥ +0.32 (2/3 of the 0.48 pp gap to DepGraph), **NOT-ALLOCATION** ≤ +0.20, PARTIAL between. Reported: T_cos against DepGraph's +0.24 directly, both halves, honest.
+
+| Row | Params / FLOPs | Walk 5k | Final 5k / val / **10k** | Honest | Lift after the 0.06 credit, 5k / val / **10k** |
+|---|---|---|---|---|---|
+| **Transplant, cosine-0.1-last** | 0.508 / 0.480 | −0.56 | +1.04 / +0.34 / **+0.69** | +0.62 | +1.32 / +0.41 / **+0.87** |
+| N3 2.11× cosine-0.1, two-seed mean (§223 / §246) | 0.470 / 0.463 | −0.22 | −0.34 / −0.13 / −0.24 | −0.67 | — |
+| Transplant, lr 0.01 (§249; kept epoch 1) | 0.508 / 0.480 | −0.56 | −0.72 / +0.44 / −0.14 | −0.66 | lr 0.01 call +0.25, PARTIAL |
+| Origin, this run (N3's cosine-0.1 runs, 10k) | 1 | 0 | +0.98 / +1.06 / **+1.02** (+0.64 / +0.63) | — | — |
+| DepGraph's own 2.11× model (head-to-head) | — | — | 10k **+0.24** | — | — |
+
+N3's val half is derived as 2 × 10k − 5k (the halves are equal; seeds 42 / 43: −0.40 / +0.14).
+
+**Read.**
+- *Call: **ALLOCATION**, +0.87,* 0.55 above the bar. Both halves clear it (5k +1.32, val +0.41), unlike §249's split halves (−0.42 / +0.92). Under the genuine 100-epoch fine-tune Q7 recommends, DepGraph's widths walked by our pipeline land 0.93 pp above our own N3 walk at 10k (+0.69 against −0.24), for +0.017 FLOPs.
+- *Against each run's own origin.* This run's origin gained +1.02 at 10k, against +0.64 / +0.63 in N3's two runs, so the same unpruned checkpoint under the same recipe moves about 0.4 between runs. Measured against its own retrained origin, the transplant is −0.33 and N3 −0.87 (two-seed). That lift after the credit is +0.48, still ALLOCATION.
+- *Against DepGraph's own model.* T_cos is +0.69 at 10k against DepGraph's +0.24, +0.45 raw. Our origin under the same fine-tune gains +1.02, so this mixes DepGraph's widths with our longer, stronger recovery. It is not a like-for-like model comparison: **never "beats"**. What it shows is that, given DepGraph's widths, our walk and fine-tune reach DepGraph's own accuracy at 2.11×. Its lead over N3 is where it cuts.
+- *What it reverses.* §249's lr 0.01 read (PARTIAL +0.25: "the gap is in DepGraph's training") was walk + 1 epoch, because the final FT kept epoch 1 on both sides (§235). On genuine endpoints the widths explain the gap. The mechanism is the thin pair's: DepGraph's copy keeps the residual streams at 13 / 32 / 42 of 16 / 32 / 64, while N3's mild walk cuts them to about 2/3 (§234).
+- *For the agent.* The 2.11× gap to DepGraph is an allocation gap, which is what a frozen agent is meant to learn. v10 has not learned it yet (FLAT §248; its reward saw the lever, §259).
+- One walk and one fine-tune seed. Queued: the seed-43 transplant walk (22374250, lr 0.01, wave 18 c), the lr 0.01 endpoint re-read (22342667), and the VGG-19 C100 transplant (22342030, R) with its cosine-0.1 re-read.
+- Do not lock. Never an agent row.
+
 ---
 
 
