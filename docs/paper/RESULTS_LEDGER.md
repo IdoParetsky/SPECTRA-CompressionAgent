@@ -4374,12 +4374,15 @@ Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-sa
 
 ## 240. Wave 11 call: select=last on τ-off's saved DepGraph R56 candidates (**22342660**), beside N3 (§239) — PRELIM; **NEUTRAL** at 2.11×, 2.57× **unresolved**; the M4 numbers stay, disclosed; cosine-0.1's lead at 2.57× is **not** the selection
 
-Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-saved τ-off `tree_v9d/runs/job22288423/traj_models` (PATH-SAME widths as N3, §220), otherwise the paper recipe (SGD 0.01, cosine, 100 epochs, P, seed 42, origin). R from 08:27 on `cs-4090-10`. Both gating points were finished by 09:01, and their numbers are final. `val_best` and the origin are still running, so τ-off's honest gain is pending. Start check on each finished point: env `last`, `select=last`, "kept the last epoch", `keep=last`. Reader `final_ft_readout.py`.
+Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-saved τ-off `tree_v9d/runs/job22288423/traj_models` (PATH-SAME widths as N3, §220), otherwise the paper recipe (SGD 0.01, cosine, 100 epochs, P, seed 42, origin). COMPLETED 1 h 25 m, 7 Oct 09:53, `cs-4090-10`, exit 0, TB 0. The call was read at 09:20 from the two gating points, finished by 09:01; the rest landed by 09:53 and changes nothing. Start check green on all five final FTs: env `last`, `select=last`, "kept the last epoch", `keep=last`. Reader `final_ft_readout.py`.
 
-| Point | §220 train-loss 5k / 10k | **select=last** 5k / 10k | Δsel 10k | cosine 0.1 §228, 10k |
-|---|---|---|---|---|
-| size_flop0.47 (2.11×) | −0.90 / −0.94 | −0.60 / **−0.54** | **+0.40** | +0.01 |
-| size_flop0.39 (2.57×) | −1.34 / −1.52 | −1.40 / **−1.31** | **+0.21** | −0.36 |
+| Point | §220 train-loss 5k / 10k | **select=last** 5k / 10k | Δsel 10k | Honest last / §220 | cosine 0.1 §228, 10k |
+|---|---|---|---|---|---|
+| size_flop0.60 | −0.20 / −0.16 | −0.18 / −0.06 | +0.10 | −0.64 / −1.24 | +0.05 |
+| size_flop0.47 (2.11×) | −0.90 / −0.94 | −0.60 / **−0.54** | **+0.40** | −0.12 / −1.00 | +0.01 |
+| size_flop0.39 (2.57×) | −1.34 / −1.52 | −1.40 / **−1.31** | **+0.21** | −0.46 / −0.98 | −0.36 |
+| `val_best` (keep 0.123) | −5.02 / n/a | −5.06 / n/a | n/a | +0.08 / −0.46 | n/a |
+| origin | +0.86 / +0.73 | **+0.28** / +0.64 | −0.09 | — | +0.82 |
 
 | Point | N3 Δsel (§239) | τ-off Δsel | Call (queue, registered 07:10) |
 |---|---|---|---|
@@ -4389,7 +4392,8 @@ Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-sa
 **Read.**
 - *Call.* REQUOTE needs both walks ≥ +0.3 at one point, and no point has that. STANDS needs ≤ −0.3 everywhere, and every Δsel is positive. So the M4 numbers stay, with the disclosure "walk + 1 epoch (§235); a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k on two walks". 22342767 (N3 select=last, seed 43) can make 2.11× unresolved as well, if N3 moves ≥ 0.3 there; it cannot make REQUOTE fire.
 - *§228's TREND is not the selection.* lr 0.01-last against cosine-0.1 at 2.57×: N3 −1.20 vs −0.37 (0.83 apart), τ-off −1.31 vs −0.36 (0.95). Both gaps exceed 0.3, the registered bar. At 2.11× they are level on N3 (−0.31 vs −0.36) and 0.55 apart on τ-off (−0.54 vs +0.01). A genuine lr-0.01 endpoint recovers at most 0.43 of those gaps. Cosine from 0.1 leads on merit at 2.57× on both walks.
-- *Honest, 100 epochs against 100 (N3, §239's run).* −0.42 at 2.11×, −0.20 at 2.57×, −0.20 at keep 0.60, −0.12 at `val_best`. At lr 0.01 the pruned nets gain less over their walk than the origin gains from 100 epochs (+0.34).
+- *Honest, 100 epochs against 100.* N3 (§239): −0.42 at 2.11×, −0.20 at 2.57×, −0.20 at keep 0.60, −0.12 at `val_best`. τ-off: −0.12, −0.46, −0.64, +0.08. At lr 0.01 the pruned nets gain less over their walk than the origin gains from 100 epochs.
+- *Origin noise.* The identical lr-0.01 FT of the same unpruned origin gave +0.28 here and +0.86 in §220's run (5k). Only the RNG state differs: a fresh process here, after the walk there. At 10k they are +0.64 / +0.73. So at 5k one origin FT moves ~0.6 pp, and every honest number carries it. Earlier runs of this origin: +0.42 / +0.36 / +0.86 (§153 / §157 / §220). Honest at 5k is noise-limited at about ±0.5; gate on 10k raw where a call allows it.
 - *Slide line (tracker §6), revised 09:30.* It now shows both genuine recipes, the lr-0.01 endpoint and cosine-0.1, so no recipe is picked on TEST. Wave 12 (**22343160 / 65**, seed 43) measures cosine-0.1's seed noise; 22342767 measures lr-0.01-last's.
 - Do not lock. Never an agent row. Never call DepGraph a beat.
 
