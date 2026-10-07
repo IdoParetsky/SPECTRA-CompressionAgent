@@ -5624,3 +5624,27 @@ Origin controls under cosine, 5k: −0.64 (inner run), −1.20 (sens), −0.80 (
 
 ---
 
+## 296. Wave 21, MobileNetV2 ×0.5 C10 at params 0.6: mild-landed at seeds 42 and 43 (**22376487 / 22376492**) — PRELIM, reported; two-seed sens − mild **+0.53** at 5k (+0.60 / +0.46; 10k +0.795) at 1.2× mild's FLOPs, but **+0.16** on walk endpoints, and mild seed 42's final FT restored epoch 1; mild − uniform +0.14 (walk −0.02): on MBV2 the heuristic sits level with an even cut, and what sens adds over it comes with FLOPs
+
+`tree_v10`, §211's mild-landed recipe on the MBV2 catalog (`input_pf_mbv2x05.json`, `param:0.6`), seeds 42 / 43 verified in the env. Seed 42 COMPLETED 4 h 27 m, 8 Oct 01:27, `ise-cpu256-11`; seed 43 COMPLETED 3 h 41 m, 01:20, `ise-6000-01`; both exit 0, TB 0, no fallback, and both land at step 152, params 0.600 / FLOPs 0.582 (one architecture across seeds). Reader `final_ft_readout.py` over all eight lr 0.01 cells of wave 21. Registration (wave 21, 14:06): sens − mild is reported (v10's bar on a third family); no bar is registered for MBV2. For reference, the thin pair's bar was ≥ +1.0 (§230), and VGG-19 read +1.09 (§283).
+
+| MBV2 ×0.5, params 0.600, 5k | Seed 42 | Seed 43 | Mean | Walk endpoints (s42 / s43; mean) | FLOPs (s42 / s43) | Kept epoch (s42 / s43) |
+|---|---|---|---|---|---|---|
+| Sens (§287 / §291) | +0.34 | +0.70 | **+0.52** | +0.32 / +0.36; +0.34 | 0.714 / 0.706 | 100 / 100 |
+| Mild-landed (this) | **−0.26** | **+0.24** | **−0.01** | +0.10 / +0.26; +0.18 | 0.582 / 0.582 | **1** / 90 |
+| Uniform (§287 / §291) | +0.24 | −0.54 | −0.15 | +0.08 / +0.32; +0.20 | 0.591 / 0.591 | 95 / **1** |
+| Inner (§287 / §293) | −0.48 | +0.06 | −0.21 | −0.58 / −0.26; −0.42 | 0.508 / 0.508 | 100 / 100 |
+| **Sens − mild** | +0.60 | +0.46 | **+0.53** | +0.22 / +0.10; **+0.16** | | |
+| Mild − uniform | −0.50 | +0.78 | +0.14 | +0.02 / −0.06; −0.02 | | |
+
+Val / 10k, two-seed: sens − mild +1.06 / +0.795. On seed 43, the one seed where both arms kept a late epoch, sens − mild is +0.46 at 5k and +0.65 at 10k. Mild seed 42: walk +0.10 → final −0.26 (val −0.44, 10k −0.35), honest −0.84, origin control +0.48; its final FT's lowest train loss was epoch 1, so the default select restored walk + 1 epoch (−0.36 against its own walk). Mild seed 43: walk +0.26 → final +0.24 (val −0.04, 10k +0.10), kept epoch 90, honest −0.50.
+
+**Read.**
+- *Sens over mild on MBV2: about +0.5 at the final, +0.16 on walk endpoints.* The two-seed +0.53 at 5k includes mild seed 42's epoch-1 restore; on the one like-for-like seed (43) it is +0.46, and on walk endpoints +0.16. Every one of these is bought with 1.2× mild's FLOPs (0.71 vs 0.58). The same bar is +2.54 on the thin ResNet (§247) and +1.09 on VGG-19 (§283). On MBV2 at κ 0.6, only sens beats the heuristic at equal params, by about 0.5 pp, and it keeps more FLOPs to do it.
+- *Mild sits level with an even cut.* Mild − uniform is −0.02 on walk endpoints and +0.14 at the final, where the two restores (mild seed 42, uniform seed 43) point in opposite directions. Mild and uniform keep nearly the same FLOPs (0.58 / 0.59).
+- *The four arms at the walk endpoint.* Sens, uniform and mild sit within 0.16 of each other (+0.34 / +0.20 / +0.18); inner is about 0.6 below (−0.42). The 100-epoch lr 0.01 final FT adds nothing honest on any MBV2 arm (honest −0.08 to −1.50): the walk's own fine-tunes already recover this light cut.
+- *Two of the eight lr 0.01 finals restored epoch 1* (mild seed 42, uniform seed 43). The cosine re-reads (22376493–501, keep last on every arm; 22376493 / 96 / 98 R) are the like-for-like read; if Q7 adopts cosine-0.1, they are the paper's numbers. Wave 21's lr 0.01 cells are complete.
+- Do not lock. Never an agent row.
+
+---
+
