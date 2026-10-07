@@ -4681,7 +4681,7 @@ Sitting 7 Oct, wave 11 (registered before submit). `tree_v10k`, `SPECTRA_EVAL_FI
 
 ## 254. Wave 8 at κ 0.6: uniform allocation at seed 43 (**22341282**) — PRELIM; two-seed lever sens − uniform **+1.09 → SURVIVES** (seed 42 +0.54, seed 43 +1.64), 0.09 above the line; uniform already holds +1.45 of sens's +2.54 over mild
 
-`tree_v10h`, `SPECTRA_ALLOC_KIND=uniform`, §230's recipe (`param:0.6`, 6 passes, P, loader crop+flip, walk 40/10, 100-ep final FT + origin, deterministic) with `SPECTRA_SEED=43`. COMPLETED 3 h 5 m, 7 Oct 12:59, `ise-4090-02`, exit 0, TB 0, no fallback. `[alloc]` uniform plan keeps x0.554 on r20-w2 (every group 0.75). Reader `final_ft_readout.py`. Rule (wave 8, registered 04:10): at r56-w4 the lever (sens − uniform: SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between) is read on the two-seed mean, and where the seed-42 call and the two-seed call disagree, the two-seed call stands.
+`tree_v10h`, `SPECTRA_ALLOC_KIND=uniform`, §230's recipe (`param:0.6`, 6 passes, P, loader crop+flip, walk 40/10, 100-ep final FT + origin, deterministic) with `SPECTRA_SEED=43`. COMPLETED 3 h 5 m, 7 Oct 12:55, `ise-4090-02`, exit 0, TB 0, no fallback. `[alloc]` uniform plan keeps x0.554 on r20-w2 (every group 0.75). Reader `final_ft_readout.py`. Rule (wave 8, registered 04:10): at r56-w4 the lever (sens − uniform: SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between) is read on the two-seed mean, and where the seed-42 call and the two-seed call disagree, the two-seed call stands.
 
 | r56-w4, κ 0.6 | Seed 42 | Seed 43 | Mean | Residual widths (s42 / s43) |
 |---|---|---|---|---|
