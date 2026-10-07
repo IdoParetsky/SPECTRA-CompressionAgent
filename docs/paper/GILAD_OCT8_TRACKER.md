@@ -122,6 +122,9 @@
 6. **NEON's reward on long walks (added 4 Oct).** Under NEON's three-way reward with a 10 pp band, our CNN agent learns "the largest cut at every decision": inside the band, a cut pays its size whatever it costs.
    - Did NEON's dense agents vary their actions, or was the band binding more often on their shorter walks?
    - Would he accept fixed-budget episodes (AMC-style: reward = accuracy at a target size) as a faithful extension of NEON's reward? A tighter band with a slack taper (F1, τ 5) passes our whole-walk replay check, but still pays early cuts over the accuracy reached.
+7. **Final fine-tune recipe (added 7 Oct; ledger §235, §240).** The registered paper recipe is SGD lr 0.01, cosine, 100 epochs. After a crop+flip walk it kept epoch 1, and its true endpoint adds only +0.15 to +0.43 pp. Cosine from lr 0.1 (Le & Hua, ICLR 2021) lands 0.83 / 0.95 pp better at 2.57× FLOPs on DepGraph R56 and level at 2.11×.
+   - *Recommended:* keep the registered recipe for every row, and report cosine-0.1 beside it as a sensitivity row.
+   - *Alternative:* adopt cosine-0.1 for every row, justified from the literature rather than from TEST, and re-finalise every row from its saved candidates.
 
 ---
 
@@ -230,14 +233,15 @@
 - **7 Oct ~07:00** — 1-cycle **VOID** (ledger §235). L3b-rep **22341280** passes the registered arithmetic (+0.84 honest vs §220) but every 1-cycle run kept epoch 1, origin included — one warmup step, not 100 epochs. Paper caption stays lr 0.01. Many lr 0.01 DepGraph rows, including M4, are walk + 1 epoch until wave 11 (`select=last`). Slide: do not claim a 1-cycle final FT.
 - **7 Oct ~07:15 (sitting)** — Why (ledger §235, census of 191 final FTs): the fine-tune keeps its lowest-train-loss epoch. A crop+flip-walked net often starts below the train loss 100 SGD epochs with weight decay end at, so the restore brings back epoch 1. That held for 14 / 30 lr-0.01 DepGraph R56 points (N3 4/4), chenyaofo R56 3/3, N4 VGG-19 C100 3/3 and every 1-cycle run. It never held for cosine from lr 0.1 (0 / 12), VGG-16 or the landed-κ thin rows.
   - *Slide lines withdrawn.* The 04:12 line (−0.46 / −0.36 / −0.44 by schedule): the 1-cycle number is no fine-tune and the lr 0.01 number is walk + 1 epoch. The 05:20 line ("a large-LR final fine-tune closes most of the 2.57× gap"): until wave 11 lands, it could be the selection rather than the learning rate.
-  - *Slide line that holds now:* "With a genuine 100-epoch final fine-tune (cosine from lr 0.1, endpoint kept), DepGraph R56 at 2.11× lands at 10k −0.36 / +0.01 from two walks, and at 2.57× at −0.37 / −0.36, against DepGraph's own +0.24 / +0.11. One run each; competitive, not a beat."
+  - *Slide line (07:15; **superseded 09:30**, see the 09:20 entry: it shows one recipe of two):* "With a genuine 100-epoch final fine-tune (cosine from lr 0.1, endpoint kept), DepGraph R56 at 2.11× lands at 10k −0.36 / +0.01 from two walks, and at 2.57× at −0.37 / −0.36, against DepGraph's own +0.24 / +0.11. One run each; competitive, not a beat."
   - *Wave 11* (`tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`; **22342659–68**) re-runs the paper recipe at its endpoint on every saved early-epoch source, plus 1-cycle and the allocation / transplant rows. Call: REQUOTE / STANDS / NEUTRAL at ±0.3 pp (10k, both walks).
 - **7 Oct ~08:00** — DepGraph sens vs uniform at params 0.47 (ledger §236): **WEAK +0.40** (−0.34 @ 0.469 / 0.398 vs −0.74 @ 0.465 / 0.472). Residual streams kept full; 16 % fewer FLOPs. Same direction as the thin pair. Wave 11 re-reads the endpoint. Never quote v10 in-walk.
 - **7 Oct ~08:30** — First v10 freeze TEST κ 0.8 (ledger §237): r56 **−2.88 @ 0.799** vs mild **−2.1** (−0.78). Residual **3 / 7 / 14** — the mild/uniform cut, not A0's 4 / 8 / 16. Census is skip + 0.9; 0.7 / 0.6 unused. M1-v10 waits on the κ 0.6 twin. Never quote the probe.
 - **7 Oct ~09:00** — Wave 11 N3 select=last (ledger §239): keeping the last epoch moves 10k by **+0.15 at 2.11×** and **+0.43 at 2.57×** vs §157. REQUOTE needs the τ-off twin. Do not change M4 on one walk. Uniform κ 0.35 **§238 −7.90 @ 0.349**; lever waits on sens.
 - **7 Oct ~09:20 (sitting)** — Wave 11 call (ledger §240): **NEUTRAL**. τ-off's endpoint adds +0.40 at 2.11× and +0.21 at 2.57×, so no point has both walks ≥ +0.3. 2.57× is unresolved (0.09 under).
   - M4 keeps its numbers. Caption: "walk + 1 epoch; a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k".
-  - Cosine from lr 0.1 still leads lr-0.01-last at 2.57× by 0.83 / 0.95 on the two walks. The large-LR lead is the learning rate, not the selection, so the 07:15 slide line holds.
+  - Cosine from lr 0.1 still leads lr-0.01-last at 2.57× by 0.83 / 0.95 on the two walks. The large-LR lead is the learning rate, not the selection. At 2.11× the two recipes are level on N3 (−0.31 / −0.36).
+  - *Slide line, revised 09:30 (replaces 07:15's).* The 07:15 line quoted only cosine-0.1, then the only genuine 100-epoch FT. Now that both recipes have genuine endpoints, quoting the better one would pick a recipe on TEST, so the line shows both: "With a genuine 100-epoch final fine-tune, DepGraph R56 at 2.11× lands at 10k −0.31 / −0.54 under the paper's lr 0.01 and −0.36 / +0.01 under cosine from lr 0.1, on two walks. At 2.57× it lands at −1.20 / −1.31 and −0.37 / −0.36. DepGraph's own: +0.24 / +0.11. That is 0.2–0.8 pp behind at 2.11× and 0.5–1.4 pp behind at 2.57×; one run each; not a beat."
   - Wave 12 (**22343160 / 65**) re-runs its two cosine-0.1 points at seed 43, to put a seed spread on it before the meeting if they land in time.
 
 ---

@@ -1,5 +1,14 @@
 # SPECTRA sitting GPU queue
 
+**Morning report for Ido (sitting, 7 Oct 09:30).**
+- *Headline: our final fine-tune mostly kept epoch 1 (ledger §235).* The FT restores its lowest-train-loss epoch. The walk's per-step FT (Adam, no weight decay) leaves the net below the train loss that SGD with weight decay settles at, so on most lr-0.01 DepGraph rows the restore brought back epoch 1. The M4 row (10k −0.46 at 2.11×) is therefore walk + 1 epoch, and **1-cycle is VOID**; my 04:10 ADOPT note is withdrawn.
+- *Wave 11 (§239, §240): NEUTRAL.* Keeping the true endpoint adds +0.15 to +0.43 pp at 10k on two walks, under the registered +0.3 on both, so M4 keeps its numbers with the disclosure. 2.57× is unresolved, with τ-off 0.09 under the bar.
+- *Large-LR fine-tune.* Cosine from lr 0.1 is genuinely better at 2.57× (by 0.83 / 0.95) and level at 2.11× on N3. The slide line (tracker §6, 09:30) now shows both genuine recipes, 0.2–0.8 pp behind DepGraph at 2.11× and 0.5–1.4 pp at 2.57×, so no recipe is picked on TEST. New question 7 for Gilad: keep lr 0.01 and report cosine-0.1 beside it (Recommended), or adopt cosine-0.1 everywhere.
+- *Allocation (§227–§236, §238).* The lever is keeping the residual streams full: sens beats uniform by +0.54 / +0.96 on the thin pair and +0.40 on DepGraph R56 (with 16 % fewer FLOPs), all WEAK on one seed. A non-learned allocation is +2.26 over mild at κ 0.6, which sets v10's "beyond heuristic" bar. Queued or running: seed-43 twins, the residual-full rule alone (`inner`), κ 0.35, and DepGraph's exact widths walked by our pipeline (transplant).
+- *v10 (ops §237).* First freeze TEST at κ 0.8 is −0.78 vs mild. The actor walks the mild path (0.9 cuts and skips) and cuts the residual streams. κ 0.6 (M1-v10) is still R.
+- *GPUs.* 11/11 R and 23 PD (waves 8–12), each cell registered before submit.
+- *For ops.* The draft pin (line 12) and `PROMPT_FABLE_V6.md` should read "1-cycle VOID (§235); lr-0.01 rows are walk + 1 epoch; wave 11 NEUTRAL (§240)". I did not edit either.
+
 **Sitting 7 Oct ~02:50 (Opus 5.5; `docs/PROMPT_FABLE_OCT7_SITTING.md`, Recommended on every fork, Ido asleep).** Calls, the B3 correction and both lead answers: section "Sitting 7 Oct".
 - *QOS:* the live cap is **11**, not 8: `sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13. **11/11 R:** the Stage-4 resume, v10 and nine sitting cells. **PD (04:12):** twelve sitting cells (waves 4, 5, 7, 8; QOS) and the v10 resume (Dependency, nice 0, first in line).
 - *Leads 1–2 (zero GPU, answered):* NAP-F's group mean does **not** track A0's sensitivity (ρ +0.25 / −0.47 / +0.38; the sign follows depth), so C is not run. The summed single-channel ablation does track it (ρ 0.77–0.92). Budget STOP was played 74 times, then extinguished (none after ep 231). The late policy is "remove 4 %" in 97.5 % of decisions.

@@ -6,7 +6,7 @@ Tools: `scripts/cost_readout.py` (login node, zero GPU), `scripts/bench_deploy.p
 
 ## 1. The claim this file supports
 
-On accuracy at a given compression, focused SOTA on its home benchmark is ahead. On DepGraph's own ResNet-56 checkpoint, our no-agent walk plus final fine-tune lands at −0.46 pp at 2.11× FLOPs on the full 10k test set, against DepGraph's +0.24 pp (ledger §157). Gilad's directive stands: never claim a beat there. SPECTRA's contribution is a **frozen generic agent**. It is trained once offline, then applied to unseen CNN families and datasets with no per-target search, no agent training and no per-layer ratio tuning. The paper should argue from the costs that design removes, and from the breadth of transfer, not from the accuracy column. It should also say plainly where the design does not pay yet (§6.2).
+On accuracy at a given compression, focused SOTA on its home benchmark is ahead. On DepGraph's own ResNet-56 checkpoint, our no-agent walk plus final fine-tune lands at −0.46 pp at 2.11× FLOPs on the full 10k test set, against DepGraph's +0.24 pp (ledger §157). That final fine-tune kept its first epoch (§235). Keeping the endpoint of the same 100 epochs gives −0.31 (§239), and cosine from lr 0.1 gives −0.36 (§223). A second walk (τ-off, §220) gives −0.54 and +0.01 under the same two recipes (§240, §228). One run each; neither recipe is chosen on TEST. Gilad's directive stands: never claim a beat there. SPECTRA's contribution is a **frozen generic agent**. It is trained once offline, then applied to unseen CNN families and datasets with no per-target search, no agent training and no per-layer ratio tuning. The paper should argue from the costs that design removes, and from the breadth of transfer, not from the accuracy column. It should also say plainly where the design does not pay yet (§6.2).
 
 ## 2. Bottom line (1 Oct; Point A and stale lines refreshed 7 Oct)
 
@@ -196,7 +196,7 @@ The literature costs above come from other GPUs or from third parties. This re-r
 | ResNet-56 C10, `--speed-up 2.11` | **5104 s (85.1 min)** | 93.44 | **93.80 / 93.77** | 127.12 → 60.21 M (2.11×) | 0.856 → 0.432 M |
 | VGG-19 C100, `--speed-up 8.84` | **2682 s (44.7 min)** | 72.46 | **70.78 / 70.53** | 512.73 → 56.83 M (9.02×) | 20.087 → 1.220 M |
 
-Official published logs (other hardware) were 93.89 / 93.83 and 70.60 / 70.31. Our 4090 is **0.09 pp** under their R56 best and **0.18 pp** over their VGG-19 best. SPECTRA’s crop+flip walk on their R56 (ledger §157, **10k**) is **−0.46 at 2.11×** vs their published **+0.24**. Do not mix that 10k row with the 5k P half.
+Official published logs (other hardware) were 93.89 / 93.83 and 70.60 / 70.31. Our 4090 is **0.09 pp** under their R56 best and **0.18 pp** over their VGG-19 best. SPECTRA’s crop+flip walk on their R56 (ledger §157, **10k**) is **−0.46 at 2.11×** vs their published **+0.24**. That row is walk + 1 epoch: the final fine-tune kept its first epoch (§235); its 100-epoch endpoint is −0.31 (§239, §240 NEUTRAL). Do not mix that 10k row with the 5k P half.
 
 Deployment of *their* pruned nets, median of 3, same card (§5.3): R56 at 2.11× is still throughput-bound at batch 1 (origin 5.02 ms → 4.90 ms, ×1.02) and slightly *slower* at batch 256 (49172 → 47071 img/s). VGG-19 at ~9× is almost unchanged at batch 1 (1.76 → 1.75 ms) and **×2.85** at batch 256 (50212 → 143349 img/s).
 
