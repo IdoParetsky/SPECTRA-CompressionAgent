@@ -4792,6 +4792,29 @@ Guard, r20-w2 returns (sens at 0.5948, mild at 0.5838): seed 42 −5.00 vs −7.
 - κ 0.8 (**22372634 / 35**, PD) gets the same bars on seed 42 and is reported beside. If it disagrees, the write-up says at which keep the budget hides the lever.
 - Not a train and not a v10 TEST; ops' M1-v10 FLAT (§248) stands. Never quote the in-walk returns as TEST. Do not lock. Never an agent row.
 
+## 260. Mild-landed κ 0.35 control, thin pair (**22340796**) — PRELIM, reported; r56-w4 **−10.34 @ 0.348 / FLOPs 0.271**; the κ 0.35 bar: sens **+4.34**, uniform **+2.44** above mild (5k), at 1.51× / 1.22× mild's FLOPs; r20-w2 guard: sens −3.36, uniform −0.10
+
+Sitting 7 Oct wave 5 (registered 03:20, before submit), `tree_v10`, §211 / §212's recipe at `SIZE_MATCH = SIZE_POINTS = param:0.35`: 3-rate baseline menu, 6 passes, P, loader crop+flip, 100-epoch final FT + origin, seed 42. COMPLETED 8 h 45 m, 7 Oct 14:53, `ise-4090-02`, exit 0, TB 0, no fallback. Every final FT kept a late epoch (best train loss within 0.005 of epoch 100's), so these are genuine 100-epoch finals. Registered use: the standard-heuristic bar for the κ 0.35 allocation walks and the thin Pareto's deep point, reported beside the κ 0.35 pair. No separate call.
+
+| Net / point | Arm | Params / FLOPs | Residual s1 / s2 / s3 | Walk 5k | **Final 5k** | Honest | 10k | Final − mild |
+|---|---|---|---|---|---|---|---|---|
+| **r56-w4** `size_param0.35` step 277 | **mild** | 0.348 / **0.271** | 2 / 3 / 10 | −11.04 | **−10.34** | +0.16 | −10.40 | — |
+| r56-w4 `size_param0.35` | sens (§243) | 0.338 / 0.409 | 4 / 8 / 15 | −8.42 | −6.00 | +1.96 | n/a | **+4.34** |
+| r56-w4 `size_param0.35` | uniform (§238) | 0.349 / 0.331 | 2 / 5 / 9 | −7.60 | −7.90 | −0.90 | n/a | **+2.44** |
+| r56-w4 `val_best` step 266 | mild | 0.396 / 0.291 | 2 / 3 / 11 | −9.14 | −9.50 | −0.90 | n/a | — |
+| r20-w2 `size_param0.35` = `val_best` step 80 | mild | 0.335 / 0.575 | 2 / 2 / 4 | −11.34 | **−9.70** | −1.04 | n/a | — |
+| r20-w2 `size_param0.35` | sens (§243) | 0.340 / 0.631 | 2 / 3 / 3 | −14.08 | −13.06 | −2.22 | −12.55 | −3.36 |
+| r20-w2 `size_param0.35` | uniform (§238) | 0.331 / 0.574 | 2 / 2 / 4 | −10.60 | −9.80 | −2.56 | −9.82 | −0.10 |
+| origin r56-w4 / r20-w2 | mild run | 1 | 4 / 8 / 16 · 2 / 4 / 8 | 0 | +0.54 / +2.68 | — | +0.44 / +3.38 | — |
+
+**Read.**
+- *The κ 0.35 bar.* On r56-w4 at equal params, an allocation that keeps the residual streams wide recovers far better than mild's. Sens is +4.34 above mild and uniform +2.44, on one seed each; the r56-w4 seed spread is ~0.7 pp (§242). The ordering matches κ 0.6 (§247, §254: sens +2.54 over mild on two seeds, of which uniform takes about +1.45). At κ 0.35 both gaps are larger.
+- *The FLOPs price.* Mild halves the stage-1 residual stream as uniform does and cuts stage 2 hardest (3 of 8; uniform 5, sens 8). Those stages run at the highest resolution, so it keeps the fewest FLOPs: 0.271, against uniform 0.331 and sens 0.409. On a params-only axis sens dominates. On a FLOPs axis it buys its +4.34 with 1.51× mild's FLOPs. The thin Pareto quotes both axes.
+- *Guard.* r20-w2 goes the other way for sens (−3.36), as §243 found against uniform: its plan's floor binds before κ. Uniform and mild are level there (−0.10).
+- Walk − final: mild's final FT adds +0.70 on r56-w4 (sens +2.42, uniform −0.30). The lever is in what the architecture recovers to, not in the walk endpoint.
+- Wave 19's cosine-0.1 re-read of this run (22374696, `afterok` met at 14:53) and the seed-43 κ 0.35 pair (22344456 / 57) are still queued. §243's WEAK call waits on the second seed.
+- Do not lock. Never an agent row.
+
 ---
 
 

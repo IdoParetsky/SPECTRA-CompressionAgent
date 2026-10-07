@@ -293,6 +293,9 @@
   - At v10's own walk fine-tune (12/4), the return at r56-w4 κ 0.6 puts the sens allocation **+4.05** above mild on two seeds (+3.48 / +4.62), against +2.33 at the TEST budget (40/10). The short fine-tune hurts mild's thinned residual streams more than sens's full ones.
   - So FLAT is a learning failure: the actor never left 0.9 / skip (§248) while its reward pointed at a 4 pp better allocation. The fix is not a longer walk FT or a different reward. It lies in exploration, credit assignment or representation. Ido's GO is still needed before any next train.
   - κ 0.8 (22372634 / 35) is queued; the mild arms' final-FT TESTs fill §259 when they finish.
+- **7 Oct ~15:00 (sitting)** — The κ 0.35 mild bar (ledger §260): r56-w4 **−10.34 @ params 0.348**, FLOPs 0.271.
+  - Sens is **+4.34** above mild and uniform **+2.44**, one seed each. The κ 0.6 ordering holds and the gaps grow at the deeper keep.
+  - Slide caveat: mild keeps the fewest FLOPs (0.271 against sens 0.409), because it thins the high-resolution stage 2 hardest (3 of 8 channels). Quote both axes.
 
 ---
 

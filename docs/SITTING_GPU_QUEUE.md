@@ -46,7 +46,7 @@
 | Seed-43 alloc walks sens / uniform, κ 0.35 thin (wave 14, registered 10:20) | **22344456 / 57** PD (nice 17) | v10h | 22340636 / 37 | the same bars on the **two-seed mean** (r56-w4) |
 | Alloc walk uniform, κ 0.35 thin | **22340637** COMPLETED 08:38 **§238** | v10h | — | control r56 **−7.90 @ 0.349 / 0.331**; lever waits on 636 |
 | Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** COMPLETED 09:26 **§241** | v10h | sens 22340391 | dose-response, reported → **flat**: r56 −2.80 @ 0.600 / 0.552, identical to α 0.5; residual streams full under both |
-| Mild-landed κ 0.35 control, thin (wave 5) | **22340796** R 06:09 | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
+| Mild-landed κ 0.35 control, thin (wave 5) | **22340796** COMPLETED 14:53 **§260**: r56-w4 **−10.34 @ 0.348** / FLOPs 0.271; sens **+4.34**, uniform **+2.44** above it (5k) at 1.51× / 1.22× its FLOPs; r20 guard sens −3.36 | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
 | L3a-deep: lr 0.1 final FT on τ-off's saved candidates (wave 6) | **22341051** COMPLETED 05:18 **§228** | v10 | §220 | TREND: Δ honest ≥ +1.0 at keep 0.123 and 2.57× ≥ +0.3 → **TREND** (+2.26 / +0.70); its 2.11× replicate read passes (+1.10), reported |
 | L3-ctrl: the paper's lr 0.01 final FT re-run from N3's saved candidates (wave 7) | **22341277** COMPLETED 06:07 **§232** | v10 | §157; paired with 22340234 / 22340387 | noise floor at 2.11× 0.02 raw / 0.20 honest (epoch 1 against epoch 1, §235). Paired: 1-cycle passes (+0.76) → **VOID (§235)**; cosine fails (+0.06) |
 | L3b-rep: 1-cycle on τ-off's saved candidates (wave 7) | **22341280** COMPLETED 06:39 **§235** | v10h | §220 | numeric pass (+0.84); **1-cycle VOID** (kept epoch 1); caption stays lr 0.01 |
