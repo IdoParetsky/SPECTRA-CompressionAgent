@@ -5471,3 +5471,34 @@ Sitting 7 Oct wave 18 (registered 13:04, before submit). `tree_v10k`, wave 19's 
 
 ---
 
+## 290. Wave 20 (b) at κ 0.8, seeds 42 and 43: wave 9's `inner` cells under cosine-0.1-last (**22376021 / 22376023**, re-fine-tuned from 22341866 / 70) — PRELIM, reported; two-seed sens − inner **−0.08** at 5k (lr 0.01 +0.06) and −0.125 at 10k (+0.11); with κ 0.6's −0.28 (§288), wave 9's STRUCTURAL framing holds at both keeps under cosine
+
+Sitting 7 Oct wave 20 (b), as §285. `tree_v10k`, from `tree_v10i/runs/job22341866/traj_models` and `job22341870/traj_models`; final-FT seeds 42 / 43 (verified in the env and the submit lines). Both COMPLETED 49 m, 00:31, `ise-4090-07` / `ise-4090-12`, exit 0, TB 0, kept the last epoch. Sens under cosine is wave 19's (22374700 s42, COMPLETED 20:32; 22374703 s43, §281) and uniform s43 is 22374704 (§281). Uniform s42 (22385251) is still queued, so inner − uniform is seed 43 only. Reported beside wave 9's call (STRUCTURAL, §271); not called.
+
+| r56-w4, κ 0.8 | Params / FLOPs | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / 10k | cos − lr 0.01, 5k / 10k |
+|---|---|---|---|---|---|
+| s42 inner (this run; §270) | 0.797 / 0.775 | −2.08 / −1.02 / **−1.55** | −0.96 | −1.60 / −1.36 | −0.48 / −0.19 |
+| s42 sens (22374700) | 0.800 / 0.696 | −2.00 / −0.86 / **−1.43** | −0.80 | −1.30 / −1.17 | −0.70 / −0.26 |
+| **s42 gap, sens − inner** | | **+0.08** / +0.16 / **+0.12** | | +0.30 / +0.19 | −0.22 / −0.07 |
+| s43 inner (this run; §271) | 0.797 / 0.775 | −1.86 / −0.92 / **−1.39** | −0.76 | −1.14 / −1.21 | −0.72 / −0.18 |
+| s43 sens (22374703, §281) | 0.798 / 0.708 | −2.10 / −1.42 / **−1.76** | −0.50 | −1.32 / −1.18 | −0.78 / −0.58 |
+| s43 uniform (22374704, §281) | 0.799 | −2.88 / −2.98 / **−2.93** | −0.68 | −2.62 / −2.43 | −0.26 / −0.50 |
+| **s43 gap, sens − inner** | | **−0.24** / −0.50 / **−0.37** | | −0.18 / +0.03 | −0.06 / −0.40 |
+| s43 inner − uniform | | +1.02 / +2.06 / +1.54 | | +1.48 / +1.22 | −0.46 / +0.32 |
+
+| r56-w4, two-seed mean of sens − inner | cosine-0.1-last 5k / val / **10k** | lr 0.01 5k / val / 10k |
+|---|---|---|
+| **κ 0.8** (this section) | **−0.08** / −0.17 / **−0.125** | +0.06 / +0.16 / +0.11 (§271) |
+| κ 0.6 (§288) | −0.28 / +0.60 / +0.16 | +0.18 / −0.74 / −0.28 (§265) |
+
+Guard, r20-w2 (inner at 0.779, sens at 0.799), cosine 5k / 10k: s42 inner +1.64 / +2.84 against sens +1.40 / +2.05; s43 inner +2.82 / +3.59 against sens +1.32 / +2.02 and uniform +0.86 / +1.14 (at 0.774). Reported only.
+
+**Read.**
+- *STRUCTURAL at both keeps under cosine.* The two-seed sens − inner is −0.08 at κ 0.8 and −0.28 at κ 0.6, both inside wave 9's STRUCTURAL band (≤ +0.3), as under lr 0.01 (+0.06 / +0.18, §271). Wave 9's registered call stands, and the fine-tune Q7 recommends does not change it.
+- *Cosine lowers every r56-w4 arm at κ 0.8.* Inner loses 0.48 / 0.72 at 5k, sens 0.70 / 0.78, uniform (s43) 0.26, and the origins lose 0.50–0.96 (§281's pattern). On this thin net the light cut gains nothing from lr 0.1.
+- *Inner − uniform, seed 43:* +1.02 at 5k (lr 0.01 +1.48) and +1.54 at 10k. Seed 42 waits for uniform 22385251.
+- *FLOPs.* At κ 0.8 sens matches inner with 9–10 % fewer FLOPs (0.696 / 0.708 against 0.775), as at lr 0.01: the re-reads keep the walks' architectures.
+- κ 0.35 (22376024) is running. Do not lock. Never an agent row.
+
+---
+
