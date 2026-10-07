@@ -4901,6 +4901,30 @@ Guard, r20-w2 (sens at 0.595, uniform at 0.581), cosine 5k / 10k: sens −2.50 /
 - *Guard.* r20-w2 is level, with sens 0.36 behind at 5k and 0.16 at 10k, while uniform lands 0.014 lower in params. Its undertrained origins gain 4.5–5.1 pp under the stronger fine-tune.
 - Seed 43's pair (22374686 / 87) and both mild arms (22374685 / 88; bar_cos) are R. The call is their two-seed mean. Do not lock. Never an agent row.
 
+## 265. Wave 9: residual-full allocation walk (`inner`), κ 0.6, seed 43 (**22341867**) — PRELIM; two-seed sens − inner **+0.18** at 5k (val −0.74, 10k −0.28): κ 0.6 is on the **STRUCTURAL** side, and the call waits on κ 0.8; inner − uniform **+0.91**, so the residual-full rule carries most of sens's +1.09 lever
+
+Sitting 7 Oct wave 9 (registered 06:15, before submit). §263's recipe with `SPECTRA_SEED=43` (verified in the env). COMPLETED 3 h 2 m, 7 Oct 16:18, `ise-4090-04`, exit 0, TB 0, no fallback. r56-w4 lands on seed 42's architecture exactly: params 0.595 / FLOPs 0.580, every residual stream full (4 / 8 / 16), inner convs 2 / 5 / 9–10. r20-w2 again finished by the logged strongest-cut path (plan x0.621 above κ) and is reported only. Every final FT kept a late epoch (best loss within 0.005 of epoch 100's). The 10k is the reader's `full_test_dacc` at the landed point, which is the `val_best` model, as in §255. Call (registered): gap = sens − inner on r56-w4, same seeds, two-seed mean at κ 0.6 and κ 0.8. **STRUCTURAL** if ≤ +0.3 at both, **SENS-ADDS** if ≥ +0.5 at both, PARTIAL otherwise.
+
+| r56-w4, κ 0.6 | Seed 42: 5k / val / 10k | Seed 43: 5k / val / 10k | **Two-seed** 5k / val / 10k |
+|---|---|---|---|
+| Sens α 0.5 (§230 / §242) | −2.80 / −2.94 / −2.87 | −2.08 / −2.82 / −2.45 | −2.44 / −2.88 / −2.66 |
+| **Inner** (§263 / this) | −2.40 / −2.12 / −2.26 | **−2.84** / −2.16 / −2.50 | **−2.62** / −2.14 / −2.38 |
+| Uniform (§230 / §254) | −3.34 / −4.08 / −3.71 | −3.72 / −3.92 / −3.82 | −3.53 / −4.00 / −3.77 |
+| Mild-landed (§212 / §247), 5k | −5.06 | −4.90 | −4.98 |
+| **Gap sens − inner** | −0.40 / −0.82 / −0.61 | +0.76 / −0.66 / +0.05 | **+0.18** / −0.74 / −0.28 |
+| Inner − uniform | +0.94 / +1.96 / +1.45 | +0.88 / +1.76 / +1.32 | **+0.91** / +1.86 / +1.39 |
+
+Seed 43 inner, r56-w4: walk −2.60, final −2.84 (gain −0.24), honest −0.76; its origin gained +0.52 at 5k (+0.38 at 10k), against +0.06 in the seed-42 run. r20-w2 origin +3.38.
+
+Guard, r20-w2 (reported; strongest-cut path), two-seed 5k / 10k: inner **−0.98** / −0.35 at params 0.582 / FLOPs 0.722; sens −3.19 / −2.84 at 0.595 / 0.800; uniform −2.81 / −2.42 at 0.581 / 0.741. Seed 43 alone: inner −1.18, sens −3.46, uniform −2.70.
+
+**Read.**
+- *κ 0.6 on two seeds: the STRUCTURAL side.* Sens − inner is +0.18 at 5k, 0.12 under the +0.3 line, on a per-seed spread of 1.16 (−0.40 / +0.76). The val half and 10k favour inner (−0.74 / −0.28). Seed 43's +0.76 at 5k comes from the halves splitting in opposite directions: sens s43 is 0.74 better on 5k than on val, and inner s43 is 0.68 worse. Inner's two seeds land on one architecture and sit 0.04 apart on val, 0.44 on 5k. The registered call needs κ 0.8 as well (22341866 / 70, R).
+- *Decomposition of the bar (5k, two seeds).* Sens beats mild by +2.54 (§247). The even cut (uniform − mild) gives +1.45, holding the residual streams full (inner − uniform) +0.91, and the sensitivity measurement beyond that (sens − inner) +0.18. At 10k inner − uniform is +1.39, above sens − uniform (+1.1). That answers §254's question at κ 0.6: what sens adds over uniform is the full residual streams, within noise. The rule is PFEC's (Li et al. 2017, wave 9's registration), not a SPECTRA finding.
+- *Guard.* On r20-w2 `inner` keeps the stage-3 stream full (8) where sens cuts it to 5. It ends 2.21 above sens at 5k on two seeds, with fewer params and FLOPs. The plan above κ makes this a strongest-cut walk: reported, not gating.
+- *Beside v10 (reported).* The two-seed inner mean (−2.62) is 2.66 above the v10 ep0127 TEST at κ 0.6 (−5.28, §248).
+- Wave 20's cosine-0.1-last re-read of this run (22376022) has its `afterok` met. κ 0.8 (22341866 / 70) and κ 0.35 (22341871) are R. Do not lock. Never an agent row.
+
 ---
 
 

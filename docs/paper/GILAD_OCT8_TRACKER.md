@@ -310,6 +310,9 @@
 - **7 Oct ~16:10 (sitting)** — Under the fine-tune Q7 recommends, the κ 0.6 lever grows on seed 42 (ledger §264, provisional).
   - Sens − uniform at r56-w4 is **+1.48** at 5k under cosine-0.1-last (10k +1.56), against +0.54 at lr 0.01. The stronger fine-tune costs uniform 0.82 and lifts sens 0.12.
   - So a stronger fine-tune does not repair what uniform cut: the residual streams' capacity is lost, not slow to recover. Seed 43 and the mild arms are running.
+- **7 Oct ~16:25 (sitting)** — At κ 0.6, holding the residual streams full matches the sensitivity plan on two seeds (ledger §265, wave 9 `inner`, seed 43 22341867).
+  - Sens − inner at r56-w4 is **+0.18** at 5k, under the +0.3 STRUCTURAL line, and inner leads on the val half (−0.74) and at 10k (−0.28). The call also needs κ 0.8 (22341866 / 70, R).
+  - Of sens's +2.54 over mild (5k, two seeds), the even cut gives +1.45, the full residual streams +0.91 and the sensitivity measurement +0.18. At κ 0.6 the non-learned lever is PFEC's residual rule (Li et al. 2017), so quote it as that, not as a SPECTRA finding.
 
 ---
 
