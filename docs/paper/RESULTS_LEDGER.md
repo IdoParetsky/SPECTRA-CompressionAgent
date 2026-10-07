@@ -4719,6 +4719,23 @@ Seed 43 at r56-w4: sens walk −1.58, final −1.32 @ params 0.798 / FLOPs 0.708
 - Sens's two seeds land 0.02 apart on the 5k half, and their val halves tie exactly (−1.04). At the 0.02 pp granularity of 5,000 images that is a coincidence, not a cache: they are two different models (steps 169 / 150, different stage-3 widths), and their TEST halves differ.
 - *Beside v10 (ops' §237):* the κ 0.8 freeze TEST was −2.88 on r56-w4 with residual 3/7/14, mild's architecture. The non-learned allocation sits at −1.31 (two-seed, 5k).
 
+## 256. Wave 11b twins: cosine from lr 0.1, select=last, on the zoo twins' saved candidates (**22342769**) against lr 0.01-last (§250) — PRELIM; **level** at the shallow keeps (10k |d| ≤ 0.31; val half ≤ 0.22 at the pruned points); with §246 and §251, the large-lr gain grows with compression depth
+
+`tree_v10k`, `SPECTRA_EVAL_FINAL_FT_FROM=tree_v9c/runs/job21809595/traj_models`, `SPECTRA_EVAL_FINAL_FT_LR=0.1`, `SELECT=last`, P, seed 42. COMPLETED 1 h 41 m, 13:51, `cs-4090-08`, exit 0, TB 0; all 8 final FTs kept the last epoch. Reported beside §251 (wave 11b registration: "lr 0.1-last − lr 0.01-last, reported"; the "helps across architectures" call was already MET there).
+
+| Net / point | Params | Cosine-0.1 5k / 10k | lr 0.01-last 5k / 10k (§250) | d 5k (honest) | d 10k | d val half (honest) |
+|---|---|---|---|---|---|---|
+| Zoo R56, size 0.70 | 0.694 | −0.28 / −0.19 | −0.48 / −0.40 | +0.20 (−0.02) | +0.21 | +0.22 (+0.54) |
+| Zoo R56, size 0.80 | 0.794 | +0.20 / +0.09 | −0.08 / +0.01 | +0.28 (+0.06) | +0.08 | −0.12 (+0.20) |
+| Zoo R56, origin | 1.000 | +0.18 / +0.08 | −0.04 / +0.13 | +0.22 | −0.05 | −0.32 |
+| VGG-16, size 0.70 | 0.698 | +0.38 / +0.22 | −0.22 / −0.09 | +0.60 (+1.10) | +0.31 | +0.02 (−0.06) |
+| VGG-16, size 0.80 | 0.796 | +0.46 / +0.46 | +0.36 / +0.30 | +0.10 (+0.60) | +0.16 | +0.22 (+0.14) |
+| VGG-16, origin | 1.000 | +0.28 / +0.60 | +0.78 / +0.81 | −0.50 | −0.21 | +0.08 |
+
+**Read.**
+- *Level on the twins.* At keeps 0.7 / 0.8 on CIFAR-10 the large-lr fine-tune neither helps nor hurts: every 10k difference is within ±0.31, and at the pruned points the val half, which no final FT reads, is within ±0.22. Honest 5k gains on VGG-16 (+0.6 / +1.1) come from its origin dropping under cosine-0.1 (−0.50 at 5k), not from the pruned points rising.
+- *Depth dependence.* Cosine-0.1 over lr 0.01-last is about 0 here and at DepGraph R56 2.11× (§246), about +0.9 at R56 2.57× (§223, §228, §246) and +1.4 to +1.7 on VGG-19 C100 at 0.60 / 0.70 (§251). The larger the accuracy the walk removed, the more the large-lr fine-tune recovers, as Le & Hua (2021) report. For Q7 this means adopting cosine-0.1 moves the deep rows and leaves the shallow ones where they are.
+
 ---
 
 
