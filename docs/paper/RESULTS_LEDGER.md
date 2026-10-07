@@ -5715,3 +5715,29 @@ Cosine minus lr 0.01, per cell (5k / 10k): sens s42 +0.40 / +0.55, s43 +0.20 / +
 
 ---
 
+## 300. Wave 20 (b): the DepGraph R56 transplant under cosine-0.1-last at seed 43 (**22376027**, re-fine-tuned from 22374250) — PRELIM, reported; two-seed lift_cos over N3 **+0.725** at 10k (seeds +0.87 / +0.58), the ALLOCATION side of §262's bars on both seeds; but +0.455 of it is the uniform cut's own lead over N3, and DepGraph's widths lead a uniform cut at equal size by only +0.26 after the size credit (+0.06 against each run's own origin), inside the origin spread: on two seeds the widths do not separate from a uniform cut in our pipeline
+
+`tree_v10k`, wave 19's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, origin control, P) on the saved candidates of wave 18's seed-43 transplant walk (`tree_v10j/runs/job22374250/traj_models`: DepGraph's released 2.11× widths, L1, walk 40/10, landed `param:0.508`), `SPECTRA_SEED=43` (verified in the env), checkpoint `resnet56_cifar10_dep_graph_93.53.pth`. COMPLETED 35 m, 8 Oct 01:54, `ise-4090-01`, exit 0, TB 0, no fallback. Start check green: `final_ft from` names job22374250's `traj_models`, env `select=last`, both recipe lines read `optim=sgd lr=0.1 cosine=1 … select=last`, both final FTs kept the last epoch (pruned loss 0.01457, best 0.01394; origin 0.00727), `keep=last` 2. The size point is step 150 (params 0.508 / FLOPs 0.480), DepGraph's widths exactly, as on seed 42; the widths plan fixed it, so its 10k is quoted (`full_test_dacc`). Registration (wave 20, 13:43): reported only, the two-seed mean of wave 18's transplant lift under cosine-0.1, beside §262's seed-42 call (lift_cos = T_cos − (−0.24) − 0.06 at 10k; **ALLOCATION** ≥ +0.32, **NOT-ALLOCATION** ≤ +0.20) and §284's lr 0.01 two-seed PARTIAL (+0.345).
+
+| DepGraph R56 C10 | Params / FLOPs | Walk 5k | Cosine final 5k / val / **10k** | Origin (cosine) 5k / val / 10k | Honest | Lift_cos after the 0.06 credit, 5k / val / **10k** | lr 0.01 final 5k / val / 10k (§284) |
+|---|---|---|---|---|---|---|---|
+| Transplant s42 (22374229, §262) | 0.508 / 0.480 | −0.56 | +1.04 / +0.34 / **+0.69** | +0.98 / +1.06 / +1.02 | +0.62 | +1.32 / +0.41 / **+0.87** | −0.72 / +0.44 / −0.14 |
+| Transplant s43 (22376027, this) | 0.508 / 0.480 | +0.10 | +0.36 / +0.44 / **+0.40** | +0.88 / +1.32 / +1.10 | −0.62 | +0.64 / +0.51 / **+0.58** | −0.08 / +0.18 / +0.05 |
+| **Transplant, two-seed mean** | | −0.23 | +0.70 / +0.39 / **+0.545** | +0.93 / +1.19 / +1.06 | 0.00 | +0.98 / +0.46 / **+0.725** | −0.40 / +0.31 / −0.045 |
+| N3 2.11× cosine-0.1, two-seed (§223 / §246) | 0.470 / 0.463 | −0.22 | −0.34 / −0.13 / −0.24 | 10k +0.64 / +0.63 | −0.67 | — | |
+| Uniform cut, cosine, two-seed (§275 / §299) | 0.465 / 0.472 | | +0.16 / +0.27 / **+0.215** | 10k +0.69 / +0.89 | | | |
+| Sens plan, cosine, two-seed (§275 / §299) | 0.469 / 0.398; 0.425 | | +0.16 / +0.39 / **+0.275** | 10k +0.87 / +0.87 | | | |
+| DepGraph's own 2.11× model (head-to-head) | | | 10k **+0.24** | | | | |
+
+Transplant seed spread |s43 − s42| under cosine: 0.68 at 5k, 0.10 on val, 0.29 at 10k; seed 43's halves agree (+0.36 / +0.44), seed 42's split by 0.70. Cosine minus lr 0.01 (5k / 10k): s42 +1.76 / +0.83, s43 +0.44 / +0.35, two-seed +1.10 / +0.59; every lr 0.01 transplant row restored epoch 1 (§284).
+
+At 10k, same pipeline and fine-tune: transplant − uniform +0.33 raw, **+0.26** after §275's 0.07 size credit for the transplant's extra 0.04 params (seeds +0.35 / +0.17); transplant − sens +0.27 raw, +0.20 after the credit (+0.36 / +0.04). Against each run's own retrained origin, as §275 (no credit): transplant − uniform +0.09 / +0.03, two-seed **+0.06**; transplant − sens +0.28 / −0.12, two-seed +0.08. The lift over N3 against own origins (after the 0.06 credit, as §262): +0.48 / +0.11, two-seed +0.295.
+
+**Read (reported).**
+- *Lift over N3, two seeds: the ALLOCATION side.* Lift_cos is +0.725 at 10k, and both seeds clear +0.32 (+0.87 / +0.58); on seed 43 both halves do too (5k +0.64, val +0.51). §262's seed-42 call stands as registered. §284's lr 0.01 PARTIAL (+0.345) was walk + 1 epoch on both sides; at the genuine endpoint the lift roughly doubles.
+- *Most of it is not DepGraph's widths.* Of the +0.725, +0.455 is the uniform cut's own lead over N3 under the same fine-tune, which §275 reads as a walk-pipeline difference (N3 is `tree_v9c`'s 5-pass mild walk on a FLOPs size point), not an allocation measurement. What DepGraph's widths add over a uniform cut at equal size is +0.26 after the size credit, and +0.06 against each run's own origin. Origin controls of this one recipe and checkpoint span +0.63 to +1.10 at 10k across these eight runs. So on two seeds DepGraph's widths do not separate from a uniform cut in our pipeline: §275's one-seed read holds, and §262's mechanism line ("the 2.11× gap to DepGraph is an allocation gap") stays unsupported.
+- *Against DepGraph's own model.* The transplant's two-seed 10k is +0.545 against DepGraph's +0.24 (+0.31 raw; seeds +0.45 / +0.16). Our origins gain +1.02 / +1.10 under the same fine-tune, so this mixes DepGraph's widths with our longer recovery: **never "beats"**. What holds on two seeds: under cosine-0.1 our walk and fine-tune reach DepGraph's own 10k accuracy at 2.11× starting from DepGraph's widths (+0.545), from a uniform cut (+0.215) or from the sens plan (+0.275, on FLOPs 0.398 / 0.425 against the transplant's 0.480).
+- Wave 18's and wave 20's DepGraph R56 cells are all read. Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
