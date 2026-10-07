@@ -5381,3 +5381,45 @@ Guard, r20-w2 (inner at 0.582, by wave 9's logged strongest-cut path), cosine 5k
 
 ---
 
+## 286. Wave 11: the DepGraph VGG-19 C100 transplant re-fine-tuned by the paper recipe, keep last (**22342668**, from 22342030's saved candidates) — PRELIM, reported; 10k **−5.85** (+1.58 over the epoch-1 restore, +0.42 over the walk), still 2.38 under the MATCH bar (≥ −3.47) and 2.88 under DepGraph's own −2.97 on the same architecture
+
+Sitting 7 Oct wave 11 (registered 07:10, before submit). `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-saved `tree_v10j/runs/job22342030/traj_models`, the paper recipe (SGD lr 0.01, cosine, wd 5e-4, 100 epochs, origin control, P), seed 42. COMPLETED 18 m, 23:42, `ise-4090-12`, exit 0, TB 0. Start check green: `final_ft from` names 22342030, env `select=last`, and both final FTs print "kept the last epoch" (the size point's lowest train loss was 0.03288, against 0.03858 kept). Registered (§267): reported beside the lr 0.01 row against MATCH ≥ −3.47 at 10k; not called. The 10k is `full_test_dacc` at the size point (step 46, the walk's one landed candidate).
+
+| VGG-19 C100 transplant, params 0.061 / FLOPs 0.109 | Final FT | 5k / val / **10k** | Origin 5k / val / 10k |
+|---|---|---|---|
+| Walk endpoint (§267) | none | −6.64 / −5.90 / −6.27 | — |
+| Epoch-1 restore (§267, 22342030) | lr 0.01, lowest train loss (epoch 1) | −8.20 / −6.66 / −7.43 | +0.42 / +0.80 / +0.61 |
+| **Keep last (this)** | lr 0.01 cosine, epoch 100 | −6.06 / −5.64 / **−5.85** | +0.30 / +1.48 / +0.89 |
+| DepGraph's own model (h2h 21943448), exact copy 0.0608 / 0.1104 | DepGraph's | 10k **−2.97** | — |
+
+**Read.**
+- *Registered read: still below MATCH.* At the genuine endpoint the copy is −5.85 at 10k, 2.38 under the −3.47 bar and 2.88 under DepGraph's own model on the same architecture. Reported, not gating.
+- *Selection.* Keeping the last epoch recovers +1.58 at 10k over the epoch-1 restore (+2.14 at 5k, +1.02 on val). The fine-tune adds +0.42 at 10k over the walk itself. The origin control gains +0.89 at 10k, so honest is −0.47 at 10k (+0.28 at 5k).
+- *Against R56.* On R56 at 2.11× the same re-read brought the transplant level with DepGraph (§272, +0.25 against +0.24). At 9× on VGG-19 C100 it does not. What DepGraph does beyond the widths (which filters, its sparsity training, its own fine-tune) is worth about 2.9 pp at this compression under the paper recipe. The cosine-0.1-last re-read 22374249 is running and is reported beside.
+- Do not lock. Never an agent row. Never a DepGraph beat.
+
+---
+
+## 287. Wave 21 at seed 42: MobileNetV2 ×0.5 C10 landed at params 0.6, sens / uniform / inner (**22376484 / 85 / 86**) — PRELIM, provisional (the call is two-seed; mild 22376487 still running); sens − uniform **+0.10** at 5k (val +0.76, 10k +0.43), the NONE side; inner − uniform **−0.72**; every arm ends within 0.5 of the unpruned net, so κ 0.6 is a light cut for this net
+
+Sitting 7 Oct wave 21 (registered 14:06, before submit). MobileNetV2 ×0.5 C10 (chenyaofo 92.99 %, `configs/input_pf_mbv2x05.json`, `database_c10_thin.json`), landed `param:0.6`, L1, P, loader crop+flip, walk 40/10, 100-epoch lr 0.01 final FT (lowest train loss) + origin, deterministic, seed 42. Sens / uniform in `tree_v10h` (wave 3's recipe), `inner` in `tree_v10i` (wave 9's). 22376484 COMPLETED 2 h 9 m, 22:42, `ise-6000-08`; 22376485 2 h 57 m, 23:42, `ise-4090-07`; 22376486 1 h 46 m, 22:43, `ise-6000-04`; all exit 0, TB 0, no fallback. Start check green: env kind, the MBV2 catalog, `param:0.6` and seed 42. The `[alloc]` plans over 25 groups keep x0.578 (sens: group keep min 0.28, median 1.00), x0.580 (uniform: every group 0.75) and x0.579 (inner: min / median 0.67, "5 coupled groups held at full width"). Inner reached its plan at x0.616 and finished by the logged strongest-cut path, as wave 9's r20-w2 did. Every final FT kept a late epoch (95–100), so these are genuine endpoints. Call (registered): the two-seed mean of sens − uniform at 5k, **SENS-MATTERS** ≥ +1.0 / **NONE** ≤ +0.3 / WEAK between; seed 42 alone is provisional; a lever bought with ≥ 10 % more FLOPs is captioned. pf-w's mild walk (§195) is a probe and is not quoted.
+
+| MBV2 ×0.5 C10, κ 0.6, seed 42 | Params / FLOPs | Step | Walk 5k | Final 5k / val / **10k** | Origin 5k / val / 10k | Honest |
+|---|---|---|---|---|---|---|
+| Sens (22376484) | 0.600 / 0.714 | 149 | +0.32 | **+0.34** / +0.84 / +0.59 | +0.16 / +0.54 / +0.35 | −0.14 |
+| Uniform (22376485) | 0.600 / 0.591 | 97 | +0.08 | **+0.24** / +0.08 / +0.16 | +0.44 / +0.88 / +0.66 | −0.28 |
+| Inner (22376486) | 0.600 / 0.508 | 124 | −0.58 | **−0.48** / −0.40 / −0.44 | +0.70 / +0.84 / +0.77 | −0.60 |
+| **Lever, sens − uniform** | 1.21× FLOPs | | +0.24 | **+0.10** / +0.76 / +0.43 | | |
+| Inner − uniform | 0.86× FLOPs | | −0.66 | −0.72 / −0.48 / −0.60 | | |
+| Sens − inner | 1.41× FLOPs | | +0.90 | +0.82 / +1.24 / +1.03 | | |
+| Sens s43 (22376488), beside | 0.600 / 0.706 | 100 | +0.36 | +0.70 / +0.80 / +0.75 | +0.42 / +0.60 / +0.51 | −0.08 |
+
+**Read (provisional).**
+- *Seed 42: the NONE side.* Sens − uniform is +0.10 at 5k, under the +0.3 line, though +0.76 on val and +0.43 at 10k: the halves disagree by 0.66. Sens keeps 21 % more FLOPs (0.714 against 0.591), so even a lever would carry that caption. Seed 43's sens is +0.70; its uniform (22376490) is running.
+- *Residual-full is not the rule here.* `inner` holds the five residual streams full and cuts the rest evenly. On MobileNetV2 it lands 0.72 below uniform at 5k (0.60 at 10k), with the fewest FLOPs (0.508). On the thin ResNets the same rule is +0.9 to +1.7 above uniform (§263, §285).
+- *A light cut for this net.* Every arm ends within 0.5 of the unpruned net at 5k, and sens and uniform end above it. The origin controls gain +0.16 to +0.70 under the same fine-tune. At κ 0.6 MobileNetV2 ×0.5 on CIFAR-10 sits where allocation barely matters, so a NONE here would say little about heavier cuts. Honest −0.14 / −0.28 / −0.60 is inside the origin's run-to-run noise (§285).
+- *Sens seeds differ in architecture.* Sens lands at step 149 (FLOPs 0.714) on seed 42 and at step 100 (0.706) on seed 43.
+- Mild (22376487) is running; sens − mild is reported with the two-seed section. Do not lock. Never an agent row.
+
+---
+
