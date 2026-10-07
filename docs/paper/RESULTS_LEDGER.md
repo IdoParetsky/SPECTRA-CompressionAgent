@@ -4390,7 +4390,7 @@ Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-sa
 | 2.57× | +0.43 | +0.21 | **unresolved**: τ-off is 0.09 short, inside the band |
 
 **Read.**
-- *Call.* REQUOTE needs both walks ≥ +0.3 at one point, and no point has that. STANDS needs ≤ −0.3 everywhere, and every Δsel is positive. So the M4 numbers stay, with the disclosure "walk + 1 epoch (§235); a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k on two walks". 22342767 (N3 select=last, seed 43) can make 2.11× unresolved as well, if N3 moves ≥ 0.3 there; it cannot make REQUOTE fire.
+- *Call.* REQUOTE needs both walks ≥ +0.3 at one point, and no point has that. STANDS needs ≤ −0.3 everywhere, and every Δsel is positive. So the M4 numbers stay, with the disclosure "walk + 1 epoch (§235); a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k on two walks". 22342767 (N3 select=last, seed 43) can make 2.11× unresolved as well, if N3 moves ≥ 0.3 there; it cannot make REQUOTE fire. *(10:30, §244: it moved 0.05 at 2.11× and 0.14 at 2.57×, so the rule did not fire and the call stands.)*
 - *§228's TREND is not the selection.* lr 0.01-last against cosine-0.1 at 2.57×: N3 −1.20 vs −0.37 (0.83 apart), τ-off −1.31 vs −0.36 (0.95). Both gaps exceed 0.3, the registered bar. At 2.11× they are level on N3 (−0.31 vs −0.36) and 0.55 apart on τ-off (−0.54 vs +0.01). A genuine lr-0.01 endpoint recovers at most 0.43 of those gaps. Cosine from 0.1 leads on merit at 2.57× on both walks.
 - *Honest, 100 epochs against 100.* N3 (§239): −0.42 at 2.11×, −0.20 at 2.57×, −0.20 at keep 0.60, −0.12 at `val_best`. τ-off: −0.12, −0.46, −0.64, +0.08. At lr 0.01 the pruned nets gain less over their walk than the origin gains from 100 epochs.
 - *Origin noise.* The identical lr-0.01 FT of the same unpruned origin gave +0.28 here and +0.86 in §220's run (5k). Only the RNG state differs: a fresh process here, after the walk there. At 10k they are +0.64 / +0.73. So at 5k one origin FT moves ~0.6 pp, and every honest number carries it. Earlier runs of this origin: +0.42 / +0.36 / +0.86 (§153 / §157 / §220). Honest at 5k is noise-limited at about ±0.5; gate on 10k raw where a call allows it.
@@ -4461,6 +4461,26 @@ Sitting 7 Oct wave 4, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), `SIZE_MAT
 - *r20-w2 guard: sens hurts.* The plan stops at params 0.401 (`every group at its target … strongest legal cut`), and the walk reaches 0.35 by strongest legal cuts. It lands the stage-2 / 3 residual streams at 3 / 3 (of 4 / 8), against uniform's 2 / 4, and −3.26 below uniform at near-equal params. That matches §207, where random beat sens on r20-w2 at 0.35. On this narrow net the plan's floor binds before κ, so off-plan cuts decide the point.
 - *Kept epochs (§235).* Late on every final FT (r56-w4 `val_best` loss 0.448 at epoch 1, 0.428 at 100, best 0.428). Honest is 100 epochs against 100. r56's origin moved +0.46 here (+0.60 in §238's run).
 - Do not lock. Never an agent row.
+
+---
+
+## 244. Wave 11b endpoint noise: N3 select=last at seed 43 (**22342767**) against seed 42 (§239) — PRELIM; \|s43 − s42\| at 10k **0.14 / 0.05** at 2.57× / 2.11× (< 0.3): the wave 11 call stands (§240)
+
+Sitting 7 Oct wave 11b, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, `SPECTRA_SEED=43` (data order and crop / flip; same split), from-saved N3 `job21767189/traj_models`, otherwise identical to 22342659. COMPLETED 1 h 26 m, 7 Oct 10:26, `cs-4090-08`, exit 0, TB 0. Start check green on all five final FTs (`select=last`, "kept the last epoch", `keep=last`). Rule (queue, registered 07:50): \|s43 − s42\| ≥ 0.3 at 10k at a gating point makes the wave 11 call there "unresolved" unless both walks clear its bar by more.
+
+| Point | Seed 42 (§239) 5k / 10k | **Seed 43** 5k / 10k | s43 − s42, 5k / 10k | Honest s43 / s42 | Δsel vs §157 at 10k, s43 (s42) |
+|---|---|---|---|---|---|
+| size_flop0.60 | +0.22 / +0.17 | −0.10 / +0.10 | −0.32 / −0.07 | −0.66 / −0.20 | +0.13 (+0.20) |
+| size_flop0.47 (2.11×) | −0.30 / −0.31 | −0.40 / **−0.36** | −0.10 / **−0.05** | −0.66 / −0.42 | +0.10 (+0.15) |
+| size_flop0.39 (2.57×) | −1.18 / −1.20 | −0.96 / **−1.06** | +0.22 / **+0.14** | −0.12 / −0.20 | +0.57 (+0.43) |
+| `val_best` | −0.90 / n/a | −0.84 / n/a | +0.06 / n/a | −0.20 / −0.12 | n/a |
+| origin | +0.34 / +0.42 | +0.48 / +0.42 | +0.14 / 0.00 | — | — |
+
+**Read.**
+- *Rule: not fired.* At 10k the endpoint moves 0.14 at 2.57× and 0.05 at 2.11×, both under 0.3. The wave 11 call stands as read in §240: **NEUTRAL** at 2.11×, now resolved on N3's side (two-seed Δsel +0.10 / +0.15). 2.57× stays **unresolved**, because τ-off sits inside the band (+0.21); N3's two-seed Δsel there is +0.50.
+- *Where the seed spread lives.* One final FT, re-seeded on the same walk, moves ≤ 0.32 at 5k and ≤ 0.14 at 10k (origin 0.14 / 0.00). §242's thin-pair spread, walk plus final FT re-seeded, was 0.72 at 5k. Most of the seed spread is therefore the walk, not the final FT. Different nets, so this is an order of magnitude, not a subtraction.
+- *Honest at 5k is the noisiest column* (−0.66 against −0.42 at 2.11×; −0.66 against −0.20 at 0.60), because it inherits the origin's 5k move (+0.14) on top of the point's own. Gate on 10k raw, as the wave 11 call does.
+- Do not lock. Never an agent row. Never call DepGraph a beat.
 
 ---
 
