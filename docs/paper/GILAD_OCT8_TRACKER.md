@@ -206,7 +206,7 @@
 - **6 Oct 03:46** — v10 PPO-20. Later freezes ep0095 / ep0111: `vs_mild` −0.125 / **+0.275**. Gate +0.5 not met. Do not TEST. Slides: design/smoke/read, not a result.
 - **6 Oct 21:06** — τ-off **22288423 COMPLETED §220**. PATH-SAME vs N3. Do not train τ-off.
 - **7 Oct ~02:10** — Ido commute **§2.6+**. Sitting prompt `docs/PROMPT_FABLE_OCT7_SITTING.md`. This file **§8** is the S3 write-up. A0-HEADROOM train remains **v10**, not a second actor. Point A headline: **K≥2 / search=0 / transfer**, not K=1 vs DepGraph.
-- **7 Oct ~03:10** — Sitting (Opus 5.5).
+- **7 Oct ~02:50** — Sitting (Opus 5.5).
   - *Lead 1, zero GPU.* NAP-F's group mean does not track A0's sensitivity, so C is not run. The NAP-F wording in §8 is corrected: v10's state is the measured sensitivity, not NAP-F.
   - *Lead 2.* Budget STOP was extinguished, not learned (slide 6).
   - *Twelve cells* (9 R, 3 PD; live QOS cap 11): the Le & Hua large-LR final FT on N3's and §212's saved candidates; a greedy step-size ladder at κ 0.6; and an allocation-following walk (A0's sens rule vs uniform) on the thin pair and DepGraph R56.

@@ -3981,5 +3981,25 @@ Ido GO 6 Oct 01:32. N3 line (`tree_v9d`) + `allowed_acc_reduction=30` + **10 pas
 
 ---
 
+## 221. L3a: Le & Hua large-LR final FT (cosine from lr 0.1) on §212's saved thin candidates (**22340235**) — PRELIM; thin pair **CROSS-OFF** (raw)
+
+Sitting 7 Oct, under Ido's prompt (`docs/PROMPT_FABLE_OCT7_SITTING.md` B1). `tree_v10`, no src change.
+- *Recipe.* From-saved: `SPECTRA_EVAL_FINAL_FT_FROM=tree_v10/runs/job22156062/traj_models`, `SPECTRA_EVAL_FINAL_FT_LR=0.1`. Otherwise §212's final FT: SGD m 0.9, wd 5e-4, per-epoch cosine, 100 epochs, batch 128, loader crop+flip. P (5k TEST half), seed 42, deterministic, origin control.
+- *Run.* COMPLETED 48 m, 7 Oct 03:11, `ise-4090-19`, exit 0.
+- *Reader and call.* `final_ft_readout.py`. The call, registered before the read, is in queue "Sitting 7 Oct", Lead 3. ADOPT needs honest Δ ≥ +0.5 pp and raw final_new ≥ final_old. The thin rule reads r56-w4 at κ 0.6; N3's 2.11× (22340234) gates the schedule.
+
+| Net | Point (params / FLOPs) | Walk | Final, lr 0.01 (§212) | Final, lr 0.1 | Origin change, 0.01 → 0.1 | Honest, 0.01 → 0.1 | Δ honest | 10k final, lr 0.1 |
+|---|---|---|---|---|---|---|---|---|
+| r20-w2 | size 0.60 (0.584 / 0.674) | −4.68 | −2.86 | **−1.82** | +3.32 → +4.38 | −1.50 → −1.52 | **−0.02** | −1.14 |
+| r56-w4 | size 0.60 (0.600 / 0.453) | −5.96 | −5.06 | **−5.22** | +0.12 → **−0.64** | +0.78 → +1.38 (ORIGIN-HURT) | +0.60, inflated | −5.16 |
+
+**Read.**
+- *r20-w2.* lr 0.1 lifts the pruned net by +1.04 pp raw and the undertrained origin by +1.06. No pruned-specific gain.
+- *r56-w4.* It costs the converged origin 0.64 pp and the pruned net 0.16 pp raw. The +0.60 honest Δ is the origin's loss subtracted; the reader flags ORIGIN-HURT, so read the raw value.
+- *Call.* The thin rule fails on raw (final_new < final_old): **CROSS-OFF on the thin pair** for cosine from 0.1. The 100-ep lr 0.01 recipe stays the thin caption.
+- The gating read is N3 at 2.11× (22340234, still R). Do not lock. Never an agent row.
+
+---
+
 
 

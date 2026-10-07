@@ -235,7 +235,7 @@ Ido pastes `docs/PROMPT_FABLE_OCT7_SITTING.md`. He is asleep: **take Recommended
 
 **Fill QOS (first hour):** prompt **B1–B3** + afterok; **A1–A2** on login; **C** only if A1 correlates. Never-list in the prompt.
 
-**Sitting answers (7 Oct ~03:10, Opus 5.5).** Details and calls: queue file, section "Sitting 7 Oct".
+**Sitting answers (7 Oct ~02:50, Opus 5.5).** Details and calls: queue file, section "Sitting 7 Oct".
 - **A1 does not correlate, so C is not run.** NAP-F's group mean against A0's sensitivity: ρ +0.25 / −0.47 / +0.38 (DepGraph R56, VGG-16, R56-C100). The sign follows depth.
   - Correction to "G1 PASS row" and "R3" above: `SPECTRA_STATE_SENS` is A0's *measured* loss rise (`src/group_sensitivity.py`), not NAP-F. NAP-F stays a per-channel descriptor.
   - The summed single-channel ablation does track group sensitivity (ρ 0.77–0.92).
@@ -243,7 +243,7 @@ Ido pastes `docs/PROMPT_FABLE_OCT7_SITTING.md`. He is asleep: **take Recommended
 - **B3 premise.** §212 is already 3-rate, and mild never plays 0.7 / 0.6, so 3-rate vs 5-rate mild is the same walk. Run instead: a greedy step-size ladder (4-rate, 5-rate) at κ 0.6 against §216 / §212.
 - **B1 / B2.** Two Le & Hua recipes on the same saved candidates (N3 2.11× / 2.57× / 0.60, and §212 thin): cosine from 0.1 (`tree_v10`) and 1-cycle (`tree_v10h`).
 - **Added cell.** An allocation-following walk (A0's sens rule vs uniform, as an eval policy): thin κ 0.6 / 0.8 and DepGraph R56 at params 0.47. It asks whether the A0 lever survives the walk, and whether a non-learned allocation already clears the v10 WIN bar. This is not a train and not a second actor.
-- **QOS.** The live cap is 11: 11 R + 3 PD at 03:40.
+- **QOS.** The live cap is 11: 11 R + 3 PD at 02:51, and 6 PD after wave 4 (02:57).
 
 ## 6. Literature used in this cycle
 

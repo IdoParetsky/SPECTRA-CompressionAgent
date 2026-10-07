@@ -1,7 +1,7 @@
 # SPECTRA sitting GPU queue
 
-**Sitting 7 Oct ~03:10 (Opus 5.5; `docs/PROMPT_FABLE_OCT7_SITTING.md`, Recommended on every fork, Ido asleep).** Calls, the B3 correction and both lead answers: section "Sitting 7 Oct".
-- *QOS:* the live cap is **11**, not 8: `sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13. **11/11 R:** the Stage-4 resume, v10 and nine sitting cells. **PD:** six sitting cells (QOS; wave 4 added 03:55) and the v10 resume (Dependency).
+**Sitting 7 Oct ~02:50 (Opus 5.5; `docs/PROMPT_FABLE_OCT7_SITTING.md`, Recommended on every fork, Ido asleep).** Calls, the B3 correction and both lead answers: section "Sitting 7 Oct".
+- *QOS:* the live cap is **11**, not 8: `sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13. **11/11 R:** the Stage-4 resume, v10 and nine sitting cells. **PD:** six sitting cells (QOS; wave 4 added 02:57) and the v10 resume (Dependency).
 - *Leads 1–2 (zero GPU, answered):* NAP-F's group mean does **not** track A0's sensitivity (ρ +0.25 / −0.47 / +0.38; the sign follows depth), so C is not run. The summed single-channel ablation does track it (ρ 0.77–0.92). Budget STOP was played 74 times, then extinguished (none after ep 231). The late policy is "remove 4 %" in 97.5 % of decisions.
 - *B3 correction:* §212 is already 3-rate and mild never plays 0.7 / 0.6. The menu A/B becomes a greedy step-size ladder at κ 0.6.
 - *Trees:* `tree_v10` is untouched (sbatch heuristics and from-saved final FTs only). New **`tree_v10h`** = `tree_v10` + the default-off allocation walk and final-FT schedule (`PROVENANCE_v10h.txt`; staged tests green before the first submit).
@@ -12,18 +12,19 @@
 | Ladder: greedy 4-rate (0.7 steps), landed κ 0.6, thin | **22340232** | v10 | §216 (greedy 3-rate), §212 | r56-w4: HELP ≥ +1.0 / HURT ≤ −1.0 vs §216 |
 | Ladder: greedy 5-rate (0.6 steps) | **22340233** | v10 | same | same |
 | L3a: cosine from lr 0.1, final FT on N3's saved candidates | **22340234** | v10 | N3 21767189 §157 | ADOPT: honest ≥ +0.5 pp at 2.11× |
-| L3a on §212's thin saved candidates | **22340235** | v10 | 22156062 §212 | same rule, r56-w4 κ 0.6 |
+| L3a on §212's thin saved candidates | **22340235** COMPLETED 03:11 **§221** | v10 | 22156062 §212 | same rule, r56-w4 κ 0.6: **thin CROSS-OFF** (raw −0.16 at r56; origin −0.64) |
 | L3b: 1-cycle (30-ep warmup to 0.1, cosine), N3 | **22340387** | v10h | N3 | as L3a |
 | L3b on §212 thin | **22340388** | v10h | §212 | as L3a |
 | Alloc walk sens, κ 0.6 thin | **22340391** | v10h | uniform 22340392; §212 | SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 (r56-w4) |
 | Alloc walk uniform, κ 0.6 thin | **22340392** | v10h | — | control |
 | Alloc walk sens, κ 0.8 thin | **22340393** | v10h | uniform 22340394; §211 | as κ 0.6 |
-| Alloc walk uniform, κ 0.8 thin | **22340394** PD | v10h | — | control |
+| Alloc walk uniform, κ 0.8 thin | **22340394** R 03:10 | v10h | — | control |
 | Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** PD | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
 | Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** PD | v10h | — | control |
 | Alloc walk sens, κ 0.35 thin (wave 4) | **22340636** PD | v10h | uniform 22340637 | SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 (r56-w4) |
 | Alloc walk uniform, κ 0.35 thin | **22340637** PD | v10h | — | control |
 | Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** PD | v10h | sens 22340391 | dose-response, reported |
+| Mild-landed κ 0.35 control, thin (wave 5) | **22340796** PD | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
 
 **Ops 7 Oct 02:28 (3h).** QOS **6/8**. Sitting jobs **22340232–35 R** ~8 min, TB=0, `tree_v10` sbatch (no src overlay). **22340232** greedy 4-rate (1.0/0.9/0.8/0.7) landed κ 0.6; **22340233** greedy 5-rate (+0.6); **22340234** cosine-100 from-saved N3 `flop0.39`; **22340235** cosine-100 thin `param0.60`. **2 idle — sitting fills, ops does not invent.** Do not TEST v10 ep0111. Resume ep **218**. Next canvas **09:30**. Next 3h **05:28**.
 
@@ -715,7 +716,7 @@ The train is released only when all six checks hold:
 
 ## Sitting 7 Oct: step-size ladder, Le & Hua final FT, allocation-following walk, leads 1–2 (prompt `docs/PROMPT_FABLE_OCT7_SITTING.md`, Recommended on every fork)
 
-Calls fixed before any cell read. Written here at ~03:10, after the 02:20–02:45 submits; nothing had COMPLETED. Two single-candidate lines were already visible; they are listed under Lead 3. Paper TEST protocol throughout: P, loader crop+flip (never `FT_AUG_GPU`), walk 40/10, seed 42, deterministic, 100-ep final FT with the origin control, 5k TEST half. Landed params and FLOPs are quoted beside every Δ, and a pair whose landed keeps differ by more than 0.02 is flagged.
+Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after the 02:20–02:45 submits; nothing had COMPLETED. Two single-candidate lines were already visible; they are listed under Lead 3. Paper TEST protocol throughout: P, loader crop+flip (never `FT_AUG_GPU`), walk 40/10, seed 42, deterministic, 100-ep final FT with the origin control, 5k TEST half. Landed params and FLOPs are quoted beside every Δ, and a pair whose landed keeps differ by more than 0.02 is flagged.
 
 ### B3' step-size ladder (the prompt's menu A/B, corrected)
 
@@ -736,7 +737,7 @@ Calls fixed before any cell read. Written here at ~03:10, after the 02:20–02:4
   - **HURT:** at most §216 − 1.0.
   - **FLAT:** otherwise. The menu is then a cost lever only; report decisions and walk minutes.
 - **For the v10 read.** HURT means an actor that plays 0.7 / 0.6 pays for it, so its census matters. FLAT means the 5-rate menu changes cost, not accuracy.
-- **Flag (03:40).** Greedy 5-rate on r20-w2 landed at params **0.538**, 0.062 below κ: one 0.6 step overshoots on a 2/4/8-wide net. That row is not equal-size with §216 (0.595). r20-w2 is the guard net only.
+- **Flag (02:51).** Greedy 5-rate on r20-w2 landed at params **0.538**, 0.062 below κ: one 0.6 step overshoots on a 2/4/8-wide net. That row is not equal-size with §216 (0.595). r20-w2 is the guard net only.
 
 ### Lead 3 (B1 / B2): Le & Hua (ICLR 2021) large-LR final fine-tune on saved architectures
 
@@ -774,9 +775,11 @@ Calls fixed before any cell read. Written here at ~03:10, after the 02:20–02:4
   - **Lever (sens − uniform, both alloc walks).** At r56-w4, κ 0.6 and κ 0.8 each: **SURVIVES** if ≥ +1.0 pp, **ABSORBED** if ≤ +0.3, **WEAK** in between. r20-w2 (A0b FLAT at 0.6) is reported but does not gate. DepGraph R56 at params 0.47: **SURVIVES** if ≥ +0.5 (A0 §204 keep 0.6: +0.61), **ABSORBED** if ≤ +0.15.
   - **Bar (sens walk vs mild-landed §212, r56-w4 κ 0.6).** If the sens walk is ≥ §212 + 1.0 pp, a non-learned allocation clears the v10 WIN bar. This is an interpretation rule for the v10 read and does not change ops' gate. A v10 WIN is then quoted as "learned allocation at heuristic level"; "beyond heuristic" needs the actor ≥ sens walk + 0.5 pp at the same landed keep.
   - **DepGraph R56.** Also quoted against N3's 2.11× row (−0.4 @ params 0.470 / FLOPs 0.463, 5k), with FLOPs beside it: A0 §204's sens allocation removed more FLOPs at equal params.
-- **Wave 4 (registered 03:55, before submit).** Same protocol, thin pair, 5-rate menu.
+- **Wave 4 (registered 02:56, before the 02:57 submit).** Same protocol, thin pair, 5-rate menu.
   - **κ 0.35, sens 22340636 vs uniform 22340637** (PD on QOS). This is A0's largest lever: r56-w4 keep 0.35 sens +7.81 / +7.69 val / TEST (§201). On r20-w2 at 0.35, random beat sens (§207). Call on r56-w4: **SURVIVES** if ≥ +2.0 pp, **ABSORBED** if ≤ +0.5, **WEAK** in between. r20-w2 is reported.
   - **sens2 (α 1.0) at κ 0.6, 22340638** (PD on QOS), a dose-response point beside the κ 0.6 pair. A0 §201 had sens2 +2.25 vs sens +1.95 TEST. Reported, no separate call.
+- **Wave 5 (registered 03:20, before submit): mild-landed κ 0.35 control, thin pair, 22340796** (PD on QOS). §211 / §212's recipe at `param:0.35`: `tree_v10`, 3-rate baseline menu, 6 passes. It is the standard-heuristic bar for the κ 0.35 alloc walks, and the thin Pareto's deep point. Reported beside the κ 0.35 pair: sens walk − mild, both landed. No separate call. Not a v10 TEST cell; v10 is read at κ 0.8 / 0.6 only.
+  - *Skipped:* a VGG-16 alloc pair. A0 §205's sens rule did not clear its own bar at keep 0.6 (+0.57 TEST vs bar 1.09; random did), and it kept FLOPs 0.82 vs 0.60 at equal params.
 
 ### Lead 1 (zero GPU): group-level NAP-F vs A0 sensitivity. Call: does not correlate; C not run
 

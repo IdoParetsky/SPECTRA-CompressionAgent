@@ -229,20 +229,21 @@ Absorb; does not reopen stop3 / NVML / factored. Canonical v10 rows stay in §10
 - **Ops 5 Oct 08:13 (Ido GO 08:06).** Pareto heuristic counterparts **22228972–76** all **R**, start checks green (table rows above). Paper TEST pin: P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, 100-ep origin final FT, seed 42. On COMPLETED: PRELIM §§213+; never agent rows; `TRAJ … NONE` ⇒ report. **QOS 8/8.** Do not invent more. Never TEST v10 ep0015. Never N8/S3.
 - QOS **6/8** at 22:09 (Stage-4, Budget, v10, two mild-landed, A0b 44). **Two idle. Nothing registered waits on them. Do not invent.** Commits `62149cf` / `909f81f` already pushed; ops does not restamp those.
 
-### 10.0h 7 Oct science sitting (Opus 5.5, ~03:10; Ido's prompt `docs/PROMPT_FABLE_OCT7_SITTING.md`; supersedes §10.0g where they differ)
+### 10.0h 7 Oct science sitting (Opus 5.5, ~02:50; Ido's prompt `docs/PROMPT_FABLE_OCT7_SITTING.md`; supersedes §10.0g where they differ)
 
 Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This block is what ops needs to heartbeat.
 
-- **QOS.** The live cap is **11** (`sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13), not 8. At 03:55: 11 R (two trains, nine sitting cells) and 6 sitting PD on QOS, which start by themselves. When the queue empties and nothing registered waits: ping, do not invent.
+- **QOS.** The live cap is **11** (`sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13), not 8. At 02:57: 11 R (two trains, nine sitting cells) and 6 sitting PD on QOS, which start by themselves. When the queue empties and nothing registered waits: ping, do not invent.
 - **Jobs.** All are independent no-agent cells under the paper TEST pin, Features `rtx_6000|rtx_4090`, 24G, `Requeue=0`.
   - `tree_v10`, sbatch only, src untouched:
     - **22340232 / 33**: greedy 4-rate / 5-rate walks landed at κ 0.6, thin pair (the step-size ladder).
+    - **22340796** (wave 5, 03:20): mild-landed κ 0.35 control, thin pair (§211 / §212 recipe at `param:0.35`).
     - **22340234 / 35**: L3a, cosine from lr 0.1, final FT from N3 21767189's / §212 22156062's saved `traj_models`.
   - `tree_v10h` = `tree_v10` + default-off `src/alloc_walk.py` + the final-FT schedule (`PROVENANCE_v10h.txt`). **Never point a train, a resume or a freeze TEST at it.**
     - **22340387 / 88**: L3b, 1-cycle final FT.
     - **22340391–94**: allocation walks, sens vs uniform, κ 0.6 and 0.8, thin.
     - **22340523 / 24**: allocation walks, sens vs uniform, DepGraph R56 landed params 0.47.
-    - **22340636 / 37 / 38** (wave 4, 03:55): allocation walks sens vs uniform at κ 0.35 thin; sens2 (`SPECTRA_ALLOC_ALPHA=1.0`) at κ 0.6.
+    - **22340636 / 37 / 38** (wave 4, 02:57): allocation walks sens vs uniform at κ 0.35 thin; sens2 (`SPECTRA_ALLOC_ALPHA=1.0`) at κ 0.6.
 - **Logs.** `/home/paretsky/scratch_audit/tree_v10{,h}/runs/slurm_logs/spectra_<job>.out`.
   - Grep: `\[alloc\]|\[eval\] TRAJ|final_ft|fallback|Traceback`.
   - Start checks: an alloc job prints one `[alloc] <net>: <kind> alpha=0.5 plan keeps x… (target x… = walk target − 0.02)` line per net. An L3 job prints `final_ft from …/traj_models` and its recipe, `sgd lr=0.1 … cos e100` (L3a) or `warmcos w30 e100` (L3b).
