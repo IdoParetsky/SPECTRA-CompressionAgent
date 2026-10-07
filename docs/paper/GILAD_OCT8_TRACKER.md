@@ -328,6 +328,8 @@
   - On the thin ResNets the accuracy lever of the sensitivity plan is the residual rule: holding the streams full gives 83 % / 95 % of sens − uniform. It is PFEC's rule (Li et al. 2017), so quote it as known structure.
   - What the measurement still buys is FLOPs at κ 0.8: the same accuracy with 9 % fewer (0.702 against 0.775, two seeds). Slide line: "a non-learned residual-full rule matches the sensitivity plan's accuracy at 60–80 % params; the sensitivity plan saves 9 % of FLOPs at 80 %."
   - This qualifies §8.1: on these nets, the accuracy-relevant part of the measured sensitivity in v10's state is whether a group is a residual stream. κ 0.35 (22341871) is still running.
+- **7 Oct ~17:30 (sitting)** — On a genuine lr 0.01 endpoint the R56 transplant is level with DepGraph's own model (ledger §272, keep-last re-FT 22342667, reported). It is **+0.25** at 10k against DepGraph's +0.24, and +0.41 over N3's keep-last after the size credit.
+  - With §262 (cosine-0.1: +0.69), the 15:45 slide line holds under both genuine fine-tunes: given DepGraph's widths, our walk and fine-tune reach its accuracy. Never "beats".
 
 ---
 

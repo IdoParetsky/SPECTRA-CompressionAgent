@@ -5049,6 +5049,38 @@ Guard, r20-w2 (reported): at κ 0.8 `inner` lands at 0.779 / FLOPs 0.856 on both
 - *Guard.* On r20-w2 `inner` is ahead of sens on two seeds at κ 0.8 (+0.67 at 5k), as it was at κ 0.6. Reported only, as registered.
 - *Still open in wave 9:* κ 0.35 (22341871, seed 42, R), with its own bars (STRUCTURAL ≤ +0.5, SENS-ADDS ≥ +2.0). Wave 20's cosine-0.1-last re-reads 22376020–23 now have their `afterok` met; 22376024 waits on 22341871. Do not lock. Never an agent row.
 
+## 272. Wave 11: the DepGraph R56 transplant re-fine-tuned by the paper recipe, keep last (**22342667**, from 22342029's saved candidates) — PRELIM, reported; 10k **+0.25** (Δsel +0.39 over the epoch-1 restore), level with DepGraph's own +0.24; against N3's keep-last −0.31 the lift is **+0.41** after wave 10's 0.15 credit
+
+Sitting 7 Oct wave 11 (registered 07:10, before submit). `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-saved `tree_v10j/runs/job22342029/traj_models`, the paper recipe (SGD lr 0.01, cosine, wd 5e-4, 100 epochs, origin control, P), seed 42. COMPLETED 35 m, 7 Oct 17:22, `ise-4090-12`, exit 0, TB 0. Start check green: `final_ft from` names 22342029, env `select=last`, and both final FTs print "kept the last epoch" (the size point's lowest train loss was 0.00115, against 0.00610 kept). Registered (wave 11): allocation and transplant rows are reported beside their lr 0.01 rows, not called. The 10k is `full_test_dacc` at the size point.
+
+| DepGraph R56 transplant, params 0.508 / FLOPs 0.480 | Final FT | 5k / val / **10k** | Origin 5k / val / 10k |
+|---|---|---|---|
+| Epoch-1 restore (§249, 22342029) | lr 0.01, lowest train loss (epoch 1) | −0.72 / +0.44 / −0.14 | +0.50 / +0.66 / +0.58 |
+| **Keep last (this)** | lr 0.01, epoch 100 | −0.14 / +0.64 / **+0.25** | +0.38 / +0.42 / +0.40 |
+| Keep last (§262, 22374229) | cosine from 0.1, epoch 100 | +1.04 / +0.34 / +0.69 | +0.98 / +1.06 / +1.02 |
+
+| References at 2.11× (params 0.470 / FLOPs 0.463), 10k | |
+|---|---|
+| N3, lr 0.01 keep last (§239) | −0.31 (5k −0.30, val −0.32) |
+| N3, lr 0.01 train-loss finals (§157 / §232) | −0.46 / −0.62, mean −0.54 |
+| N3, cosine-0.1 two-seed (§246) | −0.24 |
+| DepGraph's own 2.11× model (h2h 21943448) | **+0.24** |
+
+| Transplant lift at 10k, like-for-like endpoints | Lift |
+|---|---|
+| Epoch-1 restore: −0.14 − (−0.54) − 0.15 (§249, registered) | +0.25, PARTIAL |
+| **Keep last, lr 0.01: +0.25 − (−0.31) − 0.15 (this, reported)** | **+0.41** |
+| Keep last, cosine-0.1: +0.69 − (−0.24) − 0.06 (§262, registered) | +0.87, ALLOCATION |
+
+N3-last's val half is 2 × 10k − 5k. §239's keep-last slope between 2.11× and 2.57× (10.7 pp per unit FLOPs) would make the size credit 0.18 and the lift +0.38. Against each run's own retrained origin, the keep-last lift is +0.43: the transplant sits 0.15 under its origin and N3-last 0.73 under its own.
+
+**Read.**
+- *Level with DepGraph's own model.* On a genuine lr 0.01 endpoint, the transplant is +0.25 at 10k against DepGraph's +0.24. Under cosine-0.1 it is +0.69, but our unpruned origin also gains +1.02 there. Given DepGraph's widths, our walk and either genuine fine-tune reach DepGraph's accuracy. The 12:25 framing (§249) was an epoch-1 read. Never "beats".
+- *Lift +0.41, reported.* It sits inside wave 10's PARTIAL band (+0.2 to +0.5). Those bars were set against the epoch-1 reference, where N3 was 0.78 behind DepGraph. On keep-last endpoints N3 is 0.55 behind, and the transplant closes 0.41 of it.
+- *Δsel +0.39 at 10k.* The epoch-1 restore cost the transplant 0.39 and N3 only 0.15 at 2.11× (§239), so §249's PARTIAL was partly that artefact.
+- *The halves still disagree.* After the credit, the lift is +0.01 on the 5k half and +0.81 on val. Under cosine-0.1 the halves reversed (+1.32 / +0.41, §262). On this single point the per-half spread is 0.8–1.3 pp, which is why the reads are on 10k.
+- The VGG twin (22342668, keep last) and the seed-43 transplant walk (22374250) are queued. Do not lock. Never an agent row.
+
 ---
 
 
