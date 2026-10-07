@@ -5554,3 +5554,27 @@ Seed 44: sens r56-w4 walk −3.30 → final −3.10 (val −2.88, 10k −2.99) @
 
 ---
 
+## 293. Wave 21, MobileNetV2 ×0.5 C10 at params 0.6: `inner` at seed 43 (**22376491**) — PRELIM, reported; the residual-full rule is **not** the lever here: two-seed inner − uniform **−0.06** at 5k (−0.72 / +0.60, and seed 43's +0.60 is uniform's epoch-1 restore), **−0.62** on walk endpoints, at FLOPs 0.51 vs 0.59; sens − inner **+0.73** at 5k (+0.82 / +0.64; 10k +0.89) with both arms on late epochs, bought with 1.4× inner's FLOPs
+
+`tree_v10i`, `SPECTRA_ALLOC_KIND=inner`, §287's seed-42 recipe with `SPECTRA_SEED=43` (verified in the env). COMPLETED 2 h 34 m, 8 Oct 01:16, `ise-6000-08`, exit 0, TB 0, no fallback. Start check green: the inner plan keeps x0.579 over 25 groups (group keep min / median 0.67, max 1.00; "5 coupled groups held at full width"). As on seed 42, every group reaches its target at params x0.616, so the walk finishes to 0.600 with the strongest legal cut. Reader `final_ft_readout.py` over all six lr 0.01 cells of wave 21. Registration (wave 21, 14:06): inner − uniform and sens − inner are reported ("is the residual-full rule the lever here too"); no bar.
+
+| MBV2 ×0.5, params 0.600, 5k | Seed 42 | Seed 43 | Mean | FLOPs (s42 / s43) | Kept epoch (s42 / s43) |
+|---|---|---|---|---|---|
+| Sens (§287 / §291) | +0.34 | +0.70 | **+0.52** | 0.714 / 0.706 | 100 / 100 |
+| Uniform (§287 / §291) | +0.24 | −0.54 | −0.15 | 0.591 / 0.591 | 95 / **1** |
+| Inner (§287 / this) | −0.48 | **+0.06** | **−0.21** | 0.508 / 0.508 | 100 / 100 |
+| **Inner − uniform** | −0.72 | +0.60 | **−0.06** | | |
+| Inner − uniform, walk endpoints | −0.66 | −0.58 | **−0.62** | | |
+| **Sens − inner** | +0.82 | +0.64 | **+0.73** | | |
+| Sens − inner, walk endpoints | +0.90 | +0.62 | +0.76 | | |
+
+Val / 10k, two-seed: inner − uniform +0.01 / −0.025; sens − inner +1.05 / +0.89. Inner seed 43: walk −0.26 → final +0.06 (val −0.06, 10k +0.00) @ 0.600 / 0.508, step 124, honest −0.24, origin control +0.56. On seed 42 the three same-recipe origin controls read +0.16 / +0.44 / +0.70 at 5k, so a single 5k read carries about ±0.5.
+
+**Read.**
+- *The residual-full rule is not the lever on MBV2.* Where both arms kept a late epoch (seed 42), inner is 0.72 under uniform; on walk endpoints it is 0.66 / 0.58 under on both seeds. Seed 43's +0.60 at the final is uniform's restore of epoch 1 (−0.86 against its own walk, §291), not inner gaining. Holding MBV2's 5 narrow residual groups full and cutting the rest evenly does no better than an even cut, and keeps the fewest FLOPs (0.51). On the thin ResNets the same rule carries the whole κ 0.6 lever (inner − uniform +0.91 at lr 0.01 and +1.72 under cosine, §288). It is a ResNet property, not a rule for every family with skip connections.
+- *Sens over inner: +0.73, captioned.* Both arms kept a late epoch on both seeds, so this is like-for-like, and the walk endpoints agree (+0.76). Sens keeps 1.4× inner's FLOPs (0.71 vs 0.51) at equal params: its plan keeps most groups whole (median group keep 1.00) and cuts a few hard (min 0.28 / 0.34). At equal params the three arms' accuracy follows the FLOPs they keep (sens 0.71 > uniform 0.59 > inner 0.51). Whether sens adds anything at equal FLOPs needs a FLOPs landing target (new tree, next sitting), as on VGG (queue row 70).
+- *Like-for-like.* The cosine re-reads (22376493–501, keep last on every arm) are queued; if Q7 adopts cosine-0.1, they are the paper's numbers. Mild (22376487 / 92) is running; sens − mild is reported with it.
+- Do not lock. Never an agent row.
+
+---
+
