@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT** (learning failure: §259 VISIBLE +4.05). Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Wave 9 **§271 / §276 STRUCTURAL** at κ 0.35 / 0.6 / 0.8 (+0.12 / +0.18 / +0.06); PFEC residual-full, not SPECTRA. Cosine-0.1 lever **§268 SURVIVES +1.44**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§277; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT** (learning failure: §259 VISIBLE +4.05). Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Wave 9 **§271 / §276 STRUCTURAL** at κ 0.35 / 0.6 / 0.8 (+0.12 / +0.18 / +0.06); PFEC residual-full, not SPECTRA. Cosine-0.1 lever **§268 SURVIVES +1.44**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§279; queue "v10" |
 
 ---
 
@@ -74,12 +74,12 @@
    - What survives is a per-channel descriptor. The group-level signal the allocation agent uses is each group's *measured* sensitivity, in v10's state. NAP-F's group mean does not reproduce it (7 Oct: ρ +0.25 / −0.47 / +0.38 on three nets; the summed single-channel ablation does, at 0.77–0.92).
    - Lesson for any learned score: hold out a family, not only a net.
 5. **Robustness vs verification.** One table and three hooks: an action-stability certificate for the frozen actor, choosing among frozen seeds by agreement, and the selection shield. Then ask which line he meant.
-6. **(Added 4 Oct; restamped 7 Oct 17:33) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200–§272).
+6. **(Added 4 Oct; restamped 7 Oct 20:34) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200–§279).
    - Every TESTed actor plays one action at every decision: M1-neg compared uniform 0.8 with uniform 0.9. v10's first freeze TEST is the same collapse (census 0.9 only; **M1-v10 FLAT**).
    - The band reward pays size, whatever the accuracy, inside 10 pp. v10 prices accuracy at equal size; its reward still *saw* the skip-connection lever (§259 VISIBLE +4.05 at the 12/4 train budget) and did not learn it.
-   - The non-learned accuracy lever is **STRUCTURAL** (§271): hold residual streams full and cut the rest evenly (Li et al. 2017 PFEC). It matches the sensitivity plan at keep 0.6 and 0.8. Sensitivity still buys ~9 % fewer FLOPs at keep 0.8.
-   - Under the stronger cosine-0.1 recovery the lever **SURVIVES** (+1.44 on two seeds, §268). A stronger fine-tune does not repair cutting skip-connections.
-   - Do **not** start N8 from this FLAT. Inner belongs beside mild as a same-loop heuristic. Q7 (cosine-0.1 vs lr 0.01) is Gilad's.
+   - On thin ResNets the non-learned accuracy lever is **STRUCTURAL** (§271 / §276): hold residual streams full and cut the rest evenly (Li et al. 2017 PFEC). It matches sensitivity at keep 0.35 / 0.6 / 0.8. Sensitivity still buys ~9 % fewer FLOPs at keep 0.8 only.
+   - On a plain chain (VGG-19 C100, §279) per-layer sensitivity **SENS-MATTERS** at equal params (**+2.77** two-seed) but keeps **1.36× FLOPs**. Caption both axes. Equal-FLOPs is a next-sitting cell. Rows are walk + 1 epoch until cosine-0.1 re-reads land.
+   - Under cosine-0.1 the ResNet κ 0.6 lever **SURVIVES** (+1.44, §268). DepGraph R56 accuracy lever is **ABSORBED** (§275). Do **not** start N8. Q7 (cosine-0.1 vs lr 0.01) is Gilad's.
    - The Budget arm shows the same collapse (7 Oct census). STOP was played 74 times early and never after episode 231.
 
 ---
@@ -345,6 +345,9 @@
 - **7 Oct ~20:15 (sitting)** — On a plain chain (VGG-19 CIFAR-100, params 0.6) the sensitivity plan beats uniform by **+2.76** at 5k on seed 42 (ledger §278, provisional; SENS-MATTERS ≥ +1.0). The call is two-seed, and seed 43's uniform is running.
   - Caption it: sens keeps the early layers full and cuts only the late 512-wide ones, so at equal params it keeps 1.36× uniform's FLOPs (0.749 against 0.551). On VGG the lever is which params to cut (PFEC's late-layer finding), not free compute.
   - Both arms are walk + 1 epoch (epoch-1 restore); the cosine re-reads give the genuine endpoints.
+- **7 Oct ~20:40 (sitting)** — Seed 43 confirms it: on VGG-19 CIFAR-100 at params 0.6 the sensitivity plan beats uniform by **+2.77** at 5k on two seeds (+2.76 / +2.78; ledger §279, **SENS-MATTERS** ≥ +1.0). Both seeds land each arm on the same architecture, so the two seeds re-sample only the fine-tunes.
+  - The caption stands: 1.36× uniform's FLOPs on both seeds. The result is at equal params. At equal FLOPs, the only evidence is A0b's VGG-16 C10 probe (§209): there the sensitivity rule did not clear its bar at keep 0.6 (+0.25 against 0.54). Do not say "allocation beats uniform on VGG" without "at equal params, keeping 36 % more FLOPs".
+  - This is the first in-pipeline lever on a net without residual streams. On the thin ResNets the PFEC residual rule explains the lever; here per-layer sensitivity does (late 512-wide layers cut, as in PFEC's VGG-16 analysis).
 
 ---
 

@@ -5213,3 +5213,30 @@ Seed 43's sens (22375985, COMPLETED 37 m, 19:44, `ise-4090-06`, exit 0) lands on
 ---
 
 
+## 279. Wave 20, VGG-19 C100 at landed params 0.6, seed 43: uniform (**22375986**) completes the two-seed call — PRELIM; two-seed sens − uniform **+2.77** at 5k (seeds +2.76 / +2.78; val +3.44, 10k +3.11) → **SENS-MATTERS** (≥ +1.0), captioned **bought with 1.36× FLOPs** (0.749 against 0.551 on both seeds); established at equal params only
+
+Sitting 7 Oct wave 20 (a); recipe, start check and call as §278. 22375986 COMPLETED 1 h 16 m, 20:29, `ise-4090-15`, exit 0, TB 0, no fallback. Start check green: env `uniform`, the VGG catalog, `param:0.6`, seed 43; walk lines `Epoch …/40`; 16 groups at keep 0.76, every group target reached at x0.642, finished by the logged strongest-cut path. It lands at step 36 on seed 42's uniform architecture exactly (FLOPs 0.551), as seed 43's sens landed on seed 42's (§278). Its pruned final FT kept epoch 1 (train loss 0.0110), its origin epoch 95. Each arm has one architecture across the two seeds, so the seed spread below is fine-tune noise (walk FT, final FT, origin), not allocation noise.
+
+| VGG-19 C100, params 0.600 | FLOPs | In-walk return | Walk 5k | **lr 0.01 as walked** 5k / val / 10k | Origin 5k / 10k | Honest |
+|---|---|---|---|---|---|---|
+| Sens s42 (22375982) | 0.749 | −1.02 | −0.72 | **−1.60** / −1.10 / −1.35 | +0.12 / +0.52 | −1.00 |
+| Sens s43 (22375985) | 0.749 | +0.34 | −0.66 | **−1.46** / −0.28 / −0.87 | +0.36 / +0.78 | −1.16 |
+| Uniform s42 (22375983) | 0.551 | −2.98 | −3.58 | **−4.36** / −3.82 / −4.09 | +0.36 / +0.68 | −1.14 |
+| Uniform s43 (22375986) | 0.551 | −3.26 | −3.70 | **−4.24** / −4.44 / −4.34 | +0.16 / +0.33 | −0.70 |
+| Sens − uniform, s42 · s43 | 1.36× | +1.96 · +3.60 | +2.86 · +3.04 | +2.76 / +2.72 / +2.74 · +2.78 / +4.16 / +3.47 | | +0.14 · −0.46 |
+| **Two-seed mean** | | +2.78 | +2.95 | **+2.77** / +3.44 / **+3.11** | | −0.16 |
+
+Seed spread |s43 − s42|: sens 0.14 at 5k (val 0.82, 10k 0.48), uniform 0.12 (val 0.62, 10k 0.25); the lever 0.02 at 5k (val 1.44, 10k 0.73). The 5k half, where the call is read, is the quiet one on both arms.
+
+**Read.**
+- *Call: SENS-MATTERS, at equal params.* The two-seed 5k mean is +2.77 against the +1.0 bar, and each seed alone clears it by 1.7. The val half and 10k agree on both seeds. VGG-19 has no residual streams (`inner` is uniform, wave 20's CPU check), so here per-layer sensitivity carries the lever, on a second family and dataset. On the thin ResNets the residual rule carries it (wave 9 STRUCTURAL at all three keeps, §271, §276); this chain has no such rule.
+- *Caption: bought with FLOPs (registered).* On both seeds sens keeps 0.749 of the FLOPs against uniform's 0.551: 1.36×, far past the 10 % caption line. Sens keeps convs 1–9 full and cuts the late 512-wide layers, where the params sit and the FLOPs do not. The call holds at equal params; equal FLOPs is a different comparison and is not in this wave. The nearest evidence is a probe on another net: A0b on VGG-16 C10 (§209, 40-epoch recovery, never TEST) found at equal FLOPs (keep 0.6) that the sensitivity rule did not clear its bar (+0.25 against 0.54), while a random draw did (+1.17). The slide line is therefore "at equal params on a plain chain, the sensitivity plan beats an even cut by ~2.8 pp while keeping 36 % more FLOPs", never "allocation beats uniform" without the caption.
+- *Where it sits.* In the walk: walk lever +2.95, final +2.77, honest −0.16 (two-seed). All four pruned final FTs restored epoch 1, so this fine-tune neither adds nor removes the lever. The return lever (+1.96 / +3.60) is in-walk, never TEST.
+- *Fine-tune.* As §278, these rows are walk + 1 epoch. The cosine-0.1-last re-reads (queue row 71; seed 42 22376019 / 13 / 11, seed 43 22376010 / 14 / 22375996, PD) give genuine endpoints and are reported beside this call; if Q7 adopts cosine-0.1, the cosine version is the paper's.
+- *Still to come.* Sens − mild (reported) on 22375994 / 95, R. Cross-pipeline reference only: N4's mild at params 0.684 / FLOPs 0.686 got −2.24 at 5k (§155), against sens's −1.60 / −1.46 at 0.600 / 0.749.
+- *Literature.* DepGraph's own VGG-19 C100 row (73.50 → 70.39, −3.11 at 8.92× params, keep ≈ 0.11; §145) is a far harsher cut. At params 0.6 it is not a comparison point, and never a beat.
+- *Open, not registered.* Whether the plain-chain lever survives at equal FLOPs needs a FLOPs-matched cell (sens landed at FLOPs 0.551, or uniform at 0.749). The fixed-target walk ends on `param:<keep>` only (`NetworkEnv`), so that is new code in a new tree: next sitting's design, not tonight's queue.
+- Do not lock. Never an agent row.
+
+---
+
