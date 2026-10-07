@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§266; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§270; queue "v10" |
 
 ---
 
@@ -324,6 +324,10 @@
 - **7 Oct ~17:10 (sitting)** — At κ 0.8 on seed 42, the residual-full rule is 0.30 behind sens at 5k, on the STRUCTURAL line (ledger §270, provisional; +0.08 on val, +0.19 at 10k).
   - SENS-ADDS is already out. Wave 9 calls STRUCTURAL if seed 43's inner (22341870, in its final FT) lands at ≥ −1.62, and PARTIAL otherwise.
   - Caption for either outcome: at κ 0.8 sens matches that accuracy with **10 % fewer FLOPs** (0.696 against 0.775). It cuts the high-resolution inner convs hardest, where `inner` cuts evenly.
+- **7 Oct ~17:20 (sitting)** — Wave 9 calls **STRUCTURAL** (ledger §271). On two seeds sens − inner is +0.18 at κ 0.6 and **+0.06** at κ 0.8 at 5k, and the val half and 10k agree.
+  - On the thin ResNets the accuracy lever of the sensitivity plan is the residual rule: holding the streams full gives 83 % / 95 % of sens − uniform. It is PFEC's rule (Li et al. 2017), so quote it as known structure.
+  - What the measurement still buys is FLOPs at κ 0.8: the same accuracy with 9 % fewer (0.702 against 0.775, two seeds). Slide line: "a non-learned residual-full rule matches the sensitivity plan's accuracy at 60–80 % params; the sensitivity plan saves 9 % of FLOPs at 80 %."
+  - This qualifies §8.1: on these nets, the accuracy-relevant part of the measured sensitivity in v10's state is whether a group is a residual stream. κ 0.35 (22341871) is still running.
 
 ---
 

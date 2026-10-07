@@ -5020,6 +5020,35 @@ Inner's origin gained +0.34 at 5k (+0.30 at 10k); its honest is −0.22. Guard, 
 - *Guard.* On r20-w2 `inner` is level with sens at 5k (0.02 behind) and 0.51 ahead at 10k, at 0.020 fewer params and FLOPs 0.856 against 0.880. Reported only.
 - Wave 20's cosine-0.1-last re-read of this run (22376021) has its `afterok` met. Do not lock. Never an agent row.
 
+## 271. Wave 9: residual-full allocation walk (`inner`), κ 0.8, seed 43 (**22341870**) — PRELIM; two-seed sens − inner **+0.06** at κ 0.8 (val +0.16, 10k +0.11) and **+0.18** at κ 0.6 (§265): wave 9 calls **STRUCTURAL**. Holding the residual streams full and cutting the rest evenly matches the sensitivity plan's accuracy at both keeps; at κ 0.8 sens keeps 9 % fewer FLOPs
+
+Sitting 7 Oct wave 9 (registered 06:15, before submit). §270's recipe at `SPECTRA_SEED=43` (verified in the env). COMPLETED 2 h 44 m, 7 Oct 17:11, `ise-4090-11`, exit 0, TB 0, no fallback, no strongest-cut line. Start check green: both plans as in §270, each ending "3 coupled groups held at full width". r56-w4 lands on seed 42's architecture: step 95, params 0.797 / FLOPs 0.775, residual 4 / 8 / 16, inner 3 / 6 / 12–13. Walk −1.36, final −1.14 (gain +0.22), honest −0.24; the origin gained +0.46 at 5k (+0.43 at 10k). Every final FT kept a late epoch (best loss within 0.006 of epoch 100's). The 10k is as in §265. Call (registered 06:15): sens − inner on r56-w4, two-seed mean at κ 0.6 and κ 0.8. **STRUCTURAL** if ≤ +0.3 at both, **SENS-ADDS** if ≥ +0.5 at both, PARTIAL otherwise.
+
+| r56-w4, κ 0.8 | Seed 42: 5k / val / 10k | Seed 43: 5k / val / 10k | **Two-seed** 5k / val / 10k | FLOPs (s42 / s43) |
+|---|---|---|---|---|
+| Sens α 0.5 (§227 / §255) | −1.30 / −1.04 / −1.17 | −1.32 / −1.04 / −1.18 | −1.31 / −1.04 / −1.18 | 0.696 / 0.708 |
+| **Inner** (§270 / this) | −1.60 / −1.12 / −1.36 | **−1.14** / −1.28 / −1.21 | **−1.37** / −1.20 / −1.29 | 0.775 / 0.775 |
+| Uniform (§229 / §255) | −2.26 / −2.58 / −2.42 | −2.62 / −2.24 / −2.43 | −2.44 / −2.41 / −2.43 | 0.716 / 0.716 |
+| Mild-landed (§211 / §255) | −2.12 / −2.30 / −2.21 | −1.70 / −2.48 / −2.09 | −1.91 / −2.39 / −2.15 | 0.716 / 0.716 |
+| **Gap sens − inner** | +0.30 / +0.08 / +0.19 | −0.18 / +0.24 / +0.03 | **+0.06** / +0.16 / +0.11 | |
+| Inner − uniform | +0.66 / +1.46 / +1.06 | +1.48 / +0.96 / +1.22 | **+1.07** / +1.21 / +1.14 | |
+
+| Two-seed, r56-w4 | κ 0.6 (§265): 5k / val / 10k | κ 0.8 (this): 5k / val / 10k |
+|---|---|---|
+| **Sens − inner (the call)** | **+0.18** / −0.74 / −0.28 | **+0.06** / +0.16 / +0.11 |
+| Inner − uniform | +0.91 / +1.86 / +1.39 | +1.07 / +1.21 / +1.14 |
+| Sens − uniform (the lever, §254 / §255) | +1.09 / +1.12 / +1.11 | +1.13 / +1.37 / +1.25 |
+| FLOPs kept, inner / sens | 0.580 / 0.570 | 0.775 / 0.702 |
+
+Guard, r20-w2 (reported): at κ 0.8 `inner` lands at 0.779 / FLOPs 0.856 on both seeds. Seed 43: inner +1.90 / +3.38 / +2.64, sens +0.54 / +1.28 / +0.91. Two-seed inner − sens is +0.67 at 5k and +1.12 at 10k.
+
+**Read.**
+- *Call: **STRUCTURAL**.* On two seeds, sens − inner is +0.18 at κ 0.6 and +0.06 at κ 0.8 at 5k, both under +0.3. The val half and 10k agree at both keeps: at most +0.16, and inner is ahead at κ 0.6. On the thin ResNets the accuracy lever of the non-learned sensitivity plan is the residual rule. Holding the streams full and cutting every other group evenly gives +0.91 / +1.07 of sens's +1.09 / +1.13 over uniform (83 % / 95 %). That answers §254's question at both keeps. The rule is PFEC's (Li et al. 2017), so the paper quotes it as known structure, not as a SPECTRA finding.
+- *What the measurement still buys: FLOPs at κ 0.8.* There sens keeps FLOPs 0.702 against inner's 0.775, 9 % fewer at the same accuracy, because it cuts the high-resolution stage-1 / stage-2 inner convs hardest (§270). At κ 0.6 the two keep the same FLOPs. Caption both axes.
+- *For the agent and the baselines (not decided here).* `inner` reaches sens's accuracy with no sensitivity measurement, so at κ 0.6–0.8 it is an equally strong non-learned baseline and belongs beside sens in the same-loop table, with its FLOPs. The accuracy-relevant part of the measured sensitivity in v10's state is, on these nets, whether a group is a residual stream.
+- *Guard.* On r20-w2 `inner` is ahead of sens on two seeds at κ 0.8 (+0.67 at 5k), as it was at κ 0.6. Reported only, as registered.
+- *Still open in wave 9:* κ 0.35 (22341871, seed 42, R), with its own bars (STRUCTURAL ≤ +0.5, SENS-ADDS ≥ +2.0). Wave 20's cosine-0.1-last re-reads 22376020–23 now have their `afterok` met; 22376024 waits on 22341871. Do not lock. Never an agent row.
+
 ---
 
 
