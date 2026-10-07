@@ -5648,3 +5648,26 @@ Val / 10k, two-seed: sens − mild +1.06 / +0.795. On seed 43, the one seed wher
 
 ---
 
+## 297. Wave 19 at κ 0.8, seed 42: uniform under cosine-0.1-last (**22385251**, the one-time resubmit of 22374701, re-fine-tuned from 22340394) — PRELIM, reported; two-seed lever_cos **+0.74** at 5k (+0.70 / +0.78; lr 0.01 +1.13) and **+1.195** at 10k (lr 0.01 +1.25): at κ 0.8 the stronger fine-tune trims the 5k lever and leaves the 10k level; inner − uniform +0.62 at 5k on seed 42 (two-seed +0.82); κ 0.8's bar_cos stays seed 43 only, because the seed-42 mild re-read was preempted twice
+
+`tree_v10k`, §281's recipe on 22340394's saved candidates, `SPECTRA_SEED=42` (verified: env, `seed=42`, submit line). COMPLETED 52 min, 8 Oct 01:30, `ise-4090-01`, exit 0, TB 0, kept the last epoch, no preemption. It replaces 22374701 (preempted 20:15, queue row 77). Its twin 22385252 (mild seed 42) was preempted again at 01:14 and, under the preemption rule, not resubmitted a third time. Registration (wave 19): κ 0.8 is reported, no bars.
+
+| r56-w4, κ 0.8 | Params / FLOPs (lr 0.01 walk) | Seed 42 cos 5k / val / 10k | Seed 43 cos 5k / val / 10k (§281) | Two-seed cos 5k / 10k | lr 0.01 two-seed 5k / 10k (§255) |
+|---|---|---|---|---|---|
+| Sens (22374700 / 22374703) | 0.800 / 0.696 | −2.00 / −0.86 / −1.43 | −2.10 / −1.42 / −1.76 | −2.05 / −1.595 | −1.31 / −1.175 |
+| Uniform (**22385251** / 22374704) | 0.799 / 0.716 | **−2.70** / −2.60 / **−2.65** | −2.88 / −2.98 / −2.93 | −2.79 / −2.79 | −2.44 / −2.425 |
+| Inner (22376021 / 22376023, §290) | 0.797 / — | −2.08 / −1.02 / −1.55 | −1.86 / −0.92 / −1.39 | −1.97 / −1.47 | −1.37 / −1.285 |
+| **Lever_cos, sens − uniform** | | **+0.70** / +1.74 / **+1.22** | +0.78 / +1.56 / +1.17 | **+0.74** / **+1.195** | +1.13 / +1.25 |
+| Inner − uniform | | +0.62 / +1.58 / +1.10 | +1.02 / +2.06 / +1.54 | +0.82 / +1.32 | +1.07 / +1.14 |
+
+Uniform seed 42, cosine against lr 0.01: −0.44 at 5k, −0.23 at 10k. Origin controls under cosine on seed 42, 5k: −0.80 (sens run), −1.16 (uniform), −0.96 (inner); at lr 0.01 +0.46 / +0.32 / +0.34. Guard r20-w2, seed 42 under cosine: sens +1.40 @ 0.799, uniform +1.68 @ 0.774, so sens − uniform −0.28 at 5k (lr 0.01 +1.28); its origins gain +4.8 to +5.3.
+
+**Read (reported).**
+- *Two-seed lever under cosine at κ 0.8: +0.74 at 5k, +1.195 at 10k.* Against lr 0.01's +1.13 / +1.25, the 5k is trimmed by 0.39 and the 10k is level, on both seeds (5k +0.70 / +0.78, 10k +1.22 / +1.17). The val half rises (+1.65 against +1.37, the lr 0.01 val being 2 × 10k − 5k). As §281 read on seed 43 alone, the stronger fine-tune neither absorbs the lever nor grows it at κ 0.8. No bars are registered; on wave 8's bars the 5k would sit in the WEAK band and the 10k on the SURVIVES side, so quote both.
+- *Residual-full still carries it.* Inner − uniform is +0.82 at 5k on two seeds under cosine (lr 0.01 +1.07), and sens − inner is −0.08 (§290). At κ 0.8 the residual-full rule is the lever under both fine-tunes, as at κ 0.35 and 0.6 (§295, §288).
+- *Cosine-0.1 costs the thin r56-w4 at κ 0.8 on seed 42 too.* Uniform loses 0.44 at 5k, sens 0.70, inner 0.48, and the unpruned origin controls drop below zero (−0.80 to −1.16). The lever under cosine at this keep is a difference of losses (§281).
+- *What is missing.* κ 0.8's seed-42 bar_cos (sens − mild): the mild re-read was preempted twice (22374702, 22385252) and, by rule, not resubmitted. bar_cos stays seed 43 only (+0.38 at 5k, +0.75 at 10k, §281). Uniform and mild land on the same r56-w4 architecture at κ 0.8 on both seeds (§255), so the missing bar would differ from the lever only by fine-tune noise on that architecture.
+- Wave 19 is complete except κ 0.35's seed-43 sens (22374697, R). Do not lock. Never an agent row.
+
+---
+
