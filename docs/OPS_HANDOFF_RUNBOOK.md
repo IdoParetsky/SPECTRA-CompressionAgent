@@ -264,6 +264,7 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
     - **22342663 / 64**: 1-cycle-last from N3 / τ-off. **22342665**: DepGraph uniform alloc (§233).
     - **22342666 / 67 / 68**: `afterok` on 22340523 / 22342029 / 22342030 (sens alloc, both transplants). A parent FAILED leaves its child `DependencyNeverSatisfied`: scancel that child and report it.
     - **22342767** (wave 11b, nice 9): N3 select=last at **seed 43**, the endpoint noise of the wave 11 call (§240). **22342768 / 69** (wave 11b): cosine from lr 0.1 with select=last on N4 and the twins; read against 22342661 / 62.
+    - **22344788** (wave 15, 10:50, nice 10): N4 select=last at **seed 43**, endpoint noise on VGG-19 C100 for §245's equal-epoch re-read (both seeds ≥ +1.0 over §149 at both size points, 10k). Start check as wave 11; the env line also shows `SPECTRA_SEED': '43'`.
 - **Logs.** `/home/paretsky/scratch_audit/tree_v10{,h,i,j,k}/runs/slurm_logs/spectra_<job>.out`.
   - Grep: `\[alloc\]|\[eval\] TRAJ|final_ft|fallback|Traceback`.
   - Start checks: an alloc job prints one `[alloc] <net>: <kind> alpha=0.5 plan keeps x… (target x… = walk target − 0.02)` line per net. An `inner` job's line ends `; 3 coupled groups held at full width`. Its κ 0.8 cells say `walk target − 0.04`, and the env line shows `SPECTRA_ALLOC_UNDERSHOOT': '0.04'`. An L3 job prints `final_ft from …/traj_models` and its recipe, `sgd lr=0.1 … cos e100` (L3a) or `warmcos w30 e100` (L3b).
