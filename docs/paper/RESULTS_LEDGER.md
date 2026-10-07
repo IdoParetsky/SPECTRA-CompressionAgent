@@ -4412,6 +4412,28 @@ Sitting 7 Oct wave 4, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens`, `SPECTRA_ALLOC_ALP
 - *Dose-response.* Doubling α concentrates the inner cuts (stage-2 / 3 medians 2 / 9 against 3 / 11) and saves FLOPs (0.552 against 0.572). It keeps the residual streams full as α 0.5 does, and lands on the same TEST to two decimals. The lever does not grow with the sensitivity dose at κ 0.6. That fits the structural reading (§231: full residual streams), which wave 9's `inner` arm (22341865 / 67) tests directly.
 - *r20-w2 is not at equal size.* The plan stopped at params 0.655 (`every group at its target … strongest legal cut`). Its strongest legal cut overshot to 0.551, so −6.12 is 0.044 params below α 0.5's point. That is a guard row, not a lever read; group keep min 0.10 under α 1.0.
 - *Kept epochs (§235).* Late on every final FT (r56-w4 `val_best` loss 0.279 at epoch 1, 0.269 at 100, best 0.268). Honest is 100 epochs against 100.
+- *Seed caveat (added with §242).* One seed per α. α 0.5 moved 0.72 pp between seeds 42 and 43 (§242), so "identical to two decimals" is inside seed noise. "Flat" means that no dose effect is visible beyond ±0.7 pp.
+- Do not lock. Never an agent row.
+
+---
+
+## 242. Allocation-following walk, sens α 0.5, landed κ 0.6, thin pair, **seed 43** (**22341281**) — PRELIM; r56-w4 **−2.08 @ 0.597** (seed 42: −2.80, §230): seed spread **0.72 pp** on one rule and nearly one architecture; lever and bar wait on **22341282 / 22341278**
+
+Sitting 7 Oct wave 8, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), `SIZE_MATCH=param:0.6`, `SPECTRA_SEED=43` (data order and crop / flip; the val / TEST split is `SPECTRA_SPLIT_SEED`'s, unchanged), 6 passes, P, origin control. COMPLETED 3 h 11 m, 7 Oct 09:51, `ise-4090-02`, exit 0, TB 0, no fallback. Call (queue): lever (sens − uniform) and bar (sens − mild-landed) on the **two-seed mean**. Pairs: uniform s43 **22341282** (R from 09:50), mild-landed κ 0.6 s43 **22341278** (R).
+
+| Net | Seed | Params / FLOPs | Steps | Residual s1 / s2 / s3 | Inner min / median / max, s3 | Walk 5k | Final 5k | Honest |
+|---|---|---|---|---|---|---|---|---|
+| **r56-w4** | **43** | 0.597 / 0.568 | 169 | **4 / 8 / 16** | 5 / 10 / 16 | −2.74 | **−2.08** | +0.66 |
+| r56-w4 | 42 (§230) | 0.600 / 0.572 | 169 | **4 / 8 / 16** | 4 / 11 / 16 | — | −2.80 | — |
+| r20-w2 | 43 | 0.595 / 0.800 | 40 | 2 / 4 / 5 | 4 / 6 / 8 | −4.90 | −3.46 | −2.00 |
+| r20-w2 | 42 (§230) | 0.595 / 0.800 | 40 | 2 / 4 / 5 | 5 / 5 / 8 | — | −2.92 | — |
+| origin r56-w4 / r20-w2 | 43 | 1 | — | — | — | 0 | +0.00 / +3.44 | — |
+
+**Read.**
+- *Seed spread.* The same rule lands r56-w4 0.72 pp apart across seeds, on nearly the same architecture: the residual streams are full in both runs, and stage 1–2 inner widths match. At fixed architecture, one walk plus one final FT moves by up to ~0.7 pp. Mild and greedy-3 were 0.38 apart on one architecture (§226).
+- *What that does to the single-seed calls.* The WEAK levers (+0.54 here at κ 0.6, +0.96 at κ 0.8, +0.40 on DepGraph R56 §236) and the flat dose-response (§241) all sit inside that spread. They stay PRELIM until the two-seed means. The bar over mild at κ 0.6 (+2.26, §231) is three times the spread, so it does not depend on one seed. Its seed-43 read is 22341278.
+- *Two-seed sens mean, r56-w4:* −2.44 @ ~0.60. The lever needs uniform s43.
+- *Kept epochs (§235).* Late on every final FT (r56-w4 `val_best` 0.283 at epoch 1, 0.275 at 100, best 0.270; origin 0.299 → 0.188). The r56 origin gained 0.00 pp from 100 epochs at this seed; §241's seed-42 run gained +0.86. Honest therefore moves with the origin's seed as well.
 - Do not lock. Never an agent row.
 
 ---

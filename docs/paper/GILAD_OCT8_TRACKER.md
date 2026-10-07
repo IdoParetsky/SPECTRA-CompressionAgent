@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **22341736 §237** r56 **−2.88 vs mild −2.1**; κ 0.6 **22341737** still R (**never quote the probe or 37 in-walk**). Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; κ 0.8 in, M1-v10 waits on 37 | report Part III; ledger §200–§237; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **22341736 §237** r56 **−2.88 vs mild −2.1**; κ 0.6 **22341737** still R (**never quote the probe or 37 in-walk**). Sens2 α 1.0 **§241 FLAT**. Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; κ 0.8 in, M1-v10 waits on 37 | report Part III; ledger §200–§241; queue "v10" |
 
 ---
 
@@ -238,11 +238,15 @@
 - **7 Oct ~08:00** — DepGraph sens vs uniform at params 0.47 (ledger §236): **WEAK +0.40** (−0.34 @ 0.469 / 0.398 vs −0.74 @ 0.465 / 0.472). Residual streams kept full; 16 % fewer FLOPs. Same direction as the thin pair. Wave 11 re-reads the endpoint. Never quote v10 in-walk.
 - **7 Oct ~08:30** — First v10 freeze TEST κ 0.8 (ledger §237): r56 **−2.88 @ 0.799** vs mild **−2.1** (−0.78). Residual **3 / 7 / 14** — the mild/uniform cut, not A0's 4 / 8 / 16. Census is skip + 0.9; 0.7 / 0.6 unused. M1-v10 waits on the κ 0.6 twin. Never quote the probe.
 - **7 Oct ~09:00** — Wave 11 N3 select=last (ledger §239): keeping the last epoch moves 10k by **+0.15 at 2.11×** and **+0.43 at 2.57×** vs §157. REQUOTE needs the τ-off twin. Do not change M4 on one walk. Uniform κ 0.35 **§238 −7.90 @ 0.349**; lever waits on sens.
+- **7 Oct ~09:30 (ops canvas)** — Reader matches §240 gating 10k (−0.54 / −1.31). flop0.60 now in at 10k **−0.06** (Δsel +0.10, not gating); origin still R. Sens2 α 1.0 **§241 FLAT**: r56 **−2.80 @ 0.600**, identical to α 0.5. v10 κ 0.6 still R — do not quote.
 - **7 Oct ~09:20 (sitting)** — Wave 11 call (ledger §240): **NEUTRAL**. τ-off's endpoint adds +0.40 at 2.11× and +0.21 at 2.57×, so no point has both walks ≥ +0.3. 2.57× is unresolved (0.09 under).
   - M4 keeps its numbers. Caption: "walk + 1 epoch; a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k".
   - Cosine from lr 0.1 still leads lr-0.01-last at 2.57× by 0.83 / 0.95 on the two walks. The large-LR lead is the learning rate, not the selection. At 2.11× the two recipes are level on N3 (−0.31 / −0.36).
   - *Slide line, revised 09:30 (replaces 07:15's).* The 07:15 line quoted only cosine-0.1, then the only genuine 100-epoch FT. Now that both recipes have genuine endpoints, quoting the better one would pick a recipe on TEST, so the line shows both: "With a genuine 100-epoch final fine-tune, DepGraph R56 at 2.11× lands at 10k −0.31 / −0.54 under the paper's lr 0.01 and −0.36 / +0.01 under cosine from lr 0.1, on two walks. At 2.57× it lands at −1.20 / −1.31 and −0.37 / −0.36. DepGraph's own: +0.24 / +0.11. That is 0.2–0.8 pp behind at 2.11× and 0.5–1.4 pp behind at 2.57×; one run each; not a beat."
   - Wave 12 (**22343160 / 65**) re-runs its two cosine-0.1 points at seed 43, to put a seed spread on it before the meeting if they land in time.
+- **7 Oct ~09:55 (sitting)** — Seed 43 of the sens allocation walk at κ 0.6 (ledger §242): r56-w4 **−2.08 @ 0.597** against seed 42's −2.80, on nearly the same architecture (residual streams full in both). One rule and one architecture move 0.72 pp between seeds.
+  - The single-seed WEAK levers (+0.40 to +0.96) and the flat α dose-response (§241, α 1.0 = −2.80) are inside that spread. Wave 8's two-seed means decide them.
+  - The 06:20 slide line (+2.3 pp over mild at κ 0.6) is three times the spread, and "one seed" is already in it. Mild's seed-43 twin (22341278) is due today. Two-seed sens mean: −2.44.
 
 ---
 
