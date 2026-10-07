@@ -319,6 +319,8 @@
 - **7 Oct ~16:55 (sitting)** — The κ 0.6 allocation lever **SURVIVES** the fine-tune Q7 recommends, on two seeds (ledger §268, wave 19): sens − uniform at r56-w4 is **+1.44** at 5k, on the val half and at 10k, against +1.09 at lr 0.01.
   - The seeds now agree (+1.48 / +1.40, against +0.54 / +1.64 at lr 0.01). A stronger fine-tune does not repair what uniform cut.
   - Slide line: "under the recommended fine-tune, the non-learned sensitivity plan keeps a 1.4 pp lead over uniform at 60 % params, on two seeds and both test halves." The bar over mild waits on 22374688.
+- **7 Oct ~17:05 (sitting)** — The bar over mild holds under cosine-0.1 on two seeds (ledger §269, reported): sens − mild is **+2.40** at 5k, against +2.54 at lr 0.01, and within 0.2 on every view.
+  - Under cosine the bar splits as +0.96 (even cut over mild) plus **+1.44** (sens over uniform), against +1.45 plus +1.09 at lr 0.01. Wave 19's κ 0.6 cells are complete.
 
 ---
 
