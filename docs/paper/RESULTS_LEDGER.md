@@ -4747,6 +4747,26 @@ Seed 43 at r56-w4: sens walk −1.58, final −1.32 @ params 0.798 / FLOPs 0.708
 
 **Read.** Keeping the true endpoint lifts the pruned DepGraph uniform row by about a third of a point and lowers the unpruned origin by about as much, so the honest difference is +0.74 at 10k. That is the same pattern as N3 / τ-off (§239, §240: +0.15 to +0.43 at 10k, NEUTRAL) and the zoo R56 twin (§250: +0.36 / +0.40). It does not reopen wave 11's call. Reported beside §233 and wave 18's cosine-0.1 re-read of the same candidates (22374248, PD).
 
+## 258. Wave 15: N4's endpoint final FT at seed 43 (**22344788**) against seed 42 (**22342661**, §245) — PRELIM; the equal-epoch re-read **holds on two final-FT seeds**: last − §149 at 10k **+1.53 / +1.22** (seed 42 +1.46 / +1.41); a second seed moves each pruned point by ≤ 0.30
+
+`tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, 22342661's recipe exactly (SGD lr 0.01, cosine, 100 epochs, P, origin control, from N4's saved `job21737105/traj_models`) with `SPECTRA_SEED=43` (data order and crop / flip; same split, candidates and code). COMPLETED 38 m, 7 Oct 14:29, `ise-4090-01`, exit 0, TB 0. Start check green: seed 43 in the env line, `select=last` on all 4 recipe lines, all 4 final FTs kept the last epoch (train loss 0.0088–0.0097 pruned, 0.0105 origin), `keep=last` on all 4 TRAJ final-FT lines. Rule (queue wave 15, registered 10:50, before submit): at 10k and both size points, if both seeds' last − §149 is ≥ +1.0, the re-read holds on two final-FT seeds; otherwise "met on one seed only" at each point that misses. Never keep the better seed.
+
+| Point | Keep params / FLOPs | Seed 43 last 5k / 10k | Seed 42 last 5k / 10k (§245) | d = s43 − s42, 5k / 10k | Honest s43 / s42 | §149 10k | **Last − §149, 10k: s43 / s42** | Δsel vs §155, 10k: s43 / s42 |
+|---|---|---|---|---|---|---|---|---|
+| size 0.70 step 29 | 0.684 / 0.686 | −1.22 / −0.86 | −1.34 / −0.93 | +0.12 / +0.07 | +0.72 / +0.48 | −2.39 | **+1.53 / +1.46** | +0.76 / +0.69 |
+| size 0.60 step 42 | 0.599 / 0.590 | −1.74 / −1.82 | −1.44 / −1.63 | −0.30 / −0.19 | +0.48 / +0.66 | −3.04 | **+1.22 / +1.41** | +1.15 / +1.34 |
+| `val_best` step 47 | 0.534 / 0.550 | −1.88 / n/a | −1.74 / n/a | −0.14 / n/a | −0.02 / 0.00 | n/a | 5k +1.76 / +1.90 | 5k +0.72 / +0.86 |
+| origin | 1 | +0.30 / +0.38 | +0.42 / +0.61 | −0.12 / −0.23 | — | +0.56 | — | — |
+
+**Read.**
+- *Call: HOLDS on two seeds.* Every seed and size point clears the 1 pp N4 adopt line at 10k. The smallest margin is seed 43 at size 0.60, 0.22 above the line. Two-seed means are **+1.50 / +1.32**.
+- *Seed noise.* A second final-FT seed moves a pruned point by at most 0.30 (5k, size 0.60) and the origin by 0.23 (10k). That is well inside the 1.2–1.5 pp margin over §149.
+- *Selection.* The endpoint's gain over §155's train-loss pick repeats: +0.76 / +1.15 at 10k against seed 42's +0.69 / +1.34. The two-seed means are +0.73 / +1.25.
+- *Honest at seed 43:* +0.72 / +0.48 / −0.02 (seed 42: +0.48 / +0.66 / 0.00).
+- *What it moves.* Nothing in the quoted rows, as registered: wave 15 does not change the bar-3 row, and tracker Q7 decides the selection rule. Under train-loss selection bar-3 VGG-19 stays on §149. If Q7 adopts `select=last`, N4-last's row is the two-seed mean (10k −0.90 / −1.73; +1.50 / +1.32 over §149), never the better seed.
+- DepGraph's own VGG-19 C100 is −3.11 at 8.92× params (keep ≈ 0.11). We keep 0.68 / 0.60, far less compression. Quote it beside; **never "beats"**.
+- Do not lock. Never an agent row.
+
 ---
 
 
