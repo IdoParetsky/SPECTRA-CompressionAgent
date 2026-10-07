@@ -49,6 +49,8 @@ def test_flags_default_and_parse(monkeypatch):
     assert alloc_walk.undershoot() == 0.02 and alloc_walk.min_keep() == 0.1
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "Uniform")
     assert alloc_walk.kind() == "uniform"
+    monkeypatch.setenv("SPECTRA_ALLOC_KIND", "inner")
+    assert alloc_walk.kind() == "inner"
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "anti")
     with pytest.raises(ValueError):
         alloc_walk.kind()
@@ -57,6 +59,7 @@ def test_flags_default_and_parse(monkeypatch):
 def test_weights_follow_a0():
     sens = {"a": 1.0, "b": 4.0, "c": 0.25, "d": -0.1}
     assert alloc_walk.weights("uniform", sens) == {k: 1.0 for k in sens}
+    assert alloc_walk.weights("inner", sens) == {k: 1.0 for k in sens}
     w = alloc_walk.weights("sens", sens, 0.5)
     assert w["b"] > w["a"] > w["c"] > w["d"] > 0          # the negative rise is floored, not undefined
     mid = (0.25 + 1.0) / 2                                 # median of the floored values
@@ -94,7 +97,26 @@ def test_plan_keeps_the_target_and_orders_keeps_by_sensitivity(monkeypatch, kind
     assert utils.calc_num_parameters(cut) / utils.calc_num_parameters(model) == pytest.approx(info["kept"])
 
 
-@pytest.mark.parametrize("kind_name", ["uniform", "sens"])
+def _coupled_rows(model):
+    return {row for group, row in group_sensitivity.group_plan(ModelWithRows(model)) if len(group.producers) > 1}
+
+
+def test_inner_holds_every_residual_stream_and_cuts_the_rest_evenly(monkeypatch):
+    torch.manual_seed(0)
+    model = resnet20(num_classes=10, large_input=False, width=4).eval()
+    monkeypatch.setattr(group_sensitivity, "group_sensitivity",
+                        lambda *a, **k: pytest.fail("inner must not measure sensitivity"))
+    coupled = _coupled_rows(model)
+    widths, info = alloc_walk.plan_targets(model, [], (3, 32, 32), "inner", 0.6)
+    assert len(coupled) == 3 and info["held"] == 3                 # one residual stream per stage
+    assert info["kept"] == pytest.approx(0.6, abs=0.05)
+    origin = info["origin_widths"]
+    assert all(widths[row] == origin[row] and info["keeps"][row] == 1.0 for row in coupled)
+    inner = [info["keeps"][row] for row in widths if row not in coupled]
+    assert inner and max(inner) - min(inner) < 1e-9 and inner[0] < 1.0
+
+
+@pytest.mark.parametrize("kind_name", ["uniform", "sens", "inner"])
 def test_the_walk_lands_on_the_target_and_follows_the_plan(monkeypatch, kind_name):
     monkeypatch.setenv("SPECTRA_FIXED_TARGET", "1")
     monkeypatch.setenv("SPECTRA_GROUP_ONCE_PER_PASS", "1")
@@ -124,6 +146,8 @@ def test_the_walk_lands_on_the_target_and_follows_the_plan(monkeypatch, kind_nam
     if kind_name == "sens":
         half = len(realised) // 2
         assert sum(realised[half:]) / (len(realised) - half) > sum(realised[:half]) / half
+    if kind_name == "inner":
+        assert all(now[row] == origin[row] for row in _coupled_rows(model))
 
 
 def test_a_stalled_walk_falls_back_to_the_strongest_cut(monkeypatch):

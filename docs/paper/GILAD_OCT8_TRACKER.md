@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R** (Ido GO 4 Oct 19:23). Freeze **ep0111** `vs_mild=+0.275` — **not a result**; first TEST only if `vs_mild ≥ +0.5`. Do **not** a second allocation train before that read. Mild-landed **§211–212**. First catalog C10 (A0b C100 FLAT §210) | running | report Part III; ledger §200–§212, §218–220; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** jobs **22341736 / 37** PD (gate met; **never quote the probe**). Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; first TEST queued | report Part III; ledger §200–§228; queue "v10" |
 
 ---
 
@@ -218,6 +218,13 @@
   - Seed-43 twins of the v10 bar cells (κ 0.6 / 0.8) queued so the bars are read on two seeds.
 - **7 Oct ~05:10** — Step-size ladder at κ 0.6 (ledger §225 / §226): **FLAT**. Cutting 30 % or 40 % per step instead of 20 % does not change TEST at equal params on r56-w4 (−4.16 / −5.06 vs −4.68), but halves the decisions (45 / 39 vs 79). Mild and greedy-3 landed on the *same* r56-w4 architecture by different paths, 0.38 pp apart: that is the noise of one walk plus final FT at fixed architecture. Slide use: the 5-rate action menu is a cost lever, not an accuracy lever; v10's FLOPs are quoted beside its Δ (the 0.7-step walk kept FLOPs 0.58 vs 0.45 at equal params).
 - **7 Oct ~05:20** — Le & Hua deep read (ledger §228): **TREND**. Re-finalising τ-off's saved candidates with cosine from lr 0.1 lifts keep 0.123 by +2.26 honest and replicates §223 at 2.57×: on 10k −0.36 / −0.37 from two different walks, against DepGraph's +0.11 (≈ 0.47 behind, from ≈ 1.6 under lr 0.01). At 2.11× it helps on one walk (+1.10) and not the other (−0.14). Slide line: "a large-LR final fine-tune closes most of our 2.57× gap to DepGraph; it helps more at higher sparsity (Le & Hua 2021)". Never "beats"; the paper caption stays lr 0.01 until every compared row is re-finalised.
+- **7 Oct ~06:20** — Allocation walks at the v10 κ (ledger §229–§231). On r56-w4, the walk following A0's sensitivity plan lands at **−2.80 @ params 0.60** (κ 0.6) and **−1.30 @ 0.80** (κ 0.8). Mild lands at −5.06 / −2.12, and a uniform allocation at −3.34 / −2.26.
+  - Sens beats uniform by +0.54 / +0.96: WEAK on one seed; the seed-43 twins are queued.
+  - The registered bar fired: a non-learned allocation is +2.26 over mild at κ 0.6. So a v10 WIN there reads "learned allocation at heuristic level", and "beyond heuristic" needs v10 ≥ −2.30.
+  - *Why the arms differ:* sens keeps every residual stream at full width and prunes only the first conv of each block; every other arm cuts the residual width, and accuracy follows it. At κ 0.8, mild and uniform land on the identical architecture (0.14 pp apart).
+  - Wave 9 (5 jobs) tests whether that structural rule alone (Li et al. 2017's "prune only inside the block") matches sens.
+  - Slide line: "where the cut goes matters more than how the walk steps: on ResNet-56-w4 at 60 % params, a sensitivity-weighted allocation (which leaves the residual streams intact) is 2.3 pp better than our mild walk, at FLOPs 0.57 vs 0.45; one seed".
+  - Le & Hua paired control (ledger §232): 1-cycle passes its second read (+0.76 honest, raw +0.22); the replicate decides. Final-FT noise floor at 2.11× is 0.02 pp raw / 0.20 honest.
 
 ---
 

@@ -249,9 +249,13 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
     - **22340636 / 37 / 38** (wave 4, 02:57): allocation walks sens vs uniform at κ 0.35 thin; sens2 (`SPECTRA_ALLOC_ALPHA=1.0`) at κ 0.6.
     - **22341280** (wave 7, 04:11): L3b-rep, 1-cycle final FT from τ-off's saved candidates; references are §220's rows.
     - **22341281 / 82 / 83 / 84** (wave 8): allocation walks sens / uniform at κ 0.6 (81 / 82) and κ 0.8 (83 / 84), thin, **seed 43** (twins of 22340391–94).
-- **Logs.** `/home/paretsky/scratch_audit/tree_v10{,h}/runs/slurm_logs/spectra_<job>.out`.
+  - `tree_v10i` (06:04) = `tree_v10h` + the allocation kind `inner` only (`PROVENANCE_v10i.txt`; 10 alloc tests green). Same rule: **never point a train, a resume or a freeze TEST at it.**
+    - **22341865 / 67** (wave 9, 06:16): residual-full allocation walk (`SPECTRA_ALLOC_KIND=inner`) at κ 0.6, thin, seeds 42 / 43.
+    - **22341866 / 70** (wave 9): the same at κ 0.8, seeds 42 / 43, `SPECTRA_ALLOC_UNDERSHOOT=0.04`.
+    - **22341871** (wave 9): the same at κ 0.35, seed 42.
+- **Logs.** `/home/paretsky/scratch_audit/tree_v10{,h,i}/runs/slurm_logs/spectra_<job>.out`.
   - Grep: `\[alloc\]|\[eval\] TRAJ|final_ft|fallback|Traceback`.
-  - Start checks: an alloc job prints one `[alloc] <net>: <kind> alpha=0.5 plan keeps x… (target x… = walk target − 0.02)` line per net. An L3 job prints `final_ft from …/traj_models` and its recipe, `sgd lr=0.1 … cos e100` (L3a) or `warmcos w30 e100` (L3b).
+  - Start checks: an alloc job prints one `[alloc] <net>: <kind> alpha=0.5 plan keeps x… (target x… = walk target − 0.02)` line per net. An `inner` job's line ends `; 3 coupled groups held at full width`. Its κ 0.8 cells say `walk target − 0.04`, and the env line shows `SPECTRA_ALLOC_UNDERSHOOT': '0.04'`. An L3 job prints `final_ft from …/traj_models` and its recipe, `sgd lr=0.1 … cos e100` (L3a) or `warmcos w30 e100` (L3b).
   - An `[alloc] … fallback` line means the walk stalled above κ. Report it; it is not a crash.
 - **On COMPLETED.**
   - One PRELIM ledger § per cell from **§221**; the sitting writes the ones it sees.
@@ -259,6 +263,9 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
   - L3 honest gain: `python readers_s30/scripts/final_ft_readout.py <new run dir> <reference run dir>`. New run dirs are `tree_v10{,h}/runs/job<id>`; references are `tree_v9c/runs/job21767189` (N3) and `tree_v10/runs/job22156062` (§212). Each run is read on its own. The L3 Δ is the new honest minus the reference honest at the same label. The printed ADOPT / KILL flags are the 29 Sep walk-vs-final rule, not the L3 call.
   - The L3 call is ADOPT when honest Δ ≥ +0.5 **and** raw final_new ≥ final_old at `size_flop0.47`. The raw condition is "not worse", not "+0.5". **22340387 (§224) is ADOPT under it, not CROSS-OFF**: +0.56 honest, raw +0.20. The paper caption waits on wave 7. The draft pin (line 12) and `PROMPT_FABLE_V6.md` still say CROSS-OFF; carry the correction at the next stamp.
   - Seed-43 twins (wave 8): read each against its seed-42 twin at the same κ. The calls use the two-seed mean (queue, alloc section, wave 8).
+  - **v10 ep0127 read (22341736 / 37) against the allocation walks (§231).** The registered bar fired on seed 42: the sens walk is −2.80 at κ 0.6 against mild's −5.06. So a v10 WIN at κ 0.6 is quoted as "learned allocation at heuristic level"; "beyond heuristic" needs v10 ≥ **−2.30** on r56-w4 at the same landed keep (on the two-seed sens mean once wave 8 is in). At κ 0.8, quote sens −1.30 and uniform −2.26 beside v10. This is an interpretation rule; ops' gate is unchanged. Also read v10's landed residual widths (the `arch` of its `traj_models/*val_best*.json`): sens keeps 4 / 8 / 16, the heuristics cut them.
+  - Wave 9 (`inner`): gap = sens − inner on matched seeds, r56-w4, two-seed mean at κ 0.6 and κ 0.8: **STRUCTURAL** ≤ +0.3 at both, **SENS-ADDS** ≥ +0.5 at both, else **PARTIAL**. κ 0.35: ≤ +0.5 / ≥ +2.0. r20-w2's κ 0.6 plan keeps x0.621 above κ: its `fallback` line is expected (flag; r20 is reported only).
+  - L3-ctrl 22341277 is in (§232): 1-cycle passes its paired read. **22341280 (L3b-rep) is 1-cycle's last read.** Rule: honest Δ ≥ +0.5 and raw ≥ §220's −0.90 at `size_flop0.47`. If it passes, all three reads pass and the caption changes under the registered rule, with the note that most of the margin is the origin control. If it fails, the caption stays lr 0.01.
 - **Flag already seen.** Greedy 5-rate on r20-w2 landed at params **0.538**, a gap of 0.062 below κ (one 0.6 step overshoots on a 2/4/8-wide net). Not equal-size; r20-w2 is the guard net, and r56-w4 decides.
 - **Failure:** report with the last 30 lines, and do not resubmit without the sitting or Ido. Unchanged: never scancel the trains; do not TEST v10 ep0111; Budget resume NO-GO; never N8 / S3.
 

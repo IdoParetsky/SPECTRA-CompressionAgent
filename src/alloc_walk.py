@@ -4,9 +4,11 @@ Allocation-following eval walk (``SPECTRA_EVAL_POLICY=alloc``; no actor, no trai
 A0 (ledger §201 / §204 / §205) cut every coupled group once to a sensitivity-weighted keep and
 recovered for 40 epochs: at equal kept parameters that beat a uniform allocation on both ResNet-56
 cells. This policy asks whether the lever survives the walk. Once per network, on the origin, it
-fixes a target width for every group — ``SPECTRA_ALLOC_KIND=uniform`` (one fraction for all) or
+fixes a target width for every group — ``SPECTRA_ALLOC_KIND=uniform`` (one fraction for all),
 ``sens`` (keep ∝ (s / median s)^α, s = the calibration-loss rise when the group alone is cut to
-half, the measurement behind the v10 sensitivity channels) — with the scale bisected so that
+half, the measurement behind the v10 sensitivity channels) or ``inner`` (every coupled group with
+more than one producer, i.e. a residual stream, held at full width and one fraction for the rest:
+the structure the sens plans take on the thin ResNets, ledger §229) — with the scale bisected so that
 cutting every group once to its target keeps ``target − SPECTRA_ALLOC_UNDERSHOOT`` of the
 parameters. Each decision then plays the legal cut whose resulting width is closest to its group's
 target (ties to the milder cut, identity once it is there). Group-once, the recovery and the
@@ -29,7 +31,7 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens")
+KINDS = ("uniform", "sens", "inner")
 
 
 def kind() -> str:
@@ -56,9 +58,9 @@ def min_keep() -> float:
 
 
 def weights(kind_name, sens, a=0.5):
-    """Relative keep per row before scaling: 1 (uniform) or (s / median)^α, s floored at 5 % of the median."""
+    """Relative keep per row before scaling: 1 (uniform, inner) or (s / median)^α, s floored at 5 % of the median."""
     keys = list(sens)
-    if kind_name == "uniform":
+    if kind_name in ("uniform", "inner"):
         return {key: 1.0 for key in keys}
     positive = [max(0.0, float(sens[key])) for key in keys]
     floor = max(1e-6, 0.05 * statistics.median(positive))
@@ -96,8 +98,9 @@ def group_widths(model, rows):
 def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_floor=0.1, iters=16, tol=0.003):
     """
     ``(widths, info)``: ``widths[row]`` is the target width of the group whose first walk row is
-    ``row``. Keeps are clip(c · weight, keep_floor, 1); c is bisected until the one-shot cut keeps
-    ``target`` of the parameters (widths are integers, so the closest c found).
+    ``row``. Keeps are clip(c · weight, keep_floor, 1), or 1 for a group ``inner`` holds; c is
+    bisected until the one-shot cut keeps ``target`` of the parameters (widths are integers, so the
+    closest c found).
     """
     plan = group_sensitivity.group_plan(ModelWithRows(model))
     rows = [row for _group, row in plan]
@@ -106,12 +109,13 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
     else:
         sens = {row: 1.0 for row in rows}
     w = weights(kind_name, sens, a)
+    held = {row for group, row in plan if kind_name == "inner" and len(group.producers) > 1}
     params0 = utils.calc_num_parameters(model)
     lo, hi = 0.0, 1.0 / min(w.values())
     best = None
     for _ in range(iters):
         c = 0.5 * (lo + hi)
-        keeps = {row: min(1.0, max(keep_floor, c * w[row])) for row in rows}
+        keeps = {row: 1.0 if row in held else min(1.0, max(keep_floor, c * w[row])) for row in rows}
         cut = cut_to(model, plan, keeps, input_shape)
         frac = utils.calc_num_parameters(cut) / params0
         if best is None or abs(frac - target) < abs(best[1] - target):
@@ -125,7 +129,7 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
             lo = c
     keeps, frac, widths = best
     info = {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
-            "keeps": keeps, "origin_widths": group_widths(model, rows), "sens": sens}
+            "keeps": keeps, "origin_widths": group_widths(model, rows), "sens": sens, "held": len(held)}
     return widths, info
 
 
@@ -163,7 +167,7 @@ def _state(env):
             f"[alloc] {os.path.basename(str(net))}: {info['kind']} alpha={info['alpha']:g} plan keeps "
             f"x{info['kept']:.3f} of the params (target x{target:.3f} = walk target − {undershoot():g}) over "
             f"{len(widths)} groups; group keep min {keeps[0]:.2f} median {statistics.median(keeps):.2f} "
-            f"max {keeps[-1]:.2f}")
+            f"max {keeps[-1]:.2f}" + (f"; {info['held']} coupled groups held at full width" if info["held"] else ""))
         try:
             import src.run_recorder as run_recorder
             run_recorder.record(

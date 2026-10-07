@@ -253,6 +253,7 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
+- 7 Oct ~05:30 | 3h + TEST land §226–§228 | ladder **FLAT**; §228 **TREND** at keep 0.123; v10 freeze **ep0127** gate met; first TEST **22341736/37** PD | never quote probe; M1-v10 on COMPLETED vs §211/§212; never TEST ep0015/ep0031/ep0095/ep0111; next 3h 08:28; canvas 09:30
 - 7 Oct ~02:28 | 3h briefing | QOS **6/8**; sitting **22340232–35 R**; resume ep 218; v10 ep0111 do not TEST | 2 idle sitting; do not invent; next 3h 05:28; canvas 09:30
 - 7 Oct ~02:10 | Ido commute **§2.6+** sitting kickoff | prompt `PROMPT_FABLE_OCT7_SITTING.md`; way-ahead **§5.2**; tracker **§8** S3 closed write-up | sitting fills 6 idle; ops does not overlay trains; no N8/S3/Budget resume/v10 TEST
 - 4 Oct 20:45 | **v10 fixed-target train** (sitting, Ido GO 19:23; gate A0 HEADROOM 6/6) | Code in `tree_v10`. Smokes 22155996 / 97. Train **22156116** (resume 22156117). Mild-landed **22156061 / 62** | M1-v10: freezes after update 20 only; actor vs mild-landed at κ 0.6 on r56-w4. Probe scores are never results.

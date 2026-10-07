@@ -4106,7 +4106,7 @@ Sitting 7 Oct, B3' (the prompt's menu A/B, corrected; queue "Sitting 7 Oct"). Cl
 
 ---
 
-## 227. Allocation-following walk, A0's sens rule, landed κ 0.8, thin pair (**22340393**) — PRELIM; r56-w4 **+0.82 over mild §211** at equal params; the lever call waits for uniform 22340394
+## 227. Allocation-following walk, A0's sens rule, landed κ 0.8, thin pair (**22340393**) — PRELIM; r56-w4 **+0.82 over mild §211**; lever **WEAK** vs uniform §229
 
 Sitting 7 Oct, allocation walk (queue "Sitting 7 Oct", allocation section).
 - *Recipe.* `tree_v10h`, profile `baseline_c10_alloc_traj_gonce`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), the v10 5-rate menu, `FIXED_TARGET=1`, `param:0.8`, 6 passes, P, loader crop+flip, walk 40/10, 100-ep final FT + origin, seed 42, deterministic.
@@ -4119,7 +4119,7 @@ Sitting 7 Oct, allocation walk (queue "Sitting 7 Oct", allocation section).
 | r20-w2 | 0.799 / 0.880 | +0.16 | **+1.30** | +3.74 | +1.74; flagged, params 0.799 vs 0.774 | +1.50 (−0.20 @ 0.782 / 0.821) |
 
 **Read.**
-- *r56-w4.* +0.82 pp over mild at equal params, with slightly fewer FLOPs kept (0.696 vs 0.716). The registered call at κ 0.8 is the lever (sens − uniform), which waits for 22340394. The bar rule is set at κ 0.6; here the gap to mild is reported. The same-architecture noise read on this net is 0.38 pp (§226).
+- *r56-w4.* +0.82 pp over mild at equal params, with slightly fewer FLOPs kept (0.696 vs 0.716). The registered lever (sens − uniform) is **§229**: **WEAK** (+0.96). The bar rule is set at κ 0.6. Same-architecture noise on this net is 0.38 pp (§226).
 - *r20-w2.* +1.30 is above the unpruned origin's TEST, but the origin control gains +3.74 under the same final FT (an undertrained 5k-param net): final-FT gain, not pruning gain (honest −2.60). The sens plan cut a few late, parameter-heavy groups hard and left the rest near full, so FLOPs stay at 0.880. Guard net only.
 - Seed-43 twins 22341283 / 84 (wave 8) PD. Do not lock. Never an agent row.
 
@@ -4146,6 +4146,89 @@ Sitting 7 Oct, Lead 3, wave 6 (registered 03:55, before submit).
 - *Origin.* The lr 0.1 origin control replicates: +0.74 here, +0.62 in §223. Under lr 0.01 the same origin moved +0.36 / +0.86 / +0.42 (§157 / §220 / §153).
 - *DepGraph.* At 2.57× on 10k, lr 0.1 sits about 0.47 pp behind DepGraph's +0.11 from both walks, against about 1.6 under lr 0.01. At 2.11×: −0.36 / +0.01 against +0.24. One final-FT seed per walk; never "beats".
 - *Consequence.* The caption stays lr 0.01: cosine failed its first read, and the wave 7 rule needs all three. The registered TREND caption note applies, worded to the data: large-LR retraining (Le & Hua 2021) helps consistently at deep sparsity (2.57× and beyond), and at 2.11× it varies with the walk. A paper row that uses it re-finalises every compared row at that size, pre-registered. Do not lock. Never an agent row.
+
+---
+
+## 229. Allocation-following walk, uniform control κ 0.8 + lever vs §227 (**22340394**) — PRELIM; r56 **WEAK** (+0.96, 0.04 under SURVIVES)
+
+Pair of **§227**. `tree_v10h`, `SPECTRA_ALLOC_KIND=uniform`, otherwise the §227 recipe (`param:0.8`, 6 passes, P, 100-ep origin FT). COMPLETED 2 h 43 m, 7 Oct 05:53, `ise-4090-17`, exit 0. Reader `final_ft_readout.py`. Call (queue): SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 / **WEAK** in between, on r56-w4 (sens − uniform). Seed-43 twins still PD.
+
+| Net | Uniform **22340394** params / FLOPs | Uniform 5k | Sens §227 5k | Sens − uniform | vs mild §211 |
+|---|---|---|---|---|---|
+| r56-w4 | 0.799 / 0.716 | **−2.26** | **−1.30** @ 0.800 / 0.696 | **+0.96** | uniform −0.16; sens +0.82 |
+| r20-w2 | 0.774 / 0.818 | **+0.02** | **+1.30** @ 0.799 / 0.880 | +1.28; params gap 0.025 | guard |
+
+**Read.** r56 lever **+0.96 pp** is **WEAK** (0.04 under SURVIVES). Params match (0.800 vs 0.799). Sens keeps fewer FLOPs (0.696 vs 0.716). Two-seed mean (22341283 / 84) still pending. Do not lock. Never an agent row.
+
+---
+
+## 230. Allocation-following walk, sens vs uniform at landed κ 0.6, thin pair (**22340391 / 22340392**) — PRELIM; r56 **WEAK** (+0.54); bar vs mild **+2.30**
+
+Sitting 7 Oct allocation walk at the v10 WIN κ. `tree_v10h`, `FIXED_TARGET=1`, `param:0.6`, 6 passes, P, 100-ep origin FT. Sens **22340391** COMPLETED 3 h 9 m, 05:43, `ise-4090-21`. Uniform **22340392** COMPLETED 3 h 13 m, 05:48, `ise-4090-21`. Reader `final_ft_readout.py`. Lever: SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 / WEAK in between. Bar: sens − mild-landed §212 ≥ +1.0 on r56-w4.
+
+| Net | Sens **91** params / FLOPs | Sens 5k | Uniform **92** params / FLOPs | Uniform 5k | Sens − uniform | vs mild §212 |
+|---|---|---|---|---|---|---|
+| r56-w4 | 0.600 / 0.572 | **−2.80** | 0.599 / 0.582 | **−3.34** | **+0.54** | sens **+2.30**; uniform +1.76 |
+| r20-w2 | 0.595 / 0.800 | **−2.92** | 0.581 / 0.741 | **−2.92** | 0.00; params gap 0.014 | guard |
+
+**Read.**
+- *Lever.* **WEAK** (+0.54). A0's sensitivity plan beats uniform at this κ, but not by the +1.0 SURVIVES bar. Seed-43 twins 22341281 / 82 still PD.
+- *Bar vs mild.* Sens **−2.80 @ 0.600** vs mild **−5.1 @ 0.600** is **+2.30 pp** at equal params — clears the +1.0 bar. That is a no-agent allocation walk, not an actor. Quote FLOPs beside it (0.572 vs mild 0.453).
+- Do not lock. Never an agent row.
+
+---
+
+## 231. Allocation arms by architecture (zero GPU; the saved candidates of §212 / §216 / §226 / §227 / §229 / §230) — PRELIM read; r56-w4's final Δ follows its **residual width**; mild and uniform land on the **same architecture** at κ 0.8; wave 9 registered
+
+Sitting 7 Oct. Conv widths from each run's saved `val_best` candidate (`traj_models/*.json`, `arch`); no GPU. *Residual* = the width of a stage's coupled stream (stem or downsample plus every block's second conv); *inner* = each block's first conv. r56-w4's origin widths are 4 / 8 / 16 per stage.
+
+| κ | Arm (job) | Final 5k | Params / FLOPs | Residual s1 / s2 / s3 | Inner median s1 / s2 / s3 |
+|---|---|---|---|---|---|
+| 0.6 | sens (22340391) | **−2.80** | 0.600 / 0.572 | **4 / 8 / 16** | 2 / 3 / 11 |
+| 0.6 | uniform (22340392) | −3.34 | 0.599 / 0.582 | 3 / 6 / 12 | 3 / 6 / 13 |
+| 0.6 | greedy-4 (22340232) | −4.16 | 0.600 / 0.582 | 3 / 6 / 11 | 3 / 6 / 16 |
+| 0.6 | greedy-3 (22228973) | −4.68 | 0.600 / 0.453 | 2 / 5 / 13 | 2 / 6 / 13 |
+| 0.6 | mild (22156062) | −5.06 | 0.600 / 0.453 | 2 / 5 / 13 | 2 / 6 / 13 |
+| 0.6 | greedy-5 (22340233) | −5.06 | 0.594 / 0.436 | 2 / 5 / 11 | 2 / 5 / 16 |
+| 0.8 | sens (22340393) | **−1.30** | 0.800 / 0.696 | **4 / 8 / 16** | 2 / 5 / 16 |
+| 0.8 | mild (22156061) | −2.12 | 0.799 / 0.716 | 3 / 7 / 14 | 3 / 7 / 15 |
+| 0.8 | uniform (22340394) | −2.26 | 0.799 / 0.716 | 3 / 7 / 14 | 3 / 7 / 15 |
+| 0.8 | greedy-3 (22228972) | −2.38 | 0.788 / 0.663 | 3 / 6 / 14 | 3 / 6 / 16 |
+
+**Read.**
+- *Order.* At κ 0.6 the arms rank by residual width: full (sens) above 3 / 6 (uniform, greedy-4) above 2 / 5 (mild, greedy-3, greedy-5). At κ 0.8 sens is again the only arm with full residual streams. Inner widths do not order the arms: greedy-4 leaves the late inner convs full and finishes 0.82 below uniform. This is observational (the arms also differ in walk path), so wave 9 is the controlled read.
+- *Same architecture.* At κ 0.8 mild and uniform land on identical widths, conv for conv, on both nets. Their final TEST differs by 0.14 pp on r56-w4 and 0.46 on r20-w2 (different walk paths and inherited weights, one final FT each). With §226's mild = greedy-3 at κ 0.6 (0.38 pp), r56-w4's same-architecture spread is 0.14–0.38 pp. At κ 0.8 the allocation comparison is in effect sens against a uniform cut.
+- *Matched FLOPs.* Sens, uniform and greedy-4 keep FLOPs 0.57–0.58 and finish −2.80 / −3.34 / −4.16. Mild and greedy-3 remove more FLOPs (0.453) by halving stage 1, residual included.
+- *Ties.* Sens's r56-w4 final TEST equals its walk TEST to the image at both κ (0.8618; 0.8768), while val moved (+0.36 / −0.24 pp) and the final-FT loss rose and settled. Checked: the runner scores TEST and val on the same fine-tuned copy with a fresh pass (no cache), and `tree_v10h` differs from `tree_v10` only in `alloc_walk.py` and the schedule getters. A coincidence, quoted as measured.
+- *Margins at two decimals* (§211 / §212 are quoted to one decimal): κ 0.6 sens − mild **+2.26**, uniform − mild +1.72 (§230 has +2.30 / +1.76 from −5.1); κ 0.8 uniform − mild −0.14 (§229: −0.16). No call changes.
+- *For the v10 read (registered bar rule, κ 0.6).* The bar fired on seed 42, so a v10 WIN at κ 0.6 is quoted as "learned allocation at heuristic level". "Beyond heuristic" needs v10 ≥ sens + 0.5 = **−2.30** on r56-w4 at the same landed keep (on the two-seed sens mean once wave 8 lands). At κ 0.8, sens −1.30 and uniform −2.26 go beside v10. Also read v10's landed residual widths against sens's: does the actor keep the residual streams?
+- *Registered next: wave 9* (queue, 06:15, before submit). `SPECTRA_ALLOC_KIND=inner` holds every residual stream at full width and cuts the inner convs uniformly (the rule of Li et al. 2017, PFEC), on a new tree `tree_v10i` (`tree_v10h` + this kind only; 10 alloc tests green). Jobs: κ 0.6 **22341865** / **22341867** (seeds 42 / 43), κ 0.8 **22341866** / **22341870** (undershoot 0.04: the 0.02 plan keeps x0.801, above κ), κ 0.35 **22341871**. Call on r56-w4, gap = sens − inner on matched seeds: **STRUCTURAL** ≤ +0.3 at both κ, **SENS-ADDS** ≥ +0.5 at both κ, else **PARTIAL** (κ 0.35: ≤ +0.5 / ≥ +2.0).
+- Do not lock. Never an agent row.
+
+---
+
+## 232. L3-ctrl: the paper's lr 0.01 final FT re-run from N3's saved DepGraph R56 candidates (**22341277**) — PRELIM; noise floor at 2.11× **0.02 pp raw / 0.20 honest** (under the 0.3 caveat); paired: **1-cycle passes** (+0.76, raw +0.22), cosine fails (+0.06)
+
+Sitting 7 Oct, Lead 3, wave 7 (registered 04:10, before submit).
+- *Recipe.* `tree_v10`, sbatch only, from-saved `SPECTRA_EVAL_FINAL_FT_FROM=tree_v9c/runs/job21767189/traj_models` (N3's four candidates) with the default final FT: SGD 0.01, m 0.9, wd 5e-4, per-epoch cosine, 100 epochs, batch 128, loader crop+flip; P, seed 42, deterministic, origin control. Same code path and RNG state as 22340234 (§223) and 22340387 (§224); only the schedule differs.
+- *Run.* COMPLETED 1 h 24 m, 7 Oct 06:07, `ise-4090-15`, exit 0. Reader `final_ft_readout.py` on all four runs.
+
+Each cell: final 5k / honest / 10k final.
+
+| Point | Params / FLOPs | Walk (5k) | §157, lr 0.01 in the walk | **L3-ctrl**, lr 0.01 from saved | Cosine from 0.1 (§223) | 1-cycle (§224) |
+|---|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | +0.08 | +0.04 / −0.40 / −0.03 | −0.06 / −0.68 / −0.03 | −0.26 / −0.96 / +0.04 | −0.04 / −0.12 / +0.07 |
+| size_flop0.47 (2.11×) | 0.470 / 0.463 | −0.22 | −0.44 / −0.58 / −0.46 | **−0.46 / −0.78 / −0.62** | −0.32 / −0.72 / −0.36 | **−0.24 / −0.02 / −0.44** |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | −1.32 | −1.34 / −0.38 / −1.63 | −1.24 / −0.46 / −1.33 | −0.62 / +0.08 / −0.37 | −1.16 / +0.16 / −1.30 |
+| `val_best` | 0.356 / 0.369 | −1.12 | −0.96 / −0.20 / n/a | −1.26 / −0.68 / n/a | −0.90 / −0.40 / n/a | −1.06 / +0.06 / n/a |
+| origin change (5k / 10k) | 1 | 0 | +0.36 / +0.60 | +0.54 / +0.66 | +0.62 / +0.64 | +0.00 / +0.07 |
+
+**Read.**
+- *Noise floor (registered, reported).* |L3-ctrl − §157| on 5k final: 0.10 / **0.02** / 0.10 / 0.30 (size 0.60 / 2.11× / 2.57× / `val_best`); origin change 0.18; 10k 0.00 / 0.16 / 0.30. Honest at 2.11×: 0.20, mostly the origin. That is under 0.3 at 2.11×, so by the registered rule no noise caveat goes beside the single-run Lead 3 calls. The same recipe on the same saved weights still moves 0.1–0.3 pp from run to run, and the lr 0.01 origin control has now moved +0.42 / +0.36 / +0.86 / +0.54 in four runs (§153 / §157 / §220 / here).
+- *Paired call, 1-cycle: **passes**.* Honest Δ −0.02 − (−0.78) = **+0.76** ≥ +0.5, and raw −0.24 ≥ −0.46 (+0.22). Two of its three registered reads pass (§224, paired). The replicate, L3b-rep 22341280 on τ-off's candidates against §220, is R.
+- *Paired, cosine from 0.1 (reported only; it failed its first read).* Honest Δ +0.06, raw +0.14: fails again at 2.11×. At 2.57× it helps (raw +0.62, 10k +0.96), as in the TREND of §228.
+- *What 1-cycle's margin is made of.* At 2.11× its raw gain is +0.20 / +0.22 on 5k and +0.02 / +0.18 on 10k (vs §157 / L3-ctrl), inside the run-to-run spread above. Most of the honest margin is the origin control: lr 0.01 lifts the unpruned origin by +0.36 to +0.86, 1-cycle by +0.00. The registered rule counts that. If the replicate passes too, the caption note must say the gain is measured against a schedule that also improves the unpruned net.
+- Do not lock. Never an agent row.
 
 ---
 

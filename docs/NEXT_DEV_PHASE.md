@@ -8,7 +8,23 @@ Canonical live jobs / never-list: `docs/OPS_HANDOFF_RUNBOOK.md` §10.0g. Queue /
 
 ---
 
-## 0. Cluster now (7 Oct 02:28 IDT — 3h briefing)
+## 0. Cluster now (7 Oct 05:30 IDT — 3h briefing)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **222/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. First TEST **22341736/37** PD. Never quote probe. |
+| **22341736 / 37** | v10 freeze TEST ep0127 κ 0.8 / 0.6 | R ~17 / 13 min | start-check green. Never quote in-walk. |
+| **22340391 / 92** | alloc-sens / uniform κ 0.6 | R | lever call on COMPLETED pair |
+| **22340394** | alloc-uniform κ 0.8 | R | pairs §227 |
+| **22341277** | L3 lr 0.01 control N3 | R | wave-7 caption gate |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 11 PD**. Ledger next **§229**. Next canvas **09:30**. Next 3h **08:28**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume.
+
+---
+
+## 0b. Cluster at 7 Oct 02:28 IDT — 3h briefing (stale)
 
 | Job | Role | State | Note |
 |---|---|---|---|
@@ -277,6 +293,9 @@ Ido asked ops to answer, pin the sitting docs, and fire-ready an Opus 5.5 prompt
 - 7 Oct 03:30 | **22340235 / 22340388 COMPLETED §221 / §222** | thin L3 cosine + 1-cycle **CROSS-OFF** vs §212 lr 0.01 | keep 100-ep lr 0.01 thin caption; N3 22340234/387 still R; ledger next §223
 - 7 Oct 04:00 | **22340234 / 22340387 COMPLETED §223 / §224** | N3 cosine CROSS-OFF; 1-cycle sitting **ADOPT-by-rule** (caption waits wave 7) | 22341051 R; ledger next §225
 - 7 Oct 05:00 | **22340233 COMPLETED §225** | greedy 5-rate r56 **FLAT** −0.36 pp vs §216; r20 overshoot 0.538 | pair 22340232 still R; ledger next §226
+- 7 Oct 05:30 | 3h + **§226–§228**; v10 **ep0127** TEST **22341736/37** PD | ladder FLAT; §228 TREND keep 0.123; gate met never quote probe | ledger next §229; next 3h 08:28
+- 7 Oct 06:00 | **§229 / §230** | κ 0.8 lever **WEAK** +0.96; κ 0.6 **WEAK** +0.54, bar vs mild **+2.30** | v10 TESTs R; ledger next §231
 - 7 Oct ~02:51 | Sitting (Opus 5.5) | live QOS cap **11** (not 8): 11 R + 3 PD (6 PD after wave 4, 02:57). Twelve cells (queue "Sitting 7 Oct"; runbook **§10.0h**): L3a / L3b final FT (22340234 / 35 / 387 / 388), greedy ladder (22340232 / 33), allocation walks (22340391–94, 22340523 / 24; new `tree_v10h`). Lead 1: NAP-F group mean does not track A0's sensitivity, so C is not run. Lead 2: STOP extinguished | §4.3 correction: "G1 PASS row" / "R3" — v10's state is A0's measured sensitivity, not NAP-F. Ledger next §221
 - 7 Oct ~04:12 | Sitting: §224 correction + waves 7 / 8 | **22340387 (1-cycle, N3) is ADOPT under the registered rule**, not CROSS-OFF: honest Δ +0.56 ≥ +0.5 and raw +0.20 ≥ 0. The margin is 0.06 pp and mostly the origin control (+0.00 vs +0.36; three lr 0.01 replicates of that origin spread 0.50 pp), so the caption waits. Wave 7: L3-ctrl **22341277** (lr 0.01 from saved N3, paired + noise floor), L3b-rep **22341280** (1-cycle on τ-off saves). Wave 8: seed-43 twins of the v10 bar cells at κ 0.6 / 0.8 (alloc **22341281–84**, mild-landed **22341278 / 79**) | a schedule enters the caption only after passing all three reads; κ 0.6 / 0.8 calls on the two-seed mean. Ledger next §225
+- 7 Oct ~06:20 | Sitting: §231 / §232 + wave 9 | **§231:** the allocation arms differ mainly in residual width. Sens keeps every residual stream of r56-w4 full (4 / 8 / 16) and cuts only block-inner convs; uniform, greedy and mild cut it, and the final Δ follows. Mild = uniform architecture at κ 0.8 (0.14 pp apart). Bar margin at two decimals +2.26. "Beyond heuristic" for v10 at κ 0.6 needs ≥ −2.30. **§232:** L3-ctrl noise floor 0.02 raw / 0.20 honest at 2.11×; 1-cycle passes its paired read (+0.76, raw +0.22). **Wave 9** on new `tree_v10i` (`SPECTRA_ALLOC_KIND=inner`, residual streams held full): **22341865 / 67** κ 0.6, **22341866 / 70** κ 0.8, **22341871** κ 0.35 | STRUCTURAL ≤ +0.3 / SENS-ADDS ≥ +0.5 (sens − inner, two-seed); 22341280 is 1-cycle's last read. Ledger next §233
 

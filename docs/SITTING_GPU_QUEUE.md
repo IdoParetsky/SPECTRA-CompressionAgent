@@ -4,9 +4,10 @@
 - *QOS:* the live cap is **11**, not 8: `sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13. **11/11 R:** the Stage-4 resume, v10 and nine sitting cells. **PD (04:12):** twelve sitting cells (waves 4, 5, 7, 8; QOS) and the v10 resume (Dependency, nice 0, first in line).
 - *Leads 1–2 (zero GPU, answered):* NAP-F's group mean does **not** track A0's sensitivity (ρ +0.25 / −0.47 / +0.38; the sign follows depth), so C is not run. The summed single-channel ablation does track it (ρ 0.77–0.92). Budget STOP was played 74 times, then extinguished (none after ep 231). The late policy is "remove 4 %" in 97.5 % of decisions.
 - *B3 correction:* §212 is already 3-rate and mild never plays 0.7 / 0.6. The menu A/B becomes a greedy step-size ladder at κ 0.6.
-- *Trees:* `tree_v10` is untouched (sbatch heuristics and from-saved final FTs only). New **`tree_v10h`** = `tree_v10` + the default-off allocation walk and final-FT schedule (`PROVENANCE_v10h.txt`; staged tests green before the first submit).
+- *Trees:* `tree_v10` is untouched (sbatch heuristics and from-saved final FTs only). New **`tree_v10h`** = `tree_v10` + the default-off allocation walk and final-FT schedule (`PROVENANCE_v10h.txt`; staged tests green before the first submit). New **`tree_v10i`** (06:04) = `tree_v10h` + the residual-full allocation kind `inner` only, for wave 9 (`PROVENANCE_v10i.txt`; 10 alloc tests green). `tree_v10h` stays untouched under its live and pending jobs.
+- *06:20 (sitting):* the allocation arms differ mainly in **residual width**. Sens keeps every residual stream of r56-w4 full and cuts only inner convs; uniform, greedy and mild cut it, and the final Δ follows (§231). Mild and uniform land on the same architecture at κ 0.8 (0.14 pp apart). Wave 9 (5 jobs, PD) tests the residual-full rule against sens. L3-ctrl is in (§232): 1-cycle passes its paired read, and the replicate 22341280 decides.
 - *Correction (sitting 04:10) to the ops stamp of 04:00 below.* **22340387 (§224) is ADOPT under the registered rule, not CROSS-OFF.** The rule is honest Δ ≥ +0.5 and raw final_new ≥ final_old at 2.11×; both hold (+0.56; raw +0.20). The margin is 0.06 pp and mostly the origin control, so the paper caption waits on the robustness reads (wave 7, Lead 3). Ops: the draft pin (line 12) and `PROMPT_FABLE_V6.md` still say CROSS-OFF; please carry the correction at your next stamp.
-- *Ops:* PRELIM §221+ on COMPLETED (the sitting writes the ones it sees). Readers: `final_ft_readout.py` for L3; the TRAJ size point plus the `[alloc]` plan line for alloc walks. Do not TEST v10 ep0111.
+- *Ops:* PRELIM §221+ on COMPLETED (the sitting writes the ones it sees). Readers: `final_ft_readout.py` for L3; the TRAJ size point plus the `[alloc]` plan line for alloc walks. Do not TEST v10 ep0015/ep0031/ep0095/ep0111. First v10 freeze TEST is **ep0127** (**22341736 / 37 R**).
 
 | Cell | Job | Tree | Against | Call |
 |---|---|---|---|---|
@@ -16,22 +17,31 @@
 | L3a on §212's thin saved candidates | **22340235** COMPLETED 03:11 **§221** | v10 | 22156062 §212 | same rule, r56-w4 κ 0.6: **thin CROSS-OFF** (raw −0.16 at r56; origin −0.64) |
 | L3b: 1-cycle (30-ep warmup to 0.1, cosine), N3 | **22340387** COMPLETED 03:56 **§224** | v10h | N3 | as L3a: **ADOPT by the rule** (honest Δ +0.56, raw +0.20; origin +0.00 vs +0.36), margin 0.06 pp: the caption waits on wave 7 |
 | L3b on §212 thin | **22340388** COMPLETED 03:24 **§222** | v10h | §212 | as L3a: **thin CROSS-OFF** (raw −1.06 at r56; origin −1.38) |
-| Alloc walk sens, κ 0.6 thin | **22340391** | v10h | uniform 22340392; §212 | SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 (r56-w4) |
-| Alloc walk uniform, κ 0.6 thin | **22340392** | v10h | — | control |
-| Alloc walk sens, κ 0.8 thin | **22340393** COMPLETED 05:12 **§227** | v10h | uniform 22340394; §211 | as κ 0.6. r56 −1.30 @ 0.800 / FLOPs 0.696: +0.82 vs §211; the lever waits for 22340394 |
-| Alloc walk uniform, κ 0.8 thin | **22340394** R 03:10 | v10h | — | control |
+| Alloc walk sens, κ 0.6 thin | **22340391** COMPLETED 05:43 **§230**, §231 | v10h | uniform 22340392; §212 | **WEAK** +0.54; bar vs mild **+2.30** (+2.26 at two decimals, §231); keeps every residual stream full |
+| Alloc walk uniform, κ 0.6 thin | **22340392** COMPLETED 05:48 **§230** | v10h | — | control r56 **−3.34 @ 0.599** |
+| Alloc walk sens, κ 0.8 thin | **22340393** COMPLETED 05:12 **§227** | v10h | uniform 22340394; §211 | as κ 0.6. r56 −1.30 @ 0.800 / FLOPs 0.696: +0.82 vs §211; lever **WEAK** +0.96 §229 |
+| Alloc walk uniform, κ 0.8 thin | **22340394** COMPLETED 05:53 **§229** | v10h | — | control r56 **−2.26 @ 0.799**; lever **WEAK** +0.96 |
 | Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** R 03:22 | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
 | Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** R 03:44 | v10h | — | control |
-| Alloc walk sens, κ 0.35 thin (wave 4) | **22340636** PD | v10h | uniform 22340637 | SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 (r56-w4) |
-| Alloc walk uniform, κ 0.35 thin | **22340637** PD | v10h | — | control |
-| Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** PD | v10h | sens 22340391 | dose-response, reported |
-| Mild-landed κ 0.35 control, thin (wave 5) | **22340796** PD | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
+| Alloc walk sens, κ 0.35 thin (wave 4) | **22340636** R ~05:09 | v10h | uniform 22340637 | SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 (r56-w4) |
+| Alloc walk uniform, κ 0.35 thin | **22340637** R ~05:14 | v10h | — | control |
+| Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** R 05:56 | v10h | sens 22340391 | dose-response, reported |
+| Mild-landed κ 0.35 control, thin (wave 5) | **22340796** R 06:09 | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
 | L3a-deep: lr 0.1 final FT on τ-off's saved candidates (wave 6) | **22341051** COMPLETED 05:18 **§228** | v10 | §220 | TREND: Δ honest ≥ +1.0 at keep 0.123 and 2.57× ≥ +0.3 → **TREND** (+2.26 / +0.70); its 2.11× replicate read passes (+1.10), reported |
-| L3-ctrl: the paper's lr 0.01 final FT re-run from N3's saved candidates (wave 7) | **22341277** R | v10 | §157; paired with 22340234 / 22340387 | paired reference for both schedules; final-FT noise floor |
-| L3b-rep: 1-cycle on τ-off's saved candidates (wave 7) | **22341280** PD | v10h | §220 | replicate read of §224's ADOPT |
+| L3-ctrl: the paper's lr 0.01 final FT re-run from N3's saved candidates (wave 7) | **22341277** COMPLETED 06:07 **§232** | v10 | §157; paired with 22340234 / 22340387 | noise floor at 2.11× 0.02 raw / 0.20 honest (under 0.3: no caveat). Paired: **1-cycle passes** (+0.76, raw +0.22); cosine fails (+0.06) |
+| L3b-rep: 1-cycle on τ-off's saved candidates (wave 7) | **22341280** R ~05:20 | v10h | §220 | replicate read of §224's ADOPT; 1-cycle's third and last read |
 | Seed-43 alloc walks sens / uniform, κ 0.6 thin (wave 8) | **22341281 / 82** PD | v10h | 22340391 / 92 | lever and bar on the two-seed mean |
 | Seed-43 alloc walks sens / uniform, κ 0.8 thin (wave 8) | **22341283 / 84** PD | v10h | 22340393 / 94 | lever on the two-seed mean |
 | Seed-43 mild-landed κ 0.6 / 0.8 thin (wave 8) | **22341278 / 79** PD | v10 | §212 / §211 | bar on the two-seed mean |
+| Residual-full alloc walk (`inner`), κ 0.6 thin, seeds 42 / 43 (wave 9) | **22341865 / 67** PD | **v10i** | sens 22340391 / 22341281 | STRUCTURAL ≤ +0.3 / SENS-ADDS ≥ +0.5 (sens − inner, two-seed, at both κ) |
+| Residual-full alloc walk (`inner`), κ 0.8 thin, seeds 42 / 43 (wave 9) | **22341866 / 70** PD | **v10i** | sens 22340393 / 22341283 | same call; undershoot 0.04 |
+| Residual-full alloc walk (`inner`), κ 0.35 thin (wave 9) | **22341871** PD | **v10i** | sens 22340636 | STRUCTURAL ≤ +0.5 / SENS-ADDS ≥ +2.0 |
+| First v10 freeze TEST ep0127 κ 0.8 | **22341736** R ~17 min | v10 | §211 | start-check green; never quote in-walk |
+| First v10 freeze TEST ep0127 κ 0.6 | **22341737** R ~13 min | v10 | §212 | start-check green; never quote in-walk |
+
+**Ops 7 Oct 06:00 (TEST land).** **§229** κ 0.8 lever **WEAK** (+0.96). **§230** κ 0.6 lever **WEAK** (+0.54); sens vs mild **+2.30**. v10 TESTs **22341736/37 R**. Resume ep **223**. Ledger next **§231**. Next canvas **09:30**. Next 3h **08:28**.
+
+**Ops 7 Oct 05:30 (3h).** **§226–§228** in (sitting). First v10 freeze TEST **ep0127** **22341736 / 37** then PD. Gate met; **never quote the probe**. Resume ep **222**. Ledger next **§229**. Next canvas **09:30**. Next 3h **08:28**.
 
 **Ops 7 Oct 05:00 (TEST land).** **22340233 COMPLETED §225** greedy 5-rate r56 **FLAT** (−0.36 pp vs §216). r20 overshoot 0.538. Pair **22340232** still R. Sitting correction carried: **§224 ADOPT-by-rule**, caption waits on wave 7. QOS **11 R / 12 PD**. Do not TEST ep0111. Resume ep **222**. Ledger next **§226**. Next canvas **09:30**. Next 3h **05:28**.
 
@@ -778,6 +788,7 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
   - *L3b-rep* (`tree_v10h`; **22341280**). 1-cycle from τ-off's saved candidates (22288423: PATH-SAME widths, different inherited weights), read against §220's lr 0.01 rows. Wave 6 (22341051) is the same read for cosine from 0.1.
   - *Call.* At 2.11×, each schedule gets the Lead 3 rule (honest Δ ≥ +0.5 and raw final ≥ the reference's) twice more: **paired**, against L3-ctrl, and **replicate**, against §220. A schedule changes the paper caption only if it passes all three reads (§223 / §224, paired, replicate); then every compared row is re-finalised with it. Otherwise the caption stays lr 0.01 and the single-run verdicts stand as recorded. Cosine from 0.1 already failed its first read, so its paired and replicate reads are reported only.
   - *Reported.* The noise floor of one 100-ep final FT: |L3-ctrl − §157| at each point and on the origin change. If it reaches 0.3 pp at 2.11×, single-run final-FT calls with bars ≤ 0.5 pp are noise-limited, and that caveat goes beside them. L3b-rep's `val_best` (keep 0.123) is reported beside wave 6.
+  - *Result, L3-ctrl (06:20; ledger §232).* Noise floor at 2.11×: 0.02 pp raw, 0.20 honest (mostly the origin), so no caveat by the rule; 0.10–0.30 pp at the other points. Paired at 2.11×: **1-cycle passes** (honest Δ +0.76, raw +0.22); cosine fails (+0.06; reported only). 1-cycle now has two passes of three, and L3b-rep 22341280 is the last read. Its raw gain at 2.11× is +0.2 pp; most of the honest margin is lr 0.01 lifting the unpruned origin (+0.36 to +0.86) while 1-cycle leaves it flat.
 - **Visible at registration (one candidate each; not a call).**
   - N3 `size_flop0.39` under cosine 0.1: 0.927, against 0.920 under 0.01 (raw +0.7 pp).
   - Thin r20-w2 origin under lr 0.1: 0.649 → 0.692 (+4.4 pp). The undertrained origin gains most, which is what the honest rule subtracts.
@@ -811,6 +822,13 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
   - *Why.* The lever and bar calls at κ 0.6 / 0.8 compare single walks against a +1.0 pp bar, and a mild walk re-walked at seed 43 moved up to 1.2 pp (RW43, §196). v10 will be read against these bars.
   - *Cells* (seed 43, otherwise identical to the seed-42 cells): alloc sens and alloc uniform (`tree_v10h`, 5-rate menu), and mild-landed (`tree_v10`, the §211 / §212 recipe), each at κ 0.6 and κ 0.8 on the thin pair. Six jobs, PD behind waves 4, 5 and 7: alloc sens **22341281** / **22341283**, uniform **22341282** / **22341284**, mild-landed **22341278** / **22341279** (κ 0.6 / κ 0.8).
   - *Call.* At r56-w4 the lever and bar rules above are read on the two-seed mean (seeds 42 and 43). Lever, at each κ: **SURVIVES** ≥ +1.0, **ABSORBED** ≤ +0.3, **WEAK** between. Bar: sens walk − mild-landed ≥ +1.0 at κ 0.6. Where the seed-42 call and the two-seed call disagree, the two-seed call stands. Each arm's seed spread is reported beside RW43's band; r20-w2 is reported.
+- **Wave 9 (registered 06:15, before submit): residual-full allocation walk, `SPECTRA_ALLOC_KIND=inner`, new tree `tree_v10i`.**
+  - *Why.* At κ 0.6 and κ 0.8 the sens walk keeps every residual stream of r56-w4 at full width (4 / 8 / 16) and cuts only the block-inner convs. Uniform, greedy and mild all cut the residual width, and the arms' final Δ follows it (ledger §231). Li et al. 2017 (PFEC) prune only the first conv of each residual block for the same reason. Is the sens lever this structural rule, or does the sensitivity measurement add more?
+  - *Policy.* `inner` holds every coupled group with more than one producer (a residual stream) at full width and gives every other group one keep, bisected to κ − undershoot. No sensitivity measurement. On a plain chain (VGG) it equals uniform.
+  - *Tree.* `tree_v10i` = `tree_v10h` + this kind only (two files, `PROVENANCE_v10i.txt`). 10 alloc tests pass there, including the inner plan and an inner walk that lands on κ with the residual widths untouched. `tree_v10h` (live walks, wave 8) is untouched.
+  - *Plan check (on the origin; the inner plan needs no data).* r56-w4 holds 4 / 8 / 16 and cuts inner to 2 / 5 / 9 at κ 0.6 (plan x0.579) and 1 / 3 / 5 at κ 0.35 (x0.334). At κ 0.8 the 0.02 undershoot plan keeps x0.801, above κ (integer widths), so the κ 0.8 cells use undershoot 0.04 (plan x0.755, inner 3 / 6 / 12). r20-w2's κ 0.6 plan keeps x0.621, above κ, so it will finish by the logged strongest-cut fallback (flagged; r20 is reported only).
+  - *Cells.* inner κ 0.6 seeds 42 / 43, κ 0.8 seeds 42 / 43, κ 0.35 seed 42. Otherwise the sens / uniform walks' recipe: 5-rate menu, landed, 6 passes, P, loader crop+flip, walk 40/10, 100-ep final FT + origin, deterministic.
+  - *Call (r56-w4).* gap = sens − inner on the same seeds. At κ 0.6 and κ 0.8, on the two-seed mean (seed 42 alone is provisional): **STRUCTURAL** if gap ≤ +0.3 at both κ; **SENS-ADDS** if gap ≥ +0.5 at both κ; **PARTIAL** otherwise. κ 0.35 (seed 42, on A0's scale): **STRUCTURAL** if ≤ +0.5, **SENS-ADDS** if ≥ +2.0. Reported: inner − uniform at each κ, inner beside the v10 ep0127 TEST at the same κ, and r20-w2.
 
 ### Lead 1 (zero GPU): group-level NAP-F vs A0 sensitivity. Call: does not correlate; C not run
 
