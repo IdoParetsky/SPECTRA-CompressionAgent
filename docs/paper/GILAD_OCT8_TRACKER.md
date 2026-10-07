@@ -282,7 +282,7 @@
   - N4 VGG-19 C100 with cosine from 0.1 (22342768) is +1.66 / +1.41 at 10k over lr 0.01-last. "Helps across architectures" is **MET**. About half is the unpruned origin improving as well (+0.87).
   - On the val half alone, which no final FT reads, cosine-0.1 wins at every gating point (registered before reading: **VAL-AGREES**). Q7's Recommended moves to "adopt cosine-0.1, val-chosen, quote raw and honest".
   - 1-cycle with its endpoint kept (§253) fails the Lead 3 rule on both walks (honest Δ −0.68 / −0.18 at 2.11×). It is level with cosine-0.1 on the pruned points but lifts the unpruned origin more. Cosine-0.1 is the only large-lr option left for Q7.
-- **7 Oct ~13:05 (sitting)** — The allocation lever at κ 0.6 survives on two seeds (ledger §254).
+- **7 Oct ~13:00 (sitting)** — The allocation lever at κ 0.6 survives on two seeds (ledger §254).
   - Sens beats uniform by **+1.09** on r56-w4 (seed 42 +0.54, seed 43 +1.64), just over the registered +1.0. Seed 42 alone had called it WEAK.
   - The +2.54 non-learned bar over mild decomposes into about +1.45 from spreading the cut evenly (uniform) and +1.09 from sens on top. An agent that only learned "spread the cut" would already sit +1.45 over mild; v10 sits at −0.18 (§248).
 
