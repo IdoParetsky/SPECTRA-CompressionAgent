@@ -5168,6 +5168,28 @@ Guard, r20-w2 (reported), 5k / val / 10k: inner (0.332 / FLOPs 0.623) −7.54 / 
 - *Guard.* On r20-w2 inner lands at −7.54, 2.26 above uniform and 5.52 above sens's size point, as at κ 0.6 / 0.8. Reported only.
 - *For the paper (not decided here).* As §271 says, the rule is PFEC's (Li et al. 2017): quote it as known structure, and put `inner` beside sens in the same-loop table with its FLOPs. Seed 42 only at κ 0.35, as registered. Do not lock. Never an agent row.
 
+## 277. Wave 19 at κ 0.35, seed 42: mild-landed under cosine-0.1-last (**22374696**, re-fine-tuned from 22340796) — PRELIM, reported; bar_cos (sens − mild) **+3.42** at 5k (lr 0.01 +4.34) and +3.27 at 10k (+4.22); the stronger fine-tune repairs part of mild's cut (+0.72 / +0.80), so uniform − mild shrinks from +2.44 to +1.70 while the lever moves less
+
+Sitting 7 Oct wave 19 (registered 13:14, before submit). §264's recipe, from the saved candidates of §260's mild-landed κ 0.35 walk (`tree_v10/runs/job22340796`). Final-FT seed 42, the walk's (verified in the env and the submit line). COMPLETED 1 h 8 m, 19:30, `ise-4090-19`, exit 0, TB 0, and every final FT kept the last epoch. Registered: reported beside §273's lever, as bar_cos = sens − mild against §260's +4.34. No call.
+
+| r56-w4, κ 0.35, seed 42 | Params / FLOPs | Residual s1 / s2 / s3 | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / val / 10k | Origin 5k (lr 0.01) | cos − lr 0.01, 5k / val / 10k |
+|---|---|---|---|---|---|---|---|
+| Sens (§273) | 0.338 / 0.409 | 4 / 8 / 15 | −6.20 / −6.46 / −6.33 | −1.20 | −6.00 / −6.36 / −6.18 | +0.46 | −0.20 / −0.10 / −0.15 |
+| Uniform (§273) | 0.349 / 0.331 | 2 / 5 / 9 | −7.92 / −7.64 / −7.78 | −0.80 | −7.90 / −8.16 / −8.03 | +0.60 | −0.02 / +0.52 / +0.25 |
+| **Mild-landed** (this) | 0.348 / 0.271 | 2 / 3 / 10 | **−9.62** / −9.58 / **−9.60** | −0.36 | −10.34 / −10.46 / −10.40 | +0.54 | **+0.72** / +0.88 / **+0.80** |
+| **Bar, sens − mild** | | | **+3.42** / +3.12 / **+3.27** | | +4.34 / +4.10 / +4.22 | | −0.92 / −0.98 / −0.95 |
+| Uniform − mild | | | +1.70 / +1.94 / +1.82 | | +2.44 / +2.30 / +2.37 | | −0.74 / −0.36 / −0.55 |
+| Lever, sens − uniform (§273) | | | +1.72 / +1.18 / +1.45 | | +1.90 / +1.80 / +1.85 | | −0.18 / −0.62 / −0.40 |
+
+Guard, r20-w2 (mild 0.335), cosine 5k / 10k: mild −10.00 / −8.96 (lr 0.01 −9.70 / −8.93), so under cosine mild sits 1.98 / 2.64 above sens's size point and 1.22 / 0.65 below uniform's.
+
+**Read.**
+- *Reported: bar_cos +3.42 at 5k (+3.27 at 10k), against +4.34 / +4.22 at lr 0.01.* Under the fine-tune Q7 recommends, sens stays well above the standard heuristic, but the margin shrinks by about 0.9 at every view. Almost all of the shrink is mild recovering: +0.72 at 5k and +0.80 at 10k, the largest cosine gain of the three arms (uniform −0.02 / +0.25, sens −0.20 / −0.15).
+- *Where it comes from.* Uniform − mild drops from +2.44 to +1.70 at 5k, while the lever (sens − uniform) moves less (−0.18 at 5k, −0.40 at 10k; §273). So at κ 0.35 the stronger fine-tune repairs part of what mild's walk cut. At κ 0.6 the two-seed bar barely moved (+2.40 against +2.54 at 5k, §269).
+- *FLOPs.* At the same params mild keeps FLOPs 0.271, against uniform's 0.331 (1.22×) and sens's 0.409 (1.51×). Both margins are bought with FLOPs at this keep, as §260's caption says.
+- *Guard.* On r20-w2 mild sits above sens's size point and below uniform's under cosine, as at lr 0.01. Reported only.
+- Seed 42 only. There is no seed-43 mild-landed κ 0.35 walk, so bar_cos at κ 0.35 stays one-seed. The seed-43 sens / uniform walks (22344456 / 57) are R, and their cosine re-reads follow by `afterok`. Do not lock. Never an agent row.
+
 ---
 
 

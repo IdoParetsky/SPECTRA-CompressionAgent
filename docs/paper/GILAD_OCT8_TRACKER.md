@@ -340,6 +340,8 @@
   - Keep the first half of the slide line ("given DepGraph's widths, our walk and fine-tune reach its accuracy at 2.11×"); it is now also true of a uniform cut. Drop "the gap is allocation, which is what the agent must learn" and "where it cuts explains the gap". On one seed, the remaining gap is between N3's walk (another pipeline, §157) and our v10 walks.
 - **7 Oct ~19:15 (sitting)** — At κ 0.35 too, holding the residual streams full and cutting the rest evenly matches the sensitivity plan (ledger §276, seed 42). Sens − inner is **+0.12** at 5k (STRUCTURAL ≤ +0.5), and inner is ahead at 10k (−0.58).
   - Wave 9 is now STRUCTURAL at all three keeps (κ 0.35, 0.6, 0.8): the non-learned lever is the PFEC residual rule. At κ 0.35 the two also keep the same FLOPs, so sens's only measured edge over the rule is 9 % fewer FLOPs at κ 0.8.
+- **7 Oct ~19:40 (sitting)** — At κ 0.35 under cosine-0.1, sens still sits far above the standard heuristic (ledger §277, seed 42). Sens − mild is **+3.42** at 5k (+3.27 at 10k), against +4.34 at lr 0.01.
+  - The shrink is mild recovering under the stronger fine-tune (+0.72 at 5k); the lever over uniform moves less (+1.72 against +1.90). At this keep both margins are bought with FLOPs: sens keeps 1.51× mild's.
 
 ---
 
