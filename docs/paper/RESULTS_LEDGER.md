@@ -5832,3 +5832,24 @@ The lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2
 
 ---
 
+## 304. Wave 20 (c) under cosine-0.1-last: thin κ 0.6 sens / uniform at seed 44 (**22375997 / 22376009**, re-fine-tuned from 22375992 / 93) — PRELIM, reported; three-seed lever_cos **+1.13** at 5k (+1.48 / +1.40 / +0.52), val +1.21, 10k **+1.17**, all above the SURVIVES line (+1.0), against lr 0.01's three-seed +0.88 / +1.00 (§292); §268's two-seed call stands; seed 44 is the low seed under both fine-tunes (+0.52 / +0.46), so §268's small seed spread was a two-seed coincidence
+
+Sitting 7 Oct wave 20 (registered 13:43, before submit), part (c). `tree_v10k`, wave 19's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, origin control, P) on the saved candidates of the seed-44 thin κ 0.6 walks (`tree_v10h/runs/job22375992` / `93`, §292); final-FT seed 44, the walk's (verified in each env). 22375997 COMPLETED 52 m, 8 Oct 02:21, `ise-4090-01`; 22376009 COMPLETED 48 m, 02:33, `ise-4090-20`; both exit 0, TB 0, no fallback; `final_ft from` names the right walk; lr 0.1 cosine, `select=last`; every final FT kept the last epoch (`kept last` 4 each: two nets, pruned point and origin). Both arms land on seeds 42 / 43's architectures (r56-w4 sens step 169, params 0.597 / FLOPs 0.575; uniform step 96, 0.599 / 0.582). Registration (wave 20, 13:43): reported, the three-seed thin κ 0.6 lever beside wave 8's two-seed call, which stands; under cosine-0.1 beside wave 19's κ 0.6 call (§268, two-seed lever_cos **SURVIVES** +1.44 on wave 8's bars: SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3).
+
+| r56-w4, κ 0.6 | Seed 42, cos 5k / val / 10k (§264) | Seed 43, cos (§268) | Seed 44, cos (this) | **Three-seed, cos** | Three-seed, lr 0.01 (§292) | cos − lr 0.01, three-seed 5k / 10k |
+|---|---|---|---|---|---|---|
+| Sens (params 0.597–0.600, FLOPs 0.57) | −2.68 / −2.40 / −2.54 | −3.06 / −2.70 / −2.88 | −3.32 / −3.00 / **−3.16** | −3.02 / −2.70 / −2.86 | −2.66 / −2.88 / −2.77 | −0.36 / −0.09 |
+| Uniform (0.599, FLOPs 0.582) | −4.16 / −4.04 / −4.10 | −4.46 / −3.94 / −4.20 | −3.84 / −3.76 / **−3.80** | −4.153 / −3.913 / −4.033 | −3.54 / −3.993 / −3.767 | −0.613 / −0.267 |
+| **Lever, sens − uniform** | +1.48 / +1.64 / +1.56 | +1.40 / +1.24 / +1.32 | +0.52 / +0.76 / **+0.64** | **+1.133 / +1.213 / +1.173** | +0.880 / +1.113 / +0.997 | +0.25 / +0.18 |
+
+Seed 44 under lr 0.01 (§292): sens −3.10 / −2.88 / −2.99, uniform −3.56 / −3.98 / −3.77, lever +0.46 / +1.10 / +0.78. Walk-level lever +1.38 / +2.14 / +0.86 (three-seed +1.46). Honest lever under cosine +0.00 / −0.84 / −0.76 (three-seed −0.53; lr 0.01 −0.32). Seed 44's r56-w4 origins lose 0.64 / 1.06 at 5k under cosine (lr 0.01 +0.18 / +0.58); across the six cosine runs they lose 0.44–1.06. Guard, r20-w2 (sens 0.595, uniform 0.581), seed 44 under cosine: sens −3.34 / −2.12, uniform −2.58 / −1.57 (5k / 10k), sens − uniform −0.76 / −0.55 (lr 0.01 −0.28 / +0.23); three-seed **−0.71 / −0.57** (lr 0.01 −0.35 / −0.21). The r20 origins gain +4.2 to +5.1 at 5k under cosine.
+
+**Read (reported).**
+- *Three seeds under cosine: still above the SURVIVES line.* Lever_cos is +1.13 at 5k (+1.48 / +1.40 / +0.52), +1.21 on val and +1.17 at 10k, all ≥ +1.0. §268's two-seed call (SURVIVES +1.44) stands as registered. If Q7 adopts cosine-0.1, the paper quotes the three-seed figure, as §292 does for lr 0.01. Cosine adds +0.25 at 5k (+0.18 at 10k) over lr 0.01's three-seed +0.88 / +1.00.
+- *Seed 44 is the low seed under both fine-tunes* (+0.52 under cosine, +0.46 at lr 0.01; walk +0.86). §268's "seed spread falls from 1.10 to 0.08" was a two-seed coincidence: across three seeds the cosine spread is 0.96 (lr 0.01 1.18). The lever is positive on every seed at the walk's end and after both fine-tunes, but its size varies by about a point between seeds.
+- *Where it moves.* Under cosine both r56-w4 arms drop at 5k (three-seed sens −0.36, uniform −0.61), as the thin r56-w4 origins do. Uniform loses more, so the lever grows. Sens keeps slightly fewer FLOPs than uniform at κ 0.6 (0.57 against 0.58), so this lever is not bought with FLOPs.
+- *Guard.* On r20-w2 uniform leads sens by 0.71 at 5k under cosine on three seeds (lr 0.01 0.35), at 0.014 fewer params. Reported only.
+- Waves 18–21 are read, except κ 0.8 mild seed 42 under cosine (22385252), preempted twice and not resubmitted (§297). Do not lock. Never an agent row.
+
+---
+
