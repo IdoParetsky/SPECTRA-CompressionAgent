@@ -217,6 +217,7 @@
   - The paper caption stays lr 0.01 until a paired control (22341277) and a 1-cycle replicate (22341280) read. Slide line, if any: "no final fine-tune schedule closes the 2.11× gap to DepGraph so far (10k −0.46 / −0.36 / −0.44 under lr 0.01 / cosine 0.1 / 1-cycle, against their +0.24; one run each)."
   - Seed-43 twins of the v10 bar cells (κ 0.6 / 0.8) queued so the bars are read on two seeds.
 - **7 Oct ~05:10** — Step-size ladder at κ 0.6 (ledger §225 / §226): **FLAT**. Cutting 30 % or 40 % per step instead of 20 % does not change TEST at equal params on r56-w4 (−4.16 / −5.06 vs −4.68), but halves the decisions (45 / 39 vs 79). Mild and greedy-3 landed on the *same* r56-w4 architecture by different paths, 0.38 pp apart: that is the noise of one walk plus final FT at fixed architecture. Slide use: the 5-rate action menu is a cost lever, not an accuracy lever; v10's FLOPs are quoted beside its Δ (the 0.7-step walk kept FLOPs 0.58 vs 0.45 at equal params).
+- **7 Oct ~05:20** — Le & Hua deep read (ledger §228): **TREND**. Re-finalising τ-off's saved candidates with cosine from lr 0.1 lifts keep 0.123 by +2.26 honest and replicates §223 at 2.57×: on 10k −0.36 / −0.37 from two different walks, against DepGraph's +0.11 (≈ 0.47 behind, from ≈ 1.6 under lr 0.01). At 2.11× it helps on one walk (+1.10) and not the other (−0.14). Slide line: "a large-LR final fine-tune closes most of our 2.57× gap to DepGraph; it helps more at higher sparsity (Le & Hua 2021)". Never "beats"; the paper caption stays lr 0.01 until every compared row is re-finalised.
 
 ---
 

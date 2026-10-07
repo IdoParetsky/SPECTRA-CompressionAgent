@@ -26,7 +26,7 @@
 | Alloc walk uniform, κ 0.35 thin | **22340637** PD | v10h | — | control |
 | Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** PD | v10h | sens 22340391 | dose-response, reported |
 | Mild-landed κ 0.35 control, thin (wave 5) | **22340796** PD | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
-| L3a-deep: lr 0.1 final FT on τ-off's saved candidates (wave 6) | **22341051** R 03:56 | v10 | §220 | TREND: Δ honest ≥ +1.0 at keep 0.123 and 2.57× ≥ +0.3; its 2.11× row is L3a's replicate read |
+| L3a-deep: lr 0.1 final FT on τ-off's saved candidates (wave 6) | **22341051** COMPLETED 05:18 **§228** | v10 | §220 | TREND: Δ honest ≥ +1.0 at keep 0.123 and 2.57× ≥ +0.3 → **TREND** (+2.26 / +0.70); its 2.11× replicate read passes (+1.10), reported |
 | L3-ctrl: the paper's lr 0.01 final FT re-run from N3's saved candidates (wave 7) | **22341277** R | v10 | §157; paired with 22340234 / 22340387 | paired reference for both schedules; final-FT noise floor |
 | L3b-rep: 1-cycle on τ-off's saved candidates (wave 7) | **22341280** PD | v10h | §220 | replicate read of §224's ADOPT |
 | Seed-43 alloc walks sens / uniform, κ 0.6 thin (wave 8) | **22341281 / 82** PD | v10h | 22340391 / 92 | lever and bar on the two-seed mean |
@@ -772,6 +772,7 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
   - *References.* §220's lr 0.01 rows from the same walk.
   - *Call.* **TREND** if Δ honest at `val_best` (keep 0.123) ≥ +1.0 pp **and** the 2.57× point replicates ≥ +0.3. Then a caption note: large-LR retraining helps only at deep sparsity. Otherwise **NO-TREND**: §223's 2.57× was noise.
   - Either way the 2.11× CROSS-OFF stands, and no paper row changes without re-finalising all compared rows.
+  - *Result (05:20; ledger §228): **TREND**.* Keep 0.123: Δ honest +2.26; 2.57×: +0.70. At 2.57×, 10k lands at −0.36 / −0.37 from both walks (lr 0.01: −1.52 / −1.63). At 2.11× the replicate passes (+1.10) where §223 failed (−0.14), so the effect there depends on the walk. Caption stays lr 0.01.
 - **Wave 7 (registered 04:10, after §224's read and before submit): robustness reads for both schedules.** §224's 1-cycle ADOPT clears the bar by 0.06 pp. +0.36 pp of its +0.56 is the origin control, and three runs of the identical lr 0.01 final FT on this origin moved it +0.42 / +0.36 / +0.86 (§153 / §157 / §220).
   - *L3-ctrl* (`tree_v10`, sbatch only; **22341277**). The paper recipe (SGD 0.01, per-epoch cosine, 100 epochs) re-run from N3's saved candidates, on the same code path, seed and RNG state as 22340234 and 22340387. Each schedule thus gets a paired reference that differs only in the schedule. Against §157 (same recipe, run inside the walk) it measures final-FT noise at every point and on the origin.
   - *L3b-rep* (`tree_v10h`; **22341280**). 1-cycle from τ-off's saved candidates (22288423: PATH-SAME widths, different inherited weights), read against §220's lr 0.01 rows. Wave 6 (22341051) is the same read for cosine from 0.1.

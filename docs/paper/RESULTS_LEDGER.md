@@ -4125,5 +4125,29 @@ Sitting 7 Oct, allocation walk (queue "Sitting 7 Oct", allocation section).
 
 ---
 
+## 228. L3a-deep: cosine-from-lr-0.1 final FT on τ-off's saved DepGraph R56 candidates (**22341051**) — PRELIM; **TREND** (keep 0.123 Δ honest +2.26; 2.57× +0.70); at 2.11× the replicate passes (+1.10) where §223 failed (−0.14)
+
+Sitting 7 Oct, Lead 3, wave 6 (registered 03:55, before submit).
+- *Recipe.* `tree_v10`, from-saved `SPECTRA_EVAL_FINAL_FT_FROM=tree_v9d/runs/job22288423/traj_models` (all four τ-off candidates: PATH-SAME widths as N3, different inherited weights), `SPECTRA_EVAL_FINAL_FT_LR=0.1`. Otherwise §223's recipe: SGD m 0.9, wd 5e-4, per-epoch cosine, 100 epochs, batch 128, loader crop+flip; P, seed 42, deterministic, origin control.
+- *Run.* COMPLETED 1 h 21 m, 7 Oct 05:18, `cs-4090-08`, exit 0.
+- *Reader and calls.* `final_ft_readout.py` on this run and on 22288423 (§220, lr 0.01, same candidates). TREND needs Δ honest ≥ +1.0 at `val_best` (keep 0.123) and ≥ +0.3 at 2.57×. The 2.11× row is also cosine's replicate read under the Lead 3 rule (wave 7), reported only, because cosine failed its first read (§223).
+
+| Point | Params / FLOPs | Walk (5k) | Final 5k, lr 0.01 (§220) | Final 5k, lr 0.1 | Honest, 0.01 → 0.1 | Δ honest | 10k final, 0.01 → 0.1 | N3 under lr 0.1 (§223): Δ honest / 10k | DepGraph (10k) |
+|---|---|---|---|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | +0.18 | −0.20 | +0.38 | −1.24 → −0.54 | +0.70 | −0.16 → +0.05 | −0.56 / +0.04 | — |
+| size_flop0.47 (2.11×) | 0.470 / 0.463 | −0.76 | −0.90 | **+0.08** | −1.00 → +0.10 | **+1.10** | −0.94 → **+0.01** | −0.14 / −0.36 | +0.24 |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | −1.22 | −1.34 | **−0.76** | −0.98 → −0.28 | **+0.70** | −1.52 → **−0.36** | +0.46 / −0.37 | +0.11 |
+| `val_best` (keep 0.123) | 0.123 / 0.121 | −5.42 | −5.02 | **−2.88** | −0.46 → +1.80 | **+2.26** | n/a | — | — |
+| origin | 1 | 0 | +0.86 | +0.74 | — | — | +0.73 → +0.82 | origin +0.62 | — |
+
+**Read.**
+- *Call: **TREND**.* Keep 0.123: Δ honest +2.26 (raw +2.14). 2.57×: +0.70. Large-LR retraining helps more the deeper the cut. At 2.57× it lands at the same place from both walks: 10k −0.37 (N3) and −0.36 (τ-off), against −1.63 and −1.52 under lr 0.01.
+- *2.11× (replicate read, reported).* Passes the Lead 3 rule here (honest Δ +1.10, raw +0.98), where N3's candidates failed it (−0.14 / +0.12). On 10k the two walks move +0.10 and +0.95. At 2.11× the effect depends on the inherited weights; at 2.57× it does not.
+- *Origin.* The lr 0.1 origin control replicates: +0.74 here, +0.62 in §223. Under lr 0.01 the same origin moved +0.36 / +0.86 / +0.42 (§157 / §220 / §153).
+- *DepGraph.* At 2.57× on 10k, lr 0.1 sits about 0.47 pp behind DepGraph's +0.11 from both walks, against about 1.6 under lr 0.01. At 2.11×: −0.36 / +0.01 against +0.24. One final-FT seed per walk; never "beats".
+- *Consequence.* The caption stays lr 0.01: cosine failed its first read, and the wave 7 rule needs all three. The registered TREND caption note applies, worded to the data: large-LR retraining (Le & Hua 2021) helps consistently at deep sparsity (2.57× and beyond), and at 2.11× it varies with the walk. A paper row that uses it re-finalises every compared row at that size, pre-registered. Do not lock. Never an agent row.
+
+---
+
 
 
