@@ -4232,5 +4232,68 @@ Each cell: final 5k / honest / 10k final.
 
 ---
 
+## 233. Allocation-following walk, uniform control, DepGraph ResNet-56 C10 landed params 0.47 (**22340524**) — PRELIM; lever waits on **22340523**
+
+Pair of **22340523** (still R). Sitting 7 Oct, `tree_v10h`, `SPECTRA_ALLOC_KIND=uniform`, `SIZE_MATCH=param:0.47`, 6 passes, P, 100-ep origin FT. COMPLETED 2 h 30 m, 7 Oct ~06:13, exit 0. Reader `final_ft_readout.py` on the run dir. Call (queue): SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 on r56 (sens − uniform) once 523 lands.
+
+| Point | Params / FLOPs | Walk (5k) | Final 5k | Honest | 10k |
+|---|---|---|---|---|---|
+| `val_best` = `size_param0.47` | 0.465 / 0.472 | −0.56 | **−0.74** | −0.64 CROSS-OFF | n/a (val-selected) |
+| origin | 1.000 / 1.000 | 0 | +0.46 | — | +0.64 |
+
+**Read.** Uniform lands at **−0.74 @ 0.465 / 0.472**. N3 mild at the nearby 2.11× point is −0.44 @ 0.470 / 0.463 (§157; L3-ctrl −0.46, §232). Different walk, not a registered comparison. 10k is n/a because the size point is `val_best`. Do not quote a lever. Never an agent row.
+
+---
+
+## 234. DepGraph's own allocation beside ours (zero GPU; the pruned module trees DepGraph's benchmark printed in h2h **21943448**; the DG pair's plans; N3's saved candidates) — PRELIM read; DepGraph keeps the **early residual streams near full**; wave 10 (architecture transplant) registered
+
+Sitting 7 Oct ~06:50. Source: `tree_v9d/runs/h2h_depgraph/job_21943448/*.log`, DepGraph's official Torch-Pruning pipeline on our 4090 from the same released checkpoints (2 Oct). DepGraph's widths are parsed with `scripts/widths_from_module_print.py`; ours are read with `scripts/arch_widths_readout.py`. Our counter reproduces DepGraph's sizes on its own trees exactly: R56 params 0.5044 / FLOPs 0.4735 (its log: 50.44 % / 47.37 %, 2.11×); VGG-19 C100 0.0608 / 0.1104 (6.08 % / 11.08 %; our h2h run landed at **9.02×**, the paper's row is 8.84×).
+
+DepGraph R56 C10 (origin 16 / 32 / 64 per stage). Residual width / inner conv widths min–median–max:
+
+| Allocation | Params / FLOPs | Stage 1 | Stage 2 | Stage 3 | Final, 10k |
+|---|---|---|---|---|---|
+| DepGraph 2.11× (its pipeline, h2h) | 0.504 / 0.474 | **13** / 4–8–11 | **31** / 7–12–28 | 42 / **34–54–62** | **+0.24** (93.77, last epoch) |
+| N3 mild, `size_flop0.47` (§157) | 0.470 / 0.463 | 11 / 11–11–11 | 21 / 21–21–21 | 42 / 42–47–47 | −0.46 |
+| Uniform alloc walk 22340524 (§233) | 0.465 / 0.472 | 11 / 11–11–11 | 22 / 22–22–22 | 44 / 27–45–45 | n/a (val-selected) |
+| Sens alloc plan 22340523 (R) | plan 0.447 | **16** / 3–6–9 | **32** / 3–5–32 | **64** / 12–30–64 | pending |
+
+VGG-19 C100 at 9.02× (h2h; origin 64, 64 | 128, 128 | 256 ×4 | 512 ×4 | 512 ×4): **4**, 30 | 41, 108 | 102, 163, 67, 237 | 265, 33, 29, 15 | 19, 24, 20, 26. Final 70.53 (last epoch), **−2.97** against its 73.50. DepGraph's "Best Acc" lines are selected on the test set and are not quoted.
+
+**Read.**
+- *Three allocations.* DepGraph's allocation is neither uniform nor residual-full. It keeps the stage 1–2 residual streams near full (13 / 16, 31 / 32) and cuts their inner convs hard and unevenly (4–11 of 16, 7–28 of 32). In stage 3 it does the opposite: the residual drops to 42 / 64 while the inner convs stay wide (median 54 of 64). N3's mild walk and the uniform walk are both close to a uniform 2/3 cut, residual included. The sens plan holds every stream full and cuts the inner convs deeper.
+- *Prior evidence.* §162 (N2-streams: mild with `SPECTRA_PROTECT_STREAMS=1`, no crop+flip) was **+2.10 pp** paired by params against its matched no-aug control on r56-w4. Same direction as §231; never re-run under crop+flip, which wave 9 now does.
+- *The gap to explain.* At 2.11× N3 sits 0.70 pp (10k) under DepGraph's own pipeline on the same checkpoint. DepGraph differs in allocation, in ranking (group-L2 after sparsity learning), in a sparsity-learning pre-training stage, and in its fine-tune. The transplant moves the allocation alone.
+- *Registered next: wave 10* (queue, 06:50, before submit). `SPECTRA_ALLOC_KIND=widths` gives every group the width DepGraph's printed tree names for it. It runs on a new tree `tree_v10j` (`tree_v10i` + this kind; 12 alloc tests green), with our L1 ranking, walk recovery and final FT. R56 uses the 9-rate menu (1.0 0.95 … 0.6), which reaches 0.507 / 0.479 with 6 of 30 groups one channel wide; the 5-rate menu would miss 14 by up to 3. VGG-19 C100 uses the 12-rate menu down to 0.3 and `SPECTRA_STEM_ROWS=0`, because DepGraph cuts the first conv 64 → 4, which the stem rule would forbid. It reaches 0.0605 / 0.109. Call on R56 (10k, size point): lift = transplant − (−0.54) − 0.15, where −0.54 is N3's two lr-0.01 final FTs at 2.11× (§157 −0.46, §232 −0.62) and 0.15 is a size credit (FLOPs 0.479 vs 0.463 at N3's own ~9.6 pp per unit FLOPs between its 2.11× and 2.57× final-FT points). **ALLOCATION** if lift ≥ +0.5 (≥ 2/3 of the 0.78 pp to DepGraph's +0.24); **NOT-ALLOCATION** if ≤ +0.2; **PARTIAL** between. VGG-19 C100 (10k), reported against DepGraph's −2.97: **MATCH** if ≥ −3.47.
+- Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
+## 235. Which epoch the final fine-tune keeps (zero GPU; census of 191 final FTs in the `tree_v9b`–`tree_v10h` logs; τ-off reads 22341051 / 22341280) — PRELIM; after a crop+flip walk the default **keeps epoch 1** on most lr-0.01 DepGraph R56 points and on every 1-cycle run; **1-cycle VOID**; wave 11 (`select=last`) registered
+
+- *Mechanism.* `ClassificationHandler.train_model` keeps the lowest-train-loss epoch and restores it after the last one (`select=train_loss`). The final FT uses the same rule: patience is epochs + 1, so it runs all 100 epochs, then restores. A net recovered by a crop+flip walk often starts below the train loss that 100 SGD epochs with weight decay 5e-4 end at. The restore then brings back epoch 1: the walk plus one epoch. Origins at lr 0.01 / 0.1 keep a late epoch, so "honest" compares one pruned epoch with 100 origin epochs. Selection is on the train loss, never on test, so these TEST numbers are legitimate; the label "100-epoch final FT" is not.
+- *Census.* The log prints epochs 1, 5, 10, …; EARLY = the lowest printed loss is at epoch 1 or 5 and `best_loss` matches it. Pruned rows:
+
+| Final FT | Net | EARLY / all | Where |
+|---|---|---|---|
+| lr 0.01 cosine (paper caption) | DepGraph R56 C10 | **14 / 30** | N3 21767189 **4/4** (§157), τ-off 22288423 3/4 (§220; `val_best` late), L3-ctrl 22341277 4/4 (§232), §203 1/4, §217 1/1, §233 1/1; §153 (no-aug walk) and 21767190 / 92 0/4 |
+| lr 0.01 cosine | chenyaofo R56 C10 | **3 / 3** | twins 21809595 (§164) |
+| lr 0.01 cosine | DepGraph VGG-19 C100 | 3 / 6 | all three in N4 21737105 (§155); §149 21729551 late (epochs ~90–95) |
+| lr 0.01 cosine | thin pair | 15 / 48 | 21729550, 21730499, 22155997 and a smoke run; every landed-κ row since §211 kept a late epoch |
+| lr 0.01 cosine | VGG-16 C10 | 0 / 7 | — |
+| cosine from lr 0.1 | DepGraph R56 C10 | **0 / 12** | §223, §228 (epochs ~95–100) |
+| 1-cycle (warmup 30 to lr 0.1, cosine) | DepGraph R56 C10 | **8 / 8**, both origins too | §224 22340387, L3b-rep 22341280 |
+
+- *1-cycle: **VOID**.* All three Lead 3 reads kept epoch 1 on every pruned point **and** on the origin, one epoch at ≤ lr 0.0033 of warmup. The L3b replicate 22341280 (τ-off's candidates, 7 Oct 06:39, exit 0) passes the registered rule numerically at 2.11×: honest −0.16 vs §220's −1.00 (Δ +0.84), raw −0.86 ≥ −0.90, 10k −0.73 vs −0.94; origin change +0.06. Like §224 (+0.56) and §232's paired read (+0.76), it compares no fine-tune against lr 0.01's genuine 100-epoch origin lift. Withdrawn: the sitting's 04:10 correction ("§224 fires ADOPT") is right as arithmetic and wrong as evidence. 1-cycle does not enter the caption on these runs.
+- *lr 0.01 rows.* §157's M4 row (2.11× 10k −0.46), §220 and §232 are walk + 1 epoch. "Long FT CROSS-OFF" on those rows (§155, §157, §164, §220) measures one pruned epoch against the origin's 100. §155's CROSS-OFF vs §149 compares epoch 1 with epoch ~95, so it is confounded too.
+- *Cosine from lr 0.1 is the only genuine long FT on these points.* N3's walk: 2.11× 10k **−0.36**, 2.57× **−0.37** (§223). τ-off's walk: **+0.01** / **−0.36** (§228, 22341051). §228's 2.57× TREND compares a genuine FT with walk + 1 epoch. Learning rate and selection are confounded until wave 11 lands.
+- *Not affected:* VGG-16 rows, the lr 0.1 rows, §149, §153 (no-aug walk), landed-κ thin rows (§211–§231).
+- *Registered: wave 11* (queue, 07:10, before submit). New tree `tree_v10k` = `tree_v10j` + default-off `SPECTRA_EVAL_FINAL_FT_SELECT=last`: the final FT keeps its last epoch (`train_model(keep_last=True)`; the runner passes it only when the flag is set; 58 staged tests green, 3 new). From-saved re-FTs with the paper recipe otherwise unchanged (lr 0.01 cosine, 100 epochs, P, seed 42, origin control). The training trajectory is the train-loss run's own; only the kept epoch changes. Cells: N3 21767189, τ-off 22288423, N4 21737105, twins 21809595 (VGG-16 = negative control, already late), 1-cycle-last on N3 and τ-off, and the DepGraph allocation rows (§233; 22340523 and wave 10 by `afterok`).
+- *Call (10k; 2.11× = `size_flop0.47`, 2.57× = `size_flop0.39`).* Δsel = select=last − the same walk's train-loss final (N3 vs §157, τ-off vs §220). **REQUOTE** if Δsel ≥ +0.3 on both walks at 2.11× or at 2.57×: the M4 row and every early-epoch lr-0.01 row are re-finalised with `select=last` before quoting. **STANDS** if Δsel ≤ −0.3 on both walks at both points: keep the numbers, caption "walk + 1 epoch (train-loss selection)". **NEUTRAL** otherwise: keep the numbers; the caption discloses the selection.
+- *Reported, not gating.* Honest, now 100 epochs against 100. lr 0.01-last against cosine-0.1: within 0.3 at 2.57× on both walks means §228's TREND was the selection, not the learning rate. N4 against §149 on equal epochs re-reads §155. Twins: R56 Δsel, with VGG-16 |Δsel| > 0.5 meaning the R56 read is noise-limited. 1-cycle-last by the Lead 3 rule against lr 0.01-last (honest Δ ≥ +0.5 and raw ≥, at 2.11×, both walks). Allocation rows under `select=last` beside their lr 0.01 rows.
+- *Noise.* §232's 0.02 pp (2.11×, 5k) compares epoch 1 with epoch 1. Endpoint noise after 100 epochs is unmeasured. A Δsel within 0.1 of a bar is "unresolved", not a call.
+- Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
 
 

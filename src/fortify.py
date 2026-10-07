@@ -608,6 +608,19 @@ def eval_final_ft_warmup() -> float:
     return max(0.0, _env_float_or("SPECTRA_EVAL_FINAL_FT_WARMUP", 1.0))
 
 
+def eval_final_ft_select() -> str:
+    """
+    ``SPECTRA_EVAL_FINAL_FT_SELECT``: which epoch the final fine-tune keeps. "" (default) = the lowest
+    train loss, as every fine-tune does; ``last`` = the schedule's endpoint. A net recovered by a
+    crop+flip walk often starts below the train loss that 100 SGD epochs with weight decay end at,
+    and the default then keeps epoch 1 (ledger §235).
+    """
+    name = os.environ.get("SPECTRA_EVAL_FINAL_FT_SELECT", "").strip().lower()
+    if name not in ("", "train_loss", "last"):
+        raise ValueError(f"SPECTRA_EVAL_FINAL_FT_SELECT={name!r}: expected '', 'train_loss' or 'last'")
+    return "last" if name == "last" else ""
+
+
 def eval_final_ft_batch() -> int:
     """``SPECTRA_EVAL_FINAL_FT_BATCH`` (128): fixed, so the final recipe does not follow the GPU model."""
     return max(2, _env_int_or("SPECTRA_EVAL_FINAL_FT_BATCH", 128))

@@ -102,7 +102,7 @@ class ClassificationHandler(BasicHandler):
         return accuracy
 
     def train_model(self, train_loader, allow_reinit_retry=True, max_epochs=None, patience=None,
-                    val_loader=None, lr_mult=1.0, tag=""):
+                    val_loader=None, lr_mult=1.0, tag="", keep_last=False):
         """
          Fine-tunes the model after a compression step, keeping the best-loss weights.
 
@@ -123,10 +123,14 @@ class ClassificationHandler(BasicHandler):
                  restored. Default None keeps the live train-loss selection byte-identical.
              lr_mult (float): Multiplier on the fine-tune learning rate (C-G+ polish uses 0.1).
              tag (str): Log prefix for multi-phase recipes (``"C-G group"`` / ``"C-G+ polish"``).
+             keep_last (bool): Keep the last epoch's weights instead of restoring the best state
+                 (the final fine-tune's ``SPECTRA_EVAL_FINAL_FT_SELECT=last``). Ignored with ``val_loader``.
          """
         conf = StaticConf.get_instance().conf_values
         device = conf.device
         select_on_val = val_loader is not None
+        keep_last = bool(keep_last) and not select_on_val
+        select_name = "val" if select_on_val else ("last" if keep_last else "train_loss")
         log_tag = f"[{tag}] " if tag else ""
         self.model.float().to(device)
         self.model.train()
@@ -247,7 +251,7 @@ class ClassificationHandler(BasicHandler):
             f"wd={weight_decay if optim_name in ('sgd', 'adamw', 'radam') else 0:g} "
             f"mixup={mixup_alpha:g} smooth={label_smooth:g} kd={int(use_kd)} "
             f"patience={MAX_EPOCHS_PATIENCE} epochs={num_epochs} "
-            f"select={'val' if select_on_val else 'train_loss'} trainable={n_trainable}")
+            f"select={select_name} trainable={n_trainable}")
 
         for epoch in range(num_epochs):  # 100 in NEON -> 40
             epoch_losses = []
@@ -362,7 +366,8 @@ class ClassificationHandler(BasicHandler):
             epochs_ran = 0
 
         if best_state_buffer is not None and epochs_ran > 0 and epochs_not_improved < MAX_EPOCHS_PATIENCE:
-            utils.print_flush(f"{log_tag}Fine-tune finished all {epochs_ran} epochs; best_loss={best_loss:.5f}")
+            utils.print_flush(f"{log_tag}Fine-tune finished all {epochs_ran} epochs; best_loss={best_loss:.5f}"
+                              + (f"; kept the last epoch (loss {avg_loss:.5f})" if keep_last else ""))
 
         try:
             import src.run_recorder as _recorder
@@ -373,7 +378,7 @@ class ClassificationHandler(BasicHandler):
                 early_stopped=epochs_not_improved >= MAX_EPOCHS_PATIENCE,
                 best_loss=None if best_loss == np.inf else round(float(best_loss), 6),
                 patience=MAX_EPOCHS_PATIENCE,
-                select="val" if select_on_val else "train_loss",
+                select=select_name,
                 best_val=None if best_val == -np.inf else round(float(best_val), 5),
                 phase=tag or None,
                 trainable_params=n_trainable,
@@ -385,7 +390,7 @@ class ClassificationHandler(BasicHandler):
         if best_loss == np.inf:
             utils.print_flush(
                 "Fine-tune produced no loss (empty loader); keeping pruned weights.")
-        elif best_state_buffer is not None:
+        elif best_state_buffer is not None and not keep_last:
             self.model.load_state_dict(best_state_buffer)
 
         # Free up cache and memory after training. Identity-heavy evals spend a lot of

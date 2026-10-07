@@ -35,7 +35,7 @@ V9C_KEYS = ("SPECTRA_EVAL_SAVE_TRAJ_MODELS", "SPECTRA_EVAL_FINAL_FT_SCRATCH", "S
             "SPECTRA_EVAL_FINAL_FT_EPOCHS", "SPECTRA_EVAL_FINAL_FT_BATCH", "SPECTRA_EVAL_FINAL_FT_KD",
             "SPECTRA_FT_AUG", "SPECTRA_FT_AUTOAUG", "SPECTRA_EVAL_FINAL_FT_LR",
             "SPECTRA_EVAL_FINAL_FT_SCHEDULE", "SPECTRA_EVAL_FINAL_FT_WARMUP", "SPECTRA_FT_SCHEDULE",
-            "SPECTRA_FT_WARMUP_EPOCHS")
+            "SPECTRA_FT_WARMUP_EPOCHS", "SPECTRA_EVAL_FINAL_FT_SELECT")
 
 
 @pytest.fixture(autouse=True)
@@ -193,7 +193,8 @@ class _Env:
                 if env.fail_label and kwargs.get("tag") == f"final FT {env.fail_label}":
                     raise RuntimeError("CUDA OOM")
                 env.runs.append({"tag": kwargs.get("tag"), "start": float(model.weight),
-                                 "epochs": kwargs.get("max_epochs"), "lr": os.environ.get("SPECTRA_FT_SGD_LR")})
+                                 "epochs": kwargs.get("max_epochs"), "lr": os.environ.get("SPECTRA_FT_SGD_LR"),
+                                 "keep_last": kwargs.get("keep_last", "absent")})
 
             def evaluate_model(self, _loader):
                 return 0.75
@@ -296,6 +297,57 @@ def test_final_ft_schedule_reaches_the_handler_and_the_walk_value_comes_back(mon
     monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_SCHEDULE", "onecycle")
     with pytest.raises(ValueError):
         fortify.eval_final_ft_schedule()
+
+
+def test_final_ft_select_flag_parses(monkeypatch):
+    assert fortify.eval_final_ft_select() == ""
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_SELECT", " Last ")
+    assert fortify.eval_final_ft_select() == "last"
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_SELECT", "train_loss")
+    assert fortify.eval_final_ft_select() == ""
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_SELECT", "val")
+    with pytest.raises(ValueError):
+        fortify.eval_final_ft_select()
+
+
+def test_final_ft_passes_keep_last_only_when_selected(monkeypatch):
+    import a2c_agent_reinforce_runner as runner
+    lines, _ = _quiet(monkeypatch, runner)
+    env = _Env()
+    runner._run_final_ft(env, "net.pt", {"val_best": _point(5, 0.7, -9.0)}, _candidates(), 10)
+    assert [r["keep_last"] for r in env.runs] == ["absent", "absent"]       # the default call is unchanged
+    assert not any("keep=last" in ln for ln in lines)
+    monkeypatch.setenv("SPECTRA_EVAL_FINAL_FT_SELECT", "last")
+    env = _Env()
+    runner._run_final_ft(env, "net.pt", {"val_best": _point(5, 0.7, -9.0)}, _candidates(), 10)
+    assert [r["keep_last"] for r in env.runs] == [True, True]
+    assert any(" cos e10 keep=last " in ln for ln in lines)
+
+
+def test_keep_last_skips_the_best_state_restore(monkeypatch):
+    from src.ModelHandlers.ClassificationHandler import ClassificationHandler
+    import src.run_recorder as recorder
+    import src.utils as utils
+    records, printed = [], []
+    monkeypatch.setattr(recorder, "record", lambda kind, **k: records.append(dict(k, kind=kind)))
+    monkeypatch.setattr(utils, "print_flush", lambda *a, **k: printed.append(" ".join(str(x) for x in a)))
+    g = torch.Generator().manual_seed(0)
+    loader = DataLoader(TensorDataset(torch.randn(64, 3, 8, 8, generator=g), torch.randint(0, 4, (64,), generator=g)),
+                        batch_size=32)
+    restores = {}
+    for keep_last in (False, True):
+        torch.manual_seed(0)
+        model = nn.Sequential(nn.Conv2d(3, 4, 3, padding=1), nn.ReLU(), nn.AdaptiveAvgPool2d(1), nn.Flatten(),
+                              nn.Linear(4, 4))
+        calls, real = [], model.load_state_dict
+        model.load_state_dict = lambda state, *a, **k: (calls.append(1), real(state, *a, **k))[1]
+        ClassificationHandler(model, nn.CrossEntropyLoss()).train_model(
+            loader, allow_reinit_retry=False, max_epochs=3, patience=4, keep_last=keep_last)
+        restores[keep_last] = len(calls)
+    assert restores == {False: 1, True: 0}
+    assert [r["select"] for r in records if r["kind"] == "finetune"] == ["train_loss", "last"]
+    assert any("select=last" in ln for ln in printed if "Fine-tune recipe" in ln)
+    assert sum("kept the last epoch" in ln for ln in printed) == 1
 
 
 def test_saved_files_are_state_dicts_with_arch_json(monkeypatch, tmp_path):

@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** jobs **22341736 / 37** PD (gate met; **never quote the probe**). Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; first TEST queued | report Part III; ledger §200–§228; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** jobs **22341736 / 37** R (gate met; **never quote the probe or in-walk**). Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; first TEST in flight | report Part III; ledger §200–§235; queue "v10" |
 
 ---
 
@@ -225,6 +225,13 @@
   - Wave 9 (5 jobs) tests whether that structural rule alone (Li et al. 2017's "prune only inside the block") matches sens.
   - Slide line: "where the cut goes matters more than how the walk steps: on ResNet-56-w4 at 60 % params, a sensitivity-weighted allocation (which leaves the residual streams intact) is 2.3 pp better than our mild walk, at FLOPs 0.57 vs 0.45; one seed".
   - Le & Hua paired control (ledger §232): 1-cycle passes its second read (+0.76 honest, raw +0.22); the replicate decides. Final-FT noise floor at 2.11× is 0.02 pp raw / 0.20 honest.
+- **7 Oct ~06:30** — Uniform allocation on DepGraph R56 at params 0.47 (ledger §233): **−0.74 @ 0.465 / 0.472**. Lever waits on the sens twin **22340523**. v10 freeze TESTs still R — do not quote in-walk.
+- **7 Oct ~06:50** — DepGraph's own R56 allocation (ledger §234, zero GPU): keeps stage 1–2 residual streams near full (13/16, 31/32) and stage-3 inner convs wide. N3 mild is a uniform ~2/3 cut. Wave 10 transplants those exact widths through our L1 + walk + FT (**22342029 / 30** PD).
+- **7 Oct ~07:00** — 1-cycle **VOID** (ledger §235). L3b-rep **22341280** passes the registered arithmetic (+0.84 honest vs §220) but every 1-cycle run kept epoch 1, origin included — one warmup step, not 100 epochs. Paper caption stays lr 0.01. Many lr 0.01 DepGraph rows, including M4, are walk + 1 epoch until wave 11 (`select=last`). Slide: do not claim a 1-cycle final FT.
+- **7 Oct ~07:15 (sitting)** — Why (ledger §235, census of 191 final FTs): the fine-tune keeps its lowest-train-loss epoch. A crop+flip-walked net often starts below the train loss 100 SGD epochs with weight decay end at, so the restore brings back epoch 1. That held for 14 / 30 lr-0.01 DepGraph R56 points (N3 4/4), chenyaofo R56 3/3, N4 VGG-19 C100 3/3 and every 1-cycle run. It never held for cosine from lr 0.1 (0 / 12), VGG-16 or the landed-κ thin rows.
+  - *Slide lines withdrawn.* The 04:12 line (−0.46 / −0.36 / −0.44 by schedule): the 1-cycle number is no fine-tune and the lr 0.01 number is walk + 1 epoch. The 05:20 line ("a large-LR final fine-tune closes most of the 2.57× gap"): until wave 11 lands, it could be the selection rather than the learning rate.
+  - *Slide line that holds now:* "With a genuine 100-epoch final fine-tune (cosine from lr 0.1, endpoint kept), DepGraph R56 at 2.11× lands at 10k −0.36 / +0.01 from two walks, and at 2.57× at −0.37 / −0.36, against DepGraph's own +0.24 / +0.11. One run each; competitive, not a beat."
+  - *Wave 11* (`tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`; **22342659–68**) re-runs the paper recipe at its endpoint on every saved early-epoch source, plus 1-cycle and the allocation / transplant rows. Call: REQUOTE / STANDS / NEUTRAL at ±0.3 pp (10k, both walks).
 
 ---
 

@@ -253,6 +253,8 @@ He et al. 2016 (crop+flip CIFAR recipe) · Li et al. ICLR 2017 (filter pruning, 
 
 Format: `- <date time> | <job / event> | <number, ledger §> | <implication for the next sitting>`.
 
+- 7 Oct ~07:00 | TEST land §234 / §235 | **1-cycle VOID**; L3b-rep **22341280** numeric +0.84, kept epoch 1; wave 10 **22342029 / 30** PD | caption stays lr 0.01; wave 11 `select=last` is sitting; never quote v10 in-walk; next 3h 08:28; canvas 09:30
+- 7 Oct ~06:30 | TEST land §233 | uniform DepGraph **22340524 −0.74 @ 0.465**; sitting closed **§231 / §232**; v10 TESTs still R | lever waits on 523; 1-cycle caption waits on **22341280**; never quote v10 in-walk; next 3h 08:28; canvas 09:30
 - 7 Oct ~05:30 | 3h + TEST land §226–§228 | ladder **FLAT**; §228 **TREND** at keep 0.123; v10 freeze **ep0127** gate met; first TEST **22341736/37** PD | never quote probe; M1-v10 on COMPLETED vs §211/§212; never TEST ep0015/ep0031/ep0095/ep0111; next 3h 08:28; canvas 09:30
 - 7 Oct ~02:28 | 3h briefing | QOS **6/8**; sitting **22340232–35 R**; resume ep 218; v10 ep0111 do not TEST | 2 idle sitting; do not invent; next 3h 05:28; canvas 09:30
 - 7 Oct ~02:10 | Ido commute **§2.6+** sitting kickoff | prompt `PROMPT_FABLE_OCT7_SITTING.md`; way-ahead **§5.2**; tracker **§8** S3 closed write-up | sitting fills 6 idle; ops does not overlay trains; no N8/S3/Budget resume/v10 TEST

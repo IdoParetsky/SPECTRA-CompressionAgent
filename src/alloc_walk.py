@@ -10,7 +10,10 @@ half, the measurement behind the v10 sensitivity channels) or ``inner`` (every c
 more than one producer, i.e. a residual stream, held at full width and one fraction for the rest:
 the structure the sens plans take on the thin ResNets, ledger §229) — with the scale bisected so that
 cutting every group once to its target keeps ``target − SPECTRA_ALLOC_UNDERSHOOT`` of the
-parameters. Each decision then plays the legal cut whose resulting width is closest to its group's
+parameters. ``widths`` bisects nothing: every group takes the width ``SPECTRA_ALLOC_WIDTHS`` (JSON
+``{module name: out channels}``, e.g. another method's pruned net) names for its producers, so a run
+isolates that allocation under this walk's ranking and recovery; the fixed target then only says
+where the walk stops. Each decision then plays the legal cut whose resulting width is closest to its group's
 target (ties to the milder cut, identity once it is there). Group-once, the recovery and the
 fixed-target landing are the walk's own, so a row differs from greedy / mild only in which groups
 keep being cut. The undershoot makes the walk cross the target before every group has arrived;
@@ -20,6 +23,7 @@ should it still stall above the target for a whole pass, it falls back to the st
 from __future__ import annotations
 
 import copy
+import json
 import os
 import statistics
 
@@ -31,7 +35,7 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner")
+KINDS = ("uniform", "sens", "inner", "widths")
 
 
 def kind() -> str:
@@ -55,6 +59,29 @@ def undershoot() -> float:
 def min_keep() -> float:
     """``SPECTRA_ALLOC_MIN_KEEP`` (0.1): no group's planned keep goes below this, A0's floor."""
     return min(1.0, max(0.01, float(os.environ.get("SPECTRA_ALLOC_MIN_KEEP", "0.1"))))
+
+
+def widths_table() -> dict:
+    """``SPECTRA_ALLOC_WIDTHS``: the JSON ``{module name: out channels}`` that ``widths`` copies."""
+    path = os.environ.get("SPECTRA_ALLOC_WIDTHS", "").strip()
+    if not path:
+        raise ValueError("SPECTRA_ALLOC_KIND=widths needs SPECTRA_ALLOC_WIDTHS=<json {module name: out channels}>")
+    with open(path, encoding="utf-8") as fh:
+        return {str(name): int(width) for name, width in json.load(fh).items()}
+
+
+def copied_keeps(model, plan, table):
+    """
+    ``({row: keep}, unnamed)``: a group keeps the narrowest width ``table`` names for its producers, over
+    its own width. A group none of whose producers is named stays whole and is counted in ``unnamed``.
+    """
+    names = {id(module): name for name, module in model.named_modules()}
+    keeps, unnamed = {}, 0
+    for group, row in plan:
+        named = [table[names[id(p)]] for p in group.producers if names.get(id(p)) in table]
+        unnamed += not named
+        keeps[row] = min(1.0, min(named) / float(group.width)) if named else 1.0
+    return keeps, unnamed
 
 
 def weights(kind_name, sens, a=0.5):
@@ -100,10 +127,19 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
     ``(widths, info)``: ``widths[row]`` is the target width of the group whose first walk row is
     ``row``. Keeps are clip(c · weight, keep_floor, 1), or 1 for a group ``inner`` holds; c is
     bisected until the one-shot cut keeps ``target`` of the parameters (widths are integers, so the
-    closest c found).
+    closest c found). ``widths`` copies its table instead and ignores ``target``.
     """
     plan = group_sensitivity.group_plan(ModelWithRows(model))
     rows = [row for _group, row in plan]
+    if kind_name == "widths":
+        keeps, unnamed = copied_keeps(model, plan, widths_table())
+        cut = cut_to(model, plan, keeps, input_shape)
+        frac = utils.calc_num_parameters(cut) / utils.calc_num_parameters(model)
+        widths = group_widths(cut, rows)
+        del cut
+        return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
+                        "keeps": keeps, "origin_widths": group_widths(model, rows),
+                        "sens": {row: 1.0 for row in rows}, "held": 0, "unnamed": unnamed}
     if kind_name == "sens":
         sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape)
     else:
@@ -163,11 +199,14 @@ def _state(env):
         cache[net] = {"widths": widths, "n_rows": max(1, len(mwr.row_to_main_layer) - 1),
                       "idle": 0, "fallback": False, "last_kept": 1.0}
         keeps = sorted(info["keeps"].values())
+        source = (f"widths of {os.path.basename(os.environ.get('SPECTRA_ALLOC_WIDTHS', ''))}"
+                  if info["kind"] == "widths" else f"{info['kind']} alpha={info['alpha']:g}")
         utils.print_flush(
-            f"[alloc] {os.path.basename(str(net))}: {info['kind']} alpha={info['alpha']:g} plan keeps "
+            f"[alloc] {os.path.basename(str(net))}: {source} plan keeps "
             f"x{info['kept']:.3f} of the params (target x{target:.3f} = walk target − {undershoot():g}) over "
             f"{len(widths)} groups; group keep min {keeps[0]:.2f} median {statistics.median(keeps):.2f} "
-            f"max {keeps[-1]:.2f}" + (f"; {info['held']} coupled groups held at full width" if info["held"] else ""))
+            f"max {keeps[-1]:.2f}" + (f"; {info['held']} coupled groups held at full width" if info["held"] else "")
+            + (f"; {info['unnamed']} groups not named in the table, kept whole" if info.get("unnamed") else ""))
         try:
             import src.run_recorder as run_recorder
             run_recorder.record(

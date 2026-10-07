@@ -4,6 +4,7 @@ Allocation-following eval walk (``SPECTRA_EVAL_POLICY=alloc``, src/alloc_walk.py
 CPU only, no datasets.  python -m pytest tests/test_alloc_walk.py -v
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -27,7 +28,8 @@ from tests.test_v10_fixed_target import _target_env  # noqa: E402
 
 RATES = {0: 1.0, 1: 0.9, 2: 0.8, 3: 0.7, 4: 0.6}
 ALLOC_ENV = ("SPECTRA_ALLOC_KIND", "SPECTRA_ALLOC_ALPHA", "SPECTRA_ALLOC_UNDERSHOOT", "SPECTRA_ALLOC_MIN_KEEP",
-             "SPECTRA_FIXED_TARGET", "SPECTRA_GROUP_ONCE_PER_PASS", "SPECTRA_EVAL_SIZE_MATCH")
+             "SPECTRA_ALLOC_WIDTHS", "SPECTRA_FIXED_TARGET", "SPECTRA_GROUP_ONCE_PER_PASS",
+             "SPECTRA_EVAL_SIZE_MATCH")
 
 
 @pytest.fixture(autouse=True)
@@ -51,6 +53,10 @@ def test_flags_default_and_parse(monkeypatch):
     assert alloc_walk.kind() == "uniform"
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "inner")
     assert alloc_walk.kind() == "inner"
+    monkeypatch.setenv("SPECTRA_ALLOC_KIND", "widths")
+    assert alloc_walk.kind() == "widths"
+    with pytest.raises(ValueError):
+        alloc_walk.widths_table()                                  # widths without a table is an error
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "anti")
     with pytest.raises(ValueError):
         alloc_walk.kind()
@@ -116,8 +122,35 @@ def test_inner_holds_every_residual_stream_and_cuts_the_rest_evenly(monkeypatch)
     assert inner and max(inner) - min(inner) < 1e-9 and inner[0] < 1.0
 
 
-@pytest.mark.parametrize("kind_name", ["uniform", "sens", "inner"])
-def test_the_walk_lands_on_the_target_and_follows_the_plan(monkeypatch, kind_name):
+def _widths_json(model, widths, path):
+    """Write ``{producer name: width}`` for every planned group of ``model`` that ``widths`` covers."""
+    names = {id(m): n for n, m in model.named_modules()}
+    table = {names[id(p)]: int(widths[row]) for group, row in group_sensitivity.group_plan(ModelWithRows(model))
+             if row in widths for p in group.producers}
+    path.write_text(json.dumps(table), encoding="utf-8")
+    return path
+
+
+def test_widths_copies_the_named_width_of_every_group(monkeypatch, tmp_path):
+    torch.manual_seed(0)
+    model = resnet20(num_classes=10, large_input=False, width=4).eval()
+    monkeypatch.setattr(group_sensitivity, "group_sensitivity",
+                        lambda *a, **k: pytest.fail("widths must not measure sensitivity"))
+    plan = group_sensitivity.group_plan(ModelWithRows(model))
+    want = {row: max(1, group.width - 1 - k % 3) for k, (group, row) in enumerate(plan)}
+    left_out = plan[-1][1]
+    named = {row: w for row, w in want.items() if row != left_out}
+    monkeypatch.setenv("SPECTRA_ALLOC_WIDTHS", str(_widths_json(model, named, tmp_path / "widths.json")))
+    widths, info = alloc_walk.plan_targets(model, [], (3, 32, 32), "widths", 0.6)
+    origin = info["origin_widths"]
+    assert info["unnamed"] == 1 and info["keeps"][left_out] == 1.0 and widths[left_out] == origin[left_out]
+    assert all(widths[row] == w for row, w in named.items())               # exact copies, coupled groups included
+    cut = alloc_walk.cut_to(model, plan, info["keeps"], (3, 32, 32))
+    assert utils.calc_num_parameters(cut) / utils.calc_num_parameters(model) == pytest.approx(info["kept"])
+
+
+@pytest.mark.parametrize("kind_name", ["uniform", "sens", "inner", "widths"])
+def test_the_walk_lands_on_the_target_and_follows_the_plan(monkeypatch, tmp_path, kind_name):
     monkeypatch.setenv("SPECTRA_FIXED_TARGET", "1")
     monkeypatch.setenv("SPECTRA_GROUP_ONCE_PER_PASS", "1")
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", kind_name)
@@ -125,6 +158,9 @@ def test_the_walk_lands_on_the_target_and_follows_the_plan(monkeypatch, kind_nam
     model = resnet20(num_classes=10, large_input=False, width=4).eval()
     sens = _rising_sens(model)
     monkeypatch.setattr(group_sensitivity, "group_sensitivity", lambda m, plan, b, shape, keep=0.5: (sens, 1.0))
+    if kind_name == "widths":                                          # copy the inner plan: same walk, by name
+        inner, _ = alloc_walk.plan_targets(model, [], (3, 32, 32), "inner", 0.58)
+        monkeypatch.setenv("SPECTRA_ALLOC_WIDTHS", str(_widths_json(model, inner, tmp_path / "inner.json")))
     env, _ = _target_env(model, target=0.6, accs=[0.9] * 400, passes=6)
     env.conf.compression_rates_dict = RATES
     origin = alloc_walk.group_widths(model, list(sens))
@@ -146,7 +182,7 @@ def test_the_walk_lands_on_the_target_and_follows_the_plan(monkeypatch, kind_nam
     if kind_name == "sens":
         half = len(realised) // 2
         assert sum(realised[half:]) / (len(realised) - half) > sum(realised[:half]) / half
-    if kind_name == "inner":
+    if kind_name in ("inner", "widths"):
         assert all(now[row] == origin[row] for row in _coupled_rows(model))
 
 
