@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT** (learning failure: §259 VISIBLE +4.05). Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Wave 9 **§271 STRUCTURAL**: inner matches sens at κ 0.6 / 0.8 (+0.18 / +0.06); PFEC residual-full, not SPECTRA. Cosine-0.1 lever **§268 SURVIVES +1.44**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§275; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT** (learning failure: §259 VISIBLE +4.05). Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Wave 9 **§271 / §276 STRUCTURAL** at κ 0.35 / 0.6 / 0.8 (+0.12 / +0.18 / +0.06); PFEC residual-full, not SPECTRA. Cosine-0.1 lever **§268 SURVIVES +1.44**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§277; queue "v10" |
 
 ---
 
@@ -342,6 +342,9 @@
   - Wave 9 is now STRUCTURAL at all three keeps (κ 0.35, 0.6, 0.8): the non-learned lever is the PFEC residual rule. At κ 0.35 the two also keep the same FLOPs, so sens's only measured edge over the rule is 9 % fewer FLOPs at κ 0.8.
 - **7 Oct ~19:40 (sitting)** — At κ 0.35 under cosine-0.1, sens still sits far above the standard heuristic (ledger §277, seed 42). Sens − mild is **+3.42** at 5k (+3.27 at 10k), against +4.34 at lr 0.01.
   - The shrink is mild recovering under the stronger fine-tune (+0.72 at 5k); the lever over uniform moves less (+1.72 against +1.90). At this keep both margins are bought with FLOPs: sens keeps 1.51× mild's.
+- **7 Oct ~20:15 (sitting)** — On a plain chain (VGG-19 CIFAR-100, params 0.6) the sensitivity plan beats uniform by **+2.76** at 5k on seed 42 (ledger §278, provisional; SENS-MATTERS ≥ +1.0). The call is two-seed, and seed 43's uniform is running.
+  - Caption it: sens keeps the early layers full and cuts only the late 512-wide ones, so at equal params it keeps 1.36× uniform's FLOPs (0.749 against 0.551). On VGG the lever is which params to cut (PFEC's late-layer finding), not free compute.
+  - Both arms are walk + 1 epoch (epoch-1 restore); the cosine re-reads give the genuine endpoints.
 
 ---
 

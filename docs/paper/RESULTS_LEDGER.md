@@ -5190,6 +5190,26 @@ Guard, r20-w2 (mild 0.335), cosine 5k / 10k: mild −10.00 / −8.96 (lr 0.01 �
 - *Guard.* On r20-w2 mild sits above sens's size point and below uniform's under cosine, as at lr 0.01. Reported only.
 - Seed 42 only. There is no seed-43 mild-landed κ 0.35 walk, so bar_cos at κ 0.35 stays one-seed. The seed-43 sens / uniform walks (22344456 / 57) are R, and their cosine re-reads follow by `afterok`. Do not lock. Never an agent row.
 
+## 278. Wave 20, VGG-19 C100 at landed params 0.6, seed 42: sens / uniform (**22375982 / 22375983**) — PRELIM, provisional (the call is two-seed); lr 0.01 as walked, sens − uniform **+2.76** at 5k (val +2.72, 10k +2.74): the SENS-MATTERS side on a plain chain, but bought with **36 % more FLOPs** (0.749 against 0.551); every pruned final FT kept epoch 1
+
+Sitting 7 Oct wave 20 (registered 13:43, before submit). `tree_v10h`, wave 3's recipe (sens α 0.5 / uniform, 5-rate menu, landed `param:0.6`, 6 passes, P, loader crop+flip, walk 40/10, 100-epoch final FT at lr 0.01 + origin, deterministic), on the VGG-19 C100 DepGraph checkpoint (`vgg19_cifar100_dep_graph_73.5.pth`, `input_catalog_l_depgraph_vgg19_c100.json`), seed 42. 22375982 COMPLETED 35 m, 19:16, `ise-4090-11`; 22375983 COMPLETED 1 h 13 m, 20:05, `cs-4090-01`; both exit 0, TB 0, no fallback. Start check green: env kind, catalog, `param:0.6` and seed; walk lines `Epoch …/40`; both plans print 16 groups. Uniform's plan reached every group target at x0.642, above κ, and finished by the logged strongest-cut path. Both pruned final FTs kept **epoch 1** (§235's VGG pattern; train loss 0.0052 / 0.0110 there), so "lr 0.01 as walked" is walk + 1 epoch on both arms; both origins kept a late epoch. The size point was fixed by size, so its 10k is quoted. Call (registered 13:43): VGG-19 C100, 5k at the landed point, two-seed mean, lr 0.01 as walked. Sens − uniform **SENS-MATTERS** ≥ +1.0 / **NONE** ≤ +0.3 / WEAK between; seed 42 alone is provisional; a lever bought with ≥ 10 % more FLOPs kept is captioned that way.
+
+| VGG-19 C100, params 0.600, seed 42 | FLOPs | Conv widths 1–8 · 9–16 (of 64 64 128 128 256 ×4 · 512 ×8) | In-walk return | Walk 5k | **lr 0.01 as walked** 5k / val / 10k | Origin 5k / 10k | Honest |
+|---|---|---|---|---|---|---|---|
+| Sens (22375982) | 0.749 | 64 64 128 128 256 256 256 256 · 512 358 227 307 307 307 512 512 | −1.02 | −0.72 | **−1.60** / −1.10 / −1.35 | +0.12 / +0.52 | −1.00 |
+| Uniform (22375983) | 0.551 | 64 31 61 61 186 205 205 205 · 410 ×7, 246 | −2.98 | −3.58 | **−4.36** / −3.82 / −4.09 | +0.36 / +0.68 | −1.14 |
+| **Sens − uniform** | **1.36×** | | +1.96 | +2.86 | **+2.76** / +2.72 / **+2.74** | | +0.14 |
+
+Seed 43's sens (22375985, COMPLETED 37 m, 19:44, `ise-4090-06`, exit 0) lands on seed 42's architecture exactly (step 26, FLOPs 0.749): return +0.34, walk −0.66, lr 0.01 as walked −1.46 / −0.28 / −0.87, origin +0.36 / +0.78, kept epoch 1. Reference, cross-pipeline and reported only: N4's 3-pass mild walk (§155, `tree_v9c`) at params 0.599 / FLOPs 0.590 got walk −2.52, final −2.94 at 5k (10k −2.97), and at 0.684 / 0.686 got −2.24 / −2.24 (10k −1.62).
+
+**Read (provisional).**
+- *Seed 42: the SENS-MATTERS side.* At equal params sens − uniform is +2.76 at 5k, and the val half (+2.72) and 10k (+2.74) agree. The lever is in the walk (+2.86 at the walk's TEST); both arms lose about 0.8 to the epoch-1 restore (honest +0.14). Seed 43's sens lands on the same architecture with a similar final (−1.46; 10k −0.87), so the two-seed call turns on seed 43's uniform (22375986, R).
+- *Captioned: bought with FLOPs.* Sens keeps every layer up to conv 9 at full width and cuts only conv 10–14, the late 512-wide layers that hold the params, so at params 0.600 it keeps FLOPs 0.749. Uniform cuts every layer after conv 1, the early ones too (conv 2–4 to 31 / 61 / 61 after its strongest-cut finish), and keeps 0.551. That is 1.36× the FLOPs, far past the registered 10 % caption line. On a plain chain equal params and equal FLOPs are different comparisons, and this one is at equal params.
+- *Against a mild point with more params (reported, cross-pipeline).* N4's mild walk kept params 0.684 / FLOPs 0.686 and reached −2.24 at 5k (§155). Sens reaches −1.60 at 0.600 / 0.749, with fewer params and 9 % more FLOPs. N4 ran in another pipeline (`tree_v9c`, 3-pass), so this only says sens is not merely a FLOPs-rich point. The in-pipeline mild-landed cells (22375994 / 95, R) give the registered sens − mild.
+- *Structure.* VGG-19 has no residual streams, so wave 9's rule does not apply here (`inner` is uniform), and the lever is per-layer sensitivity. The plan it finds matches PFEC's VGG-16 sensitivity analysis (Li et al. 2017): the late 512-wide layers are the insensitive ones.
+- *Fine-tune.* Every pruned final FT kept epoch 1, so these rows are walk + 1 epoch. The cosine-0.1-last re-reads (seed 42: 22376019 / 13 / 11, queue row 71) give genuine endpoints, reported beside the call; if Q7 adopts cosine-0.1, the cosine version is the paper's.
+- Do not lock. Never an agent row.
+
 ---
 
 
