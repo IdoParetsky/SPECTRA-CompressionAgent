@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§248; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§250; queue "v10" |
 
 ---
 
@@ -126,6 +126,10 @@
    - *Recommended:* keep the registered recipe for every row, and report cosine-0.1 beside it as a sensitivity row.
    - *Alternative:* adopt cosine-0.1 for every row, justified from the literature rather than from TEST, and re-finalise every row from its saved candidates.
    - *Selection (added 10:40; §244, §245).* The +0.15 to +0.43 above is DepGraph R56 (a seed-43 repeat moves it ≤ 0.14). On VGG-19 C100 the endpoint is worth **+0.69 / +1.34** at 10k, and on equal epochs the crop+flip walk would move bar-3 VGG-19 by +1.4 pp (§245). The question becomes: does every final-FT row keep its endpoint? The case rests on §235's mechanism, not on TEST: "100 epochs" is then true, and every row has been or can be re-finalised from its saved candidates. *Recommended:* keep train-loss selection as registered (wave 11 is NEUTRAL) and report the endpoint rows beside. *Alternative:* adopt `select=last` for every row; bar-3 VGG-19 then moves to N4-last by its registered 1 pp rule.
+   - *Val-half evidence (added 12:50; §251, §252). The Recommended above changes.* Cosine-0.1 now helps on a second architecture and dataset: N4 VGG-19 C100 gains +1.66 / +1.41 at 10k over lr 0.01 on equal epochs, so the registered "helps across architectures" is **MET**. No final FT reads the val half, so the val half is an independent replicate for choosing the recipe. Registered before reading, it agrees at every gating point: **+1.66 / +1.64** on N4 and **+1.10 / +1.26** on DepGraph R56 at 2.57×, and still +0.86 to +1.36 after subtracting the origin's own gain. It is level at 2.11×, and seed 43 halves N3's 2.57× lead.
+     - *Recommended (12:50):* adopt cosine from lr 0.1, 100 epochs, last epoch, for every P row. The choice is made on the val half, so it is not test selection. Quote raw and honest Δacc, because the same FT also lifts the unpruned VGG-19 C100 by +1.48. Keep the lr 0.01 rows beside for continuity. Cost: each P row re-finalised from its saved candidates, 0.6–1.8 GPU-h per job.
+     - *Alternative:* keep lr 0.01 as registered and report cosine-0.1 beside it (the earlier Recommended). This is the cheaper option, but it understates deep-compression rows by 0.4–1.7 pp against a recipe the val half prefers.
+     - This changes no comparison between our arms (mild, sens, agent), which share one final FT either way. It moves only the absolute numbers set beside the literature.
 
 ---
 
@@ -274,6 +278,9 @@
   - After the registered FLOPs credit the lift is **+0.25, PARTIAL**: at most a third of the 0.78 pp gap, and within noise of none of it. The TEST half alone is −0.42 and the val half +0.92, so this is a one-run read.
   - For Gilad: the remaining gap is in DepGraph's training (sparsity regularisation and its own fine-tune), not in where it cuts. That supports framing the slide line as "competitive while transferring" rather than as an allocation deficit. The genuine-endpoint re-read (22342667) and the VGG-19 C100 transplant (22342030) are queued.
   - Twins (§250): the true endpoint adds +0.36 / +0.40 at 10k on the zoo R56, a second ResNet-56 checkpoint. The VGG-16 control stays under its 0.5 rule.
+- **7 Oct ~12:50 (sitting)** — The final-FT recipe question (Q7) now has val-half evidence (ledger §251, §252).
+  - N4 VGG-19 C100 with cosine from 0.1 (22342768) is +1.66 / +1.41 at 10k over lr 0.01-last. "Helps across architectures" is **MET**. About half is the unpruned origin improving as well (+0.87).
+  - On the val half alone, which no final FT reads, cosine-0.1 wins at every gating point (registered before reading: **VAL-AGREES**). Q7's Recommended moves to "adopt cosine-0.1, val-chosen, quote raw and honest".
 
 ---
 

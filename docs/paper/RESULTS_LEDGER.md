@@ -4624,6 +4624,44 @@ Sitting 7 Oct, wave 11 (registered before submit). `tree_v10k`, `SPECTRA_EVAL_FI
 - *R56:* the true endpoint adds **+0.36 / +0.40** at 10k on a second ResNet-56 checkpoint. DepGraph R56 gave +0.15 to +0.43 (§239, §240), so the ResNet-56 pattern holds. VGG-19 C100 is larger (+0.69 / +1.34, §245).
 - *Caveat beside it:* VGG-16's selection barely changed, so its Δsel is mostly re-run noise of one 100-ep final FT. That noise reaches +0.30 at 10k, close to R56's effect. One run gives "about +0.4 at 10k on a re-run spread of up to ~0.3". This does not touch the NEUTRAL call (§240), which is on DepGraph R56 and has its own seed repeat (§244).
 
+## 251. Wave 11b: cosine from lr 0.1, select=last, N4 VGG-19 C100 (**22342768**) — PRELIM; lr 0.1-last − lr 0.01-last **+1.66 / +1.41** at 10k (sizes 0.60 / 0.70); "helps across architectures" **MET** (with DepGraph R56 at 2.57×, §246); about half of it is the unpruned origin improving too (+0.87 at 10k)
+
+Sitting 7 Oct, wave 11b (registered 07:50, before submit). `tree_v10k`, from N4's saved candidates (`tree_v9c/runs/job21737105/traj_models`), final FT SGD from lr 0.1, cosine, 100 epochs, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, origin control, P, deterministic, seed 42. COMPLETED 37 m, 7 Oct 12:47, `cs-4090-07`, exit 0, TB 0. Start check: select=last and keep=last on all 4 final FTs, each with best loss = epoch 100's. Reader `final_ft_readout.py` against **22342661** (lr 0.01-last, §245) and **21737105** (N4, train-loss selection, §155). Checkpoint `vgg19_cifar100_dep_graph_73.5.pth`.
+
+| Point | Params / FLOPs | Walk 5k | Final 5k | Honest | 10k | 10k lr 0.01-last (§245) | d 10k | d 5k |
+|---|---|---|---|---|---|---|---|---|
+| size 0.60 | 0.599 / 0.590 | −2.52 | **+0.22** | +1.36 | **+0.03** | −1.63 | **+1.66** | +1.66 |
+| size 0.70 | 0.684 / 0.686 | −2.24 | **−0.16** | +0.70 | **+0.48** | −0.93 | **+1.41** | +1.18 |
+| `val_best` | 0.534 / 0.550 | −2.16 | −0.12 | +0.66 | n/a | — | — | +1.62 |
+| origin | 1 / 1 | 0 | +1.38 | — | +1.48 | +0.61 | +0.87 | +0.96 |
+
+**Read.**
+- *Call (wave 11b):* "helps across architectures" needs lr 0.1-last − lr 0.01-last ≥ +0.3 on N4 at both size points and on DepGraph R56 at 2.57×. N4: **+1.66 / +1.41** at 10k (+1.66 / +1.18 at 5k). DepGraph R56 at 2.57×: +0.83 / +0.42 (N3, seeds 42 / 43) and +0.95 / +1.21 (τ-off), §246. **MET.** The twins (22342769) are reported beside when they land; they do not gate.
+- *Half of it is the baseline.* The same FT lifts the unpruned VGG-19 C100 by +1.48 at 10k, against +0.61 at lr 0.01. The released 73.5 checkpoint is therefore not converged for this recipe. Origin-corrected, the lead is +0.70 / +0.22 at 5k (honest). Quote the honest column beside raw Δacc for any cosine-0.1 row.
+- VGG-19 C100 at 0.60 of its params ends at +0.03 at 10k against the released baseline. That is 1.7× in FLOPs, far from DepGraph's 8.92× row (§245), so it is not a comparison with DepGraph and never a beat.
+
+## 252. Q7 val-half check: cosine-0.1 against lr 0.01-last on the val half alone (zero GPU; the rows of §239, §240, §244, §245, §246, §251) — PRELIM; **VAL-AGREES**: d_val **+1.66 / +1.64** (N4) and **+1.10 / +1.26** (DepGraph R56 2.57×, N3 / τ-off), honest +0.86 to +1.36; 2.11× level
+
+Sitting 7 Oct, registered 12:49 before reading (queue "Q7 val-half check"). Under P the final FT selects on train loss or keeps the last epoch, and the walk FT selects on train loss (`ClassificationHandler.train_model`). So no final-FT recipe has read the val half, and it is an independent 5k replicate for choosing between recipes. TEST had already been read, so this is a replication, not a first look. d_val = (val_final − val_origin) under cosine-0.1 minus the same under lr 0.01-last, per point, from each row's `eval_traj_final_ft` event. Honest d_val subtracts the origin's own d_val.
+
+| Walk / point | cos-0.1 job | lr 0.01-last job | d_val | Honest d_val | TEST d (5k) |
+|---|---|---|---|---|---|
+| N4 size 0.60 | 22342768 | 22342661 | **+1.66** | +0.88 | +1.66 |
+| N4 size 0.70 | 22342768 | 22342661 | **+1.64** | +0.86 | +1.18 |
+| N3 2.57× | 22340234 | 22342659 | **+1.10** | +0.94 | +0.56 |
+| τ-off 2.57× | 22341051 | 22342660 | **+1.26** | +1.36 | +0.64 |
+| N3 2.11× | 22340234 | 22342659 | −0.08 | −0.24 | −0.02 |
+| τ-off 2.11× | 22341051 | 22342660 | +0.42 | +0.52 | +0.68 |
+| N3 2.57×, seed 43 | 22343160 | 22342767 | +0.52 | +0.10 | +0.32 |
+| N3 2.11×, seed 43 | 22343160 | 22342767 | +0.46 | +0.04 | +0.04 |
+| origin N4 / N3 / τ-off / N3 s43 | — | — | +0.78 / +0.16 / −0.10 / +0.42 | — | +0.96 / +0.28 / +0.46 / +0.00 |
+
+**Read.**
+- *Call: **VAL-AGREES**.* Every gating point (N4 0.60 / 0.70 and DepGraph R56 2.57× on both walks, seed 42) has d_val ≥ +0.3, and the honest d_val is ≥ +0.86 at all four. Cosine-0.1's lead at deep compression and on VGG-19 C100 replicates on data no recipe has read. Q7's "adopt cosine-0.1" option is therefore val-chosen, not test-chosen.
+- *Where it does not help.* At 2.11× it is level (N3 −0.08, τ-off +0.42 on val; −0.02 / +0.68 on TEST). Seed 43 halves the 2.57× lead on N3 (+0.52 raw, +0.10 honest). The claim is "cosine-0.1 helps at deep compression and on VGG-19 C100", not "everywhere".
+- The 10k values in §246 are the means of these two halves (N3 2.57×: (+1.10 + 0.56) / 2 = +0.83).
+- Not switched here: the paper's final-FT recipe is Gilad's Q7. Adopting it means re-running each paper row's final FT from its saved candidates (P rows set `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`; older rows would need a re-walk). From-saved re-runs took 0.6–1.8 GPU-h per job here. The lr 0.01 rows are kept beside.
+
 ---
 
 
