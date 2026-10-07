@@ -5502,3 +5502,29 @@ Guard, r20-w2 (inner at 0.779, sens at 0.799), cosine 5k / 10k: s42 inner +1.64 
 
 ---
 
+## 291. Wave 21 call, MobileNetV2 ×0.5 C10 at params 0.6: uniform seed 43 (**22376490**) completes the pair — PRELIM; two-seed sens − uniform **+0.67** at 5k (seeds +0.10 / +1.24; val +1.06, 10k +0.87) → **WEAK** as registered, captioned 1.2× FLOPs; seed 43's margin is uniform's epoch-1 restore (−0.86 against its own walk), and on walk endpoints the lever is +0.14
+
+Sitting 7 Oct wave 21 (registered 14:06, before submit), as §287. 22376490 (`tree_v10h`, uniform, seed 43) COMPLETED 2 h 58 m, 00:37, `ise-4090-02`, exit 0, TB 0, no fallback. Start check green: env `uniform`, the MBV2 catalog, `param:0.6`, seed 43; the plan keeps x0.580 over 25 groups (every group 0.75), as on seed 42. It lands at step 97 on seed 42's architecture (params 0.600 / FLOPs 0.591). Its pruned final FT's best train loss (0.00549) is epoch 1's printed loss, so the default select restored **epoch 1** (walk + 1 epoch). The other three arms kept late epochs: uniform s42 epoch 95 (best 0.00581), and both sens arms below epoch 100's printed loss (best 0.00590 / 0.00493, at unprinted epochs). Call (registered): the two-seed mean of sens − uniform at 5k, **SENS-MATTERS** ≥ +1.0 / **NONE** ≤ +0.3 / WEAK between; a lever bought with ≥ 10 % more FLOPs is captioned.
+
+| MBV2 ×0.5 C10, κ 0.6 | Params / FLOPs | Step | Final FT kept | Walk 5k | Final 5k / val / **10k** | Origin 5k / val / 10k | Honest |
+|---|---|---|---|---|---|---|---|
+| Sens s42 (22376484) | 0.600 / 0.714 | 149 | late | +0.32 | +0.34 / +0.84 / +0.59 | +0.16 / +0.54 / +0.35 | −0.14 |
+| Uniform s42 (22376485) | 0.600 / 0.591 | 97 | epoch 95 | +0.08 | +0.24 / +0.08 / +0.16 | +0.44 / +0.88 / +0.66 | −0.28 |
+| Sens s43 (22376488) | 0.600 / 0.706 | 100 | late | +0.36 | +0.70 / +0.80 / +0.75 | +0.42 / +0.60 / +0.51 | −0.08 |
+| **Uniform s43 (this run)** | 0.600 / 0.591 | 97 | **epoch 1** | +0.32 | **−0.54** / −0.56 / −0.55 | +0.64 / +0.80 / +0.72 | −1.50 |
+
+| Lever, sens − uniform | Walk 5k | Final 5k / val / **10k** | FLOPs, sens / uniform |
+|---|---|---|---|
+| Seed 42 | +0.24 | +0.10 / +0.76 / +0.43 | 1.21× |
+| Seed 43 | +0.04 | +1.24 / +1.36 / +1.30 | 1.19× |
+| **Two-seed mean** | +0.14 | **+0.67** / +1.06 / **+0.865** | 1.2× |
+
+**Read.**
+- *Call: **WEAK**, captioned "bought with 1.2× FLOPs".* +0.67 at 5k is between NONE (+0.3) and SENS-MATTERS (+1.0).
+- *Seed 43's margin is a fine-tune artefact.* Uniform s43's walk endpoint is +0.32, level with sens s43's +0.36. Its final FT restored epoch 1 and lost 0.86 at 5k, while every other arm kept a late epoch and gained 0.02–0.34. On walk endpoints the lever is +0.24 / +0.04 (two-seed +0.14, the NONE side). Had uniform s43 kept a late epoch, the call would likely read NONE; that is a counterfactual and is not quoted.
+- *The like-for-like read.* Wave 21's cosine-0.1-last re-reads (22376493 / 95 / 96 / 97 and 22376498 / 99 / 22376500 / 01) keep the last epoch on every arm. They are reported beside this call; if Q7 adopts cosine-0.1, they are the paper's numbers.
+- *A light cut.* Every genuine endpoint ends within 0.7 of the unpruned net at 5k, three of the four above it (§287).
+- Inner s43 (22376491) and mild (22376487 / 92) are running; sens − mild and inner − uniform are reported with them. Do not lock. Never an agent row.
+
+---
+
