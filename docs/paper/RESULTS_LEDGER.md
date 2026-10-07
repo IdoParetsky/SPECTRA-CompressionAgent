@@ -4272,6 +4272,7 @@ VGG-19 C100 at 9.02× (h2h; origin 64, 64 | 128, 128 | 256 ×4 | 512 ×4 | 512 �
 ## 235. Which epoch the final fine-tune keeps (zero GPU; census of 191 final FTs in the `tree_v9b`–`tree_v10h` logs; τ-off reads 22341051 / 22341280) — PRELIM; after a crop+flip walk the default **keeps epoch 1** on most lr-0.01 DepGraph R56 points and on every 1-cycle run; **1-cycle VOID**; wave 11 (`select=last`) registered
 
 - *Mechanism.* `ClassificationHandler.train_model` keeps the lowest-train-loss epoch and restores it after the last one (`select=train_loss`). The final FT uses the same rule: patience is epochs + 1, so it runs all 100 epochs, then restores. A net recovered by a crop+flip walk often starts below the train loss that 100 SGD epochs with weight decay 5e-4 end at. The restore then brings back epoch 1: the walk plus one epoch. Origins at lr 0.01 / 0.1 keep a late epoch, so "honest" compares one pruned epoch with 100 origin epochs. Selection is on the train loss, never on test, so these TEST numbers are legitimate; the label "100-epoch final FT" is not.
+- *Why the start sits below the endpoint (N3's log, 07:55).* The walk's per-step fine-tune is **Adam lr 1e-3, plateau schedule, weight decay 0**, 40 epochs, patience 10 (150 calls: 116 ran all 40, 34 stopped early). Late in the walk it ends at train loss 0.0004–0.0008 (lr decayed to 2e-5–6e-5). The final FT is SGD lr 0.01 with weight decay 5e-4, whose loss settles near 0.006–0.008 (§236's epoch-100 losses). So after a long walk no epoch of the final FT can beat epoch 1 on train loss. The origin starts at 0.023 and descends (0.0026 at epoch 100). A no-aug walk sees a different train distribution from the crop+flip final FT and starts above it, which is why §153 kept late epochs.
 - *Census.* The log prints epochs 1, 5, 10, …; EARLY = the lowest printed loss is at epoch 1 or 5 and `best_loss` matches it. Pruned rows:
 
 | Final FT | Net | EARLY / all | Where |
@@ -4313,6 +4314,42 @@ Pair of §233 (uniform 22340524). Sitting 7 Oct, `tree_v10h`, `SPECTRA_ALLOC_KIN
 - *At equal params, sens keeps 16 % fewer FLOPs* (0.398 vs 0.472, i.e. 2.51× vs 2.12×), because it cuts inner convs instead of streams. On the FLOPs axis it sits beside N3's 2.57× point (FLOPs 0.380): −0.34 against N3's −1.34 (§157) / −1.24 (§232), both walk + 1 epoch. Different walks; the 0.018 FLOPs gap is worth ~0.17 pp at N3's slope. Visible, not a call.
 - No 10k: the size point is `val_best`. The DepGraph comparison waits on the transplant (wave 10) and wave 11.
 - Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
+## 237. First v10 freeze TEST, ep0127, landed κ 0.8 (**22341736**) — PRELIM; vs mild §211 r56 **−0.78**; residual **3 / 7 / 14** (mild/uniform, not sens); M1-v10 waits on **22341737**
+
+Skip-train `eval_c10_thin_traj` of **22156116** `snapshots/ep0127` (first freeze after PPO-20 with `vs_mild ≥ +0.5`; the probe is a gate, never a result). `tree_v10`, P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, floor off, `FIXED_TARGET=1`, `STATE_SENS=1`, det=1, `SIZE_MATCH=param:0.8`, 100-ep origin FT, seed 42, menu 1.0/0.9/0.8/0.7/0.6 all L1. COMPLETED 2 h 44 m, 7 Oct ~08:26, `cs-4090-10`, TB 0, exit 0. Start-check green (`policy=actor`, `fixed_target=1`, `state_sens=1`, 6-pass). Reader `final_ft_readout.py`. Control = mild-landed **§211**. Pair κ 0.6 **22341737** still R — **do not call M1-v10**.
+
+| Net | Actor params / FLOPs | Walk | Final 5k | vs mild §211 | vs uniform §229 | vs sens §227 |
+|---|---|---|---|---|---|---|
+| r20-w2 | 0.774 / 0.818 | −0.32 | **+0.54** | **+0.94** (−0.4) | — | — |
+| r56-w4 | 0.799 / 0.716 | −2.52 | **−2.88** | **−0.78** (−2.1) | −0.62 (−2.26) | −1.58 (−1.30) |
+| origin r20 / r56 | 1 | 0 | +3.32 / +0.28 | — | — | — |
+
+**Census (r56-w4):** 25 cuts at **0.9**, 22 identity at 1.0, 1 landing ~1.0. Distinct prune actions = **1**. r20: 6 at 0.9, 11 identity, 1 landing. Menu 0.8 / 0.7 / 0.6 **never played**. Not a Stage-4 0.8 clone; it is the mild path (0.9 + skip) at this κ.
+
+**Residual widths (r56-w4 `val_best`):** **3 / 7 / 14** — the mild/uniform architecture (§231), not sens 4 / 8 / 16. Inner convs are uniform 3 / 7 then 14–16. Same landed params and FLOPs as mild/uniform (0.799 / 0.716).
+
+**Read.** M1-v10 WIN / NEG / FLAT is registered on r56 κ **0.6**. This arm is the κ 0.8 quote-beside. Actor is 0.78 pp behind mild and 1.58 behind sens at equal params; residual streams are cut, so it did not learn the A0 plan here. r20 +0.94 is the disaster guard, not a veto. 10k n/a (`val_best`). Do not lock. Never quote the probe.
+
+---
+
+## 238. Allocation-following walk, uniform control, landed κ 0.35, thin pair (**22340637**) — PRELIM; r56-w4 **−7.90 @ 0.349**; lever waits on **22340636**
+
+Pair of 22340636 (sens, still R). Sitting 7 Oct wave 4, `tree_v10h`, `SPECTRA_ALLOC_KIND=uniform`, `SIZE_MATCH=param:0.35`, 5-rate menu, P, origin control. COMPLETED 3 h 26 m, 7 Oct 08:38, `ise-4090-21`, exit 0, no fallback. Call (queue): SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 on r56-w4 (sens − uniform). Bar: mild-landed κ 0.35 **22340796** (R).
+
+| Net / point | Params / FLOPs | Residual / inner, stages 1 · 2 · 3 | Walk (5k) | Final 5k | Honest | 10k |
+|---|---|---|---|---|---|---|
+| **r56-w4** `val_best` = `size_param0.35` | 0.349 / 0.331 | 2 / 2 · 5 / 5 · 9 / 9–10–10 (origin 4 · 8 · 16) | −7.60 | **−7.90** | −0.90 | n/a (val-selected) |
+| r20-w2 `size_param0.35` | 0.331 / 0.574 | 2 / 2 · 2 / 2 · 4 / 3–5–5 (origin 2 · 4 · 8) | −10.60 | **−9.80** | −2.56 | −9.82 |
+| r20-w2 `val_best` | 0.417 / 0.608 | 2 / 2 · 2 / 2 · 5 / 5 | −8.64 | −7.26 | −1.98 | n/a |
+| origin r56-w4 / r20-w2 | 1 | — | 0 | +0.60 / +3.36 | — | +0.45 / +3.67 |
+
+**Read.**
+- Uniform cuts r56-w4's residual streams to 0.5–0.6 of origin (2 / 4, 5 / 8, 9 / 16), as it cuts them at κ 0.6 / 0.8 (§229 / §230, §231). r20-w2's plan stops at params 0.417 (`every group at its target … strongest legal cut`), so its κ 0.35 point is a later step.
+- *Kept epochs (§235).* Every final FT here kept a **late** epoch (train loss falls to epoch 100: r56-w4 0.517 → 0.490, r20-w2 1.245 → 1.188), as on every landed-κ thin row. Honest is 100 epochs against 100.
+- Do not quote a lever until 22340636 lands. Never an agent row.
 
 ---
 

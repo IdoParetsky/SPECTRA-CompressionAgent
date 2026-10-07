@@ -26,7 +26,7 @@
 | Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** COMPLETED 07:36 **§236** | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 → **WEAK** (+0.40: −0.34 vs −0.74); residual streams full, FLOPs 0.398 vs 0.472 |
 | Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** COMPLETED ~06:13 **§233** | v10h | — | control r56 **−0.74 @ 0.465 / 0.472**; lever waits on 523 |
 | Alloc walk sens, κ 0.35 thin (wave 4) | **22340636** R ~05:09 | v10h | uniform 22340637 | SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 (r56-w4) |
-| Alloc walk uniform, κ 0.35 thin | **22340637** R ~05:14 | v10h | — | control |
+| Alloc walk uniform, κ 0.35 thin | **22340637** COMPLETED 08:38 **§238** | v10h | — | control r56 **−7.90 @ 0.349 / 0.331**; lever waits on 636 |
 | Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** R 05:56 | v10h | sens 22340391 | dose-response, reported |
 | Mild-landed κ 0.35 control, thin (wave 5) | **22340796** R 06:09 | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
 | L3a-deep: lr 0.1 final FT on τ-off's saved candidates (wave 6) | **22341051** COMPLETED 05:18 **§228** | v10 | §220 | TREND: Δ honest ≥ +1.0 at keep 0.123 and 2.57× ≥ +0.3 → **TREND** (+2.26 / +0.70); its 2.11× replicate read passes (+1.10), reported |
@@ -49,8 +49,12 @@
 | Select=last re-FT, DepGraph sens alloc / transplant R56 / transplant VGG (wave 11) | **22342666** PD (523 done) **/ 67 / 68** PD (afterok 22342029 / 22342030) | **v10k** | their own lr 0.01 finals | the allocation and transplant calls re-read on genuine endpoints, reported |
 | Endpoint noise: N3 select=last, seed 43 (wave 11b) | **22342767** PD (nice 9) | **v10k** | 22342659 (seed 42) | \|s43 − s42\| ≥ 0.3 (10k) at a gating point → that point's wave 11 call is "unresolved" unless both walks clear the bar by more |
 | Cosine from lr 0.1, select=last: N4 VGG-19 C100 / zoo twins (wave 11b) | **22342768 / 69** PD | **v10k** | 22342661 / 62 (lr 0.01-last) | lr 0.1-last − lr 0.01-last, reported; "helps across architectures" needs ≥ +0.3 on N4 at both size points and DG R56 at 2.57× |
-| First v10 freeze TEST ep0127 κ 0.8 | **22341736** R ~17 min | v10 | §211 | start-check green; never quote in-walk |
+| First v10 freeze TEST ep0127 κ 0.8 | **22341736** COMPLETED ~08:26 **§237** | v10 | §211 | r56 **−2.88 @ 0.799** vs mild −2.1 = **−0.78**; residual 3/7/14; census 0.9 only; M1-v10 waits on 37 |
 | First v10 freeze TEST ep0127 κ 0.6 | **22341737** R ~13 min | v10 | §212 | start-check green; never quote in-walk |
+
+**Ops 7 Oct 08:30 (3h + TEST land).** First v10 freeze TEST κ 0.8 **22341736 §237**: r56 **−2.88** vs mild **−2.1** = **−0.78**; residual 3/7/14. **22341737** still R — do not quote in-walk; do not call M1-v10. Resume ep **224**. Ledger next **§238**. Next canvas **09:30**. Next 3h **11:28**.
+
+**Ops 7 Oct 08:00 (TEST land).** Sitting closed **§236**: DepGraph sens **WEAK +0.40** (−0.34 vs uniform −0.74; FLOPs 0.398 vs 0.472). Wave 11 **22342659** R. v10 TESTs still R — do not quote in-walk. Resume ep **224**. Ledger next **§237**. Next canvas **09:30**. Next 3h **08:28**.
 
 **Ops 7 Oct 07:00 (TEST land).** Sitting closed **§234 / §235**. L3b-rep **22341280** numeric pass, **1-cycle VOID** (kept epoch 1). Paper FT caption stays lr 0.01. Wave 10 transplant **22342029 / 30** PD. v10 TESTs still R — do not quote in-walk. Resume ep **224**. Ledger next **§236**. Next canvas **09:30**. Next 3h **08:28**.
 
