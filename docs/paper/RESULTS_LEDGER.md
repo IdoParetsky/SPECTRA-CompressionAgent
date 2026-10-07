@@ -4767,6 +4767,31 @@ Seed 43 at r56-w4: sens walk −1.58, final −1.32 @ params 0.798 / FLOPs 0.708
 - DepGraph's own VGG-19 C100 is −3.11 at 8.92× params (keep ≈ 0.11). We keep 0.68 / 0.60, far less compression. Quote it beside; **never "beats"**.
 - Do not lock. Never an agent row.
 
+## 259. Waves 16–17 at κ 0.6: the allocation lever under v10's walk FT 12/4 (**22371882 / 22371892** seed 42, **22372632 / 22372633** seed 43) — PRELIM; two-seed sens − mild on the reward's own view **+4.05 → VISIBLE** (seed 42 +3.48, seed 43 +4.62; 40/10 +2.33, ×1.74): v10's FLAT is a learning failure, not a budget that hid the lever
+
+Sitting 7 Oct, wave 16 (registered 12:10, submitted 12:15) and wave 17 (registered 12:30, submitted 12:31). Sens α 0.5 in `tree_v10h` (§230's recipe, 5-rate menu) against mild-landed in `tree_v10` (§212's recipe), thin pair, landed κ 0.6. The only change from 40/10 is `SPECTRA_NUM_EPOCHS=12 SPECTRA_FINETUNE_PATIENCE=4`: 6 passes, P, loader crop+flip, 100-epoch final FT + origin and deterministic eval stay. 22371882 COMPLETED 14:26 and 22372632 COMPLETED 14:32 (1 h 36 m each, exit 0). 22371892 and 22372633 are still in their final FTs; their r56-w4 returns landed by 14:34 and at 14:46. Start check green on all four: env `NUM_EPOCHS` 12 / `FINETUNE_PATIENCE` 4 with the right seed, walk FT lines `Epoch …/12`, no Traceback, no fallback, and the sens jobs print their `[alloc]` plan line. Call (registered): d = sens − mild on r56-w4's return (`fixed target: episode ends … return`, the in-walk val Δacc at the landed point), read on the two-seed mean. **VISIBLE** ≥ +1.0, **HIDDEN** ≤ +0.3, PARTIAL between; where seed 42 and the two-seed read disagree, the two-seed read stands.
+
+| r56-w4 at κ 0.6 | Landed params, 12/4 | **Return 12/4** | Return 40/10 (job) | 12/4 − 40/10 |
+|---|---|---|---|---|
+| Sens, seed 42 | 0.5971 | −4.36 | −3.30 (22340391) | −1.06 |
+| Mild, seed 42 | 0.5997 | −7.84 | −5.86 (22156062) | −1.98 |
+| **d, seed 42** | | **+3.48** | +2.56 | ×1.36 |
+| Sens, seed 43 | 0.5998 | −3.10 | −2.78 (22341281) | −0.32 |
+| Mild, seed 43 | 0.5997 | −7.72 | −4.88 (22341278) | −2.84 |
+| **d, seed 43** | | **+4.62** | +2.10 | ×2.20 |
+| **d, two-seed mean** | | **+4.05** | +2.33 | **×1.74** |
+
+TEST on the 5k half at the landed point (walk / final-FT, 100 epochs). Sens at 12/4: seed 42 −4.28 / **−2.40** (honest +1.56), seed 43 −3.14 / **−2.68** (honest −0.06). Sens at 40/10: −2.80 / −2.80 and −2.74 / −2.08. Mild at 40/10: −5.96 / −5.06 and −5.20 / −4.90. Mild at 12/4: pending (final FTs running).
+
+Guard, r20-w2 returns (sens at 0.5948, mild at 0.5838): seed 42 −5.00 vs −7.16 (d +2.16), seed 43 −6.60 vs −7.12 (d +0.52). At 40/10 both seeds give −3.82 vs −3.90 (d +0.08). Sens's r20 final-FT TEST at 12/4: −3.96 / −3.82.
+
+**Read.**
+- *Call: VISIBLE on two seeds.* At v10's own walk budget, its reward puts the sens allocation about 4 pp above mild at r56-w4 κ 0.6, and the two seeds agree (+3.48, +4.62). The lever was in v10's reward, larger than at the TEST budget. So the FLAT M1-v10 (§248: the actor plays 0.9 or skip and lands on mild's architecture) is a learning failure (exploration, credit assignment or representation), not a recipe that hid the lever. The HIDDEN branch's remedy (a longer walk FT or a different reward) is not indicated by this read.
+- *Why the lever grows at 12/4.* A shorter walk FT costs mild 2.0–2.8 pp of return and sens 0.3–1.1. Mild's landed r56-w4 thins the residual streams (2 / 5 / 13 at 40/10, §248; the 12/4 walk lands on the same keep, widths printed on COMPLETED), while sens keeps them full (4 / 8 / 16 at 12/4); the thin streams recover more slowly in 12 epochs. The guard shows the same thing: level at 40/10 (+0.08 on both seeds), sens ahead at 12/4 (+2.16 / +0.52). Part of the 12/4 lever is therefore recoverability under a short walk FT. It still points the same way as the 40/10 lever the TEST rewards (+2.33, §247's +2.54 after final FT).
+- *Final FT at 12/4.* Sens's 100-epoch finals (−2.40 / −2.68) sit where the 40/10 walks' finals do (−2.80 / −2.08). The 12/4 walk loses nothing the final FT does not recover on this architecture.
+- κ 0.8 (**22372634 / 35**, PD) gets the same bars on seed 42 and is reported beside. If it disagrees, the write-up says at which keep the budget hides the lever.
+- Not a train and not a v10 TEST; ops' M1-v10 FLAT (§248) stands. Never quote the in-walk returns as TEST. Do not lock. Never an agent row.
+
 ---
 
 

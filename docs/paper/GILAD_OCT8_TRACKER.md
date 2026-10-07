@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§256; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§258; queue "v10" |
 
 ---
 
@@ -289,6 +289,10 @@
   - Two-seed sens − uniform is **+1.13** on the 5k half (seed 42 +0.96, seed 43 +1.30) and +1.25 at 10k on both seeds. Both of v10's probe keeps now have a lever that survives on two seeds, under lr 0.01.
   - At κ 0.8 mild and uniform end in the identical r56-w4 on both seeds, yet their finals differ by up to 0.92 pp on the 5k half (0.34 at 10k). That is the noise of one walk plus one final FT at a fixed architecture. Slide caveat: single-seed 5k differences under about 1 pp are not readable.
   - Overnight (waves 18, 19; registered before submit): both levers and the DepGraph transplant re-read under cosine-0.1, the fine-tune Q7 now recommends. If the lever shrinks there, it was a recoverability effect of the weak fine-tune rather than lost capacity.
+- **7 Oct ~14:50 (sitting)** — Why is v10 FLAT? Its reward did see the lever (waves 16–17, ledger §259): **VISIBLE**.
+  - At v10's own walk fine-tune (12/4), the return at r56-w4 κ 0.6 puts the sens allocation **+4.05** above mild on two seeds (+3.48 / +4.62), against +2.33 at the TEST budget (40/10). The short fine-tune hurts mild's thinned residual streams more than sens's full ones.
+  - So FLAT is a learning failure: the actor never left 0.9 / skip (§248) while its reward pointed at a 4 pp better allocation. The fix is not a longer walk FT or a different reward. It lies in exploration, credit assignment or representation. Ido's GO is still needed before any next train.
+  - κ 0.8 (22372634 / 35) is queued; the mild arms' final-FT TESTs fill §259 when they finish.
 
 ---
 
