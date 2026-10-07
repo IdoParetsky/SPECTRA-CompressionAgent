@@ -356,6 +356,7 @@
 - **7 Oct ~21:55 (sitting)** — Two two-seed reads landed together.
   - *κ 0.35 lever: WEAK* (ledger §282). Sens − uniform on r56-w4 is **+1.64** at 5k (+1.90 / +1.38), between the bars (≤ +0.5 / ≥ +2.0); the 10k is +1.98. These are genuine lr 0.01 endpoints, and the lever is bought with 24 % more FLOPs. At this keep the residual rule already carries it (§276).
   - *VGG-19 beyond the heuristic* (ledger §283, reported). Sens beats mild by **+1.09** at 5k on two seeds (10k +1.50), at 1.27× mild's FLOPs. Of sens's +2.77 over uniform (§279), +1.68 is mild's own margin over uniform. Slide wording: "on VGG-19 C100 at equal params, the sensitivity plan is about 1 pp above the mild heuristic, keeping 27 % more FLOPs".
+- **7 Oct ~22:05 (sitting)** — *DepGraph transplant, two seeds: PARTIAL* (ledger §284). Seed 43 walks DepGraph's exact 2.11× widths to +0.05 at 10k (seed 42 −0.14). The registered lift over N3 after the size credit is **+0.35** (+0.25 / +0.44), between the bars (≤ +0.2 / ≥ +0.5). Under lr 0.01 (walk + 1 epoch on both sides), DepGraph's widths explain about 45 % of the 0.78 pp between N3 and DepGraph's own model. The remaining 0.29 to DepGraph's +0.24 is its training beyond widths, or noise. The cosine re-read of seed 43 (22376027) is unblocked and queued; it repeats the comparison under the genuine endpoint.
 
 ---
 

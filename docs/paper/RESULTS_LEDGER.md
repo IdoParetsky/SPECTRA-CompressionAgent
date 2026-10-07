@@ -5337,3 +5337,25 @@ Mild's seed spread |s43 − s42|: 0.16 at 5k (val 0.48, 10k 0.16).
 
 ---
 
+## 284. Wave 18 (a): the DepGraph R56 transplant at seed 43 (**22374250**) — PRELIM; two-seed lift **+0.35** at 10k (seeds +0.25 / +0.44) → **PARTIAL** on wave 10's bars (ALLOCATION ≥ +0.5 / NOT ≤ +0.2); seed 43 lands on the same widths and its halves agree better (5k −0.08, val +0.18); both seeds are walk + 1 epoch, like N3's reference rows
+
+Sitting 7 Oct wave 18 (registered 13:04, before submit): the seed-43 repeat of §249 (`tree_v10j`, `SPECTRA_ALLOC_KIND=widths` from `configs/widths_depgraph_r56_c10_2.11x.json`, landed `param:0.508`, the DepGraph R56 C10 catalog, L1, P, loader crop+flip, walk 40/10, 100-epoch lr 0.01 final FT + origin, deterministic), `SPECTRA_SEED=43`. COMPLETED 3 h 37 m, 21:55, `ise-4090-18`, exit 0, TB 0, no fallback. Start check green: env `widths` and the widths file, `param:0.508`, seed 43; walk lines `Epoch …/40`; plan x0.504 over 30 groups (min 0.22), as seed 42. It lands at step 150 on DepGraph's widths exactly (params 0.508 / FLOPs 0.480; residual 13 / 32 / 42; inner 4–8–11, 7–12–28, 34–54–61). The pruned final FT kept **epoch 1** (train loss 0.00097) and the origin epoch 90, so both seeds are walk + 1 epoch, like N3's lr 0.01 reference rows (§249). The widths plan fixed the size point, so its 10k is computed directly (`full_test_dacc`), as in §249. Call (queue row 66, wave 10's): lift = T − (−0.54) − 0.15 at 10k on the two-seed mean; **ALLOCATION** ≥ +0.5, **NOT-ALLOCATION** ≤ +0.2, PARTIAL between.
+
+| Row | Walk 5k | Final 5k / val / **10k** | Origin 5k / val / 10k | Honest | Lift after the 0.15 credit, 5k / val / **10k** |
+|---|---|---|---|---|---|
+| Transplant s42 (22342029, §249), params 0.508 / FLOPs 0.480 | −0.56 | −0.72 / +0.44 / **−0.14** | +0.50 / +0.66 / +0.58 | −0.66 | −0.42 / +0.92 / **+0.25** |
+| Transplant s43 (22374250), same widths | +0.10 | −0.08 / +0.18 / **+0.05** | +0.42 / +0.62 / +0.52 | −0.60 | +0.22 / +0.66 / **+0.44** |
+| **Two-seed mean** | −0.23 | −0.40 / +0.31 / **−0.045** | | −0.63 | −0.10 / +0.79 / **+0.345** |
+| N3 2.11× reference (§157 / §232, lr 0.01), 0.470 / 0.463 | −0.22 | means −0.45 / −0.63 / **−0.54** | | | |
+| DepGraph's own 2.11× model (head-to-head) | | 10k **+0.24** | | | |
+
+The transplant's seed spread |s43 − s42|: 0.64 at 5k (val 0.26, 10k 0.19). Its halves disagree by 1.16 on seed 42 and by 0.26 on seed 43.
+
+**Read.**
+- *Call: PARTIAL.* The two-seed lift is +0.345 at 10k, between NOT-ALLOCATION (+0.2) and ALLOCATION (+0.5); seed 43 alone (+0.44) is PARTIAL too. After the size credit, DepGraph's widths walked by our pipeline explain about 0.35 of the 0.78 pp between N3 and DepGraph's own model (about 45 %) under this fine-tune. The registered 10k is also the quiet read: the 5k lift swings −0.42 / +0.22 across seeds, 10k +0.25 / +0.44.
+- *Like for like.* Both transplant seeds and N3's two reference rows restore epoch 1, so the comparison is walk + 1 epoch on both sides. Under the genuine endpoint, seed 42's cosine-0.1-last re-read made the transplant ALLOCATION (+0.87, §262), but a uniform cut reaches the same level under that fine-tune (§275). The seed-43 cosine re-read (22376027, queue row 73) is unblocked; wave 18's two-seed lift under cosine is reported beside this call.
+- *Against DepGraph.* The transplant is DepGraph's own architecture. At lr 0.01 its two-seed 10k is −0.045 against DepGraph's +0.24, so 0.29 is left for what DepGraph does beyond widths (its sparsity training and its own fine-tune) or for fine-tune noise. Never a beat, and not "matches" at this fine-tune.
+- Do not lock. Never an agent row.
+
+---
+
