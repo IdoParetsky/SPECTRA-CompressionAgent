@@ -5578,3 +5578,49 @@ Val / 10k, two-seed: inner − uniform +0.01 / −0.025; sens − inner +1.05 / 
 
 ---
 
+## 294. Wave 20 (b): VGG-19 C100 sens / uniform under cosine-0.1-last, seeds 42 and 43 (**22376019 / 22376013**, **22376010 / 22376014**, re-fine-tuned from 22375982 / 83 / 85 / 86) — PRELIM, reported; two-seed lever_cos **+1.74** at 5k (+1.54 / +1.94; lr 0.01 +2.77) and **+1.895** at 10k (lr 0.01 +3.105): still the SENS-MATTERS side of wave 20 (a)'s bars under the fine-tune Q7 recommends, captioned 1.36× FLOPs; the stronger fine-tune lifts uniform +3.00 and sens +1.97 at 5k, because every lr 0.01 VGG row was walk + 1 epoch
+
+`tree_v10k`, wave 19's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`) on each walk's saved candidates (`final_ft from …/traj_models`), seeds verified (42 / 43 in the env). All four COMPLETED in 18–20 min, exit 0, TB 0, and kept the last epoch on the pruned point and the origin. Seed 43: sens **22376010** (from 22375985), uniform **22376014** (from 22375986, COMPLETED 8 Oct 01:20, `ise-4090-06`). Registration (wave 20, 13:43): (b) is reported beside (a)'s lr 0.01 call (SENS-MATTERS, §279); if Q7 adopts cosine-0.1, the cosine version is the paper's.
+
+| VGG-19 C100, params 0.600 | Seed 42 | Seed 43 | Mean | lr 0.01 mean (§279) |
+|---|---|---|---|---|
+| Sens, 5k (FLOPs 0.749) | +0.44 | +0.44 | **+0.44** | −1.53 |
+| Uniform, 5k (FLOPs 0.551) | −1.10 | −1.50 | **−1.30** | −4.30 |
+| **Lever_cos, 5k** | +1.54 | +1.94 | **+1.74** | +2.77 |
+| Lever_cos, val | +2.60 | +1.50 | +2.05 | +3.44 |
+| Lever_cos, 10k | +2.07 | +1.72 | **+1.895** | +3.105 |
+| Origin control, 5k (sens run / uniform run) | +0.98 / +0.52 | +0.74 / +1.74 | — | s42 +0.12 / +0.36, s43 +0.36 / +0.16 |
+
+Cosine minus lr 0.01, per cell (5k / 10k): sens s42 +2.04 / +2.41, s43 +1.90 / +1.53; uniform s42 +3.26 / +3.08, s43 +2.74 / +3.28.
+
+**Read.**
+- *Lever under cosine: +1.74 at 5k on two seeds.* That is still well above wave 20 (a)'s SENS-MATTERS line (+1.0), at the same 1.36× FLOPs (0.749 vs 0.551), and the 10k (+1.895) and val (+2.05) agree. Per seed +1.54 / +1.94. Reported, as registered; (a)'s call (SENS-MATTERS, §279) stands either way.
+- *Why it shrinks by a third.* Every lr 0.01 VGG row was walk + 1 epoch (§279). Under cosine-0.1-last both arms reach a genuine endpoint, and uniform gains more (+3.00 at 5k against sens +1.97). The lr 0.01 lever, read at walk + 1 epoch, overstated the endpoint lever by about 1.0; the rest is the architecture.
+- *Sens ends above the original net.* Under cosine sens reads **+0.44** at 5k on both seeds (+0.86 at 10k) at params 0.600 / FLOPs 0.749. The unpruned control gains +0.5 to +1.7 from the same fine-tune, so this does not say pruning helps; it says VGG-19 C100 at 0.6 params is a light cut once the fine-tune is genuine.
+- *Noise.* The two same-recipe origin controls on seed 43 differ by 1.00 at 5k under cosine (+0.74 / +1.74), on seed 42 by 0.46. A single cosine 5k read on VGG carries about ±0.5; the two seeds' levers sit 0.40 apart.
+- Mild under cosine (22376011 / 22375996, R) gives bar_cos (sens − mild) next. Do not lock. Never an agent row.
+
+---
+
+## 295. Wave 20 (b) at κ 0.35, seed 42: wave 9's `inner` cell under cosine-0.1-last (**22376024**, re-fine-tuned from 22341871) — PRELIM, reported; sens − inner **−0.08** at 5k (lr 0.01 +0.12) and −0.56 at 10k (−0.58), the STRUCTURAL side of wave 9's κ 0.35 bar (≤ +0.5); inner − uniform **+1.80** at 5k (lr 0.01 +1.78): with §288 / §290, residual-full carries the whole thin-ResNet lever at all three keeps under both fine-tunes
+
+`tree_v10k`, wave 19's recipe on 22341871's saved candidates, `SPECTRA_SEED=42` (verified: env, `seed=42`, submit line). COMPLETED 49 min, 8 Oct 01:20, `ise-4090-07`, exit 0, TB 0, kept the last epoch. Reader as §285 / §288 / §290. Registration (wave 20 (b)): sens − inner under cosine-0.1, reported beside wave 9's lr 0.01 call (§276, STRUCTURAL +0.12). One seed: wave 9's κ 0.35 cell is seed 42 only.
+
+| r56-w4, κ 0.35, seed 42 | Params | Cos 5k | Cos val | Cos 10k | lr 0.01 5k / 10k |
+|---|---|---|---|---|---|
+| Sens (§273) | 0.338 | −6.20 | −6.46 | −6.33 | −6.00 / −6.18 |
+| Inner (this) | 0.346 | **−6.12** | −5.42 | **−5.77** | −6.12 / −5.60 |
+| Uniform (§273) | 0.349 | −7.92 | −7.64 | −7.78 | −7.90 / −8.03 |
+| **Sens − inner** | | **−0.08** | −1.04 | −0.56 | +0.12 / −0.58 |
+| Inner − uniform | | **+1.80** | +2.22 | +2.01 | +1.78 / +2.43 |
+
+Origin controls under cosine, 5k: −0.64 (inner run), −1.20 (sens), −0.80 (uniform); at lr 0.01 +0.46 / +0.46 / +0.60. r20-w2 guard under cosine: inner −6.50 @ 0.332, sens −11.98 @ 0.340, uniform −8.78 @ 0.331 (sens's plan floor binds before κ there, §243).
+
+**Read.**
+- *STRUCTURAL at κ 0.35 under cosine.* Sens − inner is −0.08 at 5k, against +0.12 at lr 0.01: the residual-full rule matches the sensitivity plan at the deepest keep too. The 10k (−0.56) and val (−1.04) lean the same way. Inner and sens keep the same FLOPs here (§276).
+- *All three keeps, both fine-tunes.* With κ 0.6 (−0.28, two seeds, §288) and κ 0.8 (−0.08, two seeds, §290), sens − inner under cosine is at or below zero at every keep, and inner − uniform is +1.80 here, +1.72 at κ 0.6 and +1.02 at κ 0.8 seed 43. On the thin ResNets the whole non-learned lever is "keep the residual streams full, cut the rest evenly". It does not transfer to MobileNetV2 (§293).
+- *Cosine barely moves κ 0.35.* Every r56-w4 arm moves by ≤ 0.25 at 5k and 10k against lr 0.01, while the unpruned origin control drops (−0.64 to −1.20 at 5k, against +0.46 to +0.60), as at κ 0.8 (§281).
+- One seed. κ 0.35's two-seed lever_cos needs 22374697 (R). Do not lock. Never an agent row.
+
+---
+
