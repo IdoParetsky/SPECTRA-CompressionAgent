@@ -5741,3 +5741,30 @@ At 10k, same pipeline and fine-tune: transplant − uniform +0.33 raw, **+0.26**
 
 ---
 
+## 301. Wave 21 (b): MobileNetV2 ×0.5 C10 sens / uniform under cosine-0.1-last, seeds 42 and 43 (**22376493 / 95 / 98 / 99**, re-fine-tuned from 22376484 / 85 / 88 / 90) — PRELIM, reported; two-seed lever_cos **+0.09** at 5k (+0.12 / +0.06; lr 0.01 +0.67), val +0.53, 10k **+0.31** (+0.865): the NONE side of wave 21's bars, as §291's walk-endpoint read (+0.14) said, and sens keeps 1.2× uniform's FLOPs; every row drops about 1 pp under cosine, the unpruned control included (five controls −0.88 to −1.06 at 5k), so on MBV2 ×0.5 the recipe costs the family, not the cut
+
+`tree_v10k`, wave 19's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, origin control, P) on the saved candidates of wave 21's four sens / uniform walks (`tree_v10h/runs/job22376484` / `85` / `88` / `90`), final-FT seed = the walk's (42, 42, 43, 43; verified in each env). 22376493 COMPLETED 31 m, 8 Oct 01:52, `ise-4090-06`; 22376495 30 m, 02:04, `ise-4090-08`; 22376498 30 m, 01:58, `ise-4090-14`; 22376499 31 m, 02:07, `ise-4090-14`. All exit 0, TB 0, no fallback; `final_ft from` names the right walk; recipe lines `optim=sgd lr=0.1 cosine=1 … select=last`; every final FT kept the last epoch (`kept last` 2 each). Checkpoint `mobilenet-v2x0.5_cifar10_chenyaofo_92.99`. The size point is `size_param0.60` on each walk's own architecture (sens steps 149 / 100, uniform 97 on both seeds; params 0.600). Registration (wave 21, 14:06): reported, the same lever under cosine-0.1 beside call (a), the lr 0.01 two-seed sens − uniform at 5k (**SENS-MATTERS** ≥ +1.0 / **NONE** ≤ +0.3 / WEAK; §291 **WEAK** +0.67, captioned 1.2× FLOPs). If Q7 adopts cosine-0.1, the cosine version is the paper's.
+
+| MBV2 ×0.5 C10, params 0.6 | Params / FLOPs | Walk 5k | Cosine final 5k / val / **10k** | Origin (cosine) 5k / 10k | Against own origin, 5k / 10k | Honest | lr 0.01 final 5k / val / 10k (§291) | Cosine − lr 0.01, 5k / 10k |
+|---|---|---|---|---|---|---|---|---|
+| Sens s42 (22376493) | 0.600 / 0.714 | +0.32 | −1.18 / −0.92 / **−1.05** | −0.88 / −0.99 | −0.30 / −0.06 | −0.62 | +0.34 / +0.84 / +0.59 | −1.52 / −1.64 |
+| Uniform s42 (22376495) | 0.600 / 0.591 | +0.08 | −1.30 / −1.06 / **−1.18** | −1.04 / −1.08 | −0.26 / −0.10 | −0.34 | +0.24 / +0.08 / +0.16 | −1.54 / −1.34 |
+| Sens s43 (22376498) | 0.600 / 0.706 | +0.36 | −1.06 / −0.68 / **−0.87** | −1.06 / −1.13 | 0.00 / +0.26 | −0.36 | +0.70 / +0.80 / +0.75 | −1.76 / −1.62 |
+| Uniform s43 (22376499) | 0.600 / 0.591 | +0.32 | −1.12 / −1.60 / **−1.36** | −1.02 / −1.31 | −0.10 / −0.05 | −0.42 | −0.54 / −0.56 / −0.55 (epoch 1) | −0.58 / −0.81 |
+
+| Lever, sens − uniform | Walk 5k | Cosine 5k / val / **10k** | lr 0.01 5k / val / 10k (§291) | Against own origins, 5k / 10k | FLOPs, sens / uniform |
+|---|---|---|---|---|---|
+| Seed 42 | +0.24 | +0.12 / +0.14 / +0.13 | +0.10 / +0.76 / +0.43 | −0.04 / +0.04 | 1.21× |
+| Seed 43 | +0.04 | +0.06 / +0.92 / +0.49 | +1.24 / +1.36 / +1.30 | +0.10 / +0.31 | 1.19× |
+| **Two-seed mean** | +0.14 | **+0.09** / +0.53 / **+0.31** | +0.67 / +1.06 / +0.865 | +0.03 / +0.175 | 1.2× |
+
+Origin val halves (2 × 10k − 5k) under cosine: sens s42 run −1.10, uniform s42 −1.12, sens s43 −1.20, uniform s43 −1.60; the inner s42 run (22376496) reads −1.04 at 5k, −1.33 at 10k, −1.62 on val. Lr 0.01 origins at 5k: +0.16 to +0.70.
+
+**Read (reported).**
+- *Under cosine the MBV2 lever is on the NONE side.* Two-seed sens − uniform is +0.09 at 5k (+0.12 / +0.06) and +0.31 at 10k, at wave 21's NONE line (+0.3). Call (a) stays §291's WEAK (+0.67) as registered. Seed 43, which carried the lr 0.01 lever (+1.24), now reads +0.06: its lr 0.01 margin was uniform's epoch-1 restore (§291). With every arm on its last epoch, the lever matches §291's walk-endpoint read (+0.14), which that section declined to quote as a counterfactual. Seed 43's val half (+0.92) is the loud one: that uniform run's own origin control is also −1.60 on val, against −1.10 to −1.20 in the other runs. Against each run's own origin, the lever is +0.03 at 5k and +0.175 at 10k. If Q7 adopts cosine-0.1, the paper's MBV2 lever is about +0.1 pp at 5k, bought with 1.2× FLOPs.
+- *On MBV2 the sens plan buys nothing at equal params and costs FLOPs.* Sens keeps FLOPs 0.714 / 0.706 against uniform's 0.591, the reverse of DepGraph R56, where sens lands level on 10–16 % fewer FLOPs (§299). At params 0.6 on MobileNetV2 ×0.5, an even cut is at least as good at the genuine endpoint.
+- *Every row drops about 1 pp under cosine, the unpruned control included.* The five cosine origin controls on MBV2 read −0.88 to −1.06 at 5k (mean −1.01) and −0.99 to −1.33 at 10k, against +0.16 to +0.70 at lr 0.01. The pruned rows end 0.00–0.30 below their own control at 5k, so the drop is the recipe, not the cut. The unpruned control ends at train loss about 0.15 (VGG-19 0.058, DepGraph R56 0.007), so cosine from lr 0.1 with wd 5e-4 does not re-fit this narrow net in 100 epochs. With the thin r56-w4 (wave 19), this is the second narrow net where cosine-0.1 lowers every row; Q7's recommendation rests on the full-width nets. If cosine-0.1 is adopted for every row, MBV2's absolute numbers drop about 1.5 pp against lr 0.01.
+- Inner s43 (22376500) and both mild cells (22376497 / 22376501) are running; sens − inner, sens − mild and inner − uniform under cosine follow when they land. Do not lock. Never an agent row.
+
+---
+
