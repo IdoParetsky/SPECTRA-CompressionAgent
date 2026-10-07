@@ -97,6 +97,7 @@ Unmatched always-0.8 greedy / mild / random sit near **−24 @ 0.667** (not size
 | Greedy 2-pass | first | 0.743 | **−5.7** | §173 |
 | Stage-4 DRL ep0179 | size 0.80 / 0.60 / `val_best` | 0.743 / 0.600 / 0.389 | **−4.0 / −5.0 / −7.6** | **§218** (census 0.8 only; M1 does not fire) |
 | Mild-landed 6-pass | κ 0.8 / 0.6 | 0.799 / 0.600 | **−2.1 / −5.1** | §211 / §212 |
+| v10 DRL ep0127 | κ 0.8 / 0.6 | 0.799 / 0.600 | **−2.88 / −5.28** | **§237 / §248** (census 0.9 only; **M1-v10 FLAT**) |
 | Greedy-landed 6-pass | κ 0.8 / 0.6 | 0.788 / 0.600 | **−2.4 / −4.7** | §214 / §216 |
 | Random-landed 6-pass | κ 0.6 | **0.564** (gap 0.036) | **−5.1** | §215 (not equal-size) |
 
@@ -4478,7 +4479,7 @@ Sitting 7 Oct wave 11b, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, `SPECT
 
 **Read.**
 - *Rule: not fired.* At 10k the endpoint moves 0.14 at 2.57× and 0.05 at 2.11×, both under 0.3. The wave 11 call stands as read in §240: **NEUTRAL** at 2.11×, now resolved on N3's side (two-seed Δsel +0.10 / +0.15). 2.57× stays **unresolved**, because τ-off sits inside the band (+0.21); N3's two-seed Δsel there is +0.50.
-- *Where the seed spread lives.* One final FT, re-seeded on the same walk, moves ≤ 0.32 at 5k and ≤ 0.14 at 10k (origin 0.14 / 0.00). §242's thin-pair spread, walk plus final FT re-seeded, was 0.72 at 5k. Most of the seed spread is therefore the walk, not the final FT. Different nets, so this is an order of magnitude, not a subtraction.
+- *Where the seed spread lives.* One final FT, re-seeded on the same walk, moves ≤ 0.32 at 5k and ≤ 0.14 at 10k (origin 0.14 / 0.00). ~~Most of the seed spread is therefore the walk.~~ **Corrected 12:15 (§247):** on the thin pair §242's 0.72 is in the final FT. The two sens walks end within 0.06 of each other (−2.80 / −2.74), and the final FT gains +0.00 against +0.66. On DepGraph R56 a re-seeded final FT moves ≤ 0.32 at 5k; on the thin r56-w4 it can move 0.6–0.7.
 - *Honest at 5k is the noisiest column* (−0.66 against −0.42 at 2.11×; −0.66 against −0.20 at 0.60), because it inherits the origin's 5k move (+0.14) on top of the point's own. Gate on 10k raw, as the wave 11 call does.
 - Do not lock. Never an agent row. Never call DepGraph a beat.
 
@@ -4509,9 +4510,9 @@ Kept epoch: every pruned final FT ends at train loss 0.0089–0.0099 against a b
 
 ---
 
-## 246. Wave 12: the slide line's cosine-from-0.1 final FTs at seed 43 (**22343160** N3 COMPLETED; **22343165** τ-off, gating points in) — PRELIM; every \|d\| < 0.3 at 2.11× / 2.57× (max **0.27**): the line keeps "one run each" and adds the seed bound
+## 246. Wave 12: the slide line's cosine-from-0.1 final FTs at seed 43 (**22343160** N3, **22343165** τ-off; both COMPLETED) — PRELIM; every \|d\| < 0.3 at 2.11× / 2.57× (max **0.27**): the line keeps "one run each" and adds the seed bound
 
-Sitting 7 Oct wave 12, `tree_v10` (sbatch only), §223's / §228's recipe (SGD from lr 0.1, cosine, 100 epochs, origin control) from the same saved candidates, with `SPECTRA_SEED=43` (data order and crop / flip; same split). 22343160 COMPLETED 1 h 22 m, 7 Oct 10:48, `ise-4090-02`, exit 0, TB 0. 22343165: its 2.57× and 2.11× final FTs had finished at 11:00, while the 0.60 one was still running. Start check green (seed 43, `final_ft from`, recipe lr 0.1 cosine). Every final FT kept a late epoch (best loss at or within 0.0006 of epoch 100's), so these are genuine endpoints with no `select=last` needed. Rule (queue, registered 09:15): d = s43 − s42 at 10k per walk and gating point. If every \|d\| < 0.3, the slide line keeps "one run each" and adds "a second final-FT seed moves each point by ≤ max \|d\|"; otherwise it quotes the two-seed mean and range.
+Sitting 7 Oct wave 12, `tree_v10` (sbatch only), §223's / §228's recipe (SGD from lr 0.1, cosine, 100 epochs, origin control) from the same saved candidates, with `SPECTRA_SEED=43` (data order and crop / flip; same split). 22343160 COMPLETED 1 h 22 m, 7 Oct 10:48, `ise-4090-02`, exit 0, TB 0. 22343165 COMPLETED 1 h 24 m, 11:32, `cs-4090-10`, exit 0, TB 0. Its 2.57× and 2.11× rows were read at 11:00, before the job ended, and did not change. Start check green (seed 43, `final_ft from`, recipe lr 0.1 cosine). Every final FT kept a late epoch (best loss at or within 0.0006 of epoch 100's), so these are genuine endpoints with no `select=last` needed. Rule (queue, registered 09:15): d = s43 − s42 at 10k per walk and gating point. If every \|d\| < 0.3, the slide line keeps "one run each" and adds "a second final-FT seed moves each point by ≤ max \|d\|"; otherwise it quotes the two-seed mean and range.
 
 | Walk, point | Seed 42 5k / 10k | **Seed 43** 5k / 10k | d, 5k / **10k** | Honest s43 / s42 |
 |---|---|---|---|---|
@@ -4520,8 +4521,11 @@ Sitting 7 Oct wave 12, `tree_v10` (sbatch only), §223's / §228's recipe (SGD f
 | N3, `size_flop0.60` | −0.26 / +0.04 | +0.44 / +0.41 | +0.70 / +0.37 | −0.12 / −0.96 |
 | N3, `val_best` | −0.90 / n/a | −0.84 / n/a | +0.06 / n/a | −0.20 / −0.40 |
 | N3, origin | +0.62 / +0.64 | +0.48 / +0.63 | −0.14 / −0.01 | — |
-| τ-off, 2.57× | −0.76 / −0.36 (§228) | −0.40 / −0.10 | +0.36 / **+0.26** | pending / −0.28 |
-| τ-off, 2.11× | +0.08 / +0.01 | −0.24 / −0.15 | −0.32 / **−0.16** | pending / +0.10 |
+| τ-off, 2.57× | −0.76 / −0.36 (§228) | −0.40 / −0.10 | +0.36 / **+0.26** | −0.18 / −0.28 |
+| τ-off, 2.11× | +0.08 / +0.01 | −0.24 / −0.15 | −0.32 / **−0.16** | −0.48 / +0.10 |
+| τ-off, `size_flop0.60` | +0.38 / +0.05 | +0.34 / +0.44 | −0.04 / +0.39 | −0.84 / −0.54 |
+| τ-off, `val_best` (keep 0.123) | −2.88 / n/a | −2.70 / n/a | +0.18 / n/a | +1.72 / +1.80 |
+| τ-off, origin | +0.74 / +0.82 | +1.00 / +1.09 | +0.26 / +0.27 | — |
 
 **Read.**
 - *Rule: every \|d\| < 0.3* at the gating points (0.27 / 0.25 on N3, 0.26 / 0.16 on τ-off, 10k). The slide line keeps "one run each" and adds "a second final-FT seed moves each point by ≤ 0.27" (cosine 0.1, both walks; lr 0.01-last on N3 ≤ 0.14, §244). The bound is close to the rule's 0.3, so it is a bound on two runs, not a precision claim.
@@ -4529,8 +4533,50 @@ Sitting 7 Oct wave 12, `tree_v10` (sbatch only), §223's / §228's recipe (SGD f
 - *Walk gap at 2.11×.* The registered necessary condition holds: seed 42's 0.37 (N3 −0.36, τ-off +0.01) exceeds that point's larger \|d\| (0.25). But at seed 43 the gap reverses (N3 −0.11, τ-off −0.15), and the two-seed means are −0.24 / −0.07, a gap of 0.17. A walk effect at 2.11× is **not** established.
 - *Large lr at 2.57× on two seeds.* Cosine 0.1 minus lr 0.01-last at 10k is +0.83 / +0.42 on N3 (seed 42 / 43, the latter against §244) and +0.95 / +1.21 on τ-off (both against §240's seed-42 lr 0.01-last). It is positive on all four pairs, and it already meets the R56 half of wave 11b's "across architectures" read (≥ +0.3 at 2.57×). 22342768 supplies the N4 half.
 - *Two-seed cosine-0.1 means at 10k:* N3 −0.24 (2.11×) / −0.51 (2.57×); τ-off −0.07 / −0.23. The slide line keeps its single runs by the rule; the means are reported, never a pick.
-- τ-off's 0.60, `val_best` and origin (and so its honest column) are pending 22343165.
+- *τ-off's remaining rows (11:32).* Its 0.60 point moves +0.39 at 10k, like N3's +0.37: non-gating, and the largest moves on both walks are at 0.60. The origin moves +0.26 / +0.27, so honest at 2.11× drops to −0.48 from +0.10. Honest is the noisiest column again: it carries the origin's move. At the deep point (keep 0.123, where §228's TREND sits) honest repeats: +1.72 against +1.80.
 - Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
+## 247. Wave 8 at κ 0.6: mild-landed at seed 43 (**22341278**) — PRELIM; same architecture as §212; two-seed bar sens − mild **+2.54** (≥ +1.0, clears, as seed 42 did); lever waits on 22341282; on the thin r56-w4 either the walk or the final FT can carry a ~0.7 pp seed spread
+
+`tree_v10`, §212's recipe (3-rate baseline menu, 6 passes, landed `param:0.6`, P, loader crop+flip, walk 40/10, 100-ep final FT + origin, deterministic) with `SPECTRA_SEED=43`. COMPLETED 5 h 15 m, 7 Oct 11:29, `ise-4090-12`, exit 0, TB 0, no fallback; read at 12:10, after the VPN gap. Rule (wave 8, registered 04:10): at r56-w4 the bar (sens − mild-landed ≥ +1.0 at κ 0.6) and the lever (sens − uniform: SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between) are read on the two-seed mean. Where the seed-42 call and the two-seed call disagree, the two-seed call stands.
+
+| r56-w4, κ 0.6 | Seed 42: walk / final (5k) | Seed 43: walk / final | Two-seed final | Params / FLOPs | Residual s1 / s2 / s3 |
+|---|---|---|---|---|---|
+| Mild (§212 / **22341278**) | −5.96 / −5.06 | −5.20 / **−4.90** | **−4.98** | 0.600 / 0.453, both seeds | 2 / 5 / 13, both seeds |
+| Sens α 0.5 (§230 / §242) | −2.80 / −2.80 | −2.74 / −2.08 | **−2.44** | 0.600 / 0.572; 0.597 / 0.568 | 4 / 8 / 16, both seeds |
+| Uniform (§230 / 22341282 R) | −4.18 / −3.34 | pending | pending | 0.599 / 0.582 | 3 / 6 / 12 |
+
+r20-w2 (reported): mild −2.86 / −3.18 at 0.584 (FLOPs 0.674); sens −2.92 / −3.46 at 0.595 (FLOPs 0.800). Mild's origin: r56 +0.12 / +0.12, r20 +3.32 / +3.44.
+
+**Read.**
+- *Bar: clears on two seeds.* Sens − mild = −2.44 − (−4.98) = **+2.54** (seed 42 +2.26, seed 43 +2.82). The seed-42 call stands. A non-learned allocation beats the standard heuristic by 2.5 pp at equal params, while keeping more FLOPs (0.57 against 0.45).
+- *Where a seed spread sits.* Mild's two walks land on the same widths (stage min / median / max 2/2/2, 5/6/6, 13/13/13, and identical params / FLOPs). The walks end 0.76 apart and the final FTs 0.16 apart. Sens is the reverse: walks 0.06 apart, final FTs 0.72 apart (gain +0.00 against +0.66). So on the thin r56-w4, either piece can carry a ~0.7 pp seed spread, and the final FT can widen it or close it. Single-seed gaps under ~0.8 pp on this net are noise. This corrects §244's "mostly the walk".
+- *Lever.* Waits on 22341282 (uniform, seed 43). Seed 42 alone: WEAK (+0.54).
+- *For ops' v10 calls (not decided here).* Mild's two-seed mean is −4.98, 0.08 above §212's −5.06. The beyond-heuristic line (sens two-seed mean + 0.5) stays at ≥ −1.94.
+- Do not lock. Never an agent row.
+
+---
+
+## 248. First v10 freeze TEST, ep0127, landed κ 0.6 (**22341737**) — PRELIM; **M1-v10 FLAT**: r56 **−5.28 @ 0.600** vs mild §212 **−5.1 = −0.18**; residual **2 / 5 / 13** (mild clone); census 0.9 only
+
+Skip-train `eval_c10_thin_traj` of **22156116** `snapshots/ep0127` (first freeze after PPO-20 with `vs_mild ≥ +0.5`; the probe is a gate, never a result). Pair of κ 0.8 **§237**. `tree_v10`, P, loader crop+flip never `FT_AUG_GPU`, walk 40/10, 6 passes, floor off, `FIXED_TARGET=1`, `STATE_SENS=1`, det=1, `SIZE_MATCH=param:0.6`, 100-ep origin FT, seed 42, menu 1.0/0.9/0.8/0.7/0.6 all L1. COMPLETED 5 h 4 m, 7 Oct 10:51, `ise-4090-03`, TB 0, exit 0. Start-check green (`policy=actor`, `fixed_target=1`, `state_sens=1`, 6-pass, no `FT_AUG_GPU`). Reader `final_ft_readout.py`. Control = mild-landed **§212**. Ops live-read 12:04 after VPN returned.
+
+| Net | Actor params / FLOPs | Walk | Final 5k | Honest | vs mild §212 | vs sens §230 | vs uniform §230 |
+|---|---|---|---|---|---|---|---|
+| r20-w2 | 0.584 / 0.674 | −4.66 | **−2.48** | −1.42 | **+0.42** (−2.9) | — | — |
+| **r56-w4** | 0.600 / 0.453 | −5.86 | **−5.28** | +0.10 | **−0.18** (−5.1) | −2.48 (−2.80) | −1.94 (−3.34) |
+| origin r20 / r56 | 1 | 0 | +3.60 / +0.48 | — | — | — | — |
+
+**Census (r56-w4):** 62 cuts at **0.9**, 74 identity at 1.0, 1 landing ~1.0. Distinct prune actions = **1**. r20: 13 at 0.9, 23 identity, 1 landing. Menu 0.8 / 0.7 / 0.6 **never played**. Same mild path as κ 0.8 (§237).
+
+**Residual widths (r56-w4 `val_best`):** **2 / 5 / 13** — identical to mild / greedy-3 at κ 0.6 (§231), not sens 4 / 8 / 16. Inner medians 2 / 6 / 13. Same landed params and FLOPs as mild (0.600 / 0.453).
+
+**Read.**
+- *M1-v10: **FLAT**.* Registered: WIN Δ ≥ +1.0 on r56 κ 0.6 vs mild, no cell ≤ −1.0; NEG Δ ≤ −1.0 on r56 κ 0.6. Actor −5.28 vs mild −5.1 = **−0.18** (vs sitting's two-seed mild mean −4.98, §247: **−0.30**). κ 0.8 was −0.78 (§237). Neither WIN nor NEG. Census ≥ 2 also fails (0.9 only), as on Stage-4. r20 +0.42 is the disaster guard, not a veto.
+- *Allocation.* The frozen actor did not keep residual streams full. It walked 0.9 + skip to the mild architecture, 2.48 pp behind sens and 3.34 behind the two-seed beyond-heur bar (−1.94). Same-architecture noise vs mild is 0.14–0.38 pp (§231); −0.18 sits inside it.
+- *Never quote the probe* (`vs_mild=+0.505`). 10k n/a (`val_best`). Do not lock. Do not start N8 from this FLAT.
 
 ---
 
