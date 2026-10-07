@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT.** Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§270; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **§237 −2.88 vs mild −2.1**; κ 0.6 **§248 −5.28 vs mild −5.1**. **M1-v10 FLAT** (learning failure: §259 VISIBLE +4.05). Residual 2/5/13 (mild clone); census 0.9 only. Never quote the probe. Wave 9 **§271 STRUCTURAL**: inner matches sens at κ 0.6 / 0.8 (+0.18 / +0.06); PFEC residual-full, not SPECTRA. Cosine-0.1 lever **§268 SURVIVES +1.44**. Beyond-heur **≥ −1.94**. First catalog C10. Do **not** a second allocation train from this FLAT | **FLAT**; do not start N8 | report Part III; ledger §200–§272; queue "v10" |
 
 ---
 
@@ -74,13 +74,13 @@
    - What survives is a per-channel descriptor. The group-level signal the allocation agent uses is each group's *measured* sensitivity, in v10's state. NAP-F's group mean does not reproduce it (7 Oct: ρ +0.25 / −0.47 / +0.38 on three nets; the summed single-channel ablation does, at 0.77–0.92).
    - Lesson for any learned score: hold out a family, not only a net.
 5. **Robustness vs verification.** One table and three hooks: an action-stability certificate for the frozen actor, choosing among frozen seeds by agreement, and the selection shield. Then ask which line he meant.
-6. **(Added 4 Oct) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200).
-   - Every TESTed actor plays one action at every decision: M1-neg compared uniform 0.8 with uniform 0.9.
-   - The band reward pays size, whatever the accuracy, inside 10 pp.
-   - A0 (allocation headroom) and the replay pre-check of a reward that prices accuracy at equal size come next.
-   - The Budget arm shows the same collapse (7 Oct census). STOP was played 74 times early and never after episode 231. Late in training, 97.5 % of decisions remove 4 %: STOP never became a size choice.
-   - Show the replay table (equal depth: 124.9 vs 126.0 across 3 pp of val) and A0's calls if they have landed.
-   - Ask question 6 below.
+6. **(Added 4 Oct; restamped 7 Oct 17:33) Why the agent did not beat mild, and what we do next** (report Part III; ledger §200–§272).
+   - Every TESTed actor plays one action at every decision: M1-neg compared uniform 0.8 with uniform 0.9. v10's first freeze TEST is the same collapse (census 0.9 only; **M1-v10 FLAT**).
+   - The band reward pays size, whatever the accuracy, inside 10 pp. v10 prices accuracy at equal size; its reward still *saw* the skip-connection lever (§259 VISIBLE +4.05 at the 12/4 train budget) and did not learn it.
+   - The non-learned accuracy lever is **STRUCTURAL** (§271): hold residual streams full and cut the rest evenly (Li et al. 2017 PFEC). It matches the sensitivity plan at keep 0.6 and 0.8. Sensitivity still buys ~9 % fewer FLOPs at keep 0.8.
+   - Under the stronger cosine-0.1 recovery the lever **SURVIVES** (+1.44 on two seeds, §268). A stronger fine-tune does not repair cutting skip-connections.
+   - Do **not** start N8 from this FLAT. Inner belongs beside mild as a same-loop heuristic. Q7 (cosine-0.1 vs lr 0.01) is Gilad's.
+   - The Budget arm shows the same collapse (7 Oct census). STOP was played 74 times early and never after episode 231.
 
 ---
 
@@ -330,6 +330,8 @@
   - This qualifies §8.1: on these nets, the accuracy-relevant part of the measured sensitivity in v10's state is whether a group is a residual stream. κ 0.35 (22341871) is still running.
 - **7 Oct ~17:30 (sitting)** — On a genuine lr 0.01 endpoint the R56 transplant is level with DepGraph's own model (ledger §272, keep-last re-FT 22342667, reported). It is **+0.25** at 10k against DepGraph's +0.24, and +0.41 over N3's keep-last after the size credit.
   - With §262 (cosine-0.1: +0.69), the 15:45 slide line holds under both genuine fine-tunes: given DepGraph's widths, our walk and fine-tune reach its accuracy. Never "beats".
+- **7 Oct ~18:25 (sitting)** — At κ 0.35, seed 42, the lever stays WEAK under cosine-0.1 (ledger §273, provisional). Sens − uniform is **+1.72** at 5k (+1.45 at 10k), against +1.90 at lr 0.01; the SURVIVES bar there is +2.0.
+  - Unlike κ 0.6, the stronger fine-tune trims this lever slightly, and sens keeps 24 % more FLOPs than uniform at this keep. Seed 43's κ 0.35 pair is running.
 
 ---
 

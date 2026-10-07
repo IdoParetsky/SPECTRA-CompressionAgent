@@ -5081,6 +5081,25 @@ N3-last's val half is 2 × 10k − 5k. §239's keep-last slope between 2.11× an
 - *The halves still disagree.* After the credit, the lift is +0.01 on the 5k half and +0.81 on val. Under cosine-0.1 the halves reversed (+1.32 / +0.41, §262). On this single point the per-half spread is 0.8–1.3 pp, which is why the reads are on 10k.
 - The VGG twin (22342668, keep last) and the seed-43 transplant walk (22374250) are queued. Do not lock. Never an agent row.
 
+## 273. Wave 19 at κ 0.35, seed 42: sens / uniform under cosine-0.1-last (**22374689 / 22374690**, re-fine-tuned from 22340636 / 37) — PRELIM, provisional (the call is two-seed); lever_cos **+1.72** at 5k (lr 0.01 +1.90) and +1.45 at 10k (+1.85): the WEAK side of §243's bars, as at lr 0.01; at κ 0.35 the stronger fine-tune trims the lever rather than growing it
+
+Sitting 7 Oct wave 19 (registered 13:14, before submit). §264's recipe, from the saved candidates of the κ 0.35 thin walks (`tree_v10h/runs/job22340636` / `37`). Final-FT seed 42, the walk's (verified: `seed=42`, `SPECTRA_SEED': '42'` in the env, `SPECTRA_SEED=42` in the submit line). 22374689 COMPLETED 57 m, 18:07, `ise-4090-11`; 22374690 COMPLETED 56 m, 18:18, `ise-4090-21`; both exit 0, TB 0, and every final FT kept the last epoch. Call (registered): r56-w4 5k at the landed point with §243's bars. **SURVIVES** ≥ +2.0, **ABSORBED** ≤ +0.5, WEAK between; seed 42 first, two-seed when the seed-43 pair lands.
+
+| r56-w4, κ 0.35, seed 42 | Params / FLOPs | Residual s1 / s2 / s3 | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / val / 10k (§243 / §238) | Origin 5k (lr 0.01) | cos − lr 0.01, 5k / val / 10k |
+|---|---|---|---|---|---|---|---|
+| Sens | 0.338 / 0.409 | 4 / 8 / 15 | −6.20 / −6.46 / **−6.33** | −1.20 | −6.00 / −6.36 / −6.18 | +0.46 | −0.20 / −0.10 / −0.15 |
+| Uniform | 0.349 / 0.331 | 2 / 5 / 9 | −7.92 / −7.64 / **−7.78** | −0.80 | −7.90 / −8.16 / −8.03 | +0.60 | −0.02 / +0.52 / +0.25 |
+| **Lever, sens − uniform** | | | **+1.72** / +1.18 / **+1.45** | | +1.90 / +1.80 / +1.85 | | −0.18 / −0.62 / −0.40 |
+
+The lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2 (sens 0.340, uniform 0.331), cosine 5k / 10k: sens −11.98 / −11.60, uniform −8.78 / −8.31, so sens − uniform is −3.20 / −3.29 (lr 0.01: −3.26 / −2.73). Both r20 origins gain about +4.9 at 5k under cosine-0.1 (lr 0.01 +3.2 / +3.4).
+
+**Read (provisional).**
+- *Seed 42: the WEAK side, as at lr 0.01.* lever_cos is +1.72 at 5k, 0.28 short of SURVIVES and well above ABSORBED. The val half (+1.18) and 10k (+1.45) are lower. Unlike κ 0.6 (+0.94 over lr 0.01 at 5k, §264), the stronger fine-tune trims the lever here, by 0.18 / 0.62 / 0.40: uniform gains on val and 10k (+0.52 / +0.25), and sens does not (−0.10 / −0.15).
+- *FLOPs.* At κ 0.35 sens keeps FLOPs 0.409 against uniform's 0.331, 24 % more at 0.011 fewer params. At this keep its lever is bought with FLOPs, as §260's caption says.
+- *Origins.* Both thin r56-w4 origins lose more under cosine-0.1 here (−1.20 / −0.80 at 5k) than in the κ 0.6 cells. The call reads raw Δ at the landed point.
+- *Guard.* On r20-w2 uniform is 3.2 ahead of sens at κ 0.35 under both fine-tunes. Reported only.
+- The seed-43 κ 0.35 walks (22344456 / 57) are R, and their cosine re-reads follow by `afterok`. The mild-landed κ 0.35 re-read gives bar_cos. Do not lock. Never an agent row.
+
 ---
 
 
