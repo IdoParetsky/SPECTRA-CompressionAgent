@@ -5671,3 +5671,26 @@ Uniform seed 42, cosine against lr 0.01: −0.44 at 5k, −0.23 at 10k. Origin c
 
 ---
 
+## 298. Wave 20 (b): VGG-19 C100 mild-landed under cosine-0.1-last, seeds 42 and 43 (**22376011 / 22375996**, re-fine-tuned from 22375994 / 95) — PRELIM, reported; two-seed bar_cos sens − mild **+0.72** at 5k (+0.10 / +1.34; lr 0.01 +1.09) and **+0.92** at 10k (lr 0.01 +1.50), still at 1.27× mild's FLOPs; under the genuine fine-tune mild recovers more than sens (+2.34 against +1.97 at 5k), so the lever over uniform splits as +1.02 (mild over uniform) plus +0.72 (sens over mild)
+
+`tree_v10k`, wave 19's recipe on the mild-landed walks' saved candidates (`tree_v10/runs/job22375994` / `95`), seeds verified (42 / 43 in the env). 22376011 COMPLETED 19 m, 8 Oct 01:36, `ise-4090-14`; 22375996 COMPLETED 19 m, 01:35, `ise-4090-08`; both exit 0, TB 0, lr 0.1 cosine, kept the last epoch on the pruned point and the origin. Registration (wave 20, 13:43): sens − mild is reported, as is the same under cosine-0.1; if Q7 adopts cosine-0.1, the cosine version is the paper's.
+
+| VGG-19 C100, params 0.600 | FLOPs | Seed 42 cos 5k / val / 10k | Seed 43 cos 5k / val / 10k | Two-seed cos 5k / 10k | lr 0.01 two-seed 5k / 10k (§279 / §283) |
+|---|---|---|---|---|---|
+| Sens (§294) | 0.749 | +0.44 / +1.68 / +1.06 | +0.44 / +0.88 / +0.66 | **+0.44** / +0.86 | −1.53 / −1.11 |
+| Mild-landed (this) | 0.591 | **+0.34** / +0.46 / **+0.40** | **−0.90** / −0.14 / **−0.52** | **−0.28** / −0.06 | −2.62 / −2.61 |
+| Uniform (§294) | 0.551 | −1.10 / −0.92 / −1.01 | −1.50 / −0.62 / −1.06 | −1.30 / −1.035 | −4.30 / −4.215 |
+| **Bar_cos, sens − mild** | | +0.10 / +1.22 / +0.66 | +1.34 / +1.02 / +1.18 | **+0.72** / **+0.92** | +1.09 / +1.50 |
+| Mild − uniform | | +1.44 / +1.38 / +1.41 | +0.60 / +0.48 / +0.54 | +1.02 / +0.975 | +1.68 / +1.605 |
+
+Mild, cosine against lr 0.01: seed 42 +2.88 at 5k (+3.09 at 10k), seed 43 +1.80 (+2.01). Origin controls under cosine, 5k: +0.62 (seed 42 mild run), +0.34 (seed 43); at lr 0.01 +0.46 / +0.92. Both mild walks land at step 42, params 0.600 / FLOPs 0.591 (one architecture across seeds, §283).
+
+**Read (reported).**
+- *Bar under cosine: +0.72 at 5k, +0.92 at 10k.* Against +1.09 / +1.50 at lr 0.01, so the stronger fine-tune trims sens's margin over the heuristic by about 0.4 at 5k and 0.6 at 10k. Every lr 0.01 VGG final restored epoch 1 (§279); under cosine-0.1-last mild gains +2.34 at 5k on average, sens +1.97 and uniform +3.00. The val half agrees in sign (+1.12). Sens keeps 1.27× mild's FLOPs (0.749 vs 0.591) throughout.
+- *Seed spread.* Seed 42's bar is +0.10 at 5k and seed 43's +1.34; at 10k +0.66 / +1.18. The single-read noise on VGG under cosine is about ±0.5 (§294: two origin controls of one seed differ by up to 1.00), so the seeds disagree by about that noise, not by more. Quote the two-seed mean.
+- *The decomposition under cosine.* Sens − uniform (+1.74, §294) = mild − uniform (+1.02) + sens − mild (+0.72); at lr 0.01 it was +1.68 + +1.09 = +2.77. The heuristic still supplies most of the gap over an even cut, as at lr 0.01 (§283), and both parts shrink under the genuine fine-tune.
+- *Slide wording, if Q7 adopts cosine-0.1:* "on VGG-19 C100 at equal params, the sensitivity plan is about 0.7 pp above the mild heuristic at 5k (0.9 at 10k), keeping 27 % more FLOPs". At lr 0.01 the wording stays §283's (about 1 pp).
+- Wave 20 (b)'s VGG cells are complete. Do not lock. Never an agent row.
+
+---
+
