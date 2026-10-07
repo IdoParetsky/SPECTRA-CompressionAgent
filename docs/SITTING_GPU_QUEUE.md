@@ -1,5 +1,7 @@
 # SPECTRA sitting GPU queue
 
+**11:05, VPN down.** The Check Point tunnel expired around 11:00 (adapter "Disconnected"; `slurm.bgu.ac.il:22` times out while the internet works). I did not log in again: stored-password VPN retries risk a lockout. Every cell is an sbatch job, so the queue keeps running: 11 R, 21 sitting cells PD, `afterok` children chained. Reading and ledgering resume when the VPN is back. Readers are ready for the next landings: wave 12's τ-off half, the twins, the κ 0.6 seed-43 pair (mild 22341278, uniform 22341282), the κ 0.35 mild bar 22340796 and wave 15.
+
 **Morning report for Ido (sitting, 7 Oct 09:30).**
 - *Headline: our final fine-tune mostly kept epoch 1 (ledger §235).* The FT restores its lowest-train-loss epoch. The walk's per-step FT (Adam, no weight decay) leaves the net below the train loss that SGD with weight decay settles at, so on most lr-0.01 DepGraph rows the restore brought back epoch 1. The M4 row (10k −0.46 at 2.11×) is therefore walk + 1 epoch, and **1-cycle is VOID**; my 04:10 ADOPT note is withdrawn.
 - *Wave 11 (§239, §240): NEUTRAL.* Keeping the true endpoint adds +0.15 to +0.43 pp at 10k on two walks, under the registered +0.3 on both, so M4 keeps its numbers with the disclosure. 2.57× is unresolved, with τ-off 0.09 under the bar. A seed-43 repeat of N3 moves the endpoint by ≤ 0.14 at 10k (§244), so the call stands.
