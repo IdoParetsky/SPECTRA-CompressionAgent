@@ -4353,4 +4353,46 @@ Pair of 22340636 (sens, still R). Sitting 7 Oct wave 4, `tree_v10h`, `SPECTRA_AL
 
 ---
 
+## 239. Wave 11 select=last: paper recipe keeping the last epoch, N3's saved DepGraph R56 candidates (**22342659**) — PRELIM; N3 Δsel 10k **+0.15 / +0.43** at 2.11× / 2.57×; call waits on **22342660**
+
+Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-saved N3 `job21767189/traj_models`, otherwise the paper recipe (SGD 0.01, cosine, 100 epochs, P, seed 42, origin). COMPLETED 1 h 24 m, 7 Oct 08:59, `cs-4090-08`, exit 0, TB 0. Log prints `keep=last`. Reader `final_ft_readout.py`. Pair: τ-off **22342660** still R. Call (queue, 10k): Δsel = this final − §157's train-loss final. **REQUOTE** if Δsel ≥ +0.3 on both walks at 2.11× or at 2.57×; **STANDS** if ≤ −0.3 at both points on both walks; **NEUTRAL** otherwise.
+
+| Point | Params / FLOPs | Walk (5k) | §157 5k / 10k | **select=last** 5k / 10k | Δsel 10k |
+|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | +0.08 | +0.04 / −0.03 | +0.22 / **+0.17** | **+0.20** |
+| size_flop0.47 (2.11×) | 0.470 / 0.463 | −0.22 | −0.44 / **−0.46** | −0.30 / **−0.31** | **+0.15** |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | −1.32 | −1.34 / **−1.63** | −1.18 / **−1.20** | **+0.43** |
+| `val_best` | 0.356 / 0.369 | −1.12 | −0.96 / n/a | −0.90 / n/a | n/a |
+| origin | 1 | 0 | +0.36 / +0.60 | +0.34 / +0.42 | −0.18 |
+
+**Read.**
+- *This walk.* 2.57× Δsel **+0.43** clears +0.3; 2.11× **+0.15** does not. REQUOTE needs the τ-off walk at the same point. STANDS cannot fire from these signs. Do not change the M4 caption on one walk.
+- *M4 if this number were used.* 2.11× 10k would move −0.46 → −0.31, still 0.55 behind DepGraph +0.24.
+- Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
+## 240. Wave 11 call: select=last on τ-off's saved DepGraph R56 candidates (**22342660**), beside N3 (§239) — PRELIM; **NEUTRAL** at 2.11×, 2.57× **unresolved**; the M4 numbers stay, disclosed; cosine-0.1's lead at 2.57× is **not** the selection
+
+Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-saved τ-off `tree_v9d/runs/job22288423/traj_models` (PATH-SAME widths as N3, §220), otherwise the paper recipe (SGD 0.01, cosine, 100 epochs, P, seed 42, origin). R from 08:27 on `cs-4090-10`. Both gating points were finished by 09:01, and their numbers are final. `val_best` and the origin are still running, so τ-off's honest gain is pending. Start check on each finished point: env `last`, `select=last`, "kept the last epoch", `keep=last`. Reader `final_ft_readout.py`.
+
+| Point | §220 train-loss 5k / 10k | **select=last** 5k / 10k | Δsel 10k | cosine 0.1 §228, 10k |
+|---|---|---|---|---|
+| size_flop0.47 (2.11×) | −0.90 / −0.94 | −0.60 / **−0.54** | **+0.40** | +0.01 |
+| size_flop0.39 (2.57×) | −1.34 / −1.52 | −1.40 / **−1.31** | **+0.21** | −0.36 |
+
+| Point | N3 Δsel (§239) | τ-off Δsel | Call (queue, registered 07:10) |
+|---|---|---|---|
+| 2.11× | +0.15 | +0.40 | **NEUTRAL**: N3 is 0.15 short of +0.3, outside the 0.1 band |
+| 2.57× | +0.43 | +0.21 | **unresolved**: τ-off is 0.09 short, inside the band |
+
+**Read.**
+- *Call.* REQUOTE needs both walks ≥ +0.3 at one point, and no point has that. STANDS needs ≤ −0.3 everywhere, and every Δsel is positive. So the M4 numbers stay, with the disclosure "walk + 1 epoch (§235); a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k on two walks". 22342767 (N3 select=last, seed 43) can make 2.11× unresolved as well, if N3 moves ≥ 0.3 there; it cannot make REQUOTE fire.
+- *§228's TREND is not the selection.* lr 0.01-last against cosine-0.1 at 2.57×: N3 −1.20 vs −0.37 (0.83 apart), τ-off −1.31 vs −0.36 (0.95). Both gaps exceed 0.3, the registered bar. At 2.11× they are level on N3 (−0.31 vs −0.36) and 0.55 apart on τ-off (−0.54 vs +0.01). A genuine lr-0.01 endpoint recovers at most 0.43 of those gaps. Cosine from 0.1 leads on merit at 2.57× on both walks.
+- *Honest, 100 epochs against 100 (N3, §239's run).* −0.42 at 2.11×, −0.20 at 2.57×, −0.20 at keep 0.60, −0.12 at `val_best`. At lr 0.01 the pruned nets gain less over their walk than the origin gains from 100 epochs (+0.34).
+- *Slide line (tracker §6, 07:15) unchanged.* It quotes cosine-0.1, one run each; wave 12 (**22343160 / 65**, seed 43) measures its seed noise.
+- Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
 
