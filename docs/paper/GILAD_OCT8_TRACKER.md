@@ -304,6 +304,9 @@
   - Registered lift **+0.87 → ALLOCATION** (bar +0.32). Our pipeline on DepGraph's exact widths gets **+0.69** at 10k, against our own N3 walk's −0.24 and DepGraph's own model's +0.24. Both halves clear the bar, and against each run's own retrained origin the lift is still +0.48.
   - §249's PARTIAL was walk + 1 epoch (epoch-1 restore). On real endpoints, where it cuts explains the gap: DepGraph keeps the residual streams wide, as the thin-pair lever does.
   - Slide line: "given DepGraph's widths, our walk and fine-tune reach its accuracy at 2.11×; the gap is allocation, which is what the agent must learn." **Never "beats"**: our origin also gains +1.02 under that fine-tune.
+- **7 Oct ~16:00 (sitting)** — The structural rule alone, on one seed (ledger §263, wave 9 `inner`, κ 0.6). Keep every residual stream full and give the other groups one keep.
+  - r56-w4 lands at **−2.40** against sens −2.80, uniform −3.34 and mild −5.06. Sens − inner is **−0.40**, the STRUCTURAL side; provisional until seed 43 and κ 0.8 land (R).
+  - If it holds, the lever needs no sensitivity measurement: "keep the residual streams wide" is the whole allocation rule on the thin ResNets. That is the same structure DepGraph's widths keep (§262).
 
 ---
 

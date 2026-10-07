@@ -4861,6 +4861,28 @@ N3's val half is derived as 2 × 10k − 5k (the halves are equal; seeds 42 / 43
 - One walk and one fine-tune seed. Queued: the seed-43 transplant walk (22374250, lr 0.01, wave 18 c), the lr 0.01 endpoint re-read (22342667), and the VGG-19 C100 transplant (22342030, R) with its cosine-0.1 re-read.
 - Do not lock. Never an agent row.
 
+## 263. Wave 9: residual-full allocation walk (`inner`), κ 0.6, seed 42 (**22341865**) — PRELIM, provisional (the call is two-seed at κ 0.6 and 0.8); r56-w4 **−2.40 @ 0.595 / FLOPs 0.580**; sens − inner **−0.40** (STRUCTURAL side); inner − uniform **+0.94**; r20-w2 inner −0.78 (sens / uniform −2.92)
+
+Sitting 7 Oct wave 9 (registered 06:15, before submit). `tree_v10i`, `SPECTRA_ALLOC_KIND=inner`, undershoot 0.02, `SIZE_MATCH = SIZE_POINTS = param:0.6`, 5-rate menu, landed, 6 passes, P, loader crop+flip, walk 40/10, 100-epoch final FT + origin, deterministic, seed 42. COMPLETED 3 h 7 m, 7 Oct 15:53, `cs-4090-07`, exit 0, TB 0. Start check green. The env shows kind `inner`, the alloc lines say "3 coupled groups held at full width", and r56-w4 lands with every residual stream full (4 / 8 / 16) and inner convs 2 / 5 / 9–10, which is the planned 2 / 5 / 9. As registered, r20-w2's plan keeps x0.621, above κ, so it finished by the logged strongest-cut path (`every group at its target … strongest legal cut from here`, at x0.646); it is reported only. Every final FT kept a late epoch (best loss within 0.005 of epoch 100's). Call (registered): gap = sens − inner on r56-w4, same seeds. At κ 0.6 and κ 0.8 on the two-seed mean, **STRUCTURAL** if gap ≤ +0.3 at both, **SENS-ADDS** if ≥ +0.5 at both, PARTIAL otherwise. Seed 42 alone is provisional.
+
+| Net, κ 0.6, seed 42 | Arm | Params / FLOPs | Residual s1 / s2 / s3 | Inner s1 / s2 / s3 | Walk 5k | **Final 5k** | Honest | Sens − arm |
+|---|---|---|---|---|---|---|---|---|
+| **r56-w4** | **inner** | 0.595 / 0.580 | 4 / 8 / 16 | 2 / 5 / 9–10 | −2.92 | **−2.40** | +0.46 | **−0.40** |
+| r56-w4 | sens (§230) | 0.600 / 0.572 | 4 / 8 / 16 | 2–4 / 2–8 / 4–16 | −2.80 | −2.80 | −0.50 | — |
+| r56-w4 | uniform (§230) | 0.599 / 0.582 | — | — | — | −3.34 | — | +0.54 |
+| r56-w4 | mild (§212) | 0.600 / 0.453 | 2 / 5 / 13 | — | −5.96 | −5.06 | +0.78 | +2.26 |
+| r56-w4 | v10 ep0127 TEST (§248) | 0.600 | — | — | — | −5.28 | — | — |
+| r20-w2 | inner | 0.582 / 0.722 | 2 / 4 / 8 | 2 / 2 / 3–5 | −2.68 | **−0.78** | −1.32 | −2.14 |
+| r20-w2 | sens (§230) | 0.595 / 0.800 | 2 / 4 / 5 | 2 / 2–4 / 5–8 | −4.74 | −2.92 | −1.46 | — |
+| r20-w2 | uniform (§230) | 0.581 / 0.741 | — | — | — | −2.92 | — | 0.00 |
+| origin r56-w4 / r20-w2 | inner run | 1 | — | — | 0 | +0.06 / +3.22 | — | — |
+
+**Read (provisional).**
+- *Gap on seed 42: −0.40, the STRUCTURAL side.* Holding the residual streams full and giving the remaining groups one uniform keep matches or beats the sensitivity plan on r56-w4. Both keep the streams at 4 / 8 / 16. Sens spreads the inner convs unevenly (2–16), while `inner` keeps them even (2 / 5 / 9–10), and the final is 0.40 better at 0.005 lower params and 0.008 more FLOPs. The seed spread on this net is ~0.7 pp (§242), so seed 42 alone does not decide; 22341867 (κ 0.6, seed 43) and 22341866 / 70 (κ 0.8) are R.
+- *Inner − uniform +0.94; inner − mild +2.66; +2.88 over v10's ep0127 TEST.* The residual-full rule alone carries the whole non-learned lever over the uniform cut on this seed (sens − uniform was +0.54 here, +1.09 on two seeds, §254).
+- *Guard, r20-w2.* `inner` keeps r20's stage-3 stream full (8), where sens cut it to 5, and its walk ends 2.1 pp better (−2.68 against −4.74). After the final FT it is +2.14 over both sens and uniform. Honest is close (−1.32 against −1.46), so the difference is in the walk's endpoint, and the final FT carries it. The plan above κ makes this a strongest-cut walk: reported, not gating.
+- Wave 20's cosine-0.1-last re-read of this run (22376020) has its `afterok` met. Do not lock. Never an agent row.
+
 ---
 
 
