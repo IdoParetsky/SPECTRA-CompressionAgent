@@ -5288,3 +5288,52 @@ The lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2
 
 ---
 
+## 282. Wave 14, thin pair landed κ 0.35, seed 43: sens / uniform (**22344456 / 22344457**) — PRELIM; two-seed lever sens − uniform on r56-w4 **+1.64** at 5k (seeds +1.90 / +1.38) → **WEAK** on §243's bars (SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5); the 10k is **+1.98** (+1.85 / +2.11), 0.02 under the bar; both arms land on seed 42's architectures, and sens keeps 24 % more FLOPs
+
+Sitting 7 Oct wave 14 (registered 10:20, before submit): the seed-43 repeat of §238 / §243 (`tree_v10h`, sens α 0.5 / uniform, `param:0.35`, thin catalog `input_c10_thin.json`, 6 passes, P, loader crop+flip, walk 40/10, 100-epoch final FT at lr 0.01 + origin, deterministic), `SPECTRA_SEED=43`. 22344457 COMPLETED 3 h 25 m, 20:12, `ise-4090-02`; 22344456 COMPLETED 4 h 53 m, 21:39, `ise-4090-02`; both exit 0, TB 0, no fallback. Start check green: env kind, thin catalog, `param:0.35`, seed 43; walk lines `Epoch …/40`; the plans print 12 / 30 groups (r20-w2 / r56-w4). On r56-w4 both arms land on seed 42's architectures exactly: sens at step 284, params 0.338 / FLOPs 0.409, residual 4 / 8 / 15 (inner 2–2–3, 2–2–7, 2–5–16); uniform at step 102, 0.349 / 0.331, residual 2 / 5 / 9. So do the r20-w2 landings (sens step 60, uniform 41). Unlike the DepGraph and VGG rows, the thin pruned final FTs keep late epochs (r56-w4 100 / 95 at seed 43; r20-w2 95–100), so these are genuine lr 0.01 endpoints. On r56-w4 the landed model is the `val_best` candidate, fine-tuned once, so its row is that one, as in §243 and wave 19's reader. Call (wave 14): §243's bars on the two-seed mean of sens − uniform on r56-w4, 5k at the landed point.
+
+| r56-w4, landed κ 0.35 | Params / FLOPs | Walk 5k | **lr 0.01 final** 5k / val / 10k | Origin 5k / val / 10k |
+|---|---|---|---|---|
+| Sens s42 (22340636, §243) | 0.338 / 0.409 | −8.42 | **−6.00** / −6.36 / −6.18 | +0.46 / +0.40 / +0.43 |
+| Sens s43 (22344456) | 0.338 / 0.409 | −5.96 | **−6.34** / −5.46 / −5.90 | +0.12 / +0.18 / +0.15 |
+| Uniform s42 (22340637, §238) | 0.349 / 0.331 | −7.60 | **−7.90** / −8.16 / −8.03 | +0.60 / +0.30 / +0.45 |
+| Uniform s43 (22344457) | 0.349 / 0.331 | −8.00 | **−7.72** / −8.30 / −8.01 | +0.20 / +0.48 / +0.34 |
+| Sens − uniform, s42 · s43 | 1.24× FLOPs | −0.82 · +2.04 | +1.90 / +1.80 / +1.85 · +1.38 / +2.84 / +2.11 | |
+| **Two-seed mean** | | +0.61 | **+1.64** / +2.32 / **+1.98** | |
+
+Seed spread |s43 − s42|: sens 0.34 at 5k (val 0.90, 10k 0.28), uniform 0.18 (val 0.14, 10k 0.02); the lever 0.52 at 5k (val 1.04, 10k 0.26). Guard, r20-w2 (sens 0.340 / FLOPs 0.631, uniform 0.331 / 0.574), 5k / 10k: seed 42 sens −13.06 / −12.55, uniform −9.80 / −9.82; seed 43 sens −13.28 / −13.34, uniform −9.40 / −9.12; two-seed sens − uniform −3.57 / −3.48.
+
+**Read.**
+- *Call: WEAK.* The two-seed 5k mean is +1.64, between ABSORBED (+0.5) and SURVIVES (+2.0). Seed 42 alone was +1.90 (§243); seed 43 adds +1.38. The val half (+2.32) and 10k (+1.98) are higher, and the 10k sits 0.02 under the bar. On the registered half the call is WEAK; quote it with the 10k beside it.
+- *Genuine endpoints, unlike §280.* The thin pruned FTs kept epochs 95–100, so this lever is what lr 0.01's full fine-tune leaves. The lever at the walk's TEST swings across seeds (−0.82 / +2.04); the final FT ends both at +1.4 to +1.9.
+- *Bought with FLOPs.* At κ 0.35 sens keeps FLOPs 0.409 against 0.331 (1.24×) at 0.011 fewer params (§273's caption). On seed 42 the decomposition was uniform − mild +2.44, inner − uniform +1.78, sens − inner +0.12 (§260, §276): at κ 0.35 the non-learned lever is the residual rule, and sens adds nothing measurable over it.
+- *Guard.* On r20-w2 uniform is 3.5 ahead of sens on both seeds. Reported only.
+- *Cosine.* The seed-43 cosine re-reads (22374697 / 98, queue row 69) are unblocked; with §273 they give the two-seed lever_cos.
+- Do not lock. Never an agent row.
+
+---
+
+## 283. Wave 20, VGG-19 C100 at landed params 0.6: mild-landed, seeds 42 / 43 (**22375994 / 22375995**) — PRELIM, reported; two-seed sens − mild **+1.09** at 5k (+0.94 / +1.24; val +1.91, 10k +1.50) at 1.27× mild's FLOPs; mild sits **+1.68** above uniform, so sens − uniform (+2.77, §279) is mostly the heuristic's margin over uniform, and sens adds about +1.1 over the heuristic
+
+Sitting 7 Oct wave 20 (a), registered 13:43: the mild-landed cells (`tree_v10`, §211's recipe: the mild heuristic walk ended at `param:0.6`; the same VGG catalog, P, loader crop+flip, walk 40/10, 100-epoch final FT at lr 0.01 + origin, deterministic). 22375994 (seed 42) COMPLETED 2 h 09 m, 21:26, `ise-4090-11`; 22375995 (seed 43) COMPLETED 2 h 07 m, 21:38, `ise-4090-02`; both exit 0, TB 0, no fallback. Start check green: VGG catalog, `param:0.6`, the seed, walk lines `Epoch …/40`. Both seeds land on one architecture (step 42; params 0.600 / FLOPs 0.591; convs `64 47 94 94 186 186 186 186 · 374 374 376 415 415 415 415 415`). Both pruned final FTs kept **epoch 1** (train loss 0.0055 / 0.0054), the origins epoch 100 / 95. Registered: sens − mild is reported beside the call (§279).
+
+| VGG-19 C100, params 0.600 | FLOPs | In-walk return | Walk 5k | **lr 0.01 as walked** 5k / val / 10k | Origin 5k / 10k | Honest |
+|---|---|---|---|---|---|---|
+| Mild s42 (22375994) | 0.591 | −2.32 | −2.34 | **−2.54** / −2.84 / −2.69 | +0.46 / +0.66 | −0.66 |
+| Mild s43 (22375995) | 0.591 | −1.90 | −2.54 | **−2.70** / −2.36 / −2.53 | +0.92 / +0.94 | −1.08 |
+| Sens − mild, s42 · s43 | 1.27× | +1.30 · +2.24 | +1.62 · +1.88 | +0.94 / +1.74 / +1.34 · +1.24 / +2.08 / +1.66 | | −0.34 · −0.08 |
+| **Sens − mild, two-seed** | | +1.77 | +1.75 | **+1.09** / +1.91 / **+1.50** | | −0.21 |
+| Uniform − mild, two-seed | 0.93× | | −1.20 | **−1.68** / −1.53 / −1.61 | | |
+
+Mild's seed spread |s43 − s42|: 0.16 at 5k (val 0.48, 10k 0.16).
+
+**Read (reported).**
+- *Sens beats the standard heuristic by +1.09 at 5k on two seeds* (10k +1.50), at 1.27× mild's FLOPs (0.749 against 0.591). Mild is the heuristic the agent is benchmarked against; on VGG-19 C100 at equal params the sensitivity plan sits about 1.1 above it, with the val half (+1.91) and 10k higher.
+- *The gap splits.* Sens − uniform +2.77 (§279) is mild − uniform +1.68 plus sens − mild +1.09. Mild and uniform differ mainly where uniform's strongest-cut finish cut: convs 2–4 (47 / 94 / 94 against 31 / 61 / 61) and conv 16 (415 against 246).
+- *Cross-pipeline check.* N4's 3-pass mild at 0.599 / 0.590 (§155) got walk −2.52 and final −2.94 at 5k (10k −2.97). The in-pipeline mild at 0.600 / 0.591 lands within 0.4 of it (5k −2.54 / −2.70, 10k −2.69 / −2.53), so v10's mild reproduces the other pipeline's point.
+- *Fine-tune.* All six VGG arms are walk + 1 epoch; the cosine re-reads (queue row 71) give the endpoints.
+- *Literature.* As §279: DepGraph's own VGG-19 C100 row is at 8.92×, not a comparison point at params 0.6.
+- Do not lock. Never an agent row; mild is the heuristic row.
+
+---
+
