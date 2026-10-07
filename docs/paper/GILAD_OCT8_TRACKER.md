@@ -285,6 +285,10 @@
 - **7 Oct ~13:00 (sitting)** — The allocation lever at κ 0.6 survives on two seeds (ledger §254).
   - Sens beats uniform by **+1.09** on r56-w4 (seed 42 +0.54, seed 43 +1.64), just over the registered +1.0. Seed 42 alone had called it WEAK.
   - The +2.54 non-learned bar over mild decomposes into about +1.45 from spreading the cut evenly (uniform) and +1.09 from sens on top. An agent that only learned "spread the cut" would already sit +1.45 over mild; v10 sits at −0.18 (§248).
+- **7 Oct ~13:35 (sitting)** — The lever survives at κ 0.8 too (ledger §255).
+  - Two-seed sens − uniform is **+1.13** on the 5k half (seed 42 +0.96, seed 43 +1.30) and +1.25 at 10k on both seeds. Both of v10's probe keeps now have a lever that survives on two seeds, under lr 0.01.
+  - At κ 0.8 mild and uniform end in the identical r56-w4 on both seeds, yet their finals differ by up to 0.92 pp on the 5k half (0.34 at 10k). That is the noise of one walk plus one final FT at a fixed architecture. Slide caveat: single-seed 5k differences under about 1 pp are not readable.
+  - Overnight (waves 18, 19; registered before submit): both levers and the DepGraph transplant re-read under cosine-0.1, the fine-tune Q7 now recommends. If the lever shrinks there, it was a recoverability effect of the weak fine-tune rather than lost capacity.
 
 ---
 

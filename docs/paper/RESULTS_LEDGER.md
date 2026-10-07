@@ -4698,6 +4698,27 @@ Uniform seed 43: r56-w4 walk −4.88, final −3.72 @ params 0.599 / FLOPs 0.582
 - *Decomposition of the bar.* Sens beats mild by +2.54 on two seeds (§247). Uniform already supplies +1.45 of it: it keeps residual streams 3 / 6 / 12 where mild keeps 2 / 5 / 13. Sens adds +1.09 and keeps them full (4 / 8 / 16). So about 60 % of the non-learned allocation's lead over mild comes from spreading the cut evenly, and about 40 % from what sens does beyond that. Whether that 40 % is the full residual streams is wave 9's question (`inner`, the residual-full rule alone; 22341865 R, the rest PD).
 - κ 0.8's two-seed lever waits on 22341283 / 84 (both R).
 
+## 255. Wave 8 at κ 0.8: seed-43 sens / uniform / mild-landed (**22341283 / 22341284 / 22341279**) — PRELIM; two-seed lever sens − uniform **+1.13 → SURVIVES** (seed 42 +0.96, seed 43 +1.30; 10k +1.25 on both); mild and uniform land on one architecture on both seeds, yet their 5k finals differ by 0.14 / 0.92
+
+`tree_v10h` (sens α 0.5 and uniform, 5-rate menu) and `tree_v10` (mild-landed, §211's recipe), `param:0.8`, 6 passes, P, crop+flip walk 40/10, 100-ep final FT + origin, deterministic, `SPECTRA_SEED=43`. Sens **22341283** COMPLETED 2 h 28 m, 13:15, `ise-4090-02`; uniform **22341284** COMPLETED 2 h 40 m, 13:31, `cs-4090-07`; mild **22341279** COMPLETED 2 h 40 m, 13:08, `ise-4090-05`. All exit 0, TB 0, no fallback. Reader `final_ft_readout.py`; 10k from its `full_test_dacc` at the landed point (the size point is the `val_best` model). Rule (wave 8, registered 04:10): at r56-w4 the lever (SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between) is read on the two-seed mean, and the two-seed call replaces seed 42's (§229, WEAK +0.96). The κ 0.8 bar is reported only.
+
+| r56-w4, κ 0.8 | 5k s42 | 5k s43 | 5k mean | 10k s42 | 10k s43 | 10k mean | Residual (both seeds) |
+|---|---|---|---|---|---|---|---|
+| Sens α 0.5 (§227 / this) | −1.30 | −1.32 | **−1.31** | −1.17 | −1.18 | −1.18 | 4 / 8 / 16 |
+| Uniform (§229 / this) | −2.26 | −2.62 | **−2.44** | −2.42 | −2.43 | −2.43 | 3 / 7 / 14 |
+| Mild-landed (§211 / this) | −2.12 | −1.70 | **−1.91** | −2.21 | −2.09 | −2.15 | 3 / 7 / 14 |
+| **Lever sens − uniform** | +0.96 | +1.30 | **+1.13** | +1.25 | +1.25 | +1.25 | |
+| Bar sens − mild (reported) | +0.82 | +0.38 | +0.60 | +1.04 | +0.91 | +0.98 | |
+
+Seed 43 at r56-w4: sens walk −1.58, final −1.32 @ params 0.798 / FLOPs 0.708 (step 150; inner 2/2/4, 2/5/8, 6/14/16; seed 42 had 5/16/16 in stage 3), honest +0.14. Uniform walk −2.66, final −2.62 @ 0.799 / 0.716, honest −0.44. Mild walk −2.20, final −1.70 @ 0.799 / 0.716, honest +0.28. r20-w2 guard: sens +0.54 @ 0.799, uniform +0.14 @ 0.774, mild +0.92 @ 0.774.
+
+**Read.**
+- *Lever at κ 0.8: **SURVIVES**.* The two-seed mean is +1.13 on the 5k half, replacing §229's WEAK; on 10k it is +1.25 on both seeds. With §254 (+1.09 at κ 0.6), the allocation lever survives at both of v10's probe keeps on two seeds, under lr 0.01. Wave 19 re-reads both under cosine-0.1.
+- *Walk noise at a fixed architecture.* Mild and uniform end in the identical r56-w4 at κ 0.8 on both seeds (3/7/14, inner 3/3/3, 7/7/7, 14/15/16, step 47; §231). Their finals still differ by 0.14 (s42) and 0.92 (s43) on the 5k half, and by 0.21 and 0.34 on 10k. That is the spread of one walk plus one final FT at a fixed architecture. Single-seed 5k calls against a 1 pp bar are fragile at this level; 10k halves it.
+- So the lever (sens − uniform) and the bar (sens − mild) measure the same architecture difference here. They read +1.13 and +0.60 on the 5k half, and the gap between them is that walk noise; at 10k they are +1.25 and +0.98.
+- Sens's two seeds land 0.02 apart on the 5k half, and their val halves tie exactly (−1.04). At the 0.02 pp granularity of 5,000 images that is a coincidence, not a cache: they are two different models (steps 169 / 150, different stage-3 widths), and their TEST halves differ.
+- *Beside v10 (ops' §237):* the κ 0.8 freeze TEST was −2.88 on r56-w4 with residual 3/7/14, mild's architecture. The non-learned allocation sits at −1.31 (two-seed, 5k).
+
 ---
 
 
