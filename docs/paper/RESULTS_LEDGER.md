@@ -4015,7 +4015,7 @@ Same cell as §221, with the Le & Hua 1-cycle shape.
 **Read.** Worse than cosine from 0.1 (§221) on both nets.
 - The warmup to a large LR costs the converged r56-w4 origin 1.38 pp, and the pruned net 1.06 pp raw.
 - On r20-w2 the undertrained origin gains 1.26 pp more than under lr 0.01, but the pruned net gains only 0.26.
-- **CROSS-OFF on the thin pair** for the 1-cycle schedule. The N3 read (22340387, still R) gates the schedule. Do not lock. Never an agent row.
+- **CROSS-OFF on the thin pair** for the 1-cycle schedule. N3 gating **22340387 COMPLETED §224**: ADOPT by the registered rule at 2.11×, by 0.06 pp and origin-driven; robustness reads pending. Do not lock. Never an agent row.
 
 ---
 
@@ -4037,8 +4037,29 @@ The gating cell of Lead 3 (`docs/PROMPT_FABLE_OCT7_SITTING.md` B1 + B2).
 **Read.**
 - *2.11×.* The large LR lifts the pruned net by +0.12 pp raw and the origin by +0.26 more than lr 0.01 does. Honest Δ −0.14: **CROSS-OFF** under the registered rule. The 100-ep lr 0.01 final FT stays the paper caption.
 - *2.57× (not gating).* The deepest saved point gains +0.72 pp raw on 5k and +1.26 on 10k. Honest Δ +0.46 is just under the bar. That is the shape Le & Hua report: large-LR retraining helps more at higher sparsity. On 10k it narrows the 2.57× gap to DepGraph's +0.11 from 1.74 pp to 0.48. One FT seed; never "beats".
-- *Consequence.* No schedule change for the paper rows. If a deeper cell (keep ≤ 0.4) is ever reported, a pre-registered lr 0.1 re-finalisation of *all* compared rows at that size is the one open use. Not tonight. The 1-cycle arm (22340387) is still R.
+- *Consequence.* No schedule change for the paper rows. If a deeper cell (keep ≤ 0.4) is ever reported, a pre-registered lr 0.1 re-finalisation of *all* compared rows at that size is the one open use. Sitting's wave-6 cell **22341051** (cosine on τ-off saves, keep 0.123) is that registered deep read — leave it; do not invent a twin. The 1-cycle arm **22340387 COMPLETED §224**.
 - Do not lock. Never an agent row.
+
+---
+
+## 224. L3b: 1-cycle large-LR final FT (warmup 30 epochs to lr 0.1, then cosine) on N3's saved DepGraph R56 candidates (**22340387**) — PRELIM; **ADOPT by the registered rule** at 2.11×, by 0.06 pp and origin-driven; the paper caption waits on the robustness reads
+
+Pair of §223. `tree_v10h`, `SPECTRA_EVAL_FINAL_FT_SCHEDULE=warmcos SPECTRA_EVAL_FINAL_FT_WARMUP=30`, from-saved N3 `job21767189/traj_models`. Otherwise the §223 recipe. Reader `final_ft_readout.py` on the run dir (not the `.out`). COMPLETED 1 h 22 m, 7 Oct 03:56, `ise-4090-15`, exit 0. TEST = 5k half (unpruned 0.9336). ADOPT still needs honest Δ ≥ +0.5 pp **and** raw final_new ≥ final_old at `size_flop0.47`.
+
+| Point | Params / FLOPs | Walk (5k) | Final 5k, lr 0.01 (§157) | Final 5k, 1-cycle | Honest, 0.01 → 1-cycle | Δ honest | 10k final, 0.01 → 1-cycle | DepGraph (10k) |
+|---|---|---|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | +0.08 | +0.04 | **−0.04** | −0.40 → −0.12 | +0.28 | −0.03 → **+0.07** | — |
+| **size_flop0.47 (2.11×)** | 0.470 / 0.463 | −0.22 | −0.44 | **−0.24** | −0.58 → −0.02 | **+0.56** | −0.46 → **−0.44** | +0.24 |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | −1.32 | −1.34 | **−1.16** | −0.38 → +0.16 | +0.54 | −1.63 → **−1.30** | +0.11 |
+| `val_best` | 0.356 / 0.369 | −1.12 | −0.96 | **−1.06** | −0.20 → +0.06 | +0.26 | n/a | — |
+| origin | 1 | 0 | +0.36 | **+0.00** | — | — | +0.60 → **+0.07** | — |
+
+**Read.**
+- *2.11×.* Raw **+0.20 pp** (−0.24 vs −0.44). Honest Δ **+0.56** is mostly the origin **not** lifting (+0.00 vs §157 +0.36), not a 0.5 pp pruned-net win. Thin pair already CROSS-OFF (§222).
+- *Call (sitting correction, 04:10).* The rule registered before the read (queue "Sitting 7 Oct", Lead 3) is honest Δ ≥ +0.5 **and** raw final_new ≥ final_old. Both hold (+0.56; raw +0.20 ≥ 0), so it fires **ADOPT**. The prompt's own rule (honest ≥ +0.5 vs the 100-ep at the same widths) agrees. The first version of this entry read the raw condition as also needing +0.5. The point of substance stands: the margin is 0.06 pp (three TEST images), +0.36 of the +0.56 is the origin control, and the identical lr 0.01 final FT moved this same origin by +0.42 (§153), +0.36 (§157) and +0.86 (§220). On 10k the 2.11× point moves −0.46 → −0.44.
+- *Robustness reads (registered 04:10, before submit; queue Lead 3, wave 7).* A from-saved lr 0.01 control on N3's candidates gives the paired reference: same code path and RNG state, only the schedule differs. A 1-cycle replicate on τ-off's PATH-SAME candidates is read against §220. A schedule enters the paper caption only if it passes the Lead 3 rule in all three reads (this one, paired, replicate), and then every compared row is re-finalised with it.
+- *2.57×.* Raw +0.18 / 10k +0.33. Does **not** replicate cosine-from-0.1's +0.72 raw / 10k +1.26 at this size (§223). Wave-6 **22341051** tests that cosine trend on τ-off saves; do not attach 1-cycle to it. The 1-cycle run on the same saves (**22341280**, wave 7) is a separate cell with a different job: it re-reads this entry's 2.11× ADOPT, not the deep trend.
+- Paper caption stays **100-ep lr 0.01** until the robustness reads land. Do not lock. Never an agent row.
 
 ---
 

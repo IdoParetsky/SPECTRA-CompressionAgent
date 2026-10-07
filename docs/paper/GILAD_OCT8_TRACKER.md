@@ -211,6 +211,11 @@
   - *Lead 2.* Budget STOP was extinguished, not learned (slide 6).
   - *Twelve cells* (9 R, 3 PD; live QOS cap 11): the Le & Hua large-LR final FT on N3's and §212's saved candidates; a greedy step-size ladder at κ 0.6; and an allocation-following walk (A0's sens rule vs uniform) on the thin pair and DepGraph R56.
   - No results yet. Calls are in the queue file, section "Sitting 7 Oct". EFFICIENCY §2 Point A refreshed.
+- **7 Oct ~04:12** — Le & Hua large-LR final FT, first reads (ledger §221–§224). A different final schedule barely moves the pruned net: at DepGraph's 2.11× the TEST changes by +0.12 pp (cosine from lr 0.1) and +0.20 (1-cycle). What changes is the unpruned origin: +0.62 under cosine from 0.1, +0.00 under 1-cycle, against +0.36 under our lr 0.01.
+  - Under the registered honest rule, cosine from 0.1 is CROSS-OFF and 1-cycle is ADOPT by 0.06 pp. Both are CROSS-OFF on the thin pair.
+  - Cosine from 0.1 helps more at 2.57× (+0.72 raw, 10k +1.26), the high-sparsity shape Le & Hua report. A τ-off replicate (22341051) tests that trend.
+  - The paper caption stays lr 0.01 until a paired control (22341277) and a 1-cycle replicate (22341280) read. Slide line, if any: "no final fine-tune schedule closes the 2.11× gap to DepGraph so far (10k −0.46 / −0.36 / −0.44 under lr 0.01 / cosine 0.1 / 1-cycle, against their +0.24; one run each)."
+  - Seed-43 twins of the v10 bar cells (κ 0.6 / 0.8) queued so the bars are read on two seeds.
 
 ---
 

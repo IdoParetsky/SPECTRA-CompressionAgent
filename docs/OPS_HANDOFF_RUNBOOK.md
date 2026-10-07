@@ -233,17 +233,22 @@ Absorb; does not reopen stop3 / NVML / factored. Canonical v10 rows stay in §10
 
 Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This block is what ops needs to heartbeat.
 
-- **QOS.** The live cap is **11** (`sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13), not 8. At 02:57: 11 R (two trains, nine sitting cells) and 6 sitting PD on QOS, which start by themselves. When the queue empties and nothing registered waits: ping, do not invent.
+- **QOS.** The live cap is **11** (`sacctmgr` `gpu-part` MaxTRESPU `gres/gpu=11`, read 02:13), not 8. At 02:57: 11 R (two trains, nine sitting cells) and 6 sitting PD on QOS, which start by themselves. At 04:12: 11 R and 12 sitting PD (waves 4, 5, 7, 8), with the v10 resume first in line (nice 0). When the queue empties and nothing registered waits: ping, do not invent.
 - **Jobs.** All are independent no-agent cells under the paper TEST pin, Features `rtx_6000|rtx_4090`, 24G, `Requeue=0`.
   - `tree_v10`, sbatch only, src untouched:
     - **22340232 / 33**: greedy 4-rate / 5-rate walks landed at κ 0.6, thin pair (the step-size ladder).
     - **22340796** (wave 5, 03:20): mild-landed κ 0.35 control, thin pair (§211 / §212 recipe at `param:0.35`).
+    - **22341051** (wave 6, 03:56): L3a-deep, lr 0.1 final FT from the τ-off walk's saved candidates (`tree_v9d/runs/job22288423/traj_models`; references are §220's rows).
     - **22340234 / 35**: L3a, cosine from lr 0.1, final FT from N3 21767189's / §212 22156062's saved `traj_models`.
+    - **22341277** (wave 7, 04:11): L3-ctrl, the paper's lr 0.01 final FT re-run from N3's saved candidates. Read it against §157 (noise floor) and as the paired reference for 22340234 / 22340387.
+    - **22341278 / 79** (wave 8): mild-landed κ 0.6 / 0.8, thin, **seed 43** (§212 / §211's twins).
   - `tree_v10h` = `tree_v10` + default-off `src/alloc_walk.py` + the final-FT schedule (`PROVENANCE_v10h.txt`). **Never point a train, a resume or a freeze TEST at it.**
     - **22340387 / 88**: L3b, 1-cycle final FT.
     - **22340391–94**: allocation walks, sens vs uniform, κ 0.6 and 0.8, thin.
     - **22340523 / 24**: allocation walks, sens vs uniform, DepGraph R56 landed params 0.47.
     - **22340636 / 37 / 38** (wave 4, 02:57): allocation walks sens vs uniform at κ 0.35 thin; sens2 (`SPECTRA_ALLOC_ALPHA=1.0`) at κ 0.6.
+    - **22341280** (wave 7, 04:11): L3b-rep, 1-cycle final FT from τ-off's saved candidates; references are §220's rows.
+    - **22341281 / 82 / 83 / 84** (wave 8): allocation walks sens / uniform at κ 0.6 (81 / 82) and κ 0.8 (83 / 84), thin, **seed 43** (twins of 22340391–94).
 - **Logs.** `/home/paretsky/scratch_audit/tree_v10{,h}/runs/slurm_logs/spectra_<job>.out`.
   - Grep: `\[alloc\]|\[eval\] TRAJ|final_ft|fallback|Traceback`.
   - Start checks: an alloc job prints one `[alloc] <net>: <kind> alpha=0.5 plan keeps x… (target x… = walk target − 0.02)` line per net. An L3 job prints `final_ft from …/traj_models` and its recipe, `sgd lr=0.1 … cos e100` (L3a) or `warmcos w30 e100` (L3b).
@@ -252,6 +257,8 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
   - One PRELIM ledger § per cell from **§221**; the sitting writes the ones it sees.
   - Quote only `[eval] TRAJ final_ft` TEST lines, with landed params and FLOPs. The walk's own TRAJ lines (before the final FT) and in-walk val are never quoted.
   - L3 honest gain: `python readers_s30/scripts/final_ft_readout.py <new run dir> <reference run dir>`. New run dirs are `tree_v10{,h}/runs/job<id>`; references are `tree_v9c/runs/job21767189` (N3) and `tree_v10/runs/job22156062` (§212). Each run is read on its own. The L3 Δ is the new honest minus the reference honest at the same label. The printed ADOPT / KILL flags are the 29 Sep walk-vs-final rule, not the L3 call.
+  - The L3 call is ADOPT when honest Δ ≥ +0.5 **and** raw final_new ≥ final_old at `size_flop0.47`. The raw condition is "not worse", not "+0.5". **22340387 (§224) is ADOPT under it, not CROSS-OFF**: +0.56 honest, raw +0.20. The paper caption waits on wave 7. The draft pin (line 12) and `PROMPT_FABLE_V6.md` still say CROSS-OFF; carry the correction at the next stamp.
+  - Seed-43 twins (wave 8): read each against its seed-42 twin at the same κ. The calls use the two-seed mean (queue, alloc section, wave 8).
 - **Flag already seen.** Greedy 5-rate on r20-w2 landed at params **0.538**, a gap of 0.062 below κ (one 0.6 step overshoots on a 2/4/8-wide net). Not equal-size; r20-w2 is the guard net, and r56-w4 decides.
 - **Failure:** report with the last 30 lines, and do not resubmit without the sitting or Ido. Unchanged: never scancel the trains; do not TEST v10 ep0111; Budget resume NO-GO; never N8 / S3.
 
