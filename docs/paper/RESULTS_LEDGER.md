@@ -4442,4 +4442,26 @@ Sitting 7 Oct wave 8, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), `SIZE_MAT
 
 ---
 
+## 243. Allocation-following walk, sens α 0.5, landed κ 0.35, thin pair (**22340636**) — PRELIM; lever **WEAK** (+1.90 vs uniform §238, 0.10 short of SURVIVES); r56-w4 **−6.00 @ 0.338 / 0.409**; r20-w2 guard **−3.26**
+
+Sitting 7 Oct wave 4, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), `SIZE_MATCH=param:0.35`, 5-rate menu, 6 passes, P, origin control, seed 42. COMPLETED 5 h 2 m, 7 Oct 10:10, `ise-4090-19`, exit 0, TB 0, no fallback. Call (queue, registered 02:57): on r56-w4, sens − uniform **SURVIVES** ≥ +2.0 / **ABSORBED** ≤ +0.5 / **WEAK** between; r20-w2 reported. Bar: mild-landed κ 0.35 **22340796** (R).
+
+| Net / point | Arm | Params / FLOPs | Steps | Residual s1 / s2 / s3 | Inner median s1 / s2 / s3 | Walk 5k | Final 5k | Honest | 10k |
+|---|---|---|---|---|---|---|---|---|---|
+| **r56-w4** `val_best` = `size_param0.35` | **sens** | 0.338 / 0.409 | 284 | **4 / 8 / 15** | 2 / 2 / 5 | −8.42 | **−6.00** | +1.96 | n/a (val-selected) |
+| r56-w4 `size_param0.35` | uniform (§238) | 0.349 / 0.331 | 102 | 2 / 5 / 9 | 2 / 5 / 10 | −7.60 | −7.90 | −0.90 | n/a |
+| r20-w2 `size_param0.35` | sens | 0.340 / 0.631 | 60 | 2 / 3 / 3 | 2 / 3 / 5 | −14.08 | **−13.06** | −2.22 | −12.55 |
+| r20-w2 `size_param0.35` | uniform (§238) | 0.331 / 0.574 | 41 | 2 / 2 / 4 | 2 / 2 / 5 | −10.60 | −9.80 | −2.56 | −9.82 |
+| r20-w2 `val_best` | sens | 0.384 / 0.648 | 59 | 2 / 3 / 4 | 2 / 3 / 5 | −10.66 | −8.34 | −0.92 | n/a |
+| origin r56-w4 / r20-w2 | sens run | 1 | — | — | — | 0 | +0.46 / +3.24 | — | +0.43 / +3.65 |
+
+**Read.**
+- *Lever, r56-w4: **WEAK**, +1.90* (−6.00 vs −7.90). Sens lands 0.011 *below* uniform's params, so it gets no size credit. It keeps 24 % more FLOPs (0.409 vs 0.331): the near-full residual streams cost FLOPs at this depth. At κ 0.6 it kept slightly fewer (§230). The margin to SURVIVES (0.10) is far inside the 0.72 pp seed spread of §242. Wave 14 (seed 43) puts the call on a two-seed mean.
+- *Against A0.* A0's one-shot probe found its largest lever here: r56-w4 keep 0.35, +7.81 / +7.69 val / TEST (§201; a probe, never a TEST row). Under the walk protocol (per-step recovery plus a 100-epoch final FT) about +1.9 survives, roughly a quarter. At κ 0.6 the ratio is the same: A0's probe lever was +1.95 TEST (§201), and the walk's is +0.54 (§230). Iterative recovery absorbs most of what the one-shot cut shows.
+- *r20-w2 guard: sens hurts.* The plan stops at params 0.401 (`every group at its target … strongest legal cut`), and the walk reaches 0.35 by strongest legal cuts. It lands the stage-2 / 3 residual streams at 3 / 3 (of 4 / 8), against uniform's 2 / 4, and −3.26 below uniform at near-equal params. That matches §207, where random beat sens on r20-w2 at 0.35. On this narrow net the plan's floor binds before κ, so off-plan cuts decide the point.
+- *Kept epochs (§235).* Late on every final FT (r56-w4 `val_best` loss 0.448 at epoch 1, 0.428 at 100, best 0.428). Honest is 100 epochs against 100. r56's origin moved +0.46 here (+0.60 in §238's run).
+- Do not lock. Never an agent row.
+
+---
+
 

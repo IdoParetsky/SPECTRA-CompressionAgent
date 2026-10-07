@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **22341736 §237** r56 **−2.88 vs mild −2.1**; κ 0.6 **22341737** still R (**never quote the probe or 37 in-walk**). Sens2 α 1.0 **§241 FLAT**. Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; κ 0.8 in, M1-v10 waits on 37 | report Part III; ledger §200–§241; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **22341736 §237** r56 **−2.88 vs mild −2.1**; κ 0.6 **22341737** still R (**never quote the probe or 37 in-walk**). Sens s43 **§242 −2.08** (spread 0.72 pp vs s42 −2.80); beyond-heur **≥ −1.94**. Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; κ 0.8 in, M1-v10 waits on 37 | report Part III; ledger §200–§242; queue "v10" |
 
 ---
 
@@ -247,6 +247,9 @@
 - **7 Oct ~09:55 (sitting)** — Seed 43 of the sens allocation walk at κ 0.6 (ledger §242): r56-w4 **−2.08 @ 0.597** against seed 42's −2.80, on nearly the same architecture (residual streams full in both). One rule and one architecture move 0.72 pp between seeds.
   - The single-seed WEAK levers (+0.40 to +0.96) and the flat α dose-response (§241, α 1.0 = −2.80) are inside that spread. Wave 8's two-seed means decide them.
   - The 06:20 slide line (+2.3 pp over mild at κ 0.6) is three times the spread, and "one seed" is already in it. Mild's seed-43 twin (22341278) is due today. Two-seed sens mean: −2.44.
+- **7 Oct ~10:15 (sitting)** — Sens vs uniform at κ 0.35 (ledger §243): **WEAK +1.90**, 0.10 short of SURVIVES (r56-w4 −6.00 @ 0.338 / FLOPs 0.409 vs −7.90 @ 0.349 / 0.331). Residual streams are nearly full (4 / 8 / 15). The r20-w2 guard goes the other way (−3.26; its plan's floor binds before κ).
+  - *Insight for slide 3:* under the walk protocol about a quarter of A0's one-shot allocation lever survives: +1.9 of +7.7 at keep 0.35, +0.54 of +1.95 at 0.6. Iterative recovery absorbs most of what a one-shot cut shows. That suggests allocation matters most where recovery is short, as in one-shot pruning; it is a reading, not yet a tested claim.
+  - Wave 14 (**22344456 / 57**) is the seed-43 pair; the call moves to the two-seed mean.
 
 ---
 

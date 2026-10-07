@@ -251,6 +251,7 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
     - **22341280** (wave 7, 04:11): L3b-rep, 1-cycle final FT from τ-off's saved candidates; references are §220's rows.
     - **22341281 / 82 / 83 / 84** (wave 8): allocation walks sens / uniform at κ 0.6 (81 / 82) and κ 0.8 (83 / 84), thin, **seed 43** (twins of 22340391–94).
     - **22344275 / 76** (wave 13, 10:05, nice 17): allocation walks sens / uniform, DepGraph R56 landed params 0.47, **seed 43** (twins of 22340523 / 24). The §236 bars apply to the two-seed mean.
+    - **22344456 / 57** (wave 14, 10:20, nice 17): allocation walks sens / uniform at κ 0.35, thin, **seed 43** (twins of 22340636 / 37). The §243 bars apply to the two-seed mean. Start check: the `[alloc]` lines name `resnet20-width2…` and `resnet56-width4…` (the profile's default thin input).
   - `tree_v10i` (06:04) = `tree_v10h` + the allocation kind `inner` only (`PROVENANCE_v10i.txt`; 10 alloc tests green). Same rule: **never point a train, a resume or a freeze TEST at it.**
     - **22341865 / 67** (wave 9, 06:16): residual-full allocation walk (`SPECTRA_ALLOC_KIND=inner`) at κ 0.6, thin, seeds 42 / 43.
     - **22341866 / 70** (wave 9): the same at κ 0.8, seeds 42 / 43, `SPECTRA_ALLOC_UNDERSHOOT=0.04`.
