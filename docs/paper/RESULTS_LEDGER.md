@@ -4662,6 +4662,23 @@ Sitting 7 Oct, registered 12:49 before reading (queue "Q7 val-half check"). Unde
 - The 10k values in §246 are the means of these two halves (N3 2.57×: (+1.10 + 0.56) / 2 = +0.83).
 - Not switched here: the paper's final-FT recipe is Gilad's Q7. Adopting it means re-running each paper row's final FT from its saved candidates (P rows set `SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`; older rows would need a re-walk). From-saved re-runs took 0.6–1.8 GPU-h per job here. The lr 0.01 rows are kept beside.
 
+## 253. Wave 11: 1-cycle-last (warm-up 30, peak lr 0.1, keep the last epoch) on N3 / τ-off's saved DepGraph R56 candidates (**22342663 / 64**) — PRELIM; Lead 3 rule on genuine endpoints **FAILS on both walks** (honest Δ at 2.11× **−0.68 / −0.18**, under +0.5); raw is level with cosine-0.1; its raw gain is the origin rising
+
+Sitting 7 Oct, wave 11 (registered before submit). `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, warmcos schedule (30 warm-up epochs, peak 0.1, 100 epochs), from-saved N3 (`tree_v9c/runs/job21767189`) and τ-off (`tree_v9d/runs/job22288423`) candidates, origin control, P, deterministic, seed 42. 22342663 COMPLETED 1 h 21 m, 7 Oct 12:50, `ise-4090-04`. 22342664 COMPLETED 1 h 22 m, 12:54, `cs-4090-10`. Both exit 0, TB 0. Start check: select=last on all 5 final FTs of each, and each kept its last epoch. Reader `_tmp_s7oct_selread.sh` pairs (from `final_ft_readout.py`) against lr 0.01-last (**22342659 / 60**, §239 / §240), 1-cycle with train-loss selection (**22340387 / 22341280**, §224 / §235) and cosine-0.1 (**22340234 / 22341051**, §223 / §228).
+
+| Walk / point | 1-cycle-last final 5k | lr 0.01-last | Raw Δ | Honest 1-cycle / lr 0.01 / Δ | 10k 1-cycle / lr 0.01 / Δ | 10k vs cosine-0.1 |
+|---|---|---|---|---|---|---|
+| N3 2.11× | −0.26 | −0.30 | +0.04 | −1.10 / −0.42 / **−0.68** | −0.08 / −0.31 / +0.23 | +0.28 |
+| N3 2.57× | −0.80 | −1.18 | +0.38 | −0.54 / −0.20 / −0.34 | −0.45 / −1.20 / +0.75 | −0.08 |
+| N3 origin | +1.06 | +0.34 | +0.72 | — | +0.98 / +0.42 / +0.56 | +0.34 |
+| τ-off 2.11× | −0.04 | −0.60 | +0.56 | −0.30 / −0.12 / **−0.18** | −0.07 / −0.54 / +0.47 | −0.08 |
+| τ-off 2.57× | −0.50 | −1.40 | +0.90 | −0.30 / −0.46 / +0.16 | −0.26 / −1.31 / +1.05 | +0.10 |
+| τ-off origin | +1.02 | +0.28 | +0.74 | — | +0.93 / +0.64 / +0.29 | +0.11 |
+
+**Read.**
+- *Lead 3 rule at 2.11×, both walks (honest Δ ≥ +0.5 and raw final ≥ the reference's):* raw holds on both (+0.04, +0.56), but honest Δ is **−0.68** (N3) and **−0.18** (τ-off). **FAILS on both walks.** §235's VOID becomes a fail on genuine endpoints, and the caption does not move to 1-cycle.
+- *Why:* with the endpoint kept, 1-cycle's peak lr 0.1 does what cosine-0.1 does to the pruned points (10k within ±0.3 of cosine-0.1 at every point). It lifts the unpruned origin more, though (+1.06 / +1.02 at 5k against cosine-0.1's +0.62 / +0.74), so its honest gain is lower. Cosine-0.1 (§252) remains the only large-lr candidate for Q7. 1-cycle adds nothing beside it.
+
 ---
 
 
