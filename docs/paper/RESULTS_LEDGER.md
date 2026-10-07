@@ -4999,6 +4999,27 @@ Mild's lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Seed 43's 
 - *For ops' v10 calls (not decided here).* The beyond-heuristic line stays sens's two-seed mean + 0.5 (§242): −1.94 at lr 0.01. The same rule on a like-for-like cosine-0.1 re-FT of a v10 point would be −2.37.
 - Do not lock. Never an agent row.
 
+## 270. Wave 9: residual-full allocation walk (`inner`), κ 0.8, seed 42 (**22341866**) — PRELIM, provisional (the call is two-seed at κ 0.6 and 0.8); r56-w4 **−1.60 @ 0.797 / FLOPs 0.775**; sens − inner **+0.30** at 5k (val +0.08, 10k +0.19), on the STRUCTURAL line; sens matches it with 10 % fewer FLOPs (0.696)
+
+Sitting 7 Oct wave 9 (registered 06:15, before submit). §263's recipe at `param:0.8` with undershoot 0.04 (registered: the 0.02 plan keeps x0.801, above κ), seed 42 (verified in the env). COMPLETED 2 h 53 m, 7 Oct 17:00, `ise-4090-01`, exit 0, TB 0, no fallback. Start check green: both `[alloc]` lines end "3 coupled groups held at full width", and the r56-w4 plan keeps x0.755, as registered. r56-w4 lands at step 95 with every residual stream full (4 / 8 / 16) and inner convs 3 / 6 / 12–13 (planned 3 / 6 / 12). r20-w2's plan keeps x0.754, below κ, so this walk needs no strongest-cut path; it lands at 0.779. Every final FT kept a late epoch (best loss within 0.008 of epoch 100's). The 10k is as in §265. Call (registered): sens − inner on r56-w4, two-seed mean at κ 0.6 and κ 0.8; **STRUCTURAL** if ≤ +0.3 at both, **SENS-ADDS** if ≥ +0.5 at both, PARTIAL otherwise.
+
+| r56-w4, κ 0.8, seed 42 | Params / FLOPs | Residual s1 / s2 / s3 | Inner s1 / s2 / s3 (min / median / max) | Walk 5k | Final 5k / val / **10k** | Sens − arm, 5k / val / 10k |
+|---|---|---|---|---|---|---|
+| **Inner** | 0.797 / 0.775 | 4 / 8 / 16 | 3 / 6 / 12–13 | −1.72 | **−1.60** / −1.12 / **−1.36** | **+0.30** / +0.08 / +0.19 |
+| Sens α 0.5 (§227) | 0.800 / 0.696 | 4 / 8 / 16 | 2 / 2 / 4 · 2 / 5 / 8 · 5 / 16 / 16 | — | −1.30 / −1.04 / −1.17 | — |
+| Uniform (§229) | 0.799 / 0.716 | — | — | — | −2.26 / −2.58 / −2.42 | +0.96 / +1.54 / +1.25 |
+| Mild-landed (§211) | 0.799 / 0.716 | — | — | — | −2.12 / −2.30 / −2.21 | +0.82 / +1.26 / +1.04 |
+
+Inner's origin gained +0.34 at 5k (+0.30 at 10k); its honest is −0.22. Guard, r20-w2 (reported), 5k / val / 10k: inner **+1.28** / +2.90 / +2.09 at 0.779 / FLOPs 0.856; sens +1.30 / +1.86 / +1.58 at 0.799 / 0.880; uniform +0.02 / +1.28 / +0.65 and mild −0.44 / +1.38 / +0.47, both at 0.774 / 0.818. r20's undertrained origin gains +3.48 at 5k, so every r20 Δ is positive.
+
+**Read (provisional).**
+- *Gap on seed 42: +0.30, on the STRUCTURAL line.* The val half (+0.08) and 10k (+0.19) sit under it. Seed 43 (22341870) has finished its walk on the same architecture (params 0.797 / FLOPs 0.775, inner 3 / 6 / 12–13) and is in its final FT.
+- *What the call can still be (arithmetic from the registration).* κ 0.6 is +0.18 on two seeds (§265), so SENS-ADDS (≥ +0.5 at both κ) is out. With sens seed 43 at −1.32 (§255), the call is **STRUCTURAL** if seed 43's inner lands at ≥ −1.62 at 5k, and **PARTIAL** otherwise.
+- *FLOPs.* At equal params sens keeps 10 % fewer FLOPs than `inner` (0.696 against 0.775). Sens cuts the high-resolution stage-1 / stage-2 inner convs hardest (medians 2 / 5) and keeps stage 3's nearly full (median 16); `inner` cuts every inner conv evenly. At κ 0.6 the two kept the same FLOPs (0.572 / 0.580). So at κ 0.8 what the sensitivity measurement adds beyond the residual rule shows up in FLOPs rather than accuracy. The call is on accuracy, so this is a caption, not a re-call.
+- *Inner − uniform +0.66 at 5k, +1.06 at 10k.* On this seed the residual rule carries most of the κ 0.8 lever (sens − uniform +0.96 / +1.25).
+- *Guard.* On r20-w2 `inner` is level with sens at 5k (0.02 behind) and 0.51 ahead at 10k, at 0.020 fewer params and FLOPs 0.856 against 0.880. Reported only.
+- Wave 20's cosine-0.1-last re-read of this run (22376021) has its `afterok` met. Do not lock. Never an agent row.
+
 ---
 
 

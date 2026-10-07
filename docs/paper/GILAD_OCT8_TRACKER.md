@@ -321,6 +321,9 @@
   - Slide line: "under the recommended fine-tune, the non-learned sensitivity plan keeps a 1.4 pp lead over uniform at 60 % params, on two seeds and both test halves." The bar over mild waits on 22374688.
 - **7 Oct ~17:05 (sitting)** — The bar over mild holds under cosine-0.1 on two seeds (ledger §269, reported): sens − mild is **+2.40** at 5k, against +2.54 at lr 0.01, and within 0.2 on every view.
   - Under cosine the bar splits as +0.96 (even cut over mild) plus **+1.44** (sens over uniform), against +1.45 plus +1.09 at lr 0.01. Wave 19's κ 0.6 cells are complete.
+- **7 Oct ~17:10 (sitting)** — At κ 0.8 on seed 42, the residual-full rule is 0.30 behind sens at 5k, on the STRUCTURAL line (ledger §270, provisional; +0.08 on val, +0.19 at 10k).
+  - SENS-ADDS is already out. Wave 9 calls STRUCTURAL if seed 43's inner (22341870, in its final FT) lands at ≥ −1.62, and PARTIAL otherwise.
+  - Caption for either outcome: at κ 0.8 sens matches that accuracy with **10 % fewer FLOPs** (0.696 against 0.775). It cuts the high-resolution inner convs hardest, where `inner` cuts evenly.
 
 ---
 
