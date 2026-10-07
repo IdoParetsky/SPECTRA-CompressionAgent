@@ -4509,4 +4509,29 @@ Kept epoch: every pruned final FT ends at train loss 0.0089–0.0099 against a b
 
 ---
 
+## 246. Wave 12: the slide line's cosine-from-0.1 final FTs at seed 43 (**22343160** N3 COMPLETED; **22343165** τ-off, gating points in) — PRELIM; every \|d\| < 0.3 at 2.11× / 2.57× (max **0.27**): the line keeps "one run each" and adds the seed bound
+
+Sitting 7 Oct wave 12, `tree_v10` (sbatch only), §223's / §228's recipe (SGD from lr 0.1, cosine, 100 epochs, origin control) from the same saved candidates, with `SPECTRA_SEED=43` (data order and crop / flip; same split). 22343160 COMPLETED 1 h 22 m, 7 Oct 10:48, `ise-4090-02`, exit 0, TB 0. 22343165: its 2.57× and 2.11× final FTs had finished at 11:00, while the 0.60 one was still running. Start check green (seed 43, `final_ft from`, recipe lr 0.1 cosine). Every final FT kept a late epoch (best loss at or within 0.0006 of epoch 100's), so these are genuine endpoints with no `select=last` needed. Rule (queue, registered 09:15): d = s43 − s42 at 10k per walk and gating point. If every \|d\| < 0.3, the slide line keeps "one run each" and adds "a second final-FT seed moves each point by ≤ max \|d\|"; otherwise it quotes the two-seed mean and range.
+
+| Walk, point | Seed 42 5k / 10k | **Seed 43** 5k / 10k | d, 5k / **10k** | Honest s43 / s42 |
+|---|---|---|---|---|
+| N3, 2.57× (`size_flop0.39`) | −0.62 / −0.37 (§223) | −0.64 / −0.64 | −0.02 / **−0.27** | +0.20 / +0.08 |
+| N3, 2.11× (`size_flop0.47`) | −0.32 / −0.36 | −0.36 / −0.11 | −0.04 / **+0.25** | −0.62 / −0.72 |
+| N3, `size_flop0.60` | −0.26 / +0.04 | +0.44 / +0.41 | +0.70 / +0.37 | −0.12 / −0.96 |
+| N3, `val_best` | −0.90 / n/a | −0.84 / n/a | +0.06 / n/a | −0.20 / −0.40 |
+| N3, origin | +0.62 / +0.64 | +0.48 / +0.63 | −0.14 / −0.01 | — |
+| τ-off, 2.57× | −0.76 / −0.36 (§228) | −0.40 / −0.10 | +0.36 / **+0.26** | pending / −0.28 |
+| τ-off, 2.11× | +0.08 / +0.01 | −0.24 / −0.15 | −0.32 / **−0.16** | pending / +0.10 |
+
+**Read.**
+- *Rule: every \|d\| < 0.3* at the gating points (0.27 / 0.25 on N3, 0.26 / 0.16 on τ-off, 10k). The slide line keeps "one run each" and adds "a second final-FT seed moves each point by ≤ 0.27" (cosine 0.1, both walks; lr 0.01-last on N3 ≤ 0.14, §244). The bound is close to the rule's 0.3, so it is a bound on two runs, not a precision claim.
+- *Not gating:* the largest move is at 0.60 on N3 (+0.70 at 5k, +0.37 at 10k). The cosine-from-0.1 endpoint is noisier than lr 0.01's (§244: ≤ 0.32 at 5k, ≤ 0.14 at 10k), plausibly because its first ~37 epochs run at lr ≥ 0.07 and move the weights far from the walk's (untested).
+- *Walk gap at 2.11×.* The registered necessary condition holds: seed 42's 0.37 (N3 −0.36, τ-off +0.01) exceeds that point's larger \|d\| (0.25). But at seed 43 the gap reverses (N3 −0.11, τ-off −0.15), and the two-seed means are −0.24 / −0.07, a gap of 0.17. A walk effect at 2.11× is **not** established.
+- *Large lr at 2.57× on two seeds.* Cosine 0.1 minus lr 0.01-last at 10k is +0.83 / +0.42 on N3 (seed 42 / 43, the latter against §244) and +0.95 / +1.21 on τ-off (both against §240's seed-42 lr 0.01-last). It is positive on all four pairs, and it already meets the R56 half of wave 11b's "across architectures" read (≥ +0.3 at 2.57×). 22342768 supplies the N4 half.
+- *Two-seed cosine-0.1 means at 10k:* N3 −0.24 (2.11×) / −0.51 (2.57×); τ-off −0.07 / −0.23. The slide line keeps its single runs by the rule; the means are reported, never a pick.
+- τ-off's 0.60, `val_best` and origin (and so its honest column) are pending 22343165.
+- Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
 

@@ -45,7 +45,7 @@
 | B5 | Robustness vs verification in DRL | **Mapped.** Four SPECTRA hooks; one question for Gilad (which line) | — | design §7 |
 | B6 | **S0 selection-headroom probe** | **3/3 COMPLETED** (never TEST). `21945107` vgg19 01:04 (3.7 h). **M8 fired** (3/3; vgg19 also at budget 40). Ledger probe **§188**. Do not start S1–S3 | **yes** | design §8; ledger §188 |
 | B7 | S1: a learned NAP-F scorer (zero GPU) | **2 Oct: G1 PASS 3/3.** S2 **G2 HARM** (3 Oct 09:54 readout). *H_40* MBV2 +0.21 / R56-C100 **−0.87** (σ 0.86); cheap-FT budgets passing on both cells: none. Keep L1. Do not start S3. Ranking transferred on R56-C100 (τ 0.423 vs L1 0.292) and failed on MBV2 (0.254 < 0.286). **Closed (sitting 3 Oct):** report "no gain over L1 at 40 epochs" (−0.87 vs a −0.86 bar, SE 0.44). S1b only if a BN-only in-loop proxy proves valid (pf-w) | **yes** | design §8 "S1 results", "S2 result"; ledger §191 / **§192** |
-| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **22341736 §237** r56 **−2.88 vs mild −2.1**; κ 0.6 **22341737** still R (**never quote the probe or 37 in-walk**). Sens s43 **§242 −2.08** (spread 0.72 pp vs s42 −2.80); beyond-heur **≥ −1.94**. Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; κ 0.8 in, M1-v10 waits on 37 | report Part III; ledger §200–§242; queue "v10" |
+| B8 | **Allocation, not selection: does the agent learn it?** (4 Oct) | A0 **3/3 HEADROOM** (never TEST). **That train is v10 `22156116` R**. First freeze TEST **ep0127** κ 0.8 **22341736 §237** r56 **−2.88 vs mild −2.1**; κ 0.6 **22341737** still R (**never quote the probe or 37 in-walk**). Sens s43 **§242 −2.08**; κ 0.35 **§243 WEAK +1.90**. Beyond-heur **≥ −1.94**. Mild-landed **§211–212**. First catalog C10. Do **not** a second allocation train before that read | running; κ 0.8 in, M1-v10 waits on 37 | report Part III; ledger §200–§245; queue "v10" |
 
 ---
 
@@ -243,8 +243,8 @@
 - **7 Oct ~09:20 (sitting)** — Wave 11 call (ledger §240): **NEUTRAL**. τ-off's endpoint adds +0.40 at 2.11× and +0.21 at 2.57×, so no point has both walks ≥ +0.3. 2.57× is unresolved (0.09 under).
   - M4 keeps its numbers. Caption: "walk + 1 epoch; a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k".
   - Cosine from lr 0.1 still leads lr-0.01-last at 2.57× by 0.83 / 0.95 on the two walks. The large-LR lead is the learning rate, not the selection. At 2.11× the two recipes are level on N3 (−0.31 / −0.36).
-  - *Slide line, revised 09:30 (replaces 07:15's).* The 07:15 line quoted only cosine-0.1, then the only genuine 100-epoch FT. Now that both recipes have genuine endpoints, quoting the better one would pick a recipe on TEST, so the line shows both: "With a genuine 100-epoch final fine-tune, DepGraph R56 at 2.11× lands at 10k −0.31 / −0.54 under the paper's lr 0.01 and −0.36 / +0.01 under cosine from lr 0.1, on two walks. At 2.57× it lands at −1.20 / −1.31 and −0.37 / −0.36. DepGraph's own: +0.24 / +0.11. That is 0.2–0.8 pp behind at 2.11× and 0.5–1.4 pp behind at 2.57×; one run each; not a beat."
-  - Wave 12 (**22343160 / 65**) re-runs its two cosine-0.1 points at seed 43, to put a seed spread on it before the meeting if they land in time.
+  - *Slide line, revised 09:30 (replaces 07:15's).* The 07:15 line quoted only cosine-0.1, then the only genuine 100-epoch FT. Now that both recipes have genuine endpoints, quoting the better one would pick a recipe on TEST, so the line shows both: "With a genuine 100-epoch final fine-tune, DepGraph R56 at 2.11× lands at 10k −0.31 / −0.54 under the paper's lr 0.01 and −0.36 / +0.01 under cosine from lr 0.1, on two walks. At 2.57× it lands at −1.20 / −1.31 and −0.37 / −0.36. DepGraph's own: +0.24 / +0.11. That is 0.2–0.8 pp behind at 2.11× and 0.5–1.4 pp behind at 2.57×; one run each; a second final-FT seed moves each point by ≤ 0.27; not a beat." *(11:05: seed clause added by wave 12's registered rule, §244 / §246.)*
+  - Wave 12 (**22343160 / 65**) re-runs its two cosine-0.1 points at seed 43, to put a seed spread on it before the meeting if they land in time. *(11:05: in, every \|d\| < 0.3, max 0.27; §246.)*
 - **7 Oct ~09:55 (sitting)** — Seed 43 of the sens allocation walk at κ 0.6 (ledger §242): r56-w4 **−2.08 @ 0.597** against seed 42's −2.80, on nearly the same architecture (residual streams full in both). One rule and one architecture move 0.72 pp between seeds.
   - The single-seed WEAK levers (+0.40 to +0.96) and the flat α dose-response (§241, α 1.0 = −2.80) are inside that spread. Wave 8's two-seed means decide them.
   - The 06:20 slide line (+2.3 pp over mild at κ 0.6) is three times the spread, and "one seed" is already in it. Mild's seed-43 twin (22341278) is due today. Two-seed sens mean: −2.44.
@@ -255,6 +255,12 @@
   - *Seed 43 of N3's endpoint FT* moves it by ≤ 0.14 at 10k (0.05 at 2.11×), under the registered 0.3. The wave 11 NEUTRAL call stands. One final FT re-seeded moves ≤ 0.32 at 5k; walk plus FT re-seeded moved 0.72 (§242), so the seed spread is mostly the walk.
   - *VGG-19 C100 (N4):* keeping the endpoint is worth **+0.69 / +1.34** at 10k (size 0.70 / 0.60), three times DepGraph R56's +0.10 to +0.57. On equal epochs the crop+flip walk lands **+1.46 / +1.41** above §149, clearing the registered 1 pp N4 line that §155 missed (+0.77) because of the selection. Honest is +0.48 / +0.66, now 100 epochs against 100.
   - Bar-3 VGG-19 stays on §149 (−2.39 / −3.04 at 10k) while the paper keeps train-loss selection; N4-last (−0.93 / −1.63) goes beside it as a sensitivity row. Q7 now asks about the selection rule as well. DepGraph's own: −3.11 at 8.92× params; far less compression on our side, so not a beat.
+  - Wave 15 (**22344788**) repeats N4's endpoint FT at seed 43 to put a noise bar on the +1.4.
+- **7 Oct ~11:05 (sitting)** — Seed spread of the slide line's cosine-0.1 runs (wave 12, ledger §246).
+  - At 10k, seed 43 moves N3 by −0.27 / +0.25 and τ-off by +0.26 / −0.16 (2.57× / 2.11×). All are under the registered 0.3, so the slide line keeps "one run each" and now says "a second final-FT seed moves each point by ≤ 0.27".
+  - The large-lr lead at 2.57× holds on all four walk × seed pairs (+0.42 to +1.21 over lr 0.01-last).
+  - The 2.11× gap between walks (0.37 at seed 42) reverses at seed 43 (−0.04); a walk effect there is not established.
+  - The cosine endpoint is noisier than lr 0.01's (up to 0.37 at 10k at a non-gating point, against ≤ 0.14).
 
 ---
 
