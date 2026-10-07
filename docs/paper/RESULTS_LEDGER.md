@@ -4292,6 +4292,26 @@ VGG-19 C100 at 9.02× (h2h; origin 64, 64 | 128, 128 | 256 ×4 | 512 ×4 | 512 �
 - *Call (10k; 2.11× = `size_flop0.47`, 2.57× = `size_flop0.39`).* Δsel = select=last − the same walk's train-loss final (N3 vs §157, τ-off vs §220). **REQUOTE** if Δsel ≥ +0.3 on both walks at 2.11× or at 2.57×: the M4 row and every early-epoch lr-0.01 row are re-finalised with `select=last` before quoting. **STANDS** if Δsel ≤ −0.3 on both walks at both points: keep the numbers, caption "walk + 1 epoch (train-loss selection)". **NEUTRAL** otherwise: keep the numbers; the caption discloses the selection.
 - *Reported, not gating.* Honest, now 100 epochs against 100. lr 0.01-last against cosine-0.1: within 0.3 at 2.57× on both walks means §228's TREND was the selection, not the learning rate. N4 against §149 on equal epochs re-reads §155. Twins: R56 Δsel, with VGG-16 |Δsel| > 0.5 meaning the R56 read is noise-limited. 1-cycle-last by the Lead 3 rule against lr 0.01-last (honest Δ ≥ +0.5 and raw ≥, at 2.11×, both walks). Allocation rows under `select=last` beside their lr 0.01 rows.
 - *Noise.* §232's 0.02 pp (2.11×, 5k) compares epoch 1 with epoch 1. Endpoint noise after 100 epochs is unmeasured. A Δsel within 0.1 of a bar is "unresolved", not a call.
+- *Registered: wave 11b* (queue, 07:50, before submit). (1) **Endpoint noise:** N3 select=last again with `SPECTRA_SEED=43`. The split is set by `SPECTRA_SPLIT_SEED` (0) alone, so only data order and augmentation change. Read: \|s43 − s42\| at each point and on the origin change, 5k and 10k. If it reaches 0.3 (10k) at a gating point, the wave 11 call there is "unresolved" unless both walks clear the bar by more than that noise. (2) **Learning rate at the endpoint, other architectures:** cosine from lr 0.1 with select=last on N4 (VGG-19 C100) and on the zoo twins. Read: lr 0.1-last − lr 0.01-last per point. Reported: if it is ≥ +0.3 on N4 at both size points and on DepGraph R56 at 2.57×, "a large-LR endpoint FT helps across architectures" (Le & Hua); otherwise the TREND stays a DepGraph-R56 observation.
+- Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
+## 236. Allocation-following walk, A0's sens rule, DepGraph ResNet-56 C10 landed params 0.47 (**22340523**) — PRELIM; lever **WEAK** (+0.40 vs uniform §233); every residual stream kept full, FLOPs 0.398 vs 0.472
+
+Pair of §233 (uniform 22340524). Sitting 7 Oct, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), `SIZE_MATCH=param:0.47`, 6 passes, P, origin control. COMPLETED 4 h 13 m, 7 Oct 07:36, `ise-4090-12`, exit 0, no fallback. Plan line: `sens alpha=0.5 plan keeps x0.447 … over 30 groups; group keep min 0.10 median 0.36 max 1.00`. Reader `final_ft_readout.py`; widths `arch_widths_readout.py`.
+
+| Arm | Params / FLOPs | Residual / inner min–median–max, stages 1 · 2 · 3 | Walk (5k) | Final 5k | Honest | 10k |
+|---|---|---|---|---|---|---|
+| **sens** `val_best` = `size_param0.47` | 0.469 / **0.398** | **16** / 4–6–9 · **32** / 7–7–32 · **64** / 16–30–64 | −0.32 | **−0.34** | −0.62 | n/a (val-selected) |
+| uniform §233 | 0.465 / 0.472 | 11 / 11 · 22 / 22 · 44 / 27–45–45 | −0.56 | −0.74 | −0.64 | n/a |
+| origin (sens run / uniform run) | 1 | 16 · 32 · 64 | 0 | +0.60 / +0.46 | — | +0.56 / +0.64 |
+
+**Read.**
+- *Call (registered, queue).* sens − uniform at the size point, 5k final: −0.34 − (−0.74) = **+0.40** → **WEAK**, between ABSORBED (≤ +0.15) and SURVIVES (≥ +0.5). That is the same direction as the thin pair (+0.82 / +0.96 / +0.54, §227 / §229 / §230). Honest is flat (−0.62 vs −0.64), so the gain is in the walk (+0.24 at walk TEST) more than in the final FT.
+- *Kept epochs (§235).* Both arms' final FTs kept **epoch 1**: sens loss 0.00195 at epoch 1 and 0.00822 at epoch 100; uniform 0.00424 and 0.00624. Both origins kept ~epoch 100 (0.023 → 0.0026). The walk drives the pruned net's train loss about ten times below the unpruned checkpoint's. The two arms are compared like-for-like (walk + 1 epoch each); wave 11 **22342665 / 22342666** re-read them at the endpoint.
+- *At equal params, sens keeps 16 % fewer FLOPs* (0.398 vs 0.472, i.e. 2.51× vs 2.12×), because it cuts inner convs instead of streams. On the FLOPs axis it sits beside N3's 2.57× point (FLOPs 0.380): −0.34 against N3's −1.34 (§157) / −1.24 (§232), both walk + 1 epoch. Different walks; the 0.018 FLOPs gap is worth ~0.17 pp at N3's slope. Visible, not a call.
+- No 10k: the size point is `val_best`. The DepGraph comparison waits on the transplant (wave 10) and wave 11.
 - Do not lock. Never an agent row. Never call DepGraph a beat.
 
 ---

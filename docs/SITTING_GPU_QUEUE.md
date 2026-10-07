@@ -23,7 +23,7 @@
 | Alloc walk uniform, κ 0.6 thin | **22340392** COMPLETED 05:48 **§230** | v10h | — | control r56 **−3.34 @ 0.599** |
 | Alloc walk sens, κ 0.8 thin | **22340393** COMPLETED 05:12 **§227** | v10h | uniform 22340394; §211 | as κ 0.6. r56 −1.30 @ 0.800 / FLOPs 0.696: +0.82 vs §211; lever **WEAK** +0.96 §229 |
 | Alloc walk uniform, κ 0.8 thin | **22340394** COMPLETED 05:53 **§229** | v10h | — | control r56 **−2.26 @ 0.799**; lever **WEAK** +0.96 |
-| Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** R 03:22 | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
+| Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** COMPLETED 07:36 **§236** | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 → **WEAK** (+0.40: −0.34 vs −0.74); residual streams full, FLOPs 0.398 vs 0.472 |
 | Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** COMPLETED ~06:13 **§233** | v10h | — | control r56 **−0.74 @ 0.465 / 0.472**; lever waits on 523 |
 | Alloc walk sens, κ 0.35 thin (wave 4) | **22340636** R ~05:09 | v10h | uniform 22340637 | SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 (r56-w4) |
 | Alloc walk uniform, κ 0.35 thin | **22340637** R ~05:14 | v10h | — | control |
@@ -46,7 +46,9 @@
 | Select=last re-FT, zoo twins R56 + VGG-16 C10 (wave 11) | **22342662** PD | **v10k** | §164 | R56 Δsel; VGG-16 (already late) is the negative control: \|Δsel\| > 0.5 → R56 read noise-limited |
 | 1-cycle-last (warmcos w30 peak 0.1, keep the last epoch), N3 / τ-off (wave 11) | **22342663 / 64** PD | **v10k** | lr 0.01-last; cosine-0.1 §223 / §228 | Lead 3 rule re-run on genuine endpoints (honest Δ ≥ +0.5 and raw ≥ at 2.11×, both walks), reported |
 | Select=last re-FT, DepGraph uniform alloc §233 (wave 11) | **22342665** PD | **v10k** | 22340524 | beside its lr 0.01 row, reported |
-| Select=last re-FT, DepGraph sens alloc / transplant R56 / transplant VGG (wave 11) | **22342666 / 67 / 68** PD (afterok 22340523 / 22342029 / 22342030) | **v10k** | their own lr 0.01 finals | the allocation and transplant calls re-read on genuine endpoints, reported |
+| Select=last re-FT, DepGraph sens alloc / transplant R56 / transplant VGG (wave 11) | **22342666** PD (523 done) **/ 67 / 68** PD (afterok 22342029 / 22342030) | **v10k** | their own lr 0.01 finals | the allocation and transplant calls re-read on genuine endpoints, reported |
+| Endpoint noise: N3 select=last, seed 43 (wave 11b) | **22342767** PD (nice 9) | **v10k** | 22342659 (seed 42) | \|s43 − s42\| ≥ 0.3 (10k) at a gating point → that point's wave 11 call is "unresolved" unless both walks clear the bar by more |
+| Cosine from lr 0.1, select=last: N4 VGG-19 C100 / zoo twins (wave 11b) | **22342768 / 69** PD | **v10k** | 22342661 / 62 (lr 0.01-last) | lr 0.1-last − lr 0.01-last, reported; "helps across architectures" needs ≥ +0.3 on N4 at both size points and DG R56 at 2.57× |
 | First v10 freeze TEST ep0127 κ 0.8 | **22341736** R ~17 min | v10 | §211 | start-check green; never quote in-walk |
 | First v10 freeze TEST ep0127 κ 0.6 | **22341737** R ~13 min | v10 | §212 | start-check green; never quote in-walk |
 
@@ -809,6 +811,7 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
   - *Cells (from saved, paper recipe otherwise).* N3 **22342659** and τ-off **22342660** (nice 8, ahead of the PD queue: they decide the M4 caption). N4 VGG-19 C100 **22342661**; zoo twins **22342662**, where VGG-16 kept late epochs and is the negative control. 1-cycle-last on N3 / τ-off **22342663 / 64**. DepGraph uniform alloc **22342665**. Sens alloc / transplant R56 / transplant VGG **22342666 / 67 / 68**, `afterok` on 22340523 / 22342029 / 22342030.
   - *Call (10k; 2.11× and 2.57×).* Δsel = last − the same walk's train-loss final (N3 vs §157, τ-off vs §220). **REQUOTE** if Δsel ≥ +0.3 on both walks at either point: re-finalise the M4 row and every early-epoch lr-0.01 row before quoting. **STANDS** if ≤ −0.3 on both walks at both points: keep the numbers, caption "walk + 1 epoch". **NEUTRAL** otherwise: keep, and disclose. Within 0.1 of a bar = unresolved.
   - *Reported.* Honest (100 against 100 epochs). lr 0.01-last against cosine-0.1: within 0.3 at 2.57× on both walks means §228's TREND was the selection. N4 against §149 on equal epochs (re-reads §155). Twins R56 Δsel; VGG-16 \|Δsel\| > 0.5 → noise-limited. 1-cycle-last by the Lead 3 rule against lr 0.01-last. Allocation and transplant rows beside their lr 0.01 rows.
+  - *Wave 11b (registered 07:50, before submit).* **Endpoint noise:** N3 select=last with `SPECTRA_SEED=43` (the split is `SPECTRA_SPLIT_SEED`'s alone). \|s43 − s42\| ≥ 0.3 (10k) at a gating point makes the call there "unresolved" unless both walks clear the bar by more. **lr at the endpoint, other architectures:** cosine from 0.1, select=last, on N4 (VGG-19 C100) and the twins; lr 0.1-last − lr 0.01-last per point, reported. "Helps across architectures" needs ≥ +0.3 on N4 at both size points and on DepGraph R56 at 2.57×.
   - *Start check.* The log's `SPECTRA_* env:` line has `SPECTRA_EVAL_FINAL_FT_SELECT: 'last'`; each `Fine-tune recipe` line says `select=last`; each finished line ends "kept the last epoch"; `[eval] TRAJ final_ft` lines carry `keep=last`.
 - **Visible at registration (one candidate each; not a call).**
   - N3 `size_flop0.39` under cosine 0.1: 0.927, against 0.920 under 0.01 (raw +0.7 pp).
