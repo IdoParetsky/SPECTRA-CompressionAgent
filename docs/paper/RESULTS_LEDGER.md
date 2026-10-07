@@ -4390,8 +4390,29 @@ Sitting 7 Oct wave 11, `tree_v10k`, `SPECTRA_EVAL_FINAL_FT_SELECT=last`, from-sa
 - *Call.* REQUOTE needs both walks ≥ +0.3 at one point, and no point has that. STANDS needs ≤ −0.3 everywhere, and every Δsel is positive. So the M4 numbers stay, with the disclosure "walk + 1 epoch (§235); a 100-epoch lr-0.01 endpoint adds +0.15 to +0.43 at 10k on two walks". 22342767 (N3 select=last, seed 43) can make 2.11× unresolved as well, if N3 moves ≥ 0.3 there; it cannot make REQUOTE fire.
 - *§228's TREND is not the selection.* lr 0.01-last against cosine-0.1 at 2.57×: N3 −1.20 vs −0.37 (0.83 apart), τ-off −1.31 vs −0.36 (0.95). Both gaps exceed 0.3, the registered bar. At 2.11× they are level on N3 (−0.31 vs −0.36) and 0.55 apart on τ-off (−0.54 vs +0.01). A genuine lr-0.01 endpoint recovers at most 0.43 of those gaps. Cosine from 0.1 leads on merit at 2.57× on both walks.
 - *Honest, 100 epochs against 100 (N3, §239's run).* −0.42 at 2.11×, −0.20 at 2.57×, −0.20 at keep 0.60, −0.12 at `val_best`. At lr 0.01 the pruned nets gain less over their walk than the origin gains from 100 epochs (+0.34).
-- *Slide line (tracker §6, 07:15) unchanged.* It quotes cosine-0.1, one run each; wave 12 (**22343160 / 65**, seed 43) measures its seed noise.
+- *Slide line (tracker §6), revised 09:30.* It now shows both genuine recipes, the lr-0.01 endpoint and cosine-0.1, so no recipe is picked on TEST. Wave 12 (**22343160 / 65**, seed 43) measures cosine-0.1's seed noise; 22342767 measures lr-0.01-last's.
 - Do not lock. Never an agent row. Never call DepGraph a beat.
+
+---
+
+## 241. Allocation-following walk, sens α 1.0 ("sens2"), landed κ 0.6, thin pair (**22340638**) — PRELIM; dose-response **flat**: r56-w4 **−2.80 @ 0.600**, identical to α 0.5 (§230); r56-w4's residual streams full under both
+
+Sitting 7 Oct wave 4, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens`, `SPECTRA_ALLOC_ALPHA=1.0` (α 0.5 is §230's sens), `SIZE_MATCH=param:0.6`, 6 passes, P, origin control. COMPLETED 3 h 32 m, 7 Oct 09:26, `ise-4090-02`, exit 0, TB 0, no fallback. Registered as dose-response, reported only. Reader `final_ft_readout.py` + `arch_widths_readout.py`.
+
+| Net | Arm | Params / FLOPs | Steps | Residual s1 / s2 / s3 | Inner median s1 / s2 / s3 | Final 5k | Honest |
+|---|---|---|---|---|---|---|---|
+| **r56-w4** | **sens2 α 1.0** | 0.600 / 0.552 | 226 | **4 / 8 / 16** | 2 / 2 / 9 | **−2.80** | −0.44 |
+| r56-w4 | sens α 0.5 (§230) | 0.600 / 0.572 | 169 | **4 / 8 / 16** | 2 / 3 / 11 | −2.80 | — |
+| r56-w4 | uniform (§230) | 0.599 / 0.582 | 96 | 3 / 6 / 12 | 3 / 6 / 13 | −3.34 | — |
+| r20-w2 | sens2 α 1.0 | **0.551** / 0.783 | 39 | 2 / 4 / 4 | 2 / 4 / 8 | −6.12 | −2.16 |
+| r20-w2 | sens α 0.5 (§230) | 0.595 / 0.800 | 40 | 2 / 4 / 5 | 2 / 4 / 5 | −2.92 | — |
+| origin r56-w4 / r20-w2 | sens2 run | 1 | — | — | — | +0.86 / +3.20 | — |
+
+**Read.**
+- *Dose-response.* Doubling α concentrates the inner cuts (stage-2 / 3 medians 2 / 9 against 3 / 11) and saves FLOPs (0.552 against 0.572). It keeps the residual streams full as α 0.5 does, and lands on the same TEST to two decimals. The lever does not grow with the sensitivity dose at κ 0.6. That fits the structural reading (§231: full residual streams), which wave 9's `inner` arm (22341865 / 67) tests directly.
+- *r20-w2 is not at equal size.* The plan stopped at params 0.655 (`every group at its target … strongest legal cut`). Its strongest legal cut overshot to 0.551, so −6.12 is 0.044 params below α 0.5's point. That is a guard row, not a lever read; group keep min 0.10 under α 1.0.
+- *Kept epochs (§235).* Late on every final FT (r56-w4 `val_best` loss 0.279 at epoch 1, 0.269 at 100, best 0.268). Honest is 100 epochs against 100.
+- Do not lock. Never an agent row.
 
 ---
 
