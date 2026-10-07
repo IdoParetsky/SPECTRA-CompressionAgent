@@ -5528,3 +5528,29 @@ Sitting 7 Oct wave 21 (registered 14:06, before submit), as §287. 22376490 (`tr
 
 ---
 
+## 292. Wave 20 (c): thin κ 0.6 sens / uniform at seed 44 (**22375992 / 22375993**) — PRELIM, reported; three-seed lever sens − uniform **+0.88** at 5k (+0.54 / +1.64 / +0.46), +1.11 on val, +1.00 at 10k (0.997): the WEAK band of wave 8's bars at 5k, so wave 8's two-seed SURVIVES (§254) stands as registered, and the paper should quote the three-seed number
+
+`tree_v10h`, §254's recipe with `SPECTRA_SEED=44` (seed verified in the env); `SPECTRA_ALLOC_KIND=sens` (α 0.5) / `uniform`. Sens **22375992** COMPLETED 2 h 34 m, 7 Oct 23:40, `cs-6000-02`; uniform **22375993** COMPLETED 3 h 8 m, 8 Oct 01:03, `ise-4090-10`; both exit 0, TB 0, no fallback, start check green (`input_c10_thin.json`, `param:0.6`; the sens plan spans 30 groups on r56-w4, uniform keeps every group at 0.75). Reader `final_ft_readout.py`, run once over all six wave 8 / wave 20 (c) cells, so seeds 42 and 43 now carry val and 10k beside the 5k of §230 / §242 / §254. Registration (wave 20 (c), 13:43): the three-seed lever is reported beside wave 8's two-seed call, which stands.
+
+| r56-w4, κ 0.6, landed ~0.60 | Seed 42 (§230) | Seed 43 (§242 / §254) | Seed 44 (this) | Three-seed mean |
+|---|---|---|---|---|
+| Sens, final 5k | −2.80 | −2.08 | **−3.10** | **−2.66** |
+| Uniform, final 5k | −3.34 | −3.72 | **−3.56** | **−3.54** |
+| **Lever, 5k** | +0.54 | +1.64 | **+0.46** | **+0.88** |
+| Lever, val | +1.14 | +1.10 | +1.10 | +1.11 |
+| Lever, 10k | +0.84 | +1.37 | +0.78 | +1.00 (0.997) |
+| Lever at the walk endpoint, 5k | +1.38 | +2.14 | +0.86 | +1.46 |
+| Origin control, 5k (sens run / uniform run) | +0.50 / +0.36 | +0.00 / +0.52 | +0.18 / +0.58 | — |
+
+Seed 44: sens r56-w4 walk −3.30 → final −3.10 (val −2.88, 10k −2.99) @ params 0.597 / FLOPs 0.575, step 169, residual streams 4 / 8 / 16 (full), inner medians 2 / 3 / 10, kept epoch 95; uniform walk −4.16 → final −3.56 (val −3.98, 10k −3.77) @ 0.599 / 0.582, step 96, residual 3 / 6 / 12, inner medians 3 / 6 / 13, kept epoch 100. Honest (final − walk − origin, 5k) +0.02 on both. Uniform lands on one architecture on all three seeds; sens keeps the residual streams full on all three, with stage-3 inner medians 11 / 10 / 10.
+
+**Read.**
+- *Three-seed lever: +0.88 at 5k.* On wave 8's bars (SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3) that is the WEAK band, 0.12 under the line. As registered, wave 8's two-seed call (SURVIVES, +1.09, §254) stands; this section sits beside it and does not replace it. §254 already read SURVIVES as "about +1 pp, not a precise number". The paper should quote the three-seed figure: +0.88 at 5k (per seed +0.46 to +1.64, standard error 0.38) and +1.00 at 10k.
+- *Where the spread sits.* Seed 43 is the high seed. On the val half the lever is flat (+1.14 / +1.10 / +1.10); the 5k half carries the spread. Across seeds the sens arm moves 1.02 at 5k (−2.08 to −3.10) and uniform 0.38. Two same-recipe origin controls of one seed differ by up to 0.52 at 5k, so a single 5k read moves by about 0.5 with nothing changed.
+- *The fine-tune narrows it.* At the walk endpoint the three-seed lever is +1.46. The 100-epoch final FT gives uniform more back (+0.84 / +1.16 / +0.60 over its walk; sens +0.00 / +0.66 / +0.20), which closes about 0.6 of it.
+- *Under cosine.* Wave 19's two-seed lever_cos at κ 0.6 is +1.44 with a seed spread of 0.08 (§268). This seed's cosine re-reads (22375997 / 22376009, PD) make that read three-seed; if Q7 adopts cosine-0.1, it is the paper's number.
+- *Guard r20-w2.* Three-seed sens − uniform −0.35 at 5k (0.00 / −0.76 / −0.28), with sens keeping 0.014 more params and 0.06 more FLOPs. On r20-w2 both plans stop above the target with every group at its target (sens x0.635, uniform x0.606), and its origin gains +3.4 to +3.8 from the fine-tune, so it stays a guard, not a lever read.
+- Do not lock. Never an agent row.
+
+---
+
