@@ -4432,7 +4432,7 @@ Sitting 7 Oct wave 8, `tree_v10h`, `SPECTRA_ALLOC_KIND=sens` (α 0.5), `SIZE_MAT
 **Read.**
 - *Seed spread.* The same rule lands r56-w4 0.72 pp apart across seeds, on nearly the same architecture: the residual streams are full in both runs, and stage 1–2 inner widths match. At fixed architecture, one walk plus one final FT moves by up to ~0.7 pp. Mild and greedy-3 were 0.38 apart on one architecture (§226).
 - *What that does to the single-seed calls.* The WEAK levers (+0.54 here at κ 0.6, +0.96 at κ 0.8, +0.40 on DepGraph R56 §236) and the flat dose-response (§241) all sit inside that spread. They stay PRELIM until the two-seed means. The bar over mild at κ 0.6 (+2.26, §231) is three times the spread, so it does not depend on one seed. Its seed-43 read is 22341278.
-- *Two-seed sens mean, r56-w4:* −2.44 @ ~0.60. The lever needs uniform s43.
+- *Two-seed sens mean, r56-w4:* −2.44 @ ~0.60. The lever needs uniform s43. Under §231's rule for the v10 read, "beyond heuristic" at κ 0.6 becomes v10 ≥ −2.44 + 0.5 = **−1.94**.
 - *Kept epochs (§235).* Late on every final FT (r56-w4 `val_best` 0.283 at epoch 1, 0.275 at 100, best 0.270; origin 0.299 → 0.188). The r56 origin gained 0.00 pp from 100 epochs at this seed; §241's seed-42 run gained +0.86. Honest therefore moves with the origin's seed as well.
 - Do not lock. Never an agent row.
 
