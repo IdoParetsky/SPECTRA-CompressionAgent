@@ -5264,3 +5264,27 @@ Seed spread |s43 − s42|: sens 0.40 at 5k (val 0.40, 10k 0.00), uniform 0.36 (v
 
 ---
 
+## 281. Wave 19 at κ 0.8, seed 43: sens / uniform / mild-landed under cosine-0.1-last (**22374703 / 22374704 / 22374788**, re-fine-tuned from 22341283 / 84 / 22341279) — PRELIM, reported; lever_cos **+0.78** at 5k (lr 0.01 +1.30) and **+1.17** at 10k (+1.25); bar_cos +0.38 (+0.38) and +0.75 at 10k (+0.91); cosine-0.1 lowers every r56-w4 arm and its unpruned origin, as it lowers that origin at every keep in wave 19
+
+Sitting 7 Oct wave 19 (registered 13:14, before submit). §264's recipe (`tree_v10k`, cosine from lr 0.1, select=last, 100 epochs + origin), from the saved candidates of the κ 0.8 seed-43 thin walks (§255: `tree_v10h/runs/job22341283` / `84`, `tree_v10/runs/job22341279`). Final-FT seed 43, the walk's (verified on all three: `seed=43`, `SPECTRA_SEED': '43'` in the env, `SPECTRA_SEED=43` in the submit line). 22374788 COMPLETED 40 m, 20:58, `ise-6000-05`; 22374703 COMPLETED 44 m, 21:01, `ise-cpu256-11` (its one RTX 6000); 22374704 COMPLETED 38 m, 21:08, `cs-6000-02`. All exit 0, TB 0; each ran 4 final FTs (landed point and origin, two nets), all at lr 0.1 cosine with select=last, and all 4 kept the last epoch. Registered (wave 19): κ 0.8 is reported, no bars.
+
+| r56-w4, κ 0.8, seed 43 | Params / FLOPs | Residual s1 / s2 / s3 | cosine-0.1-last 5k / val / **10k** | Origin 5k (cos) | lr 0.01 5k / val / 10k (§255) | Origin 5k (lr 0.01) | cos − lr 0.01, 5k / val / 10k |
+|---|---|---|---|---|---|---|---|
+| Sens | 0.798 / 0.708 | 4 / 8 / 16 | −2.10 / −1.42 / **−1.76** | −0.50 | −1.32 / −1.04 / −1.18 | +0.12 | −0.78 / −0.38 / −0.58 |
+| Uniform | 0.799 / 0.716 | 3 / 7 / 14 | −2.88 / −2.98 / **−2.93** | −0.68 | −2.62 / −2.24 / −2.43 | +0.48 | −0.26 / −0.74 / −0.50 |
+| Mild-landed | 0.799 / 0.716 | 3 / 7 / 14 | −2.48 / −2.54 / **−2.51** | −0.82 | −1.70 / −2.48 / −2.09 | +0.22 | −0.78 / −0.06 / −0.42 |
+| **Lever, sens − uniform** | | | **+0.78** / +1.56 / **+1.17** | | +1.30 / +1.20 / +1.25 | | −0.52 / +0.36 / −0.08 |
+| Bar, sens − mild | | | +0.38 / +1.12 / +0.75 | | +0.38 / +1.44 / +0.91 | | 0.00 / −0.32 / −0.16 |
+
+The lr 0.01 val halves are 2 × 10k − 5k (±0.01 from rounding). Guard, r20-w2 (sens 0.799, uniform and mild 0.774), cosine 5k / 10k: sens +1.32 / +2.02, uniform +0.86 / +1.14, mild +0.42 / +1.20, so sens − uniform is +0.46 / +0.88 (lr 0.01: +0.40 / +0.17). All three r20 origins gain +4.3 to +5.0 at 5k under cosine-0.1 (lr 0.01 +3.2 to +3.5).
+
+**Read (reported).**
+- *Lever: 10k level, 5k trimmed.* lever_cos is +1.17 at 10k against +1.25 at lr 0.01, and +0.78 at 5k against +1.30; the val half rises (+1.56 against +1.20). The bar is unchanged at 5k (+0.38) and 0.16 lower at 10k. At κ 0.8 the stronger fine-tune neither absorbs the lever nor grows it.
+- *Cosine-0.1 hurts the thin r56-w4, here as at κ 0.6.* Every arm loses (5k −0.26 to −0.78, 10k −0.42 to −0.58), and so does the unpruned origin (5k −0.50 / −0.68 / −0.82, against +0.12 / +0.48 / +0.22 at lr 0.01). Seed 42's sens re-read (22374700) does the same: 5k −2.00, 10k −1.43, origin −0.80 (lr 0.01 −1.30 / −1.17). Across wave 19 the r56-w4 origin loses under cosine at every keep (5k −0.36 to −1.20), while the r20-w2 origins gain +4.2 to +5.3. Q7's cosine recommendation rests on full-width nets (N4 VGG-19 and DepGraph R56, §251, §252); on the thin r56-w4 it is a cost, not a repair, so the lever under it is a difference of losses.
+- *Noise floor.* The three origin controls are one unpruned net, one recipe and one seed on three GPUs. Their 5k spread is 0.32 under cosine and 0.36 under lr 0.01. Uniform and mild land on the same r56-w4 here (§255), so their gap (−0.40 at 5k, −0.42 at 10k under cosine) is fine-tune noise on a fixed architecture, the same size.
+- *FLOPs.* Sens keeps FLOPs 0.708 against 0.716; at κ 0.8 the lever is not bought with FLOPs.
+- *Seed 42.* Sens done (above); the uniform and mild re-reads 22385251 / 52 (resubmitted after the 20:15 preemption, queue row 77) are PD. The two-seed κ 0.8 means follow when they land.
+- Do not lock. Never an agent row.
+
+---
+
