@@ -5121,6 +5121,26 @@ Guard, r20-w2 (sens at 0.799, mild at 0.774; unequal size, flagged as in §227):
 - *For v10.* On this seed the reward's lever (+1.58) is close to the final-FT lever at the same budget (+1.36). At κ 0.6 the reward overstated it about 1.8× (§259). It points the same way at both keeps.
 - Seed 42 only, as registered. Not a train and not a v10 TEST; ops' M1-v10 FLAT (§248) stands. Never quote the in-walk returns as TEST. Do not lock. Never an agent row.
 
+## 275. Wave 18 (b): DepGraph R56 sens / uniform allocation re-fine-tuned under cosine-0.1-last (**22374230 / 22374248**, from 22340523 / 24's saved candidates) — PRELIM, reported; lever_cos **−0.12** at 5k (val +0.10, 10k −0.01) → **ABSORBED**, as at lr 0.01 keep-last (§261); both arms gain about +0.7 and reach 10k **+0.26 / +0.27**, level with DepGraph's own 2.11× model (+0.24); within our pipeline DepGraph's widths (§262, +0.69) do not separate from a uniform cut on one seed
+
+Sitting 7 Oct wave 18 (registered 13:04, before submit). `tree_v10k`, wave 11b's recipe (SGD lr 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, origin control, P, seed 42), from the saved candidates in `tree_v10h/runs/job22340523` / `job22340524`. 22374230 COMPLETED 34 m, 18:41, `ise-4090-11`; 22374248 COMPLETED 35 m, 18:52, `ise-4090-12`; both exit 0, TB 0, no fallback. Start check green on both: `final_ft from` names the parent's `traj_models`, env `select=last`, both recipe lines read `optim=sgd lr=0.1 cosine=1 … select=last`, both final FTs kept the last epoch, `keep=last` 2, seed 42. The size point (`size_param0.47`: sens step 165, uniform step 113) was fixed by size, not chosen on val, so its 10k is quoted (`full_test_dacc`). Call (registered): sens − uniform at the landed point, 5k, §236's bars: **SURVIVES** ≥ +0.5, **ABSORBED** ≤ +0.15, WEAK between; reported.
+
+| DepGraph R56 C10 at params 0.47, seed 42 | Params / FLOPs | Residual (of 16 / 32 / 64) | cosine-0.1-last 5k / val / **10k** | Origin (cosine) 5k / val / 10k | lr 0.01 keep last 5k / val / 10k (§261 / §257) | lr 0.01 epoch-1 restore (§236 / §233) |
+|---|---|---|---|---|---|---|
+| Sens | 0.469 / 0.398 | 16 / 32 / 64 | +0.06 / +0.46 / **+0.26** | +0.70 / +1.04 / +0.87 | −0.68 / −0.04 / −0.36 | −0.34 / −0.24 / −0.29 |
+| Uniform | 0.465 / 0.472 | 11 / 22 / 44 | +0.18 / +0.36 / **+0.27** | +0.60 / +0.78 / +0.69 | −0.52 / −0.30 / −0.41 | −0.74 / −0.78 / −0.76 |
+| **Lever, sens − uniform** | | | **−0.12** / +0.10 / **−0.01** | | −0.16 / +0.26 / +0.05 | +0.40 / +0.54 / +0.47 |
+
+References at 10k under the same cosine-0.1 fine-tune (§262): the transplant of DepGraph's widths **+0.69** at 0.508 / 0.480 (origin +1.02); N3's two-seed mean −0.24 at 0.470 / 0.463 (origins +0.64 / +0.63); DepGraph's own 2.11× model **+0.24** (head-to-head 21943448).
+
+**Read.**
+- *Call: ABSORBED (reported).* Sens − uniform is −0.12 at 5k, under the +0.15 line, and the val half (+0.10) and 10k (−0.01) agree. The stronger fine-tune lifts both arms by about +0.7 (sens +0.74 / +0.62 at 5k / 10k, uniform +0.70 / +0.68) and leaves the lever at zero, as lr 0.01 did on genuine endpoints (§261: −0.16 / +0.05). §236's +0.40 was the epoch-1 restore.
+- *FLOPs.* At equal params and equal accuracy sens keeps 16 % fewer FLOPs (0.398 against 0.472: 2.51× against 2.12×). On DepGraph R56 that is the sens rule's only gain, and it holds under both fine-tunes.
+- *Beside the transplant, same pipeline and fine-tune (reported).* At 10k the transplant gets +0.69 at params 0.508; uniform gets +0.27 and sens +0.26 at 0.47. After a 0.07 size credit for the transplant's extra 0.04 params (§262's slope) it leads uniform by +0.35 and sens by +0.37. Against each run's own retrained origin (+1.02 / +0.69 / +0.87) the leads are +0.09 and +0.28. Origins move about 0.4 between runs of one recipe (§262), so on one seed DepGraph's widths do not separate from a uniform cut in our pipeline.
+- *Beside DepGraph's own model and N3 (reported).* Both allocations reach DepGraph's own 2.11× level (+0.24) at 0.47 params, uniform at slightly fewer FLOPs (0.472 against 0.480). As in §262 this mixes the allocation with our stronger recovery: **never "beats"**. Both sit about 0.5 above N3's cosine mean (−0.24), but N3 is another walk pipeline (§157: `tree_v9c`, 5-pass mild, a FLOPs size point), and at lr 0.01 keep-last uniform was 0.10 below it (−0.41 against −0.31). The uniform − N3 gap is not an allocation measurement.
+- *What it changes in §262's read.* The registered call (lift_cos +0.87 over N3 → ALLOCATION) stands as a measurement. Its mechanism line does not. The uniform walk cuts the residual streams to 11 / 22 / 44, close to N3's 2/3 cut (§234), and still reaches DepGraph's level under cosine. So "its lead over N3 is where it cuts" and "the gap is an allocation gap the agent must learn" (§262) are not supported on one seed. What holds is that our walk and fine-tune reach DepGraph's own 10k accuracy at its size or smaller, starting from DepGraph's widths, from a uniform cut, or from the sens plan.
+- One walk and one fine-tune seed per arm. The seed-43 transplant walk (22374250, lr 0.01) is R. Do not lock. Never an agent row. Never call DepGraph a beat.
+
 ---
 
 
