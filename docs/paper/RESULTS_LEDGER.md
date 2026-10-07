@@ -4001,5 +4001,46 @@ Sitting 7 Oct, under Ido's prompt (`docs/PROMPT_FABLE_OCT7_SITTING.md` B1). `tre
 
 ---
 
+## 222. L3b: 1-cycle large-LR final FT (warmup 30 epochs to lr 0.1, then cosine) on §212's saved thin candidates (**22340388**) — PRELIM; thin pair **CROSS-OFF**
+
+Same cell as §221, with the Le & Hua 1-cycle shape.
+- *Recipe.* `SPECTRA_EVAL_FINAL_FT_LR=0.1 SPECTRA_EVAL_FINAL_FT_SCHEDULE=warmcos SPECTRA_EVAL_FINAL_FT_WARMUP=30`: per-batch linear warmup over 30 epochs, then cosine to 1e-5; 100 epochs; the rest as §221.
+- *Run.* `tree_v10h`. COMPLETED 48 m, 7 Oct 03:24, `ise-4090-20`, exit 0. Reader `final_ft_readout.py`; call as §221.
+
+| Net | Point (params / FLOPs) | Walk | Final, lr 0.01 (§212) | Final, 1-cycle | Origin change, 0.01 → 1-cycle | Honest, 0.01 → 1-cycle | Δ honest | 10k final, 1-cycle |
+|---|---|---|---|---|---|---|---|---|
+| r20-w2 | size 0.60 (0.584 / 0.674) | −4.68 | −2.86 | **−2.60** | +3.32 → +4.58 | −1.50 → −2.50 | **−1.00** | −1.85 |
+| r56-w4 | size 0.60 (0.600 / 0.453) | −5.96 | −5.06 | **−6.12** | +0.12 → **−1.38** | +0.78 → +1.22 (ORIGIN-HURT) | +0.44, inflated | −6.06 |
+
+**Read.** Worse than cosine from 0.1 (§221) on both nets.
+- The warmup to a large LR costs the converged r56-w4 origin 1.38 pp, and the pruned net 1.06 pp raw.
+- On r20-w2 the undertrained origin gains 1.26 pp more than under lr 0.01, but the pruned net gains only 0.26.
+- **CROSS-OFF on the thin pair** for the 1-cycle schedule. The N3 read (22340387, still R) gates the schedule. Do not lock. Never an agent row.
+
+---
+
+## 223. L3a: cosine-from-lr-0.1 final FT on N3's saved DepGraph R56 candidates (**22340234**) — PRELIM; **CROSS-OFF** at 2.11× (the gating point)
+
+The gating cell of Lead 3 (`docs/PROMPT_FABLE_OCT7_SITTING.md` B1 + B2).
+- *Recipe.* `tree_v10`, from-saved `SPECTRA_EVAL_FINAL_FT_FROM=tree_v9c/runs/job21767189/traj_models` (all four N3 candidates), `SPECTRA_EVAL_FINAL_FT_LR=0.1`. Otherwise N3's final FT (§157): SGD m 0.9, wd 5e-4, per-epoch cosine, 100 epochs, batch 128, loader crop+flip. P, seed 42, deterministic, origin control.
+- *Run.* COMPLETED 1 h 22 m, 7 Oct 03:45, `ise-4090-18`, exit 0.
+- *Reader and call.* `final_ft_readout.py`; call as §221. ADOPT needs honest Δ ≥ +0.5 pp at `size_flop0.47` and raw final_new ≥ final_old there. TEST = 5k half (unpruned 0.934).
+
+| Point | Params / FLOPs | Walk (5k) | Final 5k, lr 0.01 (§157) | Final 5k, lr 0.1 | Honest, 0.01 → 0.1 | Δ honest | 10k final, 0.01 → 0.1 | DepGraph (10k) |
+|---|---|---|---|---|---|---|---|---|
+| size_flop0.60 | 0.638 / 0.599 | +0.08 | +0.04 | −0.26 | −0.40 → −0.96 | −0.56 | −0.03 → +0.04 | — |
+| **size_flop0.47 (2.11×)** | 0.470 / 0.463 | −0.22 | −0.44 | **−0.32** | −0.58 → −0.72 | **−0.14** | −0.46 → **−0.36** | +0.24 |
+| size_flop0.39 (2.57×) | 0.382 / 0.380 | −1.32 | −1.34 | **−0.62** | −0.38 → +0.08 | +0.46 | −1.63 → **−0.37** | +0.11 |
+| `val_best` | 0.356 / 0.369 | −1.12 | −0.96 | −0.90 | −0.20 → −0.40 | −0.20 | n/a | — |
+| origin | 1 | 0 | +0.36 | **+0.62** | — | — | +0.60 → +0.64 | — |
+
+**Read.**
+- *2.11×.* The large LR lifts the pruned net by +0.12 pp raw and the origin by +0.26 more than lr 0.01 does. Honest Δ −0.14: **CROSS-OFF** under the registered rule. The 100-ep lr 0.01 final FT stays the paper caption.
+- *2.57× (not gating).* The deepest saved point gains +0.72 pp raw on 5k and +1.26 on 10k. Honest Δ +0.46 is just under the bar. That is the shape Le & Hua report: large-LR retraining helps more at higher sparsity. On 10k it narrows the 2.57× gap to DepGraph's +0.11 from 1.74 pp to 0.48. One FT seed; never "beats".
+- *Consequence.* No schedule change for the paper rows. If a deeper cell (keep ≤ 0.4) is ever reported, a pre-registered lr 0.1 re-finalisation of *all* compared rows at that size is the one open use. Not tonight. The 1-cycle arm (22340387) is still R.
+- Do not lock. Never an agent row.
+
+---
+
 
 

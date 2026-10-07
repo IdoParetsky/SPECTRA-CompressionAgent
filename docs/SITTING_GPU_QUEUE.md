@@ -11,20 +11,22 @@
 |---|---|---|---|---|
 | Ladder: greedy 4-rate (0.7 steps), landed κ 0.6, thin | **22340232** | v10 | §216 (greedy 3-rate), §212 | r56-w4: HELP ≥ +1.0 / HURT ≤ −1.0 vs §216 |
 | Ladder: greedy 5-rate (0.6 steps) | **22340233** | v10 | same | same |
-| L3a: cosine from lr 0.1, final FT on N3's saved candidates | **22340234** | v10 | N3 21767189 §157 | ADOPT: honest ≥ +0.5 pp at 2.11× |
+| L3a: cosine from lr 0.1, final FT on N3's saved candidates | **22340234** COMPLETED 03:45 **§223** | v10 | N3 21767189 §157 | ADOPT: honest ≥ +0.5 pp at 2.11× → **CROSS-OFF** (Δ honest −0.14; raw +0.12). 2.57× raw +0.72 (10k +1.26), honest +0.46, not gating |
 | L3a on §212's thin saved candidates | **22340235** COMPLETED 03:11 **§221** | v10 | 22156062 §212 | same rule, r56-w4 κ 0.6: **thin CROSS-OFF** (raw −0.16 at r56; origin −0.64) |
 | L3b: 1-cycle (30-ep warmup to 0.1, cosine), N3 | **22340387** | v10h | N3 | as L3a |
-| L3b on §212 thin | **22340388** | v10h | §212 | as L3a |
+| L3b on §212 thin | **22340388** COMPLETED 03:24 **§222** | v10h | §212 | as L3a: **thin CROSS-OFF** (raw −1.06 at r56; origin −1.38) |
 | Alloc walk sens, κ 0.6 thin | **22340391** | v10h | uniform 22340392; §212 | SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 (r56-w4) |
 | Alloc walk uniform, κ 0.6 thin | **22340392** | v10h | — | control |
 | Alloc walk sens, κ 0.8 thin | **22340393** | v10h | uniform 22340394; §211 | as κ 0.6 |
 | Alloc walk uniform, κ 0.8 thin | **22340394** R 03:10 | v10h | — | control |
-| Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** PD | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
-| Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** PD | v10h | — | control |
+| Alloc walk sens, DepGraph R56 landed params 0.47 | **22340523** R 03:22 | v10h | uniform 22340524; N3 2.11× | SURVIVES ≥ +0.5 / ABSORBED ≤ +0.15 |
+| Alloc walk uniform, DepGraph R56 params 0.47 | **22340524** R 03:44 | v10h | — | control |
 | Alloc walk sens, κ 0.35 thin (wave 4) | **22340636** PD | v10h | uniform 22340637 | SURVIVES ≥ +2.0 / ABSORBED ≤ +0.5 (r56-w4) |
 | Alloc walk uniform, κ 0.35 thin | **22340637** PD | v10h | — | control |
 | Alloc walk sens2 (α 1.0), κ 0.6 thin | **22340638** PD | v10h | sens 22340391 | dose-response, reported |
 | Mild-landed κ 0.35 control, thin (wave 5) | **22340796** PD | v10 | κ 0.35 alloc pair | bar for κ 0.35, reported |
+
+**Ops 7 Oct 03:30 (TEST land).** **22340235 COMPLETED §221** cosine lr 0.1 thin **CROSS-OFF**. **22340388 COMPLETED §222** 1-cycle thin **CROSS-OFF**. N3 **22340234 / 387** still R (gates). QOS **8/8** + PD QOSMaxGRES. Do not TEST ep0111. Resume ep **220**. Ledger next **§223**. Next canvas **09:30**. Next 3h **05:28**.
 
 **Ops 7 Oct 02:28 (3h).** QOS **6/8**. Sitting jobs **22340232–35 R** ~8 min, TB=0, `tree_v10` sbatch (no src overlay). **22340232** greedy 4-rate (1.0/0.9/0.8/0.7) landed κ 0.6; **22340233** greedy 5-rate (+0.6); **22340234** cosine-100 from-saved N3 `flop0.39`; **22340235** cosine-100 thin `param0.60`. **2 idle — sitting fills, ops does not invent.** Do not TEST v10 ep0111. Resume ep **218**. Next canvas **09:30**. Next 3h **05:28**.
 
