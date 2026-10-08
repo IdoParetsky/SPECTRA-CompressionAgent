@@ -103,6 +103,8 @@
 | First v10 freeze TEST ep0127 κ 0.8 | **22341736** COMPLETED ~08:26 **§237** | v10 | §211 | r56 **−2.88 @ 0.799** vs mild −2.1 = **−0.78**; residual 3/7/14; census 0.9 only; M1-v10 waits on 37 |
 | First v10 freeze TEST ep0127 κ 0.6 | **22341737** COMPLETED 10:51 **§248** | v10 | §212 | r56 **−5.28 @ 0.600** vs mild −5.1 = **−0.18**; residual **2 / 5 / 13** (mild); census 0.9 only; **M1-v10 FLAT** |
 
+**Ops 8 Oct 22:10 (TEST land).** Sitting closed **§332–§335**: K=1 **75 epochs** (**5.9–6.9 min** vs 85); **G2 ADOPT**; E-M even-cut **WALK-NEEDED**; plan-as-action after probe. N01P / N02P filling. Resume **272/250**. QOS **11 R / 20 PD**. Ledger next **§336**. Next canvas **23:00**. Next 3h **23:40**.
+
 **Ops 8 Oct 21:40 (lean).** No new ledger TEST. Wave 31 COMPLETED — sitting owns. G2-F / G2-E / G2-M R. Resume **272/250**. QOS **9 R / 1 PD**. 2 idle sitting owns. Ledger next **§332**. Next canvas **23:00**. Next 3h **23:40**.
 
 **Ops 8 Oct 21:10 (lean).** No new GPU TEST. Sitting closed **§330 Q7 answered** / **§331** v10 SNR diagnostic. E-M COMPLETED sitting owns. GB200 thin / GB75 / GE-M R. Resume **272/250**. QOS **11 R / 23 PD**. Ledger next **§332**. Next canvas **23:00**. Next 3h **23:40**.
@@ -1122,8 +1124,8 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
       Four pairs per family. b_val (the val half) selects; 10k and 5k are reported.
     - *Calls, per family.*
       - **LR-ABSORBS** if mean d_val ≥ −0.30. lr 0.01 matches batch 256 at lr 0.1, and §330's recipe stands on that family. The paper's narrow rows stay at lr 0.01, batch 128 (N01-P / N02), and G2's ADOPT does not apply to that family.
-      - **BATCH-ADDS** if mean d_val ≤ −0.30. Reported to Ido; §330 stands until he calls. The next step would be a registered lr-0.01 × batch-256 cell, not submitted before it is registered.
-      - Between the two: §330 stands, reported.
+      - **BATCH-ADDS** if mean d_val < −0.30. Reported to Ido; §330 stands until he calls. The next step would be a registered lr-0.01 × batch-256 cell, not submitted before it is registered.
+      - *(Amended 22:15, before any N01 value was read: as first written, the two bands touched at −0.30 and the "between" line was empty. A tie goes to LR-ABSORBS; there is no between band.)*
     - *Scope of G2's ADOPT meanwhile.* It covers G's new no-agent cells at lr 0.1. On R56 that is FLAT at ×1.16 (honest −0.22, reported). It changes no row already quoted. §330 adopted cosine from lr 0.01, keep-last, for the narrow families. G's equivalence (§324, §328) was measured only under cosine-0.1, and some narrow walks predate keep-last (§235).
     - *(N01-P)* The plain final fine-tune: SGD, cosine from **lr 0.01**, keep-last, batch 128, 100 epochs, origin control (`tree_v10k`, nice 27). It runs on the thin r56-w4 walked sets (`tree_v10h/runs/job22340391 / 92`, `22341281 / 82`: sens / uniform × s42 / s43) and wave 21's MobileNetV2 ×0.5 walked sets (`tree_v10h/runs/job22376484 / 85 / 88 / 90`). 8 jobs.
     - *(N01-G)* The same lr-0.01 keep-last recipe under G (GPU crop+flip, CUDA graphs; `tree_v10l`, nice 27) on the same 8 sets. 8 jobs.
