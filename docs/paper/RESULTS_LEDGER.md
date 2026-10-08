@@ -6426,3 +6426,18 @@ Decision record. Ido accepted two recommendations from the sitting's 10:35 botto
 - *G* (§324, §328) stays the speed recipe for new no-agent final fine-tunes. Its flags leave the learning rate alone, but its equivalence was measured under cosine-0.1, so the first lr-0.01 rows under G carry one equivalence check.
 - *Where it is written.* Draft §4.2 ("Final fine-tune (recovery)"), runbook §10.0i (ops' version), and the always-applied paper-ledger rule. Ops' pins at the top of the draft that say "paper FT caption stays lr 0.01" are superseded; ops restamps them.
 
+## 331. Why v10 collapsed onto mild: its reward cannot tell the actions apart (zero GPU; v10 `22156116` events file, 207 episodes, 14,703 steps; `_tmp_s8oct_v10reward_audit.sh`) — DIAGNOSTIC, not TEST
+
+Read-only audit of the live train's own telemetry, on the login node, for the learning program (Ido, 8 Oct 20:36: "without a learning agent SPECTRA thesis collapses").
+
+- *Per-step reward by requested keep rate, all steps (pp).* 0.9: −0.049 (SD 1.007, n 5,700). 0.8: −0.127 (SD 0.940, n 662). 0.7: −0.217 (SD 1.000, n 1,434). 0.6: −0.292 (SD 1.054, n 556). Identity 1.0: 0 (n 6,351). The last 3,000 steps match.
+- *Signal against noise.* The reward ranks the actions by cut size, but neighbouring actions differ by about 0.08 pp while one step's reward carries about 1.0 pp of noise, whatever the action. One step's reward is the change between two val reads around a 12/4 fine-tune. With γ = 1 and GAE λ = 0.95, an advantage sums the noise of about 1/(1 − λ²) ≈ 10 weighted steps (SD ≈ 3.2 pp). A single decision's signal-to-noise is about 0.025, before asking for the state-dependent part (cut this group less than that one), which is smaller.
+- *What PPO learned instead: the action marginal.* Fraction of cuts at 0.9 by quarter of training: 0.38 → 0.47 → 0.60 → 0.73 (0.77 over the last 3 episodes). Mean cut keep: 0.770 → 0.794 → 0.825 → 0.850. Policy entropy fell from 1.47 at episode 0 to about 0.45 (max ln 5 = 1.61). This is §248's census (one cut size at every step) reached gradually.
+- *Sample count.* 207 episodes over 4 days, 20–22 per net (10 nets: thin r56-w6, r20-w8, r20-w10; resnet32; densenet40; vgg11_bn; vgg13_bn; MobileNetV2 ×0.5 and ×1; VGG-11 SVHN). That is 51 PPO updates of 4 episodes each, at 3.5–79 min per episode, paid by the per-step 12/4 fine-tune.
+- *A suspicion that did not hold.* Under a fixed target, milder cuts take more steps and so more fine-tune rounds. Within-net Spearman of return against mildness, target partialled out, n ≈ 20 per net (noise ≈ ±0.22):
+  - positive on VGG-11 C10 (cut count +0.74, mean keep +0.53), VGG-13 (+0.18 / +0.58) and MobileNetV2 ×0.5 (+0.56 / +0.69);
+  - negative on the thin r56-w6 (−0.70 / −0.27) and VGG-11 SVHN (−0.22 / −0.23);
+  - null on DenseNet-40 and the thin r20s.
+  It is not a uniform bias toward small cuts.
+- *Reading.* The objective is not the gap: sens beats mild by +4.05 on this same return (§259). Neither is the information, since the sens rule's input, measured sensitivity, is in the state. The gap is the training signal: per-step fine-tune noise, a long horizon, ~20 episodes per net, and between-net variance in each 4-episode batch. Fixes that raise the signal come before fixes to capacity: a cheap paired reward without per-step fine-tunes, shared baselines over several plans per (net, target), and a start from the sens / inner expert. The representation is tested by a supervised imitation probe first. The plan follows in the learning-program doc.
+
