@@ -635,6 +635,14 @@ def eval_final_ft_cuda_graph() -> bool:
     return _flag("SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH")
 
 
+def ft_cuda_graph() -> bool:
+    """
+    ``SPECTRA_FT_CUDA_GRAPH=1`` (default off): an eval walk's per-step full-net fine-tune (recipe A) replays
+    the forward and backward as CUDA graphs, one capture per step's architecture. Ignored in ``AGENT_TRAIN``.
+    """
+    return _flag("SPECTRA_FT_CUDA_GRAPH")
+
+
 def eval_final_ft_kd() -> bool:
     """``SPECTRA_EVAL_FINAL_FT_KD=1``: the final fine-tune distils from the unpruned original (KD T/α as the walk)."""
     return _flag("SPECTRA_EVAL_FINAL_FT_KD")

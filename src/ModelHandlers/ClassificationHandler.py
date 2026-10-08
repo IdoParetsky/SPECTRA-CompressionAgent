@@ -102,7 +102,10 @@ class TrainGraph:
 
     def release(self):
         """Drop the graphed forward (an instance attribute) so the class's own forward is back."""
-        self.model.__dict__.pop("forward", None)
+        if self.model.__dict__.pop("forward", None) is not None:
+            # The graphed autograd class sits in a reference cycle that holds the graphs' memory pools;
+            # a walk captures once per step, so collect now rather than at the next gen-2 pass.
+            gc.collect()
 
 
 # TODO: Consider data normalization and augmentation via torchvision.transforms
@@ -449,8 +452,10 @@ class ClassificationHandler(BasicHandler):
 
         if graph is not None:
             graph.release()
+            reserved = (f", {torch.cuda.memory_reserved() / 2 ** 30:.2f} GB reserved"
+                        if torch.cuda.is_available() else "")
             utils.print_flush(f"{log_tag}CUDA graph: {graph.graphed_steps} graphed steps, "
-                              f"{graph.eager_steps} eager")
+                              f"{graph.eager_steps} eager{reserved}")
 
         # `epoch` is defined after any non-empty training loop; empty-loader break leaves it unset
         try:

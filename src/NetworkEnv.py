@@ -806,6 +806,8 @@ class NetworkEnv:
                 if self.mode == AGENT_TRAIN and fortify.train_ft_epochs() is not None:
                     ft_kwargs = {"max_epochs": fortify.train_ft_epochs(),
                                  "patience": fortify.train_ft_patience()}
+                if self.mode != AGENT_TRAIN and fortify.ft_cuda_graph():
+                    ft_kwargs["cuda_graph"] = True
                 handler.train_model(self.train_loader, **ft_kwargs)
         if fortify.ft_pca_reinit():
             return "C-PCA"
