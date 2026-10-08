@@ -6614,3 +6614,42 @@ Reading:
 
 Records: queue row 89; next §338.
 
+## 338. (N03): is batch 256's thin gain the step size? lr 0.05 at batch 128 (N03-a **22409814–819, 22409821 / 22**) and lr 0.01 at batch 256 (N03-b **22409823–830**), G, `tree_v10l` — PRELIM; registered calls: N03-a − G2 **EFFECTIVE-LR** on thin r56-w4 (mean e_val **−0.130**; 10k +0.000) and MobileNetV2 ×0.5 (**+0.070**; 10k +0.008), so batch 256 helps thin only through its step per sample; N03-b reported; no recipe change before Ido calls
+
+Registered before submit 9 Oct 00:35 (commit `e048d2e`). Read 9 Oct 01:05 (`scripts/_tmp_s9oct_readn03.sh`). All 16 jobs COMPLETED with exit 0, no NaN, no traceback (9–13 min). Every pair below is at the same walk point. Recipe: G (GPU crop + flip, CUDA graphs), cosine, keep-last, 100 epochs, origin control. Candidates: N01's eight sets (thin r56-w4 walks `tree_v10h` 22340391 / 92, 22341281 / 82; MobileNetV2 ×0.5 walks 22376484 / 85 / 88 / 90), κ 0.6. The step per sample is written as lr per 128 images, so lr 0.1 at batch 256 is a step of 0.05.
+
+**N03-a − G2** (e = lr 0.05 at batch 128 − lr 0.1 at batch 256, the same step per sample; the val half selects):
+
+| family | sens s42 | uniform s42 | sens s43 | uniform s43 | mean e_val (10k / 5k / honest) | call |
+|---|---|---|---|---|---|---|
+| r56-w4 | +0.36 | −0.38 | +0.02 | −0.52 | **−0.130** (+0.000 / +0.130 / +0.17) | **EFFECTIVE-LR** |
+| MBV2 ×0.5 | +0.06 | +0.60 | +0.16 | −0.54 | **+0.070** (+0.008 / −0.055 / −0.52) | **EFFECTIVE-LR** |
+| guard r20-w2 | −0.30 | −0.40 | +0.30 | +0.34 | −0.015 (−0.020 / −0.025 / +0.36) | reported |
+
+Final fine-tune minutes, N03-a / G2: r56-w4 3.3–3.4 / 2.9; MBV2 4.4–5.1 / 4.7–5.5; r20-w2 1.7 / 0.9.
+
+**N03-b (reported)**, lr 0.01 at batch 256, mean d_val (10k / honest):
+- against N01-G (lr 0.01 at batch 128): r56-w4 −0.080 (−0.060 / −0.08); MBV2 −0.025 (+0.040 / +0.30); guard −0.280 (−0.245 / +0.05);
+- against G2 (lr 0.1 at batch 256): r56-w4 −0.490 (−0.457 / −1.08); MBV2 +0.165 (+0.153 / −0.19); guard −1.270 (−1.297 / −0.01).
+
+**The step-size curve** (means over each family's four sets; val / 10k, then origin control / honest at 5k):
+
+| step per 128 images | recipe | r56-w4 | MBV2 ×0.5 | guard r20-w2 (val / 10k) |
+|---|---|---|---|---|
+| 0.005 | lr 0.01, batch 256 (N03-b) | −3.47 / −3.39; +0.46 / −3.77 | +0.31 / +0.42; +0.40 / +0.14 | −2.28 / −2.78 |
+| 0.01 | lr 0.01, batch 128 (N01-G) | −3.39 / −3.33; +0.42 / −3.68 | +0.34 / +0.38; +0.60 / −0.17 | −2.00 / −2.54 |
+| 0.05 | lr 0.05, batch 128 (N03-a) | −3.11 / −2.93; −0.23 / −2.52 | +0.22 / +0.28; +0.54 / −0.19 | −1.03 / −1.50 |
+| 0.05 | lr 0.1, batch 256 (G2) | −2.98 / −2.93; −0.19 / −2.69 | +0.15 / +0.27; +0.07 / +0.33 | −1.01 / −1.48 |
+| 0.1 | lr 0.1, batch 128 (G) | −3.51 / −3.46; −0.96 / −2.45 | −1.06 / −0.97; −1.24 / +0.36 | −0.81 / −1.49 |
+
+Thin lever sens − uniform at 5k (s42 / s43), in the same order: +1.04 / +1.34, +0.46 / +1.44, +1.80 / +0.76, +1.36 / +1.20, +1.10 / +1.68 (means +0.95 to +1.39). Guard r20-w2 means: −0.12, −0.60, −1.30, −1.21, −1.07 (one of ten seed pairs positive).
+
+Reading:
+1. **On thin, batch 256 helps only through its step per sample.** Its linear-scaling twin (lr 0.05 at batch 128) lands with it on both families, and doubling the batch at lr 0.01 changes nothing (r56-w4 −0.08, MBV2 −0.03 on val). N01's BATCH-ADDS on thin (§336) measured the larger step, not the batch.
+2. **Thin has an interior optimum near a step of 0.05.** At 10k it beats a step of 0.01 by 0.40 and a step of 0.1 by 0.53. MobileNetV2 is flat from 0.005 to 0.05 and loses about 1.3 pp at 0.1. The guard r20-w2 rises up to 0.05 and holds at 0.1.
+3. **One step size fits every family measured.** A step of 0.05 (lr 0.1 at batch 256) is the best or within 0.15 pp at 10k of the best on thin, MobileNetV2 and the guard. On full-width R56, G2 is FLAT against lr 0.1 at batch 128 (§335, b_val +0.125). It could replace §330's per-family rule (lr 0.1 full-width, lr 0.01 narrow) with one recipe. By the registration this goes to Ido with this curve; §330 stands until he calls, and no paper row changes. VGG was not part of N01–N03.
+4. **Batch 256 is faster on thin, not on MobileNetV2.** At the same step it takes 2.9 against 3.4 min on r56-w4, and 5.5 against 5.0 on MobileNetV2.
+5. **The thin lever survives every step size** (means +0.95 to +1.39 at 5k, two seeds each; N02's five-seed read is +1.18). **So does the guard's sign flip**: on r20-w2, sens trails uniform in the mean under all five recipes. Neither fixed rule wins on both thin nets. Choosing per net is the decision the plan-as-action agent has to learn (D-LEVER, `docs/LEARNING_PROGRAM_OCT8.md`).
+
+Records: queue row 90; next §339.
+

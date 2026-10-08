@@ -468,6 +468,12 @@ Prepared for **11:30** (or later). Ledger **§200–§335**. Do not quote probes
   - **G holds at lr 0.01** on both narrow families (SPEED-EQUIVALENT, ×4.5 and ×3.2).
   - **Batch 256 adds on thin, not on MobileNetV2.** On thin, lr 0.1 at batch 256 beats lr 0.01 at batch 128 by 0.41 on val; on MobileNetV2 the two match. The thin result points at an in-between step size, so lr 0.05 at batch 128 (its linear-scaling twin) is running now (N03). The narrow recipe goes to Ido with the full curve; §330 stands until he calls.
   - **GPUs idled about 50 minutes (~23:40–00:31), up to 8 of 11.** N02 drained with nothing registered behind it. Now 28 jobs are queued behind the running wave (N03, then N04's twelve walks and their re-finals).
+- **9 Oct ~01:10 (sitting)** — *On thin, the step size settles; one recipe could cover every family measured* (ledger §338; queue row 90).
+  - **Batch 256 helps thin only through its step per sample.** lr 0.05 at batch 128 lands with lr 0.1 at batch 256 on both narrow families (EFFECTIVE-LR: thin −0.13, MobileNetV2 +0.07 on val), and doubling the batch at lr 0.01 changes nothing.
+  - **Thin's best step is in between.** A step of 0.05 per 128 images beats 0.01 by 0.40 pp and 0.1 by 0.53 pp at 10k. MobileNetV2 is flat up to 0.05 and loses 1.3 pp at 0.1.
+  - **For Ido: one recipe could replace §330's per-family rule.** lr 0.1 at batch 256 (graphed, keep-last) is the best or within 0.15 pp of the best on thin, MobileNetV2 and the r20-w2 guard, and FLAT on full-width R56 (§335). It is also the faster batch on thin. §330 stands until he calls; no row changes.
+  - **The thin lever holds under every step size** (+0.95 to +1.39 pp). On the thinner r20-w2, sens trails uniform under all five, so no fixed rule wins on both thin nets. Choosing per net is what the plan-as-action agent has to learn.
+  - **Next.** N04 (MobileNetV2 seeds 44–46) runs until about 04:00. D-PROXY (which cheap measure ranks plans the way the full fine-tune does) is being built in a new tree and is registered before it is submitted.
 
 ---
 
