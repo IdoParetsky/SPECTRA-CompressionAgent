@@ -6081,3 +6081,24 @@ Read (registered, reported): FW is within 0.30 of N3's cosine mean at 10k at the
 
 Cost. At 2.11× with this recipe the K=1 cost is 95.0 (walk, §203) + 17.2 (final) = 112.2 min against DepGraph's 85.1 on the same GPU model (21943448). On the walked path the walk is the cost; the one-shot path skips it (§309 / §310: K=1 19.0–20.1 min, ONE-SHOT-EQUIVALENT for sens and at DepGraph's own widths, COST-TRADE for uniform), and there the final fine-tune is nearly all of the time, so the graphed final fine-tune (§313; accuracy cell G pending; about 5 min) is the cost lever. A walk-side graph (`SPECTRA_FT_CUDA_GRAPH`, built in `tree_v10m`, default off, not registered) would act on per-step fine-tunes at the protocol's batch 256, where G0 measured ×1.42 (§313), so about ×1.3 on the walk; parked until a walked pipeline's cost matters (a frozen-agent TEST walk).
 
+## 316. Wave 28 (F): C2's fine-tune on Tier 1's saved one-shot candidates (**22399200 / 201 / 209 / 210**, transplants **22399211 / 212**) — PRELIM; registered call **SPEED-EQUIVALENT** (four A pairs: mean Δ10k **+0.257** at ×1.99); transplants (reported) Δ10k −0.18 / −0.19 at ×1.98 / ×2.06, their 10k **+0.32 / +0.35** beside DepGraph's reported +0.24 at 2.11× (level, not a beat); K=1 **10.9–11.4 min** against Tier 1's 19.0–20.1 and DepGraph's 85.1 on the same GPU model
+
+Registered 8 Oct 13:36 (commit `a436001`), submitted 13:37 (queue "FT cost", (F)). `tree_v10k`, sbatch only, `rtx_4090`, Requeue=0, nice 24. C2's flags (`SPECTRA_FT_AUG_GPU=1 SPECTRA_AMP=1 SPECTRA_CHANNELS_LAST=1 SPECTRA_EVAL_FINAL_FT_BATCH=256`, lr 0.1, cosine, `last`, 100 epochs, origin) re-read Tier 1's saved one-shot candidates (§309 / §310: cut walks with no per-step fine-tune) at Tier 1's size points. Δ = F − Tier 1's own plain fine-tune of the same candidate (batch 128, CPU crop+flip). Every pair is at the same point (step and params match). All six ran 24:44–25:03, exit 0, TB 0, no NaN.
+
+| arm | seed | F | Tier 1 | step / params | F 10k (5k / val; origin 5k) | Tier 1 10k (5k / val; origin 5k) | Δ10k | Δ5k | Δval | honest | FT min F / Tier 1 | × | K=1 min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| uniform | 42 | 22399200 | 22396366 | 113 / 0.465 | +0.06 (+0.06 / +0.06; +0.50) | −0.59 (−0.24 / −0.94; +1.18) | +0.65 | +0.30 | +1.00 | +0.98 | 8.8 / 16.9 | 1.92 | 10.9 |
+| sens | 42 | 22399201 | 22396367 | 165 / 0.469 | +0.08 (+0.02 / +0.14; +0.98) | −0.05 (+0.18 / −0.28; +1.16) | +0.13 | −0.16 | +0.42 | +0.02 | 8.0 / 16.8 | 2.10 | 10.9 |
+| uniform | 43 | 22399209 | 22396417 | 113 / 0.465 | +0.12 (+0.06 / +0.18; +0.56) | −0.17 (−0.14 / −0.20; +0.74) | +0.29 | +0.20 | +0.38 | +0.38 | 8.7 / 17.4 | 2.00 | 10.9 |
+| sens | 43 | 22399210 | 22396418 | 201 / 0.469 | +0.25 (+0.14 / +0.36; +1.06) | +0.29 (+0.40 / +0.18; +0.56) | −0.04 | −0.26 | +0.18 | −0.76 | 8.3 / 16.2 | 1.95 | 11.4 |
+| transplant | 42 | 22399211 | 22396368 | 150 / 0.508 | +0.32 (+0.08 / +0.56; +0.82) | +0.50 (+0.22 / +0.78; +0.80) | −0.18 | −0.14 | −0.22 | −0.16 | 8.6 / 17.0 | 1.98 | 10.9 |
+| transplant | 43 | 22399212 | 22396421 | 150 / 0.508 | +0.35 (+0.18 / +0.52; +1.12) | +0.54 (+0.30 / +0.78; +0.90) | −0.19 | −0.12 | −0.26 | −0.34 | 8.6 / 17.7 | 2.06 | 11.0 |
+
+K=1 = Tier 1's cut walk (job start to its first final fine-tune: 2.1 / 2.9 / 2.2 / 3.1 / 2.4 / 2.4 min) + F's size-point fine-tune.
+
+Call (registered, four A pairs): mean Δ10k **+0.257** (5k +0.02, val +0.50, honest +0.15) at ×1.99 → **SPEED-EQUIVALENT**. The bars are two-sided, so this is an equivalence call, not a gain. The mean leans on uniform s42 (+0.65), where Tier 1's origin control drew +1.18 at 5k (honest +0.98); the other three pairs average +0.13. Transplants (reported): Δ10k −0.18 / −0.19 at ×1.98 / ×2.06. All six pooled: +0.11.
+
+Reported: F − the walked arm's plain cosine re-read at 10k is −0.21 / −0.18 / −0.04 / −0.04 (A pairs) and −0.37 / −0.05 (transplants). At DepGraph's own widths, the one-shot cut plus C2's fine-tune reads 10k +0.32 / +0.35, beside DepGraph's reported +0.24 at 2.11× on R56 C10. That is level with it, not a beat: one 10k evaluation per seed, two seeds.
+
+Cost (the registered wording applies: F is SPEED-EQUIVALENT and sens is ONE-SHOT-EQUIVALENT, §309): the one-shot pipeline with C2's fine-tune is faster than DepGraph's pipeline on the same GPU model, at accuracy level with it. K=1 is 10.9 / 11.4 min (sens s42 / s43) against DepGraph 21943448's 85.1 (`rtx_4090`, `ise-4090-04`). Beside the minutes: F's 100 epochs at batch 256 are about 19,600 optimizer steps, against Tier 1's 39,100 at batch 128. DepGraph's own pipeline could take the same engineering, so this compares SPECTRA's measured pipeline with DepGraph's as published; it is not a method beat. C2 now holds on walked (§311) and one-shot (§316) R56 candidates. No adoption from these alone: C2's held-out families (thin, VGG) come next ((C2-H), queue).
+
