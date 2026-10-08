@@ -1,6 +1,7 @@
 import gc
 import math
 import os
+import time
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -27,6 +28,81 @@ def mixup_batch(x, y, alpha: float):
     index = torch.randperm(x.size(0), device=x.device)
     mixed = lam * x + (1.0 - lam) * x[index]
     return mixed, y, y[index], lam
+
+
+def cuda_graph_blocker(model, use_cuda, use_amp=False, use_channels_last=False, use_kd=False,
+                       mixup_alpha=0.0) -> str:
+    """Why :class:`TrainGraph` cannot replay ``model``'s fine-tune ("" = it can)."""
+    if not use_cuda or not torch.cuda.is_available():
+        return "no CUDA device"
+    if use_amp:
+        return "AMP"
+    if use_channels_last:
+        return "channels_last"
+    if use_kd:
+        return "KD"
+    if mixup_alpha > 0:
+        return "mixup"
+    if any(not p.requires_grad for p in model.parameters()):
+        return "frozen parameters"
+    # Python hooks run once at capture and never at replay.
+    if any(m._forward_hooks or m._forward_pre_hooks or m._backward_hooks for m in model.modules()):
+        return "module hooks"
+    return ""
+
+
+class TrainGraph:
+    """
+    ``model``'s train-mode forward and backward as CUDA graphs (``torch.cuda.make_graphed_callables``),
+    captured at the first batch's shape; any other shape (a short last batch) runs the eager forward.
+    The loss, gradient clip and optimizer step stay eager, so the lr schedule applies as before.
+    """
+
+    def __init__(self, model, log_tag=""):
+        self.model = model
+        self.log_tag = log_tag
+        self.eager = model.forward
+        self.shape = None
+        self.failed = False
+        self.graphed_steps = 0
+        self.eager_steps = 0
+
+    def __call__(self, x):
+        if self.shape is None and not self.failed:
+            self._capture(x)
+        if self.shape is not None and tuple(x.shape) == self.shape:
+            self.graphed_steps += 1
+            return self.model(x)
+        self.eager_steps += 1
+        return self.eager(x)
+
+    def _capture(self, x):
+        # The capture warm-up runs real train-mode forwards; the graph keeps the buffers' addresses,
+        # so their values are copied back in place.
+        buffers = list(self.model.buffers())
+        saved = [b.detach().clone() for b in buffers]
+        t0 = time.perf_counter()
+        try:
+            torch.cuda.synchronize()
+            torch.cuda.make_graphed_callables(self.model, (x.detach(),), allow_unused_input=True)
+            torch.cuda.synchronize()
+        except Exception as error:  # noqa: BLE001 - a failed capture costs speed, never the fine-tune
+            self.failed = True
+            self.release()
+            utils.print_flush(f"{self.log_tag}CUDA graph capture failed ({type(error).__name__}: {error}); "
+                              f"eager fine-tune")
+        else:
+            self.shape = tuple(x.shape)
+            utils.print_flush(f"{self.log_tag}CUDA graph captured: batch {self.shape[0]}, "
+                              f"{time.perf_counter() - t0:.1f} s")
+        finally:
+            with torch.no_grad():
+                for buffer, value in zip(buffers, saved):
+                    buffer.copy_(value)
+
+    def release(self):
+        """Drop the graphed forward (an instance attribute) so the class's own forward is back."""
+        self.model.__dict__.pop("forward", None)
 
 
 # TODO: Consider data normalization and augmentation via torchvision.transforms
@@ -102,7 +178,7 @@ class ClassificationHandler(BasicHandler):
         return accuracy
 
     def train_model(self, train_loader, allow_reinit_retry=True, max_epochs=None, patience=None,
-                    val_loader=None, lr_mult=1.0, tag="", keep_last=False):
+                    val_loader=None, lr_mult=1.0, tag="", keep_last=False, cuda_graph=False):
         """
          Fine-tunes the model after a compression step, keeping the best-loss weights.
 
@@ -125,6 +201,9 @@ class ClassificationHandler(BasicHandler):
              tag (str): Log prefix for multi-phase recipes (``"C-G group"`` / ``"C-G+ polish"``).
              keep_last (bool): Keep the last epoch's weights instead of restoring the best state
                  (the final fine-tune's ``SPECTRA_EVAL_FINAL_FT_SELECT=last``). Ignored with ``val_loader``.
+             cuda_graph (bool): Replay the forward and backward as CUDA graphs (:class:`TrainGraph`;
+                 the final fine-tune's ``SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH``). Eager, logged, where
+                 :func:`cuda_graph_blocker` says it cannot apply.
          """
         conf = StaticConf.get_instance().conf_values
         device = conf.device
@@ -245,13 +324,22 @@ class ClassificationHandler(BasicHandler):
                 self.optimizer, mode='min', factor=0.5, patience=2)
         best_val = -np.inf
         n_trainable = sum(p.numel() for p in trainable_params)
+        graph = None
+        if cuda_graph:
+            blocker = cuda_graph_blocker(self.model, use_cuda, use_amp, use_channels_last, use_kd, mixup_alpha)
+            if blocker:
+                utils.print_flush(f"{log_tag}CUDA graph off ({blocker}); eager fine-tune")
+            else:
+                graph = TrainGraph(self.model, log_tag)
+        forward = graph if graph is not None else self.model
         utils.print_flush(
             f"{log_tag}Fine-tune recipe: optim={optim_name} lr={shown_lr:g} cosine={int(use_cosine)} "
             f"schedule={'warmcos' if use_warmcos else 'plateau' if not use_cosine else 'cosine'} "
             f"wd={weight_decay if optim_name in ('sgd', 'adamw', 'radam') else 0:g} "
             f"mixup={mixup_alpha:g} smooth={label_smooth:g} kd={int(use_kd)} "
             f"patience={MAX_EPOCHS_PATIENCE} epochs={num_epochs} "
-            f"select={select_name} trainable={n_trainable}")
+            f"select={select_name} trainable={n_trainable}"
+            + (f" graph={int(graph is not None)}" if cuda_graph else ""))
 
         for epoch in range(num_epochs):  # 100 in NEON -> 40
             epoch_losses = []
@@ -271,7 +359,7 @@ class ClassificationHandler(BasicHandler):
                 self.optimizer.zero_grad(set_to_none=True)
 
                 with torch.cuda.amp.autocast(enabled=use_amp):
-                    outputs = self.model(curr_x)
+                    outputs = forward(curr_x)
                     if y_b is None:
                         ce = self.loss_func(outputs, y_a.long())
                     else:
@@ -359,6 +447,11 @@ class ClassificationHandler(BasicHandler):
                     f"(no improvement for {MAX_EPOCHS_PATIENCE} epochs; {best_note})")
                 break
 
+        if graph is not None:
+            graph.release()
+            utils.print_flush(f"{log_tag}CUDA graph: {graph.graphed_steps} graphed steps, "
+                              f"{graph.eager_steps} eager")
+
         # `epoch` is defined after any non-empty training loop; empty-loader break leaves it unset
         try:
             epochs_ran = epoch + 1
@@ -382,6 +475,7 @@ class ClassificationHandler(BasicHandler):
                 best_val=None if best_val == -np.inf else round(float(best_val), 5),
                 phase=tag or None,
                 trainable_params=n_trainable,
+                **({"cuda_graph": graph is not None and graph.shape is not None} if cuda_graph else {}),
             )
         except Exception:
             pass

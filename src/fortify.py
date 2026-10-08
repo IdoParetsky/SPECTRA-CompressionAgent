@@ -626,6 +626,15 @@ def eval_final_ft_batch() -> int:
     return max(2, _env_int_or("SPECTRA_EVAL_FINAL_FT_BATCH", 128))
 
 
+def eval_final_ft_cuda_graph() -> bool:
+    """
+    ``SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH=1`` (default off): the final fine-tune replays the network's
+    forward and backward as CUDA graphs (``ClassificationHandler.train_model(cuda_graph=True)``). Same
+    recipe and arithmetic; at batch 128 a step is ~26 ms of kernel launches, not of compute (ledger §311).
+    """
+    return _flag("SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH")
+
+
 def eval_final_ft_kd() -> bool:
     """``SPECTRA_EVAL_FINAL_FT_KD=1``: the final fine-tune distils from the unpruned original (KD T/α as the walk)."""
     return _flag("SPECTRA_EVAL_FINAL_FT_KD")

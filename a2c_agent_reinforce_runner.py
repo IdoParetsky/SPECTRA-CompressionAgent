@@ -127,6 +127,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     loader, aug = utils.final_ft_train_loader(env.train_loader, fortify_mod.eval_final_ft_batch())
     schedule, warmup = fortify_mod.eval_final_ft_schedule(), fortify_mod.eval_final_ft_warmup()
     select = fortify_mod.eval_final_ft_select()
+    graph = fortify_mod.eval_final_ft_cuda_graph()
     recipe = dict(zip(_FINAL_FT_ENV_KEYS, ("sgd", f"{lr:g}", "0.9", "5e-4", "1", schedule, "0", "0",
                                            "1" if kd else "0")))
     if schedule:
@@ -138,7 +139,8 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         os.environ.update(recipe)
         env.create_learning_handler(model).train_model(
             loader, allow_reinit_retry=False, max_epochs=epochs, patience=epochs + 1,
-            tag=f"final FT {label}", **({"keep_last": True} if select == "last" else {}))
+            tag=f"final FT {label}", **({"keep_last": True} if select == "last" else {}),
+            **({"cuda_graph": True} if graph else {}))
     finally:
         for k, v in saved.items():
             if v is None:
@@ -156,7 +158,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         f"params x{point['param']:.3f} | FLOPs x{point['flop']:.3f} | "
         f"val Δacc {(val_acc - val_origin) * 100.0:+.2f} pp | walk acc {float(point['test_acc']):.3f} | "
         f"sgd lr={lr:g} m=0.9 wd=5e-4 {shape} e{epochs}{' keep=last' if select else ''} "
-        f"bs={loader.batch_size} aug={aug} kd={int(kd)} "
+        f"bs={loader.batch_size} aug={aug} kd={int(kd)}{' graph=1' if graph else ''} "
         f"init={'scratch' if scratch else 'inherit'} | {minutes:.1f} min")
     run_recorder.record(
         "eval_traj_final_ft", network=net_path, label=label, step=int(point["step"]),
@@ -165,7 +167,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         val_origin=val_origin, val_walk=float(point["val_acc"]), val_final=val_acc,
         epochs=int(epochs), lr=float(lr), batch=int(loader.batch_size), aug=aug, kd=bool(kd),
         scratch=bool(scratch), schedule=schedule or "cos", warmup=float(warmup) if schedule else 0.0,
-        select=select or "train_loss", minutes=round(minutes, 2))
+        select=select or "train_loss", minutes=round(minutes, 2), **({"graph": True} if graph else {}))
     if save_dir:
         traj_models.save_candidate(
             model, traj_models.candidate_stem(save_dir, name, label, point["step"], f"__ft{epochs}"), point,
