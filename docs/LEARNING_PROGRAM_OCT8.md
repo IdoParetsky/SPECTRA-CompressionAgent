@@ -109,6 +109,7 @@ The one possible exception was the in-band-linear actor V6 (§111, §123). Its o
   - per arm: SUFFICIENT if the mean held-out Spearman is ≥ 0.70, INSUFFICIENT if ≤ 0.40, PARTIAL between;
   - between arms (fold-paired): a variant beats the default if its mean is higher by ≥ 0.10 and it wins on at least 4 of 5 folds.
 - *Reading:* if (a) fails, the pipeline is broken. If (b) is SUFFICIENT, the representation carries allocation beyond the measured channel. If (e) is SUFFICIENT while v10 still acts like mild, the features are there and the head and optimiser failed.
+- *Registered and submitted* 9 Oct 02:05–02:07 in `docs/SITTING_GPU_QUEUE.md` (section D-IMIT, row 93; commit `addc932`): dump 22411734, probe 22411735 (afterok). Code in `tree_v12`: the default-off `SPECTRA_DUMP_STATES` and `scripts/dimit_probe.py`. Arm (d), the legacy NEON encoder, is not run, because it has no per-token output. Arm (e) gets a random-init control, (e0).
 
 **D-PROXY: proxy fidelity on the agent's own plans (EagleEye gate).**
 - *Why a new candidate set.* The agent compares K plans for the same (net, κ) against their mean. What matters is whether a proxy ranks plans *within* an instance. The pf / pf-w sets (§189–§195) perturbed single decisions of a walk, and their finals restored an early epoch (§235). They are re-read only if their candidates were saved.
@@ -226,7 +227,8 @@ Zero-shot successes elsewhere relied on many training contexts or on a few norma
 
 1. §3 inventory: done (filed 9 Oct 00:55). The code map is done (§8). D-CENSUS: done (§339, no re-walk).
 2. Build the `tree_v11` core: the plan module (z → keeps by bisection, one cut, BatchNorm recalibration, val read), the state dump and the candidate sampler. CPU tests on a staged copy.
-3. Register D-IMIT (arms (a)–(j)), D-PROXY and D-LEVER in the queue file, then submit them (sitting cells, no agent).
+   *Status 9 Oct 02:07:* the candidate sampler and the proxies are in `tree_v11` (D-PROXY), and the state dump in `tree_v12` (D-IMIT). The plan module comes next, with the trainer (item 4).
+3. Register D-IMIT (arms (a)–(j)), D-PROXY and D-LEVER in the queue file, then submit them (sitting cells, no agent). *Status:* D-PROXY submitted 01:30 (queue row 92), D-IMIT 02:07 (row 93). D-LEVER waits for D-PROXY's proxy.
 4. The trainer (REINFORCE with the shared K-plan baseline), then a smoke run of ≤ 30 min.
 5. Register T0 with its calls once D-IMIT and D-PROXY report, then T1. T2 follows if D-IMIT's arm (a) is SUFFICIENT.
 
