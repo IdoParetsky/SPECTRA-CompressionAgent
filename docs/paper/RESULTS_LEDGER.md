@@ -6287,3 +6287,110 @@ Call (registered, C's bars, r56-w4): mean Δ10k **−0.030** at ×4.71 → **SPE
 
 Engineering only; no TEST rows. Do not lock. Never an agent row.
 
+## 325. (GE): G's graphed plain final fine-tune on E's saved thin one-shot candidates at params 0.6 (**22403233 / 34 / 35 / 36**) — PRELIM; registered call **SPEED-EQUIVALENT**: mean Δ10k **−0.075** against E's own fine-tune of the same candidates (5k +0.23, val −0.38, honest +0.57) at **×4.48** (3.4 min against 15.0–15.4); K = 1 on r56-w4 **4.1 min** (E's 0.7-min cut + 3.4) against E's 15.7–16.1 and the walked arms' 127–146; guard r20-w2 +0.080 at ×5.01 (reported); G's ADOPT stands on a third cell
+
+Registered 8 Oct 19:34 (commit `1459235`), submitted 19:35:35–19:36:27 with GB50 / GB25 / C2E, after G's ADOPT (§324); the submit script refused unless the saved G-F and G-H n = 4 lines said SPEED-EQUIVALENT. G's line (`tree_v10l`, batch 128, SGD lr 0.1, cosine, wd 5e-4, `last`, 100 epochs, origin control, `SPECTRA_FT_AUG_GPU=1 SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH=1`) on `tree_v10k/runs/job22398198 / 202 / 204 / 206/traj_models` (E's thin pair: `input_c10_thin.json`, `database_c10_thin.json`, `cifar-10`). COMPLETED 19:50:35–19:50:58 (14 m 43 s – 15 m 06 s; `ise-4090-02 / 07 / 04 / 04`), exit 0, no NaN, every pair on E's size point. Start check (22403233): `graph=1`, `CUDA graph captured: batch 128` in 0.5 s, `39000 graphed steps, 100 eager`, no fallback.
+
+| Arm | Seed | GE | E | GE 10k (5k / val) | E 10k | Δ10k | Δ5k | Δval | Honest | Origin 5k, GE / E | FT min, GE / E | Speed | K = 1 min (E) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| sens | 42 | 22403233 | 22398198 | −3.00 (−2.96 / −3.04) | −3.25 | +0.25 | +0.80 | −0.30 | +1.38 | −1.04 / −0.46 | 3.4 / 15.2 | 4.47 | 4.1 (15.9) |
+| uniform | 42 | 22403234 | 22398202 | −4.52 (−4.44 / −4.60) | −4.53 | +0.01 | +0.26 | −0.24 | +0.90 | −1.62 / −0.98 | 3.4 / 15.3 | 4.50 | 4.1 (16.0) |
+| sens | 43 | 22403235 | 22398204 | −3.25 (−3.22 / −3.28) | −2.83 | −0.42 | −0.16 | −0.68 | −0.20 | −0.78 / −0.82 | 3.4 / 15.4 | 4.53 | 4.1 (16.1) |
+| uniform | 43 | 22403236 | 22398206 | −4.51 (−4.46 / −4.56) | −4.37 | −0.14 | +0.02 | −0.30 | +0.20 | −0.74 / −0.56 | 3.4 / 15.0 | 4.41 | 4.1 (15.7) |
+
+Call (registered, C's bars, r56-w4): mean Δ10k **−0.075** at ×4.48 → **SPEED-EQUIVALENT**. Reported: guard r20-w2 −0.56 / +0.76 / +0.13 / −0.01, mean +0.080, at ×5.01 (1.7–1.8 against 8.4–8.9 min).
+
+**Read.**
+- G holds on a third candidate set and on the second path. On the one-shot thin candidates the fine-tune does all of the recovery, and they land level (−0.075), as the walked thin candidates (G-H −0.030, §324) and the one-shot R56 candidates (G-F +0.123, §322) did.
+- K = 1 on r56-w4 at params 0.6 is 4.1 min (a 0.7-min cut and a 3.4-min fine-tune), against E's 15.7–16.1 and the walked arms' 127–146. E's one-shot − walked d stays as in §319 (sens COST-TRADE −0.33, uniform on the bar at −0.30), so the cost is quoted beside that accuracy, not as an equivalence for sens.
+- Under G the unpruned thin controls lose more than under plain (GE −1.05 against −0.71 at 5k on the mean; G-H −0.96 against −0.61), so honest reads high on both thin cells (+0.57, +0.53). The call is on the pruned 10k.
+- Engineering only; no TEST rows. Do not lock. Never an agent row.
+
+## 326. (GB50 / GB25): G at 50 and 25 epochs against G at 100 on the same candidates, Tier 1's one-shot R56 sets (**GB50 22403237 / 38 / 39 / 40**, transplants **41 / 43**; **GB25 22403252 / 53 / 54 / 55**, transplants **56 / 57**) and G-H's thin walks (**GB50 22403244 / 45 / 46 / 47**; **GB25 22403258 / 59 / 60 / 61**) — PRELIM; registered calls (D's bars): R56 one-shot **GB50 BUDGET-COST −0.350** (×2.03) and **GB25 HARM −0.565** (×4.02); thin walked **GB50 BUDGET-COST −0.220** (×1.97) and **GB25 BUDGET-SAFE −0.172** (×3.83); budget rule: no budget is BUDGET-SAFE on both families, so the K = 1 headline stays at **100 epochs**
+
+Registered 8 Oct 19:34 (commit `1459235`), submitted 19:35:35–19:36:27 (GB50 nice 24, GB25 nice 26). G's line with `SPECTRA_EVAL_FINAL_FT_EPOCHS=50` / `25` (patience 51 / 26 on the recipe line) on `tree_v10k/runs/job22396366 / 67 / 417 / 418 / 368 / 421/traj_models` and `tree_v10h/runs/job22340391 / 92 / 22341281 / 82/traj_models`. COMPLETED: GB50 R56 19:44:36–19:53:40 (8 m 44 s – 9 m 04 s), GB50 thin 19:51:03–19:51:28 (6 m 07 s – 6 m 14 s), GB25 R56 19:56:04–20:01:20 (4 m 50 s – 5 m 35 s), GB25 thin 19:59:57–20:02:24 (3 m 36 s – 3 m 37 s); all exit 0, no NaN, every pair on the comparator's point. Start checks: `graph=1`, capture at batch 128 in 0.6 s, `19500 graphed steps, 50 eager` (GB50) and `9750 graphed steps, 25 eager` (GB25), no fallback.
+
+R56 one-shot (comparator G-F, §322; Δ = GB − G-F at the size point):
+
+| Arm | Seed | G-F 10k | GB50 | GB50 10k (5k / val) | Δ10k (5k / val / honest) | FT min / K = 1 | GB25 | GB25 10k (5k / val) | Δ10k (5k / val / honest) | FT min / K = 1 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| uniform | 42 | −0.25 | 22403237 | −0.69 (−0.58 / −0.80) | −0.44 (−0.42 / −0.46 / −0.40) | 2.5 / 4.6 | 22403252 | −0.88 (−1.02 / −0.74) | −0.63 (−0.86 / −0.40 / −0.42) | 1.3 / 3.4 |
+| sens | 42 | +0.04 | 22403238 | −0.04 (−0.44 / +0.36) | −0.08 (−0.32 / +0.16 / +0.00) | 2.4 / 5.3 | 22403253 | −0.11 (+0.00 / −0.22) | −0.15 (+0.12 / −0.42 / +0.92) | 1.2 / 4.1 |
+| uniform | 43 | −0.16 | 22403239 | −0.50 (−0.48 / −0.52) | −0.34 (−0.24 / −0.44 / +0.00) | 2.5 / 4.8 | 22403254 | −1.14 (−1.24 / −1.04) | −0.98 (−1.00 / −0.96 / −0.14) | 1.3 / 3.5 |
+| sens | 43 | +0.34 | 22403240 | −0.20 (−0.18 / −0.22) | −0.54 (−0.52 / −0.56 / −0.14) | 2.5 / 5.6 | 22403255 | −0.16 (−0.10 / −0.22) | −0.50 (−0.44 / −0.56 / +0.62) | 1.2 / 4.3 |
+| transplant | 42 | +0.43 | 22403241 | +0.21 (+0.20 / +0.22) | −0.22 (−0.12 / −0.32 / −0.08) | 2.6 / 5.0 | 22403256 | −0.06 (−0.28 / +0.16) | −0.49 (−0.60 / −0.38 / −0.38) | 1.3 / 3.7 |
+| transplant | 43 | +0.46 | 22403243 | −0.16 (−0.24 / −0.08) | −0.62 (−0.64 / −0.60 / −0.72) | 2.6 / 5.0 | 22403257 | −0.40 (−0.66 / −0.14) | −0.86 (−1.06 / −0.66 / −0.66) | 1.3 / 3.7 |
+
+Thin r56-w4 walked (comparator G-H, §324):
+
+| Arm | Seed | G-H 10k | GB50 | GB50 10k (5k / val) | Δ10k (5k / val / honest) | FT min | GB25 | GB25 10k (5k / val) | Δ10k (5k / val / honest) | FT min |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sens | 42 | −2.88 | 22403244 | −2.92 (−2.96 / −2.88) | −0.04 (−0.20 / +0.12 / −0.60) | 1.7 | 22403258 | −2.92 (−3.24 / −2.60) | −0.04 (−0.48 / +0.40 / −0.80) | 0.9 |
+| uniform | 42 | −3.71 | 22403245 | −4.22 (−4.08 / −4.36) | −0.51 (−0.22 / −0.80 / −0.34) | 1.7 | 22403259 | −4.37 (−4.42 / −4.32) | −0.66 (−0.56 / −0.76 / −0.30) | 0.9 |
+| sens | 43 | −2.81 | 22403246 | −3.08 (−3.28 / −2.88) | −0.27 (−0.62 / +0.08 / −0.38) | 1.7 | 22403260 | −2.90 (−3.14 / −2.66) | −0.09 (−0.48 / +0.30 / −0.64) | 0.9 |
+| uniform | 43 | −4.44 | 22403247 | −4.50 (−4.74 / −4.26) | −0.06 (−0.40 / +0.28 / +0.04) | 1.7 | 22403261 | −4.34 (−3.86 / −4.82) | +0.10 (+0.48 / −0.28 / +0.80) | 0.8 |
+
+Calls (registered, D's bars, the four A pairs per family). R56 one-shot: GB50 mean Δ10k **−0.350** (5k −0.38, val −0.32, honest −0.14) at ×2.03 → **BUDGET-COST**; GB25 **−0.565** (5k −0.55, val −0.58, honest +0.24) at ×4.02 → **HARM**. Thin r56-w4: GB50 **−0.220** (5k −0.36, val −0.08, honest −0.32) at ×1.97 → **BUDGET-COST**; GB25 **−0.172** (5k −0.26, val −0.09, honest −0.23) at ×3.83 → **BUDGET-SAFE**. Reported: transplants GB50 −0.22 / −0.62 (mean −0.420), GB25 −0.49 / −0.86 (−0.675); guard r20-w2 GB50 −0.96 / −0.09 / −0.96 / −1.49 (mean −0.875), GB25 −0.73 / −0.71 / −1.74 / −1.72 (−1.225). Budget rule (registered: the fewest epochs BUDGET-SAFE on both families, else 100): **100 epochs**.
+
+**Read.**
+- On the one-shot path the fine-tune does all of the recovery, and the budget curve falls steadily over four pairs: 100 → 50 costs 0.35 at 10k and 100 → 25 costs 0.57; the transplants at DepGraph's widths lose 0.42 and 0.68. That is close to Le & Hua's prior (−0.43 from CLR-100 to CLR-50 on one R56 cell), unlike the walked R56 candidates under C (D, §318: +0.00), which reach the final fine-tune already trained by the walk's fine-tunes.
+- On the thin walks the two budgets read −0.22 and −0.17, a difference inside noise; the uniform s42 pair carries both (−0.51 / −0.66). The r20-w2 guard loses 0.9–1.2 at either budget, so a shorter budget is not safe on the thin pair even where r56-w4 holds.
+- The K = 1 headline stays at 100 epochs: 7.2–8.1 min on R56 (§322). The 50-epoch K = 1 (4.6–5.6 min) and the 25-epoch one (3.4–4.3 min) are quoted only beside their losses. (GB200 / GB75), registered 8 Oct 20:10 (commit `ce5ab7b`), ask whether 200 epochs gain on the one-shot path and whether 75 holds (queue).
+- Engineering only; no TEST rows. Do not lock. Never an agent row.
+
+## 327. (C2E): C2's final fine-tune (GPU crop+flip, AMP, channels_last, batch 256) on E's saved VGG-19 C100 one-shot candidates at params 0.6 (**22403248 / 49 / 50 / 51**) — PRELIM; registered call: mean Δ10k **−0.455** against E's own fine-tune (5k −0.53, val −0.38, honest +0.07) at ×2.68, **between the accuracy bars, uncalled**; the sens arms lose (−1.13 / −0.70), uniform is level (+0.21 / −0.20); VGG-ADOPT needed C2E and C2-H's VGG cell (−0.283) both inside ±0.30, so **VGG-19 stays plain**
+
+Registered 8 Oct 19:34 (commit `1459235`), submitted with wave 29 (nice 25). C2's line (`tree_v10k`, `SPECTRA_FT_AUG_GPU=1 SPECTRA_AMP=1 SPECTRA_CHANNELS_LAST=1 SPECTRA_EVAL_FINAL_FT_BATCH=256`, lr 0.1, cosine, `last`, 100 epochs, origin) on `tree_v10k/runs/job22398201 / 203 / 205 / 207/traj_models` (E-VGG: `input_catalog_l_depgraph_vgg19_c100.json`, `cifar-100`). COMPLETED 19:58:28 / 20:01:59 / 19:58:28 / 20:02:19 (7 m 35 s – 11 m 08 s; `ise-4090-04 / 04 / 07 / 08`), exit 0, no NaN, every pair on E's size point. Start check: AMP 1 and batch 256 in env, no fallback.
+
+| Arm | Seed | C2E | E | C2E 10k (5k / val) | E 10k | Δ10k | Δ5k | Δval | Honest | Origin 5k, C2E / E | FT min, C2E / E | Speed | K = 1 min |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| sens | 42 | 22403248 | 22398201 | +0.31 (+0.16 / +0.46) | +1.44 | −1.13 | −0.92 | −1.34 | −0.40 | −0.02 / +0.50 | 3.2 / 8.9 | 2.78 | 3.8 |
+| uniform | 42 | 22403249 | 22398203 | −0.67 (−1.28 / −0.06) | −0.88 | +0.21 | +0.08 | +0.34 | +1.16 | +0.90 / +1.98 | 3.4 / 8.8 | 2.59 | 4.3 |
+| sens | 43 | 22403250 | 22398205 | +0.82 (+0.68 / +0.96) | +1.52 | −0.70 | −0.88 | −0.52 | −0.44 | +1.10 / +1.54 | 3.3 / 8.8 | 2.67 | 4.0 |
+| uniform | 43 | 22403251 | 22398207 | −0.57 (−1.22 / +0.08) | −0.37 | −0.20 | −0.40 | +0.00 | −0.04 | +0.26 / +0.62 | 3.4 / 9.1 | 2.68 | 4.3 |
+
+Call (registered, C's bars): mean Δ10k **−0.455** at ×2.68 → between the bars (0.30 < \|Δ\| ≤ 0.50), **uncalled**. VGG-ADOPT (registered: C2E and C2-H's VGG cell both inside the accuracy bar) is not met → **VGG-19 stays plain**.
+
+**Read.**
+- On VGG-19's one-shot candidates C2's cost sits in the sens arms (−1.13 / −0.70 at 10k; uniform +0.21 / −0.20). On VGG's walked candidates (C2-H, §323) the four arms ran −0.48 to +0.14. These cells do not separate AMP, channels_last and batch 256; on the thin net G2-H (§329) found the batch to be the lever, not precision.
+- VGG-19 keeps the plain fine-tune (K = 1 9.2–9.8 min at params 0.6, §319). C2's 3.8–4.3 min are quoted only beside its −0.455, and G0 measured graphs at ×1.04 on VGG (§313), so no measured speed lever is safe there.
+- Engineering only; no TEST rows. Do not lock. Never an agent row.
+
+## 328. (G-M): G's graphed plain final fine-tune on wave 21's walked MobileNetV2 ×0.5 C10 candidates at params 0.6 (**22404001 / 02 / 03 / 04**) — PRELIM; registered call **SPEED-EQUIVALENT**: mean Δ10k **+0.145** against the plain cosine re-reads (5k +0.29, val +0.00, honest +0.53) at **×3.10** (4.4–5.1 min against 14.5–14.8); G's ADOPT covers **ResNets and MobileNetV2**
+
+Registered 8 Oct 19:55 (commit `b5839e5`), submitted 19:57:08–19:57:22 after GE's n = 4 SPEED-EQUIVALENT; the submit script refused on anything else. G's line (`tree_v10l`, batch 128, SGD lr 0.1, cosine, wd 5e-4, `last`, 100 epochs, origin, `SPECTRA_FT_AUG_GPU=1 SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH=1`) on `tree_v10h/runs/job22376484 / 85 / 88 / 90/traj_models` (`input_pf_mbv2x05.json`, `database_c10_thin.json`, `cifar-10`). COMPLETED 20:10:31 / 20:11:10 / 20:11:36 / 20:11:01 (11 m 01 s – 11 m 43 s; `ise-4090-07 / 02 / 11 / 11`), exit 0, no NaN, every pair on the comparator's point. Start check: `graph=1`, `CUDA graph captured: batch 128` in 0.7–0.8 s, `39000 graphed steps, 100 eager`, no fallback, 420,243–420,270 trainable parameters.
+
+| Arm | Seed | G-M | Plain re-read | G-M 10k (5k / val) | Plain 10k | Δ10k | Δ5k | Δval | Honest | Origin 5k, G-M / plain | FT min, G-M / plain | Speed |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| sens | 42 | 22404001 | 22376493 | −0.82 (−0.60 / −1.04) | −1.05 | +0.23 | +0.58 | −0.12 | +1.08 | −1.38 / −0.88 | 5.1 / 14.8 | 2.90 |
+| uniform | 42 | 22404002 | 22376495 | −1.06 (−1.02 / −1.10) | −1.18 | +0.12 | +0.28 | −0.04 | +0.26 | −1.02 / −1.04 | 4.4 / 14.5 | 3.30 |
+| sens | 43 | 22404003 | 22376498 | −0.78 (−0.80 / −0.76) | −0.87 | +0.09 | +0.26 | −0.08 | +0.42 | −1.22 / −1.06 | 5.0 / 14.5 | 2.90 |
+| uniform | 43 | 22404004 | 22376499 | −1.22 (−1.08 / −1.36) | −1.36 | +0.14 | +0.04 | +0.24 | +0.36 | −1.34 / −1.02 | 4.4 / 14.7 | 3.34 |
+
+Call (registered, C's bars): mean Δ10k **+0.145** at ×3.10 → **SPEED-EQUIVALENT**; all four pairs +0.09 to +0.23. Scope (registered): SPEED-EQUIVALENT → G's ADOPT covers MobileNetV2.
+
+**Read.**
+- MobileNetV2 ×0.5's fine-tune was launch-bound as well (its depthwise kernels): 14.5–14.8 min plain, 4.4–5.1 under graphs, with the same arithmetic.
+- Both recipes cost MobileNetV2 about 1 pp at 5k on the unpruned control (−1.02 to −1.38 under G, −0.88 to −1.06 plain). Cosine-0.1-last is not MobileNetV2's best recipe (§301, §303: lr 0.01 beats it on the val half of all eight MBV2 rows); G inherits that and does not change it.
+- Scope: G is the final fine-tune of new no-agent cells on the R56 family, the thin nets and MobileNetV2 ×0.5; VGG-19 stays plain (§327). No existing table changes. The registered conditional (GE-M: G on E-M's one-shot MobileNetV2 candidates) fired and is queued afterok E-M (queue).
+- Engineering only; no TEST rows. Do not lock. Never an agent row.
+
+## 329. (G2-H): G at batch 256 on the thin r56-w4 walks at params 0.6 (**22404005 / 06 / 10 / 12**) — PRELIM; registered call **BATCH**: b = G2-H − G-H **+0.530** at 10k and p = C2-H − G2-H **+0.090**, so C2-H's thin gain (§323) is the batch, not AMP or channels_last; G2-H − plain **+0.500** at ×5.44 (2.9 min against 15.2–16.9), exactly on the DIVERGE bar (> 0.50), so between the bars, uncalled; guard r20-w2 b +0.007, p −0.195 (reported); no recipe change
+
+Registered 8 Oct 19:55 (commit `b5839e5`), submitted 19:57:08–19:57:22 with G-M. G's line plus `SPECTRA_EVAL_FINAL_FT_BATCH=256` (lr 0.1, fp32, graphs) on `tree_v10h/runs/job22340391 / 92 / 22341281 / 82/traj_models`, `input_c10_thin.json` with its database, `cifar-10`, `tree_v10l`. COMPLETED 20:09:09 / 20:10:30 / 20:11:07 / 20:11:08 (8 m 47 s – 8 m 51 s; `ise-4090-06 / 09 / 04 / 05`), exit 0, no NaN, every pair on the comparator's point. Start check: `graph=1`, `CUDA graph captured: batch 256` in 0.5 s, `19500 graphed steps, 100 eager`, batch 256 in env, no fallback.
+
+| Arm | Seed | G2-H | G2-H 10k (5k / val) | Plain 10k | G-H 10k | C2-H 10k | G2-H − plain, 10k (5k / val / honest) | b | p | FT min, G2-H / G-H / C2-H / plain |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sens | 42 | 22404005 | −2.28 (−2.14 / −2.42) | −2.54 | −2.88 | −2.20 | +0.26 (+0.54 / −0.02 / +0.00) | +0.60 | +0.08 | 2.9 / 3.3 / 8.0 / 15.5 |
+| uniform | 42 | 22404006 | −3.51 (−3.50 / −3.52) | −4.10 | −3.71 | −3.48 | +0.59 (+0.66 / +0.52 / −0.28) | +0.20 | +0.03 | 2.9 / 3.3 / 8.2 / 15.2 |
+| sens | 43 | 22404010 | −2.47 (−2.34 / −2.60) | −2.88 | −2.81 | −2.43 | +0.41 (+0.72 / +0.10 / +0.70) | +0.34 | +0.04 | 2.9 / 3.4 / 8.0 / 16.9 |
+| uniform | 43 | 22404012 | −3.46 (−3.54 / −3.38) | −4.20 | −4.44 | −3.25 | +0.74 (+0.92 / +0.56 / +0.74) | +0.98 | +0.21 | 2.9 / 3.4 / 8.1 / 15.6 |
+
+Calls (registered, r56-w4, pooled at 10k over the four pairs): b **+0.530** ≥ +0.30 and \|p\| = 0.090 ≤ 0.30 → **BATCH**. G2-H − plain under C's bars (reported): the four deltas are whole images (+0.26 / +0.59 / +0.41 / +0.74), so the mean is exactly +0.500, not above the DIVERGE bar (> 0.50): between the bars, uncalled. Guard r20-w2 (reported): G2-H − plain +0.20 / +0.79 / −0.27 / −0.04 (mean +0.170) at ×9.89 (0.9 against 8.8–9.0 min); b +0.37 / +0.76 / −0.46 / −0.64 (mean +0.007); p −0.66 / −0.22 / −0.15 / +0.25 (mean −0.195).
+
+**Read.**
+- On r56-w4, batch 256 at lr 0.1 (half the per-sample step of batch 128) trains the pruned net about half a point higher under the same fp32 graphs, and AMP with channels_last adds nothing measurable (+0.09). The guard r20-w2, the shallower thin net, shows no batch effect (+0.007), so the effect is not shown beyond the deep, narrow net.
+- Speed: graphed batch 256 runs ×1.15 over graphed batch 128 on r56-w4 (2.9 against 3.3–3.4 min), as G0 projected (§313).
+- No recipe change (registered). A batch rule for narrow nets would need its own registered held-out cell, selected on val with the TEST half quoted; never an adoption on this 10k read.
+- Engineering only; no TEST rows. Do not lock. Never an agent row.
+
