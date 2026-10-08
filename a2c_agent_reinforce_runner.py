@@ -514,6 +514,10 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             "[eval] WARNING: SPECTRA_FIXED_TARGET without SPECTRA_EVAL_SIZE_MATCH=param:<keep>; "
                             "the actor is told the deepest param size point (else 0.6) and the walk is "
                             "not ended at it")
+                import src.state_dump as state_dump
+                if mode == EVAL_TEST and state_dump.enabled():
+                    state_dump.dump(env, net_path, net_model, net_loaders)
+                    continue
                 if traj and mode == EVAL_TEST and fortify_mod.eval_final_ft_from():
                     _final_ft_from_saved(env, net_path, fortify_mod.eval_final_ft_from(),
                                          fortify_mod.eval_final_ft_epochs())

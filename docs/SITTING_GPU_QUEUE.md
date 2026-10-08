@@ -90,6 +90,7 @@
 | Is batch 256's thin gain the step size? (N03, registered 9 Oct 00:35, commit `e048d2e`): G with lr 0.05 at batch 128 (G2's linear-scaling twin) and lr 0.01 at batch 256, on N01's eight candidate sets | (N03-a) **22409814–819, 22409821 / 22**, (N03-b) **22409823–830** (nice 26), submitted 00:37:15–00:37:39; 9 R at once, the rest PD (11 R / 8 PD). All COMPLETED by 01:02, exit 0, no NaN; read 9 Oct 01:05: N03-a − G2 **EFFECTIVE-LR** on thin (e_val −0.130; 10k +0.000) and MobileNetV2 (+0.070; 10k +0.008); N03-b matches N01-G (thin −0.08, MobileNetV2 −0.03 on val). A step of 0.05 per 128 images is the best or within 0.15 at 10k on every family, so one recipe could replace §330's per-family rule: Ido's call, §330 stands **§338** | **v10l** (sbatch only) | G2-H 22404005–012, G2-M 22404228–231 (lr 0.1, batch 256); N01-G 22404707–714 (lr 0.01, batch 128) | per family, mean e_val = N03-a − G2: EFFECTIVE-LR \|e\| ≤ 0.30 / BATCH-ITSELF < −0.30 / LR-BEYOND > +0.30; N03-b reported; no recipe change before Ido calls |
 | MobileNetV2 ×0.5 seeds 44–46 under §330's recipe (N04, registered 9 Oct 00:35, commit `e048d2e`): wave 21's four walks per seed, re-finalized by afterok with N02's plain lr-0.01 keep-last recipe | walks **22409855–866** (nice 30; sens / uniform `tree_v10h`, inner `tree_v10i`, mild `tree_v10`), re-finals **22409867–873, 22409875–879** (nice 31, afterok), submitted 00:38–00:39; all PD behind N03 (11 R / 32 PD) | **v10h / v10i / v10** walks, **v10k** re-finals (sbatch only) | N01-P / N02's MobileNetV2 seeds 42 / 43 (§336, §337) | five-seed MobileNetV2 lever sens − uniform at 5k on wave 8's bars; reported: sens − mild, inner − uniform, sens − inner |
 | Do cheap proxies rank sampled plans the way the final fine-tune does? (D-PROXY, registered 9 Oct before submit; section "D-PROXY" below): one-shot alloc walks of 11 plans per instance (sens, uniform, inner, eight sampled), six proxies per candidate, G finals at 75 epochs; thin, DepGraph R56 and MobileNetV2 ×0.5, two instances each, plus a seed-44 ceiling | smoke **22410259** (never quoted, nice 20); walks **22411296–22411443** (66, nice 32, afterok on the smoke), ceiling **22411444–22411479** (33, nice 33, afterok on each seed-42 walk), submitted 01:30–01:33, registered 01:27:00 (commit `3abb9c6`); cancelled before they start if the smoke's start check fails (11 R / 116 PD) | **v11** (sbatch only; new flags default off) | — (the finals are the ground truth) | per family CEILING-BOUND if the ceiling ρ < 0.60; per proxy VALID if mean ρ ≥ 0.60 and median regret ≤ 0.5 pp (TEST-half ground truth); reward = the cheapest proxy VALID on every family that is not CEILING-BOUND; else report to Ido |
+| Can the agent's state and encoder imitate the sens plan, and which representation carries it? (D-IMIT, registered 9 Oct before submit; section "D-IMIT" below): v10's reset state on the 10 catalog nets at κ 0.4 / 0.6 / 0.8 (one dump job), then per-token imitation probes, arms (a)–(c), (e), (e0), (f)–(j), 5 folds holding out 2 nets each | dump + probe: ids at submit (dump nice 20; probe afterok on the dump, nice 21) | **v12** (sbatch only; new flag default off) | — (supervised; the sens plan is the target) | per arm SUFFICIENT if the mean held-out Spearman ≥ 0.70, INSUFFICIENT if ≤ 0.40; fold-paired BEATS if +0.10 and ≥ 4 of 5 folds; (d) not run (stated at registration) |
 | Same at κ 0.8: sens / uniform / mild, seeds 42 and 43 (wave 19) | **22374703 / 04 / 88** (s43) COMPLETED 21:01 / 21:08 / 20:58 **§281**: lever_cos **+0.78** at 5k (lr 0.01 +1.30), **+1.17** at 10k (+1.25); bar_cos +0.38 / +0.75; cosine lowers every r56-w4 arm and its origin. **22374700** (s42 sens) COMPLETED 20:32; s42 uniform / mild **22374701 / 02 PREEMPTED 20:15** (`preempt/qos`: `rtx4090`-partition jobs took `cs-4090-01` / `ise-4090-02`; `Requeue=0`, so cancelled, no Traceback; never read their run dirs) → resubmitted once, identical, **22385251 / 52** (nice 19); a second preemption → report, no third submit. **22385251** (uniform s42) COMPLETED 01:30 **§297** (seed 42 verified, no second preemption): two-seed lever_cos **+0.74** at 5k (+0.70 / +0.78; lr 0.01 +1.13), **+1.195** at 10k (+1.25), so the 5k is trimmed and the 10k level; inner − uniform two-seed +0.82 at 5k. **22385252** (mild s42) **PREEMPTED again** 01:14 after 4 min on `ise-6000-02` (a node shared with `rtx6000`-partition jobs; `Requeue=0`, so cancelled; batch step SIGTERM): second preemption, **reported, no third submit**; κ 0.8's bar_cos stays seed 43 only (§281) unless Ido asks for a resubmit | **v10k** | wave 8 κ 0.8 | reported |
 | Select=last re-FT (lr 0.01 cosine, 100 ep, keep the last epoch), N3's saved candidates (wave 11) | **22342659** COMPLETED 08:59 **§239** | **v10k** | §157; L3-ctrl §232 | N3 Δsel 10k **+0.15 / +0.43** at 2.11× / 2.57×; joint call **§240** |
 | Select=last re-FT, τ-off's saved candidates (wave 11) | **22342660** COMPLETED 09:53 **§240** | **v10k** | §220 | τ-off Δsel 10k **+0.40 / +0.21** at 2.11× / 2.57×. Call: **NEUTRAL** at 2.11× (N3 0.15 short); 2.57× **unresolved** (τ-off 0.09 under the bar); REQUOTE and STANDS cannot fire |
@@ -105,6 +106,8 @@
 | Slide-line seed noise: cosine from lr 0.1, seed 43, N3 / τ-off saved candidates (wave 12) | **22343160 / 65** COMPLETED 10:48 / 11:32 **§246**: every \|d\| < 0.3, max **0.27** → "one run each, ≤ 0.27" | v10 | 22340234 §223 / 22341051 §228 | every \|s43 − s42\| < 0.3 (10k, 2.11× and 2.57×) → "one run each, ≤ max \|d\|"; else quote the two-seed mean and range |
 | First v10 freeze TEST ep0127 κ 0.8 | **22341736** COMPLETED ~08:26 **§237** | v10 | §211 | r56 **−2.88 @ 0.799** vs mild −2.1 = **−0.78**; residual 3/7/14; census 0.9 only; M1-v10 waits on 37 |
 | First v10 freeze TEST ep0127 κ 0.6 | **22341737** COMPLETED 10:51 **§248** | v10 | §212 | r56 **−5.28 @ 0.600** vs mild −5.1 = **−0.18**; residual **2 / 5 / 13** (mild); census 0.9 only; **M1-v10 FLAT** |
+
+**Ops 9 Oct 01:40 (lean).** No new GPU TEST. Sitting **§339** D-CENSUS (zero GPU): V6 = mild, no re-walk. N04 R. D-PROXY smoke + walks PD (`tree_v11`; never quote smoke). Resume **276/250** freeze ep0272. QOS **11 R / 116 PD**. Ledger next **§340**. Next canvas **09:30**. Next 3h **02:40**.
 
 **Ops 9 Oct 01:10 (TEST land).** Sitting closed **§336–§338**: thin five-seed **SURVIVES +1.18**; G SPEED-EQUIV at lr 0.01; **EFFECTIVE-LR** (batch 256 = bigger step). N04 R. Resume **274/250** freeze ep0272. QOS **11 R / 16 PD**. Ledger next **§339**. Next canvas **09:30**. Next 3h **02:40**.
 
@@ -1373,6 +1376,57 @@ Spearman ρ across a net's groups between A0's sensitivity and each group-level 
   - walks **22411296–22411443** (66; nice 32; afterok on smoke **22410259**), in the order seed 42 thin, R56, MobileNetV2, then seed 43, each as sens, uniform, inner, four sampled around sens, four around uniform;
   - ceiling **22411444–22411479** (33; nice 33; afterok on each seed-42 walk).
   If the smoke's start check fails, the walks are cancelled before they start.
+
+### D-IMIT: can the agent's state and encoder imitate the sens plan, and which representation carries it? (`docs/LEARNING_PROGRAM_OCT8.md` §4; `tree_v12`; registered 9 Oct before submit; Ido GO 8 Oct ~21:10 "plan_bandit" and the encoder rule: reopen every A/B that ran over a uniform policy)
+
+- **Why.** v10 acts like mild (§248) although its reward sees the lever (§259). Without RL, this cell asks whether v10's state and encoder can represent where cutting is safe. If a supervised probe cannot imitate the sens plan from the state, no reward or optimiser will make an agent allocate. It also reopens, without an agent, the representation A/Bs that ran over a uniform or sampled policy: the encoders (§15–§16, C7), group tokens (V8), `STATE_SENS` and group cost (bundled in v10), and skinny nets in training (§17–§18).
+- **Code.** `tree_v12` = `tree_v11` + one default-off flag and one script. CPU pytest is green on the staged tree (24 new tests; 42 existing in three suites).
+  - `SPECTRA_DUMP_STATES=1`: an eval job does not walk. Per TEST net and per κ in `SPECTRA_DUMP_KEEPS` (0.4, 0.6, 0.8), it resets the environment at that target and saves:
+    - the reset state, i.e. the layer tokens the actor reads (63 columns);
+    - the same state pooled into group tokens (V8's `group_token_state`);
+    - the frozen-BERT input of the same origin (the embeddings path of `SPECTRA_STATE_ENCODER=bert`);
+    - the token layout, and each token's planned group (`group_sensitivity`'s mapping);
+    - the sens plan at κ − 0.02 (`alloc_walk.plan_targets`, the alloc walk's own call).
+    Printed `[dump]`.
+  - `scripts/dimit_probe.py`: per arm and fold, the encoder with a per-token linear head (sigmoid) is trained on 8 nets and scored on the 2 held out. A group's prediction is the mean over its tokens; the loss is the group-level MSE to the plan's keeps.
+- **Cell.**
+  - *Dump* (1 GPU): profile `eval_c10_thin_traj_gonce` with v10's ep0127 actor and critic, read-only. Its `policy_config.json` pins v10's state flags, and the snapshot's standardizer z-scores the base tokens as in v10's train. The 10 nets of `database_offline_v6_p5b2.json` (C10 and the SVHN VGG11), P, `SPECTRA_FT_AUG=1`, seed 42. Not a freeze TEST: the hook returns before any walk, and nothing is quoted.
+  - *Probe* (1 GPU, afterok on the dump):
+    - recipe: AdamW lr 3e-4, weight decay 0.01, 150 epochs over the training states, one state per step, gradient clip 1, dropout 0; frozen arms are linear probes at lr 1e-3 for 300 epochs;
+    - probe seeds 0, 1, 2, averaged per (net, κ); no early stopping; nothing is selected on held-out nets.
+  - *Folds* (each holds out 2 of the 10 nets): (r20-w8, VGG11), (r20-w10, MobileNetV2 ×1), (r56-w6, DenseNet40), (R32, SVHN VGG11), (VGG13, MobileNetV2 ×0.5).
+  - *Arms:*
+    - (a) the default transformer with the sens channels (a sanity check: the rule's input is in the state);
+    - (b) the default transformer without the sens channels, the base for the comparisons;
+    - (c) the `set` encoder, without sens;
+    - (d) the legacy NEON encoder: **not run**. It pools a whole-net feature-map stack into one vector for the current layer, so it has no per-token output and needs a different state;
+    - (e) v10's ep0127 actor encoder, frozen, with a linear probe, on the state as v10 reads it. (e0) is its control: the same architecture at random init (seeds 0–2), frozen, linear probe. The effective rank of both encoders' state vectors and token outputs over the dump is reported;
+    - (f) `transformer_wide` (6 × 512), without sens;
+    - (g) frozen `bert-base-uncased` (cached; `transformers` 4.46.3 is on the cluster; nothing installed): per-layer outputs of the embeddings-mode input, κ appended, linear probe. Reported as not run if the weights do not load; a net past 510 layers is skipped;
+    - (h) group tokens, one per coupling group, with the default transformer, without sens;
+    - (i) arm (b) with the four group-cost channels zeroed as well;
+    - (j) arm (b)'s recipe with the thin nets (r20-w8, r20-w10, r56-w6) out of training, scored on each fold's non-thin held-out nets, against arm (b) on the same nets. Also reported: the thin nets held out with no thin net in training, against arm (b)'s thin held-out reads.
+- **Metric.**
+  - Per held-out (net, κ): the Spearman between predicted and planned keeps over the planned groups, and the param-weighted mean |Δkeep| (weights: each group's param share from the group-cost channel).
+  - Fold mean over its held-out (net, κ); arm mean over the 5 folds.
+  - References without training (reported): the state's sens percentile channel, which must read ≈ 1.0 or the target pipeline is broken; token depth; origin width.
+- **Calls.**
+  - Per arm: **SUFFICIENT** if the mean held-out Spearman is ≥ 0.70, **INSUFFICIENT** if ≤ 0.40, **PARTIAL** between.
+  - Fold-paired against a base: **BEATS** if the mean is higher by ≥ 0.10 and it wins on ≥ 4 of 5 folds; **LOSES TO** symmetrically; otherwise **TIES**. Pairs:
+    - (a) against (b): the sens channel;
+    - (c), (f), (g) and (h) against (b): encoder and token type;
+    - (i) against (b): the group cost;
+    - (e) against (e0): RL-trained against random features;
+    - (j): thin nets out of training against in.
+  - *Reading:*
+    - (a) not SUFFICIENT: the pipeline is broken, and no other call stands.
+    - (b) SUFFICIENT: structure and weight statistics carry allocation beyond the measured channel.
+    - (b) INSUFFICIENT with (a) SUFFICIENT: the agent needs the measured sens channel, i.e. a sensitivity pass on every new net, whose cost is part of transfer.
+    - (e) SUFFICIENT and BEATS (e0) while v10 acts like mild: the features are there, and the head and optimiser failed. (e) TIES (e0): RL training left nothing beyond random features.
+  - *What it decides:* T0's encoder and token type, and whether `STATE_SENS` stays in its state. T2's kickstarting needs (a) SUFFICIENT.
+- **Start check (dump).** The `[policy_config]` line pins v10's env; the standardizer is loaded from the snapshot, not skipped; every `[dump]` line reads width 63, `bert=yes` and tokens on planned groups; 30 records. If it fails, the probe is cancelled before it starts.
+- **Never.** A TEST or paper row from this cell; a train, resume or freeze TEST pointed at `tree_v12`; a write into v10's run directory.
+- *Submitted:* filled at submit.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 
