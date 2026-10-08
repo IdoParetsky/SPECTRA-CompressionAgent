@@ -443,6 +443,19 @@ Prepared for **11:30** (or later). Ledger **§200–§329**. Do not quote probes
   - **Keep the last epoch, for every row.** The old default restored epoch 1 on most pruned points (§235). Those rows are "walk + 1 epoch" and are never compared with keep-last rows.
   - **Q7: Recommended accepted.** The recovery recipe is chosen per family on the val half. Cosine from lr 0.1 for full-width nets (DepGraph R56, VGG-19), cosine from lr 0.01 for narrow nets (thin r56-w4, MobileNetV2 ×0.5). Quote raw and honest. The narrow-net lr-0.01 rows get a zero-GPU census of the epoch they kept, then keep-last re-finalization where needed.
   - G2-X (14 jobs, registered 20:28, submitted 20:30): batch 256 under graphs on three held-out candidate families, selected on the val half; TEST can only block.
+- **8 Oct ~22:00 (sitting)** — *Why the agent doesn't learn; one-shot MobileNetV2; the budget moves to 75 epochs* (ledger §331–§334; plan `docs/LEARNING_PROGRAM_OCT8.md`).
+  - **The learning failure is the training signal.** Audit of v10's own 14,703 steps:
+    - At least half of each step reward is read noise, and the action itself explains 1 %.
+    - Allocation is a deferred trade: skipping a costly layer earns 0 now and is paid tens of steps later. PPO kept only the immediate ordering ("smaller cuts lose less"), and its cuts at 0.9 rose from 38 % to 77 %.
+    - **Ido's GO:** build a plan-as-action agent (the whole plan in one decision, a cheap paired reward, 8 plans per net compared with each other). BatchNorm recalibration is its reward if the proxy re-measure confirms it.
+    - Agent-side A/Bs that ran over a uniform policy are uninformative, not failed, and reopen as registered cells.
+  - **One-shot MobileNetV2.** sens COST-TRADE (−0.39), uniform WALK-NEEDED (−0.64; a uniform one-shot cut collapses the net before recovery). The allocation lever is larger one-shot (+0.56) than walked (+0.31). G on these candidates is SPEED-EQUIVALENT (+0.02, ×3.12): K=1 **6–7 min** against 85–162 walked.
+  - **Budget.**
+    - 200 epochs buys nothing on R56 (BUDGET-FLAT). It lifts the thin one-shot arms (+0.43) to the walked arms' level, but the origins gain too.
+    - 75 epochs is BUDGET-SAFE on both families, so the registered rule moves the headline to **75 epochs**: one cut plus recovery on ResNet-56 in **5.9–6.9 min** against DepGraph's 85.1.
+    - DepGraph's own widths lose 0.46 at 75 epochs, so the like-for-like DepGraph row stays at 100.
+  - **Batch 256.** R56 FLAT; thin GAIN (+0.75 on val); MobileNetV2 decides.
+  - **Next (16 jobs, registered 21:47).** The narrow-net rows under the adopted lr-0.01 keep-last recipe, plain and graphed. None of those walks' own fine-tunes had kept the last epoch.
 
 ---
 

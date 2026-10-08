@@ -6469,3 +6469,39 @@ Decision record: Ido's answers to the sitting's three questions after §331.
   - The paper-ledger rule line that said "do not restart those A/Bs" is amended.
 - **Records.** Runbook §10.0j, the paper-ledger rule, and `docs/LEARNING_PROGRAM_OCT8.md`.
 
+## 333. (E-M / GE-M): one-shot MobileNetV2 ×0.5 at params 0.6 (**22404134 / 35 / 36 / 37**) and G on its saved candidates (**22404171 / 72 / 73 / 74**) — PRELIM; registered calls: E-M sens **COST-TRADE −0.390** at 10k (−0.32 / −0.46), uniform **WALK-NEEDED −0.635** (−0.79 / −0.48); GE-M **SPEED-EQUIVALENT +0.020** at ×3.12; one-shot lever sens − uniform **+0.555** at 10k (walked +0.310); K = 1 with G **6.2–7.4 min**, against 85–162 min for the walked arms (plain)
+
+- *Recipe.* Cosine-0.1-last, the same as the walked comparators' cosine re-reads (22376493 / 95 / 98 / 99), so one-shot and walked are compared like for like. MobileNetV2's paper recipe is now lr 0.01 (§330), so these rows are reported beside, not as the paper row (N01 supplies it).
+- *Landing and plans.* All four LANDED at params 0.600, at the walked arms' steps (sens 149 / 100, uniform 97 / 97). The plans equal the walks': sens ×0.578 / ×0.577 over 25 groups (min 0.28 / 0.34, median 1.00); uniform ×0.580 at 0.75 everywhere.
+- *One-shot − walked at 10k (A's bars).*
+  - sens: s42 −0.32 (5k −0.18, val −0.46, honest −0.04), s43 −0.46 (5k −0.12, val −0.80, honest +0.06). Mean **−0.390**: COST-TRADE (between −0.30 and −0.60).
+  - uniform: s42 −0.79 (honest −0.50), s43 −0.48 (honest −0.68). Mean **−0.635**: WALK-NEEDED (≤ −0.60).
+- *Cut-only, before any fine-tune.* sens −3.72 / −0.24. Uniform **−77.82** on both seeds: cutting every MobileNetV2 group to 0.75 at once collapses the net, and recovery leaves −1.97 / −1.84 at 10k.
+- *Lever (reported).* One-shot sens − uniform: +0.60 / +0.51 at 10k (5k +0.68 / +0.58; val +0.52 / +0.44), mean +0.555. Walked: +0.13 / +0.49, mean +0.310. On MobileNetV2 the one-shot path needs the allocation more than the walk does.
+- *GE-M (C's bars, against E-M's own plain fine-tune of the same candidates).* Δ10k +0.24 / +0.29 / +0.02 / −0.47: mean **+0.020** (5k +0.12, val −0.08, honest +0.08) at **×3.12** (4.4–5.1 min against 14.3–15.1). SPEED-EQUIVALENT: G's ADOPT covers MobileNetV2's one-shot candidates too.
+- *K = 1* (job start to final fine-tune, plus the fine-tune). E-M plain 15.9–17.2 min; with G 6.2–7.4 min; the walked arms 85.3–161.9 min (plain).
+
+## 334. (GB200 / GB75): G at 200 and at 75 epochs against G at 100 on the same candidates (GB200 R56 **22404138–143**, thin **22404144–147**; GB75 R56 **22404148–153**, thin **22404154–157**) — PRELIM; registered calls: GB200 R56 one-shot **BUDGET-FLAT −0.018** (×0.51), thin one-shot **BUDGET-GAIN +0.430** (honest −0.21); GB75 R56 one-shot **BUDGET-SAFE −0.100**, thin walked **BUDGET-SAFE −0.075** (×1.31–1.33); budget rule: **75 epochs** is the fewest BUDGET-SAFE on both families, so the K = 1 headline moves to 75 epochs: one-shot R56 **5.9–6.9 min** against DepGraph's 85.1; DepGraph's transplants lose −0.455 at 75 (reported)
+
+All rows run under G's cosine-0.1-last line. The thin r56-w4 rows are therefore not the narrow family's §330 recipe and are reported beside it.
+
+- *GB200, R56 one-shot* (four A pairs against G-F). Δ10k +0.29 / −0.29 / +0.14 / −0.21: mean **−0.018** (5k −0.14, val +0.105, honest −0.22). BUDGET-FLAT (±0.30).
+  - Reported: transplants +0.13 / +0.09; K = 1 at 200 epochs 12.2–12.9 min; one-shot at 200 − walked (plain, 100) −0.27 on average.
+  - DepGraph spends 200 epochs in all. On R56 a longer recovery buys nothing.
+- *GB200, thin one-shot* (against GE). Δ10k +0.21 / +0.76 / +0.46 / +0.29: mean **+0.430** (5k +0.47, val +0.39, honest −0.21). BUDGET-GAIN.
+  - The origin controls gain as much or more, so honest is negative: the narrow net is under-recovered by 100 epochs of cosine-0.1.
+  - One-shot at 200 − walked (plain, 100): −0.25 / +0.34 / +0.09 / −0.02, mean +0.04 (reported). At 200 epochs the one-shot thin arms match the walked ones, and §319's COST-TRADE gap closes.
+  - Reported: guard r20-w2 +0.365; K = 1 on thin at 200 epochs 8.5–9.1 min.
+- *GB75, R56 one-shot* (against G-F). Δ10k +0.01 / +0.07 / −0.49 / +0.01: mean **−0.100** (5k −0.07, val −0.13, honest −0.04) at ×1.33. BUDGET-SAFE (≥ −0.20). Reported: transplants −0.44 / −0.47, mean −0.455.
+- *GB75, thin walked* (against G-H). Δ10k −0.35 / +0.24 / −0.13 / −0.06: mean **−0.075** (5k −0.215, val +0.065, honest −0.39) at ×1.31. BUDGET-SAFE. Reported: guard r20-w2 −0.395.
+- *Budget rule* (registered with GB50 / GB25, §326):
+
+  | Epochs | R56 | thin |
+  |---|---|---|
+  | 25 | HARM | SAFE |
+  | 50 | COST | COST |
+  | 75 | SAFE | SAFE |
+
+  So **75 epochs**. K = 1 for one-shot R56 at 75 epochs: 5.9–6.9 min (cut walk 2.1–3.1 + G 3.7–3.9) against DepGraph's 85.1 on the same GPU model, and 7.2–8.1 at 100 (§322).
+- *Caveat (reported, not a call).* DepGraph's own widths (the transplants) lose 0.455 at 75 epochs while the A pairs hold. The like-for-like DepGraph row (transplant against DepGraph's model) stays at 100 epochs; the 75-epoch headline applies to our allocation arms.
+
