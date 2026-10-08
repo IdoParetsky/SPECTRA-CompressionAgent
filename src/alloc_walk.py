@@ -13,7 +13,10 @@ cutting every group once to its target keeps ``target − SPECTRA_ALLOC_UNDERSHO
 parameters. ``widths`` bisects nothing: every group takes the width ``SPECTRA_ALLOC_WIDTHS`` (JSON
 ``{module name: out channels}``, e.g. another method's pruned net) names for its producers, so a run
 isolates that allocation under this walk's ranking and recovery; the fixed target then only says
-where the walk stops. Each decision then plays the legal cut whose resulting width is closest to its group's
+where the walk stops. ``sample`` draws one plan the way the plan-as-action agent will: the weights
+of ``SPECTRA_ALLOC_SAMPLE_AROUND`` (sens or uniform) times exp(σ ε) per group, ε ~ N(0, 1) seeded by
+``SPECTRA_ALLOC_SAMPLE_SEED``, σ = ``SPECTRA_ALLOC_SAMPLE_SIGMA``, then bisected like ``sens``.
+Each decision then plays the legal cut whose resulting width is closest to its group's
 target (ties to the milder cut, identity once it is there). Group-once, the recovery and the
 fixed-target landing are the walk's own, so a row differs from greedy / mild only in which groups
 keep being cut. The undershoot makes the walk cross the target before every group has arrived;
@@ -24,7 +27,9 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 import os
+import random
 import statistics
 
 import torch
@@ -35,7 +40,8 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner", "widths")
+KINDS = ("uniform", "sens", "inner", "widths", "sample")
+SAMPLE_AROUND = ("sens", "uniform")
 
 
 def kind() -> str:
@@ -59,6 +65,30 @@ def undershoot() -> float:
 def min_keep() -> float:
     """``SPECTRA_ALLOC_MIN_KEEP`` (0.1): no group's planned keep goes below this, A0's floor."""
     return min(1.0, max(0.01, float(os.environ.get("SPECTRA_ALLOC_MIN_KEEP", "0.1"))))
+
+
+def sample_around() -> str:
+    """``SPECTRA_ALLOC_SAMPLE_AROUND`` (sens): the plan whose weights ``sample`` perturbs."""
+    name = os.environ.get("SPECTRA_ALLOC_SAMPLE_AROUND", "sens").strip().lower() or "sens"
+    if name not in SAMPLE_AROUND:
+        raise ValueError(f"SPECTRA_ALLOC_SAMPLE_AROUND={name!r}: expected one of {SAMPLE_AROUND}")
+    return name
+
+
+def sample_sigma() -> float:
+    """``SPECTRA_ALLOC_SAMPLE_SIGMA`` (0.5): std of the log-weight noise ``sample`` adds per group."""
+    return max(0.0, float(os.environ.get("SPECTRA_ALLOC_SAMPLE_SIGMA", "0.5")))
+
+
+def sample_seed() -> int:
+    """``SPECTRA_ALLOC_SAMPLE_SEED`` (0): seed of ``sample``'s noise."""
+    return int(os.environ.get("SPECTRA_ALLOC_SAMPLE_SEED", "0"))
+
+
+def sample_noise(rows, sigma, seed):
+    """``{row: exp(sigma * eps)}``, eps ~ N(0, 1) drawn in ``rows`` order from ``random.Random(seed)``."""
+    rng = random.Random(int(seed))
+    return {row: math.exp(float(sigma) * rng.gauss(0.0, 1.0)) for row in rows}
 
 
 def widths_table() -> dict:
@@ -140,11 +170,17 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
         return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
                         "keeps": keeps, "origin_widths": group_widths(model, rows),
                         "sens": {row: 1.0 for row in rows}, "held": 0, "unnamed": unnamed}
-    if kind_name == "sens":
+    base_kind = sample_around() if kind_name == "sample" else kind_name
+    if base_kind == "sens":
         sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape)
     else:
         sens = {row: 1.0 for row in rows}
-    w = weights(kind_name, sens, a)
+    w = weights(base_kind, sens, a)
+    sample = None
+    if kind_name == "sample":
+        sample = {"around": base_kind, "sigma": sample_sigma(), "seed": sample_seed()}
+        noise = sample_noise(rows, sample["sigma"], sample["seed"])
+        w = {row: w[row] * noise[row] for row in rows}
     held = {row for group, row in plan if kind_name == "inner" and len(group.producers) > 1}
     params0 = utils.calc_num_parameters(model)
     lo, hi = 0.0, 1.0 / min(w.values())
@@ -166,6 +202,8 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
     keeps, frac, widths = best
     info = {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
             "keeps": keeps, "origin_widths": group_widths(model, rows), "sens": sens, "held": len(held)}
+    if sample is not None:
+        info["sample"] = sample
     return widths, info
 
 
@@ -201,6 +239,10 @@ def _state(env):
         keeps = sorted(info["keeps"].values())
         source = (f"widths of {os.path.basename(os.environ.get('SPECTRA_ALLOC_WIDTHS', ''))}"
                   if info["kind"] == "widths" else f"{info['kind']} alpha={info['alpha']:g}")
+        if info.get("sample"):
+            sample = info["sample"]
+            source = (f"sample around {sample['around']} sigma={sample['sigma']:g} seed={sample['seed']} "
+                      f"alpha={info['alpha']:g}")
         utils.print_flush(
             f"[alloc] {os.path.basename(str(net))}: {source} plan keeps "
             f"x{info['kept']:.3f} of the params (target x{target:.3f} = walk target − {undershoot():g}) over "
@@ -211,7 +253,8 @@ def _state(env):
             import src.run_recorder as run_recorder
             run_recorder.record(
                 "alloc_plan", network=str(net), kind=info["kind"], alpha=info["alpha"], target=target,
-                kept=info["kept"], rows={str(r): {"origin": info["origin_widths"].get(r), "target": widths[r],
+                kept=info["kept"], **({"sample": info["sample"]} if info.get("sample") else {}),
+                rows={str(r): {"origin": info["origin_widths"].get(r), "target": widths[r],
                                                   "keep": round(info["keeps"][r], 4),
                                                   "sens": float(info["sens"][r])} for r in widths})
         except Exception:  # noqa: BLE001 - the record is a convenience

@@ -200,6 +200,16 @@ def _run_final_ft(env, net_path, picked, candidates, epochs):
             traj_models.save_candidate(
                 cand["model"], traj_models.candidate_stem(save_dir, name, label, cand["point"]["step"]),
                 cand["point"], {"network": net_path, "label": label})
+    import src.plan_proxies as plan_proxies
+    names = plan_proxies.proxies()
+    if names:
+        measured = set()
+        for label, cand in candidates.items():
+            step = int(cand["point"]["step"])
+            if label == "origin" or step in measured:
+                continue
+            measured.add(step)
+            plan_proxies.measure(env, net_path, label, cand, names)
     if epochs <= 0:
         return
     scratch = fortify_mod.eval_final_ft_scratch()
