@@ -288,6 +288,17 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
 - **Flag already seen.** Greedy 5-rate on r20-w2 landed at params **0.538**, a gap of 0.062 below κ (one 0.6 step overshoots on a 2/4/8-wide net). Not equal-size; r20-w2 is the guard net, and r56-w4 decides.
 - **Failure:** report with the last 30 lines, and do not resubmit without the sitting or Ido. Unchanged: never scancel the trains; do not TEST v10 ep0111; Budget resume NO-GO; never N8 / S3.
 
+### 10.0i Ido's decisions on the final fine-tune (8 Oct 20:36; ledger §330; binding; supersedes every earlier "paper FT caption stays lr 0.01" line)
+
+- **Keep the last epoch, always.** Every final fine-tune runs with `SPECTRA_EVAL_FINAL_FT_SELECT=last` (`tree_v10k` or later). The old default restored the lowest-train-loss epoch, which was epoch 1 on most pruned DepGraph points and on every 1-cycle run (§235). Those rows are captioned "walk + 1 epoch" and are never compared with keep-last rows: every row in a comparison is re-finalized with keep-last. Start check: `select=last` on each `Fine-tune recipe` line, "kept the last epoch" on its finished line, `keep=last` on every `[eval] TRAJ final_ft` line. Without them, report it; the numbers would be train-loss selected.
+- **Q7 is answered: the recovery recipe is chosen per family on the val half, never on TEST.**
+  - Cosine from lr 0.1 (SGD, momentum 0.9, wd 5e-4, batch 128, crop+flip, 100 epochs, keep-last) for **full-width nets**: the DepGraph ResNet-56 C10 cell and VGG-19 C100. The val half agrees at every gating point (§252); this recipe brings both DepGraph home cells level (§275, §289).
+  - Cosine from lr 0.01, otherwise the same, keep-last, for **narrow nets**: thin r56-w4 and MobileNetV2 ×0.5. Under lr 0.1 their unpruned controls lose accuracy (r56-w4 −0.36 to −1.20 at 5k, §281; MobileNetV2 −0.9 to −1.1, §301), and on MobileNetV2 the val half prefers lr 0.01 on all eight rows (§303). A cosine-0.1 read of a narrow net is reported beside, never as the paper's row.
+  - A new family gets its origin control under both recipes, and the val half picks.
+  - Quote raw and honest Δacc (honest = raw minus the origin control's change under the same recipe).
+- **G stays the speed recipe** for new no-agent final fine-tunes on ResNets and MobileNetV2 (§324, §328). Its flags do not touch the learning rate, but its equivalence was measured under cosine-0.1, so the first narrow-net lr-0.01 rows under G carry one equivalence check. The sitting registers it.
+- **Ops does not invent re-finalization cells.** The sitting registers them (first, a zero-GPU census of which epoch each narrow-net lr-0.01 row kept). Until then, caption pre-§235 lr-0.01 rows "walk + 1 epoch".
+
 ### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |

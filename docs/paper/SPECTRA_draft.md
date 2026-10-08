@@ -385,6 +385,17 @@ genericity map.
 - **Counts.** Parameter and MAC fractions are exact ratios of counts (the earlier three-decimal
   megaparameter counter quantised skinny nets to 0.2 steps and is not quoted).
 - **Deterministic evaluation.** Argmax over the legal-masked policy; encoder in inference mode.
+- **Final fine-tune (recovery).** Every pruned network and its unpruned origin control receive the
+  same final fine-tune: SGD (momentum 0.9, weight decay 5·10⁻⁴), batch 128, random crop and flip,
+  100 epochs on a cosine schedule. The **last epoch is kept**; no checkpoint is selected. The
+  initial learning rate is chosen per architecture family on the validation half, never on TEST:
+  0.1 for full-width networks (ResNet-56, VGG-19) and 0.01 for narrow ones (ResNet-56 at width/4,
+  MobileNetV2 ×0.5), whose unpruned controls lose accuracy at 0.1. Retraining at a large learning
+  rate is the variable Le & Hua (ICLR 2021) identify as deciding post-pruning accuracy. We report
+  raw Δacc and honest Δacc (raw minus the origin control's change under the same recipe), because
+  a stronger fine-tune also lifts the unpruned network. An earlier default restored the
+  lowest-training-loss epoch, which was epoch 1 on most pruned points; those rows measured
+  "walk + 1 epoch" and are not compared with keep-last rows (ledger §235, §330).
 - **Win criterion (per network, against the same-loop heuristic at its own `val_best`):** kept
   fraction ≤ the heuristic's at equal-or-kinder test Δacc, or ≥ 2 pp kinder test Δacc at equal
   kept fraction. Unmatched keep is reported as a different Pareto point, not as a win.

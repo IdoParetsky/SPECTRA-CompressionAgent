@@ -19,4 +19,9 @@ When a **TEST** row (or C100 recoverability jsonl TEST) lands:
 
 Do **not** treat chat summaries or `*.canvas.tsx` as the record of record. Quote TEST only. Skip akamaster ResNet-32. `param_ratio` / `flops_ratio` = fraction kept. Do not mix C100 DRL train returns into paper tables. Do not describe early C100 failure as missing C100 from the 10-net train set (see ledger §7).
 
+**Final fine-tune (Ido, 8 Oct 20:36; ledger §330; runbook §10.0i).**
+- Every final fine-tune keeps its **last epoch** (`SPECTRA_EVAL_FINAL_FT_SELECT=last`, `tree_v10k` or later). The old default restored the lowest-train-loss epoch, which was epoch 1 on most pruned points (§235), so those rows are "walk + 1 epoch". Never compare them with keep-last rows: re-run the final fine-tune on every row being compared.
+- The recovery recipe is chosen **per family on the val half**, never on TEST (Q7). Cosine from lr 0.1 for full-width nets (DepGraph ResNet-56, VGG-19). Cosine from lr 0.01 for narrow nets (thin r56-w4, MobileNetV2 ×0.5), whose unpruned controls lose accuracy under lr 0.1 (§281, §301, §303). A new family gets its origin control under both recipes, and the val half picks.
+- Quote raw **and** honest Δacc (honest = raw minus the origin control's change under the same recipe).
+
 **Do not quote as TEST:** overnight-matrix −1.2 pp (20066579 TEST is −3.1); train-step “within −10 %”; log `eval_train` (CNN train-loader, e.g. r56-w4 −1.7 pp vs TEST −15.9); C100 `within_budget` at ≥98% params. Encoder A/B, AMP, skinny-in-train, and DenseNet-in-train already failed to move r56-w4 (ledger §16–18) — do not restart those A/Bs.

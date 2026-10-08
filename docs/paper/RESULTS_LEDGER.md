@@ -6394,3 +6394,35 @@ Calls (registered, r56-w4, pooled at 10k over the four pairs): b **+0.530** ≥ 
 - No recipe change (registered). A batch rule for narrow nets would need its own registered held-out cell, selected on val with the TEST half quoted; never an adoption on this 10k read.
 - Engineering only; no TEST rows. Do not lock. Never an agent row.
 
+## 330. Ido's decisions, 8 Oct 20:36 (no GPU): every final fine-tune keeps its last epoch; Q7 answered, the recovery recipe is chosen per family on the val half (cosine from lr 0.1 for full-width nets, cosine from lr 0.01 for narrow nets); quote raw and honest
+
+Decision record. Ido accepted two recommendations from the sitting's 10:35 bottom line, and asked that the draft carry them as a methodology point.
+
+**1. Keep the last epoch (`SPECTRA_EVAL_FINAL_FT_SELECT=last`), for every row.**
+- *Evidence.* §235: a census of 191 final fine-tunes found that the old default restored the lowest-train-loss epoch, which was epoch 1 on most lr-0.01 DepGraph R56 points and on every 1-cycle run. §239–§240, §244: re-quoting at the endpoint moved the old rows by +0.15 / +0.40 at 2.11×, under the registered ±0.3, so wave 11 was called NEUTRAL; seed noise ≤ 0.14.
+- *Why adopt after a NEUTRAL call.* NEUTRAL said the old numbers moved little on those cells. It did not make the old selection valid: without keep-last, a "100-epoch fine-tune" row can be a one-epoch restore. Every read since wave 11 already keeps the last epoch.
+- *Rule.* Rows without keep-last are captioned "walk + 1 epoch" and never compared with keep-last rows. Every row in a comparison is re-finalized with keep-last.
+
+**2. Q7, the recovery recipe.**
+- *Question, final form* (tracker §1b item 5): "cosine-from-0.1 helps full-width nets and hurts the narrow ones (skinny ResNet, MobileNet ×0.5), unpruned controls included; on MobileNet the val half prefers lr 0.01 on all eight rows. Recommended = adopt cosine for full-width rows, val-chosen, quote raw and honest." First posed on 7 Oct (~09:30) as "keep lr 0.01 and report cosine-0.1 beside it (Recommended), or adopt cosine-0.1 everywhere". The Recommended moved after §252 (VAL-AGREES), then again after §281, §301 and §303.
+- *Answer (Recommended accepted).* The recipe is chosen per family on the val half, never on TEST:
+  - cosine from lr 0.1 for full-width nets (DepGraph R56 C10, VGG-19 C100);
+  - cosine from lr 0.01 for narrow nets (thin r56-w4, MobileNetV2 ×0.5);
+  - a new family runs its origin control under both recipes, and the val half picks.
+  - Both: SGD, momentum 0.9, wd 5e-4, batch 128, crop+flip, 100 epochs, keep-last. Quote raw and honest Δacc (honest = raw minus the origin control's change under the same recipe).
+- *Evidence, full-width.*
+  - §245–§246, §251: VGG-19 C100 +1.66 / +1.41 at 10k over lr 0.01 on equal epochs; about half is the unpruned origin improving too.
+  - §252: VAL-AGREES. §246, §258: a second final-FT seed moves a point by ≤ 0.27–0.30.
+  - §275, §299: DepGraph R56 at 2.11×, 10k +0.26 / +0.27 against DepGraph's +0.24 (level).
+  - §289: VGG-19 C100 at DepGraph's widths (8.84×), −2.72 against −2.97 (one seed, level).
+- *Evidence, narrow.*
+  - §281: on the thin r56-w4 every row is lower under cosine-0.1, origins included (−0.36 to −1.20 at 5k).
+  - §301, §303: on MobileNetV2 ×0.5, −0.9 to −1.1 at 5k, unpruned controls included; the val half prefers lr 0.01 on all eight rows.
+
+**What changes in the record.**
+- *Full-width rows* quote the cosine-0.1 keep-last reads already in the ledger (§275, §289, §299, §305, §320, waves 18–27).
+- *Narrow rows* quote cosine-from-0.01 keep-last. The existing lr-0.01 narrow rows came from the walks' own final fine-tunes under the old default. Each needs a zero-GPU census of the epoch it kept (§235's tool). Those that restored an early epoch get a keep-last re-finalization, registered by the sitting before submit. Known case: §301's seed-43 MobileNetV2 lr-0.01 margin was uniform's epoch-1 restore.
+- *Levers* barely move under the switch on the thin net: the five-seed sens − uniform is +0.96 under cosine and +1.08 at lr 0.01 (§307). The paper's thin row quotes the lr-0.01 lever once its rows pass the census or are re-finalized.
+- *G* (§324, §328) stays the speed recipe for new no-agent final fine-tunes. Its flags leave the learning rate alone, but its equivalence was measured under cosine-0.1, so the first lr-0.01 rows under G carry one equivalence check.
+- *Where it is written.* Draft §4.2 ("Final fine-tune (recovery)"), runbook §10.0i (ops' version), and the always-applied paper-ledger rule. Ops' pins at the top of the draft that say "paper FT caption stays lr 0.01" are superseded; ops restamps them.
+
