@@ -1095,7 +1095,20 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
     - *Submitted* 21:47:44–21:48:07 with `_tmp_s8oct_n01_submit.sh`, nice 27. The md5s of the three configs are equal across `tree_v10l` / `tree_v10k`.
       - N01-G: **22404707–714** (thin sens s42, uniform s42, sens s43, uniform s43; then MobileNetV2 in the same order).
       - N01-P: **22404715 / 16, 22404719–724** (same order).
-    - *Census at submit.* None of the eight walks' own final fine-tunes kept the last epoch: no `keep=last` on any `TRAJ final_ft` line. Their lr-0.01 rows are therefore "walk + 1 epoch", and N01-P replaces them. §330 adopted cosine from lr 0.01, keep-last, for the narrow families. G's equivalence (§324, §328) was measured only under cosine-0.1, and some narrow walks predate keep-last (§235).
+    - *Census at submit.* None of the eight walks' own final fine-tunes kept the last epoch: no `keep=last` on any `TRAJ final_ft` line. Their lr-0.01 rows are therefore "walk + 1 epoch", and N01-P replaces them.
+  - *(N02) registered 8 Oct ~22:00, before submit: the rest of the narrow-net paper rows under §330's recipe.* A census of every thin r56-w4 and MobileNetV2 ×0.5 κ-0.6 walk (`_tmp_s8oct_narrow_ids.sh`) found that none kept the last epoch in its own lr-0.01 final fine-tune. So §307's five-seed lr-0.01 levers (+1.08) and every lr-0.01 narrow row are "walk + 1 epoch". All walks kept their candidates. N02 runs N01-P's plain recipe (cosine from lr 0.01, keep-last, batch 128, 100 epochs, origin; `tree_v10k`, nice 28) on the remaining 20 sets:
+    - *Thin:*
+      - sens s44 / 45 / 46 (`tree_v10h` 22375992, 22394258, 22394260);
+      - uniform s44 / 45 / 46 (`tree_v10h` 22375993, 22394259, 22394261);
+      - inner s42–46 (`tree_v10i` 22341865, 22341867, 22395416, 22395417, 22395421);
+      - mild-landed s42–46 (22156062, `tree_v10` 22341278, 22395413, 22395414, 22395415).
+    - *MobileNetV2:* inner s42 / 43 (`tree_v10i` 22376486, 22376491); mild-landed s42 / 43 (`tree_v10` 22376487, 22376492).
+    - *Calls.* With N01-P's sets, all on r56-w4 5k at the landed point, lr 0.01 keep-last:
+      - *registered:* the five-seed thin lever sens − uniform, on wave 8's bars: SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between;
+      - *reported:* five-seed sens − mild, inner − uniform and sens − inner, beside §321's cosine reads;
+      - *reported:* two-seed MobileNetV2 sens − uniform, sens − mild and inner − uniform, beside §301 / §303.
+      These are the paper's narrow rows (§330). No agent row.
+    - *Start check.* `lr 0.01` and `select=last` on each `Fine-tune recipe` line; `final_ft from` the right `traj_models`; seed in env = the walk's seed; no NaN. §330 adopted cosine from lr 0.01, keep-last, for the narrow families. G's equivalence (§324, §328) was measured only under cosine-0.1, and some narrow walks predate keep-last (§235).
     - *(N01-P)* The plain final fine-tune: SGD, cosine from **lr 0.01**, keep-last, batch 128, 100 epochs, origin control (`tree_v10k`, nice 27). It runs on the thin r56-w4 walked sets (`tree_v10h/runs/job22340391 / 92`, `22341281 / 82`: sens / uniform × s42 / s43) and wave 21's MobileNetV2 ×0.5 walked sets (`tree_v10h/runs/job22376484 / 85 / 88 / 90`). 8 jobs.
     - *(N01-G)* The same lr-0.01 keep-last recipe under G (GPU crop+flip, CUDA graphs; `tree_v10l`, nice 27) on the same 8 sets. 8 jobs.
     - *Calls.* Per family on the four pairs, G − plain at 10k on C's bars: SPEED-EQUIVALENT if \|mean\| ≤ 0.30 at ≥ ×1.5; DIVERGE if > 0.50. If SPEED-EQUIVALENT, G's ADOPT extends to lr 0.01 on that family. Reported:
