@@ -6431,13 +6431,41 @@ Decision record. Ido accepted two recommendations from the sitting's 10:35 botto
 Read-only audit of the live train's own telemetry, on the login node, for the learning program (Ido, 8 Oct 20:36: "without a learning agent SPECTRA thesis collapses").
 
 - *Per-step reward by requested keep rate, all steps (pp).* 0.9: −0.049 (SD 1.007, n 5,700). 0.8: −0.127 (SD 0.940, n 662). 0.7: −0.217 (SD 1.000, n 1,434). 0.6: −0.292 (SD 1.054, n 556). Identity 1.0: 0 (n 6,351). The last 3,000 steps match.
-- *Signal against noise.* The reward ranks the actions by cut size, but neighbouring actions differ by about 0.08 pp while one step's reward carries about 1.0 pp of noise, whatever the action. One step's reward is the change between two val reads around a 12/4 fine-tune. With γ = 1 and GAE λ = 0.95, an advantage sums the noise of about 1/(1 − λ²) ≈ 10 weighted steps (SD ≈ 3.2 pp). A single decision's signal-to-noise is about 0.025, before asking for the state-dependent part (cut this group less than that one), which is smaller.
-- *What PPO learned instead: the action marginal.* Fraction of cuts at 0.9 by quarter of training: 0.38 → 0.47 → 0.60 → 0.73 (0.77 over the last 3 episodes). Mean cut keep: 0.770 → 0.794 → 0.825 → 0.850. Policy entropy fell from 1.47 at episode 0 to about 0.45 (max ln 5 = 1.61). This is §248's census (one cut size at every step) reached gradually.
+- *What the spread is* (`_tmp_s8oct_v10noise_split.sh`). The reward ranks the actions by cut size, but neighbouring actions differ by only about 0.08 pp. Over 8,408 cut steps the reward variance is 1.01 (SD 1.0 pp):
+  - *Read noise, at least half.* Consecutive cut rewards in an episode correlate **−0.33** (6,004 pairs). That is the signature of a noisy read that one step adds and the next subtracts, and it puts at least half the variance (2 × 0.257) on transient read noise.
+  - *Real per-layer signal, a quarter to a third.* Which layer of which net is cut, at which width, explains about that much (adjusted share 0.27 for net × layer × rate, 0.32 with the old width).
+  - *The action itself, 1 %* (rate alone 0.01; net × rate 0.02).
+  - *Exact repeats* (same net, layer, rate, width and target in different episodes) still vary with SD 0.89 pp.
+- *Why that teaches mild.* Under the fixed target the allocation lever is a deferred trade. Skipping a costly layer (identity) earns exactly 0 now. Its cost lands later, as cuts elsewhere or as the miss penalty, often tens of steps on. With γ = 1, GAE λ = 0.95 (an effective horizon of about 20 steps) and a critic that can reach its explained variance on net and target offsets alone, that comparison is not carried. The immediate ordering is carried: smaller cuts lose less (−0.05 at 0.9 against −0.29 at 0.6). PPO followed it:
+  - the fraction of cuts at 0.9 by quarter of training went 0.38 → 0.47 → 0.60 → 0.73 (0.77 over the last 3 episodes);
+  - mean cut keep went 0.770 → 0.794 → 0.825 → 0.850;
+  - policy entropy fell from 1.47 at episode 0 to about 0.45 (max ln 5 = 1.61).
+  This is §248's census (one cut size at every step), reached gradually.
 - *Sample count.* 207 episodes over 4 days, 20–22 per net (10 nets: thin r56-w6, r20-w8, r20-w10; resnet32; densenet40; vgg11_bn; vgg13_bn; MobileNetV2 ×0.5 and ×1; VGG-11 SVHN). That is 51 PPO updates of 4 episodes each, at 3.5–79 min per episode, paid by the per-step 12/4 fine-tune.
 - *A suspicion that did not hold.* Under a fixed target, milder cuts take more steps and so more fine-tune rounds. Within-net Spearman of return against mildness, target partialled out, n ≈ 20 per net (noise ≈ ±0.22):
   - positive on VGG-11 C10 (cut count +0.74, mean keep +0.53), VGG-13 (+0.18 / +0.58) and MobileNetV2 ×0.5 (+0.56 / +0.69);
   - negative on the thin r56-w6 (−0.70 / −0.27) and VGG-11 SVHN (−0.22 / −0.23);
   - null on DenseNet-40 and the thin r20s.
   It is not a uniform bias toward small cuts.
-- *Reading.* The objective is not the gap: sens beats mild by +4.05 on this same return (§259). Neither is the information, since the sens rule's input, measured sensitivity, is in the state. The gap is the training signal: per-step fine-tune noise, a long horizon, ~20 episodes per net, and between-net variance in each 4-episode batch. Fixes that raise the signal come before fixes to capacity: a cheap paired reward without per-step fine-tunes, shared baselines over several plans per (net, target), and a start from the sens / inner expert. The representation is tested by a supervised imitation probe first. The plan follows in the learning-program doc.
+- *Reading.* The objective is not the gap: sens beats mild by +4.05 on this same return (§259). Neither is the information, since the sens rule's input, measured sensitivity, is in the state. The gap is the training signal:
+  - half of each immediate reward is read noise, and the action explains 1 % of it;
+  - the allocation lever is a deferred trade that 4-episode PPO updates with λ = 0.95 do not carry;
+  - there are ~20 episodes per net.
+  A plan-as-action episode removes the deferral: the whole plan gets one reward, and plans for the same (net, target) are compared directly. Fixes that raise the signal come before fixes to capacity: a cheap paired reward without per-step fine-tunes, shared baselines over several plans per (net, target), and a start from the sens / inner expert. The representation is tested first, by a supervised imitation probe. Plan: `docs/LEARNING_PROGRAM_OCT8.md`.
+
+## 332. Ido's decisions on the learning programme, 8 Oct ~21:10 (no GPU): build the plan-as-action agent; BatchNorm recalibration is its reward if the proxy re-measure confirms; agent-side A/Bs run over a uniform policy are uninformative, not failed
+
+Decision record: Ido's answers to the sitting's three questions after §331.
+
+- **First train: GO to build the plan-as-action agent.**
+  - *Design.* One decode of every coupling group's keep rate per (net, target), with no per-step fine-tune. A cheap paired reward on a fixed val subset. 8 sampled plans per instance, scored against their shared mean (POMO, Kwon et al., NeurIPS 2020; the instance baseline of Kool et al., ICLR 2019).
+  - *Where and when.* It is built in a new tree behind default-off flags. The train is registered only after the supervised imitation probe and the proxy re-measure report. It is evaluated with the paper's final fine-tune against mild, sens and inner on held-out nets.
+  - *Why first.* §331 places the failure in a deferred, noisy per-step signal. One-shot equivalence (§309, §319, §322, §325) shows the endpoint does not need the walk's per-step fine-tune, so dropping it changes the episode, not the result.
+- **EagleEye.** BatchNorm recalibration (Li et al., ECCV 2020) is the new agent's reward if the proxy re-measure clears its registered bar; otherwise a short graphed fine-tune is. §195's numbers were read against finals that may have kept epoch 1 (§235): bn ρ +0.48 against 12/4's +0.39, ceiling +0.71, bar 0.60.
+- **A/Bs over a uniform policy.**
+  - The encoder A/B, AMP, skinny-in-train and DenseNet-in-train (§16–18) ran while every trained policy was uniform (§76). Their "failed to move r56-w4" is therefore uninformative.
+  - Ido extended this to every agent-side A/B run over a uniform or collapsed policy. Each is listed with a re-test recommendation in `docs/LEARNING_PROGRAM_OCT8.md` §3.
+  - They reopen only as registered cells, representation first, through the imitation probe.
+  - The paper-ledger rule line that said "do not restart those A/Bs" is amended.
+- **Records.** Runbook §10.0j, the paper-ledger rule, and `docs/LEARNING_PROGRAM_OCT8.md`.
 

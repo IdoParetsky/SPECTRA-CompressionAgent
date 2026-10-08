@@ -299,6 +299,14 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
 - **G stays the speed recipe** for new no-agent final fine-tunes on ResNets and MobileNetV2 (§324, §328). Its flags do not touch the learning rate, but its equivalence was measured under cosine-0.1, so the first narrow-net lr-0.01 rows under G carry one equivalence check. The sitting registers it.
 - **Ops does not invent re-finalization cells.** The sitting registers them (first, a zero-GPU census of which epoch each narrow-net lr-0.01 row kept). Until then, caption pre-§235 lr-0.01 rows "walk + 1 epoch".
 
+### 10.0j Ido's decisions on the learning programme (8 Oct ~21:10; ledger §331–§332; plan `docs/LEARNING_PROGRAM_OCT8.md`; binding)
+
+- **Why (§331).** Half of v10's step reward is read noise, and the action itself explains 1 % of it. The allocation lever is a deferred trade: skipping a costly layer earns 0 now and is paid tens of steps later. PPO carried only the immediate ordering ("smaller cuts lose less") and collapsed onto mild.
+- **GO: build the plan-as-action agent.** One decode per net with no per-step fine-tune, a cheap paired reward, and 8 plans per (net, target) scored against their shared mean. It is built in a **new tree** behind default-off flags. Its train is registered and submitted by the sitting only after the imitation probe and the proxy re-measure report. Ops neither builds nor submits it, and never points it at a live tree.
+- **EagleEye.** BatchNorm recalibration becomes the new agent's reward if the proxy re-measure clears its registered bar. Otherwise a short graphed fine-tune does.
+- **A/Bs over a uniform policy are uninformative, not failed.** This covers the encoder A/B, AMP, skinny-in-train and DenseNet-in-train (§16–18), and every other agent-side A/B run over a uniform or collapsed policy. The sitting re-registers them on current infrastructure in the order of the plan's §3, representation first through the supervised imitation probe. Ops restarts none on its own.
+- **Unchanged.** v10 `22156116` keeps running untouched. No other new train starts without Ido's GO. The no-agent diagnostics (imitation probe, proxy re-measure, noise split) are sitting cells.
+
 ### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |

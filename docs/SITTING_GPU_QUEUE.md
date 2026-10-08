@@ -101,6 +101,10 @@
 | First v10 freeze TEST ep0127 κ 0.8 | **22341736** COMPLETED ~08:26 **§237** | v10 | §211 | r56 **−2.88 @ 0.799** vs mild −2.1 = **−0.78**; residual 3/7/14; census 0.9 only; M1-v10 waits on 37 |
 | First v10 freeze TEST ep0127 κ 0.6 | **22341737** COMPLETED 10:51 **§248** | v10 | §212 | r56 **−5.28 @ 0.600** vs mild −5.1 = **−0.18**; residual **2 / 5 / 13** (mild); census 0.9 only; **M1-v10 FLAT** |
 
+**Ops 8 Oct 21:40 (lean).** No new ledger TEST. Wave 31 COMPLETED — sitting owns. G2-F / G2-E / G2-M R. Resume **272/250**. QOS **9 R / 1 PD**. 2 idle sitting owns. Ledger next **§332**. Next canvas **23:00**. Next 3h **23:40**.
+
+**Ops 8 Oct 21:10 (lean).** No new GPU TEST. Sitting closed **§330 Q7 answered** / **§331** v10 SNR diagnostic. E-M COMPLETED sitting owns. GB200 thin / GB75 / GE-M R. Resume **272/250**. QOS **11 R / 23 PD**. Ledger next **§332**. Next canvas **23:00**. Next 3h **23:40**.
+
 **Ops 8 Oct 20:40 (3h + TEST land).** Sitting closed **§325–§329**: GE **SPEED-EQUIV** K=1 thin **4.1 min**; GB50 **BUDGET-COST** / GB25 **HARM** → 100-ep stays; C2E uncalled → **VGG plain**; G-M **SPEED-EQUIV** → G covers **ResNets+MBV2**; G2-H **BATCH**. E-M / GB200 R. Resume **271/250**. QOS **11 R / 34 PD**. Ledger next **§330**. Next canvas **23:00**. Next 3h **23:40**.
 
 **Ops 8 Oct 20:10 (lean).** No new ledger TEST. Wave 29 COMPLETED — sitting owns. G-M / G2-H R. Resume **270/250**. QOS **9 R / 1 PD**. 2 idle sitting owns. Ledger next **§325**. Next canvas **23:00**. Next 3h **20:38**.

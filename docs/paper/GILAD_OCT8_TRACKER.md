@@ -59,9 +59,9 @@ Prepared for **11:30** (or later). Ledger **§200–§329**. Do not quote probes
 2. **Which filters.** Ranking (L1 vs FPGM vs a learned score) is not the bottleneck after 40 epochs of recovery. A second selection agent is **closed**. Keep L1 inside each layer.
 3. **How many per layer is the game.** On skinny ResNets, “keep skip-connections full” **is the lever** (**§321**, five seeds: +2 pp vs the baseline, +1 pp vs even-cut; extra sensitivity adds nothing). On VGG at equal compute the equal-weight lead **vanishes** (**§320**), with 19% fewer weights. Caption both axes. Never “beats.”
 4. **The agent copied the heuristic.** Two trains, same collapse: one cut size at every step. The new reward *saw* the skip-connection plan (+4 pp on its own scoreboard) and still did not learn it. That is a learning failure, not a hidden recipe. Do not start the diverse-catalog train on this.
-5. **Ask him.** (Q1) robustness vs verification — which literature. (Q2) Michael’s NAP weights / authorship. (Q3) write the selection negative as a thesis section. (Q4) two-decision head as applied, not a claim. (Q5) which cost headline. (Q6) NEON’s band vs a fixed-size reward. (Q7) recovery recipe: cosine-from-0.1 helps full-width nets and hurts the narrow ones (skinny ResNet, MobileNet ×0.5), unpruned controls included; on MobileNet the val half prefers lr 0.01 on all eight rows. Recommended = adopt cosine for full-width rows, val-chosen, quote raw and honest.
+5. **Ask him.** (Q1) robustness vs verification — which literature. (Q2) Michael’s NAP weights / authorship. (Q3) write the selection negative as a thesis section. (Q4) two-decision head as applied, not a claim. (Q5) which cost headline. (Q6) NEON’s band vs a fixed-size reward. **(Q7) answered §330:** keep-last; cosine-0.1 on full-width, cosine-0.01 on narrow, val-chosen, quote raw and honest.
 
-**If short on time:** 1, 3, 4, then Q7 and Q1.
+**If short on time:** 1, 3, 4, then Q1. Q7 is closed.
 
 ---
 
