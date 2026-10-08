@@ -32,7 +32,7 @@ Ido, 8 Oct 20:36: "without a learning agent SPECTRA thesis collapses." This file
 - Every PPO actor that reached TEST collapsed onto one action (§77–§112, §136–§137, §200, §218, §248).
 - Every train before Stage-4 scored its reward on memorized val (§141, §169).
 
-The one possible exception is the in-band-linear actor V6 (§111, §123). Its argmax reads the state (counterfactual state_used 38 % / 53 %), but it has no action census and trained on memorized val.
+The one possible exception was the in-band-linear actor V6 (§111, §123). Its output reads the state (counterfactual state_used 38 % / 53 %), but it trained on memorized val. D-CENSUS (§339, 9 Oct) closed it: on its own walks it picks 0.9 at every free decision, the same schedule as mild.
 
 **Re-test now, without an agent** (each goes into a §4 cell):
 
@@ -128,7 +128,7 @@ The one possible exception is the in-band-linear actor V6 (§111, §123). Its ar
 
 **D-LEVER: does the chosen proxy see the lever?** Zero agent, little GPU. The saved one-shot sens / inner / uniform candidates (§309, §319, §322, §325, §333) and the named plans of D-PROXY are scored by D-PROXY's winning proxy. Plan-level reward shapes are replayed over those scores, as in §200's replay. The call is registered with D-PROXY: the proxy must order sens above mild and uniform on the thin family, the family where the final shows sens − mild +2.38 and sens − uniform +1.18 over five seeds (§337). A proxy that cannot see that contrast cannot train the allocation.
 
-**D-CENSUS: the V6 in-band-linear walks.** Zero GPU. Count the cut sizes in the §111 / §123 step records with §200's census method. Only if the census shows ≥ 2 cut sizes, one frozen re-walk under P + crop+flip with the counterfactual, no training.
+**D-CENSUS: the V6 in-band-linear walks.** Zero GPU. Count the cut sizes in the §111 / §123 step records with §200's census method. Only if the census shows ≥ 2 cut sizes, one frozen re-walk under P + crop+flip with the counterfactual, no training. *Done 9 Oct (§339):* one cut size (0.9) at every free decision on both nets and both snapshots, counted exactly as mild's walk; no re-walk.
 
 **D-NOISE: split of the step-reward spread.** Zero-GPU part done (§331). Repeated 12/4 fine-tunes of the same cut, to separate persistent fine-tune luck from per-layer signal, are deprioritised: the new agent has no per-step fine-tune.
 
@@ -224,7 +224,7 @@ Zero-shot successes elsewhere relied on many training contexts or on a few norma
 
 ## 7. Order of work
 
-1. §3 inventory: done (filed 9 Oct 00:55). The code map is done (§8). D-CENSUS can run at any time (zero GPU).
+1. §3 inventory: done (filed 9 Oct 00:55). The code map is done (§8). D-CENSUS: done (§339, no re-walk).
 2. Build the `tree_v11` core: the plan module (z → keeps by bisection, one cut, BatchNorm recalibration, val read), the state dump and the candidate sampler. CPU tests on a staged copy.
 3. Register D-IMIT (arms (a)–(j)), D-PROXY and D-LEVER in the queue file, then submit them (sitting cells, no agent).
 4. The trainer (REINFORCE with the shared K-plan baseline), then a smoke run of ≤ 30 min.

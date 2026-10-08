@@ -6653,3 +6653,20 @@ Reading:
 
 Records: queue row 90; next §339.
 
+## 339. D-CENSUS (zero GPU): the V6 in-band-linear actor picks one cut size, 0.9, at every free decision (§111 **21512868**, §123 **21536395**), the same schedule as mild — no re-walk (`docs/LEARNING_PROGRAM_OCT8.md` §4)
+
+Read 9 Oct 01:50 (`scripts/_tmp_s9oct_dcensus.sh`; read-only, login node) with §200's method: the TEST walks' `step` events in phase `eval_test`, a cut when params fall. V6's events carry the action as `compression_rate` (no `requested_rate` field yet).
+
+| Walk | r20-w2 | r56-w4 |
+|---|---|---|
+| in-band-linear ep0083 **21512868** (§111) | 12 cuts at 0.9; 4 more at 0.9 that round to the same width; 26 forced identities | 52 cuts at 0.9; 8 at 0.9 rounding; 54 forced identities |
+| in-band-linear ep0095 **21536395** (§123) | identical | identical |
+| mild **21729557** (§200's reference) | identical | identical |
+
+Reading:
+1. **One cut size at every free decision**, on both nets and both snapshots, counted exactly as mild's. The registered rule (one frozen re-walk only if the census shows ≥ 2 cut sizes) does not fire. The plan's one possible exception (§3) is closed: with §200's five, every TESTed actor collapses to a single action.
+2. §111's different r56 operating point (keep 0.756 against mild's 0.923) is val-best selection on the same uniform-0.9 trajectory, not a different policy.
+3. §123's counterfactual (`state_used` 38 % on r20, 53 % on r56) shows that the actor's output responds to its input. On the walk's own states it still picks 0.9 every time.
+
+Records: plan doc §4 D-CENSUS; next §340.
+
