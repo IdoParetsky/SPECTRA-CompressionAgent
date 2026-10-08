@@ -51,11 +51,11 @@
 
 ## 1b. Talking points for 11:30 (7 Oct 23:16; outsider one-liners)
 
-Prepared for **11:30** (or later). Ledger **§200–§321**. Do not quote probes. Never “beats” DepGraph. Five-seed **§307 / §321**; one-shot **§309 / §319**; graphs **§317**; 50-ep **§318**; VGG axes **§320**.
+Prepared for **11:30** (or later). Ledger **§200–§324**. Do not quote probes. Never “beats” DepGraph. Five-seed **§307 / §321**; one-shot **§309 / §319**; graphs **G ADOPT §322 / §324**; C2 **R56-ONLY §323**; VGG axes **§320**.
 
 **Open with.** We do not beat focused SOTA on their home nets. We win if one frozen agent prunes many nets cheaper than training a pruner per net.
 
-1. **Cost.** Fine-tune is ~99% of the bill. The agent is milliseconds. Skip-full: **one cut + a fast recovery is ~5–11 min** vs DepGraph 85 on ResNet-56 (**§309 / §316 / §317**), level not a beat. VGG at 60% **can skip the walk** (**§319**). Skinny skip-full one-shot is ~0.3 pp short of the walk. Extreme VGG still needs the walk (**§310**). Never “beats.” Catch: the cheap path is the recipe, not the frozen actor.
+1. **Cost.** Fine-tune is ~99% of the bill. The agent is milliseconds. Skip-full: **one cut + graphed recovery is 7–8 min** vs DepGraph 85 on ResNet-56 (**§322**), level not a beat. VGG at 60% **can skip the walk** (**§319**). Skinny skip-full one-shot is ~0.3 pp short of the walk. Extreme VGG still needs the walk (**§310**). Never “beats.” Catch: the cheap path is the recipe, not the frozen actor. Sitting **ADOPT** graphs on ResNets; batch-256 is ResNet-only.
 2. **Which filters.** Ranking (L1 vs FPGM vs a learned score) is not the bottleneck after 40 epochs of recovery. A second selection agent is **closed**. Keep L1 inside each layer.
 3. **How many per layer is the game.** On skinny ResNets, “keep skip-connections full” **is the lever** (**§321**, five seeds: +2 pp vs the baseline, +1 pp vs even-cut; extra sensitivity adds nothing). On VGG at equal compute the equal-weight lead **vanishes** (**§320**), with 19% fewer weights. Caption both axes. Never “beats.”
 4. **The agent copied the heuristic.** Two trains, same collapse: one cut size at every step. The new reward *saw* the skip-connection plan (+4 pp on its own scoreboard) and still did not learn it. That is a learning failure, not a hidden recipe. Do not start the diverse-catalog train on this.
@@ -99,7 +99,7 @@ Prepared for **11:30** (or later). Ledger **§200–§321**. Do not quote probes
    - MobileNetV2 ×0.5 at keep 0.6: under cosine the lever is **NONE +0.09** (**§301**); vs mild **+0.25** (**§303**); skip-full is the **worst** arm (inner − uniform **−0.68**). At equal params the four arms order by FLOPs kept. Val prefers lr 0.01 on all eight rows. Wave 21 **complete**.
    - Thin ResNet κ 0.6 on **five seeds (§307 / §321): about +1 pp vs even-cut**, and **+2.08 vs mild**. That lead **is skip-full** (sens − inner −0.34). Wave 9 STRUCTURAL stands. Do **not** start N8.
    - One-shot (**§309 / §319**): VGG at 60% **EQUIVALENT** both arms. Thin skip-full **COST-TRADE −0.33**; even-cut on the bar. The allocation lever survives without the walk. Extreme VGG still needs the walk (**§310**). Never “beats”.
-   - Final-FT engineering (**§317 / §318**): CUDA graphs **SPEED-EQUIV ×3.26** (~5 vs 16 min). Half the epochs **BUDGET-SAFE** on walked nets. Fastest recipe inside the bar is graphs; not adopted (held-out running). DepGraph could take the same tricks.
+   - Final-FT engineering (**§322 / §324**): CUDA graphs **ADOPT** on launch-bound families. One-shot K=1 **7–8 min** vs DepGraph 85 (**§322**). Thin graphs **×4.71** (~3 vs 16 min, §324). Batch-256 is **C2 R56-ONLY** (§323: thin **DIVERGE +0.59**, VGG on the bar). Half the epochs **BUDGET-SAFE** on walked nets (**§318**). DepGraph could take the same tricks. No train or freeze TEST takes the graph tree.
    - VGG equal-params on **three seeds (§312): +0.96 at 5k / +1.45 at 10k**, still 1.36× FLOPs. Two-seed SENS-MATTERS stands. Strong recovery shrinks the lead.
    - The Budget arm shows the same collapse (7 Oct census). STOP was played 74 times early and never after episode 231.
 
