@@ -1113,7 +1113,18 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
     - *Submitted* 21:56:12–21:56:42 (registration commit 21:55:21), nice 28, all PD behind N01:
       - thin sens s44–46 **22404779 / 80 / 83**; thin uniform s44–46 **22404784 / 86 / 87**;
       - thin inner s42–46 **22404788 / 91 / 92 / 93 / 94**; thin mild-landed s42–46 **22404795–799**;
-      - MobileNetV2 inner s42 / 43 **22404800 / 01**; MobileNetV2 mild-landed s42 / 43 **22404804 / 05**. §330 adopted cosine from lr 0.01, keep-last, for the narrow families. G's equivalence (§324, §328) was measured only under cosine-0.1, and some narrow walks predate keep-last (§235).
+      - MobileNetV2 inner s42 / 43 **22404800 / 01**; MobileNetV2 mild-landed s42 / 43 **22404804 / 05**.
+  - *(N01 × G2) registered 8 Oct ~22:05, after G2-M's read and before any N01 read: which narrow recipe the paper rows use.*
+    - *Why.* G2's registered rule fired: **G2 ADOPT**. It is a GAIN on thin one-shot (b_val +0.750) and MobileNetV2 (+1.210), FLAT on R56 (+0.125), with no LOSS. That rule was registered at 20:28, before §330 put narrow nets on cosine from lr 0.01. G2 ran at lr 0.1, where batch 256 halves the step per sample. On both narrow families its honest gain is about 0 (thin +0.12, MobileNetV2 −0.03): batch 256 lifts the unpruned control as much as the pruned nets, the signature of a learning-rate effect. If that is the lever, lr 0.01 at batch 128 already captures it.
+    - *Cell.* No new jobs. On the same candidates, d = N01-G (lr 0.01, batch 128, graphs) − G2 (lr 0.1, batch 256, graphs):
+      - thin walked: N01-G 22404707–710 against G2-H 22404005 / 06 / 10 / 12;
+      - MobileNetV2 walked: N01-G 22404711–714 against G2-M 22404228–231.
+      Four pairs per family. b_val (the val half) selects; 10k and 5k are reported.
+    - *Calls, per family.*
+      - **LR-ABSORBS** if mean d_val ≥ −0.30. lr 0.01 matches batch 256 at lr 0.1, and §330's recipe stands on that family. The paper's narrow rows stay at lr 0.01, batch 128 (N01-P / N02), and G2's ADOPT does not apply to that family.
+      - **BATCH-ADDS** if mean d_val ≤ −0.30. Reported to Ido; §330 stands until he calls. The next step would be a registered lr-0.01 × batch-256 cell, not submitted before it is registered.
+      - Between the two: §330 stands, reported.
+    - *Scope of G2's ADOPT meanwhile.* It covers G's new no-agent cells at lr 0.1. On R56 that is FLAT at ×1.16 (honest −0.22, reported). It changes no row already quoted. §330 adopted cosine from lr 0.01, keep-last, for the narrow families. G's equivalence (§324, §328) was measured only under cosine-0.1, and some narrow walks predate keep-last (§235).
     - *(N01-P)* The plain final fine-tune: SGD, cosine from **lr 0.01**, keep-last, batch 128, 100 epochs, origin control (`tree_v10k`, nice 27). It runs on the thin r56-w4 walked sets (`tree_v10h/runs/job22340391 / 92`, `22341281 / 82`: sens / uniform × s42 / s43) and wave 21's MobileNetV2 ×0.5 walked sets (`tree_v10h/runs/job22376484 / 85 / 88 / 90`). 8 jobs.
     - *(N01-G)* The same lr-0.01 keep-last recipe under G (GPU crop+flip, CUDA graphs; `tree_v10l`, nice 27) on the same 8 sets. 8 jobs.
     - *Calls.* Per family on the four pairs, G − plain at 10k on C's bars: SPEED-EQUIVALENT if \|mean\| ≤ 0.30 at ≥ ×1.5; DIVERGE if > 0.50. If SPEED-EQUIVALENT, G's ADOPT extends to lr 0.01 on that family. Reported:
