@@ -6006,3 +6006,26 @@ Mechanism. The stack leaves the wall-clock where it was (×0.95), so neither the
 
 Read. On walked DepGraph-R56 candidates, half the optimizer steps keep accuracy, and the final fine-tune takes 8.0–8.8 min instead of 15.8–16.7. That does not touch the walk (116–233 min on the walked path), so the walked K=1 barely moves. On the one-shot path (§309: a 2–3 min cut plus the fine-tune) it would take K=1 from about 19 min to about 11, but there the candidates arrive near chance and the fine-tune does all of the recovery, so nothing is quoted until (F) reads (registered 13:36, commit a436001: C2's flags on Tier 1's saved one-shot candidates, 22399200 / 201 / 209 / 210, transplants 22399211 / 212 reported). C2 is an adopt candidate, not adopted: held-out candidate sets (the thin and VGG walks' saved candidates, waves 19 / 20) confirm first, and among the SPEED-EQUIVALENT recipes of C2, C3 (batch 256, lr 0.2) and C4 (batch 512, lr 0.4, 5 warmup epochs; registered 13:08, commit 88ae3e7) the fewest steps go first. C's NO-GAIN fires the registered conditional: a CUDA-graph or `torch.compile` final-fine-tune bench in a new tree, default off, registered before it is built. Against DepGraph the comparison stays epochs plus wall-clock: batch size changes neither the epoch count (100 against DepGraph's 200) nor the arithmetic, so C2 is an engineering gain that DepGraph's loop could take too, and the paper says so.
 
+## 312. Wave 27 (part 1): VGG-19 C100 sens / uniform at params 0.6, seed 44 (**22395796 / 22395797**, cosine-0.1-last re-reads of walks **22395791 / 92**; uniform κ 0.645 **22395798** of 22395793) — PRELIM, reported; the three-seed equal-params lever under cosine is **+0.96** at 5k (+1.54 / +1.94 / **−0.60**, SD 1.37) and **+1.45** at 10k (+2.07 / +1.72 / +0.57, SD 0.78), captioned 1.36× FLOPs; seed 44 reverses at 5k but not at 10k or on val; at lr 0.01 the same lever is **+2.65** (+2.76 / +2.78 / +2.40, SD 0.21); §294's two-seed SENS-MATTERS stands as registered, and the slide's VGG line becomes the three-seed figure with its range
+
+Setup. Registered 8 Oct 09:33 (queue, wave 27): seed 44 of the VGG-19 C100 allocation cells, on both axes and against mild, reported with no new call; every seed counts and no seed comes after 44. Seed 44's walks landed on seeds 42 / 43's architectures, as the start check required: sens at step 26 (params 0.600, FLOPs 0.749), uniform at step 36 (params 0.600, FLOPs 0.551), uniform κ 0.645 at step 15 (params 0.645, FLOPs 0.655). The re-reads use `tree_v10k` and cosine-0.1-last (SGD 0.1, cosine, wd 5e-4, 100 epochs, `select=last`, batch 128, CPU crop+flip, origin control) on the walks' saved candidates, under P (`SPECTRA_VAL_FROM_TEST=1`; 5k is the TEST half, 10k both halves). All three COMPLETED 13:46–14:05 (18–19 min each, exit 0, TB 0, no NaN).
+
+Size point, Δacc in pp against the unpruned net:
+
+| Seed | sens 5k / val / 10k | uniform 5k / val / 10k | sens − uniform 5k / val / 10k | honest | lr 0.01 lever 5k / 10k |
+|---|---|---|---|---|---|
+| 42 (§294) | +0.44 / +1.68 / +1.06 | −1.10 / −0.92 / −1.01 | +1.54 / +2.60 / +2.07 | +1.08 | +2.76 / +2.74 |
+| 43 (§294) | +0.44 / +0.88 / +0.66 | −1.50 / −0.62 / −1.06 | +1.94 / +1.50 / +1.72 | +2.94 | +2.78 / +3.47 |
+| **44** | **−0.14 / +1.22 / +0.54** | **+0.46 / −0.52 / −0.03** | **−0.60 / +1.74 / +0.57** | −0.78 | +2.40 / +3.27 |
+| mean (SD) | | | **+0.96 (1.37) / +1.95 (0.58) / +1.45 (0.78)** | +1.08 (1.86) | +2.65 (0.21) / +3.16 (0.38) |
+
+Origin controls at 5k (sens job / uniform job): s42 +0.98 / +0.52, s43 +0.74 / +1.74, s44 +1.30 / +1.12. Uniform κ 0.645 at s44 (22395798): 5k −0.06, val +0.46, 10k +0.20 (origin +0.90); it enters the equal-FLOPs read with κ 0.814 (22395800, PD).
+
+Reported, as registered. The equal-params lever (sens − uniform at params 0.6) over three seeds under cosine: 5k mean +0.96 (SD 1.37, range −0.60 to +1.94); val +1.95 (+1.50 to +2.60); 10k +1.45 (+0.57 to +2.07). Under lr 0.01 (the walks' own final fine-tune): +2.65 at 5k (SD 0.21), +3.16 at 10k.
+
+Read.
+- The sign holds at 10k and on val for all three seeds; at the registered 5k read one seed in three is negative. Seed 44's two halves disagree on the lever by 2.34 pp (5k −0.60, val +1.74): uniform's halves differ by 0.98 and sens's by 1.36, the run-to-run spread the origin controls show at 5k (0.56–1.18 between identical runs). The lever is real, but under the genuine fine-tune it is about +1 at 5k and +1.5 at 10k, not the two-seed +1.74 / +1.90.
+- The strong fine-tune shrinks it. Going from lr 0.01 to cosine-0.1 lifts uniform by +3.00 at 5k (s42 / 43 mean) and +4.36 (s44), and sens by +1.97 and +1.36. The allocation's advantage is largely recoverability under a weak fine-tune, and 100 epochs of SGD 0.1 recover most of it (the direction §294 saw at two seeds).
+- Captions unchanged. At equal params sens keeps 1.36× uniform's FLOPs (0.749 against 0.551). At equal FLOPs the two-seed lever was FLOPS-ONLY (+0.11, §305); seed 44's equal-FLOPs read needs uniform κ 0.814 (22395800).
+- §294's two-seed call stands as registered. The slide's VGG equal-params line becomes "+0.96 at 5k / +1.45 at 10k over three seeds (one seed negative at 5k), at 1.36× FLOPs". Sens − mild at three seeds waits on 22395801 (after walk 22395795).
+
