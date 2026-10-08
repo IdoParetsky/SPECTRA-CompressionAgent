@@ -6102,3 +6102,125 @@ Reported: F − the walked arm's plain cosine re-read at 10k is −0.21 / −0.1
 
 Cost (the registered wording applies: F is SPEED-EQUIVALENT and sens is ONE-SHOT-EQUIVALENT, §309): the one-shot pipeline with C2's fine-tune is faster than DepGraph's pipeline on the same GPU model, at accuracy level with it. K=1 is 10.9 / 11.4 min (sens s42 / s43) against DepGraph 21943448's 85.1 (`rtx_4090`, `ise-4090-04`). Beside the minutes: F's 100 epochs at batch 256 are about 19,600 optimizer steps, against Tier 1's 39,100 at batch 128. DepGraph's own pipeline could take the same engineering, so this compares SPECTRA's measured pipeline with DepGraph's as published; it is not a method beat. C2 now holds on walked (§311) and one-shot (§316) R56 candidates. No adoption from these alone: C2's held-out families (thin, VGG) come next ((C2-H), queue).
 
+## 317. Wave 28 (G): the plain final fine-tune with its forward / backward replayed as CUDA graphs, on the four walked DepGraph-R56 candidate sets (**22400395 / 97 / 98 / 99**) — PRELIM; registered call **SPEED-EQUIVALENT**: mean Δ10k **−0.140** against the plain cosine re-reads (5k −0.03, val −0.26, honest −0.07) at **×3.26** (size-point fine-tune 4.8–5.1 min against 15.8–16.7); G − C2 −0.155 (reported); R56's fine-tune cost was kernel-launch overhead, not arithmetic; no adoption before (G-F) / (G-H)
+
+Registered 8 Oct 13:52 (commit `4259f72`), code `9e635f6` (`tree_v10l`), submitted on G0's GRAPH-WIN with exact one-step parity (§313). The plain recipe (batch 128, SGD lr 0.1, cosine, wd 5e-4, `last`, 100 epochs, origin control) with `SPECTRA_FT_AUG_GPU=1 SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH=1`, AMP and channels_last off, on C's candidate sets (`tree_v10h/runs/job22340524 / 23`, `job22344276 / 75`, `traj_models`). 22400395 COMPLETED 15:51 (11 m 26 s, `ise-4090-11`), 22400397 15:51 (11 m 06 s, `cs-4090-07`), 22400398 15:58 (11 m 26 s, `ise-4090-11`), 22400399 16:02 (11 m 14 s, `ise-4090-05`); all exit 0, TB 0, no NaN, `last` kept, each at its walked arm's size point. Start checks green: `graph=1` on the recipe line, `CUDA graph captured: batch 128` in 0.6–0.8 s, `39000 graphed steps, 100 eager` (each epoch's short last batch runs eagerly), the origin control captured too, no fallback line.
+
+| Arm | Seed | G | Plain re-read | Step / params | G 10k (5k / val) | Plain 10k (5k / val) | Δ10k | Δ5k | Δval | Honest | Origin 5k, G / plain | FT min, G / plain | Speed | G − C2, 10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| uniform | 42 | 22400395 | 22374248 | 113 / 0.465 | +0.26 (+0.22 / +0.30) | +0.27 (+0.18 / +0.36) | −0.01 | +0.04 | −0.06 | −0.68 | +1.32 / +0.60 | 5.1 / 16.7 | 3.27 | +0.32 |
+| sens | 42 | 22400397 | 22374230 | 165 / 0.469 | +0.02 (+0.22 / −0.18) | +0.26 (+0.06 / +0.46) | −0.24 | +0.16 | −0.64 | +0.12 | +0.74 / +0.70 | 4.8 / 16.0 | 3.33 | −0.13 |
+| uniform | 43 | 22400398 | 22376026 | 113 / 0.465 | −0.03 (−0.08 / +0.02) | +0.16 (+0.14 / +0.18) | −0.19 | −0.22 | −0.16 | +0.14 | +0.66 / +1.02 | 5.0 / 16.0 | 3.20 | −0.32 |
+| sens | 43 | 22400399 | 22376025 | 201 / 0.469 | +0.17 (+0.18 / +0.16) | +0.29 (+0.26 / +0.32) | −0.12 | −0.08 | −0.16 | +0.14 | +0.60 / +0.82 | 4.9 / 15.8 | 3.22 | −0.49 |
+
+Call (registered, C's bars): mean Δ10k **−0.140** at ×3.26 (mean G / plain minutes 0.307) → **SPEED-EQUIVALENT** (\|mean Δ\| ≤ 0.30 at ≥ 1.5×). All four 10k deltas are negative (−0.01 to −0.24); the 5k half is level (−0.03) and the val half carries the gap (−0.26); honest −0.07. Identical plain re-runs move 0.56–1.18 at 5k (§309), and G0's one-step parity was exact (§313). So the difference is the trajectory: GPU crop+flip draws a different augmentation stream, while the graph replays the same kernels.
+
+Reported: G − C2 (paired, 10k) +0.32 / −0.13 / −0.32 / −0.49, mean −0.155. The ladder on these four candidate sets (plain 15.8–16.7 min):
+- C (GPU crop+flip, AMP and channels_last at batch 128): ×0.95, NO-GAIN (§311).
+- C2 (C at batch 256): ×1.93, +0.015 (§311).
+- C3 (C2 at lr 0.2): ×1.91, −0.22 (§314).
+- C4 (batch 512): ×3.65, −0.48, uncalled (§314).
+- D (C at 50 epochs): ×2.05 against C, +0.00 (§318).
+- G: ×3.26, −0.14.
+
+G is the fastest recipe inside the accuracy bar. It keeps the plain recipe's batch, lr, precision and step count: R56's fine-tune was launch-bound (G0: 19.6 → 7.9 ms a step at batch 128).
+
+**Read.**
+- Engineering only: the same candidates, recipe and step count, so the method does not move. G's rows measure the recipe; they do not join the plain rows as new TEST rows.
+- No adoption from G alone (registered). (G-F) on Tier 1's one-shot candidates and (G-H) on the thin walks were registered at 16:08 and submitted at 16:09 (queue). VGG-19 is not run, because G0 measured ×1.04 there.
+- Do not lock. Never an agent row.
+
+## 318. Wave 28 (D): C at 50 epochs on the four walked DepGraph-R56 candidate sets (**22396432 / 33 / 34 / 35**) — PRELIM; registered call **BUDGET-SAFE**: mean Δ10k (50 − 100 epochs, C the reference) **+0.00** (−0.11 / +0.04 / +0.11 / −0.04; 5k −0.01, val +0.01) at **×2.05**; the registered prior (Le & Hua lose 0.43 going from CLR-100 to CLR-50 on one R56 cell) does not show here; the walked candidates recover within 50 epochs, and the second 50 mostly lift the unpruned origin control
+
+Registered 8 Oct 10:24 (Tier 3, queue "FT cost"), nice 27. C's flags (`SPECTRA_FT_AUG_GPU=1 SPECTRA_AMP=1 SPECTRA_CHANNELS_LAST=1`, batch 128, lr 0.1, cosine, `last`, origin) with `SPECTRA_EVAL_FINAL_FT_EPOCHS=50`, `tree_v10k`, on C's candidate sets. 22396432 COMPLETED 15:39 (16:51, `ise-4090-11`), 22396433 15:47 (16:17, `ise-4090-11`), 22396434 15:52 (17:29, `cs-4090-08`), 22396435 16:08 (16:19, `cs-4090-07`); all exit 0, TB 0, no NaN, `last` kept, each at its walked arm's size point. Start checks green: C's three flags, 50 epochs (`patience=51`), the right `traj_models` and seed.
+
+| Arm | Seed | D | C (100 ep) | D 10k (5k / val) | Δ10k vs C | Δ5k | Δval | Honest | Origin 5k, D / C | FT min, D / C | Speed vs C | D − plain, 10k |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| uniform | 42 | 22396432 | 22396423 | +0.07 (−0.22 / +0.36) | −0.11 | −0.12 | −0.10 | +0.30 | +0.64 / +1.06 | 8.5 / 17.1 | 2.01 | −0.20 |
+| sens | 42 | 22396433 | 22396425 | −0.03 (−0.34 / +0.28) | +0.04 | −0.28 | +0.36 | +0.26 | +0.66 / +1.20 | 7.9 / 17.2 | 2.18 | −0.29 |
+| uniform | 43 | 22396434 | 22396427 | +0.20 (+0.18 / +0.22) | +0.11 | +0.24 | −0.02 | +0.64 | +0.42 / +0.82 | 8.7 / 17.4 | 2.00 | +0.04 |
+| sens | 43 | 22396435 | 22396429 | +0.25 (+0.30 / +0.20) | −0.04 | +0.14 | −0.22 | +0.66 | +0.42 / +0.94 | 7.9 / 15.9 | 2.01 | −0.04 |
+
+Call (registered): mean Δ10k **+0.000** (5k −0.005, val +0.005) at ×2.05 → **BUDGET-SAFE** (≥ −0.20).
+
+Reported: honest **+0.47**. C's 100-epoch origin controls gain +0.82 to +1.20 at 5k and D's 50-epoch ones +0.42 to +0.66, while the pruned candidates read the same. D − the plain cosine re-read at 10k is −0.20 / −0.29 / +0.04 / −0.04, mean −0.12, at about ×1.96 (8.25 against 16.1 min). That is inside C's bars against plain, reported only. C itself is NO-GAIN at ×0.95, so D's speed comes from the epochs alone.
+
+**Read.**
+- These are walked candidates, already partly recovered by the walk's per-step fine-tunes, and half the final fine-tune holds their accuracy. One-shot candidates start from the bare cut (§309, §319) and are untested at 50 epochs; that is the next budget question.
+- The registered prior's −0.43 does not show on these four pairs (one 10k read per pair).
+- Do not lock. Never an agent row.
+
+## 319. Wave 28 (E): one-shot generality on the thin r56-w4 and VGG-19 C100 at params 0.6 (thin **22398198 / 202 / 204 / 206**, VGG **22398201 / 203 / 205 / 207**) — PRELIM; registered calls on the two-seed d10k = one-shot − walked: VGG-19 **sens ONE-SHOT-EQUIVALENT +0.62**, **uniform ONE-SHOT-EQUIVALENT +0.41**; r56-w4 **sens COST-TRADE −0.33** (−0.71 / +0.05) and **uniform ONE-SHOT-EQUIVALENT −0.30**, exactly on the bar (−43 and −17 of 10,000 images); the one-shot allocation lever matches the walked one (r56-w4 +1.41 against +1.44; VGG +2.11 against +1.90); K=1 16.9–17.8 min against 127–146 (r56-w4) and 9.2–9.8 against 25–66 (VGG)
+
+Registered 8 Oct 12:58, before submit ((E) fired on (A)'s calls, §309). `tree_v10k`, Tier 1's recipe: profile `baseline_c10_alloc_traj_gonce`, P, landed (fixed target, 6 passes), 5-rate menu, `param:0.6`, `SPECTRA_NUM_EPOCHS=0`, and the cosine-0.1-last final FT (100 epochs, batch 128, origin). Sens and uniform, seeds 42 / 43, nice 25, `rtx_4090`. Comparators are the walked arms' cosine re-reads: thin 22374680 / 81 / 86 / 87 (walks 22340391 / 92, 22341281 / 82) and VGG 22376019 / 13 / 10 / 14 (walks 22375982 / 83 / 85 / 86).
+
+The thin jobs COMPLETED 16:06–16:10 (1 h 06 m – 1 h 08 m, `ise-4090-11 / 04 / 13 / 07`) and the VGG jobs in 19–29 min (`ise-4090-02 / 09 / 13`, `cs-4090-08`). All exit 0, TB 0, no NaN, and the walk logs print the skipped per-step fine-tunes (41–42 per thin walk, 6 / 20 per VGG sens / uniform walk). Landing checks green: every size point is the walked arm's step (r56-w4 sens 169, uniform 96; the r20-w2 guard 40; VGG sens 26, uniform 36), params within 0.003 and FLOPs within 0.002 (the walked r56-w4 sens s43 landed at 0.597 / 0.568). The `[alloc]` plans match: uniform identical, sens x0.578 / 0.582 against the walks' 0.582 / 0.582 on r56-w4. On VGG sens the size point is also the one-shot walk's `val_best` (log: same point), so that row is read.
+
+| Net | Arm | Seed | One-shot | Walked re-read | Step / params / FLOPs | Cut-only 5k | One-shot 10k (5k / val) | Walked 10k (5k / val) | d10k | d5k | dval | Honest | K=1 min, one-shot / walked |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| r56-w4 | sens | 42 | 22398198 | 22374680 | 169 / 0.600 / 0.572 | −67.88 | −3.25 (−3.76 / −2.74) | −2.54 (−2.68 / −2.40) | −0.71 | −1.08 | −0.34 | −1.30 | 17.6 / 142.7 |
+| r56-w4 | sens | 43 | 22398204 | 22374686 | 169 / 0.600 / 0.566 | −60.08 | −2.83 (−3.06 / −2.60) | −2.88 (−3.06 / −2.70) | +0.05 | +0.00 | +0.10 | +0.38 | 17.8 / 145.7 |
+| r56-w4 | uniform | 42 | 22398202 | 22374681 | 96 / 0.599 / 0.582 | −78.48 | −4.53 (−4.70 / −4.36) | −4.10 (−4.16 / −4.04) | −0.43 | −0.54 | −0.32 | −0.34 | 17.2 / 131.8 |
+| r56-w4 | uniform | 43 | 22398206 | 22374687 | 96 / 0.599 / 0.582 | −78.48 | −4.37 (−4.48 / −4.26) | −4.20 (−4.46 / −3.94) | −0.17 | −0.02 | −0.32 | +0.00 | 16.9 / 126.8 |
+| VGG-19 C100 | sens | 42 | 22398201 | 22376019 | 26 / 0.600 / 0.749 | −5.80 | +1.44 (+1.08 / +1.80) | +1.06 (+0.44 / +1.68) | +0.38 | +0.64 | +0.12 | +1.12 | 9.3 / 25.3 |
+| VGG-19 C100 | sens | 43 | 22398205 | 22376010 | 26 / 0.600 / 0.749 | −5.80 | +1.52 (+1.56 / +1.48) | +0.66 (+0.44 / +0.88) | +0.86 | +1.12 | +0.60 | +0.32 | 9.2 / 26.3 |
+| VGG-19 C100 | uniform | 42 | 22398203 | 22376013 | 36 / 0.600 / 0.551 | −71.52 | −0.88 (−1.36 / −0.40) | −1.01 (−1.10 / −0.92) | +0.13 | −0.26 | +0.52 | −1.72 | 9.5 / 64.0 |
+| VGG-19 C100 | uniform | 43 | 22398207 | 22376014 | 36 / 0.600 / 0.551 | −71.52 | −0.37 (−0.82 / +0.08) | −1.06 (−1.50 / −0.62) | +0.69 | +0.68 | +0.70 | +1.80 | 9.8 / 66.4 |
+
+The r20-w2 guard (reported, no call): sens d10k −0.18 / +0.01 (two-seed −0.085), uniform −1.19 / −1.44 (−1.315).
+
+Calls (registered, 10k, two-seed mean of d):
+- **r56-w4 sens: COST-TRADE**, −0.33 (5k −0.54, val −0.12, honest −0.46).
+- **r56-w4 uniform: ONE-SHOT-EQUIVALENT**, −0.300 (5k −0.28, val −0.32, honest −0.17). The mean sits exactly on the inclusive bar (−43 and −17 of 10,000 test images); one more error on either seed would read COST-TRADE.
+- **VGG-19 sens and uniform: ONE-SHOT-EQUIVALENT**, +0.62 and +0.41 (5k +0.88 / +0.21, val +0.36 / +0.61, honest +0.72 / +0.04).
+
+**Read (reported items beside the calls).**
+- *One-shot allocation lever, sens − uniform at 10k.* r56-w4 +1.28 / +1.54, two-seed **+1.41**, against the walked cosine +1.44 (§268). VGG +2.32 / +1.89, two-seed **+2.11**, against +1.90 (§294). The r20-w2 guard reads +0.645 against −0.585. The walk's per-step fine-tunes do not absorb the lever on these families. On DepGraph R56, one-shot opened a lever the walk had closed (+0.50 against +0.06, §309); here it keeps the walked size.
+- *Across the one-shot cells at matched size points (two seeds, 10k).* DepGraph R56 0.47: sens −0.155, uniform −0.595 (§309). DepGraph's own widths at 2.11×: −0.025 (§310). r56-w4 0.6: sens −0.33, uniform −0.30. VGG-19 0.6: sens +0.62, uniform +0.41. At these sizes the walk buys at most about 0.6 pp, and nothing on VGG-19 at 0.6; at VGG-19's 8.84× (one seed, §310) it bought 2.57.
+- *K=1 (plain recipe minutes).* Beside the ONE-SHOT-EQUIVALENT cells, the one-shot pipeline takes 9.2–9.8 min on VGG and 16.9 / 17.2 min on r56-w4 uniform, against the walked arms' 25.3–66.4 and 126.8–131.8. r56-w4 sens (COST-TRADE) trades 0.33 at 10k for ×8.1. (G-H) and (C2-H) measure the fast fine-tunes on the same thin walked candidates.
+- Do not lock. Never an agent row.
+
+## 320. Wave 27 (part 2): VGG-19 C100 at seed 44, uniform κ 0.814 and mild-landed under cosine-0.1-last (**22395800** / **22395801**, re-reads of walks 22395794 / 95) — PRELIM, reported; the three-seed equal-FLOPs lever sens − uniform is **−0.04** at 5k (+0.29 / −0.07 / −0.33, SD 0.31), 10k +0.20, lr 0.01 +0.34 (SD 0.03), so §305's FLOPS-ONLY stands; three-seed sens − mild at params 0.6 is **+0.49** at 5k (+0.10 / +1.34 / +0.04, SD 0.73), **+0.90** at 10k (SD 0.26), lr 0.01 +1.24, and **−0.04** once mild is interpolated to sens's FLOPs: on VGG-19 C100 sens has uniform's and mild's accuracy at equal FLOPs, with 19 % fewer params
+
+Registered 8 Oct 09:33 (wave 27). Re-reads in `tree_v10k` (wave 19's recipe: cosine from lr 0.1, `last`, 100 epochs, origin, P), seed 44, by `afterok` on the walks. 22395800 COMPLETED 15:41 (20 m 27 s, `cs-4090-07`) and 22395801 16:11:51 (19 m 15 s, `ise-4090-15`); both exit 0, TB 0, no NaN, on seeds 42 / 43's architectures (κ 0.814: params 0.814, FLOPs 0.819; mild: step 42, params 0.600, FLOPs 0.591). Start checks green (seed 44, the walk's `traj_models`, `cifar-100`, lr 0.1, `last`, 100 epochs, origin). Reader `_tmp_s8oct_readw27b.sh`, which reproduces §305's +0.29 / −0.07 and §298's +0.72 on seeds 42 / 43.
+
+| Seed 44 cell | Re-read | Walk | Params / FLOPs | Cos 5k / val / 10k | 5k − origin's 5k | lr 0.01 5k / 10k |
+|---|---|---|---|---|---|---|
+| Sens κ 0.6 (§312) | 22395796 | 22395791 | 0.600 / 0.749 | −0.14 / +1.22 / +0.54 | −1.44 | −1.50 / −0.86 |
+| Uniform κ 0.645 (§312) | 22395798 | 22395793 | 0.645 / 0.655 | −0.06 / +0.46 / +0.20 | −0.96 | −2.04 / −1.56 |
+| **Uniform κ 0.814** | 22395800 | 22395794 | 0.814 / 0.819 | +0.38 / +1.26 / +0.82 | −0.08 | −1.66 / −1.58 |
+| **Mild κ 0.6** | 22395801 | 22395795 | 0.600 / 0.591 | −0.18 / −0.48 / −0.33 | −1.14 | −3.04 / −2.81 |
+
+| VGG-19 C100, cosine 5k | s42 | s43 | s44 | **Mean (SD)** | val | 10k (SD) | honest | lr 0.01 5k (SD) / 10k |
+|---|---|---|---|---|---|---|---|---|
+| Lever_eqF, sens − uniform interpolated at FLOPs 0.749 | +0.29 | −0.07 | −0.33 | **−0.04** (0.31) | +0.44 | +0.20 (0.38) | −0.10 | +0.34 (0.03) / +0.64 |
+| Sens − mild at params 0.6 | +0.10 | +1.34 | +0.04 | **+0.49** (0.73) | +1.31 | +0.90 (0.26) | +0.13 | +1.24 (0.30) / +1.65 |
+| Sens − mild interpolated at FLOPs 0.749 | +0.11 | +0.12 | −0.35 | −0.04 (0.27) | +0.49 | +0.23 (0.27) | −0.15 | |
+
+Interpolation is linear in landed FLOPs, as §305. Uniform puts weight 0.570 on the κ 0.814 cell (the same architectures on all three seeds) and keeps params 0.741 at sens's FLOPs. Mild's line runs to the κ 0.814 cell with weight 0.691.
+
+**Read (reported; no new call).**
+- *Equal FLOPs.* Seed 44 (−0.33) sits below seeds 42 / 43. The three-seed mean is −0.04 at 5k and +0.20 at 10k, on the FLOPS-ONLY side of §305's bars (≤ +0.3) on both halves, so §305's two-seed call stands as registered. Under lr 0.01 the lever is +0.34 with SD 0.03: the weaker fine-tune leaves a small, consistent residue that cosine removes. §305's sequence (walk +0.72, lr 0.01 +0.35, cosine +0.11) now ends at cosine −0.04.
+- *Sens − mild.* At equal params sens leads mild by +0.49 at 5k and +0.90 at 10k (val +1.31), at 1.27× mild's FLOPs. Interpolated to sens's FLOPs, the lead is −0.04 at 5k and +0.23 at 10k. §298's two-seed +0.72 becomes the three-seed +0.49 with its range (+0.04 to +1.34).
+- *For the slide (VGG-19 C100, three seeds).* At params 0.6 sens leads uniform by +0.96 at 5k (§312) and mild by +0.49; at equal FLOPs it leads neither (−0.04 / −0.04). The caption stays §305's: uniform's accuracy at equal FLOPs with 19 % fewer params (0.600 against 0.741). The thin r56-w4 lever (§307, five seeds, +0.96 at 5k with sens and uniform at equal FLOPs) holds on both axes, and §321 attributes it to the inner rule.
+- No seeds after 44 (registered). Do not lock. Never an agent row.
+
+## 321. Wave 26: thin κ 0.6 mild-landed and inner at seeds 44 / 45 / 46 under cosine-0.1-last (walks mild **22395413 / 14 / 15**, inner **22395416 / 17 / 21**; re-reads **22395424 / 25 / 26**, **22395427 / 28 / 29**) — PRELIM, reported; five-seed r56-w4 contrasts under cosine at 5k: sens − mild **+2.08** (SD 0.73; +2.92 / +1.88 / +1.00 / +2.52 / +2.10), mild − uniform **−1.12** (SD 0.59), inner − uniform **+1.31** (SD 0.38), sens − inner **−0.34** (SD 0.18; 10k +0.03); §269's bar and wave 9's STRUCTURAL stand; sens's lead over uniform on r56-w4 is the inner rule's
+
+Registered 8 Oct 08:35. Walks: mild in `tree_v10` (§212's recipe: 3-rate menu, 6 passes, landed `param:0.6`, P, loader crop+flip, walk 40/10, lr 0.01 final FT + origin, deterministic) and inner in `tree_v10i` (undershoot 0.02), seeds 44 / 45 / 46. Every walk exited 0 with TB 0 and no fallback, on seeds 42 / 43's architectures: r56-w4 mild step 136 (params 0.600, FLOPs 0.453), inner step 106 (0.595 / 0.580); the r20-w2 guard mild 0.584 / 0.674, inner 0.582 / 0.722. Cosine re-reads (`tree_v10k`, wave 19's recipe, `afterok`, nice 24) all exit 0, TB 0, no fallback, `last` kept on every final FT, 49–52 min each: 22395427 / 28 / 29 COMPLETED 14:09 / 14:21 / 14:23, 22395424 / 26 at 15:00 / 15:01, 22395425 at 16:01. Sens and uniform at seeds 42–46 are §307's five-seed cells (sens FLOPs 0.566–0.575, uniform 0.582).
+
+| r56-w4, five seeds, cosine | 5k mean (SD) | 5k per seed, s42 / 43 / 44 / 45 / 46 | val | 10k (SD) | lr 0.01 5k (SD) | lr 0.01 10k | Walk endpoints |
+|---|---|---|---|---|---|---|---|
+| Sens − mild | **+2.08** (0.73) | +2.92 / +1.88 / +1.00 / +2.52 / +2.10 | +2.08 | +2.08 (0.51) | +2.44 (0.54) | +2.52 | +2.90 |
+| Mild − uniform | **−1.12** (0.59) | −1.44 / −0.48 / −0.48 / −1.62 / −1.58 | −0.98 | −1.05 (0.43) | −1.37 (0.23) | −1.40 | −1.24 |
+| Inner − uniform | **+1.31** (0.38) | +1.72 / +1.72 / +1.00 / +1.02 / +1.08 | +0.71 | +1.01 (0.35) | +0.99 (0.21) | +1.21 | +1.82 |
+| Sens − inner | **−0.34** (0.18) | −0.24 / −0.32 / −0.48 / −0.12 / −0.56 | +0.40 | +0.03 (0.19) | +0.08 (0.70) | −0.09 | −0.16 |
+
+New cells under cosine (5k / val / 10k): mild s44 −4.32 / −4.78 / −4.55, s45 −5.18 / −4.62 / −4.90, s46 −5.48 / −5.16 / −5.32; inner s44 −2.84 / −3.00 / −2.92, s45 −2.54 / −3.22 / −2.88, s46 −2.82 / −2.92 / −2.87. The r20-w2 guard (reported, cosine 5k / 10k): sens − mild −0.05 / −0.12, mild − uniform −0.43 / −0.29, inner − uniform +1.29 / +1.77, sens − inner −1.77 / −2.18.
+
+**Read (reported; no new call).**
+- *Sens − mild* (§269's bar, two-seed +2.40 at 5k): five-seed **+2.08** at 5k, positive on every seed (+1.00 to +2.92, SE 0.33), +2.08 at 10k, +2.44 at lr 0.01. §269's bar stands as registered.
+- *Where the lead comes from.* Mild − uniform is −1.12, with mild at FLOPs 0.453 against uniform's 0.582 at the same params, so the baseline's own cut is worse than uniform's here. Inner − uniform is +1.31, and sens − inner is −0.34 at 5k and +0.03 at 10k (val +0.40). Sens's five-seed lead over uniform (+0.96, §307) is therefore the inner rule's (+1.31); sens adds nothing measurable over it. Wave 9's STRUCTURAL (sens − inner ≤ +0.5) stands on five seeds. The r20-w2 guard agrees in direction (inner − uniform +1.29, sens − inner −1.77).
+- *Noise.* The SDs are 0.18–0.73 at 5k, and the five-seed SEs 0.08–0.33.
+- No seeds after 46 (registered). Do not lock. Never an agent row.
+
