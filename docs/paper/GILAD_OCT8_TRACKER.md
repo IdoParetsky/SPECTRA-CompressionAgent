@@ -456,6 +456,11 @@ Prepared for **11:30** (or later). Ledger **§200–§329**. Do not quote probes
     - DepGraph's own widths lose 0.46 at 75 epochs, so the like-for-like DepGraph row stays at 100.
   - **Batch 256.** R56 FLAT; thin GAIN (+0.75 on val); MobileNetV2 decides.
   - **Next (16 jobs, registered 21:47).** The narrow-net rows under the adopted lr-0.01 keep-last recipe, plain and graphed. None of those walks' own fine-tunes had kept the last epoch.
+- **8 Oct ~22:10 (sitting)** — *Batch 256 adopted by its rule; on narrow nets it looks like the learning rate* (ledger §335; queue wave 32–34).
+  - **G2 ADOPT.** Batch 256 under graphs (lr 0.1): R56 FLAT, thin one-shot GAIN (+0.75 on val), MobileNetV2 GAIN (+1.21), no LOSS. The registered rule adopts it for G's new no-agent cells.
+  - **But on both narrow nets the honest gain is about 0.** Batch 256 lifts the unpruned control as much as the pruned nets. The MobileNetV2 control goes from −1.24 to +0.07, the thin control from −1.05 to −0.29. Halving the step per sample removes the harm that lr 0.1 does to narrow nets, the same harm §330 fixed by starting at lr 0.01.
+  - **Reconciliation registered before any read (22:03).** lr 0.01 at batch 128 against lr 0.1 at batch 256, on the same thin and MobileNetV2 candidates. If lr 0.01 matches, the paper's narrow rows stay on §330's recipe. If batch 256 adds ≥ 0.3, it goes to Ido.
+  - **The rest of the narrow rows are queued (20 jobs, registered 21:55).** Every thin and MobileNetV2 walk under lr 0.01 keep-last, so the five-seed thin lever is re-called on wave 8's bars.
 
 ---
 

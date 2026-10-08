@@ -6505,3 +6505,41 @@ All rows run under G's cosine-0.1-last line. The thin r56-w4 rows are therefore 
   So **75 epochs**. K = 1 for one-shot R56 at 75 epochs: 5.9–6.9 min (cut walk 2.1–3.1 + G 3.7–3.9) against DepGraph's 85.1 on the same GPU model, and 7.2–8.1 at 100 (§322).
 - *Caveat (reported, not a call).* DepGraph's own widths (the transplants) lose 0.455 at 75 epochs while the A pairs hold. The like-for-like DepGraph row (transplant against DepGraph's model) stays at 100 epochs; the 75-epoch headline applies to our allocation arms.
 
+## 335. (G2-X, wave 32): G at batch 256 on three families' candidates at params 0.6 — R56 one-shot (G2-F **22404218–223**), thin one-shot (G2-E **22404224–227**), walked MobileNetV2 ×0.5 (G2-M **22404228–231**) — PRELIM; registered calls: G2-F **BATCH-FLAT** (b_val +0.125; 10k −0.020), G2-E **BATCH-GAIN** (+0.750; 10k +0.818), G2-M **BATCH-GAIN** (+1.210; 10k +1.242) → **G2 ADOPT** by the registered rule; on both narrow families the honest gain is about 0, so the lever looks like the learning rate, and the narrow scope waits on the N01 × G2 reconciliation (commit `0980933`); no row changes
+
+Wave 32 (registered 8 Oct 20:28, commit `be250c2`). G (`tree_v10l`: cosine lr 0.1, select=last, 100 epochs, origin, GPU crop + flip, CUDA graphs) with `SPECTRA_EVAL_FINAL_FT_BATCH=256`, against G at batch 128 on the same saved candidates, at the same point (size_param 0.60). Comparators: G-F (§322) on Tier 1's R56 one-shot sets and transplants, GE (§325) on E's thin one-shot sets, G-M (§328) on wave 21's MobileNetV2 walks (`tree_v10h/runs/job22376484 / 85 / 88 / 90`). All 14 jobs COMPLETED by 21:58, exit 0, no NaN, no traceback. Reader `_tmp_s8oct_readw31.sh`. b_val (the val half) selects; the TEST half is reported.
+
+| Family | Arm | Seed | G2 job | G2 10k (5k / val; origin control) | G at b128 10k (origin control) | Δ 10k (5k / val / honest) | FT min, G2 / G |
+|---|---|---|---|---|---|---|---|
+| R56 one-shot | uniform | 42 | 22404218 | −0.41 (−0.70 / −0.12; +0.92) | −0.25 (+0.70) | −0.16 (−0.54 / +0.22 / −0.76) | 4.3 / 5.1 |
+| R56 one-shot | sens | 42 | 22404219 | +0.15 (+0.24 / +0.06; +1.10) | +0.04 (+1.02) | +0.11 (+0.36 / −0.14 / +0.28) | 4.3 / 4.9 |
+| R56 one-shot | uniform | 43 | 22404220 | −0.07 (−0.46 / +0.32; +1.14) | −0.16 (+0.86) | +0.09 (−0.22 / +0.40 / −0.50) | 4.3 / 5.1 |
+| R56 one-shot | sens | 43 | 22404221 | +0.22 (+0.08 / +0.36; +0.78) | +0.34 (+1.14) | −0.12 (−0.26 / +0.02 / +0.10) | 4.4 / 5.0 |
+| R56 transplant | — | 42 | 22404222 | +0.63 (+0.36 / +0.90; +0.96) | +0.43 (+0.60) | +0.20 (+0.04 / +0.36 / −0.32) | 4.6 / 5.1 |
+| R56 transplant | — | 43 | 22404223 | +0.26 (+0.12 / +0.40; +0.92) | +0.46 (+0.64) | −0.20 (−0.28 / −0.12 / −0.56) | 4.5 / 5.3 |
+| thin r56-w4 one-shot | sens | 42 | 22404224 | −2.40 (−2.02 / −2.78; −0.48) | −3.00 (−1.04) | +0.60 (+0.94 / +0.26 / +0.38) | 3.0 / 3.4 |
+| thin r56-w4 one-shot | uniform | 42 | 22404225 | −3.96 (−3.82 / −4.10; −0.24) | −4.52 (−1.62) | +0.56 (+0.62 / +0.50 / −0.76) | 2.9 / 3.4 |
+| thin r56-w4 one-shot | sens | 43 | 22404226 | −2.20 (−2.54 / −1.86; −0.02) | −3.25 (−0.78) | +1.05 (+0.68 / +1.42 / −0.08) | 3.0 / 3.4 |
+| thin r56-w4 one-shot | uniform | 43 | 22404227 | −3.45 (−3.16 / −3.74; −0.40) | −4.51 (−0.74) | +1.06 (+1.30 / +0.82 / +0.96) | 3.0 / 3.4 |
+| MobileNetV2 ×0.5 walked | sens | 42 | 22404228 | +0.53 (+0.68 / +0.38; −0.10) | −0.82 (−1.38) | +1.35 (+1.28 / +1.42 / +0.00) | 5.5 / 5.1 |
+| MobileNetV2 ×0.5 walked | uniform | 42 | 22404229 | −0.14 (+0.20 / −0.48; +0.18) | −1.06 (−1.02) | +0.92 (+1.22 / +0.62 / +0.02) | 4.7 / 4.4 |
+| MobileNetV2 ×0.5 walked | sens | 43 | 22404230 | +0.45 (+0.40 / +0.50; +0.24) | −0.78 (−1.22) | +1.23 (+1.20 / +1.26 / −0.26) | 5.5 / 5.0 |
+| MobileNetV2 ×0.5 walked | uniform | 43 | 22404231 | +0.25 (+0.32 / +0.18; −0.04) | −1.22 (−1.34) | +1.47 (+1.40 / +1.54 / +0.10) | 4.7 / 4.4 |
+
+Calls (registered; bars BATCH-GAIN ≥ +0.30, BATCH-LOSS ≤ −0.30, FLAT between, on mean b_val over four pairs):
+- *G2-F, R56 one-shot.* b_val **+0.125** → **BATCH-FLAT** (10k −0.020, 5k −0.165, honest −0.22) at ×1.16. Transplants (reported): b_val +0.120, 10k +0.000, honest −0.44.
+- *G2-E, thin r56-w4 one-shot.* b_val **+0.750** → **BATCH-GAIN** (10k +0.818, 5k +0.885, honest +0.12) at ×1.14. Guard r20-w2 (reported): b_val +0.025, 10k +0.362, honest +0.54 at ×1.92.
+- *G2-M, MobileNetV2 ×0.5 walked.* b_val **+1.210** → **BATCH-GAIN** (10k +1.242, 5k +1.275, honest −0.03) at ×0.93. Under graphs, batch 128 already fills the GPU on this launch-bound family.
+- *G2 ADOPT rule.* GAIN on two families (thin one-shot, MobileNetV2), no LOSS, and no family's TEST-half mean ≤ −0.30 (lowest −0.165, R56) → **G2 ADOPT**: batch 256 in G for new no-agent cells on these families.
+
+Reading (reported, not a call):
+- *On narrow nets the gain is the recipe, not the pruning.* On both narrow families the honest gain is about 0 (thin +0.12, MobileNetV2 −0.03). Batch 256 lifts the unpruned control as much as the pruned nets:
+  - thin: the origin control moves from −1.04 / −1.62 / −0.78 / −0.74 (mean −1.05) under G to −0.48 / −0.24 / −0.02 / −0.40 (mean −0.29) under G2;
+  - MobileNetV2: from −1.38 / −1.02 / −1.22 / −1.34 (mean −1.24) to −0.10 / +0.18 / +0.24 / −0.04 (mean +0.07).
+  That is the harm cosine-0.1 does to unpruned narrow nets (§281, §301, §303), removed by halving the step per sample. It is the signature of a learning rate too high for the family, which §330 addresses by starting the cosine at lr 0.01. On full-width R56 the origin control barely moves (mean +0.89 under G, +0.99 under G2), and the batch is FLAT.
+- *Scope.* G2's rule was registered at 20:28, before §330 put narrow nets on lr 0.01. The reconciliation registered at 22:03:54 compares N01-G (lr 0.01, batch 128, graphs) with G2 on the same thin walks (G2-H, §329) and MobileNetV2 walks (G2-M). On each family:
+  - LR-ABSORBS (mean d_val ≥ −0.30) keeps §330's recipe, and G2's ADOPT does not apply there;
+  - BATCH-ADDS (≤ −0.30) goes to Ido, with §330 standing until he calls.
+  Meanwhile G2's ADOPT covers G's new no-agent cells at lr 0.1. On R56 that is FLAT at ×1.16 (honest −0.22, reported).
+- No paper row changes. Never an agent row.
+
