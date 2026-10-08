@@ -5853,3 +5853,32 @@ Seed 44 under lr 0.01 (§292): sens −3.10 / −2.88 / −2.99, uniform −3.56
 
 ---
 
+## 305. Wave 22: VGG-19 C100 uniform landed at params 0.645 / 0.814 (every group 0.8 / 0.9), seeds 42 / 43 (**22394057 / 58**, **22394059 / 60**; cosine re-reads **22394061 / 62 / 63 / 64**) — PRELIM; the registered equal-FLOPs call: two-seed lever_eqF **+0.11** at 5k under cosine (+0.29 / −0.07; val +0.51, 10k +0.31) → **FLOPS-ONLY** (≤ +0.3), so wave 20's equal-params lever (+1.74 under cosine, §294) is the FLOPs sens keeps; at equal FLOPs uniform keeps params 0.741 against sens's 0.600; lr 0.01 +0.35, walk endpoints +0.72
+
+Sitting 8 Oct wave 22 (registered 02:55, before submit). `tree_v10h`, wave 20 (a)'s recipe except κ (uniform, 5-rate menu, fixed target, 6 passes, P, loader crop+flip, walk 40/10, 100-epoch final FT at lr 0.01 + origin, deterministic, `SPECTRA_FORTIFY=1`) on the VGG-19 C100 DepGraph checkpoint, seeds 42 / 43. 22394057 COMPLETED 1 h 02 m, 03:54, `cs-4090-07`; 22394058 1 h 05 m, 03:57, `cs-4090-06`; 22394059 / 60 1 h 00 m, 03:52, `cs-4090-08`; all exit 0, TB 0. Start check green: env `uniform`, `param:0.645` / `param:0.814`, the VGG catalog, the seed; plan `x0.623` / `x0.794` over 16 groups, group keep min = median = max (0.79 / 0.89); landed at params x0.6448 / x0.8139 (step 15); no "strongest legal cut" or fallback line. Both seeds land on one architecture per κ: convs `64 51 102 102 205 ×4 · 410 ×7 425` (params 0.645, FLOPs **0.655**) and `64 58 115 115 230 ×4 · 461 ×7 476` (params 0.814, FLOPs **0.819**). Fortify holds conv1 at 64 and the size match trims the last conv, so the landed FLOPs sit 0.014 / 0.008 above the plan check (0.641 / 0.811), as the 03:05 fortify note expected; the rule reads landed FLOPs. Every pruned lr 0.01 final FT kept epoch 1 (walk + 1 epoch, as in §278), the origins epoch 95–100. Cosine re-reads (`tree_v10k`, wave 19's recipe, by `afterok`): 22394061 / 62 / 63 / 64 COMPLETED in 18–20 min, 04:11–04:17, exit 0, TB 0; `final_ft from` names the right walk, seeds verified, lr 0.1 cosine, `select=last`, the last epoch kept on the pruned point and the origin.
+
+Call (registered 02:55, on the cosine-0.1 read): per seed, uniform's 5k Δacc is interpolated linearly in landed FLOPs between the two cells at sens's FLOPs (0.749 on both seeds; weight 0.570 on the 0.819 cell); lever_eqF = sens_cos (22376019 / 22376010, §294) − that; two-seed mean at 5k: **SENS-AT-EQUAL-FLOPS** ≥ +1.0 / **FLOPS-ONLY** ≤ +0.3 / WEAK between. Reported: val, 10k, lr 0.01, uniform's and mild's frontiers, sens − mild at 0.749, and the fallback's cost.
+
+| VGG-19 C100 | Params | FLOPs | Seed 42, cos 5k / val / 10k | Seed 43, cos 5k / val / 10k | **Two-seed, cos 5k** | Two-seed, lr 0.01 5k | Walk 5k, s42 / s43 |
+|---|---|---|---|---|---|---|---|
+| Uniform κ 0.6, fallback-finished (22376013 / 14, §294) | 0.600 | 0.551 | −1.10 / −0.92 / −1.01 | −1.50 / −0.62 / −1.06 | −1.30 | −4.30 | −3.58 / −3.70 |
+| Mild κ 0.6 (22376011 / 22375996, §298) | 0.600 | 0.591 | +0.34 / +0.46 / +0.40 | −0.90 / −0.14 / −0.52 | −0.28 | −2.62 | −2.34 / −2.54 |
+| **Uniform κ 0.645, every group 0.8** (22394061 / 63) | 0.645 | 0.655 | −0.08 / +0.48 / +0.20 | +0.04 / +0.26 / +0.15 | **−0.02** | −2.42 | −1.78 / −1.86 |
+| Sens κ 0.6 (22376019 / 10, §294) | 0.600 | 0.749 | +0.44 / +1.68 / +1.06 | +0.44 / +0.88 / +0.66 | **+0.44** | −1.53 | −0.72 / −0.66 |
+| **Uniform κ 0.814, every group 0.9** (22394062 / 64) | 0.814 | 0.819 | +0.32 / +0.84 / +0.58 | +0.86 / +1.30 / +1.08 | **+0.59** | −1.47 | −1.20 / −1.00 |
+| Uniform interpolated at FLOPs 0.749 | 0.741 | 0.749 | +0.15 / +0.69 / +0.42 | +0.51 / +0.85 / +0.68 | +0.328 | −1.88 | −1.45 / −1.37 |
+| **Lever_eqF, sens − interpolated uniform** | | | **+0.29** / +0.99 / +0.64 | **−0.07** / +0.03 / −0.02 | **+0.112** (val +0.511, 10k +0.312) | +0.348 (val +0.866, 10k +0.607) | +0.73 / +0.71 |
+
+Sens − mild interpolated at 0.749 (between mild's 0.591 and the every-group-0.9 cell, which a mild walk landed at κ 0.814 would also play): +0.11 / +0.12 under cosine, two-seed **+0.12** (val +0.49, 10k +0.305; lr 0.01 +0.295). The fallback's cost, uniform κ 0.645 − uniform κ 0.6 (params 0.645 against 0.600, FLOPs 0.655 against 0.551): +1.02 / +1.54 at 5k under cosine, two-seed **+1.28** (val +1.14, 10k +1.21; lr 0.01 +1.88). The ten cosine origin controls in the table (the same unpruned net under the same recipe) span +0.34 to +1.74 at 5k (mean +0.91, SD 0.44).
+
+**Read (call FLOPS-ONLY; reported items beside it).**
+- *The call.* At sens's FLOPs, uniform's interpolated cosine 5k is +0.33 against sens's +0.44: lever_eqF **+0.11** (+0.29 / −0.07), under the FLOPS-ONLY line on both seeds; 10k +0.31, val +0.51. Reading the cells at the plan check's FLOPs (0.641 / 0.811) instead gives +0.07, so the call does not hinge on the fortify shift. Wave 20's equal-params lever (+1.74 under cosine, §294; +2.77 at lr 0.01, §279) is the FLOPs sens keeps: it keeps convs 1–9 full and cuts the late 512-wide layers, where VGG's params sit and its FLOPs do not.
+- *Caption (registered).* At equal FLOPs uniform keeps params 0.741 against sens's 0.600. Sens matches uniform's accuracy at the same FLOPs with 19 % fewer params; it does not lead on both axes.
+- *The lever shrinks as the fine-tune completes.* At equal FLOPs: walk endpoints +0.72, lr 0.01 (walk + 1 epoch) +0.35, cosine +0.11. DepGraph R56's equal-params lever went the same way (+0.78 at lr 0.01, 0.00 under cosine, §299).
+- *Four of the five points share one FLOPs curve.* Under cosine (two-seed means), uniform every group 0.8 (FLOPs 0.655) and sens (0.749) sit within 0.12 of the straight line through mild (0.591, −0.28) and uniform every group 0.9 (0.819, +0.59). Uniform κ 0.6 sits 0.87 below that line: the fallback's 0.6 cuts on the early convs cost 1.28 for 0.045 params. So at equal params 0.6, sens's lead over uniform is FLOPs plus the fallback's early-conv cuts, and over mild it is +0.12 once FLOPs match.
+- *Noise.* The cosine origin controls span 1.40 at 5k (SD 0.44), so the lever's seed spread (0.36) is inside fine-tune noise.
+- *For the slide.* VGG-19 C100's caveat resolves on the FLOPs side: sens there is "uniform's accuracy at equal FLOPs with 19 % fewer params", not an allocation win. The thin r56-w4 κ 0.6 lever (+1.13 on three seeds, §304) is the one that holds at equal FLOPs (sens 0.57, uniform 0.58). Wave 23 (DepGraph R56, where sens keeps fewer FLOPs) is R.
+- Do not lock. Never an agent row.
+
+---
+
