@@ -6543,3 +6543,74 @@ Reading (reported, not a call):
   Meanwhile G2's ADOPT covers G's new no-agent cells at lr 0.1. On R56 that is FLAT at ×1.16 (honest −0.22, reported).
 - No paper row changes. Never an agent row.
 
+## 336. (N01): the narrow-net rows under §330's recipe, and G at lr 0.01 (N01-G **22404707–714**, `tree_v10l`; N01-P **22404715 / 16, 22404719–724**, `tree_v10k`) — PRELIM; registered calls: G − plain at lr 0.01 **SPEED-EQUIVALENT** on thin r56-w4 (Δ10k **−0.140** at ×4.50) and MobileNetV2 ×0.5 (**−0.052** at ×3.15), so G's ADOPT holds under the narrow recipe; N01 × G2: thin **BATCH-ADDS** (mean d_val **−0.410**), MobileNetV2 **LR-ABSORBS** (**+0.190**)
+
+Registered before submit: N01 8 Oct 21:47 (commit `d0b8bda`); the N01 × G2 reconciliation 22:03:54 (`0980933`), bands amended 22:15 before any N01 value was read (`7d034f7`). Read 9 Oct 00:33 (`scripts/_tmp_s8oct_readn01.sh`). All 16 jobs COMPLETED by 22:50 with exit 0, no NaN, no traceback. Every pair below is at the same walk point. Recipe: cosine from lr 0.01, keep-last, batch 128, 100 epochs, origin control; N01-G adds GPU crop + flip and CUDA graphs. Candidates: the thin r56-w4 walks (`tree_v10h` 22340391 / 92, 22341281 / 82) and wave 21's walked MobileNetV2 ×0.5 sets (22376484 / 85 / 88 / 90), κ 0.6.
+
+**G − plain at lr 0.01** (C's bars):
+
+| family | arm | seed | N01-G 10k (5k / val) | N01-P 10k | Δ10k | honest | min G / plain |
+|---|---|---|---|---|---|---|---|
+| r56-w4 | sens | 42 | −3.18 (−3.24 / −3.12) | −3.04 | −0.14 | −0.10 | 3.4 / 15.3 |
+| r56-w4 | uniform | 42 | −3.79 (−3.70 / −3.88) | −3.60 | −0.19 | −0.58 | 3.3 / 15.3 |
+| r56-w4 | sens | 43 | −2.52 (−2.34 / −2.70) | −2.36 | −0.16 | −0.56 | 3.4 / 15.5 |
+| r56-w4 | uniform | 43 | −3.82 (−3.78 / −3.86) | −3.75 | −0.07 | −0.24 | 3.6 / 15.6 |
+| MBV2 ×0.5 | sens | 42 | +0.36 (+0.22 / +0.50) | +0.40 | −0.04 | −0.70 | 5.0 / 14.8 |
+| MBV2 ×0.5 | uniform | 42 | +0.16 (+0.28 / +0.04) | +0.29 | −0.13 | −0.16 | 4.4 / 15.4 |
+| MBV2 ×0.5 | sens | 43 | +0.83 (+0.82 / +0.84) | +0.83 | +0.00 | −0.28 | 5.0 / 14.5 |
+| MBV2 ×0.5 | uniform | 43 | +0.19 (+0.42 / −0.04) | +0.23 | −0.04 | −0.06 | 4.4 / 14.5 |
+
+Means: r56-w4 Δ10k −0.140 (5k −0.110, val −0.170, honest −0.37) at ×4.50 → **SPEED-EQUIVALENT**; MBV2 ×0.5 −0.052 (5k −0.100, val −0.005, honest −0.30) at ×3.15 → **SPEED-EQUIVALENT**. Guard r20-w2 (reported): −0.015 at ×4.93.
+
+**N01 × G2**: d = N01-G (lr 0.01, batch 128) − G2 (lr 0.1, batch 256: G2-H 22404005 / 06 / 10 / 12 on thin, G2-M 22404228–231 on MBV2), same candidates; the val half selects.
+
+| family | sens s42 | uniform s42 | sens s43 | uniform s43 | mean d_val (10k / honest) | call |
+|---|---|---|---|---|---|---|
+| r56-w4 | −0.70 | −0.36 | −0.10 | −0.48 | **−0.410** (−0.398 / −0.99) | **BATCH-ADDS** |
+| MBV2 ×0.5 | +0.12 | +0.52 | +0.34 | −0.22 | **+0.190** (+0.112 / −0.50) | **LR-ABSORBS** |
+| guard r20-w2 | −1.34 | −1.58 | −0.18 | −0.86 | −0.990 (−1.052 / −0.05) | reported |
+
+Reported:
+- The lr-0.01 keep-last levers sens − uniform at 5k (N01-P): r56-w4 +0.58 / +1.36; MBV2 +0.08 / +0.18. The walks' own lr-0.01 rows (walk + 1 epoch) gave +0.54 / +1.64 and +0.10 / +1.24.
+- Keep-last minus walk + 1 epoch at lr 0.01: r56-w4 −0.26 / −0.30 / −0.20 / +0.08 (mean −0.17); MBV2 +0.12 / +0.14 / +0.04 / +1.10.
+- lr 0.01 minus lr 0.1 at batch 128 (r56-w4): plain −0.38 / +0.52 / +0.78 / +0.82 (mean +0.435); under G −0.48 / +0.16 / +0.32 / +0.56 (mean +0.14). MBV2: plain +1.64 / +1.68 / +1.80 / +1.68; under G +0.82 / +1.30 / +1.62 / +1.50.
+
+Reading:
+1. **G's ADOPT covers the narrow recipe.** GPU augmentation and CUDA graphs are equivalent to the plain loop at lr 0.01 on both narrow families, at ×4.5 (thin) and ×3.2 (MBV2). The honest means (−0.37, −0.30) are G's unpruned controls gaining more than plain's; they are reported, not a call.
+2. **On thin, the step size is not settled.** Under G, the thin recipes order lr 0.1 at batch 256 (G2-H) above lr 0.01 at batch 128 (N01-G, by 0.41 on val), and N01-G at or above lr 0.1 at batch 128 (G-H, +0.14 at 5k). Linear scaling makes lr 0.1 at batch 256 the per-sample step of lr 0.05 at batch 128, so an intermediate step size is the likely optimum. N03 (registered 9 Oct 00:35, commit `e048d2e`) runs lr 0.05 at batch 128 and lr 0.01 at batch 256 on the same candidates. By the registration, BATCH-ADDS goes to Ido and §330 stands until he calls.
+3. **The honest read favours G2 on both narrow families.** G2's unpruned controls barely move (thin −0.19, MBV2 +0.07 at 5k), while N01-G's gain (+0.42, +0.60). So honest d (N01-G − G2) is −0.99 on thin and −0.50 on MBV2, against raw −0.41 and +0.19. The val half selects on raw; §330 quotes both.
+4. **MobileNetV2's raw rows are settled.** lr 0.01 at batch 128 matches lr 0.1 at batch 256 (LR-ABSORBS), and lr 0.01 beats lr 0.1 at batch 128 by 1.6–1.8 pp (plain). The narrow recipe stands there.
+5. On thin, the 100-epoch keep-last fine-tune at lr 0.01 is no better than the 1-epoch restore (−0.17), consistent with the walk's per-step fine-tunes having already recovered the net at that step size.
+
+Records: queue row 88; next §337.
+
+## 337. (N02): the remaining narrow-net rows under §330's recipe (plain cosine from lr 0.01, keep-last, batch 128, 100 epochs, origin; **22404779 / 80 / 83 / 84 / 86 / 87 / 88, 22404791–801, 22404804 / 05**, `tree_v10k`) — PRELIM; registered call: five-seed thin r56-w4 lever sens − uniform at 5k **+1.184** (SD 0.60; s42–46 +0.58 / +1.36 / +0.70 / +2.08 / +1.20; 10k +1.234, val +1.284) → **SURVIVES** on wave 8's bars, positive on every seed; within noise of §307's cosine (+0.96) and walk + 1 epoch (+1.08) reads
+
+Registered before submit 8 Oct 21:55:21 (commit `e9cc7eb`). Read 9 Oct 00:45 (`scripts/_tmp_s9oct_readn02.sh`). All 20 jobs COMPLETED with exit 0, no NaN, no traceback (thin 48–52 min, MBV2 30–31 min). Seeds 42 / 43 sens / uniform are N01-P's rows (§336). Every thin arm lands at params 0.595–0.600 (r56-w4) and every MBV2 arm at 0.600.
+
+**Thin r56-w4, five seeds (42–46), at 5k:**
+
+| contrast | lr 0.01 keep-last (SD) | 10k | val | cosine-0.1-last | walk + 1 epoch |
+|---|---|---|---|---|---|
+| sens − uniform | **+1.184** (0.60) | +1.234 | +1.284 | +0.96 (§307) | +1.076 |
+| sens − mild | +2.376 (0.50) | +2.484 | +2.592 | +2.08 (§321) | +2.444 |
+| inner − uniform | +1.332 (0.38) | +1.342 | +1.352 | +1.31 (§321) | +0.992 |
+| sens − inner | −0.148 (0.80) | −0.108 | −0.068 | −0.34 (§321) | +0.084 |
+| uniform − mild | +1.192 (0.30) | +1.250 | +1.308 | +1.12 (§321) | +1.368 |
+| inner − mild | +2.524 (0.31) | +2.592 | +2.660 | — | +2.360 |
+
+Arm means (five seeds, 5k / honest; origin controls +0.21 to +0.44): sens −2.63 / −2.96, uniform −3.81 / −4.02, inner −2.48 / −2.76, mild-landed −5.00 / −5.44.
+
+Guard r20-w2 (reported, five seeds): sens − uniform −0.788 (SD 0.60), sens − mild −0.168, inner − uniform +1.340.
+
+**MobileNetV2 ×0.5, two seeds (42 / 43), reported:** sens − uniform +0.130 (+0.08 / +0.18; 10k +0.355, val +0.580; §301 cosine +0.09), sens − mild +0.190 (§303 cosine +0.25), inner − uniform −0.560 (§303 cosine −0.68), sens − inner +0.690, uniform − mild +0.060. Arm means at 5k (honest): sens +0.60 (+0.27), uniform +0.47 (0.00), inner −0.09 (−0.70), mild-landed +0.41 (−0.25).
+
+Reading:
+1. **The thin allocation lever is real and recipe-independent.** sens − uniform is +1.18 (SE 0.27) under the paper's recipe, +0.96 under cosine and +1.08 after one epoch. This is the paper's five-seed thin row.
+2. **On thin, sens's lead over uniform is the residual-full rule's.** sens − inner is −0.15 (SD 0.80), as §321 found under cosine.
+3. **The mild heuristic is the worst thin arm.** It trails uniform by 1.19 pp and sens / inner by 2.4–2.5 pp at equal params. v10 behaves like mild (§248), so this 2.4 pp gap is the headroom on this family for an agent that learns the allocation, which the plan-as-action agent targets (`docs/LEARNING_PROGRAM_OCT8.md`).
+4. **MobileNetV2 has no lever under the paper's recipe.** The four arms sit within 0.7 pp; inner (residual-full) is the worst arm, and uniform ≈ mild. N04 (seeds 44–46, registered 9 Oct 00:35, commit `e048d2e`) makes these five-seed rows.
+5. **The guard's sign flips.** On r20-w2, sens trails uniform (−0.79) and inner leads (+1.34): the sensitivity rule costs on the thinnest net, the residual rule does not.
+
+Records: queue row 89; next §338.
+
