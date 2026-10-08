@@ -103,6 +103,14 @@
 | First v10 freeze TEST ep0127 κ 0.8 | **22341736** COMPLETED ~08:26 **§237** | v10 | §211 | r56 **−2.88 @ 0.799** vs mild −2.1 = **−0.78**; residual 3/7/14; census 0.9 only; M1-v10 waits on 37 |
 | First v10 freeze TEST ep0127 κ 0.6 | **22341737** COMPLETED 10:51 **§248** | v10 | §212 | r56 **−5.28 @ 0.600** vs mild −5.1 = **−0.18**; residual **2 / 5 / 13** (mild); census 0.9 only; **M1-v10 FLAT** |
 
+**Ops 9 Oct 00:10 (lean).** No new ledger TEST. N02P thin mild + MBV2 R; thin inner COMPLETED sitting owns. Resume **274/250** freeze ep0272. QOS **11 R / 1 PD**. Ledger next **§336**. Next canvas **09:30**. Next 3h **02:40**.
+
+**Ops 8 Oct 23:40 (3h).** No new ledger TEST. Stage-4 **froze ep0272** (`best_score=0.3028`) — do not auto-TEST. N02P R. Resume **273/250**. QOS **11 R / 4 PD**. Ledger next **§336**. Next canvas **09:30**. Next 3h **02:40**.
+
+**Ops 8 Oct 23:10 (23:00 canvas).** No new ledger TEST. N01P COMPLETED — sitting owns. N02P R. Resume **272/250**. QOS **11 R / 11 PD**. Ledger next **§336**. Next canvas **09:30**. Next 3h **23:40**.
+
+**Ops 8 Oct 22:40 (lean).** No new ledger TEST. N01P MBV2 COMPLETED — sitting owns. N01P thin / N02P R. Resume **272/250**. QOS **11 R / 16 PD**. Ledger next **§336**. Next canvas **23:00**. Next 3h **23:40**.
+
 **Ops 8 Oct 22:10 (TEST land).** Sitting closed **§332–§335**: K=1 **75 epochs** (**5.9–6.9 min** vs 85); **G2 ADOPT**; E-M even-cut **WALK-NEEDED**; plan-as-action after probe. N01P / N02P filling. Resume **272/250**. QOS **11 R / 20 PD**. Ledger next **§336**. Next canvas **23:00**. Next 3h **23:40**.
 
 **Ops 8 Oct 21:40 (lean).** No new ledger TEST. Wave 31 COMPLETED — sitting owns. G2-F / G2-E / G2-M R. Resume **272/250**. QOS **9 R / 1 PD**. 2 idle sitting owns. Ledger next **§332**. Next canvas **23:00**. Next 3h **23:40**.
@@ -1126,6 +1134,23 @@ Calls fixed before any cell read. Written here at ~02:50 (cluster clock), after 
       - **LR-ABSORBS** if mean d_val ≥ −0.30. lr 0.01 matches batch 256 at lr 0.1, and §330's recipe stands on that family. The paper's narrow rows stay at lr 0.01, batch 128 (N01-P / N02), and G2's ADOPT does not apply to that family.
       - **BATCH-ADDS** if mean d_val < −0.30. Reported to Ido; §330 stands until he calls. The next step would be a registered lr-0.01 × batch-256 cell, not submitted before it is registered.
       - *(Amended 22:15, before any N01 value was read: as first written, the two bands touched at −0.30 and the "between" line was empty. A tie goes to LR-ABSORBS; there is no between band.)*
+  - *(N03) registered 9 Oct ~00:40, after N01's read, before submit: is batch 256's gain on thin the step size?*
+    - *Why.* N01 × G2 called **BATCH-ADDS** on thin (mean d_val −0.410) and **LR-ABSORBS** on MobileNetV2 (+0.190). On thin, lr 0.1 at batch 256 (G2) beats lr 0.01 at batch 128 (N01-G), which beats lr 0.1 at batch 128 (G-H). Under linear scaling, lr 0.1 at batch 256 takes the step per sample of lr 0.05 at batch 128.
+    - *Cell.* G (`tree_v10l`), cosine, keep-last, 100 epochs, origin, on N01's eight candidate sets (thin walks `tree_v10h/runs/job22340391 / 92 / 22341281 / 82`; MobileNetV2 walks `job22376484 / 85 / 88 / 90`), 16 jobs:
+      - N03-a: lr 0.05 at batch 128, G2's linear-scaling twin;
+      - N03-b: lr 0.01 at batch 256, the next step N01 × G2 named.
+    - *Calls, per family, on the val half, four pairs.* With e = N03-a − G2:
+      - **EFFECTIVE-LR** if |mean e_val| ≤ 0.30: batch 256 helps through the step size;
+      - **BATCH-ITSELF** if mean e_val < −0.30: batch 256 beats its linear-scaling twin;
+      - **LR-BEYOND** if mean e_val > +0.30: lr 0.05 at batch 128 beats G2.
+      N03-b is reported against N01-G and G2.
+    - *Consequence.* None automatic. The narrow recipe goes to Ido with the whole curve on the val half (lr 0.01 / 0.05 / 0.1 at batch 128; lr 0.01 / 0.1 at batch 256). §330 stands until he calls. No paper row changes; never an agent row.
+  - *(N04) registered 9 Oct ~00:40, before submit: MobileNetV2 ×0.5 seeds 44–46 under §330's recipe (the paper's five-seed MobileNetV2 rows).*
+    - *Cell.* Wave 21's walks with wave 21's flags (landed params 0.6, 5-rate menu, group-once, 6 passes; `input_pf_mbv2x05.json`, `database_c10_thin.json`), seeds 44 / 45 / 46: sens and uniform (`tree_v10h`), inner (`tree_v10i`), mild-landed (`tree_v10`), 12 walks. Each walk is re-finalized by afterok in `tree_v10k` under N02's plain recipe (cosine from lr 0.01, keep-last, batch 128, 100 epochs, origin). The walks' own final fine-tunes are "walk + 1 epoch" and are not quoted.
+    - *Calls.* With N01-P / N02's seeds 42 / 43, at 5k, lr 0.01 keep-last:
+      - *registered:* the five-seed MobileNetV2 lever sens − uniform, on wave 8's bars: SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between;
+      - *reported:* sens − mild, inner − uniform, sens − inner.
+      No agent row.
     - *Scope of G2's ADOPT meanwhile.* It covers G's new no-agent cells at lr 0.1. On R56 that is FLAT at ×1.16 (honest −0.22, reported). It changes no row already quoted. §330 adopted cosine from lr 0.01, keep-last, for the narrow families. G's equivalence (§324, §328) was measured only under cosine-0.1, and some narrow walks predate keep-last (§235).
     - *(N01-P)* The plain final fine-tune: SGD, cosine from **lr 0.01**, keep-last, batch 128, 100 epochs, origin control (`tree_v10k`, nice 27). It runs on the thin r56-w4 walked sets (`tree_v10h/runs/job22340391 / 92`, `22341281 / 82`: sens / uniform × s42 / s43) and wave 21's MobileNetV2 ×0.5 walked sets (`tree_v10h/runs/job22376484 / 85 / 88 / 90`). 8 jobs.
     - *(N01-G)* The same lr-0.01 keep-last recipe under G (GPU crop+flip, CUDA graphs; `tree_v10l`, nice 27) on the same 8 sets. 8 jobs.
