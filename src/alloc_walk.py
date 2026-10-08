@@ -16,6 +16,7 @@ isolates that allocation under this walk's ranking and recovery; the fixed targe
 where the walk stops. ``sample`` draws one plan the way the plan-as-action agent will: the weights
 of ``SPECTRA_ALLOC_SAMPLE_AROUND`` (sens or uniform) times exp(σ ε) per group, ε ~ N(0, 1) seeded by
 ``SPECTRA_ALLOC_SAMPLE_SEED``, σ = ``SPECTRA_ALLOC_SAMPLE_SIGMA``, then bisected like ``sens``.
+``agent`` takes the mean plan of the frozen plan agent at ``SPECTRA_PLAN_AGENT`` (``src/plan_agent.py``).
 Each decision then plays the legal cut whose resulting width is closest to its group's
 target (ties to the milder cut, identity once it is there). Group-once, the recovery and the
 fixed-target landing are the walk's own, so a row differs from greedy / mild only in which groups
@@ -40,7 +41,7 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner", "widths", "sample")
+KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent")
 SAMPLE_AROUND = ("sens", "uniform")
 
 
@@ -89,6 +90,14 @@ def sample_noise(rows, sigma, seed):
     """``{row: exp(sigma * eps)}``, eps ~ N(0, 1) drawn in ``rows`` order from ``random.Random(seed)``."""
     rng = random.Random(int(seed))
     return {row: math.exp(float(sigma) * rng.gauss(0.0, 1.0)) for row in rows}
+
+
+def agent_path() -> str:
+    """``SPECTRA_PLAN_AGENT``: the plan-agent checkpoint ``agent`` follows (``src/plan_agent.py``)."""
+    path = os.environ.get("SPECTRA_PLAN_AGENT", "").strip()
+    if not path:
+        raise ValueError("SPECTRA_ALLOC_KIND=agent needs SPECTRA_PLAN_AGENT=<plan-agent checkpoint>")
+    return path
 
 
 def widths_table() -> dict:
@@ -230,15 +239,21 @@ def _state(env):
     if net not in cache:
         model = env.current_model.to(env.conf.device)
         target = float(env.target_keep if env.target_keep is not None else 0.6) - undershoot()
-        batches = group_sensitivity.calibration_batches(
-            env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
-        widths, info = plan_targets(model, batches, env._input_shape(), kind(), target, alpha(), min_keep())
+        if kind() == "agent":
+            from src import plan_agent
+            widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep())
+        else:
+            batches = group_sensitivity.calibration_batches(
+                env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
+            widths, info = plan_targets(model, batches, env._input_shape(), kind(), target, alpha(), min_keep())
         mwr = ModelWithRows(model)
         cache[net] = {"widths": widths, "n_rows": max(1, len(mwr.row_to_main_layer) - 1),
                       "idle": 0, "fallback": False, "last_kept": 1.0}
         keeps = sorted(info["keeps"].values())
         source = (f"widths of {os.path.basename(os.environ.get('SPECTRA_ALLOC_WIDTHS', ''))}"
                   if info["kind"] == "widths" else f"{info['kind']} alpha={info['alpha']:g}")
+        if info["kind"] == "agent":
+            source = f"agent {info['policy']}"
         if info.get("sample"):
             sample = info["sample"]
             source = (f"sample around {sample['around']} sigma={sample['sigma']:g} seed={sample['seed']} "

@@ -460,6 +460,11 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
     if world_size > 1:
         utils.print_flush(f"Rank {rank} evaluating {len(shard)}/{len(test_dict)} networks")
 
+    import src.plan_trainer as plan_trainer
+    if mode == EVAL_TEST and plan_trainer.enabled():
+        plan_trainer.run(env, shard)
+        return
+
     for model_idx, (net_path, (net_model, net_loaders)) in enumerate(shard):
         utils.print_flush(f"Evaluating model {model_idx + 1}/{len(shard)}: {net_path}")
 
