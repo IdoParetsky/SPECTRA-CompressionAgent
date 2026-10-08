@@ -6655,7 +6655,7 @@ Records: queue row 90; next §339.
 
 ## 339. D-CENSUS (zero GPU): the V6 in-band-linear actor picks one cut size, 0.9, at every free decision (§111 **21512868**, §123 **21536395**), the same schedule as mild — no re-walk (`docs/LEARNING_PROGRAM_OCT8.md` §4)
 
-Read 9 Oct 01:50 (`scripts/_tmp_s9oct_dcensus.sh`; read-only, login node) with §200's method: the TEST walks' `step` events in phase `eval_test`, a cut when params fall. V6's events carry the action as `compression_rate` (no `requested_rate` field yet).
+Read 9 Oct 01:36 (`scripts/_tmp_s9oct_dcensus.sh`; read-only, login node) with §200's method: the TEST walks' `step` events in phase `eval_test`, a cut when params fall. V6's events carry the action as `compression_rate` (no `requested_rate` field yet).
 
 | Walk | r20-w2 | r56-w4 |
 |---|---|---|
