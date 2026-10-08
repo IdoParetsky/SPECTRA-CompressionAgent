@@ -112,16 +112,18 @@ The one possible exception is the in-band-linear actor V6 (§111, §123). Its ar
 
 **D-PROXY: proxy fidelity on the agent's own plans (EagleEye gate).**
 - *Why a new candidate set.* The agent compares K plans for the same (net, κ) against their mean. What matters is whether a proxy ranks plans *within* an instance. The pf / pf-w sets (§189–§195) perturbed single decisions of a walk, and their finals restored an early epoch (§235). They are re-read only if their candidates were saved.
-- *Instances:* thin r56-w4, DepGraph R56 and MobileNetV2 ×0.5 at κ 0.6, two instances per family (sampling seeds 42 / 43).
-- *Candidates:* K = 8 plans per instance, sampled the way the agent will sample them. Four are around sens (z_g = z_sens,g + σ ε_g) and four around uniform (z_g = σ ε_g), with σ set so the plans span sens to uniform. Each plan is bisected to κ and cut once. The named plans sens, uniform and inner are added. Every candidate is saved (traj_models format) for its final.
+- *Instances:* thin r56-w4 (the r20-w2 guard rides in the same jobs, reported), DepGraph R56 and MobileNetV2 ×0.5 at κ 0.6, two instances per family (seeds 42 / 43).
+- *Candidates:* K = 8 plans per instance, sampled close to the way the agent will sample them. The alloc walk's weights are multiplied by exp(σ ε_g) per group, four plans around the sens weights and four around uniform, σ 0.5 (sample seeds 1–8 for instance 42, 9–16 for 43). This is noise in log-keep space where §5's head adds it in logit space; the two agree away from keep 1. Each plan is bisected to κ and cut once. The named plans sens, uniform and inner are added. Every candidate is saved (traj_models format) for its final.
 - *Proxies, per candidate, in the cutting job:* cut-only; BatchNorm recalibration on 8 and on 32 fixed batches; one epoch of fine-tune. All are read on the fixed val half. v10's train fine-tune (12/4) and ft40's (40/10) are added as costlier proxies, which re-tests ft40 (§112) without an agent.
-- *Finals (ground truth):* G at 75 epochs (§334's budget), keep-last, under the family's §330 recipe, on every candidate. A second seed on one instance per family gives the ceiling: ρ between the two seeds.
-- *Metric:* within-instance Spearman ρ between proxy and final, averaged over instances. Regret is the best final in the instance minus the final of the proxy's top pick.
+- *Finals (ground truth):* G at 75 epochs (§334's budget), keep-last, under the family's §330 recipe, on every candidate; the origin control in each instance's sens job only. A second seed (44) on instance 42 of each family gives the ceiling: ρ between the two seeds.
+- *Metric:* within-instance Spearman ρ between proxy (val half) and final (TEST half, so the two never share images; val reported), averaged over instances. Regret is the best final in the instance minus the final of the proxy's top pick.
 - *Calls (§189's validity bar, within instances):*
-  - a proxy is VALID if its mean within-instance ρ is ≥ 0.60 and its median regret is ≤ 0.5 pp;
-  - the reward is the cheapest VALID proxy;
-  - BatchNorm recalibration is adopted if VALID;
-  - if no proxy is VALID, report: the agent then trains on G's full final at 4–8 min per plan, with fewer samples.
+  - a family whose ceiling ρ is < 0.60 is CEILING-BOUND: its finals cannot rank its plans, so it neither validates nor vetoes a proxy;
+  - a proxy is VALID on a family if its mean within-instance ρ is ≥ 0.60 and its median regret is ≤ 0.5 pp;
+  - the reward is the cheapest proxy VALID on every family that is not CEILING-BOUND;
+  - BatchNorm recalibration is adopted if it is that proxy;
+  - if no proxy qualifies, report: the agent then trains on G's full final at 4–8 min per plan, with fewer samples.
+- *Registered* in `docs/SITTING_GPU_QUEUE.md` (section D-PROXY) on 9 Oct, code in `tree_v11` (two default-off flags: `SPECTRA_ALLOC_KIND=sample`, `SPECTRA_EVAL_PROXIES`).
 - *Reported with it (headroom).* The spread of finals within each instance, and the best sampled plan against sens. If no sampled plan beats sens by ≥ 0.3 pp anywhere, there is little to find beyond the sens prior at κ 0.6, and T1's bar is read in that light. Random channel configurations are a strong baseline in pruning (Li et al., CVPR 2022), so this spread is also the random-plan control.
 
 **D-LEVER: does the chosen proxy see the lever?** Zero agent, little GPU. The saved one-shot sens / inner / uniform candidates (§309, §319, §322, §325, §333) and the named plans of D-PROXY are scored by D-PROXY's winning proxy. Plan-level reward shapes are replayed over those scores, as in §200's replay. The call is registered with D-PROXY: the proxy must order sens above mild and uniform on the thin family, the family where the final shows sens − mild +2.38 and sens − uniform +1.18 over five seeds (§337). A proxy that cannot see that contrast cannot train the allocation.

@@ -89,6 +89,7 @@
 | The remaining narrow-net rows under §330's recipe (wave 34, registered 8 Oct 21:55, commit `e9cc7eb`): plain cosine from lr 0.01, keep-last, on thin sens / uniform s44–46, inner s42–46, mild-landed s42–46 and MobileNetV2 ×0.5 inner / mild-landed s42 / 43 (N02) | (N02) **22404779 / 80 / 83 / 84 / 86 / 87 / 88, 22404791–801, 22404804 / 05** (nice 28), submitted 21:56:12–21:56:42. All COMPLETED by ~00:35, exit 0, no NaN; read 9 Oct 00:45: five-seed thin lever **+1.184** at 5k (SD 0.60, positive on every seed) → **SURVIVES**; sens − mild +2.376, inner − uniform +1.332, sens − inner −0.148; MobileNetV2 sens − uniform +0.130 (two seeds) **§337** | **v10k** (sbatch only) | the walks' own lr-0.01 final fine-tunes ("walk + 1 epoch"; §307's five-seed levers) | with N01-P, five-seed thin lever sens − uniform at 5k: SURVIVES ≥ +1.0 / ABSORBED ≤ +0.3 / WEAK (wave 8's bars); reported: sens − mild, inner − uniform, sens − inner; MobileNetV2 two-seed contrasts |
 | Is batch 256's thin gain the step size? (N03, registered 9 Oct 00:35, commit `e048d2e`): G with lr 0.05 at batch 128 (G2's linear-scaling twin) and lr 0.01 at batch 256, on N01's eight candidate sets | (N03-a) **22409814–819, 22409821 / 22**, (N03-b) **22409823–830** (nice 26), submitted 00:37:15–00:37:39; 9 R at once, the rest PD (11 R / 8 PD). All COMPLETED by 01:02, exit 0, no NaN; read 9 Oct 01:05: N03-a − G2 **EFFECTIVE-LR** on thin (e_val −0.130; 10k +0.000) and MobileNetV2 (+0.070; 10k +0.008); N03-b matches N01-G (thin −0.08, MobileNetV2 −0.03 on val). A step of 0.05 per 128 images is the best or within 0.15 at 10k on every family, so one recipe could replace §330's per-family rule: Ido's call, §330 stands **§338** | **v10l** (sbatch only) | G2-H 22404005–012, G2-M 22404228–231 (lr 0.1, batch 256); N01-G 22404707–714 (lr 0.01, batch 128) | per family, mean e_val = N03-a − G2: EFFECTIVE-LR \|e\| ≤ 0.30 / BATCH-ITSELF < −0.30 / LR-BEYOND > +0.30; N03-b reported; no recipe change before Ido calls |
 | MobileNetV2 ×0.5 seeds 44–46 under §330's recipe (N04, registered 9 Oct 00:35, commit `e048d2e`): wave 21's four walks per seed, re-finalized by afterok with N02's plain lr-0.01 keep-last recipe | walks **22409855–866** (nice 30; sens / uniform `tree_v10h`, inner `tree_v10i`, mild `tree_v10`), re-finals **22409867–873, 22409875–879** (nice 31, afterok), submitted 00:38–00:39; all PD behind N03 (11 R / 32 PD) | **v10h / v10i / v10** walks, **v10k** re-finals (sbatch only) | N01-P / N02's MobileNetV2 seeds 42 / 43 (§336, §337) | five-seed MobileNetV2 lever sens − uniform at 5k on wave 8's bars; reported: sens − mild, inner − uniform, sens − inner |
+| Do cheap proxies rank sampled plans the way the final fine-tune does? (D-PROXY, registered 9 Oct before submit; section "D-PROXY" below): one-shot alloc walks of 11 plans per instance (sens, uniform, inner, eight sampled), six proxies per candidate, G finals at 75 epochs; thin, DepGraph R56 and MobileNetV2 ×0.5, two instances each, plus a seed-44 ceiling | smoke **22410259** (never quoted); cell to be submitted after the smoke's start check | **v11** (sbatch only; new flags default off) | — (the finals are the ground truth) | per family CEILING-BOUND if the ceiling ρ < 0.60; per proxy VALID if mean ρ ≥ 0.60 and median regret ≤ 0.5 pp (TEST-half ground truth); reward = the cheapest proxy VALID on every family that is not CEILING-BOUND; else report to Ido |
 | Same at κ 0.8: sens / uniform / mild, seeds 42 and 43 (wave 19) | **22374703 / 04 / 88** (s43) COMPLETED 21:01 / 21:08 / 20:58 **§281**: lever_cos **+0.78** at 5k (lr 0.01 +1.30), **+1.17** at 10k (+1.25); bar_cos +0.38 / +0.75; cosine lowers every r56-w4 arm and its origin. **22374700** (s42 sens) COMPLETED 20:32; s42 uniform / mild **22374701 / 02 PREEMPTED 20:15** (`preempt/qos`: `rtx4090`-partition jobs took `cs-4090-01` / `ise-4090-02`; `Requeue=0`, so cancelled, no Traceback; never read their run dirs) → resubmitted once, identical, **22385251 / 52** (nice 19); a second preemption → report, no third submit. **22385251** (uniform s42) COMPLETED 01:30 **§297** (seed 42 verified, no second preemption): two-seed lever_cos **+0.74** at 5k (+0.70 / +0.78; lr 0.01 +1.13), **+1.195** at 10k (+1.25), so the 5k is trimmed and the 10k level; inner − uniform two-seed +0.82 at 5k. **22385252** (mild s42) **PREEMPTED again** 01:14 after 4 min on `ise-6000-02` (a node shared with `rtx6000`-partition jobs; `Requeue=0`, so cancelled; batch step SIGTERM): second preemption, **reported, no third submit**; κ 0.8's bar_cos stays seed 43 only (§281) unless Ido asks for a resubmit | **v10k** | wave 8 κ 0.8 | reported |
 | Select=last re-FT (lr 0.01 cosine, 100 ep, keep the last epoch), N3's saved candidates (wave 11) | **22342659** COMPLETED 08:59 **§239** | **v10k** | §157; L3-ctrl §232 | N3 Δsel 10k **+0.15 / +0.43** at 2.11× / 2.57×; joint call **§240** |
 | Select=last re-FT, τ-off's saved candidates (wave 11) | **22342660** COMPLETED 09:53 **§240** | **v10k** | §220 | τ-off Δsel 10k **+0.40 / +0.21** at 2.11× / 2.57×. Call: **NEUTRAL** at 2.11× (N3 0.15 short); 2.57× **unresolved** (τ-off 0.09 under the bar); REQUOTE and STANDS cannot fire |
@@ -104,6 +105,8 @@
 | Slide-line seed noise: cosine from lr 0.1, seed 43, N3 / τ-off saved candidates (wave 12) | **22343160 / 65** COMPLETED 10:48 / 11:32 **§246**: every \|d\| < 0.3, max **0.27** → "one run each, ≤ 0.27" | v10 | 22340234 §223 / 22341051 §228 | every \|s43 − s42\| < 0.3 (10k, 2.11× and 2.57×) → "one run each, ≤ max \|d\|"; else quote the two-seed mean and range |
 | First v10 freeze TEST ep0127 κ 0.8 | **22341736** COMPLETED ~08:26 **§237** | v10 | §211 | r56 **−2.88 @ 0.799** vs mild −2.1 = **−0.78**; residual 3/7/14; census 0.9 only; M1-v10 waits on 37 |
 | First v10 freeze TEST ep0127 κ 0.6 | **22341737** COMPLETED 10:51 **§248** | v10 | §212 | r56 **−5.28 @ 0.600** vs mild −5.1 = **−0.18**; residual **2 / 5 / 13** (mild); census 0.9 only; **M1-v10 FLAT** |
+
+**Ops 9 Oct 01:10 (TEST land).** Sitting closed **§336–§338**: thin five-seed **SURVIVES +1.18**; G SPEED-EQUIV at lr 0.01; **EFFECTIVE-LR** (batch 256 = bigger step). N04 R. Resume **274/250** freeze ep0272. QOS **11 R / 16 PD**. Ledger next **§339**. Next canvas **09:30**. Next 3h **02:40**.
 
 **Ops 9 Oct 00:40 (lean).** No new ledger TEST. N02P COMPLETED sitting owns. Sitting filled **N03-a R** (lr 0.05 batch 128), **N03-b** one R rest PD, **N04 / N04P** PD. Resume **274/250** freeze ep0272. QOS **11 R / 32 PD**. Ledger next **§336**. Next canvas **09:30**. Next 3h **02:40**.
 
@@ -1327,6 +1330,45 @@ Spearman ρ across a net's groups between A0's sensitivity and each group-level 
   - "Remove 0.0400 dominates" is true.
   - "No net parked above keep 0.80 as a STOP" is false overall (53), but holds for the last ~70 episodes.
 - **Reading.** STOP was explored and then extinguished; it never became a size choice. The policy converged to "remove 4 % until the walk ends": the same one-action collapse §200 found in every TESTed actor. This is consistent with the NO-GO on the Budget resume and on TESTing ep0251. No action.
+
+### D-PROXY: do cheap proxies rank sampled plans the way the final fine-tune does? (`docs/LEARNING_PROGRAM_OCT8.md` §4; `tree_v11`; registered 9 Oct before submit; Ido GO 8 Oct ~21:10 "plan_bandit", "in_new_agent")
+
+- **Why.** The plan-as-action agent compares K plans for the same (net, κ) against their shared mean. Its reward must rank plans *within* an instance the way the final fine-tune does. BatchNorm recalibration (EagleEye) is that reward if this cell validates it. v10's own reward (the 12/4 per-step fine-tune) and ft40's (40/10) are measured as proxies on the same plans, which re-tests ft40 (§112) without an agent.
+- **Code.** `tree_v11` = `tree_v10l` + two default-off flags. CPU pytest is green on the staged tree (11 new tests, 71 existing). Smoke **22410259** is never quoted.
+  - `SPECTRA_ALLOC_KIND=sample`: the alloc walk's plan weights times exp(σ ε_g) per group, around the sens or the uniform weights (`SPECTRA_ALLOC_SAMPLE_AROUND`, `_SIGMA` 0.5, `_SEED`; a private RNG). The plan is bisected to the same params target and cut by the same walk. Each plan's `[alloc]` line and `alloc_plan` record carry the sample.
+  - `SPECTRA_EVAL_PROXIES=cut,bn8,bn32,ft1,ft12_4,ft40_10`, measured on a copy of each non-origin TRAJ candidate before its final fine-tune, on the val half, under `SPECTRA_EVAL_PROXY_SEED=0`, with the global RNG restored afterwards:
+    - cut is the candidate as cut;
+    - bn<N> recalibrates BatchNorm on N train batches;
+    - ft<E>_<P> is the per-step fine-tune at E epochs and patience P, with the handler's own recipe (v10's: Adam 1e-3, plateau, select on train loss, GPU crop + flip at batch 256).
+    Printed `[proxy]`, recorded `eval_plan_proxy`.
+- **Cell.** One-shot alloc walks (`SPECTRA_NUM_EPOCHS=0`, landed params 0.6, 5-rate menu, group-once, 6 passes) under P + G, profile `baseline_c10_alloc_traj_gonce`, candidates saved.
+  - *Families and instances.* Thin r56-w4 (`input_c10_thin.json`, with the r20-w2 guard in the same jobs, reported), DepGraph R56 (`input_catalog_l_depgraph_r56.json`) and MobileNetV2 ×0.5 (`input_pf_mbv2x05.json`), κ 0.6. Two instances per family: seed 42 and seed 43 (the val / test split is fixed by `SPECTRA_SPLIT_SEED`).
+  - *Plans per instance, one job each.* The named plans sens, uniform and inner, and eight sampled plans at σ 0.5: four around sens and four around uniform, sample seeds 1–8 (instance 42) and 9–16 (instance 43). 66 jobs.
+  - *Finals (ground truth).* G at 75 epochs (§334), keep-last, batch 128, under the family's §330 step size (lr 0.1 on R56; lr 0.01 on thin and MobileNetV2), on every candidate. The origin control runs only in each instance's sens job.
+  - *Ceiling.* Instance 42's candidate sets are re-finalized with seed 44 (`SPECTRA_EVAL_FINAL_FT_FROM`, afterok, no proxies): 33 jobs.
+- **Metric.**
+  - Per instance, Spearman ρ between a proxy's val Δ and the final's TEST 5k Δ over the instance's plans, averaged over the two instances.
+  - Regret: the instance's best final minus the final of the proxy's top plan, in pp; median over instances.
+  - The TEST half is the ground truth so that proxy and truth never share images. This is a diagnostic of rank agreement; no row is chosen by it. The val-half ground truth is reported.
+  - The ceiling is ρ between the seed-42 and seed-44 finals over instance 42's plans.
+- **Calls, per family.**
+  - **CEILING-BOUND** if the ceiling ρ is < 0.60: the final cannot rank that family's plans, so the family neither validates nor vetoes a proxy (reported).
+  - Otherwise, per proxy: **VALID** if mean ρ ≥ 0.60 and median regret ≤ 0.5 pp; else **INVALID**.
+  - **Reward**: the cheapest proxy (mean minutes) VALID on every family that is not CEILING-BOUND. BatchNorm recalibration is the reward if it is that proxy.
+  - If no proxy qualifies, or every family is CEILING-BOUND: report to Ido. The agent would then train on G's full final, and nothing is registered before he reads it.
+  - *Reported:*
+    - proxy minutes;
+    - the finals' spread within each instance;
+    - headroom, the best sampled plan minus sens (if no sampled plan beats sens by ≥ 0.3 pp anywhere, there is little to find beyond the sens prior at κ 0.6);
+    - sampled-around-sens minus sampled-around-uniform means;
+    - sens − uniform and inner − uniform on the finals (D-LEVER's inputs);
+    - ft12_4's and ft40_10's validity, as the old rewards' fidelity.
+- **Start check.**
+  - The `[alloc]` line reads `sample around … sigma=0.5 seed=…` on sampled plans and the named kind otherwise.
+  - Six `[proxy]` results per net.
+  - The proxies' `Fine-tune recipe` lines read `optim=adam lr=0.001 … schedule=plateau … patience=4 epochs=12` (ft12_4) and `patience=10 epochs=40` (ft40_10).
+  - The final's line reads lr 0.01 or 0.1 per family and `select=last`; no NaN.
+- **Never.** An agent row or a paper row from this cell; a pick on test; a seed beyond 42 / 43 / 44; a train, resume or freeze TEST pointed at `tree_v11`.
 
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 
