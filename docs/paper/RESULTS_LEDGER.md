@@ -6898,3 +6898,140 @@ Reading:
 Never: a "SURVIVES" MobileNetV2 lever; an agent row.
 
 Records: queue row 91; next §346.
+
+
+## 346. T1: the plan-as-action agent trained on the 10-net catalog, read on held-out networks (trains **22423564 / 68 / 72 / 76 / 81**, evals **22423565–584**, `tree_v13`; R56C comparators **22423587–592**, `tree_v10l`) — PRELIM; registered call: T1 **LEARNS** (T1 − mild **+2.20** at 5k on thin r56-w4, all five seeds positive; T1 − uniform **+0.96** on DepGraph R56), not BEATS-PRIOR (T1 − sens +0.12 on r56-w4 and **+0.28** on DepGraph R56, both under +0.3); at equal params T1 keeps 1.2–1.6× sens's FLOPs; the held-out nets are new networks of a family the catalog already holds (CIFAR ResNets), not an unseen family
+
+Registered before submit 9 Oct 17:08:09 (commit `1e4d082`; queue row 99, section "Afternoon 9 Oct cells").
+- *GO.* Ido, 8 Oct ~21:10 `plan_bandit`; T1 was registered after D-IMIT and D-PROXY reported. Then 9 Oct 08:44 "let its call decide T1's representation" and 16:34 "continue as planned". Ido did not separately confirm T1 (handoff §9.3).
+- *Scope note.* A pre-read scope note went in at 19:44 (commit `6d2f4c3`), before any T1 eval had run.
+- *Read.* 9 Oct 21:00, by the first Claude Code science session (`scripts/_tmp_s9oct_t1_read.sh`).
+- *Checks.* All 20 T1 jobs and the 6 R56C comparators COMPLETED with exit 0, with no Traceback, WARNING or NaN in any train or eval log. Every final kept its last epoch under G2 (cosine from lr 0.1, batch 256, 100 epochs, origin control). The 50 comparator jobs' names match their arm and seed.
+
+Setup:
+- *Train.* `SPECTRA_PLAN_TRAIN=1` on v10's 10-net catalog (`database_offline_v6_p5b2.json`, cifar-10 + svhn): 12,000 instances (about 1,200 per net), κ ~ U[0.35, 0.85], K 8, σ 0.5 → 0.2, reward = raw one-shot cut (§340), v10's state as is (§344), seeds 42–46. Each train logged `[plan] DONE 12000 instances in 175 min`.
+- *Eval.* The frozen mean plan as one cut, then G2 + origin, seed = the train's seed:
+  - the thin pair at params 0.6 (plan x0.579–0.583 for target x0.580; size points at params 0.595–0.600 on r56-w4);
+  - MobileNetV2 ×0.5 at 0.6 (trained-on: the catalog's own checkpoint);
+  - DepGraph R56 at params 0.47 (plan x0.450; lands at 0.469–0.470).
+- *Comparators* (same seed, all under G2):
+  - thin and guard: G2-H (s42 / 43 sens / uniform) + NR (the rest), walked;
+  - MobileNetV2: G2-M + NR, walked;
+  - DepGraph R56: G2-F one-shot (s42 / 43) + R56C one-shot (s44–46).
+
+**r56-w4 and DepGraph R56, per seed** (TEST 5k Δacc; T1's params / FLOPs kept):
+
+| net | seed | T1 | sens | uniform | inner | mild | T1 params / FLOPs |
+|---|---|---|---|---|---|---|---|
+| r56-w4 | 42 | **−2.20** | −2.14 | −3.50 | −1.88 | −4.98 | 0.595 / 0.792 |
+| r56-w4 | 43 | **−2.70** | −2.34 | −3.54 | −2.86 | −4.86 | 0.595 / 0.805 |
+| r56-w4 | 44 | **−2.16** | −2.72 | −3.24 | −2.38 | −4.08 | 0.598 / 0.734 |
+| r56-w4 | 45 | **−2.42** | −2.74 | −3.60 | −2.40 | −4.52 | 0.600 / 0.668 |
+| r56-w4 | 46 | **−2.32** | −2.48 | −3.62 | −2.42 | −4.36 | 0.595 / 0.771 |
+| DepGraph R56 | 42 | **+0.54** | +0.24 | −0.70 | — | — | 0.470 / 0.590 |
+| DepGraph R56 | 43 | **+0.36** | +0.08 | −0.46 | — | — | 0.470 / 0.613 |
+| DepGraph R56 | 44 | **+0.60** | +0.00 | −0.50 | — | — | 0.469 / 0.606 |
+| DepGraph R56 | 45 | **+0.38** | +0.64 | −0.24 | — | — | 0.469 / 0.617 |
+| DepGraph R56 | 46 | **+0.64** | +0.14 | −0.40 | — | — | 0.470 / 0.630 |
+
+Comparators' FLOPs kept: r56-w4 sens 0.566–0.575, uniform 0.582, inner 0.580, mild 0.453; DepGraph R56 sens 0.398–0.441, uniform 0.472.
+
+Arm means over the five seeds (5k / val / 10k):
+- r56-w4: T1 −2.36 / −2.34 / −2.35; sens −2.48; uniform −3.50; inner −2.39; mild −4.56.
+- DepGraph R56: T1 **+0.50 / +0.52 / +0.51**; sens +0.22; uniform −0.46.
+
+**Contrasts** (mean over seeds 42–46, paired by seed: 5k with SD and per seed; val; 10k; honest = each row's 5k minus its own origin control's change; T1's FLOPs over the comparator's):
+
+| net | contrast | 5k (SD; s42 / 43 / 44 / 45 / 46) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| r56-w4 | T1 − mild | **+2.20** (0.34; +2.78 / +2.16 / +1.92 / +2.10 / +2.04) | +2.20 | +2.20 | +2.58 | 1.47–1.78 |
+| r56-w4 | T1 − uniform | +1.14 (0.19; +1.30 / +0.84 / +1.08 / +1.18 / +1.30) | +0.90 | +1.02 | +1.44 | 1.15–1.38 |
+| r56-w4 | T1 − sens | **+0.12** (0.35; −0.06 / −0.36 / +0.56 / +0.32 / +0.16) | +0.02 | +0.07 | +0.29 | 1.18–1.42 |
+| r56-w4 | T1 − inner | +0.03 (0.21; −0.32 / +0.16 / +0.22 / −0.02 / +0.10) | −0.12 | −0.05 | +0.30 | 1.15–1.39 |
+| DepGraph R56 | T1 − uniform | **+0.96** (0.24; +1.24 / +0.82 / +1.10 / +0.62 / +1.04) | +0.54 | +0.75 | +0.98 | 1.25–1.34 |
+| DepGraph R56 | T1 − sens | **+0.28** (0.33; +0.30 / +0.28 / +0.60 / −0.26 / +0.50) | +0.11 | +0.20 | +0.39 | 1.37–1.58 |
+
+Calls (registered, queue row 99):
+- LEARNS if T1 − mild ≥ +0.5 on thin r56-w4 **and** T1 − uniform ≥ −0.3 on DepGraph R56. The values are +2.20 and +0.96 → **LEARNS**.
+- BEATS-PRIOR if T1 − sens ≥ +0.3 on some held-out family while T1 − uniform ≥ −0.3 on every other. T1 − sens is +0.12 on r56-w4 and +0.28 on DepGraph R56, so it does not fire.
+- The guard r20-w2 is reported, not voting (row 99 lists it under "Reported"). Counting it as a held-out family changes nothing: BEATS-PRIOR still fires on no family.
+
+Reported:
+- *T1 against T0* (T0 trained on r56-w4 itself, §341), seeds 42–44: T1 − T0 **−0.06** at 5k (+0.20 / −0.74 / +0.36), +0.04 at 10k. The catalog-trained agent never saw r56-w4 and matches the one trained on it.
+- *One-shot comparators* on r56-w4, G2-E seeds 42 / 43: T1 − sens −0.17 (−0.18 / −0.16), T1 − uniform +1.04. Both are within 0.3 of the walked contrasts, as they were for T0.
+- *Stratified bootstrap* over nets × seeds (Agarwal et al. 2021; seeds resampled within each net, 10,000 draws):
+  - T1 − sens over r56-w4 and DepGraph R56: **+0.20 [+0.01, +0.38]**. Per net: r56-w4 +0.12 [−0.16, +0.39]; DepGraph R56 +0.28 [+0.00, +0.52].
+  - T1 − uniform over the same two nets: +1.05 [+0.93, +1.17].
+  - T1 − mild on r56-w4: +2.20 [+1.99, +2.51].
+- *MobileNetV2 ×0.5 (trained-on).* T1 − sens −0.46 (SD 0.24, every seed negative), − uniform −0.17, − inner +0.70, − mild −0.08. T1 keeps FLOPs 0.762–0.847, against sens 0.693–0.714. On the one catalog net read here, T1 is below sens.
+- *Guard r20-w2 (never trained on).* T1 − sens −0.84, − uniform −1.51, − inner −2.37, − mild −0.95 (SD 1.1–1.3; seed 42 between −2.6 and −4.2).
+  - *Not at equal params.* On seeds 42, 45 and 46 T1's size point landed at params 0.542–0.551, against 0.581–0.595 for the comparators. On this net one channel can be half a group, so the landing overshoots and the guard rows compare a smaller T1 net with larger comparators. Read them as a caveat, not as a size-matched contrast.
+  - *Honest values.* The guard's origin control gains +4.0 to +5.2 under G2 (as in §342), so every honest value on it is about −5 to −9.
+- *Plan shapes.*
+  - r56-w4 (30 groups): keep min 0.12 on every seed; median 1.00 (s42, s43, s46), 0.84 (s44), 0.75 (s45). Like T0, T1 cuts a few groups hard and keeps most whole.
+  - DepGraph R56: keep min 0.09–0.19, median 0.67–1.00.
+- *DepGraph's own point.* DepGraph's 2.11× ResNet-56, walked by our pipeline (§309 / §310), keeps params 0.508 and FLOPs 0.480. T1 at params 0.47 keeps FLOPs about 0.61. Quote T1 beside DepGraph with that caption, never as a beat; DepGraph also picks its epoch on the test set (`EFFICIENCY_AND_TRANSFER.md` line 151).
+- *Train-log values* (in-sample proxy, never quoted). At κ 0.8 the mean plan scored about 0 on MobileNetV2 ×1, against uniform −20.4. On DenseNet-40 at κ 0.4 every arm sat at −75 to −83, the floor.
+
+Reading:
+1. **The plan agent transfers to held-out networks of its catalog's family.**
+   - On r56-w4, trained on 10 catalog nets without it, the frozen agent lands +2.20 above mild on all five seeds. It is level with sens and inner, and with T0, which trained on r56-w4 alone.
+   - On DepGraph ResNet-56 it is +0.96 over a uniform cut and +0.28 over sens (bootstrap interval [+0.00, +0.52]), missing the BEATS-PRIOR bar of +0.3 by 0.02.
+   - This is the first SPECTRA agent result that is neither mild nor a per-net fit.
+2. **Scope.** All three held-out nets are CIFAR ResNets, and the catalog holds that family at other widths and depths (r56-w6, r20-w8 / w10, ResNet-32).
+   - The claim this supports is transfer to held-out networks of a seen family.
+   - The literature scan (`docs/LIT_SCAN_9OCT_TRANSFER_BUDGET.md`) finds within-family frozen transfer already reported (arXiv:2506.12041, ResNet-56 ↔ ResNet-110).
+   - A family-level hold-out is the next test of the thesis claim; it needs its own registration.
+3. **FLOPs caption (more than 10 % on every pair).** At equal params T1 keeps 1.2–1.6× sens's FLOPs and 1.5–1.8× mild's. As for T0 (§341), the params budget rewards cutting the late, wide stage, where params are cheap in FLOPs. Nothing is claimed at equal FLOPs; T0-F (registered `bd3c3f3`) is the FLOPs control.
+4. **Where it does not help.**
+   - On the trained-on MobileNetV2 ×0.5, T1 trails sens by 0.46 on every seed.
+   - On the thin r20-w2 guard it lands below every rule, with a size confound.
+   - The reward's floor (§341 reading 4: thin nets and DenseNet-40 near chance below κ ≈ 0.7) leaves the thinnest nets little signal.
+5. **sens remains the prior to beat.** On both voting nets T1 is level with sens (+0.12, +0.28). Whether headroom or the reward holds the agent at sens is D-PROXY-2's question (queue row after VG2, running).
+
+Never: a train-log value as TEST; BEATS-PRIOR or an equal-FLOPs claim; "transfers to unseen families"; a beat over DepGraph; the guard as a size-matched contrast.
+
+Records: queue row 99; next §347.
+
+
+## 347. (K8): T0 at κ 0.8 on the thin pair (agent evals **22425112 / 15 / 16**, `tree_v13`; G2 re-finals of saved κ 0.8 walks **22425117–128**, seed-44 walks **22425129 / 31 / 33 / 35** with re-finals **22425130 / 32 / 34 / 36**) — PRELIM, reported (no registered call): T0 − sens **−0.13** at 5k on r56-w4 (+0.54 / −0.20 / −0.74), so T0's in-sample proxy lead over sens at κ 0.8 does not survive the final; T0 − uniform +1.07, − mild +0.85, − inner +0.21; T0 keeps 1.25–1.30× sens's FLOPs
+
+Registered before submit 9 Oct ~17:35 (commit `5612d02`; queue row 100, section "Afternoon 9 Oct cells"; reported, no call).
+- *Read.* 9 Oct 21:04, after the last re-finals completed (`scripts/_tmp_s9oct_t1_read.sh`, K8 part).
+- *Checks.* All 19 jobs COMPLETED with exit 0. The agent evals have no Traceback, WARNING or NaN, and every final kept its last epoch.
+- *Agent evals.* T0's cut-arm policies (§341) on the thin pair at params 0.8, one-shot, under G2 + origin, with the seed equal to the policy's. The plans keep x0.779–0.783 for a target of x0.780 on r56-w4.
+- *Comparators.* G2 re-finals at the same seed of the saved κ 0.8 walks: sens and uniform (`tree_v10h`), inner (`tree_v10i`), mild-landed (`tree_v10`). Seed 44's walks were run fresh with each walk's own recipe, then re-finalized under G2.
+
+**r56-w4 at params 0.8, per seed** (TEST 5k; FLOPs kept):
+
+| seed | T0 | sens | uniform | inner | mild | T0 FLOPs |
+|---|---|---|---|---|---|---|
+| 42 | **−1.06** | −1.60 | −2.00 | −1.10 | −2.22 | 0.902 |
+| 43 | **−0.96** | −0.76 | −2.44 | −1.40 | −1.86 | 0.906 |
+| 44 | **−1.28** | −0.54 | −2.08 | −1.44 | −1.78 | 0.874 |
+
+Comparators' FLOPs kept: sens 0.696–0.708, uniform and mild 0.716, inner 0.775. Every arm lands at params 0.795–0.800.
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed; FLOPs ratio of T0 to the comparator):
+
+| net | contrast | 5k (s42 / 43 / 44) | val | 10k | FLOPs ratio |
+|---|---|---|---|---|---|
+| r56-w4 | T0 − sens | **−0.13** (+0.54 / −0.20 / −0.74) | −0.17 | −0.15 | 1.25–1.30 |
+| r56-w4 | T0 − uniform | +1.07 (+0.94 / +1.48 / +0.80) | +0.95 | +1.01 | 1.22–1.27 |
+| r56-w4 | T0 − inner | +0.21 (+0.04 / +0.44 / +0.16) | +0.19 | +0.20 | 1.13–1.17 |
+| r56-w4 | T0 − mild | +0.85 (+1.16 / +0.90 / +0.50) | +0.70 | +0.78 | 1.22–1.27 |
+| guard r20-w2 | T0 − sens | +0.78 (+0.04 / +1.56 / +0.74) | +0.48 | +0.63 | 1.02–1.04 |
+| guard r20-w2 | T0 − uniform | +1.51 (+1.10 / +2.32 / +1.10) | +0.74 | +1.12 | 1.09–1.12 |
+| guard r20-w2 | T0 − inner | −0.41 (−1.60 / +0.66 / −0.28) | −1.02 | −0.71 | 1.05–1.07 |
+| guard r20-w2 | T0 − mild | +0.91 (+0.68 / +1.52 / +0.52) | +1.10 | +1.00 | 1.09–1.12 |
+
+On the guard, T0 lands at params 0.775–0.799 and the comparators at 0.774–0.799. The guard's origin control gains +4.1 to +4.9 under G2 (as in §342), so every honest value on it is −1.0 to −4.0.
+
+Reading (reported; K8 had no registered call):
+1. **The in-sample lead over sens does not survive the final.** In the train log, T0's mean plan scored about 22–30 pp above sens on the cut proxy at κ 0.8 (§341, never quoted). After the paper's final it is −0.13 at 5k and −0.15 at 10k, level with sens, as at κ 0.6 (+0.11, §341). The cut ranks T0's plans far above sens, but the final does not, at either κ. Whether the cut misranks the agent's own plans (Goodhart) or the agent sits at the reachable optimum is D-PROXY-2's question, which is running at both κ.
+2. **The rest of the κ 0.6 picture holds at κ 0.8.** T0 is above uniform (+1.07) and mild (+0.85) and level with inner (+0.21). The FLOPs caption is required: T0 keeps 1.25–1.30× sens's FLOPs at equal params. The mild gap is smaller than at κ 0.6 (+0.85 against +2.35), because a milder cut leaves less allocation lever.
+3. **The never-seen guard.** At κ 0.8 T0 is above sens, uniform and mild on the guard and below inner. At κ 0.6 it trailed every rule (§341). The thinnest net's cut floor is less binding at κ 0.8. With three seeds and a 4–5 pp origin gain, this stays reported.
+
+Never: a train-log value as TEST; "T0 beats sens"; an equal-FLOPs claim; a K8 call.
+
+Records: queue row 100; next §348.
