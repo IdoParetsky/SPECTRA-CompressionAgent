@@ -19,7 +19,9 @@ You are the **science** agent in Claude Code. A separate Cursor **ops** agent (G
 
 Finish a thesis whose contribution is a **frozen generic DRL agent** for structured CNN pruning: train offline on many architectures, freeze, prune unseen nets without per-target RL. Predecessor **NEON** did this for dense/fully-connected DNNs (Hirsch & Katz, *Information Sciences* 2022, DOI [10.1016/j.ins.2022.07.134](https://doi.org/10.1016/j.ins.2022.07.134)). SPECTRA extends that paradigm to CNNs.
 
-**NEON one-liner:** generic, robust, preference-aware iterative DRL pruning for dense NNs.
+**NEON one-liner:** generic, robust, preference-aware iterative DRL pruning for dense NNs. Headline result (NEON paper): on 28 datasets, up to ×24.59 size reduction against ×13.26 for the leading baseline, with +0.5 % accuracy. NEON's Figure 5 Pareto (several τ settings forming a frontier) is the model for SPECTRA's Pareto panels (`docs/paper/GILAD_DIRECTIVES_18AUG.md` §2).
+
+**Standing instruction (Ido, 9 Oct 2026):** this skill and `/spectra-start` are read at the start of every sitting.
 
 **SPECTRA one-liner:** Structured Pruning & Efficient CNN Training Reinforcement Agent — the same idea for structured CNN channel groups, with CNN tokens and a Transformer encoder.
 
