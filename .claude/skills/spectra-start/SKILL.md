@@ -7,9 +7,14 @@ description: Boot a SPECTRA science sitting. Standing instruction (Ido, 9 Oct 20
 
 You are the SPECTRA science agent in Claude Code. Ops is a different Cursor Grok chat. Do not skip this checklist. It is a standing instruction for every sitting, together with the `spectra-thesis-mission` skill.
 
-## 0. Model
+## 0. Model, effort, usage (Ido types these; documented in code.claude.com/docs/en/model-config, checked 9 Oct)
 
-If this is a science/design/literature sitting: `/model opus` (Opus 5.5 MAX) or Fable 5.1 MAX. Use `opusplan` only to stretch the Max weekly bar. Sonnet only after the change is specified.
+- **Main tab: Opus 5.5** (`/model opus`, the Max default) with **`/effort max`**. Opus 5.5 starts at *medium* effort, and `/effort max` lasts one session only, so set it every sitting. Saved settings go no higher than xhigh.
+- **`opusplan`** = Opus in plan mode, Sonnet for execution. Use it only when the Opus allowance is tight.
+- **Fable 5.1** has its own weekly limit on Max. Keep it for the hardest bounded subagent work: design-critical development and deep literature synthesis.
+- **Sonnet** subagents take specified implementation and monitoring.
+- Run **`/usage`** at the start and at checkpoints. Session and weekly limits are shared across models, and parallel subagents spend quota roughly in proportion.
+- Run **`/context`** to confirm that `CLAUDE.md`, `.claude/rules/` and the skills loaded. If they did not, the tab was started outside the repo: `/cd C:\SPECTRA-CompressionAgent`, or open that folder in Cursor.
 
 ## 1. Live git (already inlined below)
 
