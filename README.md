@@ -1,7 +1,7 @@
 # NEON - Multi Neural Network Compression Agent
 
 This repository is the official implementation of NEON from "Multi-objective pruning of dense neural networks using deep reinforcement learning
-". [https://doi.org/10.1016/j.neunet.2022.06.018](https://www.sciencedirect.com/science/article/abs/pii/S0020025522008222)
+". [https://doi.org/10.1016/j.ins.2022.07.134](https://www.sciencedirect.com/science/article/abs/pii/S0020025522008222)
 
 ## Preparing the workstation
 This project is using `conda` as the package manager. 
