@@ -307,6 +307,21 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
 - **A/Bs over a uniform policy are uninformative, not failed.** This covers the encoder A/B, AMP, skinny-in-train and DenseNet-in-train (§16–18), and every other agent-side A/B run over a uniform or collapsed policy. The sitting re-registers them on current infrastructure in the order of the plan's §3, representation first through the supervised imitation probe. Ops restarts none on its own.
 - **Unchanged.** v10 `22156116` keeps running untouched. No other new train starts without Ido's GO. The no-agent diagnostics (imitation probe, proxy re-measure, noise split) are sitting cells.
 
+### 10.0k The science agent moves to Claude Code; 9 Oct afternoon cells (9 Oct ~18:50; Ido 18:16)
+
+- **Who.** From 9 Oct evening the science sittings run in Claude Code, in this same working tree. They use Opus 5.5 MAX or Fable 5.1 MAX for science, and Sonnet for implementation and monitoring. This ops chat (Grok 4.6 High Effort) keeps its role. The science agent's entry point is `docs/CLAUDE_RESEARCH_HANDOFF.md`; its §12 is the protocol between the two agents.
+- **Channels.**
+  - Science → ops: a new `### 10.0x` addendum here, plus queue-file rows (registration, job ids, start checks, calls).
+  - Ops → science: the OPS DELTA briefings in `docs/PROMPT_FABLE_V6.md`, "Ops … (lean)" stamps in the queue file, and `docs/NEXT_DEV_PHASE.md` §0.
+  - Git commits are the sync log. Neither agent stages, commits, stashes or reverts the other's files or hunks.
+- **Live science jobs.** Ops polls them. It never submits, cancels or resubmits them, and never reads them as TEST:
+  - T1 trains **22423564 / 68 / 72 / 76 / 81**, ending ~20:05–20:15;
+  - their 15 afterok evals, 22423565–567, 569–571, 573–575, 578–580 and 582–584, ending ~20:10–21:15;
+  - K8's seed-44 walks 22425129 / 31 / 33 / 35 and their G2 re-finals 22425130 / 32 / 34 / 36.
+- **Reading them.** The science session reads T1 and K8 against their registered calls (queue row 99, section "Afternoon 9 Oct cells") and writes ledger §346–§347. Ops pins T1 only after §346 exists.
+- **On a failure or preemption** of any of these jobs, report the last 30 lines in an OPS DELTA. The science session decides what happens next.
+- **Unchanged.** 22156116 / 22156117 and 21767188 stay untouched. No new train starts without Ido's GO. §10.0i and §10.0j stand.
+
 ### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |
