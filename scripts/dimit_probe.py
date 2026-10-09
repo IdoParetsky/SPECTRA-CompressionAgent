@@ -430,8 +430,13 @@ def load_dump(path):
 def v10_encoder_state(actor_path):
     sd = torch.load(actor_path, map_location="cpu", weights_only=False)
     sd = sd.state_dict() if hasattr(sd, "state_dict") else sd
+    if isinstance(sd.get("state_dict"), dict):
+        sd = sd["state_dict"]
     prefix = "state_encoder."
-    return {key[len(prefix):]: value for key, value in sd.items() if key.startswith(prefix)}
+    state = {key[len(prefix):]: value for key, value in sd.items() if key.startswith(prefix)}
+    if not state:
+        raise ValueError(f"no '{prefix}' keys in {actor_path}")
+    return state
 
 
 def load_bert(device):
