@@ -6692,3 +6692,209 @@ Reading:
 5. Reported, never quoted: per-instance spread of finals 1.1–8.5 pp; best sampled − sens −0.26 to +0.76; sampled around sens − sampled around uniform +0.38 to +2.87 (thin largest).
 
 Records: queue row 92; next §341.
+
+
+## 341. T0 / T0-bn: the plan-as-action agent trained on thin r56-w4 alone (T0 trains **22416577 / 79 / 81**, evals **22416578 / 80 / 82**; T0-bn trains **22416583 / 85 / 87**, evals **22416584 / 86 / 88**; `tree_v13`) — PRELIM; registered call: T0 **LEARNS** (T0 − mild **+2.35** at 5k on seeds 42–44: +2.58 / +2.90 / +1.56), not BEATS-PRIOR (T0 − sens **+0.11**); at equal params, keeping 1.24–1.37× sens's FLOPs; T0-bn (bn32 reward, reported) LEARNS as well and ends **−0.47** below T0
+
+Registered before submit 9 Oct ~08:55 (commit `38417f6`; queue row 97, section "Morning 9 Oct cells"; Ido GO 08:45 "run_t0"). Read 9 Oct 16:40 (`scripts/_tmp_s9oct_pm_read.sh`, `_pm_read2.sh`, `_rec_read.sh`). All 12 jobs COMPLETED with exit 0, no traceback, no WARNING.
+- *Train.* `SPECTRA_PLAN_TRAIN=1` on thin r56-w4 C10 only (`SPECTRA_PLAN_NETS=resnet56-width4`), 3,000 instances, κ ~ U[0.35, 0.85], K 8, σ 0.5 → 0.2 over 60 %, lr 3e-4, batch 4, `NORM_ADV=0` (raw shared-mean advantage), layer tokens, default transformer, v10 ep0127's pins and standardizer read-only. T0 reward: the raw one-shot cut (D-PROXY's call, §340). T0-bn: BatchNorm recalibration on 32 batches (Ido's EagleEye choice).
+- *Eval.* The frozen mean plan as one cut (no per-step fine-tune) at params 0.6 on the thin pair (plan target x0.580 = walk target − 0.02), then G2 (lr 0.1, batch 256, GPU crop + flip, CUDA graphs, cosine, keep-last, 100 epochs) with the origin control, seed = the train's seed.
+- *Comparators.* The G2 rows at the same seed (G2-H §335/§336, NR §342): sens / uniform walked allocation rows, inner / mild-landed, all re-finalized under the same G2.
+
+**r56-w4 at params 0.6, per seed** (TEST 5k; val; 10k; honest = 5k − the job's own origin control):
+
+| seed | arm | job | 5k | val | 10k | params | FLOPs | origin | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| 42 | **T0** | 22416578 | **−2.40** | −2.26 | −2.33 | 0.595 | 0.778 | −0.54 | −1.86 |
+| 42 | T0-bn | 22416584 | −3.02 | −2.44 | −2.73 | 0.598 | 0.696 | +0.20 | −3.22 |
+| 42 | sens | 22404005 | −2.14 | −2.42 | −2.28 | 0.600 | 0.572 | −0.14 | −2.00 |
+| 42 | uniform | 22404006 | −3.50 | −3.52 | −3.51 | 0.599 | 0.582 | +0.16 | −3.66 |
+| 42 | inner | 22416541 | −1.88 | −2.00 | −1.94 | 0.595 | 0.580 | −0.28 | −1.60 |
+| 42 | mild | 22416543 | −4.98 | −4.76 | −4.87 | 0.600 | 0.453 | −0.46 | −4.52 |
+| 43 | **T0** | 22416580 | **−1.96** | −2.38 | −2.17 | 0.596 | 0.772 | −0.76 | −1.20 |
+| 43 | T0-bn | 22416586 | −2.60 | −2.86 | −2.73 | 0.598 | 0.715 | −0.50 | −2.10 |
+| 43 | sens | 22404010 | −2.34 | −2.60 | −2.47 | 0.597 | 0.568 | −0.42 | −1.92 |
+| 43 | uniform | 22404012 | −3.54 | −3.38 | −3.46 | 0.599 | 0.582 | −0.36 | −3.18 |
+| 43 | inner | 22416542 | −2.86 | −2.48 | −2.67 | 0.595 | 0.580 | −0.18 | −2.68 |
+| 43 | mild | 22416544 | −4.86 | −4.38 | −4.62 | 0.600 | 0.453 | −0.02 | −4.84 |
+| 44 | **T0** | 22416582 | **−2.52** | −2.52 | −2.52 | 0.598 | 0.715 | −0.10 | −2.42 |
+| 44 | T0-bn | 22416588 | −2.68 | −2.46 | −2.57 | 0.595 | 0.716 | −0.08 | −2.60 |
+| 44 | sens | 22416545 | −2.72 | −2.16 | −2.44 | 0.597 | 0.575 | −0.54 | −2.18 |
+| 44 | uniform | 22416548 | −3.24 | −2.82 | −3.03 | 0.599 | 0.582 | −0.50 | −2.74 |
+| 44 | inner | 22416551 | −2.38 | −2.30 | −2.34 | 0.595 | 0.580 | −0.22 | −2.16 |
+| 44 | mild | 22416554 | −4.08 | −4.52 | −4.30 | 0.600 | 0.453 | +0.12 | −4.20 |
+
+**Contrasts on r56-w4** (mean over seeds 42–44, paired by seed; per seed at 5k):
+
+| contrast | 5k | val | 10k | per seed (5k) |
+|---|---|---|---|---|
+| T0 − mild | **+2.35** | +2.17 | +2.26 | +2.58 / +2.90 / +1.56 |
+| T0 − sens | **+0.11** | +0.01 | +0.06 | −0.26 / +0.38 / +0.20 |
+| T0 − uniform | +1.13 | +0.85 | +0.99 | +1.10 / +1.58 / +0.72 |
+| T0 − inner | +0.08 | −0.13 | −0.02 | −0.52 / +0.90 / −0.14 |
+| T0-bn − mild | +1.87 | +1.97 | +1.92 | +1.96 / +2.26 / +1.40 |
+| T0-bn − sens | −0.37 | −0.19 | −0.28 | −0.88 / −0.26 / +0.04 |
+| T0-bn − uniform | +0.66 | +0.65 | +0.66 | +0.48 / +0.94 / +0.56 |
+| T0-bn − inner | −0.39 | −0.33 | −0.36 | −1.14 / +0.26 / −0.30 |
+| T0-bn − T0 | −0.47 | −0.20 | −0.34 | −0.62 / −0.64 / −0.16 |
+
+Calls (registered; queue row 97): LEARNS if T0 − mild ≥ +0.5, BEATS-PRIOR if T0 − sens ≥ +0.3, otherwise FAILS-CONTROL → T0 **LEARNS** (+2.35); BEATS-PRIOR does not fire (+0.11 against the +0.3 bar). T0-bn (reported): LEARNS on the same bars (+1.87; −0.37 against sens).
+
+Reported:
+- *One-shot comparators.* T0 is one cut; its registered comparators are walked allocation rows. Against the one-shot G2-E rows on the same plans (§335, **22404224–227**, seeds 42 / 43: sens −2.02 / −2.54, uniform −3.82 / −3.16 at 5k, FLOPs 0.572 / 0.566 and 0.582), T0 − sens is −0.38 / +0.58 (mean **+0.10**) and T0 − uniform +1.42 / +1.20 (mean **+1.31**). Walked and one-shot sens sit within 0.2 of each other on both seeds, so the call does not depend on the comparator type.
+- *Guard r20-w2, never trained on* (5k, seeds 42–44): T0 − sens −0.53 (−1.14 / +0.42 / −0.86), − uniform −1.31 (−1.86 / −1.28 / −0.80), − inner −2.11 (−2.60 / −1.68 / −2.04), − mild −0.81 (−1.02 / −0.86 / −0.54); T0-bn −0.41 / −1.20 / −1.99 / −0.69.
+- *Plan shapes* (eval `[alloc]` lines; plan kept x0.576–0.582 against the x0.580 target; size points land at params 0.595–0.598). Group keep min / median / max on r56-w4 (30 groups): T0 0.12 / 1.00 / 1.00 (s42), 0.25 / 0.88 / 1.00 (s43), 0.50 / 0.75 / 1.00 (s44); T0-bn 0.12 / 0.75, 0.12 / 0.84, 0.25 / 1.00 (max 1.00). On r20-w2 (12 groups): T0 0.62 / 0.81, 0.50 / 0.75, 0.50 / 0.75.
+- *Cost.* T0 trains 51–53 min wall (3,000 instances in 50.3–52.0 min, ~1.0 s each); T0-bn 189–195 min (187.9–194.1 min, ~3.8 s each); evals 13.8–15.4 min (both nets, G2).
+- *Train-log values* (in-sample proxy on the val half; never quoted). At κ 0.4 / 0.6 / 0.8 the cut agent's mean plan scored −69.48 / −60.78 / −29.90 (s42), −72.06 / −73.16 / −21.50 (s43), −78.40 / −77.78 / −26.76 (s44); on the same instance sens scored −76.70 / −73.28 / −55.08, −75.52 / −73.82 / −51.02, −75.92 / −72.82 / −48.78, inner −78.62 / −75.54 / −57.70 and uniform −79.06 / −79.06 / −76.70. T0-bn's mean plan under bn32: −59.04 / −28.90 / −14.72 (s42), −59.38 / −30.20 / −13.46 (s43), −63.66 / −34.64 / −13.24 (s44), against sens −73.42 / −60.16 / −31.80 and inner −69.84 / −51.46 / −21.08 (s42).
+
+Reading:
+1. **The first trained SPECTRA policy that is not mild.** From the reward alone, on one net, the agent reaches the hand rules' accuracy at equal params (level with sens and inner) and closes the 2.4 pp mild gap that §337 named as the headroom. It does not go beyond them: BEATS-PRIOR does not fire.
+2. **FLOPs caption (> 10 %).** T0 keeps FLOPs 0.715–0.778, against sens 0.568–0.575, inner / uniform 0.580–0.582 and mild 0.453: 1.24–1.37× sens's and 1.58–1.72× mild's. A params budget rewards cutting the late, wide stage, where params are cheapest in FLOPs, and the plan shapes (median group keep 0.75–1.00, a few groups at 0.12–0.50) fit that. Nothing is claimed at equal FLOPs; every T0 row carries the caption.
+3. **Proxy gains the final does not keep.** In-sample, the cut agent's mean plan sits 22–30 pp above sens at κ 0.8, yet after the final it is +0.11. D-PROXY validated the cut on plans near sens and uniform (§340, ρ +0.90); the agent's own plans lie outside that set, and whether the cut still ranks them is not measured.
+4. **The reward floor.** Under the cut, nearly every plan on r56-w4 sits at chance (≈ −79 pp) below κ ≈ 0.7. Seed 44 learned only at high κ (in-sample at κ 0.6 it stayed at −77.78 against sens −72.82), yet its TEST at κ 0.6 is +0.20 over sens: the κ-conditioned plan learned at high κ carries down.
+5. **bn32 learned too, but less.** T0-bn finished below T0 on all three seeds (−0.47) at 3.7× the train time, in line with D-PROXY's thin ranking (cut +0.90, bn32 +0.80). The registered reward (cut) stands; adopting bn32 is Ido's call.
+6. **No transfer from one net.** On the never-seen guard, T0 trails every rule except sens. That is expected of a per-net control; transfer is T1's question.
+
+Never: a train-log value as TEST; BEATS-PRIOR or an equal-FLOPs claim; the guard as a transfer result; bn32 adopted on this read.
+
+Records: queue row 97; next §342.
+
+
+## 342. (NR): the narrow rows under G2 at params 0.6, five seeds (thin **22416541–556**, MobileNetV2 ×0.5 **22416557–572**, with G2-H **22404005 / 06 / 10 / 12** and G2-M **22404228–231**; `tree_v10l`) — PRELIM; on wave 8's bars at the read: thin r56-w4 sens − uniform **+1.02** at 5k (SD 0.33) → **SURVIVES**; MobileNetV2 ×0.5 **+0.29** (SD 0.24) → **ABSORBED**; these become the paper's narrow rows only if Ido confirms G2 as the narrow recipe (§343)
+
+Registered before submit 9 Oct ~08:55 (commit `38417f6`; queue row 95; Ido 08:36 "adopt_after_vgg": re-run the narrow rows under G2 meanwhile). 32 jobs COMPLETED 08:54–10:34 with exit 0 (thin 8.6–9.1 min, MobileNetV2 10.4–12.7 min). Each walk's job name matched its arm and seed (no mismatch). Recipe: G2 + origin on the walks' saved candidates (`SPECTRA_EVAL_FINAL_FT_FROM`), size_param 0.60. Candidates: N02 / N04's walks (queue section "Morning 9 Oct cells").
+
+**Arm means, five seeds (42–46)** (5k / val / 10k; params; FLOPs; origin control at 5k):
+
+| net | sens | uniform | inner | mild-landed |
+|---|---|---|---|---|
+| r56-w4 | −2.48 / −2.37 / −2.43; 0.599; 0.569; −0.34 | −3.50 / −3.24 / −3.37; 0.599; 0.582; −0.20 | −2.39 / −2.22 / −2.31; 0.595; 0.580; −0.23 | −4.56 / −4.54 / −4.55; 0.600; 0.453; −0.12 |
+| guard r20-w2 | −2.40 / −1.44 / −1.92; 0.595; 0.800; +4.65 | −1.73 / −0.64 / −1.19; 0.581; 0.741; +4.59 | −0.87 / +1.12 / +0.12; 0.582; 0.722; +4.58 | −2.29 / −0.93 / −1.61; 0.584; 0.674; +4.49 |
+| MBV2 ×0.5 | +0.52 / +0.37 / +0.45; 0.600; 0.703; +0.04 | +0.23 / −0.09 / +0.07; 0.600; 0.591; −0.06 | −0.64 / −0.58 / −0.61; 0.600; 0.508; +0.08 | +0.14 / −0.11 / +0.02; 0.600; 0.582; +0.00 |
+
+**Contrasts** (5k mean (SD; seeds 42 / 43 / 44 / 45 / 46); 10k; and the same five seeds under §330's lr 0.01 keep-last: §337 thin, §345 MobileNetV2):
+
+| net | contrast | G2 5k | G2 10k | lr 0.01 5k |
+|---|---|---|---|---|
+| r56-w4 | sens − uniform | **+1.02** (0.33; +1.36 / +1.20 / +0.52 / +0.86 / +1.14) | +0.95 | +1.184 |
+| r56-w4 | sens − mild | +2.08 (0.60; +2.84 / +2.52 / +1.36 / +1.78 / +1.88) | +2.13 | +2.376 |
+| r56-w4 | inner − uniform | +1.11 (0.36; +1.62 / +0.68 / +0.86 / +1.20 / +1.20) | +1.07 | +1.332 |
+| r56-w4 | sens − inner | −0.10 (0.36; −0.26 / +0.52 / −0.34 / −0.34 / −0.06) | −0.12 | −0.148 |
+| r56-w4 | uniform − mild | +1.06 (0.32; +1.48 / +1.32 / +0.84 / +0.92 / +0.74) | +1.18 | +1.192 |
+| r56-w4 | inner − mild | +2.17 (0.54; +3.10 / +2.00 / +1.70 / +2.12 / +1.94) | +2.25 | +2.524 |
+| guard | sens − uniform | −0.67 (0.64; −0.72 / −1.70 / +0.06 / −0.50 / −0.48) | −0.73 | −0.788 |
+| guard | sens − mild | −0.11 (0.69; +0.12 / −1.28 / +0.32 / +0.42 / −0.12) | −0.31 | −0.168 |
+| guard | inner − uniform | +0.86 (0.34; +0.74 / +0.40 / +1.24 / +1.16 / +0.74) | +1.31 | +1.340 |
+| guard | sens − inner | −1.52 (0.38; −1.46 / −2.10 / −1.18 / −1.66 / −1.22) | −2.04 | — |
+| MBV2 ×0.5 | sens − uniform | **+0.29** (0.24; +0.48 / +0.08 / +0.06 / +0.22 / +0.60) | +0.38 | +0.308 |
+| MBV2 ×0.5 | sens − mild | +0.38 (0.09; +0.50 / +0.36 / +0.24 / +0.40 / +0.40) | +0.43 | +0.416 |
+| MBV2 ×0.5 | inner − uniform | −0.87 (0.17; −0.86 / −0.92 / −1.08 / −0.62 / −0.88) | −0.68 | −0.572 |
+| MBV2 ×0.5 | sens − inner | +1.16 (0.26; +1.34 / +1.00 / +1.14 / +0.84 / +1.48) | +1.05 | +0.880 |
+| MBV2 ×0.5 | uniform − mild | +0.09 (0.19; +0.02 / +0.28 / +0.18 / +0.18 / −0.20) | +0.05 | +0.108 |
+
+Reading:
+1. **The thin lever survives under G2.** sens − uniform is +1.02, positive on every seed, within noise of lr 0.01 (+1.18, §337) and cosine-0.1 at batch 128 (+0.96, §307). Mild stays the worst thin arm (−2.08 against sens), the gap T0 closed (§341).
+2. **On thin, sens's lead is the residual-full rule's** (sens − inner −0.10), as under every recipe so far.
+3. **Origin controls.** Under G2 the r56-w4 control loses accuracy (arm means −0.12 to −0.34 at 5k, per job −0.60 to +0.16), where lr 0.01 gained +0.21 to +0.44 (§337). The guard's control gains +4.18 to +5.20 per job, so every guard honest value is about −5 to −7 and the guard is read raw. MobileNetV2's control sits at −0.36 to +0.26.
+4. **MobileNetV2 has no lever under either recipe** (G2 +0.29 ABSORBED, lr 0.01 +0.31 WEAK by 0.008, §345). The residual-full rule is its worst arm (−0.87), and sens's lead over inner comes with 1.38× inner's FLOPs (0.703 against 0.508).
+5. At equal params, the arms differ in FLOPs: thin sens 0.569, uniform 0.582, inner 0.580, mild 0.453; MobileNetV2 sens 0.703, uniform 0.591, mild 0.582, inner 0.508.
+
+Status: these replace §337 / §345's lr-0.01 rows in the paper only if Ido confirms G2 as the narrow-net recipe after §343. Never an agent row.
+
+Records: queue row 95; next §343.
+
+
+## 343. (VG): the single recipe's VGG check — G2 on E's VGG-19 C100 one-shot candidates (**22416573 / 74 / 75 / 76**, from `tree_v10k` job22398201 / 203 / 205 / 207; `tree_v10l`) — PRELIM; registered call: mean Δ10k against E's plain rows **−0.367** → outside ±0.30, so by the registration VGG-19 C100 keeps §330's plain recipe (cosine from lr 0.1, batch 128, keep-last); reported to Ido
+
+Registered before submit 9 Oct ~08:55 (commit `38417f6`; queue row 96; Ido 08:36 "adopt_after_vgg": G2 replaces §330's per-family rule after a VGG check). 4 jobs COMPLETED 10:23–10:45 with exit 0 (11.7–17.0 min). Comparator: each walk's own plain final (cosine from lr 0.1, batch 128, keep-last, 100 epochs; for sens the val_best row, which is the size point, as §319 / §327). Every pair is the same architecture (params 0.600).
+
+| arm | seed | G2 job | G2 10k (5k / val; origin) | plain 10k (5k / val; origin) | Δ10k (Δ5k) |
+|---|---|---|---|---|---|
+| sens | 42 | 22416573 | +0.89 (+0.86 / +0.92; +0.72) | +1.44 (+1.08 / +1.80; +0.50) | **−0.55** (−0.22) |
+| uniform | 42 | 22416574 | −0.70 (−1.12 / −0.28; +0.90) | −0.88 (−1.36 / −0.40; +1.98) | +0.18 (+0.24) |
+| sens | 43 | 22416575 | +0.68 (+0.20 / +1.16; +0.48) | +1.52 (+1.56 / +1.48; +1.54) | **−0.84** (−1.36) |
+| uniform | 43 | 22416576 | −0.63 (−1.08 / −0.18; +1.14) | −0.37 (−0.82 / +0.08; +0.62) | −0.26 (−0.26) |
+
+Mean Δ10k **−0.367** (5k −0.40). Call (registered: within ±0.30 → SPEED-EQUIVALENT and the single recipe covers VGG-19; outside → VGG-19 keeps §330's plain recipe): **outside**.
+
+Reading:
+1. **G2 does not become the single recipe across families.** The loss sits on the sens rows (−0.55 / −0.84 at 10k); uniform is within 0.3. By the registration, VGG-19 C100 keeps the plain recipe.
+2. **The check is underpowered.** The unpruned origin control of one net moves by up to 1.5 pp between runs (plain +0.50 to +1.98, G2 +0.48 to +1.14), so four pairs resolve about ±0.5. The registered bar stands as written; there is no call beyond it.
+3. *Reported.* The VGG-19 lever under G2 is sens − uniform +1.59 / +1.31 at 10k (seeds 42 / 43), against +2.32 / +1.89 on the plain rows.
+4. **For Ido.** Possible next steps: keep the narrow rows under G2 (§342) and the full-width rows under plain, with §330's val-half rule (the origin control under both recipes) deciding for families not yet seen; or run a larger VGG check. No paper row changes until he calls.
+
+Never: a VGG-19 row under G2; "single recipe" in the paper on this read.
+
+Records: queue row 96; next §344.
+
+
+## 344. D-IMIT: can the agent's state and encoder imitate the sens plan on held-out nets? (dump **22411734**; probe r2 **22416540**, after probe **22411735** FAILED on a loader bug fixed in `38417f6`; `tree_v12`) — registered calls: (a) **SUFFICIENT** (+0.872), (e) **SUFFICIENT** (+0.801), (e0) **SUFFICIENT** (+0.841); every arm without the sens channels **PARTIAL** (+0.446 to +0.586); (a) **BEATS** (b) on 5 / 5 folds, (e) **TIES** (e0), and no representation arm beats (b)
+
+Registered before submit 9 Oct 02:05 (commit `addc932`; queue row 93; plan doc §4). The dump COMPLETED: 30 records (10 catalog nets × κ 0.4 / 0.6 / 0.8), width 63, v10's pins and standardizer (n = 808), bert loadable. Probe 22411735 FAILED at arm (e): v10's actor checkpoint keeps its weights under `state_dict`, so the encoder found none of its keys. The fix unwraps it and raises if no `state_encoder.` key is present (`scripts/dimit_probe.py`, previous copy `.pre0909`; no job used `tree_v12`). The re-run 22416540 COMPLETED 09:51 (57 min, exit 0, no traceback) on the same dump. Results: `tree_v12/runs/job22411734/dimit_r2/dimit_results.json`. Probe: the encoder with a per-token linear head (sigmoid), group prediction = mean over its tokens, group-level MSE to the plan's keeps; AdamW lr 3e-4 for 150 epochs (frozen arms: linear probes at lr 1e-3 for 300 epochs); probe seeds 0–2, averaged per (net, κ); five folds, each holding out two of the ten nets (24 training and 6 held-out states); nothing selected on held-out nets. Metric: per held-out (net, κ), the Spearman between predicted and planned keeps over the planned groups; fold mean, then arm mean over the five folds.
+
+Held-out nets per fold: 1 r20-w8 + VGG-11 bn C10; 2 r20-w10 + MBV2 ×1; 3 r56-w6 + DenseNet-40; 4 ResNet-32 + VGG-11 bn SVHN; 5 VGG-13 bn + MBV2 ×0.5.
+
+| arm | input / encoder | folds 1–5 | mean | call | against (b): mean, folds won |
+|---|---|---|---|---|---|
+| (a) | default transformer, sens channels | +0.924 / +0.914 / +0.784 / +0.896 / +0.844 | **+0.872** | SUFFICIENT | +0.311, 5 / 5 → BEATS |
+| (b) | default transformer, no sens | +0.791 / +0.784 / −0.010 / +0.476 / +0.764 | +0.561 | PARTIAL | — |
+| (c) | `set` encoder, no sens | +0.779 / +0.735 / +0.223 / +0.424 / +0.668 | +0.566 | PARTIAL | +0.005, 1 / 5 |
+| (d) | legacy NEON encoder | not run (no per-token output; stated at registration) | — | — | — |
+| (e) | v10's trained actor encoder, frozen, linear probe | +0.899 / +0.910 / +0.428 / +0.908 / +0.861 | **+0.801** | SUFFICIENT | +0.240, 5 / 5 (reported); against (e0) −0.040, 2 / 5 → TIES |
+| (e0) | (e)'s architecture, random init, frozen, linear probe | +0.910 / +0.917 / +0.670 / +0.865 / +0.841 | **+0.841** | SUFFICIENT | +0.280, 5 / 5 (reported) |
+| (f) | `transformer_wide` (6 × 512), no sens | +0.738 / +0.810 / +0.077 / +0.550 / +0.757 | +0.586 | PARTIAL | +0.025, 3 / 5 |
+| (g) | frozen BERT (`bert-base-uncased`, cached), no sens | +0.815 / +0.760 / −0.066 / +0.414 / +0.785 | +0.542 | PARTIAL | −0.019, 2 / 5 |
+| (h) | group tokens, no sens | +0.732 / +0.736 / +0.015 / +0.653 / +0.765 | +0.580 | PARTIAL | +0.019, 3 / 5 |
+| (i) | (b) with the group-cost channels zeroed | +0.739 / +0.738 / −0.030 / +0.322 / +0.753 | +0.504 | PARTIAL | −0.057, 0 / 5 |
+| (j-out) | (b) with the thin nets held out of training | +0.779 / +0.789 / −0.410 / +0.297 / +0.777 | +0.446 | PARTIAL | −0.115, 2 / 5 |
+| (j-thin) | the thin nets held out together (one fold) | +0.482 | +0.482 | PARTIAL | — |
+
+Bars (registered): SUFFICIENT ≥ 0.70, INSUFFICIENT ≤ 0.40, PARTIAL between; fold-paired, a variant BEATS its base with a mean ≥ +0.10 and wins on ≥ 4 of 5 folds, LOSES TO symmetrically, otherwise TIES. Registered pairs: (a), (c), (f), (g), (h), (i) and (j) against (b); (e) against (e0). By those bars (a) BEATS (b); (c), (f), (g), (h), (i) and (j-out) TIE with (b) ((i) lost all five folds but by less than 0.10); **(e) TIES (e0)** (−0.040; folds −0.011 / −0.007 / −0.242 / +0.043 / +0.020). Arms (e) and (e0) read v10's full state, sens channels included, so their column against (b) is reported, not a registered pair.
+
+Reading (as registered):
+1. **(a) passed: the pipeline works.** Given the measured sensitivity, the default encoder reproduces the sens plan on held-out nets (≥ 0.78 on every fold).
+2. **(b) is PARTIAL: structure and weight statistics alone do not carry the allocation.** Fold 3 (r56-w6 + DenseNet-40 held out) falls to about zero on every arm without the sens channels. A new net therefore needs its sensitivity measurement (one half-width cut per group on four batches) before the agent can allocate. That is the cost of transfer.
+3. **(e) is SUFFICIENT and TIES (e0): RL training left nothing beyond random features** (the registered reading). The allocation signal is readable from v10's state through its encoder whether trained or not; v10's failure to allocate (§248) lies in the head and optimiser (§331), not in the features. The effective ranks are in `dimit_results.json` and are not compared here.
+4. **No representation arm beats the default.** The `set` encoder (c), the wide transformer (f), frozen BERT (g) and group tokens (h) all TIE with (b), within ±0.03. The thesis's BERT input runs and imitates as well as the small transformer; encoder capacity is not the bottleneck, the sens input is.
+5. **Group cost: TIES, kept.** Zeroing it loses on 5 / 5 folds but by −0.057, under the 0.10 bar; it stays in the state.
+6. **Thin nets stay in training.** Holding them out TIES by the bar (−0.115, 2 / 5 folds won) but drops fold 3 to −0.41, and nothing argues for removing them.
+
+Consequence (plan doc §3–§5): T1's representation is v10's state as is (layer tokens, default transformer, sens and group-cost channels), with the thin nets in the training pool. T2 (initialised from the imitation network, with a decaying KL toward it) is unlocked by (a) SUFFICIENT.
+
+Never: an agent row or a TEST row (a supervised probe has no TEST half); "BERT fails" (arm (g) is level with the default without sens).
+
+Records: queue row 93; next §345.
+
+
+## 345. (N04): MobileNetV2 ×0.5 seeds 44–46 under §330's recipe (walks **22409855–866**; re-finals **22409867–873, 22409875–879**; walks `tree_v10h` / `v10i` / `v10`, re-finals `tree_v10k`) — PRELIM; registered call: five-seed MobileNetV2 lever sens − uniform at 5k **+0.308** (SD 0.22; +0.08 / +0.18 / +0.54 / +0.56 / +0.18) → **WEAK** on wave 8's bars, 0.008 above the ABSORBED line
+
+Registered before submit 9 Oct 00:35 (commit `e048d2e`; queue row 91). All 24 jobs COMPLETED with exit 0. Read 9 Oct 17:02 (`scripts/_tmp_s9oct_rec_read.sh`, readers_s30 `final_ft_readout`); every re-final's job name matched its arm and seed. Recipe: plain cosine from lr 0.01, keep-last, batch 128, 100 epochs, origin control; every row at size_param 0.60, params 0.600. Seeds 42 / 43 are N01-P's sens / uniform (**22404721–724**, §336) and N02's inner / mild-landed (**22404800 / 01 / 04 / 05**, §337), under the same recipe. The walks' own finals (val_best restore, walk + 1 epoch) are not quoted.
+
+| seed | sens | uniform | inner | mild-landed |
+|---|---|---|---|---|
+| 42 | +0.46 | +0.38 | −0.44 | +0.48 |
+| 43 | +0.74 | +0.56 | +0.26 | +0.34 |
+| 44 | +0.72 | +0.18 | −0.52 | +0.18 |
+| 45 | +0.64 | +0.08 | −0.34 | −0.12 |
+| 46 | +0.62 | +0.44 | −0.18 | +0.22 |
+| mean (5k) | +0.636 | +0.328 | −0.244 | +0.220 |
+| FLOPs | 0.693–0.714 | 0.591 | 0.508 | 0.582 |
+
+TEST 5k Δacc. Origin controls +0.26 to +0.80.
+
+| contrast | 5k (SD) | 10k | val | G2, same five seeds (§342) |
+|---|---|---|---|---|
+| sens − uniform | **+0.308** (0.22) | +0.422 | +0.536 | +0.29 (ABSORBED) |
+| sens − mild | +0.416 (0.28) | +0.552 | — | +0.38 |
+| inner − uniform | −0.572 (0.21) | −0.536 | — | −0.87 |
+| sens − inner | +0.880 (0.28) | +0.958 | — | +1.16 |
+| uniform − mild | +0.108 | — | — | +0.09 |
+
+Reading:
+1. **WEAK by a hair.** +0.308 sits against the ABSORBED line at +0.30; the val half (+0.54) and 10k (+0.42) are a little higher, and under G2 the same five seeds give +0.29, which is ABSORBED (§342). Under either recipe the MobileNetV2 lever is about +0.3 pp, and sens keeps 1.17–1.21× uniform's FLOPs, so nothing is claimed at equal FLOPs.
+2. **The residual-full rule is MobileNetV2's worst arm** (inner − uniform −0.57), as under G2 (§342) and cosine (§303).
+3. **Mild sits level with an even cut** (+0.11).
+
+Never: a "SURVIVES" MobileNetV2 lever; an agent row.
+
+Records: queue row 91; next §346.

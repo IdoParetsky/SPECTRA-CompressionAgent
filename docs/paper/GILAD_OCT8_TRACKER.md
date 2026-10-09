@@ -474,6 +474,13 @@ Prepared for **11:30** (or later). Ledger **§200–§335**. Do not quote probes
   - **For Ido: one recipe could replace §330's per-family rule.** lr 0.1 at batch 256 (graphed, keep-last) is the best or within 0.15 pp of the best on thin, MobileNetV2 and the r20-w2 guard, and FLAT on full-width R56 (§335). It is also the faster batch on thin. §330 stands until he calls; no row changes.
   - **The thin lever holds under every step size** (+0.95 to +1.39 pp). On the thinner r20-w2, sens trails uniform under all five, so no fixed rule wins on both thin nets. Choosing per net is what the plan-as-action agent has to learn.
   - **Next.** N04 (MobileNetV2 seeds 44–46) runs until about 04:00. D-PROXY (which cheap measure ranks plans the way the full fine-tune does) is being built in a new tree and is registered before it is submitted.
+- **9 Oct ~17:30 (sitting)** — *The plan agent learns the allocation on its own net; the single recipe stops at VGG* (ledger §341–§345; queue rows 91, 93, 95–97).
+  - **T0 LEARNS.** Trained on thin r56-w4 alone with the raw-cut reward, the frozen plan agent lands **+2.35 pp above mild** at equal params (three seeds, all positive) and level with sens (+0.11) and inner (+0.08). It is the first trained SPECTRA policy that is not mild. It keeps 1.24–1.37× sens's FLOPs (it cuts the late wide stage), so nothing is claimed at equal FLOPs. bn32 as the reward also learns but ends 0.47 lower at 3.7× the train time. On the never-seen r20-w2 guard it trails the rules, as expected of a one-net agent; transfer is T1's question.
+  - **Narrow rows under G2, five seeds.** Thin sens − uniform **+1.02, SURVIVES**; MobileNetV2 +0.29, ABSORBED.
+  - **The VGG check fails its bar.** G2 against E's plain rows on VGG-19 C100: mean −0.37 at 10k, outside ±0.30, so VGG-19 keeps the plain recipe. Four pairs are underpowered (origin controls swing by up to 1.5 pp). For Ido: G2 for narrow nets and plain for full-width, or a larger check.
+  - **D-IMIT: the measured sensitivity carries the allocation; the encoder does not matter.** With the sens channels the default encoder imitates the sens plan on held-out nets (0.87, SUFFICIENT); without them every encoder is PARTIAL (0.45–0.59), frozen BERT included. v10's trained encoder ties a random one. T1 keeps v10's state as is; T2 is unlocked.
+  - **N04: the MobileNetV2 lever at lr 0.01 over five seeds is +0.31, WEAK by 0.008.** Under either recipe it is about +0.3 pp.
+  - **Next.** T1 (the plan agent trained on the catalog, read on families it never saw) is being registered in the queue file.
 
 ---
 
