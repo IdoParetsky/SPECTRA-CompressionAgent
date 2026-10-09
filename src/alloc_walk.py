@@ -17,6 +17,9 @@ where the walk stops. ``sample`` draws one plan the way the plan-as-action agent
 of ``SPECTRA_ALLOC_SAMPLE_AROUND`` (sens or uniform) times exp(σ ε) per group, ε ~ N(0, 1) seeded by
 ``SPECTRA_ALLOC_SAMPLE_SEED``, σ = ``SPECTRA_ALLOC_SAMPLE_SIGMA``, then bisected like ``sens``.
 ``agent`` takes the mean plan of the frozen plan agent at ``SPECTRA_PLAN_AGENT`` (``src/plan_agent.py``).
+``agent_sample`` draws one plan around that mean as the agent samples in training, z = μ + σ ε
+with ε ~ N(0, I) seeded by ``SPECTRA_ALLOC_SAMPLE_SEED`` and σ = ``SPECTRA_ALLOC_SAMPLE_SIGMA``,
+decoded like the mean (D-PROXY-2).
 Each decision then plays the legal cut whose resulting width is closest to its group's
 target (ties to the milder cut, identity once it is there). Group-once, the recovery and the
 fixed-target landing are the walk's own, so a row differs from greedy / mild only in which groups
@@ -41,7 +44,7 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent")
+KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample")
 SAMPLE_AROUND = ("sens", "uniform")
 
 
@@ -77,12 +80,13 @@ def sample_around() -> str:
 
 
 def sample_sigma() -> float:
-    """``SPECTRA_ALLOC_SAMPLE_SIGMA`` (0.5): std of the log-weight noise ``sample`` adds per group."""
+    """``SPECTRA_ALLOC_SAMPLE_SIGMA`` (0.5): std of the per-group noise, on the log-weights of ``sample`` and on
+    the scores of ``agent_sample``."""
     return max(0.0, float(os.environ.get("SPECTRA_ALLOC_SAMPLE_SIGMA", "0.5")))
 
 
 def sample_seed() -> int:
-    """``SPECTRA_ALLOC_SAMPLE_SEED`` (0): seed of ``sample``'s noise."""
+    """``SPECTRA_ALLOC_SAMPLE_SEED`` (0): seed of the noise of ``sample`` and ``agent_sample``."""
     return int(os.environ.get("SPECTRA_ALLOC_SAMPLE_SEED", "0"))
 
 
@@ -93,10 +97,11 @@ def sample_noise(rows, sigma, seed):
 
 
 def agent_path() -> str:
-    """``SPECTRA_PLAN_AGENT``: the plan-agent checkpoint ``agent`` follows (``src/plan_agent.py``)."""
+    """``SPECTRA_PLAN_AGENT``: the plan-agent checkpoint ``agent`` / ``agent_sample`` follows
+    (``src/plan_agent.py``)."""
     path = os.environ.get("SPECTRA_PLAN_AGENT", "").strip()
     if not path:
-        raise ValueError("SPECTRA_ALLOC_KIND=agent needs SPECTRA_PLAN_AGENT=<plan-agent checkpoint>")
+        raise ValueError("SPECTRA_ALLOC_KIND=agent or agent_sample needs SPECTRA_PLAN_AGENT=<plan-agent checkpoint>")
     return path
 
 
@@ -239,9 +244,13 @@ def _state(env):
     if net not in cache:
         model = env.current_model.to(env.conf.device)
         target = float(env.target_keep if env.target_keep is not None else 0.6) - undershoot()
-        if kind() == "agent":
+        if kind() in ("agent", "agent_sample"):
             from src import plan_agent
-            widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep())
+            if kind() == "agent_sample":
+                widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep(),
+                                                       sample=(sample_sigma(), sample_seed()))
+            else:
+                widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep())
         else:
             batches = group_sensitivity.calibration_batches(
                 env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
@@ -254,7 +263,10 @@ def _state(env):
                   if info["kind"] == "widths" else f"{info['kind']} alpha={info['alpha']:g}")
         if info["kind"] == "agent":
             source = f"agent {info['policy']}"
-        if info.get("sample"):
+        if info["kind"] == "agent_sample":
+            s = info["sample"]
+            source = f"agent_sample sigma={s['sigma']:g} seed={s['seed']} around the mean of {info['policy']}"
+        if info["kind"] == "sample" and info.get("sample"):
             sample = info["sample"]
             source = (f"sample around {sample['around']} sigma={sample['sigma']:g} seed={sample['seed']} "
                       f"alpha={info['alpha']:g}")

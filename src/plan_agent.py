@@ -14,7 +14,8 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
 * ``NetInstance``: one catalog net's origin read once (state, plan, token map, param model, val batches,
   sensitivities), so an instance (net, κ) costs only its plans.
 * ``plan_for_env``: a frozen agent's mean plan in ``alloc_walk.plan_targets``' format
-  (``SPECTRA_ALLOC_KIND=agent``), so the existing walk, final fine-tune and TEST read it.
+  (``SPECTRA_ALLOC_KIND=agent``) or, with ``sample``, one Gaussian draw around it
+  (``SPECTRA_ALLOC_KIND=agent_sample``), so the existing walk, final fine-tune and TEST read it.
 """
 
 import copy
@@ -497,9 +498,11 @@ class NetInstance:
         return scale_decode(weights, self.pm, kappa, k_min, held=self.held if kind == "inner" else ())
 
 
-def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1):
+def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sample=None):
     """``(widths, info)`` of the frozen agent's mean plan for the net ``env`` was reset on, in
-    ``alloc_walk.plan_targets``' format; the state is the one reset built (``state_dump.encode_origin``)."""
+    ``alloc_walk.plan_targets``' format; the state is the one reset built (``state_dump.encode_origin``).
+    With ``sample=(sigma, seed)`` it decodes one draw z = mu + sigma * eps (eps from a CPU generator seeded by
+    ``seed``) instead of the mean, the plan distribution the trainer samples from."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
     from src import state_dump
     from src.BERTInputModeler import action_cost_slot_dim
@@ -532,9 +535,18 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1):
     mask, token_k = token_index(rows, pm.rows, device)
     with torch.no_grad():
         mu = policy(state, mask, token_k, len(pm.rows)).tolist()
-    widths, info = decode(mu, pm, target, float(blob.get("k_min", k_min)))
-    return widths, {"kind": "agent", "alpha": 0.0, "target": float(target), "kept": float(info["kept"]),
+    z, drawn = mu, None
+    if sample is not None:
+        sigma, seed = float(sample[0]), int(sample[1])
+        eps = torch.randn(len(mu), generator=torch.Generator().manual_seed(seed), dtype=torch.float64).tolist()
+        z = [m + sigma * e for m, e in zip(mu, eps)]
+        drawn = {"around": "agent", "sigma": sigma, "seed": seed,
+                 "dist": math.sqrt(sum((a - m) ** 2 for a, m in zip(z, mu)))}
+    widths, info = decode(z, pm, target, float(blob.get("k_min", k_min)))
+    return widths, {"kind": "agent" if drawn is None else "agent_sample", "alpha": 0.0, "target": float(target),
+                    "kept": float(info["kept"]),
                     "keeps": {row: widths[row] / float(pm.widths0[row]) for row in pm.rows},
-                    "origin_widths": dict(pm.widths0), "sens": {row: float(m) for row, m in zip(pm.rows, mu)},
+                    "origin_widths": dict(pm.widths0), "sens": {row: float(v) for row, v in zip(pm.rows, z)},
                     "held": 0, "policy": os.path.basename(os.path.dirname(os.path.abspath(policy_path)))
-                    + "/" + os.path.basename(policy_path)}
+                    + "/" + os.path.basename(policy_path),
+                    **({"sample": drawn, "mu": {row: float(m) for row, m in zip(pm.rows, mu)}} if drawn else {})}

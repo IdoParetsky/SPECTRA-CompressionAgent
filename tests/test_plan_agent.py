@@ -368,3 +368,64 @@ def test_plan_for_env_decodes_the_saved_policy_on_the_reset_state(monkeypatch, t
     with torch.no_grad():
         mu = policy.eval()(prepared, mask, k, len(pm.rows)).tolist()
     assert widths == plan_agent.decode(mu, pm, 0.58)[0]
+
+
+def test_alloc_agent_sample_kind_passes_sigma_and_seed(monkeypatch):
+    monkeypatch.setenv("SPECTRA_ALLOC_KIND", "agent_sample")
+    assert alloc_walk.kind() == "agent_sample"
+    with pytest.raises(ValueError):
+        alloc_walk.agent_path()
+    monkeypatch.setenv("SPECTRA_PLAN_AGENT", "/x/runs/job1/plan_agent/policy_latest.pt")
+    monkeypatch.setenv("SPECTRA_ALLOC_SAMPLE_SIGMA", "0.2")
+    monkeypatch.setenv("SPECTRA_ALLOC_SAMPLE_SEED", "7")
+    calls = []
+
+    def fake(env, target, path, k_min, sample=None):
+        calls.append((target, path, k_min, sample))
+        return {5: 3}, {"kind": "agent_sample", "alpha": 0.0, "target": target, "kept": 0.57, "keeps": {5: 0.5},
+                        "origin_widths": {5: 6}, "sens": {5: 0.1}, "held": 0, "policy": "plan_agent/policy_latest.pt",
+                        "sample": {"around": "agent", "sigma": 0.2, "seed": 7, "dist": 0.5}}
+
+    monkeypatch.setattr(plan_agent, "plan_for_env", fake)
+    env = types.SimpleNamespace(selected_net_path="net.pt", current_model=ZOO["thin_r20_w4"]().eval(),
+                                conf=types.SimpleNamespace(device="cpu"), target_keep=0.6, train_loader=None)
+    lines = []
+    monkeypatch.setattr(utils, "print_flush", lambda s, *a, **k: lines.append(str(s)))
+    cache = alloc_walk._state(env)
+    assert cache["widths"] == {5: 3}
+    assert calls == [(pytest.approx(0.58), "/x/runs/job1/plan_agent/policy_latest.pt", 0.1, (0.2, 7))]
+    assert "agent_sample sigma=0.2 seed=7 around the mean of plan_agent/policy_latest.pt" in lines[0]
+    assert " plan keeps x" in lines[0]
+
+
+def test_plan_for_env_sample_draws_around_the_mean(monkeypatch, tmp_path, v10_env):
+    torch.manual_seed(0)
+    model = ZOO["thin_r20_w4"]().eval()
+    mwr = ModelWithRows(model)
+    groups = channel_groups.build_channel_groups(model)
+    plan = group_sensitivity.group_plan(mwr, groups)
+    rows = state_dump.token_rows(mwr, groups, plan)
+    state = toy_state(len(rows))
+    monkeypatch.setattr(state_dump, "encode_origin", lambda env, m, g: dict(state))
+    policy = plan_agent.PlanPolicy(63)
+    with torch.no_grad():
+        policy.head.weight.normal_()
+    path = str(tmp_path / "plan_agent" / "policy_it00300.pt")
+    plan_agent.save_policy(policy, path, tokens="layer", zero=["sens"], k_min=0.1)
+    env = types.SimpleNamespace(conf=types.SimpleNamespace(device="cpu", compression_rates_dict=RATES),
+                                current_model=model, target_keep=0.6,
+                                _dependency_groups=lambda m: channel_groups.build_channel_groups(m.model))
+    w0, i0 = plan_agent.plan_for_env(env, 0.58, path)
+    w1, i1 = plan_agent.plan_for_env(env, 0.58, path, sample=(0.2, 3))
+    w1b, _i1b = plan_agent.plan_for_env(env, 0.58, path, sample=(0.2, 3))
+    w2, i2 = plan_agent.plan_for_env(env, 0.58, path, sample=(0.2, 4))
+    wz, _iz = plan_agent.plan_for_env(env, 0.58, path, sample=(0.0, 3))
+    assert i0["kind"] == "agent" and "sample" not in i0 and i1["kind"] == "agent_sample"
+    assert w1 == w1b and wz == w0
+    assert i1["sample"]["seed"] == 3 and i1["sample"]["sigma"] == 0.2 and i1["sample"]["dist"] > 0
+    assert abs(i1["kept"] - 0.58) < 0.02 and abs(i2["kept"] - 0.58) < 0.02
+    pm = plan_agent.ParamModel(model, plan)
+    mu = [i1["mu"][row] for row in pm.rows]
+    eps = torch.randn(len(mu), generator=torch.Generator().manual_seed(3), dtype=torch.float64).tolist()
+    assert w1 == plan_agent.decode([m + 0.2 * e for m, e in zip(mu, eps)], pm, 0.58)[0]
+    assert w1 != w2 or i1["sens"] != i2["sens"]
