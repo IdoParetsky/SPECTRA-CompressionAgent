@@ -481,6 +481,12 @@ Prepared for **11:30** (or later). Ledger **§200–§335**. Do not quote probes
   - **D-IMIT: the measured sensitivity carries the allocation; the encoder does not matter.** With the sens channels the default encoder imitates the sens plan on held-out nets (0.87, SUFFICIENT); without them every encoder is PARTIAL (0.45–0.59), frozen BERT included. v10's trained encoder ties a random one. T1 keeps v10's state as is; T2 is unlocked.
   - **N04: the MobileNetV2 lever at lr 0.01 over five seeds is +0.31, WEAK by 0.008.** Under either recipe it is about +0.3 pp.
   - **Next.** T1 (the plan agent trained on the catalog, read on families it never saw) is being registered in the queue file.
+- **9 Oct ~21:10 (sitting, Claude Code)** — *The plan agent transfers within its catalog's family; FLOPs, the reward's fidelity and the VGG recipe run overnight* (ledger §346–§347; queue rows 99–100 and "Evening 9 Oct cells").
+  - **T1 LEARNS.** Trained on the 10 catalog nets, the frozen plan agent beats mild by +2.20 pp on the held-out thin r56-w4 (five seeds, all positive) and a uniform cut by +0.96 on DepGraph ResNet-56. It is level with sens (+0.12 and +0.28; the BEATS-PRIOR bar of +0.3 was missed by 0.02 on R56). It also matches T0, the agent trained on r56-w4 itself (−0.06). At equal params it keeps 1.2–1.6× sens's FLOPs, so nothing is claimed at equal FLOPs.
+  - **Scope for Gilad.** The held-out nets are CIFAR ResNets, a family the catalog already has, so this shows transfer to held-out networks of a seen family. A 2025 preprint already shows within-family frozen transfer (literature scan `docs/LIT_SCAN_9OCT_TRANSFER_BUDGET.md`). A family-level hold-out is the next test.
+  - **K8.** At κ 0.8 T0's in-sample proxy lead over sens does not survive the final (−0.13): the cut proxy and the final disagree on the agent's own plans. D-PROXY-2 tests why.
+  - **Running overnight.** D-PROXY-2 (does the cut rank the agent's own plans; 72 cells). T0-F (the FLOPs-budget control; Ido's GO). VG2 (the powered VGG recipe check). New code `tree_v14` (agent_sample) and `tree_v15` (FLOPs budget), both off by default.
+  - **Process.** Science now runs in Claude Code. The two agents talk through `docs/AGENT_MAIL.md`.
 
 ---
 
