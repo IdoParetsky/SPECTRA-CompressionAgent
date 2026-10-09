@@ -6671,7 +6671,7 @@ Reading:
 Records: plan doc §4 D-CENSUS; next §340.
 
 
-## 340. D-PROXY: which cheap measure ranks one-shot plans the way the final fine-tune does? (	ree_v11; smoke **22410259**, walks **22411296–22411443**, ceilings **22411444–22411479**) — registered call: reward = **cut** (raw one-shot val accuracy, no recalibration), the cheapest proxy VALID on both voting families
+## 340. D-PROXY: which cheap measure ranks one-shot plans the way the final fine-tune does? (`tree_v11`; smoke **22410259**, walks **22411296–22411443**, ceilings **22411444–22411479**) — registered call: reward = **cut** (raw one-shot val accuracy, no recalibration), the cheapest proxy VALID on both voting families
 
 Registered before submit 9 Oct 01:27:00 (commit `3abb9c6`). Read 9 Oct 08:41 (`scripts/_tmp_s9oct_readdproxy.sh`): 99 / 99 COMPLETED, exit 0. Per family, 11 plans per instance (sens, uniform, inner, four sampled around sens, four around uniform), one-shot at params 0.6, six proxies per plan on the val half, ground truth = the G final (75 epochs) on the TEST half; two instances (seeds 42 / 43); ceiling = Spearman between seed-42 and seed-44 finals over instance 42's plans.
 
