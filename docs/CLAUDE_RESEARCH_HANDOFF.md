@@ -16,6 +16,74 @@ All results are **PRELIM** unless the ledger says LOCKED. Ledger section numbers
 
 ---
 
+## 0a. Update after the first Claude Code session (9 Oct ~18:50–21:15; supersedes §0, §7.3, §9 and §13 where they differ)
+
+Written by the Claude Code science session (Opus 5.5, max effort). The records of record are unchanged: the ledger, the queue file, and the runbook (`### 10.0l`). This block lists what changed and where it is recorded.
+
+**Decisions.**
+- **[D] Ido's 17:21 answers, confirmed 18:56** (the option lists were never recorded, so each reading was put back to him):
+  - B = run a powered VGG check (VG2);
+  - A = build the FLOPs-budget variant, with GO for T0-F's train once it is registered and smoked;
+  - A = build D-PROXY-2 first.
+- **[D] Standing instructions (Ido, 9 Oct).** `/spectra-start` and `/spectra-thesis-mission` run at the start of every sitting and after a pause or compaction (`CLAUDE.md`, commit `b8039a2`).
+- **[D] Model split.**
+  - Opus 5.5 with `/effort max` in the main tab. Opus 5.5 defaults to medium effort, and max lasts one session only.
+  - Fable 5.1 max for the hardest bounded development and literature, as subagents.
+  - Sonnet for implementing a specified change and for monitoring.
+  - The list is in `.claude/skills/spectra-start` step 0.
+
+**Communication with ops.**
+- `docs/AGENT_MAIL.md` is the untracked ping bus: newest stamp first, each agent prunes only its own stamps, no TEST numbers from ops.
+- Science owns `CLAUDE.md` and `.claude/` (rules: stance, two agents, ledger, tooling; skills: `spectra-start`, `spectra-thesis-mission`).
+- Runbook `### 10.0l` is ops' durable copy.
+
+**Built, tested and deployed** (every flag off by default; each tree is an rsync of the previous one plus the listed files, with a PROVENANCE file):
+- **`tree_v14` (code `30ffccc`):** `SPECTRA_ALLOC_KIND=agent_sample`, one draw z = μ + σε around a frozen plan agent's mean (D-PROXY-2). Tests 22 + 12 + 11 green.
+- **`tree_v15` (code `b86e505`):** the T0-F FLOPs budget.
+  - `plan_agent.FlopModel` is exact against `utils.calc_flops` on the five zoo nets and on r56-w4 (check-flops x0.5992 = x0.5992).
+  - Flags: `SPECTRA_PLAN_BUDGET=params|flops|mixed`, `SPECTRA_ALLOC_BUDGET`, and `SPECTRA_FIXED_TARGET_METRIC=flop`. The last is eval-only and not a contract key, so v10's pins cannot override it.
+  - 26 new tests, and a regression sweep of 27 env / fortify suites (378 passed).
+- **[V] Tree drift.** The deployed v10l → v14 chain lacks the parked `tree_v10m` flag `SPECTRA_FT_CUDA_GRAPH` (commit `0199c52`, default off) in `NetworkEnv.py` and `fortify.py`. `tree_v15` carries git HEAD's versions (PROVENANCE_v15). Deploy scripts check the base tree's blobs before overlaying.
+
+**Cells registered before submit** (queue rows after K8, section "Evening 9 Oct cells"):
+
+| cell | registration | jobs | question |
+|---|---|---|---|
+| VG2 | `25fce90` | 22427332–355 | G2 vs plain on VGG-19 C100, 16 pairs; call on mean Δ10k within ±0.30 |
+| D-PROXY-2 | `0652644` | smoke 22427527 (passed 20:07); 48 walks 22427528–575; 24 ceilings 22427576–600 | does the raw cut rank the trained agent's own plans (σ 0.2 draws) like the G2 final, at κ 0.6 and 0.8? CEILING-BOUND / LOCAL-VALID / LOCAL-INVALID |
+| T0-F | `bd3c3f3` | smokes 22427986–988 (passed 20:53); trains 22427989 / 991 / 993 → evals 990 / 992 / 994; one-shot 22427995–22428004; mild_F 22428005 / 007 / 009 → re-finals 006 / 008 / 010 | does the plan agent learn under a FLOPs budget on thin r56-w4? T0's calls at equal FLOPs (0.6) |
+
+**[V] T1 and K8 read** (21:00–21:04, `scripts/_tmp_s9oct_t1_read.sh`; ledger §346–§347):
+- **T1 LEARNS** (registered call, row 99).
+  - T1 − mild **+2.20** on thin r56-w4 (5 / 5 seeds); T1 − uniform **+0.96** on DepGraph R56.
+  - Not BEATS-PRIOR: T1 − sens +0.12 and +0.28. The bootstrap over both nets is +0.20 [+0.01, +0.38].
+  - T1 − T0 −0.06: the catalog agent matches the net-specific one.
+  - FLOPs at equal params are 1.2–1.6× sens's (captioned).
+  - On MobileNetV2 (trained-on), T1 − sens −0.46.
+  - On the guard r20-w2, T1 is below every rule, with a size confound (params 0.54–0.55 on 3 seeds).
+- **Scope.** These are held-out networks of a seen family (CIFAR ResNets). A pre-read note (19:44, `6d2f4c3`) recorded this before any eval ran.
+- **K8 (reported).** T0 − sens **−0.13** at κ 0.8: T0's in-sample proxy lead over sens does not survive the final.
+
+**Other findings.**
+- [V] **The BERT input-mechanisms PDF** in the repo root is a 3-page design proposal (per-layer BERT tokens, [SEP] views, summed positional encodings over skip connections) with no experiments. It never names NEON, "frozen" or "generic".
+  - Against D-IMIT (§344): frozen BERT without the sens channels ties the default encoder, and the sens channels carry the allocation.
+  - Defensible wording: "SPECTRA keeps per-layer tokens; frozen BERT ties the default encoder; the measured sensitivity channels carry the allocation". Never "BERT fails" or "BERT helps".
+- [V] **Literature scan,** `docs/LIT_SCAN_9OCT_TRANSFER_BUDGET.md` (an Opus subagent opened every source; the citations have not yet been re-checked one by one):
+  - *Zero-shot transfer* survives only with qualification. Within-family frozen transfer exists (arXiv:2506.12041), so SPECTRA needs a family-level hold-out.
+  - *Budget type as an input* has no pruning precedent found. Budget-level conditioning exists (CACP 2021); the closest analogue is MODNAS (ICLR 2025, NAS).
+  - *Method prior art to cite:* FastForward Pruning (2025, single-step RL "akin to a contextual bandit"), HiPP-Prune (2026), ChipNet.
+- [V] **`README.md`'s NEON DOI link text** was wrong; fixed (`f44265e`).
+- [V] **The runner's "FIXED_TARGET without SIZE_MATCH=param" WARNING is stale** under the FLOPs metric (runner 517–521). Fix it in the next tree.
+
+**Next actions** (supersedes §9.4):
+1. Read D-PROXY-2 (`scripts/_tmp_s9oct_dp2_read.sh`) and VG2 (`_vg2_read.sh`) against their registered calls. Write T0-F's reader (the T1 reader's pattern; labels `size_flop0.6`, comparators in the T0-F row) and read it. Ledger §348+.
+2. With Ido: what T1 LEARNS means for the programme, and the next registration for the transfer claim. That is a family-level hold-out: the A1 ShuffleNetV2 / RepVGG-A0 checkpoints, or leave-one-family-out over the catalog.
+3. After T0-F: a mixed-budget agent (`SPECTRA_PLAN_BUDGET=mixed`), evaluated at equal params and at equal FLOPs against single-type agents, a wrong-type input and a type-agnostic baseline (literature scan §4). It needs Ido's GO.
+4. [H] A cost-aware sensitivity baseline (sens per unit of cost). It tests whether an advantage at equal FLOPs is only cost-awareness.
+5. Still open: T2 / T2r (D-IMIT (a) unlocks them), T4, the CEM control, D-LEVER, C100 in the pool, a plan-agent deployment bench. If VG2 misses its bar, the narrow-net recipe (G2 vs §330's lr 0.01) goes back to Ido.
+
+---
+
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
 
 - **[V] T1 is running.** T1 is the first transfer train of the plan-as-action agent: 5 trains, seeds 42–46, jobs 22423564 / 68 / 72 / 76 / 81. At 18:17 each was at about 4,500 of 12,000 instances after 68 min. Its 15 evals (ids in §5.6) wait on the trains by afterok. Expected ends (queue row 99 start-check stamp): trains about 20:05–20:15, evals about 20:10–21:15.
@@ -676,14 +744,19 @@ Register cells and calls in the queue file before any sbatch. New code goes only
 No new train without Ido's GO. Never scancel trains; keep 22156116, 22156117 and 21767188.
 Never stage, stash, revert or commit the ops agent's unstaged edits; commit only your own files or hunks, then push.
 
-State (9 Oct 18:45): T1 (plan agent on the 10-net catalog; trains 22423564/68/72/76/81) ends ~20:15; its 15 evals end ~21:15.
-K8 (T0 at κ 0.8; reported only) is partly done.
-T0 LEARNS (+2.35 vs mild) but ties sens (+0.11) at equal params while keeping 1.24-1.37x sens's FLOPs (§341).
-VGG-19 C100 keeps the plain recipe (§343).
+Boot (updated 9 Oct ~21:15): open C:\SPECTRA-CompressionAgent as the workspace, /model opus, /effort max,
+then /spectra-start and /spectra-thesis-mission (standing instructions; read the SKILL.md files by hand if not loaded).
+Read this handoff's §0a first: it supersedes §0, §7.3, §9 and §13's old state.
+
+State (9 Oct ~21:15):
+- T1 LEARNS (§346): it transfers to held-out networks of a seen family, ties sens, and needs the FLOPs caption.
+- K8 (§347): T0's in-sample lead at κ 0.8 does not survive the final.
+- Running: D-PROXY-2 (tree_v14), T0-F (tree_v15, the FLOPs control) and VG2 (VGG-19 recipe).
 
 First actions:
-(1) Poll squeue and sacct.
-(2) When T1 is done, read it with the registered calls in queue row 99 and write ledger §346 (T1) and §347 (K8).
-(3) Ask Ido to confirm the meaning of his 17:21 answers (handoff §7.3) before registering VG2, D-PROXY-2 or the FLOPs-budget variant (handoff §9.4).
+(1) Poll squeue and sacct; read the top stamps of docs/AGENT_MAIL.md.
+(2) Read D-PROXY-2 and VG2 with their readers (scripts/_tmp_s9oct_dp2_read.sh, _vg2_read.sh) against the calls in the
+    queue file's "Evening 9 Oct cells"; write T0-F's reader and read it. Ledger §348+.
+(3) Bring Ido the transfer question: a family-level hold-out registration (docs/LIT_SCAN_9OCT_TRANSFER_BUDGET.md).
 Label every claim [V]/[R]/[D]/[H]/[U] as the handoff does. Never present a hypothesis or a train-log value as a result.
 ```
