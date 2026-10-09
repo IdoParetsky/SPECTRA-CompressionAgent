@@ -5,9 +5,14 @@ Two agents share this working tree:
 - **The Cursor ops agent (Grok 4.6 High Effort) is separate.** It polls the BGU cluster, briefs Ido and keeps GPUs busy with pre-authorised cells. It follows `.cursor/rules/*.mdc` and `docs/OPS_HANDOFF_RUNBOOK.md` §10. If you are that agent, this file adds nothing to your instructions.
 
 ## At the start of every Claude Code session
-1. Read `docs/CLAUDE_RESEARCH_HANDOFF.md`, starting with §0, §9, §11.3 and §12. Its §13 is the launch brief.
-2. Read the five rule files in `.cursor/rules/`. Cursor loads them automatically; Claude Code does not. Where they disagree, `docs/OPS_HANDOFF_RUNBOOK.md` §10 wins.
-3. Check the live cluster state (`squeue`, `sacct`) before trusting any document's list of jobs.
+Ido types **`/spectra-start`**. That skill is the boot. Until he does:
+
+1. Read `docs/AGENT_MAIL.md` (top stamp).
+2. Read `docs/CLAUDE_RESEARCH_HANDOFF.md` §0, §9, §11.3, §12. Its §13 is the launch brief.
+3. Native stance is already in `.claude/rules/` (loaded automatically). Cursor’s `.cursor/rules/*.mdc` are **not** loaded here; read them only if a rule is in doubt. Where they disagree, `docs/OPS_HANDOFF_RUNBOOK.md` §10 wins.
+4. Check the live cluster (`squeue`, `sacct`) before trusting any document's list of jobs.
+
+Thesis identity (NEON lineage, Gilad frame, state of mind) is the skill **`spectra-thesis-mission`**. Invoke it if the sitting is science, literature, or claims. Do not ingest the ledger in full.
 
 ## Never
 - Train, or install CPU PyTorch, on this laptop. GPU work runs only on BGU Slurm (`ssh bgu-slurm`). Run remote scripts with `powershell -NoProfile -File scripts/rexec.ps1 -File <script.sh>`.
