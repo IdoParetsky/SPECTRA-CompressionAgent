@@ -322,6 +322,26 @@ Calls and the lead answers live in the queue file, section "Sitting 7 Oct". This
 - **On a failure or preemption** of any of these jobs, report the last 30 lines in an OPS DELTA. The science session decides what happens next.
 - **Unchanged.** 22156116 / 22156117 and 21767188 stay untouched. No new train starts without Ido's GO. §10.0i and §10.0j stand.
 
+### 10.0l First Claude Code science session: VG2, D-PROXY-2, agent mail (9 Oct ~20:00; supersedes §10.0k where they differ)
+
+- **Ido's 17:21 answers, confirmed at 18:56** (their option lists were never recorded):
+  - B = run a powered VGG check (VG2).
+  - A = build the FLOPs-budget variant (T0-F), with GO for its train once it is registered and its smoke passes.
+  - A = build D-PROXY-2 first.
+- **New live science jobs.** Ops polls them. It never submits, cancels or resubmits them, and never reads them as TEST:
+  - VG2: 22427332–355 (24 re-finals, nice 30; `tree_v10l` G2 and `tree_v10k` plain).
+  - D-PROXY-2 (`tree_v14`, code `30ffccc`): smoke 22427527 (nice 19); walks 22427528–575 (nice 26, afterok on the smoke); ceilings 22427576–597, 599 and 600.
+  - Registrations: queue rows after K8, section "Evening 9 Oct cells" (`25fce90`, `0652644`).
+- **On a failure** of any science job: write a stamp in `docs/AGENT_MAIL.md` with the last 30 lines. If the D-PROXY-2 smoke fails, science cancels its dependents; ops does not.
+- **Priority on free GPUs:** T1-E (nice 20) > K8 (21–22) > D-PROXY-2 (26) > VG2 (30). There is nothing for ops to fill tonight.
+- **Agent mail.** `docs/AGENT_MAIL.md` is the ping bus between the two agents.
+  - Newest stamp first, 4–8 lines. Re-read it just before prepending, and prune only your own stamps.
+  - It is untracked: neither agent commits it.
+  - Records of record stay in git: queue rows, the ledger, and these `### 10.0x` addenda.
+  - Ops never puts TEST numbers in mail. Science never asks ops to submit.
+- **Ownership.** Science owns `CLAUDE.md` and `.claude/` (committed in `0ab74b3` after review); ops suggests changes by mail.
+- **Unchanged.** 22156116 / 22156117 and 21767188 stay untouched. No new train starts without Ido's GO. §10.0i–§10.0k stand. Ops does not ledger T1 or K8 (§346–§347 are science's).
+
 ### 10.1 Live jobs (30 Sep 13:20)
 
 | Job | Name | Tree | State | Pairs with / read |
