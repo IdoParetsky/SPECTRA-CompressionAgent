@@ -6670,3 +6670,25 @@ Reading:
 
 Records: plan doc §4 D-CENSUS; next §340.
 
+
+## 340. D-PROXY: which cheap measure ranks one-shot plans the way the final fine-tune does? (	ree_v11; smoke **22410259**, walks **22411296–22411443**, ceilings **22411444–22411479**) — registered call: reward = **cut** (raw one-shot val accuracy, no recalibration), the cheapest proxy VALID on both voting families
+
+Registered before submit 9 Oct 01:27:00 (commit `3abb9c6`). Read 9 Oct 08:41 (`scripts/_tmp_s9oct_readdproxy.sh`): 99 / 99 COMPLETED, exit 0. Per family, 11 plans per instance (sens, uniform, inner, four sampled around sens, four around uniform), one-shot at params 0.6, six proxies per plan on the val half, ground truth = the G final (75 epochs) on the TEST half; two instances (seeds 42 / 43); ceiling = Spearman between seed-42 and seed-44 finals over instance 42's plans.
+
+| family | ceiling ρ (test / val) | cut | bn8 | bn32 | ft1 | ft12_4 | ft40_10 |
+|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.99 / +0.86 | **+0.90**, 0.27, VALID | +0.82, 0.21, VALID | +0.80, 0.21, VALID | +0.81, 0.22, VALID | +0.75, 0.04, VALID | +0.89, 0.41, VALID |
+| DepGraph R56 | +0.75 / +0.50 | **+0.66**, 0.00, VALID | +0.70, 0.00, VALID | +0.70, 0.00, VALID | +0.69, 0.18, VALID | +0.47, 0.37, INVALID | +0.49, 0.63, INVALID |
+| MobileNetV2 ×0.5 | +0.49 / +0.83 → **CEILING-BOUND** | +0.52, 0.52 | +0.57, 0.51 | +0.61, 0.51 | +0.68, 0.34, VALID | +0.53, 0.52 | +0.34, 0.51 |
+| guard r20-w2 (reported) | +0.96 / +0.86 | +0.32, 3.79 | +0.32, 1.22 | +0.32, 1.22 | +0.55, 1.14 | +0.79, 0.06, VALID | +0.90, 0.06, VALID |
+
+Cells: mean ρ over the two instances, median regret (pp, TEST 5k), call (VALID = ρ ≥ 0.60 and regret ≤ 0.5). Minutes per plan: cut 0.00, bn 0.01–0.02, ft1 0.04–0.09, ft12_4 0.3–0.8, ft40_10 1.0–2.8.
+
+Reading:
+1. **The raw cut is the reward** by the registered rule (cheapest VALID on every voting family). bn32 is VALID on both as well and ties it on the mean over all four families (0.61 against 0.60); it is run as T0-bn (reported), and Ido decides between them after T0.
+2. **Longer fine-tune proxies are not better rankers.** On DepGraph R56, 12- and 40-epoch Adam fine-tunes rank worse than the raw cut (+0.47 / +0.49 against +0.66): their recovery reshuffles plans the final then reshuffles again.
+3. **The thinnest net is where cheap proxies fail.** On r20-w2 every plan sits at the floor after the cut (−54 pp) and only 12+ epochs of fine-tune rank plans. A cut-reward agent sees no signal there; T0 trains on r56-w4, where the cut is VALID.
+4. **MobileNetV2's finals do not agree with themselves across seeds** (ρ +0.49), so no proxy can be judged there.
+5. Reported, never quoted: per-instance spread of finals 1.1–8.5 pp; best sampled − sens −0.26 to +0.76; sampled around sens − sampled around uniform +0.38 to +2.87 (thin largest).
+
+Records: queue row 92; next §341.
