@@ -211,6 +211,21 @@ def fixed_target() -> bool:
     return _flag("SPECTRA_FIXED_TARGET")
 
 
+def fixed_target_metric() -> str:
+    """
+    ``SPECTRA_FIXED_TARGET_METRIC=param`` (default) or ``flop``: what a fixed-target episode's keep is measured in.
+    Under ``flop`` eval reads the flop ``SPECTRA_EVAL_SIZE_MATCH`` / ``SPECTRA_EVAL_SIZE_POINTS``, the landing
+    bisects on the previewed MACs and the walk ends at the kept MACs (``utils.calc_flops``). Eval-only: not a
+    policy contract key, so v10's pinned ``policy_config`` cannot override it; the training draw
+    (``target_keep_range``) is untouched.
+    """
+    raw = os.environ.get("SPECTRA_FIXED_TARGET_METRIC", "").strip().lower() or "param"
+    name = {"flops": "flop", "mac": "flop", "macs": "flop", "params": "param", "parameters": "param"}.get(raw, raw)
+    if name not in ("param", "flop"):
+        raise ValueError(f"SPECTRA_FIXED_TARGET_METRIC={raw!r}: expected param or flop")
+    return name
+
+
 def _float_list(raw: str):
     return [float(x) for x in raw.replace(",", ":").replace(";", ":").split(":") if x.strip()]
 

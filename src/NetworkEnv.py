@@ -227,15 +227,25 @@ class NetworkEnv:
         if self.mode == AGENT_TRAIN:
             lo, hi = fortify.target_keep_range()
             return float(self._target_rng.uniform(lo, hi))
+        metric = fortify.fixed_target_metric()
         match = fortify.eval_size_match()
-        if match is not None and match[0] == "param":
+        if match is not None and match[0] == metric:
             return float(match[1])
-        points = [t for kind, t in fortify.eval_size_points() if kind == "param"]
+        points = [t for kind, t in fortify.eval_size_points() if kind == metric]
         if points:
             return float(min(points))
-        utils.print_flush("fixed target: eval without SPECTRA_EVAL_SIZE_MATCH=param:<keep>; "
+        utils.print_flush(f"fixed target: eval without SPECTRA_EVAL_SIZE_MATCH={metric}:<keep>; "
                           "the actor is given 0.6")
         return 0.6
+
+    def _target_metric(self) -> str:
+        """``param`` or ``flop``: what this episode's fixed target is measured in (``fortify.fixed_target_metric``;
+        ``param`` without a target, so the knob is read only in fixed-target episodes)."""
+        return fortify.fixed_target_metric() if getattr(self, "target_keep", None) is not None else "param"
+
+    def _target_kept(self) -> float:
+        """The current model's kept fraction in the fixed target's metric."""
+        return self.flops_ratio() if self._target_metric() == "flop" else self.param_ratio()
 
     def _group_sensitivity_features(self):
         """
@@ -271,7 +281,7 @@ class NetworkEnv:
             return 0.0
         final = self._target_final
         if final is None:
-            kept = self.param_ratio()
+            kept = self._target_kept()
             delta_pp = (float(self.last_val_acc) - float(self.original_acc)) * 100.0
         else:
             kept, delta_pp = final["kept"], final["delta_pp"]
@@ -284,16 +294,17 @@ class NetworkEnv:
         ``(rate, None)``. The episode then ends at the target instead of past it.
         """
         target = float(self.target_keep) + 1e-9
-        if self.preview_param_ratio(rate) > target:
+        preview = self.preview_flops_ratio if self._target_metric() == "flop" else self.preview_param_ratio
+        if preview(rate) > target:
             return rate, None
         lo, hi = float(rate), 1.0
         for _ in range(10):
             mid = 0.5 * (lo + hi)
-            if self.preview_param_ratio(mid) <= target:
+            if preview(mid) <= target:
                 lo = mid
             else:
                 hi = mid
-        return lo, self.preview_param_ratio(lo)
+        return lo, preview(lo)
 
     def reset(self, test_net_path=None, test_model=None, test_loaders=None, target_keep=None):
         """
@@ -370,6 +381,9 @@ class NetworkEnv:
 
         self.target_keep = self._episode_target(target_keep) if fortify.fixed_target() else None
         self._target_final = None
+        if self._target_metric() == "flop" and not self.original_flops:
+            # The landing and the done check read kept MACs against this origin from the first cut on.
+            self.original_flops = utils.calc_flops(self.current_model, self._input_shape())
         self._layer_sens = self._group_sensitivity_features() if fortify.state_sens() else None
         target_extras = (fortify.target_channels(1.0, self.target_keep)
                          if self.target_keep is not None else None)
@@ -391,7 +405,8 @@ class NetworkEnv:
         self._target_prev_acc = float(self.original_acc)
         self._origin_test_acc = None
         if self.target_keep is not None:
-            utils.print_flush(f"fixed target: keep x{self.target_keep:.3f} of the parameters "
+            utils.print_flush(f"fixed target: keep x{self.target_keep:.3f} of the "
+                              f"{'FLOPs' if self._target_metric() == 'flop' else 'parameters'} "
                               f"({self.mode}); origin val {float(self.original_acc):.4f}")
 
         num_rows = max(len(model_with_rows.all_rows) - 1, 0)
@@ -510,6 +525,7 @@ class NetworkEnv:
             need_flops = float(os.environ.get("SPECTRA_EVAL_MIN_FLOP_RATIO", "0") or 0) > 0
         except ValueError:
             need_flops = False
+        need_flops = need_flops or self._target_metric() == "flop"
         origin_f = getattr(self, "original_flops", None)
 
         def _current_flops():
@@ -859,12 +875,14 @@ class NetworkEnv:
             compression_rate = self._ladder_keep_rate(model_with_rows, self.row_idx - 1, requested_rate)
             if abs(compression_rate - requested_rate) > 1e-9:
                 utils.print_flush(f"width ladder: rate {requested_rate} -> keep rate {compression_rate:.4f}")
+        target_metric = self._target_metric()
+        target_unit = "FLOPs" if target_metric == "flop" else "params"
         if self.target_keep is not None and 0.0 < float(compression_rate) < 1.0:
             landed_rate, landed_kept = self._land_on_target(float(compression_rate))
             if landed_kept is not None:
                 utils.print_flush(
                     f"fixed target: rate {float(compression_rate):.4f} -> {landed_rate:.4f} lands at "
-                    f"params x{landed_kept:.4f} (target x{self.target_keep:.4f})")
+                    f"{target_unit} x{landed_kept:.4f} (target x{self.target_keep:.4f})")
                 compression_rate = landed_rate
 
         # Determine affected layers (from current row up to start of next row)
@@ -993,8 +1011,12 @@ class NetworkEnv:
             # the network removed): area is a fraction × slack fraction, hence ×100.
             done = True
             reward = fortify.stop_reward_scale() * float(self.episode_inband_area())
+        target_kept = None
         if self.target_keep is not None:
-            kept_now = params_after / max(float(self.original_params), 1.0)
+            # Kept in the target's metric; flops_ratio reads the swapped-in model (the cache was just flushed).
+            kept_now = (self.flops_ratio() if target_metric == "flop"
+                        else params_after / max(float(self.original_params), 1.0))
+            target_kept = kept_now
             # Only at or below the target: the eval's size point (first point <= target) must exist
             # on every walk that reached it.
             if kept_now <= float(self.target_keep) + 1e-9:
@@ -1004,7 +1026,7 @@ class NetworkEnv:
                 self._target_final = {"kept": kept_now, "delta_pp": delta_pp}
                 reward += fortify.target_score(delta_pp, kept_now, self.target_keep) - delta_pp
                 utils.print_flush(
-                    f"fixed target: episode ends at params x{kept_now:.4f} (target "
+                    f"fixed target: episode ends at {target_unit} x{kept_now:.4f} (target "
                     f"x{self.target_keep:.4f}) with val Δacc {delta_pp:+.2f} pp; return "
                     f"{fortify.target_score(delta_pp, kept_now, self.target_keep):+.2f}")
         # A completed pass releases the group-once locks so the next pass may cut again.
@@ -1026,7 +1048,7 @@ class NetworkEnv:
             # step every layer's activation moments are re-extracted — the edit changed the
             # input of every downstream layer, not only the edited row's span.
             refresh = None if (fortify.refresh_all_features() and compression_rate != 1) else update_indices
-            target_extras = (fortify.target_channels(kept, self.target_keep)
+            target_extras = (fortify.target_channels(target_kept if target_metric == "flop" else kept, self.target_keep)
                              if self.target_keep is not None else None)
             fm = self.feature_extractor.encode_to_bert_input(
                 model_with_rows, encode_idx, refresh,

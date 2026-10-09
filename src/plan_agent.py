@@ -4,8 +4,10 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
 
 * ``ParamModel``: the parameter count after each planned group is cut to an integer width, computed
   from the channel groups without cutting. The real cut is ``alloc_walk.cut_to``.
+* ``FlopModel``: the MACs (``utils.calc_flops``) after the same cuts, the T0-F FLOPs budget; both models
+  expose ``cost``, the kept params or MACs the decoders bisect on.
 * ``decode``: scores z → widths. keep_g = clip(σ(z_g + b), k_min, 1), rounded to the nearest width,
-  with the scalar b bisected on ``ParamModel`` so the kept params come closest to κ.
+  with the scalar b bisected on the cost model so the kept cost comes closest to κ.
 * ``scale_decode``: the alloc walk's family, keep_g = clip(c · w_g, k_min, 1) with c bisected the same
   way, for the uniform / sens / inner reference plans.
 * ``MaskedCut``: ``cut_to``'s L1 cut written as zeros on a working copy, for the reward.
@@ -28,6 +30,7 @@ from torch import nn
 
 TOKEN_KINDS = ("layer", "group")
 PROXIES = ("cut", "bn")
+BUDGETS = ("params", "flops")
 
 
 def sigmoid(x: float) -> float:
@@ -78,7 +81,9 @@ class ParamModel:
             self._edits.append((int(row), w0, [id(m) for m in group.producers],
                                 [id(m) for m in group.depthwise], consumers, norms))
 
-    def params(self, widths) -> int:
+    def _cuts(self, widths):
+        """``(out_cut, in_cut, depthwise)``: channels removed per module id from its outputs / its inputs, and the
+        depthwise owners among the cut modules."""
         out_cut, in_cut, depthwise = {}, {}, set()
         for row, w0, producers, owners, consumers, norms in self._edits:
             removed = w0 - int(widths.get(row, w0))
@@ -93,6 +98,10 @@ class ParamModel:
                 in_cut[mid] = in_cut.get(mid, 0) + int(round(removed * share)) * factor
             for mid, share in norms:
                 out_cut[mid] = out_cut.get(mid, 0) + int(round(removed * share))
+        return out_cut, in_cut, depthwise
+
+    def params(self, widths) -> int:
+        out_cut, in_cut, depthwise = self._cuts(widths)
         total = self.total0
         for mid in set(out_cut) | set(in_cut):
             if mid not in self._shape:
@@ -107,6 +116,10 @@ class ParamModel:
                 new = out * ((in0 - in_cut.get(mid, 0)) // groups0) * kk + (out if bias else 0)
             total += new - own
         return int(total)
+
+    def cost(self, widths) -> int:
+        """The decoders' interface: the kept cost, here params."""
+        return self.params(widths)
 
     def kept(self, widths) -> float:
         return self.params(widths) / float(self.total0)
@@ -123,11 +136,95 @@ def rates_of(widths, widths0):
     return {row: (1.0 if int(widths[row]) >= w0 else int(widths[row]) / float(w0)) for row, w0 in widths0.items()}
 
 
-def _bisect(keeps_at, pm: ParamModel, target, lo, hi, iters):
-    """``(x, widths, params)`` closest to ``target`` params, for a family whose kept params rise with x."""
+class FlopModel:
+    """MACs (``utils.calc_flops``) of ``model`` after the groups of ``plan`` are cut to given widths, without cutting
+    at evaluation time; ``rows`` / ``widths0`` / ``total0`` / ``cost`` / ``kept`` as ``ParamModel``, whose ``params``
+    it also exposes.
+
+    Conv2d and Linear MACs are structural: ``ParamModel``'s cuts times each module's output multiplier (its spatial
+    size, summed over its calls), read from one hooked forward at batch 1. The rest (BatchNorm, activations) is
+    assumed linear in every planned group's width, with the per-group coefficient measured once by a real
+    single-group cut to half width (``alloc_walk.cut_to``); ``tests/test_v15_flops_budget.py`` checks exact
+    equality with ``calc_flops`` of the real cut. ``probes`` cuts in ``seconds``.
+    """
+
+    def __init__(self, model: nn.Module, plan, input_shape, device=None):
+        from src import alloc_walk
+        import src.utils as utils
+        started = time.perf_counter()
+        self.pm = ParamModel(model, plan)
+        self.rows, self.widths0 = self.pm.rows, self.pm.widths0
+        self.mult, handles = {}, []
+
+        def hook(module, _inputs, output):
+            per = module.out_channels if isinstance(module, nn.Conv2d) else module.out_features
+            self.mult[id(module)] = self.mult.get(id(module), 0) + int(output.numel()) // per
+
+        for module in model.modules():
+            if isinstance(module, (nn.Conv2d, nn.Linear)):
+                handles.append(module.register_forward_hook(hook))
+        was_training = model.training
+        model.eval()
+        try:
+            with torch.no_grad():
+                dev = device if device is not None else next(model.parameters()).device
+                model(torch.zeros(1, *input_shape, device=dev))
+        finally:
+            for handle in handles:
+                handle.remove()
+            model.train(was_training)
+        self.struct0 = sum(self._macs(mid, shape[1]) for mid, shape in self.pm._shape.items() if shape[0] != "norm")
+        self.total0 = float(utils.calc_flops(model, input_shape, device))
+        self.elem0 = self.total0 - self.struct0
+        self.e, self.probes = {}, 0
+        for row, w0 in self.widths0.items():
+            self.e[row] = 0.0
+            if w0 <= 1:
+                continue
+            widths = dict(self.widths0)
+            widths[row] = w = max(1, w0 // 2)
+            cut = alloc_walk.cut_to(model, plan, rates_of(widths, self.widths0), input_shape)
+            real = float(utils.calc_flops(cut, input_shape, device))
+            del cut
+            self.e[row] = (self.elem0 - (real - self.struct(widths))) / float(w0 - w)
+            self.probes += 1
+        self.seconds = time.perf_counter() - started
+
+    def _macs(self, mid, out, in_cut=0, depthwise=False):
+        """MACs of module ``mid`` left with ``out`` outputs and ``in_cut`` fewer inputs (none for a depthwise owner)."""
+        _kind, _out0, in0, groups0, kk, _bias, _own = self.pm._shape[mid]
+        return out * ((in0 if depthwise else in0 - in_cut) // groups0) * kk * self.mult.get(mid, 0)
+
+    def struct(self, widths) -> int:
+        """Conv2d and Linear MACs at ``widths``."""
+        out_cut, in_cut, depthwise = self.pm._cuts(widths)
+        total = self.struct0
+        for mid in set(out_cut) | set(in_cut):
+            shape = self.pm._shape.get(mid)
+            if shape is None or shape[0] == "norm":
+                continue
+            total += (self._macs(mid, shape[1] - out_cut.get(mid, 0), in_cut.get(mid, 0), mid in depthwise)
+                      - self._macs(mid, shape[1]))
+        return int(total)
+
+    def cost(self, widths) -> float:
+        """Kept MACs at ``widths``: the structural part plus the linear elementwise part."""
+        elem = self.elem0 - sum(self.e[row] * (w0 - int(widths.get(row, w0))) for row, w0 in self.widths0.items())
+        return self.struct(widths) + elem
+
+    def params(self, widths) -> int:
+        return self.pm.params(widths)
+
+    def kept(self, widths) -> float:
+        return self.cost(widths) / self.total0
+
+
+def _bisect(keeps_at, pm, target, lo, hi, iters):
+    """``(x, widths, cost)`` closest to ``target`` kept cost (params or MACs, ``pm.cost``), for a family whose kept
+    cost rises with x."""
     def at(x):
         widths = widths_of(keeps_at(x), pm.widths0)
-        return x, widths, pm.params(widths)
+        return x, widths, pm.cost(widths)
 
     best = min((at(lo), at(hi)), key=lambda r: abs(r[2] - target))
     for _ in range(iters):
@@ -141,14 +238,14 @@ def _bisect(keeps_at, pm: ParamModel, target, lo, hi, iters):
     return best
 
 
-def polish(keeps, widths, pm: ParamModel, target, k_min: float = 0.1, fixed=()):
-    """``(widths, params)``: one channel at a time, the group rounded furthest the wrong way moves, while that
-    brings the kept params closer to ``target`` (same-width groups cross a rounding threshold together, so a
-    shared scale alone can miss the target by several percent on a thin net)."""
+def polish(keeps, widths, pm, target, k_min: float = 0.1, fixed=()):
+    """``(widths, cost)``: one channel at a time, the group rounded furthest the wrong way moves, while that
+    brings the kept cost (params or MACs, ``pm.cost``) closer to ``target`` (same-width groups cross a rounding
+    threshold together, so a shared scale alone can miss the target by several percent on a thin net)."""
     widths, fixed = dict(widths), set(fixed)
     floor = {row: max(1, int(round(k_min * w0))) for row, w0 in pm.widths0.items()}
     residual = lambda r: float(keeps[r]) * pm.widths0[r] - widths[r]  # noqa: E731
-    p = pm.params(widths)
+    p = pm.cost(widths)
     for _ in range(4 * len(widths) + 4):
         if p > target:
             movable = [r for r in pm.rows if r not in fixed and widths[r] > floor[r]]
@@ -162,15 +259,16 @@ def polish(keeps, widths, pm: ParamModel, target, k_min: float = 0.1, fixed=()):
             break
         trial = dict(widths)
         trial[row] += step
-        q = pm.params(trial)
+        q = pm.cost(trial)
         if abs(q - target) >= abs(p - target):
             break
         widths, p = trial, q
     return widths, p
 
 
-def decode(z, pm: ParamModel, kappa: float, k_min: float = 0.1, iters: int = 48):
-    """``(widths, info)`` for scores ``z`` (one per ``pm.rows``) at params target ``kappa``."""
+def decode(z, pm, kappa: float, k_min: float = 0.1, iters: int = 48):
+    """``(widths, info)`` for scores ``z`` (one per ``pm.rows``) at kept-cost target ``kappa`` (``ParamModel`` or
+    ``FlopModel``)."""
     scores = {row: float(v) for row, v in zip(pm.rows, z)}
     keeps_at = lambda b: {r: min(1.0, max(k_min, sigmoid(scores[r] + b))) for r in pm.rows}  # noqa: E731
     b, widths, _p = _bisect(keeps_at, pm, kappa * pm.total0, -40.0, 40.0, iters)
@@ -179,7 +277,7 @@ def decode(z, pm: ParamModel, kappa: float, k_min: float = 0.1, iters: int = 48)
     return widths, {"b": b, "kept": p / pm.total0, "keeps": keeps}
 
 
-def scale_decode(weights, pm: ParamModel, kappa: float, k_min: float = 0.1, held=(), iters: int = 48):
+def scale_decode(weights, pm, kappa: float, k_min: float = 0.1, held=(), iters: int = 48):
     """``(widths, info)`` with keep_g = clip(c · w_g, k_min, 1), or 1 for a held group (the alloc walk's family)."""
     w = {row: max(1e-9, float(weights.get(row, 1.0))) for row in pm.rows}
     held = set(held)
@@ -362,8 +460,11 @@ def spans_of(layout):
     return {name: (start, end) for name, start, end in layout}
 
 
-def plan_state(state, spans, kappa=None, zero=()):
-    """The policy's input: the target channels at (κ, 1), the per-step action slots and ``zero``'s channels at 0."""
+def plan_state(state, spans, kappa=None, zero=(), budget="params"):
+    """The policy's input: the target channels at (κ, 1), the per-step action slots and ``zero``'s channels at 0; the
+    first action slot then carries the budget the plan is decoded on (0 params, 1 FLOPs)."""
+    if budget not in BUDGETS:
+        raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
     feats = state["layer_features"].clone()
     if kappa is not None and "target" in spans:
         start = spans["target"][0]
@@ -373,6 +474,8 @@ def plan_state(state, spans, kappa=None, zero=()):
         if name in spans:
             start, end = spans[name]
             feats[:, start:end] = 0.0
+    if budget == "flops" and "action" in spans:
+        feats[:, spans["action"][0]] = 1.0
     out = dict(state)
     out["layer_features"] = feats
     return out
@@ -396,6 +499,7 @@ class NetInstance:
         self.model = model.to(device)
         self.plan = plan
         self.pm = ParamModel(self.model, plan)
+        self.fm = None  # the FLOPs model, probed the first time a flops budget asks for it (cost_model)
         self.cutter = MaskedCut(self.model)
         if self.cutter.rows != self.pm.rows:
             raise RuntimeError(f"{self.name}: the working copy plans rows {self.cutter.rows}, the origin {self.pm.rows}")
@@ -472,8 +576,32 @@ class NetInstance:
         out["dead"] = dead
         return out
 
-    def state_at(self, kappa: float):
-        return plan_state(self.state, self.spans, kappa, self.zero)
+    def check_flops(self, kappa: float = 0.6):
+        """The uniform plan at ``kappa`` on the FLOPs model: analytic vs real (``calc_flops`` of ``alloc_walk.cut_to``)
+        kept FLOPs, and the model's probe count and seconds."""
+        from src import alloc_walk
+        import src.utils as utils
+        fm = self.cost_model("flops")
+        widths, info = self.reference("uniform", kappa, budget="flops")
+        real = alloc_walk.cut_to(self.model, self.plan, rates_of(widths, self.pm.widths0), self.input_shape)
+        out = {"analytic": float(info["kept"]),
+               "real": float(utils.calc_flops(real, self.input_shape, self.device)) / fm.total0,
+               "probes": fm.probes, "seconds": fm.seconds}
+        del real
+        return out
+
+    def cost_model(self, budget: str = "params"):
+        """``ParamModel`` for ``params``; for ``flops`` the net's ``FlopModel``, built on first use."""
+        if budget not in BUDGETS:
+            raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
+        if budget == "params":
+            return self.pm
+        if self.fm is None:
+            self.fm = FlopModel(self.model, self.plan, self.input_shape, self.device)
+        return self.fm
+
+    def state_at(self, kappa: float, budget: str = "params"):
+        return plan_state(self.state, self.spans, kappa, self.zero, budget)
 
     def batches(self, proxy: str, seed: int):
         kind, n = parse_proxy(proxy)
@@ -488,21 +616,24 @@ class NetInstance:
             recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
         return 100.0 * (accuracy(work, self.val) - self.origin_val)
 
-    def reference(self, kind: str, kappa: float, k_min: float = 0.1, a: float = 0.5):
-        """``(widths, info)`` of the uniform / sens / inner plan at ``kappa``; None for sens without sensitivities."""
+    def reference(self, kind: str, kappa: float, k_min: float = 0.1, a: float = 0.5, budget: str = "params"):
+        """``(widths, info)`` of the uniform / sens / inner plan at ``kappa`` on the ``budget`` cost model; None for
+        sens without sensitivities."""
         from src import alloc_walk
         if kind == "sens" and self.sens is None:
             return None
         sens = self.sens if kind == "sens" else {row: 1.0 for row in self.pm.rows}
         weights = alloc_walk.weights(kind, {row: float(sens[row]) for row in self.pm.rows}, a)
-        return scale_decode(weights, self.pm, kappa, k_min, held=self.held if kind == "inner" else ())
+        return scale_decode(weights, self.cost_model(budget), kappa, k_min, held=self.held if kind == "inner" else ())
 
 
-def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sample=None):
+def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sample=None, budget="params", kappa=None):
     """``(widths, info)`` of the frozen agent's mean plan for the net ``env`` was reset on, in
     ``alloc_walk.plan_targets``' format; the state is the one reset built (``state_dump.encode_origin``).
     With ``sample=(sigma, seed)`` it decodes one draw z = mu + sigma * eps (eps from a CPU generator seeded by
-    ``seed``) instead of the mean, the plan distribution the trainer samples from."""
+    ``seed``) instead of the mean, the plan distribution the trainer samples from. ``budget="flops"`` decodes
+    ``target`` on a ``FlopModel`` (``kept`` is then the kept FLOPs) and flags the budget in the state; ``kappa``
+    is the target the state carries (default ``env.target_keep``, else ``target``)."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
     from src import state_dump
     from src.BERTInputModeler import action_cost_slot_dim
@@ -510,16 +641,22 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     from src.group_tokens import GROUP_TOKEN_EXTRA_DIM, group_token_state
     import src.utils as utils
     from src.feature_standardizer import resolve_standardizer_path
+    if budget not in BUDGETS:
+        raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
     device = env.conf.device
     policy, blob = load_policy(policy_path, device)
     trained, here = blob.get("standardizer") or "", resolve_standardizer_path() or ""
     if trained and os.path.abspath(trained) != os.path.abspath(here):
         utils.print_flush(f"[alloc] WARNING: the plan agent trained under standardizer {trained}; this job reads {here}")
+    trained_budget = str(blob.get("budget", "params"))
+    if trained_budget not in (budget, "mixed"):
+        utils.print_flush(f"[alloc] WARNING: the plan agent trained under a {trained_budget} budget; "
+                          f"this job decodes on {budget}")
     model = env.current_model.to(device)
     mwr = ModelWithRows(model)
     groups = env._dependency_groups(mwr)
     plan = group_plan(mwr, groups)
-    pm = ParamModel(model, plan)
+    pm = ParamModel(model, plan) if budget == "params" else FlopModel(model, plan, env._input_shape(), device)
     state = state_dump.encode_origin(env, mwr, groups)
     rows = state_dump.token_rows(mwr, groups, plan)
     num_actions = len(env.conf.compression_rates_dict)
@@ -530,8 +667,9 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
         extra = GROUP_TOKEN_EXTRA_DIM
     spans = spans_of(state_dump.layout(int(state["layer_features"].size(1)), num_actions, extra))
     state = {k: (v.to(device) if torch.is_tensor(v) else v) for k, v in state.items() if k != "token_members"}
-    kappa = float(env.target_keep) if env.target_keep is not None else float(target)
-    state = plan_state(state, spans, kappa, tuple(blob.get("zero", ())))
+    if kappa is None:
+        kappa = env.target_keep if env.target_keep is not None else target
+    state = plan_state(state, spans, float(kappa), tuple(blob.get("zero", ())), budget)
     mask, token_k = token_index(rows, pm.rows, device)
     with torch.no_grad():
         mu = policy(state, mask, token_k, len(pm.rows)).tolist()
@@ -544,7 +682,7 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
                  "dist": math.sqrt(sum((a - m) ** 2 for a, m in zip(z, mu)))}
     widths, info = decode(z, pm, target, float(blob.get("k_min", k_min)))
     return widths, {"kind": "agent" if drawn is None else "agent_sample", "alpha": 0.0, "target": float(target),
-                    "kept": float(info["kept"]),
+                    "kept": float(info["kept"]), "budget": budget,
                     "keeps": {row: widths[row] / float(pm.widths0[row]) for row in pm.rows},
                     "origin_widths": dict(pm.widths0), "sens": {row: float(v) for row, v in zip(pm.rows, z)},
                     "held": 0, "policy": os.path.basename(os.path.dirname(os.path.abspath(policy_path)))

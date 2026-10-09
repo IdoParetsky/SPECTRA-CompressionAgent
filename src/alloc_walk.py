@@ -20,6 +20,8 @@ of ``SPECTRA_ALLOC_SAMPLE_AROUND`` (sens or uniform) times exp(σ ε) per group,
 ``agent_sample`` draws one plan around that mean as the agent samples in training, z = μ + σ ε
 with ε ~ N(0, I) seeded by ``SPECTRA_ALLOC_SAMPLE_SEED`` and σ = ``SPECTRA_ALLOC_SAMPLE_SIGMA``,
 decoded like the mean (D-PROXY-2).
+``SPECTRA_ALLOC_BUDGET=flops`` (default params) measures the plan's kept fraction, its target and the stall
+check in MACs (``utils.calc_flops``) instead of parameters, the T0-F variant.
 Each decision then plays the legal cut whose resulting width is closest to its group's
 target (ties to the milder cut, identity once it is there). Group-once, the recovery and the
 fixed-target landing are the walk's own, so a row differs from greedy / mild only in which groups
@@ -39,6 +41,7 @@ import statistics
 import torch
 
 import src.channel_groups as channel_groups
+import src.fortify as fortify
 import src.group_sensitivity as group_sensitivity
 import src.pruning as pruning
 import src.utils as utils
@@ -46,6 +49,7 @@ from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
 KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample")
 SAMPLE_AROUND = ("sens", "uniform")
+BUDGETS = ("params", "flops")
 
 
 def kind() -> str:
@@ -53,6 +57,14 @@ def kind() -> str:
     name = os.environ.get("SPECTRA_ALLOC_KIND", "sens").strip().lower() or "sens"
     if name not in KINDS:
         raise ValueError(f"SPECTRA_ALLOC_KIND={name!r}: expected one of {KINDS}")
+    return name
+
+
+def budget() -> str:
+    """``SPECTRA_ALLOC_BUDGET`` (params): what the plan's kept fraction and the walk's target are measured in."""
+    name = os.environ.get("SPECTRA_ALLOC_BUDGET", "params").strip().lower() or "params"
+    if name not in BUDGETS:
+        raise ValueError(f"SPECTRA_ALLOC_BUDGET={name!r}: expected one of {BUDGETS}")
     return name
 
 
@@ -166,19 +178,22 @@ def group_widths(model, rows):
     return out
 
 
-def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_floor=0.1, iters=16, tol=0.003):
+def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_floor=0.1, iters=16, tol=0.003,
+                 budget="params"):
     """
     ``(widths, info)``: ``widths[row]`` is the target width of the group whose first walk row is
     ``row``. Keeps are clip(c · weight, keep_floor, 1), or 1 for a group ``inner`` holds; c is
-    bisected until the one-shot cut keeps ``target`` of the parameters (widths are integers, so the
-    closest c found). ``widths`` copies its table instead and ignores ``target``.
+    bisected until the one-shot cut keeps ``target`` of the parameters, or of the MACs under
+    ``budget="flops"`` (widths are integers, so the closest c found). ``widths`` copies its table
+    instead and ignores ``target``.
     """
+    size = (lambda m: utils.calc_flops(m, input_shape)) if budget == "flops" else utils.calc_num_parameters
     plan = group_sensitivity.group_plan(ModelWithRows(model))
     rows = [row for _group, row in plan]
     if kind_name == "widths":
         keeps, unnamed = copied_keeps(model, plan, widths_table())
         cut = cut_to(model, plan, keeps, input_shape)
-        frac = utils.calc_num_parameters(cut) / utils.calc_num_parameters(model)
+        frac = size(cut) / size(model)
         widths = group_widths(cut, rows)
         del cut
         return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
@@ -196,14 +211,14 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
         noise = sample_noise(rows, sample["sigma"], sample["seed"])
         w = {row: w[row] * noise[row] for row in rows}
     held = {row for group, row in plan if kind_name == "inner" and len(group.producers) > 1}
-    params0 = utils.calc_num_parameters(model)
+    size0 = size(model)
     lo, hi = 0.0, 1.0 / min(w.values())
     best = None
     for _ in range(iters):
         c = 0.5 * (lo + hi)
         keeps = {row: 1.0 if row in held else min(1.0, max(keep_floor, c * w[row])) for row in rows}
         cut = cut_to(model, plan, keeps, input_shape)
-        frac = utils.calc_num_parameters(cut) / params0
+        frac = size(cut) / size0
         if best is None or abs(frac - target) < abs(best[1] - target):
             best = (keeps, frac, group_widths(cut, rows))
         del cut
@@ -235,6 +250,19 @@ def choose(width, target, rates, legal_idx, identity):
     return best
 
 
+def flops_walk_target(env) -> float:
+    """The kept MACs a ``SPECTRA_ALLOC_BUDGET=flops`` walk heads for: the episode's fixed target when that is measured
+    in FLOPs (``fortify.fixed_target_metric``), else the flop ``SPECTRA_EVAL_SIZE_MATCH``, else the deepest flop
+    ``SPECTRA_EVAL_SIZE_POINTS`` entry, else 0.6."""
+    if env.target_keep is not None and fortify.fixed_target_metric() == "flop":
+        return float(env.target_keep)
+    match = fortify.eval_size_match()
+    if match is not None and match[0] == "flop":
+        return float(match[1])
+    points = [t for kind_name, t in fortify.eval_size_points() if kind_name == "flop"]
+    return float(min(points)) if points else 0.6
+
+
 def _state(env):
     """Per-network plan, measured on the origin the first time the network comes round."""
     cache = getattr(env, "_alloc_walk", None)
@@ -243,18 +271,26 @@ def _state(env):
     net = env.selected_net_path
     if net not in cache:
         model = env.current_model.to(env.conf.device)
-        target = float(env.target_keep if env.target_keep is not None else 0.6) - undershoot()
+        flops = budget() == "flops"
+        walk_target = float(env.target_keep if env.target_keep is not None else 0.6)
+        if flops:
+            walk_target = flops_walk_target(env)
+        target = walk_target - undershoot()
+        # Under the params budget every call below is the one ``tests/test_plan_agent.py`` fakes (no extra arguments).
+        agent_kw = {"budget": "flops", "kappa": walk_target} if flops else {}
+        plan_kw = {"budget": "flops"} if flops else {}
         if kind() in ("agent", "agent_sample"):
             from src import plan_agent
             if kind() == "agent_sample":
                 widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep(),
-                                                       sample=(sample_sigma(), sample_seed()))
+                                                       sample=(sample_sigma(), sample_seed()), **agent_kw)
             else:
-                widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep())
+                widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep(), **agent_kw)
         else:
             batches = group_sensitivity.calibration_batches(
                 env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
-            widths, info = plan_targets(model, batches, env._input_shape(), kind(), target, alpha(), min_keep())
+            widths, info = plan_targets(model, batches, env._input_shape(), kind(), target, alpha(), min_keep(),
+                                        **plan_kw)
         mwr = ModelWithRows(model)
         cache[net] = {"widths": widths, "n_rows": max(1, len(mwr.row_to_main_layer) - 1),
                       "idle": 0, "fallback": False, "last_kept": 1.0}
@@ -272,7 +308,8 @@ def _state(env):
                       f"alpha={info['alpha']:g}")
         utils.print_flush(
             f"[alloc] {os.path.basename(str(net))}: {source} plan keeps "
-            f"x{info['kept']:.3f} of the params (target x{target:.3f} = walk target − {undershoot():g}) over "
+            f"x{info['kept']:.3f} of the {'FLOPs' if flops else 'params'} (target x{target:.3f} = walk target − "
+            f"{undershoot():g}) over "
             f"{len(widths)} groups; group keep min {keeps[0]:.2f} median {statistics.median(keeps):.2f} "
             f"max {keeps[-1]:.2f}" + (f"; {info['held']} coupled groups held at full width" if info["held"] else "")
             + (f"; {info['unnamed']} groups not named in the table, kept whole" if info.get("unnamed") else ""))
@@ -281,6 +318,7 @@ def _state(env):
             run_recorder.record(
                 "alloc_plan", network=str(net), kind=info["kind"], alpha=info["alpha"], target=target,
                 kept=info["kept"], **({"sample": info["sample"]} if info.get("sample") else {}),
+                **({"budget": "flops"} if flops else {}),
                 rows={str(r): {"origin": info["origin_widths"].get(r), "target": widths[r],
                                                   "keep": round(info["keeps"][r], 4),
                                                   "sens": float(info["sens"][r])} for r in widths})
@@ -294,7 +332,8 @@ def action(env, legal, rates, device):
     identity = next((i for i, r in rates.items() if abs(float(r) - 1.0) < 1e-9), 0)
     legal_idx = [int(i) for i in legal.nonzero(as_tuple=False).flatten().tolist()]
     state = _state(env)
-    kept_now = float(env.param_ratio())
+    flops = budget() == "flops"
+    kept_now = float(env.flops_ratio() if flops else env.param_ratio())
     if kept_now > state["last_kept"] + 1e-9:
         state.update(idle=0, fallback=False)
     state["last_kept"] = kept_now
@@ -313,8 +352,8 @@ def action(env, legal, rates, device):
     state["idle"] = 0 if pick != identity else state["idle"] + 1
     if state["idle"] >= state["n_rows"] and env.target_keep is not None and kept_now > float(env.target_keep):
         state["fallback"] = True
-        utils.print_flush(f"[alloc] every group at its target with params x{kept_now:.3f} above the target "
-                          f"x{float(env.target_keep):.3f}; strongest legal cut from here")
+        utils.print_flush(f"[alloc] every group at its target with {'FLOPs' if flops else 'params'} x{kept_now:.3f} "
+                          f"above the target x{float(env.target_keep):.3f}; strongest legal cut from here")
         pick = pick_strongest(rates, legal_idx, identity)
     return torch.tensor([pick], device=device)
 

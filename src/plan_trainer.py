@@ -14,7 +14,8 @@ share of the instances over which σ falls linearly to the floor), LR (3e-4), BA
 KAPPA (0.35,0.85), KMIN (0.1), PROXY (bn32), TOKENS (layer), ENCODER (transformer), ZERO (channels set to 0,
 e.g. sens), NETS (name substrings to keep; all when unset), REF_EVERY (10), SAVE_EVERY (50), SEED (0),
 NORM_ADV (1), MAX_MINUTES (0 = no limit; the trainer saves and stops when it is reached), SUMMARY_KAPPAS
-(0.4,0.6,0.8: the κ of the closing per-net summary).
+(0.4,0.6,0.8: the κ of the closing per-net summary), BUDGET (params: what κ is a fraction of; flops decodes every
+plan to kept MACs on ``plan_agent.FlopModel`` and flags it in the state, mixed draws params or flops per instance).
 """
 
 import json
@@ -63,6 +64,7 @@ class Config:
     norm_adv: bool
     max_minutes: float
     summary_kappas: tuple
+    budget: str
 
 
 def config() -> Config:
@@ -78,10 +80,13 @@ def config() -> Config:
         ref_every=max(1, int(_env("REF_EVERY", "10"))), save_every=max(1, int(_env("SAVE_EVERY", "50"))),
         seed=int(_env("SEED", "0")), norm_adv=_env("NORM_ADV", "1") not in ("0", "false", "no", "off"),
         max_minutes=float(_env("MAX_MINUTES", "0")),
-        summary_kappas=tuple(float(v) for v in _env("SUMMARY_KAPPAS", "0.4,0.6,0.8").split(",") if v.strip()))
+        summary_kappas=tuple(float(v) for v in _env("SUMMARY_KAPPAS", "0.4,0.6,0.8").split(",") if v.strip()),
+        budget=_env("BUDGET", "params").lower())
     plan_agent.parse_proxy(cfg.proxy)
     if cfg.tokens not in plan_agent.TOKEN_KINDS:
         raise ValueError(f"SPECTRA_PLAN_TOKENS={cfg.tokens!r}; expected one of {plan_agent.TOKEN_KINDS}")
+    if cfg.budget not in plan_agent.BUDGETS + ("mixed",):
+        raise ValueError(f"SPECTRA_PLAN_BUDGET={cfg.budget!r}; expected one of {plan_agent.BUDGETS + ('mixed',)}")
     if not 0.0 < lo <= hi < 1.0:
         raise ValueError(f"SPECTRA_PLAN_KAPPA={lo},{hi}: need 0 < lo <= hi < 1")
     if cfg.k < 2:
@@ -101,36 +106,44 @@ def out_dir() -> str:
     return path
 
 
-def references(inst, kappa, cfg, batches):
+def references(inst, kappa, cfg, batches, budget="params"):
     out = {}
     for kind in REFERENCES:
-        ref = inst.reference(kind, kappa, cfg.k_min)
+        ref = inst.reference(kind, kappa, cfg.k_min, budget=budget)
         if ref is not None:
             widths, info = ref
             out[kind] = {"r": inst.reward(widths, cfg.proxy, batches), "kept": info["kept"]}
     return out
 
 
-def mean_plan(policy, inst, kappa, cfg):
+def mean_plan(policy, inst, kappa, cfg, budget="params"):
     with torch.no_grad():
-        mu = policy(inst.state_at(kappa), inst.token_mask, inst.token_k, inst.n_groups)
-    return plan_agent.decode(mu.tolist(), inst.pm, kappa, cfg.k_min)
+        mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
+    return plan_agent.decode(mu.tolist(), inst.cost_model(budget), kappa, cfg.k_min)
+
+
+def _budget_tag(budget) -> str:
+    """`` b=flops`` after a log line's ``k=`` token; empty under the params budget, whose lines are unchanged."""
+    return "" if budget == "params" else f" b={budget}"
 
 
 def summary(policy, instances, cfg, log):
-    """Mean plan vs references per net at each summary κ on one fixed batch set (val-half proxy reads)."""
+    """Mean plan vs references per net at each summary κ (and budget) on one fixed batch set (val-half proxy reads)."""
+    budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     for inst in instances:
         for kappa in cfg.summary_kappas:
-            batches = inst.batches(cfg.proxy, cfg.seed)
-            widths, info = mean_plan(policy, inst, kappa, cfg)
-            r_mu = inst.reward(widths, cfg.proxy, batches)
-            refs = references(inst, kappa, cfg, batches)
-            utils.print_flush(
-                f"[plan] summary {inst.name} k={kappa:.2f}: mean plan {r_mu:+.2f} (x{info['kept']:.3f}) | "
-                + " | ".join(f"{name} {ref['r']:+.2f} (x{ref['kept']:.3f})" for name, ref in refs.items())
-                + f" | keeps min {min(info['keeps'].values()):.2f} max {max(info['keeps'].values()):.2f}")
-            log({"summary": inst.name, "kappa": kappa, "mean": r_mu, "kept": info["kept"],
-                 "refs": refs, "widths": {str(r): int(w) for r, w in widths.items()}})
+            for budget in budgets:
+                batches = inst.batches(cfg.proxy, cfg.seed)
+                widths, info = mean_plan(policy, inst, kappa, cfg, budget)
+                r_mu = inst.reward(widths, cfg.proxy, batches)
+                refs = references(inst, kappa, cfg, batches, budget)
+                utils.print_flush(
+                    f"[plan] summary {inst.name} k={kappa:.2f}{_budget_tag(budget)}: mean plan {r_mu:+.2f} "
+                    f"(x{info['kept']:.3f}) | "
+                    + " | ".join(f"{name} {ref['r']:+.2f} (x{ref['kept']:.3f})" for name, ref in refs.items())
+                    + f" | keeps min {min(info['keeps'].values()):.2f} max {max(info['keeps'].values()):.2f}")
+                log({"summary": inst.name, "kappa": kappa, "budget": budget, "mean": r_mu, "kept": info["kept"],
+                     "refs": refs, "widths": {str(r): int(w) for r, w in widths.items()}})
 
 
 def run(env, shard):
@@ -158,6 +171,13 @@ def run(env, shard):
             f"[plan] check {inst.name}: uniform k=0.60 kept analytic x{chk['analytic']:.4f} real x{chk['real']:.4f} | "
             f"cut val Δ masked {chk['masked_r']:+.2f} real {chk['real_r']:+.2f} | dead channels {chk['dead']}"
             + (" | WARNING: the masked reward does not match the real cut" if bad else ""))
+        if cfg.budget != "params":
+            chk = inst.check_flops()
+            utils.print_flush(
+                f"[plan] check-flops {inst.name}: uniform k=0.60 FLOPs analytic x{chk['analytic']:.4f} real "
+                f"x{chk['real']:.4f} | {chk['probes']} probes in {chk['seconds']:.1f}s"
+                + (" | WARNING: the FLOPs model does not match the real cut"
+                   if abs(chk["analytic"] - chk["real"]) > 1e-6 else ""))
         instances.append(inst)
     if not instances:
         raise RuntimeError(f"SPECTRA_PLAN_NETS={cfg.nets}: no test network matched")
@@ -171,7 +191,7 @@ def run(env, shard):
     log_path = os.path.join(folder, "plan_train.jsonl")
     from src.feature_standardizer import resolve_standardizer_path
     meta = {"tokens": cfg.tokens, "zero": list(cfg.zero), "k_min": cfg.k_min, "proxy": cfg.proxy,
-            "nets": [inst.name for inst in instances], "config": asdict(cfg),
+            "budget": cfg.budget, "nets": [inst.name for inst in instances], "config": asdict(cfg),
             "standardizer": resolve_standardizer_path(), "actor": os.environ.get("SPECTRA_ACTOR_CHECKPOINT_PATH", "")}
 
     def log(record):
@@ -190,15 +210,17 @@ def run(env, shard):
         t0 = time.perf_counter()
         inst = rng.choice(instances)
         kappa = rng.uniform(cfg.kappa_lo, cfg.kappa_hi)
+        budget = cfg.budget if cfg.budget != "mixed" else rng.choice(plan_agent.BUDGETS)
         sigma = sigma_at(cfg, it)
         seed = cfg.seed * 100003 + it
         batches = inst.batches(cfg.proxy, seed)
-        mu = policy(inst.state_at(kappa), inst.token_mask, inst.token_k, inst.n_groups)
+        mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
         generator = torch.Generator(device=mu.device).manual_seed(seed)
         z = plan_agent.sample_scores(mu, sigma, cfg.k, generator)
         rewards, kept = [], []
+        cm = inst.cost_model(budget)
         for k in range(cfg.k):
-            plan_widths, info = plan_agent.decode(z[k].tolist(), inst.pm, kappa, cfg.k_min)
+            plan_widths, info = plan_agent.decode(z[k].tolist(), cm, kappa, cfg.k_min)
             rewards.append(inst.reward(plan_widths, cfg.proxy, batches))
             kept.append(info["kept"])
         r = torch.tensor(rewards, device=mu.device, dtype=mu.dtype)
@@ -212,15 +234,15 @@ def run(env, shard):
             grad = float(torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0))
             optimizer.step()
             optimizer.zero_grad()
-        record = {"it": it, "net": inst.name, "kappa": kappa, "sigma": sigma, "rewards": rewards, "kept": kept,
-                  "mu_std": float(mu.detach().std()), "loss": float(loss) * cfg.batch, "grad": grad}
-        line = (f"[plan] it={it + 1}/{cfg.instances} {inst.name} k={kappa:.3f} sigma={sigma:.3f} | plans mean "
-                f"{statistics.mean(rewards):+.2f} max {max(rewards):+.2f} min {min(rewards):+.2f} kept "
+        record = {"it": it, "net": inst.name, "kappa": kappa, "budget": budget, "sigma": sigma, "rewards": rewards,
+                  "kept": kept, "mu_std": float(mu.detach().std()), "loss": float(loss) * cfg.batch, "grad": grad}
+        line = (f"[plan] it={it + 1}/{cfg.instances} {inst.name} k={kappa:.3f}{_budget_tag(budget)} sigma={sigma:.3f} "
+                f"| plans mean {statistics.mean(rewards):+.2f} max {max(rewards):+.2f} min {min(rewards):+.2f} kept "
                 f"x{statistics.mean(kept):.3f} | mu std {record['mu_std']:.3f}")
         if (it + 1) % cfg.ref_every == 0 or it == 0:
-            plan_widths, info = mean_plan(policy, inst, kappa, cfg)
+            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget)
             record["mean_plan"] = {"r": inst.reward(plan_widths, cfg.proxy, batches), "kept": info["kept"]}
-            record["refs"] = references(inst, kappa, cfg, batches)
+            record["refs"] = references(inst, kappa, cfg, batches, budget)
             line += f" | mean plan {record['mean_plan']['r']:+.2f}" + "".join(
                 f" {name} {ref['r']:+.2f}" for name, ref in record["refs"].items())
         record["seconds"] = time.perf_counter() - t0
