@@ -7212,3 +7212,44 @@ Reading:
 Never: a D-PROXY-F number as an agent TEST row; a proxy adopted as the reward on this read; added plans or seeds.
 
 Records: queue row D-PROXY-F; next §352.
+
+## 352. (HF-V): the frozen T1 on unseen VGG nets: DepGraph VGG-19 C100 (an unseen dataset) and VGG-16 C10 (an unseen depth) (**22436299–349**, 18 evals; `tree_v13`) — PRELIM; registered call on VGG-19 C100: sens − uniform +1.24 (lever present), T1 − uniform **+1.16** (bar +0.5) → **TRANSFERS**; T1 − sens −0.08, so not BEATS-PRIOR; at equal params T1 keeps 1.36× uniform's FLOPs (captioned)
+
+Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row HF-V, section "Night 10 Oct cells").
+- *Read.* 10 Oct 07:25 (`scripts/_tmp_s10oct_night_read.sh hfv`).
+- *Checks.* 18 / 18 COMPLETED; none of the night's jobs failed. Every arm lands at params 0.600. The T1 and sens size points coincide with val_best. Every uniform walk hit the stall fallback once ("strongest legal cut from here"), so uniform's realized net is its plan plus one strongest legal cut.
+- *Design.* T1's frozen policies s42–44 one-shot at params 0.6, G2 final + origin; sens and uniform on the agent's own eval line at the same seed.
+
+**Per seed** (TEST 5k; FLOPs kept):
+
+| net | seed | T1 | sens | uniform | FLOPs T1 / sens / uniform |
+|---|---|---|---|---|---|
+| VGG-19 C100 | 42 | **+0.44** | +0.28 | −0.70 | 0.749 / 0.749 / 0.551 |
+| VGG-19 C100 | 43 | **+0.00** | +0.40 | −1.28 | 0.749 / 0.749 / 0.551 |
+| VGG-19 C100 | 44 | **+0.14** | +0.14 | −0.92 | 0.749 / 0.749 / 0.551 |
+| VGG-16 C10 | 42 | **+0.48** | −0.02 | −0.58 | 0.859 / 0.808 / 0.455 |
+| VGG-16 C10 | 43 | **+0.70** | +0.28 | −0.36 | 0.843 / 0.811 / 0.455 |
+| VGG-16 C10 | 44 | **+0.38** | +0.48 | −0.56 | 0.843 / 0.834 / 0.455 |
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed):
+
+| net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| VGG-19 C100 | T1 − uniform | **+1.16** (+1.14 / +1.28 / +1.06) | +1.49 | +1.33 | +1.29 | 1.36 |
+| VGG-19 C100 | T1 − sens | **−0.08** (+0.16 / −0.40 / +0.00) | +0.21 | +0.07 | +0.44 | 1.00 |
+| VGG-19 C100 | sens − uniform | +1.24 (+0.98 / +1.68 / +1.06) | +1.28 | +1.26 | +0.85 | 1.36 |
+| VGG-16 C10 | T1 − uniform | +1.02 (+1.06 / +1.06 / +0.94) | +1.08 | +1.05 | +1.15 | 1.86–1.89 |
+| VGG-16 C10 | T1 − sens | +0.27 (+0.50 / +0.42 / −0.10) | +0.15 | +0.21 | +0.24 | 1.01–1.06 |
+| VGG-16 C10 | sens − uniform | +0.75 (+0.56 / +0.64 / +1.04) | +0.93 | +0.84 | +0.91 | 1.78–1.83 |
+
+The origin controls of one seed differ by up to 0.7 pp between jobs (VGG-19 s42: +0.04 under T1, +0.76 under sens), so the honest column is noisier than raw here.
+
+Reading:
+1. **TRANSFERS to an unseen dataset.** T1 was trained on CIFAR-10 and SVHN nets only, never on CIFAR-100. Frozen, it plans VGG-19 C100 1.16 pp above a uniform cut at equal params, on all three seeds (+1.06 to +1.28), and level with sens (−0.08). This is the net with the largest allocation lever measured after the final (§348), and T1's plan captures it.
+2. **Not BEATS-PRIOR.** T1 − sens is −0.08 on VGG-19 (the call net) and +0.27 on VGG-16 C10 (reported), under the +0.3 bar.
+3. **Captions.** At equal params T1 and sens keep 1.36× (VGG-19) and 1.8–1.9× (VGG-16) the FLOPs of uniform, whose realized net includes one fallback cut. No equal-FLOPs claim.
+4. **Scope.** VGG is a seen family (VGG-11 / 13 BN in the catalog). VGG-19 and VGG-16 are unseen depths and CIFAR-100 is an unseen dataset; this is not "an unseen family" (HF-N and LOFO-V test that).
+
+Never: "T1 beats sens"; an equal-FLOPs claim; "unseen family" for VGG.
+
+Records: queue row HF-V; next §353.
