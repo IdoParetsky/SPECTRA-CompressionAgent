@@ -7334,3 +7334,37 @@ Reading:
 Never: "transfers to unseen families as well as with them"; an equal-FLOPs claim; a ShuffleNetV2 contrast.
 
 Records: queue row LOFO-R; next §355.
+
+## 355. sens_cost: a cost-aware sensitivity rule (each group's sens loss rise per unit of what its half cut saves) against sens at equal FLOPs and at equal params (smoke **22436999**, cells **22437002–015**, 009 / 014 not ours; `tree_v16`, code `d240176`) — PRELIM; registered call on r56-w4 at FLOPs 0.6: sens_cost − sens_F **−0.33** (bars ±0.30) → **COST-HURTS**, by 0.03; reported: at equal params sens_cost beats sens on all three nets (+0.39 to +0.47) and the frozen T1 trails or ties it (−0.42, +0.01, −0.52)
+
+Registered before submit 10 Oct 05:08:32 (commit `e383200`; queue row sens_cost, section "Night 10 Oct cells"; Ido's GO, 10 Oct).
+- *Read.* 10 Oct 11:40 (`scripts/_tmp_s10oct_night_read.sh sc`).
+- *Checks.* 13 / 13 COMPLETED (smoke included; its start check passed 07:30). Every arm sits at its size point. Two of the three FLOPs walks on r56-w4 (s42, s44), every FLOPs walk on the guard and the params walk at s42 hit the stall fallback once (unfloored decoders, §351's mechanism); §350's sens_F comparators ran under the same mechanics.
+- *Comparators.* (a) FLOPs: §350's sens_F / inner_F / mild_F / uniform_F / T0-F at the same seed (`tree_v15`, the same eval line). (b) Params, thin pair: T1's map (G2-H s42 / s43 and NR s44 for sens; walked, which sits within about 0.2 pp of one-shot, §341) and T1-E. (c) DepGraph R56 at params 0.47: G2-F / R56C sens and uniform (one-shot) and T1-E. (d) VGG-19 C100 at params 0.6: HF-V's sens / uniform / T1 (one-shot, the same eval line).
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed; FLOPs ratio of sens_cost to the comparator):
+
+| budget, net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| FLOPs 0.6, r56-w4 | sens_cost − sens_F | **−0.33** (+0.12 / −0.58 / −0.54) | −0.35 | −0.34 | −0.78 | 1.00–1.01 |
+| FLOPs 0.6, r56-w4 | sens_cost − inner_F | +0.28 (+0.30 / −0.02 / +0.56) | +0.23 | +0.25 | +0.17 | 1.00 |
+| FLOPs 0.6, r56-w4 | sens_cost − T0-F | +1.16 (+0.68 / +0.98 / +1.82) | +1.05 | +1.11 | +0.77 | 1.00–1.02 |
+| params 0.6, r56-w4 | sens_cost − sens | **+0.47** (+0.42 / +0.22 / +0.76) | −0.11 | +0.18 | +0.55 | 1.26–1.30 |
+| params 0.6, r56-w4 | sens_cost − T1 | +0.42 (+0.48 / +0.58 / +0.20) | −0.25 | +0.08 | +0.41 | 0.91–0.99 |
+| params 0.6, r56-w4 | sens_cost − inner | +0.44 (+0.16 / +0.74 / +0.42) | −0.24 | +0.10 | +0.67 | 1.25–1.27 |
+| params 0.47, DepGraph R56 | sens_cost − sens | **+0.39** (+0.36 / +0.06 / +0.74) | +0.28 | +0.33 | +0.35 | 1.32–1.47 |
+| params 0.47, DepGraph R56 | sens_cost − T1 | −0.01 (−0.06 / +0.22 / −0.14) | +0.20 | +0.10 | −0.21 | 0.91–0.99 |
+| params 0.6, VGG-19 C100 | sens_cost − sens | **+0.44** (+0.88 / −0.02 / +0.46) | +0.14 | +0.29 | +0.63 | 1.00 |
+| params 0.6, VGG-19 C100 | sens_cost − T1 | +0.52 (+0.72 / +0.38 / +0.46) | −0.07 | +0.22 | +0.19 | 1.00 |
+
+On the guard r20-w2 sens_cost trails sens under both budgets (−0.33 FLOPs, −1.22 params) and every rule but T1 and T0-F; its FLOPs walks all hit the fallback.
+
+Reading:
+1. **COST-HURTS under a FLOPs budget, by 0.03.** Pricing each cut by the MACs it saves makes the rule 0.33 worse than sens_F on r56-w4 (two of three seeds negative). The walks of both arms hit the fallback on some seeds; the floored comparison (T0-F2's floored sens_F, running) is the cleaner read.
+2. **Under a params budget the cost-aware rule is the strongest measured.** Pricing each cut by the params it saves beats sens by +0.39 to +0.47 on all three nets (8 of 9 seeds positive) and keeps 1.26–1.47× sens's FLOPs on the ResNets, the same direction the agent took (§341, §346).
+3. **So T1's lead over sens at equal params is no larger than cost-awareness.** The frozen T1 trails sens_cost on thin r56-w4 (−0.42, every seed negative) and VGG-19 C100 (−0.52, every seed negative) and ties it on DepGraph R56 (+0.01). [H] The agent appears to have learned, from the cut reward, a weaker form of the rule "cut what costs the budget most per unit of damage", which sens_cost states outright.
+4. **Consequence.** At equal params the prior to beat is sens_cost, not sens; BEATS-PRIOR claims (Ido's 10 Oct avenue) are read against it from now on. [H] Giving the agent sens_cost's weights as a state channel, or parameterizing its plan as a residual on sens_cost, is the natural next design (to register; it needs Ido).
+
+Never: sens_cost adopted as the paper's baseline on this read alone; "the agent beats the prior" without sens_cost beside it; an equal-FLOPs claim from the params rows.
+
+Records: queue row sens_cost; next §356.
