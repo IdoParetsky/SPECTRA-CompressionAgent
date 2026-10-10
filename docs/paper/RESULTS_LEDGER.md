@@ -7479,3 +7479,30 @@ Reading:
 Never: "transfers as well as with the family"; "beats the prior"; an equal-FLOPs claim; a ShuffleNetV2 contrast.
 
 Records: queue row LOFO-V; next §359.
+
+## 359. (HF-FM): the frozen T1 on two unseen families on an unseen dataset, ShuffleNetV2 ×1 and RepVGG-A0 on Fashion-MNIST (the A1 hold-out checkpoints; **22436409–430**, 18 evals; `tree_v13`) — PRELIM; registered outcome **LEVER-LIMITED (no call)**: ShuffleNetV2 is left out by the size rule, and on RepVGG-A0 sens − uniform is **−0.27**, under the +0.5 bar
+
+Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row HF-FM, section "Night 10 Oct cells"); the val_best size rule was set at 04:15, before any HF-FM cell ran.
+- *Read.* 10 Oct 13:45 (`scripts/_tmp_s10oct_night_read.sh hffm`).
+- *Checks.* 18 / 18 COMPLETED, none failed (the 8 pending jobs were re-niced at 09:03 and ran last).
+- *ShuffleNetV2 ×1 FMNIST is left out.* T1's walk at s42 ended at params 0.609 and is read at val_best (within 0.01 of the target, by the 04:15 rule); at s43 and s44 there is no size row. Uniform lands at 0.527 and sens at 0.600, so the arms are more than 0.05 apart; every T1 and uniform walk logged two masked edits (§353's mechanism).
+- *RepVGG-A0 FMNIST is complete,* every arm at params 0.595–0.600.
+
+**RepVGG-A0 FMNIST, contrasts** (mean over seeds 42–44, paired by seed; 5k per seed):
+
+| contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|
+| sens − uniform | **−0.27** (−0.50 / −0.10 / −0.20) | −0.09 | −0.18 | −0.21 | 0.93–0.94 |
+| T1 − uniform | −0.12 (−0.28 / +0.16 / −0.24) | +0.21 | +0.04 | −0.16 | 0.95–1.15 |
+| T1 − sens | +0.15 (+0.22 / +0.26 / −0.04) | +0.29 | +0.22 | +0.05 | 1.01–1.23 |
+
+Every arm sits within about 0.5 pp of the origin control on this net (TEST 5k between +0.14 and +0.68).
+
+Reading:
+1. **No call.** On the only callable net the allocation lever after the final is −0.27 (uniform at least as good as sens), so neither transfer nor failure is identifiable (§332: uninformative, not failed).
+2. **Fashion-MNIST at 60 % params is nearly free for these nets.** Every arm loses well under 1 pp after the final, so there is little for any allocation to win. [H] An informative unseen-dataset cell needs a deeper κ or a harder dataset.
+3. **With §353**, the zoo's out-of-catalog families (ShuffleNetV2, RepVGG) give no informative cell on either CIFAR-10 or Fashion-MNIST as built. The family-level evidence of this sitting is LOFO-R (§354) and LOFO-V (§358).
+
+Never: "T1 transfers to unseen families on an unseen dataset" from these rows; a ShuffleNetV2 contrast at unequal size.
+
+Records: queue row HF-FM; next §360.
