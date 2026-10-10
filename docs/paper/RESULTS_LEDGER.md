@@ -7035,3 +7035,134 @@ Reading (reported; K8 had no registered call):
 Never: a train-log value as TEST; "T0 beats sens"; an equal-FLOPs claim; a K8 call.
 
 Records: queue row 100; next §348.
+
+## 348. (VG2): G2 against the plain recipe on E's four VGG-19 C100 one-shot candidate sets at three more fine-tune seeds (**22427332–355**, G2 on `tree_v10l`, plain on `tree_v10k`; with VG's **22416573–576** against E's own rows **22398201 / 203 / 205 / 207**) — PRELIM; registered call: mean Δ10k over the 16 pairs **−0.08**, inside ±0.30 → **SPEED-EQUIVALENT**: G2 covers VGG-19 C100 and becomes the single final recipe
+
+Registered before submit 9 Oct ~19:05 (commit `25fce90`; queue row 109, section "Evening 9 Oct cells"; Ido 17:21 "B", confirmed 18:56).
+- *Read.* 10 Oct 03:33 (`scripts/_tmp_s9oct_vg2_read.sh`), after all 24 re-finals completed.
+- *Checks.* 32 jobs checked by name and state (arm, walk seed and fine-tune seed in each job name); none flagged. Every row sits at params 0.600.
+- *Pair.* Same candidate set (sens or uniform, walk seed 42 or 43) and same fine-tune seed; Δ = G2 − plain at the size point (for sens the `val_best` row, which is the size point, as §319 / §343). Honest = Δ minus the difference of the two origin controls.
+
+**Pairs** (G2 − plain; the f-seed 42 / 43 rows are VG's, §343):
+
+| set | f-seed | G2 10k | plain 10k | Δ10k | Δ5k | Δval | honest |
+|---|---|---|---|---|---|---|---|
+| sens c42 | 42 | +0.89 | +1.44 | −0.55 | −0.22 | −0.88 | −0.44 |
+| sens c42 | 44 | +1.03 | +1.09 | −0.06 | +0.10 | −0.22 | +0.30 |
+| sens c42 | 45 | +0.95 | +0.59 | +0.36 | +0.22 | +0.50 | +0.18 |
+| sens c42 | 46 | +0.68 | +1.40 | −0.72 | −0.48 | −0.96 | −0.78 |
+| uniform c42 | 42 | −0.70 | −0.88 | +0.18 | +0.24 | +0.12 | +1.32 |
+| uniform c42 | 44 | −1.11 | −0.70 | −0.41 | −0.50 | −0.32 | −0.80 |
+| uniform c42 | 45 | −0.84 | −0.99 | +0.15 | −0.46 | +0.76 | −0.06 |
+| uniform c42 | 46 | −0.34 | −0.79 | +0.45 | +0.76 | +0.14 | +0.42 |
+| sens c43 | 43 | +0.68 | +1.52 | −0.84 | −1.36 | −0.32 | −0.30 |
+| sens c43 | 44 | +0.57 | +1.02 | −0.45 | −0.58 | −0.32 | −0.66 |
+| sens c43 | 45 | +0.57 | +1.00 | −0.43 | −0.18 | −0.68 | +0.24 |
+| sens c43 | 46 | +0.90 | +0.96 | −0.06 | +0.30 | −0.42 | +0.46 |
+| uniform c43 | 43 | −0.63 | −0.37 | −0.26 | −0.26 | −0.26 | −0.78 |
+| uniform c43 | 44 | −0.22 | −0.97 | +0.75 | +1.16 | +0.34 | +0.86 |
+| uniform c43 | 45 | −0.62 | −0.94 | +0.32 | +0.22 | +0.42 | +0.58 |
+| uniform c43 | 46 | −0.40 | −0.62 | +0.22 | +0.24 | +0.20 | +0.66 |
+
+**Contrasts** (G2 − plain):
+
+| scope | n | Δ10k | Δ5k | Δval | honest |
+|---|---|---|---|---|---|
+| all pairs (the call) | 16 | **−0.08** | −0.05 | −0.12 | +0.08 |
+| the 12 new pairs | 12 | +0.01 | — | — | — |
+| sens sets | 8 | −0.34 | −0.28 | −0.41 | −0.13 |
+| uniform sets | 8 | +0.18 | +0.18 | +0.18 | +0.28 |
+
+- Bootstrap over sets × seeds (seeds resampled within each set): mean Δ10k, 95 % interval [−0.25, +0.09].
+- Each recipe's seed SD over its four fine-tune seeds (10k; sens c42, uniform c42, sens c43, uniform c43): G2 0.15 / 0.32 / 0.16 / 0.20; plain 0.39 / 0.12 / 0.26 / 0.28. The origin controls spread 0.4–0.8 pp at 10k within a set.
+- The VGG-19 lever sens − uniform at 10k (same walk seed and fine-tune seed): G2 **+1.39** (n = 8; +0.79 to +2.14), plain **+1.91** (n = 8; +1.58 to +2.32).
+
+Reading:
+1. **G2 covers VGG-19 C100.** The registered call is SPEED-EQUIVALENT (−0.08; 95 % interval [−0.25, +0.09]). VG's miss (§343, −0.37 over four pairs) was within its own resolution. Under Ido's rule of 9 Oct 08:36 ("adopt_after_vgg"), G2 is now the single final fine-tune for every P row, and §342's NR rows become the paper's narrow rows. Rows already in a table are not relabelled: a table moves to G2 only through G2 runs.
+2. **Caption: the recipe interacts with the allocation.** G2 sits 0.34 below plain on the sens sets and 0.18 above on the uniform sets (8 pairs each), so the VGG-19 sens − uniform lever is +1.39 under G2 against +1.91 under plain. The lever survives either recipe; a VGG-19 lever quoted under G2 is the smaller one. The per-arm split is reported, not a call.
+3. [H] **VGG-19 C100 carries the largest allocation lever measured after the final** (+1.4 to +1.9 at 10k), against differences below the final's noise among residual-full plans on thin r56-w4 (§349). It is the natural net on which to test BEATS-PRIOR.
+
+Never: a G2 row and a plain row in one comparison; a recipe chosen from the per-arm split; added fine-tune seeds.
+
+Records: queue row 109; next §349.
+
+## 349. D-PROXY-2: does the raw-cut reward rank the trained agent's own plans the way the final does? (`tree_v14`; smoke **22427527**; walks **22427528–575**; ceilings **22427576–597, 599, 600**) — registered call: the ceiling ρ on r56-w4 is **+0.23** at κ 0.6 and **−0.22** at κ 0.8, both under 0.60 → **CEILING-BOUND** at both κ: the final cannot rank the agent's own plans, so the tie with sens is headroom-limited and the reward stands
+
+Registered before submit 9 Oct 19:31 (commit `0652644`, code `30ffccc`; queue row 110, section "Evening 9 Oct cells").
+- *Read.* 10 Oct 03:33 (`scripts/_tmp_s9oct_dp2_read.sh`).
+- *Checks.* All 73 jobs COMPLETED; no Traceback in the smoke or the walks. The `[alloc]` lines show the draws moved around the frozen mean (draw 1 at κ 0.6 keeps x0.574; draw 9 at κ 0.8 keeps x0.789). 72 cells parsed, each with proxies and a final.
+- *Design.* Two instances (T0's cut policies s42 and s43, §341) at κ 0.6 and 0.8 on the thin pair. Per instance 12 plans: the agent's mean plan, 8 draws at σ 0.2 (`agent_sample`), and sens / uniform / inner. Proxies (cut, bn8, bn32, ft1) on the val half in the cutting job; G2 final, TEST 5k. Ceiling: instance s42's plans re-finalized at fine-tune seed 44.
+
+**Calls on r56-w4** (over each instance's 9 agent plans; ρ = Spearman of the proxy on val against the TEST 5k final; regret = the best final among the 9 minus the final of the proxy's top pick):
+
+| κ | ceiling ρ (9 agent plans) | per-final seed SD | cut: mean ρ / median regret | bn8 | bn32 | ft1 | call |
+|---|---|---|---|---|---|---|---|
+| 0.6 | **+0.23** | 0.27 pp | −0.10 / 0.07 | −0.13 / 0.47 | −0.10 / 0.47 | +0.24 / 0.08 | **CEILING-BOUND** |
+| 0.8 | **−0.22** | 0.38 pp | +0.09 / 0.61 | +0.10 / 0.65 | +0.10 / 0.65 | −0.03 / 0.78 | **CEILING-BOUND** |
+
+Over all 12 plans the ceiling ρ is +0.35 (κ 0.6) and −0.04 (κ 0.8); the proxies' 12-plan mean ρ is +0.22 to +0.31.
+
+**What the finals separate** (r56-w4, TEST 5k, per instance; spread = max − min over the 9 agent plans). These rank plans; they are not agent TEST rows.
+
+| κ | instance | agent spread (SD) | best draw − mean plan | mean − sens | mean − inner | mean − uniform |
+|---|---|---|---|---|---|---|
+| 0.6 | s42 | 0.72 (0.19) | +0.22 | −0.08 | +0.00 | +1.66 |
+| 0.6 | s43 | 0.66 (0.20) | +0.08 | +1.12 | +0.96 | +2.02 |
+| 0.8 | s42 | 1.04 (0.35) | +0.44 | −0.04 | +0.02 | +1.20 |
+| 0.8 | s43 | 0.72 (0.23) | +0.72 | −0.18 | −0.42 | +0.88 |
+
+- *Replication.* The mean plan's final reproduces T0's κ 0.6 evals (22416578 / 80) within 0.14 and 0.06 pp and K8's κ 0.8 s42 eval (22425112) within 0.02; against K8's s43 (22425115) it differs by 0.54, about 1.4 per-final seed SDs.
+- *The guard r20-w2 (reported).* κ 0.6: ceiling +0.23, CEILING-BOUND. κ 0.8: ceiling +0.63; there the cut is LOCAL-INVALID (ρ +0.16, regret 1.16 pp, one instance), bn8 / bn32 are LOCAL-INVALID too (ρ +0.48 / +0.46, regret 0.65), and ft1 is **LOCAL-VALID** (ρ +0.66, regret 0.22).
+
+Reading:
+1. **The final cannot rank the agent's own plans on r56-w4.** Two fine-tune seeds of the same nine plans agree at ρ +0.23 and −0.22. The nine finals span 0.7–1.0 pp with an SD of 0.19–0.35, about one per-final seed SD (0.27–0.38). Inside the agent's σ 0.2 neighbourhood the final is flat to within its own noise, so no proxy can be validated or invalidated there. By the registered rule the tie with sens (§341, §346) is headroom-limited and the cut reward stands.
+2. **The final does separate allocation families.** Uniform sits 0.9–2.0 pp below the agent's mean plan in every r56-w4 instance; sens and inner sit inside or near the agent's spread. [H] On thin r56-w4 at κ 0.6–0.8 the final sees one lever, keeping the residual streams full, and differences among residual-full plans are below its noise. BEATS-PRIOR is not identifiable there with 3–5 seeds. It has to be tested where the lever after the final is larger: VGG-19 C100 (sens − uniform +1.39 under G2, §348), DepGraph R56 at params 0.47 (T1 − sens +0.28, §346), or a deeper κ.
+3. **The thinnest net differs (reported).** On the guard at κ 0.8 the final can rank plans (ceiling +0.63), the cut misranks the agent's plans, and a 1-epoch fine-tune ranks them. One instance for the cut; not the registered net.
+
+Never: a D-PROXY-2 number as an agent TEST row; a proxy adopted as the reward on this read; added draws or seeds.
+
+Records: queue row 110; next §350.
+
+## 350. T0-F: the plan agent trained under a FLOPs budget on thin r56-w4 (trains **22427989 / 991 / 993**, evals **22427990 / 992 / 994**; one-shot sens_F / uniform_F / inner_F **22427995–997, 22427998 / 999 / 22428000, 22428001 / 003 / 004**; mild_F walks **22428005 / 007 / 009** with G2 re-finals **22428006 / 008 / 010**; `tree_v15`) — PRELIM; registered call: on r56-w4 at FLOPs 0.6, T0-F − mild_F **−0.42** and T0-F − sens_F **−1.49** → **FAILS-CONTROL**
+
+Registered before submit 9 Oct 20:33 (commit `bd3c3f3`, code `b86e505`; queue row 116, section "Evening 9 Oct cells"; Ido's GO for the train, 18:56).
+- *Read.* 10 Oct 03:36 (`scripts/_tmp_s10oct_t0f_read.sh`, written this sitting on the T1 reader's pattern).
+- *Checks.* All 21 jobs COMPLETED; every job name carries its arm and seed; no Traceback or NaN; every final kept its last epoch. The one WARNING (15 prints) is the stale runner line about `SPECTRA_FIXED_TARGET` without a param size match (`a2c_agent_reinforce_runner.py` 517–521). The agent's plans keep x0.579–0.581 of the FLOPs for a target of x0.580; every arm lands at FLOPs 0.589–0.600.
+- *Train.* T0's line (§341) with `SPECTRA_PLAN_BUDGET=flops`: 3,000 instances, seeds 42–44, policies written ~21:48.
+
+**r56-w4 at FLOPs 0.6, per seed** (TEST 5k; params kept):
+
+| seed | T0-F | sens_F | inner_F | mild_F | uniform_F | T0-F params | sens_F params |
+|---|---|---|---|---|---|---|---|
+| 42 | **−2.62** | −2.06 | −2.24 | −2.72 | −3.92 | 0.609 | 0.619 |
+| 43 | **−3.48** | −1.92 | −2.48 | −3.34 | −4.34 | 0.738 | 0.629 |
+| 44 | **−4.06** | −1.70 | −2.80 | −2.84 | −3.90 | 0.680 | 0.634 |
+
+inner_F keeps params 0.642, uniform_F 0.639 and mild_F 0.741.
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed; params ratio of T0-F to the comparator; FLOPs within 3 % in every pair):
+
+| net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|---|
+| r56-w4 | T0-F − mild_F | **−0.42** (+0.10 / −0.14 / −1.22) | −0.59 | −0.50 | −0.11 | 0.82–1.00 |
+| r56-w4 | T0-F − sens_F | **−1.49** (−0.56 / −1.56 / −2.36) | −1.40 | −1.45 | −1.55 | 0.98–1.17 |
+| r56-w4 | T0-F − inner_F | −0.88 (−0.38 / −1.00 / −1.26) | −0.83 | −0.85 | −0.59 | 0.95–1.15 |
+| r56-w4 | T0-F − uniform_F | +0.67 (+1.30 / +0.86 / −0.16) | +0.34 | +0.50 | +0.78 | 0.95–1.16 |
+| guard r20-w2 | T0-F − mild_F | −0.21 (+0.06 / −1.04 / +0.36) | −0.21 | −0.21 | −0.04 | 1.07–1.10 |
+| guard r20-w2 | T0-F − sens_F | +0.45 (+0.88 / +0.12 / +0.36) | +1.08 | +0.77 | +0.67 | 0.97–1.01 |
+| guard r20-w2 | T0-F − inner_F | −1.35 (−0.56 / −2.44 / −1.06) | −0.62 | −0.99 | −0.93 | 0.99–1.03 |
+| guard r20-w2 | T0-F − uniform_F | −1.02 (−0.46 / −2.16 / −0.44) | +0.22 | −0.40 | −1.25 | 0.96–0.99 |
+
+**The FLOPs lever without an agent** (r56-w4, FLOPs 0.6, mean over seeds 42–44, TEST 5k): sens_F −1.89, inner_F −2.51, mild_F −2.97, uniform_F −4.05. sens_F leads inner_F by 0.62, mild_F by 1.08 and uniform_F by 2.16. On the guard every arm is −7.7 to −9.5 at 5k, with origin controls gaining +4.3 to +5.0 under G2.
+
+**In-sample diagnosis (train-log proxy values on the val half; never quoted as TEST).** The trains' summaries put T0-F's mean plan 7–26 pp above sens on the cut at κ 0.6 (−57.8 / −48.1 / −67.2 against −74.2 / −74.5 / −74.1) and 11–21 pp above at κ 0.8. T0 under params showed the same kind of in-sample lead (§341, §347), and its final tied sens. Under FLOPs the final puts T0-F 1.49 below sens_F.
+
+Reading:
+1. **FAILS-CONTROL.** Trained on the raw cut under a FLOPs budget, the plan agent did not learn the FLOPs lever on the one net where that lever is measured (sens_F − uniform_F +2.16). It is below sens_F and inner_F on all three seeds and below mild_F on two.
+2. [H] **The cut misranks the agent's FLOPs plans (Goodhart).** The agent optimized its reward (a large in-sample lead over sens), yet the final reverses the order by 1.5 pp, well beyond the final's per-plan noise (0.27–0.38 pp, §349). The cut was validated on params plans around sens and uniform (§340), never on the plans a FLOPs agent finds. T0-F keeps 0.61–0.74 of the params at FLOPs 0.59. On r56-w4 a stage-1 conv costs the same MACs as a stage-3 conv with 1/16 of its params, so the agent can buy FLOPs by thinning the early stages; the one-shot cut tolerates that and the final does not recover it. A stage-level census of the plans is not yet done.
+3. **Consequence.** Row 116's Never holds: no FLOPs budget for T1 from this read. A mixed-budget agent (Ido's GO, 10 Oct) first needs a reward that ranks FLOPs plans; that is D-PROXY-F's question (registered separately).
+4. **The comparators stand on their own.** At equal FLOPs, sens_F is the strongest rule on r56-w4. A cost-aware sensitivity (sens per unit of cost; Ido's GO, 10 Oct) is the next comparator.
+
+Never: an equal-params claim from these rows; a train-log value as TEST; T0-F seeds beyond 42–44; a FLOPs budget for T1 from this read.
+
+Records: queue row 116; next §351.
