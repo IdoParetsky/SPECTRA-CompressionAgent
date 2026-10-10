@@ -65,15 +65,26 @@ def group_plan(model_with_rows, groups=None):
     return plan
 
 
-def group_sensitivity(model, plan, batches, input_shape, keep=SENS_KEEP):
-    """``({row: loss rise}, base loss)``: each planned group cut alone to ``keep`` (L1 survivors)."""
+def group_sensitivity(model, plan, batches, input_shape, keep=SENS_KEEP, costs=None):
+    """``({row: loss rise}, base loss)``: each planned group cut alone to ``keep`` (L1 survivors).
+
+    With a dict ``costs`` it is also filled with ``{row: (params saved, MACs saved)}`` measured on that same cut
+    (``sens_cost``, v16); with ``None`` no cost is measured.
+    """
     from src.NetworkEnv import prune_current_model
     base = calib_loss(model, batches)
+    if costs is not None:
+        import src.utils as utils
+        p0 = utils.calc_num_parameters(model)
+        f0 = utils.calc_flops(model, input_shape)
     out = {}
     for _group, row in plan:
         cut = prune_current_model(ModelWithRows(copy.deepcopy(model)), keep, row, quiet=True, record=False,
                                   input_shape=input_shape, importance="l1")
         out[row] = calib_loss(cut.model, batches) - base
+        if costs is not None:
+            costs[row] = (float(p0 - utils.calc_num_parameters(cut.model)),
+                          float(f0 - utils.calc_flops(cut.model, input_shape)))
         del cut
     return out, base
 

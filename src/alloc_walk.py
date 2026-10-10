@@ -47,7 +47,7 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample")
+KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost")
 SAMPLE_AROUND = ("sens", "uniform")
 BUDGETS = ("params", "flops")
 
@@ -140,11 +140,28 @@ def copied_keeps(model, plan, table):
     return keeps, unnamed
 
 
-def weights(kind_name, sens, a=0.5):
-    """Relative keep per row before scaling: 1 (uniform, inner) or (s / median)^α, s floored at 5 % of the median."""
+def weights(kind_name, sens, a=0.5, cost=None):
+    """Relative keep per row before scaling: 1 (uniform, inner) or (s / median)^α, s floored at 5 % of the median.
+
+    ``sens_cost`` (v16) uses (v / median v)^α with v = s / c, s and the cost c (saved by the same half cut) each
+    floored at 5 % of its median; ``cost`` is its ``{row: saved}`` and must name the rows of ``sens``.
+    """
     keys = list(sens)
     if kind_name in ("uniform", "inner"):
         return {key: 1.0 for key in keys}
+    if kind_name == "sens_cost":
+        if cost is None or set(cost) != set(keys):
+            raise ValueError("weights('sens_cost') needs cost={row: saved} naming the same rows as sens")
+
+        def floored(raw):
+            positive = [max(0.0, float(raw[key])) for key in keys]
+            floor = max(1e-6, 0.05 * statistics.median(positive))
+            return {key: max(float(raw[key]), floor) for key in keys}
+
+        s, c = floored(sens), floored(cost)
+        v = {key: s[key] / c[key] for key in keys}
+        mid = statistics.median(v.values())
+        return {key: (v[key] / mid) ** a for key in keys}
     positive = [max(0.0, float(sens[key])) for key in keys]
     floor = max(1e-6, 0.05 * statistics.median(positive))
     s = {key: max(float(sens[key]), floor) for key in keys}
@@ -200,11 +217,18 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
                         "keeps": keeps, "origin_widths": group_widths(model, rows),
                         "sens": {row: 1.0 for row in rows}, "held": 0, "unnamed": unnamed}
     base_kind = sample_around() if kind_name == "sample" else kind_name
-    if base_kind == "sens":
-        sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape)
+    cost = None
+    if base_kind == "sens_cost":
+        raw = {}
+        sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, costs=raw)
+        cost = {row: raw[row][1] if budget == "flops" else raw[row][0] for row in rows}
+        w = weights(base_kind, sens, a, cost=cost)
     else:
-        sens = {row: 1.0 for row in rows}
-    w = weights(base_kind, sens, a)
+        if base_kind == "sens":
+            sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape)
+        else:
+            sens = {row: 1.0 for row in rows}
+        w = weights(base_kind, sens, a)
     sample = None
     if kind_name == "sample":
         sample = {"around": base_kind, "sigma": sample_sigma(), "seed": sample_seed()}
@@ -231,6 +255,9 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
     keeps, frac, widths = best
     info = {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
             "keeps": keeps, "origin_widths": group_widths(model, rows), "sens": sens, "held": len(held)}
+    if cost is not None:
+        info["cost"] = cost
+        info["cost_budget"] = budget
     if sample is not None:
         info["sample"] = sample
     return widths, info
