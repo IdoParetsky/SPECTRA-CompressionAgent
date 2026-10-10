@@ -84,6 +84,43 @@ Written by the Claude Code science session (Opus 5.5, max effort). The records o
 
 ---
 
+## 0b. Update after the second Claude Code session (10 Oct ~03:00–; supersedes §0a where they differ)
+
+Written by the Claude Code science session that opened in the repo tab (Opus 5.5, max effort). The records of record are the ledger (§348–§353), the queue's section "Night 10 Oct cells" and its rows after T0-F, and `docs/AGENT_MAIL.md`. Ido's brief: https://claude.ai/artifact/RbMtcujQbp6m4M6wL3Wqsz (private page, republished as results land).
+
+**Decisions (Ido, 10 Oct ~03:20; he authorised the Recommended option on every fork until ~13:00, no blocking questions).**
+- [D] "Take the +0.28 as if BEATS-PRIOR has fired; continue on that avenue": a programme decision. §346's registered reading is unchanged; BEATS-PRIOR is retested only in registered cells, on nets with a large lever.
+- [D] Family-level hold-out: "both options together, a wider held-out validation" → HF (frozen T1 on families no catalog holds) and LOFO (retrain without a family).
+- [D] Mixed-budget agent: GO after T0-F's read. Held: T0-F failed and its fix is being validated (T0-F2).
+- [D] A cost-aware sensitivity baseline: GO → `sens_cost`. CIFAR-100 in the pool → T1-C.
+- [D] The model/effort split is persisted: `CLAUDE.md` table, `/spectra-start` step 0, `.claude/agents/` (spectra-literature Opus max, spectra-hard-dev Fable max, spectra-implementer Sonnet high), `.claude/settings.json` effortLevel xhigh. Waiting is event-driven (background `sacct` watchers); no log dumps in the main tab.
+
+**Results read (PRELIM, TEST 5k).**
+- §348 VG2 → SPEED-EQUIVALENT: G2 is the single final fine-tune for every P row (`.claude/rules/spectra-ledger.md` updated).
+- §349 D-PROXY-2 → CEILING-BOUND at κ 0.6 and 0.8: on thin r56-w4 the final cannot rank the agent's own plans; the tie with sens is headroom-limited and the reward stands.
+- §350 T0-F → FAILS-CONTROL (−0.42 vs mild_F, −1.49 vs sens_F); reading 2 superseded by §351.
+- §351 D-PROXY-F → every proxy FLOPS-VALID (cut ρ +0.87): at eval the cut ranks FLOPs plans correctly. [V] Root cause (CPU probe, the v17 code): the plan decoders allowed width 1 while the eval walk never cuts below 2; T0-F's width-1 stage-1 plans were floored, the walk ended above budget, and its stall fallback cut a residual stream (−57.8 → −78.4 = −6.8 undershoot, −2.2 floor, −11.1 fallback).
+- §352 HF-V → TRANSFERS: the frozen T1 on VGG-19 C100 (an unseen dataset) +1.16 vs uniform, −0.08 vs sens; VGG-16 C10 reported (+1.02 / +0.27). FLOPs captioned.
+- §353 HF-N → LEVER-LIMITED (no call): ShuffleNetV2 is not realizable at equal size (masked edits); RepVGG (4 coupled groups) has no lever (+0.04).
+- §346 annotated: T1's small landings on the guard are the walk's stall fallback; the call is unaffected.
+
+**Built and deployed** (default off; each tree = rsync of the previous + listed files, blob-checked, PROVENANCE file):
+- `tree_v16` (code `d240176`): `SPECTRA_ALLOC_KIND=sens_cost` (sens loss rise per unit of what the same half cut saves).
+- `tree_v17` (code `136aa59`): `SPECTRA_PLAN_MIN_WIDTH=<int>|walk`, one width floor for every plan decoder (trainer, `plan_for_env`, `plan_targets`).
+- New configs in `tree_v13` (data only): one-net inputs for the novel and Fashion-MNIST nets, `database_v6_plus_c100.json`.
+
+**Running at 09:10** (job maps: `docs/manifests/s10oct_night_manifest.tsv`, `scratch_audit/s10oct_{dpf,sc,t0f2}_manifest.tsv`; reader `scripts/_tmp_s10oct_night_read.sh [cells]`):
+- LOFO-R evals (trains done), sens_cost cells (smoke passed), T0-F2 / T0-F-W (train smoke passed, eval smoke queued), T1-C and LOFO-V trains (then evals), HF-FM (re-niced to 200 after age-factor inversion).
+- Calls are in the queue rows. T1-C's call leaves out contexts without size rows (clarified 07:37, before any T1-C eval).
+
+**Next actions, in order.**
+1. Read LOFO-R, sens_cost, T0-F2 / T0-F-W, T1-C, LOFO-V, HF-FM as they land (ledger §354+), each against its row.
+2. If T0-F2 LEARNS: register the mixed-budget agent (catalog, `SPECTRA_PLAN_BUDGET=mixed`, floor on), read at equal params and equal FLOPs against single-type agents and sens_cost. If it fails: report the options to Ido.
+3. Recommended to Ido (brief): make the width floor the default protocol and register a floored re-read of T1; after LOFO reads, register the NEON-style family rotation (each catalog family held out once, 5 seeds); fix ShuffleNetV2's structural edits; test BEATS-PRIOR on VGG-19 C100 at κ 0.4–0.5.
+4. Operational: small nice gaps do not order the queue (age factor); set priorities explicitly at submit.
+
+---
+
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
 
 - **[V] T1 is running.** T1 is the first transfer train of the plan-as-action agent: 5 trains, seeds 42–46, jobs 22423564 / 68 / 72 / 76 / 81. At 18:17 each was at about 4,500 of 12,000 instances after 68 min. Its 15 evals (ids in §5.6) wait on the trains by afterok. Expected ends (queue row 99 start-check stamp): trains about 20:05–20:15, evals about 20:10–21:15.
