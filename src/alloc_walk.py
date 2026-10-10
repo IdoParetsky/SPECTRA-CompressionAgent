@@ -295,8 +295,260 @@ def flops_walk_target(env) -> float:
     return float(min(points)) if points else 0.6
 
 
+# ------------------------------------------------------------------ v18 grid rounding (SPECTRA_ALLOC_GRID_ROUND)
+
+GRID_BAND = 0.01  # a rounded plan keeps at most the walk target and, where the grid allows, no more than this less
+
+
+def walk_cut(width, rate):
+    """The width ``NetworkEnv.step`` leaves when a ``width``-wide group is cut at ``rate``: the width ladder's keep
+    (``fortify.effective_rates``, as ``NetworkEnv._ladder_keep_rate``) when the ladder is on, then
+    ``pruning.target_width``. A rate the ladder cannot pay for is an identity step."""
+    keep = float(rate)
+    if fortify.width_ladder_max() > 0 and 0.0 < keep < 1.0:
+        keep, _stop, feasible = fortify.effective_rates({0: keep}, 0.0, group_width=int(width))[0]
+        if not feasible:
+            return int(width)
+    return pruning.target_width(int(width), float(keep))
+
+
+def walk_to(w0, target, rates, legal_at, max_cuts):
+    """``(width, cuts)`` where the walk's ``choose`` chain from ``w0`` aimed at ``target`` stops: ``legal_at(width)``
+    gives the legal action indices at that width, ``walk_cut`` the cut, and at most ``max_cuts`` cuts are made."""
+    identity = next((i for i, r in rates.items() if abs(float(r) - 1.0) < 1e-9), 0)
+    width, cuts = int(w0), 0
+    while cuts < int(max_cuts):
+        pick = choose(width, int(target), rates, legal_at(width), identity)
+        if pick == identity:
+            break
+        new = walk_cut(width, rates[pick])
+        if new >= width:
+            break
+        width, cuts = new, cuts + 1
+    return width, cuts
+
+
+def grid_widths(w0, rates, legal_at, max_cuts):
+    """``{width: cuts}``: every width the walk lands on exactly from ``w0`` (``walk_to`` aimed at it stops there) and
+    the cuts it takes; ``w0`` itself at none."""
+    out = {int(w0): 0}
+    for target in range(int(w0) - 1, 0, -1):
+        width, cuts = walk_to(w0, target, rates, legal_at, max_cuts)
+        if width == target:
+            out[target] = cuts
+    return out
+
+
+def walk_grids(model, plan, rates, passes, groups=None, aims=None):
+    """
+    ``{row: {"grid": {width: cuts}, "cap": max cuts, "walk": width or None}}`` for each planned group of ``model``
+    (the origin): the widths the walk reaches exactly (``grid_widths``) under the legal mask the env builds
+    (``fortify.legal_action_mask``: identity only at alive <= 1, on stem rows and at or below ``min_width_for_prune``
+    under fortify, no-op rates illegal; every row identity under ``SPECTRA_PROTECT_STREAMS`` for a residual stream), the
+    env's cut (``walk_cut``) and the cuts ``passes`` passes allow (one per pass under ``SPECTRA_GROUP_ONCE_PER_PASS``,
+    else one per non-stem row producing the group). ``walk`` is where the walk aimed at ``aims[row]`` stops. Eval
+    rollback locks, masked cuts and the eval size floors act at walk time only (``_grid_watch`` reports them).
+    """
+    mwr = ModelWithRows(model)
+    if groups is None:
+        groups = channel_groups.build_channel_groups(mwr.model) or []
+    first = {id(group): row for group, row in plan}
+    visits = {row: [] for _group, row in plan}
+    for row in sorted(mwr.row_to_main_layer)[:-1]:
+        group = channel_groups.group_of(groups, mwr.all_layers[mwr.row_to_main_layer[row]])
+        if group is not None and id(group) in first:
+            visits[first[id(group)]].append(row)
+    stem = fortify.stem_rows() if fortify.fortify_enabled() else 0
+    masks = {}
+
+    def legal_for(row_index):
+        def at(width):
+            key = (row_index, int(width))
+            if key not in masks:
+                mask = fortify.legal_action_mask(rates, row_index=row_index, alive_count=int(width), device="cpu")
+                masks[key] = [int(i) for i in mask.nonzero(as_tuple=False).flatten().tolist()]
+            return masks[key]
+        return at
+
+    out = {}
+    for group, row in plan:
+        protected = fortify.protect_streams() and fortify.is_residual_stream(group)
+        cuttable = [] if protected else [r for r in visits[row] if r >= stem]
+        cap =int(passes) * (1 if fortify.group_once_per_pass() else len(cuttable)) if cuttable else 0
+        legal_at = legal_for(cuttable[0] if cuttable else row)
+        w0 = int(group.width)
+        aim = None if aims is None else aims.get(row)
+        out[row] = {"grid": grid_widths(w0, rates, legal_at, cap), "cap": cap,
+                    "walk": None if aim is None else walk_to(w0, aim, rates, legal_at, cap)[0]}
+    return out
+
+
+def grid_priority(info, rows):
+    """``{row: score}`` the grid rounding steps groups by (lowest first down, highest first up): the decoder's weight
+    for the rules (``weights`` of ``info``'s sensitivities, with its cost under ``sens_cost`` and its noise under
+    ``sample``), the score z for the agent (log prior weight + z for a T2 residual plan); None for one weight on every group (uniform, inner, widths), which steps
+    by closeness to the plan instead."""
+    kind_name = info.get("kind")
+    sens = info.get("sens") or {}
+    if kind_name in ("agent", "agent_sample"):
+        z = {row: float(sens.get(row, 0.0)) for row in rows}
+        prior = (info.get("prior") or {}).get("weights") if info.get("residual") else None
+        if prior:  # T2: a residual plan ranks groups by log(prior weight) + z (plan_agent.residual_decode)
+            return {row: math.log(max(1e-12, float(prior.get(row, 1.0)))) + z[row] for row in rows}
+        return z
+    sample = info.get("sample") if kind_name == "sample" else None
+    base = sample["around"] if sample else kind_name
+    if base not in ("sens", "sens_cost", "sample") and sample is None:
+        return None
+    keyed = {row: float(sens.get(row, 1.0)) for row in rows}
+    cost = {row: float(info["cost"][row]) for row in rows} if base == "sens_cost" else None
+    w = weights(base, keyed, float(info.get("alpha", alpha())), cost=cost)
+    if sample:
+        noise = sample_noise(rows, sample["sigma"], sample["seed"])
+        w = {row: w[row] * noise[row] for row in rows}
+    return w
+
+
+def grid_round_widths(planned, grids, kept_of, target, priority=None, fixed=(), floors=None, band=GRID_BAND):
+    """
+    ``(widths, report)``: the plan ``planned`` (``{row: width}``) on the walk's grid (``grids[row]``: the widths it
+    lands on exactly). Each group starts at the grid width nearest its plan (ties to the wider); then, while the kept
+    size ``kept_of(widths)`` is above ``target``, one group steps down to its next grid width, and once it is at or
+    below, single groups step back up while it is more than ``band`` below, never above ``target``. A step goes by
+    ``priority`` (lowest score first down, highest first up, each group once per round, ties by row order) or, with
+    ``priority`` None, to the group the step leaves closest to its plan relative to it. ``fixed`` rows keep their
+    planned width; no group steps below ``floors[row]`` (or its start, when that is lower). ``report``: kept, the
+    starting widths and the steps down / up.
+    """
+    rows = list(planned)
+    order = {row: k for k, row in enumerate(rows)}
+    fixed, floors = set(fixed), floors or {}
+    ladder = {row: sorted(grids.get(row) or [planned[row]]) for row in rows}
+    widths = {row: int(planned[row]) if row in fixed
+              else min(ladder[row], key=lambda w, p=planned[row]: (abs(w - p), -w)) for row in rows}
+    snapped = dict(widths)
+    lo = {row: min(widths[row], int(floors.get(row, 1))) for row in rows}
+
+    def neighbour(row, sign):
+        if sign < 0:
+            below = [w for w in ladder[row] if lo[row] <= w < widths[row]]
+            return max(below) if below else None
+        above = [w for w in ladder[row] if w > widths[row]]
+        return min(above) if above else None
+
+    def key(row, width, steps, sign):
+        if priority is None:
+            return abs(width - planned[row]) / float(max(1, planned[row])), order[row]
+        return steps[row], sign * float(priority[row]), order[row]
+
+    kept, down, up = float(kept_of(widths)), {row: 0 for row in rows}, {row: 0 for row in rows}
+    while kept > target + 1e-9:
+        moves = [(key(row, w, down, 1), row, w) for row in rows if row not in fixed
+                 for w in [neighbour(row, -1)] if w is not None]
+        if not moves:
+            break
+        _key, row, w = min(moves)
+        widths[row], down[row] = w, down[row] + 1
+        kept = float(kept_of(widths))
+    while kept < target - band - 1e-9:
+        moves = sorted((key(row, w, up, -1), row, w) for row in rows if row not in fixed
+                       for w in [neighbour(row, 1)] if w is not None)
+        for _key, row, w in moves:
+            trial = dict(widths)
+            trial[row] = w
+            k = float(kept_of(trial))
+            if k <= target + 1e-9:
+                widths, kept, up[row] = trial, k, up[row] + 1
+                break
+        else:
+            break
+    return widths, {"kept": kept, "snapped": snapped, "down": sum(down.values()), "up": sum(up.values())}
+
+
+def _grid_round_state(env, net, entry, model, info, walk_target, flops):
+    """``SPECTRA_ALLOC_GRID_ROUND``: ``entry``'s plan on the walk's grid (``walk_grids``, ``grid_round_widths``) on the
+    budget's cost model (``plan_agent.ParamModel`` / ``FlopModel``), measured on the origin ``model``; logged, recorded,
+    and kept in ``entry["grid"]`` for ``_grid_watch``. Inner's held streams stay whole, as does every group a widths
+    table leaves at its origin width; no group steps below the plan floors (``min_keep``,
+    ``fortify.plan_min_width``)."""
+    from src import plan_agent
+    if fortify.action_menu() == "budget":
+        utils.print_flush("[alloc] WARNING grid round skipped: SPECTRA_ACTION_MENU=budget prices each cut on the net "
+                          "as the walk finds it, which no offline grid follows")
+        return
+    rates = env.conf.compression_rates_dict
+    passes = max(1, int(getattr(env.conf, "passes", 1) or 1))
+    mwr = ModelWithRows(model)
+    groups = channel_groups.build_channel_groups(mwr.model) or []
+    plan = group_sensitivity.group_plan(mwr, groups)
+    widths = entry["widths"]
+    planned = {row: int(widths[row]) for _group, row in plan if row in widths}
+    cost = (plan_agent.FlopModel(model, plan, env._input_shape(), env.conf.device) if flops
+            else plan_agent.ParamModel(model, plan))
+    walks = walk_grids(model, plan, rates, passes, groups, aims=planned)
+    held = {row for group, row in plan if info["kind"] == "inner" and len(group.producers) > 1 and row in planned}
+    if info["kind"] == "widths":
+        held |= {row for row, w in planned.items() if w >= cost.widths0[row]}
+    floor = fortify.plan_min_width()
+    floors = {row: max(1, int(round(min_keep() * w0)), min(w0, floor)) for row, w0 in cost.widths0.items()}
+    rounded, report = grid_round_widths(planned, {row: list(walks[row]["grid"]) for row in planned}, cost.kept,
+                                        walk_target, grid_priority(info, list(cost.rows)), fixed=held, floors=floors)
+    entry["widths"] = {**widths, **rounded}
+    entry["grid"] = {"targets": dict(rounded), "checked": 1.0, "below": set(), "fallback": False}
+    moved = sum(rounded[row] != planned[row] for row in planned)
+    grid = [float(rates[i]) for i in sorted(rates)]
+    unit = "FLOPs" if flops else "params"
+    utils.print_flush(
+        f"[alloc] grid round: {moved} groups moved; predicted x{report['kept']:.3f} of the {unit} (walk target "
+        f"x{walk_target:.3f}); grid {grid}"
+        + ("" if report["kept"] <= walk_target + 1e-9 else
+           "; WARNING: no grid plan at or below the walk target, the stall fallback stays the safety net"))
+    try:
+        import src.run_recorder as run_recorder
+        run_recorder.record(
+            "alloc_grid_round", network=str(net), kind=info["kind"], budget="flops" if flops else "params",
+            walk_target=walk_target, kept=report["kept"], plan_kept=float(cost.kept(planned)),
+            walk_kept=float(cost.kept({row: walks[row]["walk"] for row in planned})), moved=moved,
+            down=report["down"], up=report["up"], rates=grid, passes=passes,
+            rows={str(r): {"origin": cost.widths0[r], "plan": planned[r], "walk": walks[r]["walk"],
+                           "grid": rounded[r], "cuts": walks[r]["grid"].get(rounded[r])} for r in planned})
+    except Exception:  # noqa: BLE001 - the record is a convenience
+        pass
+
+
+def _grid_watch(env, entry):
+    """Walk-time check of a grid-rounded plan: a WARNING once per group the walk takes below its grid width, and once
+    if the stall fallback fires anyway. Either means a legality the offline grid did not see (an eval rollback lock, a
+    masked cut, an eval size floor)."""
+    grid = entry["grid"]
+    try:
+        if entry["fallback"] and not grid["fallback"]:
+            grid["fallback"] = True
+            now = group_widths(env.current_model, list(grid["targets"]))
+            off = [f"row {r}: {now.get(r)} vs {t}" for r, t in grid["targets"].items() if now.get(r) != t]
+            utils.print_flush(f"[alloc] WARNING grid round: the stall fallback fired with {len(off)} groups off their "
+                              f"grid widths ({'; '.join(off[:8])}{'; ...' if len(off) > 8 else ''})")
+        kept = float(env.flops_ratio() if budget() == "flops" else env.param_ratio())
+        if kept >= grid["checked"] - 1e-12:
+            return
+        grid["checked"] = kept
+        now = group_widths(env.current_model, list(grid["targets"]))
+        for row, target in grid["targets"].items():
+            width = now.get(row)
+            if width is not None and width < target and row not in grid["below"]:
+                grid["below"].add(row)
+                utils.print_flush(f"[alloc] WARNING grid round: the walk took the group at row {row} to width "
+                                  f"{width}, below its grid width {target}")
+    except Exception as error:  # noqa: BLE001 - a diagnostic must not end the walk
+        if not grid.get("error"):
+            grid["error"] = True
+            utils.print_flush(f"[alloc] grid watch unavailable ({type(error).__name__}: {error})")
+
+
 def _state(env):
-    """Per-network plan, measured on the origin the first time the network comes round."""
+    """Per-network plan, measured on the origin the first time the network comes round; under
+    ``SPECTRA_ALLOC_GRID_ROUND`` put on the walk's grid (``_grid_round_state``) and checked at every later call
+    (``_grid_watch``)."""
     cache = getattr(env, "_alloc_walk", None)
     if cache is None:
         cache = env._alloc_walk = {}
@@ -361,6 +613,10 @@ def _state(env):
                                                   "sens": float(info["sens"][r])} for r in widths})
         except Exception:  # noqa: BLE001 - the record is a convenience
             pass
+        if fortify.alloc_grid_round():
+            _grid_round_state(env, net, cache[net], model, info, walk_target, flops)
+    elif "grid" in cache[net]:
+        _grid_watch(env, cache[net])
     return cache[net]
 
 

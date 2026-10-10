@@ -1197,6 +1197,31 @@ def plan_residual_sigma() -> float:
     return max(0.0, _env_float_or("SPECTRA_PLAN_RESIDUAL_SIGMA", 0.25))
 
 
+def alloc_grid_round() -> bool:
+    """
+    ``SPECTRA_ALLOC_GRID_ROUND=1`` (v18, default off): the alloc walk rounds a decoded plan onto its rate grid before it
+    walks (``alloc_walk._state`` / ``grid_round_widths``). Each group goes to the nearest width the walk's ``choose``
+    chains reach exactly from the origin under the eval's legal mask (stem rows, ``min_width_for_prune``, the passes and
+    group-once), then single groups step along that grid until the plan keeps at most the walk's own target and no more
+    than 0.01 less, so the walk lands on its target with no stall and no strongest-cut fallback. Off, a uniform plan
+    on VGG-19 C100 at params 0.6 decoded x0.581, every non-stem group stopped after one 0.8 cut and the walk stalled
+    at x0.642.
+    """
+    return _flag("SPECTRA_ALLOC_GRID_ROUND")
+
+
+def plan_structural_only() -> bool:
+    """
+    ``SPECTRA_PLAN_STRUCTURAL_ONLY`` (default off): the plans (``group_sensitivity.group_plan`` and through it
+    ``ParamModel`` / ``FlopModel`` rows, ``MaskedCut``, ``plan_for_env``, ``alloc_walk.plan_targets``) leave out every
+    group whose cut the walk does not realize as a structural edit (``group_sensitivity.realizes_structurally``), so
+    those groups stay whole and a plan's predicted size is the size the cut reaches. v18: on ShuffleNetV2 the stage
+    streams pass through chunk / cat / channel shuffle and their cuts fall back to masking, which shrinks nothing, so the
+    agent's walks ended above the size target and uniform's below it. Off: every plan is as in tree_v17.
+    """
+    return _flag("SPECTRA_PLAN_STRUCTURAL_ONLY")
+
+
 def entropy_anneal_horizon() -> int:
     return max(1, int(os.environ.get("SPECTRA_ENTROPY_ANNEAL_HORIZON", "100")))
 
