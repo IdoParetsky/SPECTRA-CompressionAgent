@@ -7444,3 +7444,38 @@ Reading:
 Never: "the agent beats sens under FLOPs"; a guard row as evidence; seeds beyond 42–44.
 
 Records: queue row T0-F2; next §358.
+
+## 358. (LOFO-V): the plan agent trained without any VGG (7 catalog nets: four CIFAR ResNets, MobileNetV2 ×0.5 / ×1, DenseNet-40; this also drops the catalog's only SVHN net), read on VGG-19 C100 and VGG-16 C10 (trains **22436382 / 393 / 402**, evals **22436383–408**; `tree_v13`) — PRELIM; registered call on VGG-19 C100: sens − uniform +1.24 (lever present), LOFO-V − uniform **+0.98** (bar +0.5) and **+0.74** on VGG-16 C10 (bar −0.3) → **FAMILY-TRANSFER**; LOFO-V − sens −0.26, so not BEATS-PRIOR
+
+Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row LOFO-V, section "Night 10 Oct cells").
+- *Read.* 10 Oct 13:12 (`scripts/_tmp_s10oct_night_read.sh lofov`).
+- *Checks.* 21 / 21 COMPLETED, none failed. Each train kept the 7 intended nets and logged `[plan] DONE 12000 instances` in 189.6 / 189.7 / 190.2 min, with no Traceback or WARNING. Every VGG row sits at params 0.600.
+- *Comparators.* HF-V's sens / uniform and T1 rows at the same seed (one-shot on the same eval line).
+- *What the agent never saw.* No VGG (the only plain convolution chains in the catalog), no SVHN and no CIFAR-100. VGG-19 C100 is therefore an unseen family on an unseen dataset, the proposal's p.15 cell, on a net with a measured lever; VGG-16 C10 is an unseen family on a seen dataset.
+
+**LOFO-V per seed** (TEST 5k): VGG-19 C100 −0.34 / +0.68 / −0.30 (FLOPs 0.684–0.749); VGG-16 C10 +0.00 / +0.46 / +0.26 (FLOPs 0.733–0.819).
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed; FLOPs ratio of LOFO-V to the comparator):
+
+| net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| VGG-19 C100 | LOFO-V − uniform | **+0.98** (+0.36 / +1.96 / +0.62) | +1.28 | +1.13 | +0.75 | 1.24–1.36 |
+| VGG-19 C100 | LOFO-V − sens | −0.26 (−0.62 / +0.28 / −0.44) | +0.00 | −0.13 | −0.10 | 0.91–1.00 |
+| VGG-19 C100 | LOFO-V − T1 | −0.18 (−0.78 / +0.68 / −0.44) | −0.21 | −0.20 | −0.54 | 0.91–1.00 |
+| VGG-19 C100 | sens − uniform (HF-V) | +1.24 (+0.98 / +1.68 / +1.06) | +1.28 | +1.26 | +0.85 | 1.36 |
+| VGG-16 C10 | LOFO-V − uniform | **+0.74** (+0.58 / +0.82 / +0.82) | +0.83 | +0.79 | +1.05 | 1.61–1.80 |
+| VGG-16 C10 | LOFO-V − sens | −0.01 (+0.02 / +0.18 / −0.22) | −0.10 | −0.05 | +0.14 | 0.88–1.01 |
+| VGG-16 C10 | LOFO-V − T1 | −0.28 (−0.48 / −0.24 / −0.12) | −0.25 | −0.26 | −0.10 | 0.87–0.97 |
+
+- *Against the strongest rule* (§355's sens_cost on VGG-19 C100, same seed; reported): LOFO-V − sens_cost −0.70 (−1.50 / +0.30 / −0.90).
+- *The HF-N nets (reported; §353's limits).* RepVGG-A0 LOFO-V − T1 −0.08, RepVGG-A1 −0.20; ShuffleNetV2 has no size row.
+
+Reading:
+1. **FAMILY-TRANSFER, the clearest family-level result so far.** An agent that never saw a plain convolution chain, SVHN or CIFAR-100 plans VGG-19 C100 0.98 pp above a uniform cut (every seed positive) and recovers about 80 % of the sens − uniform lever (+0.98 of +1.24); on VGG-16 C10 it is level with sens (−0.01).
+2. **The price of never seeing the family is small here**: −0.18 (VGG-19 C100) and −0.28 (VGG-16 C10) against T1, which trained on VGG-11 / 13.
+3. **Not BEATS-PRIOR**, and 0.70 below sens_cost on VGG-19 C100 (noisy across seeds: one seed +0.30).
+4. [H] **With LOFO-R (§354)** the family hold-outs read: the frozen agent transfers to a family it never saw at or near the measured prior on standard members (DepGraph R56, VGG-16, VGG-19 C100), and only to the generic rules' level on an extreme member (width-4 r56). A NEON-style rotation over every catalog family (MobileNetV2 and DenseNet still untested) is the registration that would make this a claim.
+
+Never: "transfers as well as with the family"; "beats the prior"; an equal-FLOPs claim; a ShuffleNetV2 contrast.
+
+Records: queue row LOFO-V; next §359.
