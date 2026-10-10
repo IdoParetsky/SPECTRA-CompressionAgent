@@ -7688,3 +7688,54 @@ Reading:
 Never: "T2-F beats sens_F on VGG-19 C100" as a call (a reported row; val +0.09); "beats DepGraph"; mixing these grid-rounded rows with unrounded rows in one comparison.
 
 Records: queue row T2-F-W; next §363.
+
+## 363. (HYG): the equal-params transfer cells re-read with every arm floored and grid-rounded: VGG-19 C100 and VGG-16 C10 at params 0.6, DepGraph R56 at params 0.47 (48 evals **22526965–22527175**; `tree_v19`, code `9c8452e`) — PRELIM; registered calls: (1) HF-V → **LEVER-LIMITED** (lever +0.45, under +0.5; T1 − uniform +0.76); (2) LOFO-V → **FAILS-CLEAN** (+0.65 on VGG-19 C100, but −0.33 on VGG-16 C10 against −0.3); (3) **T1-R56-HOLDS** (+1.10) and **LOFO-R-R56-HOLDS** (+0.95)
+
+Registered before submit 10 Oct 23:53 (commit `959a370`; queue row HYG). Ido's GO ~23:50. Smoke 22526060 read clean. 48 evals submitted 11 Oct 00:01, at nice 22 behind T3-F's trains.
+- *Read.* 11 Oct 01:49 (`scripts/_tmp_s10oct_night_read.sh hyg`).
+- *Checks.*
+  - 48 / 48 COMPLETED. Every arm logged its `[alloc] grid round:` line, and none hit the stall fallback.
+  - Every arm lands at params 0.600 (VGG) or 0.469–0.470 (DepGraph R56). Several VGG rows came through the val_best fallback within 0.01 of the target (`vb`).
+- *Comparators.* All in the same cell, on the same line and seeds. None of these rows is ever mixed with the unrounded §346 / §352 / §354 / §358 rows.
+
+**Contrasts** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of the first arm to the second):
+
+| net, point | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| VGG-19 C100, params 0.6 | sens − uniform (lever) | **+0.45** (+1.02 / +0.38 / −0.06) | +0.85 | +0.65 | +0.45 | 1.25 |
+| VGG-19 C100, params 0.6 | T1 − uniform | **+0.76** (+0.96 / +0.14 / +1.18) | +1.13 | +0.94 | +1.34 | 1.25 |
+| VGG-19 C100, params 0.6 | T1 − sens | +0.31 (−0.06 / −0.24 / +1.24) | +0.28 | +0.30 | +0.89 | 1.00 |
+| VGG-19 C100, params 0.6 | T1 − sens_cost | +0.56 (+0.26 / +0.06 / +1.36) | +0.06 | +0.31 | +0.91 | 1.00 |
+| VGG-19 C100, params 0.6 | LOFO-V − uniform | **+0.65** (+1.00 / +0.62 / +0.34) | +1.11 | +0.88 | +0.61 | 1.17–1.25 |
+| VGG-19 C100, params 0.6 | LOFO-V − sens | +0.21 (−0.02 / +0.24 / +0.40) | +0.26 | +0.23 | +0.16 | 0.94–1.00 |
+| VGG-16 C10, params 0.6 | sens − uniform (lever) | **−0.19** (+0.08 / −0.08 / −0.56) | +0.16 | −0.01 | −0.07 | 1.33–1.36 |
+| VGG-16 C10, params 0.6 | T1 − uniform | −0.35 (−0.38 / −0.46 / −0.22) | +0.12 | −0.12 | −0.33 | 1.37–1.40 |
+| VGG-16 C10, params 0.6 | LOFO-V − uniform | **−0.33** (−0.20 / −0.14 / −0.66) | −0.01 | −0.17 | −0.34 | 1.28–1.35 |
+| DepGraph R56, params 0.47 | sens − uniform (lever) | +0.49 (+0.74 / +0.12 / +0.62) | +0.43 | +0.46 | +0.59 | 0.87–1.00 |
+| DepGraph R56, params 0.47 | T1 − uniform | **+1.10** (+1.06 / +0.84 / +1.40) | +0.79 | +0.94 | +1.18 | 1.38–1.43 |
+| DepGraph R56, params 0.47 | T1 − sens | +0.61 (+0.32 / +0.72 / +0.78) | +0.35 | +0.48 | +0.59 | 1.39–1.64 |
+| DepGraph R56, params 0.47 | T1 − sens_cost | +0.11 (+0.06 / −0.18 / +0.46) | +0.14 | +0.13 | −0.07 | 1.02–1.10 |
+| DepGraph R56, params 0.47 | T1 − inner | +0.57 (+0.34 / +0.40 / +0.98) | +0.28 | +0.43 | +0.75 | 1.28–1.32 |
+| DepGraph R56, params 0.47 | LOFO-R − uniform | **+0.95** (+1.18 / +0.82 / +0.84) | +0.63 | +0.79 | +1.19 | 1.23–1.36 |
+| DepGraph R56, params 0.47 | LOFO-R − sens | +0.45 (+0.44 / +0.70 / +0.22) | +0.20 | +0.33 | +0.59 | 1.29–1.56 |
+| DepGraph R56, params 0.47 | LOFO-R − sens_cost | −0.04 (+0.18 / −0.20 / −0.10) | −0.01 | −0.03 | −0.06 | 0.88–1.05 |
+
+FLOPs captions: at equal params, the agents and sens_cost keep 1.2–1.6× uniform's and sens's FLOPs on DepGraph R56 and on VGG-16 C10. No equal-FLOPs claim is drawn from these rows.
+
+- *Plan diversity under the grid* (the evals' `alloc_grid_round` records). On VGG-19 C100's coarse rate grid (0.9 to 0.6, chained), rounding pulls the arms together: T1 and sens share 11 of 16 group widths after rounding, against 0–6 before. T1, sens and sens_cost all land at FLOPs 0.749 and differ only in a few late, low-FLOPs groups. On DepGraph R56 the arms stay distinct (3–15 of 30 shared).
+
+Reading:
+1. **The VGG transfer evidence shrinks once uniform lands cleanly.**
+   - VGG-19 C100's lever at equal params falls from +1.24 (§352, against a stalled uniform) to +0.45, and VGG-16 C10's to −0.19 (none). The stall's fallback cuts had cost uniform about 0.6–0.8 pp.
+   - By the registered rules, HF-V's TRANSFERS (§352) is now LEVER-LIMITED, and LOFO-V's FAMILY-TRANSFER (§358) FAILS-CLEAN, the VGG-16 half missing by 0.03 on a net with no lever.
+   - Both §352's and §358's calls are superseded as calls. Their rows stay as recorded.
+2. **The ResNet evidence stands.**
+   - On DepGraph R56 at equal params, T1 beats uniform by +1.10 and sens by +0.61, and ties sens_cost (+0.11).
+   - LOFO-R, which never saw a ResNet, beats uniform by +0.95 and sens by +0.45, and ties sens_cost (−0.04).
+   - Family-out transfer at equal params survives clean comparators on the ResNet fold. That is the strongest family-transfer evidence on record.
+3. **sens_cost remains the equal-params bar.** No agent beats it on a ResNet: T1 +0.11, LOFO-R −0.04. On VGG-19 C100, T1 − sens_cost is +0.56, but s44 carries it (+1.36), val is +0.06, and the arms share most of their widths.
+4. **VGG at params 0.6 has little room for plans to differ.** The coarse grid limits what can be realized there, so VGG contrasts at this point are weak tests. At FLOPs 0.6, VGG-19 C100 has a +0.77 lever (§362).
+
+Never: "T1 transfers to VGG-19 C100" or "LOFO-V shows family transfer" as a call; "T1 beats sens_cost"; mixing these rows with the unrounded ones; an equal-FLOPs claim from equal-params rows.
+
+Records: queue row HYG; protocol §1 (C2 and C3 updated); next §364.

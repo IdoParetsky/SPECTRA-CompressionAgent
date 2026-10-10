@@ -26,7 +26,7 @@ Can claim (PRELIM):
 | C4 | A plan agent learns a FLOPs budget once its plans are realizable | T0-F2 − mild_F **+0.51** (+0.33 / +0.42 / +0.83) on r56-w4 at FLOPs 0.6 (§357) | Trained on that net. − floored sens_F **−0.57** |
 | C5 | The catalog agent matches a net-specific one | T1 − T0 −0.06 at 5k, +0.04 at 10k, seeds 42–44 (§346) | Equal params |
 
-C1–C3 were run before the floor rule; they keep their PRELIM calls and caveats. New cells run every arm floored (§346, 15:56 note). A floored re-read of T1 itself would be its own registered cell (queue, T0-F2 never-list) [R].
+**11 Oct 01:50 (§363, grid-rounded re-read).** C2 (HF-V on VGG-19 C100) is now LEVER-LIMITED: the lever at equal params is +0.45, not +1.24; T1 − uniform is +0.76. C3's VGG half (LOFO-V) FAILS-CLEAN: −0.33 on VGG-16 C10, a net with no lever. Both are superseded as calls. C1 on DepGraph R56 and C3's ResNet half (LOFO-R) HOLD with clean comparators: T1 − uniform +1.10, − sens +0.61, − sens_cost +0.11; LOFO-R − uniform +0.95, − sens +0.45, − sens_cost −0.04. C1–C3 were run before the floor rule; they keep their PRELIM calls and caveats. New cells run every arm floored (§346, 15:56 note). A floored re-read of T1 itself would be its own registered cell (queue, T0-F2 never-list) [R].
 
 Cannot claim:
 
