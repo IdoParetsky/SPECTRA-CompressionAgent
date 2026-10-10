@@ -7596,3 +7596,49 @@ Reading:
 Never: "the agent conditions on the budget type"; "TM learns FLOPs"; a TM row as a SOTA overlay or in the coverage matrix; a VGG-19 FLOPs contrast against the stalled comparators as a call; the guard as evidence; seeds beyond 42–44.
 
 Records: queue row TM; next §361.
+
+## 361. (T2-F): the plan agent as a residual on sens under a FLOPs budget, trained on T1's catalog, read on held-out r56-w4 (trains **22484944 / 951 / 954**, evals **22484945 / 952 / 987**, floored sens_cost_F **22484946 / 953 / 988**; `tree_v18`, code `6258e91`) — PRELIM; registered call on r56-w4 at FLOPs 0.6: T2-F − floored sens_F **−1.89** (bars ±0.3) → **BELOW-PRIOR**; the gate's second bar, T2-F − mild_F ≥ +0.5, also fails (−0.81)
+
+Registered before any submit 10 Oct 17:20 (commit `3a36a00`; queue row T2-F, section "Evening 10 Oct cells"). Smokes 22478358 / 359 read clean 17:30. Ido's GO ~18:15, together with the residual-agent gate (protocol §2, §5.A). Cells submitted 18:16.
+- *Read.* 10 Oct 21:31 (`scripts/_tmp_s10oct_night_read.sh t2f`).
+- *Checks.*
+  - 9 / 9 COMPLETED. Every train logged `residual=sens alpha=0.5 sigma=0.25`, `min_width=2` and one `[plan] prior … b=flops: sens` line per catalog net.
+  - Every r56-w4 arm lands at FLOPs 0.598–0.600 at its size point. No stall fallback, no masked edit.
+- *Comparators.* Floored sens_F / inner_F / uniform_F, T0-F2 (§357), mild_F (§350) and TM (§360), all at the same seed. The new floored sens_cost_F ran on this cell's line. None is grid-rounded: floored arms on r56-w4 land without it (§357).
+
+**r56-w4 at FLOPs 0.6, per seed** (TEST 5k; params kept): T2-F **−4.42** (0.483), **−3.14** (0.567), **−3.78** (0.618).
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed):
+
+| contrast | 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|
+| T2-F − sens_F (floored) | **−1.89** (−2.56 / −1.52 / −1.60) | −1.21 | −1.55 | −2.01 | 0.75–0.95 |
+| T2-F − sens_cost_F (floored) | −1.41 (−2.06 / −0.60 / −1.58) | −1.37 | −1.39 | −1.15 | 0.73–0.94 |
+| T2-F − inner_F (floored) | −1.53 (−2.66 / −0.70 / −1.24) | −0.79 | −1.16 | −1.56 | 0.75–0.96 |
+| T2-F − uniform_F (floored) | −0.10 (−0.86 / +0.38 / +0.18) | +0.26 | +0.08 | +0.00 | 0.76–0.97 |
+| T2-F − mild_F | −0.81 (−1.70 / +0.20 / −0.94) | −0.62 | −0.72 | −0.49 | 0.65–0.83 |
+| T2-F − T0-F2 | −1.32 (−2.22 / −0.56 / −1.18) | −0.95 | −1.14 | −1.32 | 0.71–0.95 |
+| T2-F − TM | −0.15 (−0.74 / +0.28 / +0.00) | +0.29 | +0.07 | −0.18 | 0.96–1.48 |
+| sens_cost_F − sens_F (both floored) | −0.48 (−0.50 / −0.92 / −0.02) | +0.17 | −0.16 | −0.86 | 1.02–1.04 |
+
+Every pair keeps FLOPs within 1 %. The guard r20-w2 is reported only: there the floor collapses every rule (§357).
+
+- *The residual's movement on r56-w4* (the eval's `[alloc] plan agent residual` line):
+  - s42: 21 / 30 groups moved, max |Δkeep| 0.50, distance 1.68;
+  - s43: 10 / 30, 0.50, 0.73;
+  - s44: 22 / 30, 0.62, 1.96.
+- *In-sample* (train-log proxy: one-shot cut with BN recalibration, on the val half; **never TEST**). At the closing summary, κ 0.6 under the FLOPs budget, the mean plan beats its own prior by **+31 pp** averaged over the 10 catalog nets: +26 on r56-w6, r56-w4's nearest relative, and +62 on MobileNetV2 ×1 and on VGG-13. The averages are +23 at κ 0.4 and +11 at κ 0.8.
+- *Before the final fine-tune on the held-out net* [V]. At the size point (the TRAJ `size_flop0.60` row), T2-F keeps less one-shot accuracy than floored sens_F on every seed: 0.180 / 0.208 / 0.093 against 0.317 / 0.256 / 0.330 (origin 0.890).
+
+Reading:
+1. **BELOW-PRIOR, on every seed.** The agent started at sens_F, since its zero-init scores reproduce that plan, and ends 1.89 below it on the held-out net. It does not reach mild_F (−0.81) and is level with uniform_F (−0.10) and TM (−0.15). By Ido's gate (18:15), no rotation and no coverage matrix: the next step is a design change.
+2. **The learned part does not transfer.** In-sample it beats its prior by a wide margin on the cut proxy. On r56-w4 it moves far from that prior (10–22 of 30 groups) and loses before the fine-tune as well as after. So the proxy was not merely gamed on this net; the deviations are net-specific. [H] r56-w4 is the thinnest ResNet in play: the width floor binds on its early groups, and the deviations learned on wider relatives (r56-w6) cut exactly where it has no slack.
+3. **sens_F stays the FLOPs prior** [V], now with the floor on both arms: floored sens_cost_F trails it by 0.48, confirming §355's COST-HURTS.
+4. **Consequence.** T2-F-W (reported only) reads the same frozen agents on DepGraph R56 at its FLOPs point and on VGG-19 C100 tonight. It says whether the failure is specific to the thin net. [H] Design changes to weigh before any new train:
+   - a trust region on the residual (a bound on |z|, or a penalty toward the prior);
+   - choosing the checkpoint by val on a held-out validation net instead of `policy_latest.pt`;
+   - both together.
+
+Never: "the residual agent beats or matches sens_F"; an in-sample proxy value as a result; a checkpoint chosen on TEST; a rotation on this recipe.
+
+Records: queue row T2-F; next §362.
