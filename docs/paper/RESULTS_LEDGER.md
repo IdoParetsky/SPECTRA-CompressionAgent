@@ -7368,3 +7368,37 @@ Reading:
 Never: sens_cost adopted as the paper's baseline on this read alone; "the agent beats the prior" without sens_cost beside it; an equal-FLOPs claim from the params rows.
 
 Records: queue row sens_cost; next §356.
+
+## 356. (T1-C): T1's train line on its 10 catalog nets plus the 8 recoverable CIFAR-100 nets (§148), read on the held-out contexts (trains **22436350 / 362 / 372**, evals **22436351–381**; `tree_v13`) — PRELIM; registered call: mean T1-C − T1 over the callable contexts **+0.02** (bars ±0.30) → **POOL-NEUTRAL**; reported: on VGG-19 C100, a dataset now seen in training, T1-C − T1 **+0.61** and T1-C − sens +0.53
+
+Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row T1-C, section "Night 10 Oct cells"); the size rule clarified 07:37 (`0b9ef54`), before any T1-C eval ran.
+- *Read.* 10 Oct 12:45 (`scripts/_tmp_s10oct_night_read.sh t1c`).
+- *Checks.* 27 / 27 COMPLETED, none failed. Each train kept 18 nets (8 of them cifar-100) and logged `[plan] DONE 12000 instances` in 179.3 / 180.5 / 178.2 min, with no Traceback or WARNING.
+- *Callable contexts.* By the clarified rule, a context where T1 or T1-C lacks a size row on any seed is reported and left out: ShuffleNetV2 ×1 and ×1.5 (masked edits, §353) and RepVGG-A1 (T1-C's walks have no size row on any seed). The call uses thin r56-w4, DepGraph R56, RepVGG-A0, VGG-19 C100 and VGG-16 C10, 15 pairs.
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed; FLOPs ratio of T1-C to the comparator):
+
+| net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| r56-w4 | T1-C − T1 | −0.09 (+0.08 / +0.28 / −0.64) | +0.03 | −0.03 | −0.30 | 0.94–1.06 |
+| r56-w4 | T1-C − sens | −0.05 (+0.02 / −0.08 / −0.08) | +0.18 | +0.07 | −0.15 | 1.33–1.40 |
+| DepGraph R56 | T1-C − T1 | −0.21 (−0.32 / +0.14 / −0.44) | +0.20 | −0.00 | −0.47 | 0.91–1.06 |
+| DepGraph R56 | T1-C − sens | +0.19 (−0.02 / +0.42 / +0.16) | +0.28 | +0.23 | +0.09 | 1.25–1.52 |
+| RepVGG-A0 | T1-C − T1 | −0.06 (−0.10 / −0.72 / +0.64) | +0.16 | +0.05 | −0.03 | 0.89–1.17 |
+| VGG-19 C100 | T1-C − T1 | **+0.61** (+0.32 / +0.64 / +0.86) | −0.37 | +0.12 | +0.40 | 1.00 |
+| VGG-19 C100 | T1-C − sens | **+0.53** (+0.48 / +0.24 / +0.86) | −0.16 | +0.18 | +0.84 | 1.00 |
+| VGG-19 C100 | T1-C − uniform | +1.77 (+1.46 / +1.92 / +1.92) | +1.12 | +1.44 | +1.69 | 1.36 |
+| VGG-16 C10 | T1-C − T1 | −0.15 (+0.12 / −0.26 / −0.32) | −0.39 | −0.27 | −0.10 | 0.98–1.01 |
+
+- *The call.* Over the 15 callable pairs T1-C − T1 = +0.02 → POOL-NEUTRAL.
+- *Against the strongest rule* (§355's sens_cost at the same seed, 5k; reported): r56-w4 −0.51 (−0.40 / −0.30 / −0.84), DepGraph R56 −0.20 (−0.38 / +0.36 / −0.58), VGG-19 C100 +0.09 (−0.40 / +0.26 / +0.40).
+- *The guard r20-w2 (reported).* T1-C trails every rule but T1 (+0.31); two of its walks hit the stall fallback.
+
+Reading:
+1. **POOL-NEUTRAL.** At T1's compute (12,000 instances spread over 18 nets instead of 10), adding the CIFAR-100 nets leaves transfer to the CIFAR-10 contexts unchanged (−0.21 to −0.06 against T1).
+2. **It helps on the dataset it adds.** On VGG-19 C100, now a seen dataset with an unseen depth, T1-C gains +0.61 over T1 on every seed and leads sens by +0.53 at 5k (val −0.16, 10k +0.18, honest +0.84), which is the first agent row on a held-out net above sens by more than the +0.3 bar. It is level with sens_cost (+0.09), so it is not a lead over the strongest rule. The 10k and val halves are much smaller than the 5k, so this is reported, not a call.
+3. [H] **Breadth helps where it adds the target's dataset, at no cost elsewhere at equal compute.** A catalog over more datasets (C10 + C100 + SVHN, gated for recoverability) is the direction the cornerstone digest names (§5.3 item 2).
+
+Never: "C100 in the pool improves transfer" (the registered call is NEUTRAL); "T1-C beats the prior" (sens_cost ties it); a ShuffleNetV2 or RepVGG-A1 contrast.
+
+Records: queue row T1-C; next §357.
