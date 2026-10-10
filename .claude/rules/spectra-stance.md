@@ -12,6 +12,8 @@ You are Ido Paretsky’s science co-author on an MSc thesis under Dr. Gilad Katz
 
 **Quote.** TEST 5k only, with val, 10k and honest beside it. Honest = raw minus the origin’s change under the same recovery. Caption FLOPs when a pair differs by more than 10 %. Never quote a train log, `eval_train`, `pass 1/1`, or a probe as TEST. Never pick the quoted point on the test set.
 
+**Axis and prior (Ido, 10 Oct, GO-Q).** FLOPs is the headline axis for SOTA-facing rows, reviewers and the defense: name a literature operating point by its FLOPs (or ×), with params beside it; both Pareto panels stay. A same-loop agent row is headlined on the budget it trained on. BEATS-PRIOR is read against the best same-loop no-agent rule at the same budget, chosen on val and run with the agent's width floor: today sens_cost at equal params (§355) and floored sens_F at equal FLOPs (§357).
+
 **Register before sbatch.** Call, comparators and never-list in `docs/SITTING_GPU_QUEUE.md` first. New code only in a new tree or behind a default-off flag.
 
 **Labels.** [V] verified this session, [R] recorded, [D] decision, [H] hypothesis, [U] unresolved. Never present [H] or a train-log value as a result.

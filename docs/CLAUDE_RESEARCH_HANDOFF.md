@@ -138,6 +138,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **TM (the mixed-budget agent, Ido's GO)**: registered `9f46846`, submitted 13:11:47, smokes passed, 24 cells released 13:21:14. Trains end ~16:30, evals ~17:30. **Next action: add a TM section to `scripts/_tmp_s10oct_night_read.sh`** (calls in the TM row: HOLDS-PARAMS / LEARNS-FLOPS / BUDGET-GENERIC), then read it and write §360.
 - Operational lessons are now in `.claude/rules/spectra-tooling.md`: a smoke can exit 0 and still have failed, so submit cells held; age outweighs nice.
 
+**Update 16:00 (GO-Q absorbed; TM still training).**
+- Ido's 14:00 orders (`docs/PROMPT_SCIENCE_FLOPS_FIRST.md`) are now in `.claude/rules/spectra-stance.md`: FLOPs headlines SOTA-facing rows, params beside; BEATS-PRIOR is against the best same-loop rule at the same budget, chosen on val and floored like the agent (sens_cost at params, floored sens_F at FLOPs). Floored sens_cost_F and inner_F join every FLOPs comparator set.
+- Ido accepted the five brief recommendations (15:42); none is sbatched before §360. Science adds one gate, for his confirmation: the *sufficient agent* LEARNS on its budget and sits within −0.3 of floored sens_F at FLOPs 0.6 on r56-w4. If TM misses it, the next train is T2 (a residual on the budget's prior) and LOFO-M / LOFO-D wait for it.
+- Item 1 checked without GPU [V]: T1's call rows logged no stall fallback (its three were on the guard); the R56C uniform comparators did, without moving their values (ledger §346 note). No T1 re-read is needed.
+- Zero-GPU work in background agents, each reviewed before any deploy: T2 code behind `SPECTRA_PLAN_RESIDUAL` (own worktree); ShuffleNetV2 structural-only plans behind `SPECTRA_PLAN_STRUCTURAL_ONLY` (own worktree); the `docs/TRANSFER_COVERAGE_PROTOCOL.md` draft.
+- **Next:** §360 when the TM watcher fires (`scripts/_tmp_s10oct_night_read.sh tm`), then one registration per the FLOPS_FIRST table and the gate above.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)

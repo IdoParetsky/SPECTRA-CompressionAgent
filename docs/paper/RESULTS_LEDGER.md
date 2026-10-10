@@ -6918,6 +6918,7 @@ Setup:
   - thin and guard: G2-H (s42 / 43 sens / uniform) + NR (the rest), walked;
   - MobileNetV2: G2-M + NR, walked;
   - DepGraph R56: G2-F one-shot (s42 / 43) + R56C one-shot (s44–46).
+  - *10 Oct 16:00 [V]: each R56C uniform walk (s44–46, **22423588 / 590 / 592**) hit the stall fallback once (plan x0.450, walk x0.490 above the target x0.470, then one strongest legal cut), so those three rows are not pure uniform plans. Their TEST values (−0.50 / −0.24 / −0.40) sit inside the s42 / 43 range (−0.70 / −0.46), so T1 − uniform stands. T1's own rows on r56-w4 and DepGraph R56 logged no fallback; its three were on the guard (below). New cells run every comparator with the width floor.*
 
 **r56-w4 and DepGraph R56, per seed** (TEST 5k Δacc; T1's params / FLOPs kept):
 
