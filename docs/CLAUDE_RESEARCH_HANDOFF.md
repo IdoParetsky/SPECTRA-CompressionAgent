@@ -145,6 +145,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - Zero-GPU work in background agents, each reviewed before any deploy: T2 code behind `SPECTRA_PLAN_RESIDUAL` (own worktree); ShuffleNetV2 structural-only plans behind `SPECTRA_PLAN_STRUCTURAL_ONLY` (own worktree); the `docs/TRANSFER_COVERAGE_PROTOCOL.md` draft.
 - **Next:** §360 when the TM watcher fires (`scripts/_tmp_s10oct_night_read.sh tm`), then one registration per the FLOPS_FIRST table and the gate above.
 
+**Update 16:45 (protocol drafted; two realizability findings).**
+- `docs/TRANSFER_COVERAGE_PROTOCOL.md` is drafted and reviewed (no sbatch); its queue stub sits before `## O38` in the queue.
+- [V] The walk's cut-rate grid {0.9, 0.8} makes uniform-like plans stall above target on wide nets, and the fallback puts the rest on the next rows: HF-V / LOFO-V's uniform comparators (x0.581 → x0.642), TM's floored sens_F / uniform_F on VGG-19 C100 (x0.635–0.653), DepGraph R56 uniform (x0.450 → x0.490). The width floor does not cure it. HF-V's and LOFO-V's margins over uniform are unsized (ledger §352 / §358 notes); the fix, `SPECTRA_ALLOC_GRID_ROUND`, is in development in its own worktree.
+- [V] T1, LOFO-R, LOFO-V and TM all load v10's ep0127 standardizer; for the LOFO folds its fit set holds the held-out family [H]. The paper's rotation re-runs all four folds on the sufficient recipe with fold-fitted standardizers (LOFO-R′ / LOFO-V′) [D].
+- The prior is fixed in advance per budget from pooled evidence, never chosen per net or on TEST (stance rule; supersedes "chosen on val" above).
+- Background code agents, each in its own worktree and reviewed before any deploy: T2 residual, ShuffleNetV2 structural-only, grid rounding.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)

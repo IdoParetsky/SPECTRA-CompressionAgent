@@ -1665,6 +1665,23 @@ Spearman ρ across a net's groups between A0's sensitivity and each group-level 
 - **About 17 GPU-h.** Trains ~3 h each, evals and comparators ~15–25 min each.
 - **Never.** A train-log value as TEST; seeds beyond 42–44; "one agent beats both single-type agents" from a pooled mean; a wrong-type ablation added after the read (it is a separate registration).
 
+### Transfer coverage protocol (design stub, Claude Code, 10 Oct 16:45; `docs/TRANSFER_COVERAGE_PROTOCOL.md`; nothing registered, nothing submitted)
+
+- **Gate.** No row below is registered until a sufficient agent exists (protocol §5.A: LEARNS on its train budget and ≥ −0.3 vs floored sens_F at FLOPs 0.6 on r56-w4; awaiting Ido) and Ido GOs the row. §360 (TM) picks the branch (protocol §7).
+- **Common line.** The sufficient agent's recipe with one change per fold; the floor on in every arm and plans rounded onto the walk's cut grid (`SPECTRA_ALLOC_GRID_ROUND`, in development); G2 + origin; one-shot mean plan; seeds 42–44, then 45–46 for every fold in the paper table (both stages registered up front); TEST 5k with val, 10k and honest; FLOPs headline, params beside; zero stall-fallback lines, zero masked edits, landing within 0.01.
+- **Stub rows, in order** (each becomes its own registration):
+  1. HYG: floored, grid-rounded re-reads of the fallback comparators (R56C uniform s44–46; HF-V uniform; TM's VGG-19 sens_F / uniform_F) and of TM's unfloored params comparators; floored sens_cost_F / inner_F where missing. No train. ~10–12 GPU-h. Waits for `SPECTRA_ALLOC_GRID_ROUND`.
+  2. SCR: headroom screens (floored sens_F − uniform_F, ≥ 2 seeds, read on val) for every protocol §3 candidate; ShuffleNetV2 realizability with `SPECTRA_PLAN_STRUCTURAL_ONLY`. ~40–55 GPU-h.
+  3. REF: the sufficient agent on the held-out instances that passed SCR.
+  4. LOFO-M, LOFO-D: callable families only; the family list (ShuffleNetV2 in or out) fixed before submit.
+  5. LOFO-R′, LOFO-V′: one recipe across folds [D], fold-fitted standardizers.
+  6. DO-C100, DO-FMNIST: REF on held-out datasets (evals only); κ chosen on val.
+  7. DO-SVHN: the reference catalog minus VGG-11 SVHN.
+  8. SN: every fold's agent on ShuffleNetV2, if SCR passed.
+  9. LADDER: 6 / 10 / 18 nets at 12,000 instances, sufficient recipe only.
+- **Calls (proposed, protocol §4).** FAMILY-TRANSFER-F (agent − floored uniform_F ≥ +0.5), AT-PRIOR-F (agent − prior_F ≥ −0.3), BEATS-PRIOR-F (≥ +0.3, no callable net below −0.3); no callable net → LEVER-LIMITED.
+- **Never.** Protocol §9.
+
 ## O38 reward replay (zero GPU, val only; 1 Oct 03:10)
 
 `scripts/reward_replay.py <run_dir...> --tau 10 --gamma 1` replays finished no-agent walks through the live `src.utils.compute_reward` under each shape. Identity steps earn no size credit. Return = undiscounted sum along the walk; in brackets, the share of the positive return paid on cuts with cumulative val Δ > 0 (the gain arm). Not a TEST.

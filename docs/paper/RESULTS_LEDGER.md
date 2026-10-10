@@ -7219,6 +7219,7 @@ Records: queue row D-PROXY-F; next §352.
 Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row HF-V, section "Night 10 Oct cells").
 - *Read.* 10 Oct 07:25 (`scripts/_tmp_s10oct_night_read.sh hfv`).
 - *Checks.* 18 / 18 COMPLETED; none of the night's jobs failed. Every arm lands at params 0.600. The T1 and sens size points coincide with val_best. Every uniform walk hit the stall fallback once ("strongest legal cut from here"), so uniform's realized net is its plan plus one strongest legal cut.
+  - *10 Oct 16:35 [V]: every uniform walk planned x0.581 and stalled at x0.642. The cause is the walk's cut-rate grid, not the width floor: with rates {0.9, 0.8} a keep near 0.775 on a 512-wide group can only land at 0.80 or 0.72, and closest-width steps put every uniform group at 0.80 (0.8² = 0.64). The fallback then cut the following rows at rate 0.8 down to x0.600, so the uniform comparator is not a uniform net. T1 − uniform (+1.16) and sens − uniform (+1.24) are unsized until a grid-rounded uniform runs (`docs/TRANSFER_COVERAGE_PROTOCOL.md` §4 step 1); T1 − sens (−0.08) is unaffected. The width floor does not cure it: TM's floored sens_F / uniform_F on this net at FLOPs 0.6 stalled at x0.635–0.653.*
 - *Design.* T1's frozen policies s42–44 one-shot at params 0.6, G2 final + origin; sens and uniform on the agent's own eval line at the same seed.
 
 **Per seed** (TEST 5k; FLOPs kept):
@@ -7304,6 +7305,7 @@ Records: queue row HF-N; next §354.
 Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row LOFO-R, section "Night 10 Oct cells").
 - *Read.* 10 Oct 11:05 (`scripts/_tmp_s10oct_night_read.sh lofor`).
 - *Checks.* 21 / 21 COMPLETED, none failed. Each train kept the 6 intended nets and logged `[plan] DONE 12000 instances` in 200.7 / 205.9 / 201.8 min, with no Traceback or WARNING. Every thin and DepGraph R56 row sits at its size point; the DepGraph R56 s43 walk and the guard s42 / s44 walks hit the stall fallback once.
+  - *10 Oct 16:35: each train loaded v10's standardizer (`tree_v10/runs/job22156116/snapshots/ep0127/standardizer.pt`, n=808), the file T1 and TM load [V]. [H] It was fitted on v10's catalog, which holds ResNets, so the fold never trained on a ResNet but its token z-scoring included the family's feature statistics. The paper's rotation re-runs the fold with a fold-fitted standardizer on the sufficient recipe (protocol §4, LOFO-R′ / LOFO-V′).*
 - *Design.* T1's train line (row 99) with `SPECTRA_PLAN_NETS=vgg,mobilenet,densenet`, seeds 42–44; evals on T1-E's lines (thin pair @0.6, DepGraph R56 @0.47) and the four HF-N nets @0.6. Comparators: T1's (NR + G2-H on the thin pair; G2-F + R56C on DepGraph R56) and T1-E itself at the same seeds.
 
 **LOFO-R per seed** (TEST 5k): r56-w4 −3.30 / −3.14 / −3.60 (params 0.597–0.598, FLOPs 0.530–0.593); DepGraph R56 +0.18 / +0.10 / +0.58 (params 0.467–0.469, FLOPs 0.520–0.581).
@@ -7451,6 +7453,7 @@ Records: queue row T0-F2; next §358.
 Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row LOFO-V, section "Night 10 Oct cells").
 - *Read.* 10 Oct 13:12 (`scripts/_tmp_s10oct_night_read.sh lofov`).
 - *Checks.* 21 / 21 COMPLETED, none failed. Each train kept the 7 intended nets and logged `[plan] DONE 12000 instances` in 189.6 / 189.7 / 190.2 min, with no Traceback or WARNING. Every VGG row sits at params 0.600.
+  - *10 Oct 16:35: each train loaded v10's standardizer (`tree_v10/runs/job22156116/snapshots/ep0127/standardizer.pt`, n=808), the file T1 and TM load [V]. [H] It was fitted on v10's catalog, which holds VGGs, so the fold never trained on a VGG but its token z-scoring included the family's feature statistics. The paper's rotation re-runs the fold with a fold-fitted standardizer on the sufficient recipe (protocol §4, LOFO-R′ / LOFO-V′). The uniform comparator is HF-V's, whose walks stalled on the cut-rate grid (§352 note), so LOFO-V − uniform (+0.98 / +0.74) is unsized until a grid-rounded uniform runs; LOFO-V − sens (−0.26) is unaffected.*
 - *Comparators.* HF-V's sens / uniform and T1 rows at the same seed (one-shot on the same eval line).
 - *What the agent never saw.* No VGG (the only plain convolution chains in the catalog), no SVHN and no CIFAR-100. VGG-19 C100 is therefore an unseen family on an unseen dataset, the proposal's p.15 cell, on a net with a measured lever; VGG-16 C10 is an unseen family on a seen dataset.
 
