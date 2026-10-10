@@ -13,6 +13,8 @@
 
 **Waiting is event-driven (Ido, 10 Oct).** Never foreground-sleep or poll in a loop in the main tab. Wait with a background Bash until-loop over `sacct` that exits on a terminal state (COMPLETED, FAILED, CANCELLED, TIMEOUT, OUT_OF_MEMORY, NODE_FAIL, PREEMPTED); it wakes the session once. Let it exit early on the first non-COMPLETED terminal state, so a failure is seen at once. A timed wake (a background `sleep` to a clock time) is fine for a promised report.
 
+**Smokes and priorities (learned 10 Oct).** A smoke that exits 0 can still have failed: the runner catches a per-network exception and finishes with status 0, so afterok releases the dependents (T0-F2's first eval smoke). Read each smoke's start-check lines before any cell runs: submit the cells held (`scontrol hold`) and release them after the read. Slurm's age factor, counted from eligibility, outweighs nice gaps of a few units, so nice alone does not order a long queue; re-nice or hold explicitly.
+
 **No log dumps in the main tab (Ido, 10 Oct).** Readers write their full output to a scratchpad file; the tab shows the call lines and compact tables only. Never paste a raw log, a whole reader output or a subagent transcript.
 
 **Delegation** (agent files in `.claude/agents/`; the table is in `CLAUDE.md`).

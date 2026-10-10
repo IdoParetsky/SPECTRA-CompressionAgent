@@ -131,6 +131,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **Pending.** T0-F2 evals (~13:15), LOFO-V evals (~13:30), HF-FM (~14:00). If T0-F2 LEARNS, the mixed-budget agent is next under Ido's GO; the brief asks whether he reviews T0-F2 first.
 - **Recommendations added to the brief.** Read every agent claim against sens_cost. Design an agent that plans a residual on the cost-aware plan, or sees its weights as a state channel.
 
+**Update 13:50 (every night cell read).**
+- §357 T0-F2 → LEARNS with the width floor: +0.51 vs mild_F (by 0.01), −0.57 vs floored sens_F; its training and eval cuts now agree.
+- §358 LOFO-V → FAMILY-TRANSFER: trained without any VGG, SVHN or CIFAR-100, it lands +0.98 vs uniform on VGG-19 C100 (about 80 % of the lever) and is level with sens on VGG-16 C10; −0.18 / −0.28 vs T1.
+- §359 HF-FM → LEVER-LIMITED (no call).
+- **TM (the mixed-budget agent, Ido's GO)**: registered `9f46846`, submitted 13:11:47, smokes passed, 24 cells released 13:21:14. Trains end ~16:30, evals ~17:30. **Next action: add a TM section to `scripts/_tmp_s10oct_night_read.sh`** (calls in the TM row: HOLDS-PARAMS / LEARNS-FLOPS / BUDGET-GENERIC), then read it and write §360.
+- Operational lessons are now in `.claude/rules/spectra-tooling.md`: a smoke can exit 0 and still have failed, so submit cells held; age outweighs nice.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
