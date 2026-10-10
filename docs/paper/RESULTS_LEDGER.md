@@ -7402,3 +7402,45 @@ Reading:
 Never: "C100 in the pool improves transfer" (the registered call is NEUTRAL); "T1-C beats the prior" (sens_cost ties it); a ShuffleNetV2 or RepVGG-A1 contrast.
 
 Records: queue row T1-C; next §357.
+
+## 357. T0-F2 / T0-F-W: the FLOPs-budget plan agent once every plan respects the walk's width floor (`SPECTRA_PLAN_MIN_WIDTH=walk`; trains **22437995 / 22438001 / 008**, evals **22437996 / 002 / 009**, T0-F-W **22437997 / 004 / 010**, floored sens_F / uniform_F / inner_F **22437998–22438000, 005–007, 012–014**; `tree_v17` with fix `d106672`) — PRELIM; registered call on r56-w4 at FLOPs 0.6: T0-F2 − mild_F **+0.51** (bar +0.5) → **LEARNS**, by 0.01; T0-F2 − sens_F (floored) **−0.57**, so not BEATS-PRIOR
+
+Registered before submit 10 Oct 05:59:42 (commit `4dd6395`; queue row T0-F2, section "Night 10 Oct cells"). The first eval smoke failed (a `TypeError` caught by the runner, exit 0); the cells were held, `tree_v17` was patched with `d106672` before any cell ran, the re-smoke 22440996 passed and the cells were released at 09:45 (row T0-F2).
+- *Read.* 10 Oct 13:10 (`scripts/_tmp_s10oct_night_read.sh t0f2`).
+- *Checks.* 18 / 18 COMPLETED, none failed. Each train logged `[plan] trainer … min_width=2` and finished in about 56 min. No stall fallback in any r56-w4 walk; every arm lands at FLOPs 0.597–0.600.
+- *Comparators.* sens_F / uniform_F / inner_F with the same floor on the same line and seeds; mild_F = §350's G2 re-finals (a walk policy, untouched by plan floors); §350's unfloored sens_F reported beside.
+
+**r56-w4 at FLOPs 0.6, per seed** (TEST 5k; params kept):
+
+| seed | T0-F2 | T0-F-W | sens_F (floored) | inner_F (floored) | mild_F | uniform_F (floored) | T0-F2 params |
+|---|---|---|---|---|---|---|---|
+| 42 | **−2.20** | −2.62 | −1.86 | −1.76 | −2.72 | −3.56 | 0.676 |
+| 43 | **−2.58** | −2.58 | −1.62 | −2.44 | −3.34 | −3.52 | 0.632 |
+| 44 | **−2.60** | −2.64 | −2.18 | −2.54 | −2.84 | −3.96 | 0.648 |
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed):
+
+| contrast | 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|
+| T0-F2 − mild_F | **+0.51** (+0.52 / +0.76 / +0.24) | +0.33 | +0.42 | +0.83 | 0.85–0.91 |
+| T0-F2 − sens_F (floored) | **−0.57** (−0.34 / −0.96 / −0.42) | −0.25 | −0.41 | −0.69 | 0.96–1.04 |
+| T0-F2 − inner_F (floored) | −0.21 (−0.44 / −0.14 / −0.06) | +0.16 | −0.03 | −0.24 | 0.98–1.05 |
+| T0-F2 − uniform_F (floored) | +1.22 (+1.36 / +0.94 / +1.36) | +1.21 | +1.22 | +1.32 | 0.99–1.06 |
+| T0-F2 − sens_F (§350, unfloored) | −0.57 (−0.14 / −0.66 / −0.90) | −0.48 | −0.52 | −0.61 | 1.00–1.09 |
+| T0-F-W − mild_F | +0.35 (+0.10 / +0.76 / +0.20) | +0.41 | +0.38 | +0.42 | 0.81–0.93 |
+| T0-F-W − sens_F (floored) | −0.73 (−0.76 / −0.96 / −0.46) | −0.18 | −0.45 | −1.09 | 0.93–1.05 |
+
+Every pair keeps FLOPs within 1 %.
+
+- *Alignment* (train-log proxy on the val half, never quoted as TEST, against the eval's cut proxy at the size point, same seed): in-sample mean plan −51.2 / −55.8 / −58.9 at κ 0.6; at eval −50.0 / −62.4 / −61.9 at κ 0.58. The 1–7 pp gaps match the 0.02 undershoot (§351: −6.8 pp per 0.02 on this net), against T0-F's 20 pp gap.
+- *The guard r20-w2 (reported).* The floor hurts the rules there: floored sens_F is −14.0 against −9.5 unfloored (§350), because two-channel groups cannot be cut at all. T0-F2 leads every floored rule (+1.13 vs mild_F, +5.87 vs floored sens_F). The thinnest net's floor effect, not a result.
+
+Reading:
+1. **LEARNS, by 0.01 over the bar.** With the walk's width floor in every decoder, the plan agent trained on the cut under a FLOPs budget beats the mild walk on all three seeds (+0.24 to +0.76) and every floored rule except sens_F and inner_F.
+2. **The fix closes most of T0-F's gap and aligns training with eval.** Against sens_F the agent moves from −1.49 (§350) to −0.57. Its in-sample and eval cuts now agree to within the undershoot. Re-decoding the old T0-F policies with the floor alone (T0-F-W) already recovers +0.77 against mild_F (−0.42 → +0.35).
+3. **Not BEATS-PRIOR.** The measured prior still captures the FLOPs lever on r56-w4 better than the agent: −0.57 against sens_F, and inner_F is close to sens_F.
+4. **Consequence.** By its registered rule T0-F2 LEARNS, so the mixed-budget agent (Ido's GO, 10 Oct) is next: the floor on, read at equal params against T1, sens and sens_cost (§355) and at equal FLOPs against T0-F2 and the floored rules.
+
+Never: "the agent beats sens under FLOPs"; a guard row as evidence; seeds beyond 42–44.
+
+Records: queue row T0-F2; next §358.
