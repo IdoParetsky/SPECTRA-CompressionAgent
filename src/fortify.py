@@ -1139,6 +1139,27 @@ def min_width_for_prune() -> int:
     return max(1, int(os.environ.get("SPECTRA_MIN_WIDTH_FOR_PRUNE", "2")))
 
 
+def plan_min_width() -> int:
+    """
+    ``SPECTRA_PLAN_MIN_WIDTH`` (default off = 1): the narrowest width the plan decoders may plan for any group
+    (``plan_agent.decode`` / ``scale_decode``, ``alloc_walk.plan_targets``), so that a plan never asks the eval walk
+    for a width its legal mask refuses (``alive_count <= min_width_for_prune()`` is identity-only). ``walk`` reads
+    ``min_width_for_prune()`` itself (2 unless ``SPECTRA_MIN_WIDTH_FOR_PRUNE`` says otherwise); an integer below 2
+    leaves every decoder as it was. v17 (ledger §350–§351): T0-F planned six width-1 groups on r56-w4, the walk
+    floored them at 2, declared the plan complete 5 % of the FLOPs above its budget and its stall fallback cut a
+    residual stream to the chance floor.
+    """
+    raw = os.environ.get("SPECTRA_PLAN_MIN_WIDTH", "").strip().lower()
+    if not raw:
+        return 1
+    if raw == "walk":
+        return max(1, min_width_for_prune())
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        raise ValueError(f"SPECTRA_PLAN_MIN_WIDTH={raw!r}: expected an integer or walk") from None
+
+
 def entropy_anneal_horizon() -> int:
     return max(1, int(os.environ.get("SPECTRA_ENTROPY_ANNEAL_HORIZON", "100")))
 

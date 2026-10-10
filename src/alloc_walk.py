@@ -196,13 +196,14 @@ def group_widths(model, rows):
 
 
 def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_floor=0.1, iters=16, tol=0.003,
-                 budget="params"):
+                 budget="params", min_width=1):
     """
     ``(widths, info)``: ``widths[row]`` is the target width of the group whose first walk row is
     ``row``. Keeps are clip(c · weight, keep_floor, 1), or 1 for a group ``inner`` holds; c is
     bisected until the one-shot cut keeps ``target`` of the parameters, or of the MACs under
     ``budget="flops"`` (widths are integers, so the closest c found). ``widths`` copies its table
-    instead and ignores ``target``.
+    instead and ignores ``target``. ``min_width`` above 1 (``fortify.plan_min_width``) lifts every
+    group's keep floor to ``min_width`` / its origin width, the walk's legal floor.
     """
     size = (lambda m: utils.calc_flops(m, input_shape)) if budget == "flops" else utils.calc_num_parameters
     plan = group_sensitivity.group_plan(ModelWithRows(model))
@@ -235,12 +236,16 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
         noise = sample_noise(rows, sample["sigma"], sample["seed"])
         w = {row: w[row] * noise[row] for row in rows}
     held = {row for group, row in plan if kind_name == "inner" and len(group.producers) > 1}
+    floor = {row: keep_floor for row in rows}
+    if int(min_width) > 1:
+        for (group, row) in plan:
+            floor[row] = max(keep_floor, min(1.0, int(min_width) / float(group.width)))
     size0 = size(model)
     lo, hi = 0.0, 1.0 / min(w.values())
     best = None
     for _ in range(iters):
         c = 0.5 * (lo + hi)
-        keeps = {row: 1.0 if row in held else min(1.0, max(keep_floor, c * w[row])) for row in rows}
+        keeps = {row: 1.0 if row in held else min(1.0, max(floor[row], c * w[row])) for row in rows}
         cut = cut_to(model, plan, keeps, input_shape)
         frac = size(cut) / size0
         if best is None or abs(frac - target) < abs(best[1] - target):
@@ -306,6 +311,10 @@ def _state(env):
         # Under the params budget every call below is the one ``tests/test_plan_agent.py`` fakes (no extra arguments).
         agent_kw = {"budget": "flops", "kappa": walk_target} if flops else {}
         plan_kw = {"budget": "flops"} if flops else {}
+        floor = fortify.plan_min_width()
+        if floor > 1:
+            agent_kw["min_width"] = floor
+            plan_kw["min_width"] = floor
         if kind() in ("agent", "agent_sample"):
             from src import plan_agent
             if kind() == "agent_sample":
@@ -339,13 +348,14 @@ def _state(env):
             f"{undershoot():g}) over "
             f"{len(widths)} groups; group keep min {keeps[0]:.2f} median {statistics.median(keeps):.2f} "
             f"max {keeps[-1]:.2f}" + (f"; {info['held']} coupled groups held at full width" if info["held"] else "")
-            + (f"; {info['unnamed']} groups not named in the table, kept whole" if info.get("unnamed") else ""))
+            + (f"; {info['unnamed']} groups not named in the table, kept whole" if info.get("unnamed") else "")
+            + (f"; group width floor {floor}" if floor > 1 else ""))
         try:
             import src.run_recorder as run_recorder
             run_recorder.record(
                 "alloc_plan", network=str(net), kind=info["kind"], alpha=info["alpha"], target=target,
                 kept=info["kept"], **({"sample": info["sample"]} if info.get("sample") else {}),
-                **({"budget": "flops"} if flops else {}),
+                **({"budget": "flops"} if flops else {}), **({"min_width": floor} if floor > 1 else {}),
                 rows={str(r): {"origin": info["origin_widths"].get(r), "target": widths[r],
                                                   "keep": round(info["keeps"][r], 4),
                                                   "sens": float(info["sens"][r])} for r in widths})

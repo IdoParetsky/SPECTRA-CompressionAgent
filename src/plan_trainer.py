@@ -15,7 +15,9 @@ KAPPA (0.35,0.85), KMIN (0.1), PROXY (bn32), TOKENS (layer), ENCODER (transforme
 e.g. sens), NETS (name substrings to keep; all when unset), REF_EVERY (10), SAVE_EVERY (50), SEED (0),
 NORM_ADV (1), MAX_MINUTES (0 = no limit; the trainer saves and stops when it is reached), SUMMARY_KAPPAS
 (0.4,0.6,0.8: the κ of the closing per-net summary), BUDGET (params: what κ is a fraction of; flops decodes every
-plan to kept MACs on ``plan_agent.FlopModel`` and flags it in the state, mixed draws params or flops per instance).
+plan to kept MACs on ``plan_agent.FlopModel`` and flags it in the state, mixed draws params or flops per instance),
+MIN_WIDTH (``fortify.plan_min_width``: no plan, sampled or reference, cuts a group below this width, so the reward
+only sees plans the eval walk can realize; ``walk`` = the walk's own floor; written to the checkpoint when above 1).
 """
 
 import json
@@ -106,20 +108,26 @@ def out_dir() -> str:
     return path
 
 
-def references(inst, kappa, cfg, batches, budget="params"):
+def min_width() -> int:
+    """``SPECTRA_PLAN_MIN_WIDTH`` (``fortify.plan_min_width``): the decoders' width floor; 1 = off, as before."""
+    from src import fortify
+    return fortify.plan_min_width()
+
+
+def references(inst, kappa, cfg, batches, budget="params", floor=1):
     out = {}
     for kind in REFERENCES:
-        ref = inst.reference(kind, kappa, cfg.k_min, budget=budget)
+        ref = inst.reference(kind, kappa, cfg.k_min, budget=budget, min_width=floor)
         if ref is not None:
             widths, info = ref
             out[kind] = {"r": inst.reward(widths, cfg.proxy, batches), "kept": info["kept"]}
     return out
 
 
-def mean_plan(policy, inst, kappa, cfg, budget="params"):
+def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1):
     with torch.no_grad():
         mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
-    return plan_agent.decode(mu.tolist(), inst.cost_model(budget), kappa, cfg.k_min)
+    return plan_agent.decode(mu.tolist(), inst.cost_model(budget), kappa, cfg.k_min, min_width=floor)
 
 
 def _budget_tag(budget) -> str:
@@ -127,16 +135,16 @@ def _budget_tag(budget) -> str:
     return "" if budget == "params" else f" b={budget}"
 
 
-def summary(policy, instances, cfg, log):
+def summary(policy, instances, cfg, log, floor=1):
     """Mean plan vs references per net at each summary κ (and budget) on one fixed batch set (val-half proxy reads)."""
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     for inst in instances:
         for kappa in cfg.summary_kappas:
             for budget in budgets:
                 batches = inst.batches(cfg.proxy, cfg.seed)
-                widths, info = mean_plan(policy, inst, kappa, cfg, budget)
+                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor)
                 r_mu = inst.reward(widths, cfg.proxy, batches)
-                refs = references(inst, kappa, cfg, batches, budget)
+                refs = references(inst, kappa, cfg, batches, budget, floor)
                 utils.print_flush(
                     f"[plan] summary {inst.name} k={kappa:.2f}{_budget_tag(budget)}: mean plan {r_mu:+.2f} "
                     f"(x{info['kept']:.3f}) | "
@@ -148,8 +156,9 @@ def summary(policy, instances, cfg, log):
 
 def run(env, shard):
     cfg = config()
+    floor = min_width()
     started = time.perf_counter()
-    utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}")
+    utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}" + (f" min_width={floor}" if floor > 1 else ""))
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
@@ -192,7 +201,8 @@ def run(env, shard):
     from src.feature_standardizer import resolve_standardizer_path
     meta = {"tokens": cfg.tokens, "zero": list(cfg.zero), "k_min": cfg.k_min, "proxy": cfg.proxy,
             "budget": cfg.budget, "nets": [inst.name for inst in instances], "config": asdict(cfg),
-            "standardizer": resolve_standardizer_path(), "actor": os.environ.get("SPECTRA_ACTOR_CHECKPOINT_PATH", "")}
+            "standardizer": resolve_standardizer_path(), "actor": os.environ.get("SPECTRA_ACTOR_CHECKPOINT_PATH", ""),
+            **({"min_width": floor} if floor > 1 else {})}
 
     def log(record):
         with open(log_path, "a", encoding="utf-8") as fh:
@@ -220,7 +230,7 @@ def run(env, shard):
         rewards, kept = [], []
         cm = inst.cost_model(budget)
         for k in range(cfg.k):
-            plan_widths, info = plan_agent.decode(z[k].tolist(), cm, kappa, cfg.k_min)
+            plan_widths, info = plan_agent.decode(z[k].tolist(), cm, kappa, cfg.k_min, min_width=floor)
             rewards.append(inst.reward(plan_widths, cfg.proxy, batches))
             kept.append(info["kept"])
         r = torch.tensor(rewards, device=mu.device, dtype=mu.dtype)
@@ -240,9 +250,9 @@ def run(env, shard):
                 f"| plans mean {statistics.mean(rewards):+.2f} max {max(rewards):+.2f} min {min(rewards):+.2f} kept "
                 f"x{statistics.mean(kept):.3f} | mu std {record['mu_std']:.3f}")
         if (it + 1) % cfg.ref_every == 0 or it == 0:
-            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget)
+            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor)
             record["mean_plan"] = {"r": inst.reward(plan_widths, cfg.proxy, batches), "kept": info["kept"]}
-            record["refs"] = references(inst, kappa, cfg, batches, budget)
+            record["refs"] = references(inst, kappa, cfg, batches, budget, floor)
             line += f" | mean plan {record['mean_plan']['r']:+.2f}" + "".join(
                 f" {name} {ref['r']:+.2f}" for name, ref in record["refs"].items())
         record["seconds"] = time.perf_counter() - t0
@@ -260,5 +270,5 @@ def run(env, shard):
         optimizer.zero_grad()
     path = save(f"it{done:05d}")
     utils.print_flush(f"[plan] saved {path} after {done} instances, {(time.perf_counter() - started) / 60.0:.1f} min")
-    summary(policy, instances, cfg, log)
+    summary(policy, instances, cfg, log, floor)
     utils.print_flush(f"[plan] DONE {done} instances in {(time.perf_counter() - started) / 60.0:.1f} min")

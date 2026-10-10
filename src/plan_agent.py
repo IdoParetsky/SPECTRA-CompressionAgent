@@ -125,9 +125,11 @@ class ParamModel:
         return self.params(widths) / float(self.total0)
 
 
-def widths_of(keeps, widths0):
-    """Nearest integer width per group, at least 1 and at most the origin's."""
-    return {row: max(1, min(w0, int(round(float(keeps[row]) * w0)))) for row, w0 in widths0.items()}
+def widths_of(keeps, widths0, min_width: int = 1):
+    """Nearest integer width per group, at least 1 (``min_width`` where the origin is that wide: the eval walk's
+    legal floor, ``fortify.plan_min_width``) and at most the origin's."""
+    return {row: max(1, min(w0, int(min_width)), min(w0, int(round(float(keeps[row]) * w0))))
+            for row, w0 in widths0.items()}
 
 
 def rates_of(widths, widths0):
@@ -219,11 +221,11 @@ class FlopModel:
         return self.cost(widths) / self.total0
 
 
-def _bisect(keeps_at, pm, target, lo, hi, iters):
+def _bisect(keeps_at, pm, target, lo, hi, iters, min_width: int = 1):
     """``(x, widths, cost)`` closest to ``target`` kept cost (params or MACs, ``pm.cost``), for a family whose kept
     cost rises with x."""
     def at(x):
-        widths = widths_of(keeps_at(x), pm.widths0)
+        widths = widths_of(keeps_at(x), pm.widths0, min_width)
         return x, widths, pm.cost(widths)
 
     best = min((at(lo), at(hi)), key=lambda r: abs(r[2] - target))
@@ -238,12 +240,13 @@ def _bisect(keeps_at, pm, target, lo, hi, iters):
     return best
 
 
-def polish(keeps, widths, pm, target, k_min: float = 0.1, fixed=()):
+def polish(keeps, widths, pm, target, k_min: float = 0.1, fixed=(), min_width: int = 1):
     """``(widths, cost)``: one channel at a time, the group rounded furthest the wrong way moves, while that
     brings the kept cost (params or MACs, ``pm.cost``) closer to ``target`` (same-width groups cross a rounding
-    threshold together, so a shared scale alone can miss the target by several percent on a thin net)."""
+    threshold together, so a shared scale alone can miss the target by several percent on a thin net). No group
+    goes below ``min_width`` (or its origin width when that is narrower)."""
     widths, fixed = dict(widths), set(fixed)
-    floor = {row: max(1, int(round(k_min * w0))) for row, w0 in pm.widths0.items()}
+    floor = {row: max(1, int(round(k_min * w0)), min(w0, int(min_width))) for row, w0 in pm.widths0.items()}
     residual = lambda r: float(keeps[r]) * pm.widths0[r] - widths[r]  # noqa: E731
     p = pm.cost(widths)
     for _ in range(4 * len(widths) + 4):
@@ -266,25 +269,26 @@ def polish(keeps, widths, pm, target, k_min: float = 0.1, fixed=()):
     return widths, p
 
 
-def decode(z, pm, kappa: float, k_min: float = 0.1, iters: int = 48):
+def decode(z, pm, kappa: float, k_min: float = 0.1, iters: int = 48, min_width: int = 1):
     """``(widths, info)`` for scores ``z`` (one per ``pm.rows``) at kept-cost target ``kappa`` (``ParamModel`` or
-    ``FlopModel``)."""
+    ``FlopModel``); no group below ``min_width`` (``fortify.plan_min_width``; 1 = the k_min floor alone)."""
     scores = {row: float(v) for row, v in zip(pm.rows, z)}
     keeps_at = lambda b: {r: min(1.0, max(k_min, sigmoid(scores[r] + b))) for r in pm.rows}  # noqa: E731
-    b, widths, _p = _bisect(keeps_at, pm, kappa * pm.total0, -40.0, 40.0, iters)
+    b, widths, _p = _bisect(keeps_at, pm, kappa * pm.total0, -40.0, 40.0, iters, min_width)
     keeps = keeps_at(b)
-    widths, p = polish(keeps, widths, pm, kappa * pm.total0, k_min)
+    widths, p = polish(keeps, widths, pm, kappa * pm.total0, k_min, min_width=min_width)
     return widths, {"b": b, "kept": p / pm.total0, "keeps": keeps}
 
 
-def scale_decode(weights, pm, kappa: float, k_min: float = 0.1, held=(), iters: int = 48):
-    """``(widths, info)`` with keep_g = clip(c · w_g, k_min, 1), or 1 for a held group (the alloc walk's family)."""
+def scale_decode(weights, pm, kappa: float, k_min: float = 0.1, held=(), iters: int = 48, min_width: int = 1):
+    """``(widths, info)`` with keep_g = clip(c · w_g, k_min, 1), or 1 for a held group (the alloc walk's family);
+    ``min_width`` as ``decode``."""
     w = {row: max(1e-9, float(weights.get(row, 1.0))) for row in pm.rows}
     held = set(held)
     keeps_at = lambda c: {r: 1.0 if r in held else min(1.0, max(k_min, c * w[r])) for r in pm.rows}  # noqa: E731
-    c, widths, _p = _bisect(keeps_at, pm, kappa * pm.total0, 0.0, 1.0 / min(w.values()), iters)
+    c, widths, _p = _bisect(keeps_at, pm, kappa * pm.total0, 0.0, 1.0 / min(w.values()), iters, min_width)
     keeps = keeps_at(c)
-    widths, p = polish(keeps, widths, pm, kappa * pm.total0, k_min, fixed=held)
+    widths, p = polish(keeps, widths, pm, kappa * pm.total0, k_min, fixed=held, min_width=min_width)
     return widths, {"c": c, "kept": p / pm.total0, "keeps": keeps}
 
 
@@ -616,15 +620,17 @@ class NetInstance:
             recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
         return 100.0 * (accuracy(work, self.val) - self.origin_val)
 
-    def reference(self, kind: str, kappa: float, k_min: float = 0.1, a: float = 0.5, budget: str = "params"):
+    def reference(self, kind: str, kappa: float, k_min: float = 0.1, a: float = 0.5, budget: str = "params",
+                  min_width: int = 1):
         """``(widths, info)`` of the uniform / sens / inner plan at ``kappa`` on the ``budget`` cost model; None for
-        sens without sensitivities."""
+        sens without sensitivities. ``min_width`` as ``decode``."""
         from src import alloc_walk
         if kind == "sens" and self.sens is None:
             return None
         sens = self.sens if kind == "sens" else {row: 1.0 for row in self.pm.rows}
         weights = alloc_walk.weights(kind, {row: float(sens[row]) for row in self.pm.rows}, a)
-        return scale_decode(weights, self.cost_model(budget), kappa, k_min, held=self.held if kind == "inner" else ())
+        return scale_decode(weights, self.cost_model(budget), kappa, k_min, held=self.held if kind == "inner" else (),
+                            min_width=min_width)
 
 
 def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sample=None, budget="params", kappa=None):
@@ -633,9 +639,11 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     With ``sample=(sigma, seed)`` it decodes one draw z = mu + sigma * eps (eps from a CPU generator seeded by
     ``seed``) instead of the mean, the plan distribution the trainer samples from. ``budget="flops"`` decodes
     ``target`` on a ``FlopModel`` (``kept`` is then the kept FLOPs) and flags the budget in the state; ``kappa``
-    is the target the state carries (default ``env.target_keep``, else ``target``)."""
+    is the target the state carries (default ``env.target_keep``, else ``target``). The decoder's width floor is
+    ``SPECTRA_PLAN_MIN_WIDTH`` when that is set above 1, else the floor the policy trained with (``min_width`` in
+    the checkpoint, written by the trainer only when it was above 1), else none."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
-    from src import state_dump
+    from src import fortify, state_dump
     from src.BERTInputModeler import action_cost_slot_dim
     from src.group_sensitivity import group_plan
     from src.group_tokens import GROUP_TOKEN_EXTRA_DIM, group_token_state
@@ -680,11 +688,15 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
         z = [m + sigma * e for m, e in zip(mu, eps)]
         drawn = {"around": "agent", "sigma": sigma, "seed": seed,
                  "dist": math.sqrt(sum((a - m) ** 2 for a, m in zip(z, mu)))}
-    widths, info = decode(z, pm, target, float(blob.get("k_min", k_min)))
+    min_width = fortify.plan_min_width()
+    if min_width <= 1:
+        min_width = max(1, int(blob.get("min_width", 1)))
+    widths, info = decode(z, pm, target, float(blob.get("k_min", k_min)), min_width=min_width)
     return widths, {"kind": "agent" if drawn is None else "agent_sample", "alpha": 0.0, "target": float(target),
                     "kept": float(info["kept"]), "budget": budget,
                     "keeps": {row: widths[row] / float(pm.widths0[row]) for row in pm.rows},
                     "origin_widths": dict(pm.widths0), "sens": {row: float(v) for row, v in zip(pm.rows, z)},
                     "held": 0, "policy": os.path.basename(os.path.dirname(os.path.abspath(policy_path)))
                     + "/" + os.path.basename(policy_path),
-                    **({"sample": drawn, "mu": {row: float(m) for row, m in zip(pm.rows, mu)}} if drawn else {})}
+                    **({"sample": drawn, "mu": {row: float(m) for row, m in zip(pm.rows, mu)}} if drawn else {}),
+                    **({"min_width": int(min_width)} if min_width > 1 else {})}
