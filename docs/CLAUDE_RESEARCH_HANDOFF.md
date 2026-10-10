@@ -119,6 +119,18 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 3. Recommended to Ido (brief): make the width floor the default protocol and register a floored re-read of T1; after LOFO reads, register the NEON-style family rotation (each catalog family held out once, 5 seeds); fix ShuffleNetV2's structural edits; test BEATS-PRIOR on VGG-19 C100 at κ 0.4–0.5.
 4. Operational: small nice gaps do not order the queue (age factor); set priorities explicitly at submit.
 
+**Update 12:55.**
+- **Read since 09:10.**
+  - §354 LOFO-R → FAMILY-TRANSFER by its bars. On thin r56-w4 it reaches only the uniform level (−0.99 vs T1); on DepGraph R56 it is level with sens.
+  - §355 sens_cost → COST-HURTS under FLOPs (−0.33). At equal params it beats sens by +0.39 to +0.47 on three nets, and T1 trails or ties it (−0.42 / +0.01 / −0.52), so **sens_cost is the prior to beat**.
+  - §356 T1-C → POOL-NEUTRAL (+0.02); on VGG-19 C100 it is +0.61 vs T1, +0.53 vs sens and +0.09 vs sens_cost.
+- **Incidents.**
+  - T0-F2's first eval smoke failed with a TypeError but exited 0. The cells were held and fix `d106672` was patched into `tree_v17` (PROVENANCE log). Re-smoke 22440996 passed and the cells were released at 09:45.
+  - HF-FM was re-niced to 200, because the age factor outweighed nice.
+  - v10 stopped by its own rule at 10:26 (280 episodes); its resume exited at once.
+- **Pending.** T0-F2 evals (~13:15), LOFO-V evals (~13:30), HF-FM (~14:00). If T0-F2 LEARNS, the mixed-budget agent is next under Ido's GO; the brief asks whether he reviews T0-F2 first.
+- **Recommendations added to the brief.** Read every agent claim against sens_cost. Design an agent that plans a residual on the cost-aware plan, or sees its weights as a state channel.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
