@@ -11,10 +11,13 @@
 - From Git Bash, use `ssh -o BatchMode=yes -o LogLevel=ERROR bgu-slurm '<cmd>'`.
 - Uploads go by `scp <file> bgu-slurm:/home/paretsky/scratch_audit/_up_<name>`. Deploy scripts strip CR and check each upload's `git hash-object` against the local blob before overlaying a new tree.
 
-**Waiting.** Never foreground-sleep or poll in a loop in the main context. Wait with a background Bash until-loop over `sacct` that exits on a terminal state (COMPLETED, FAILED, CANCELLED, TIMEOUT, OUT_OF_MEMORY, NODE_FAIL, PREEMPTED); it wakes the session once.
+**Waiting is event-driven (Ido, 10 Oct).** Never foreground-sleep or poll in a loop in the main tab. Wait with a background Bash until-loop over `sacct` that exits on a terminal state (COMPLETED, FAILED, CANCELLED, TIMEOUT, OUT_OF_MEMORY, NODE_FAIL, PREEMPTED); it wakes the session once. Let it exit early on the first non-COMPLETED terminal state, so a failure is seen at once. A timed wake (a background `sleep` to a clock time) is fine for a promised report.
 
-**Delegation.**
-- Sonnet subagents implement fully specified changes and poll.
-- Opus or Fable subagents at max effort do heavy development, literature, and long reads that should not fill the main context.
+**No log dumps in the main tab (Ido, 10 Oct).** Readers write their full output to a scratchpad file; the tab shows the call lines and compact tables only. Never paste a raw log, a whole reader output or a subagent transcript.
+
+**Delegation** (agent files in `.claude/agents/`; the table is in `CLAUDE.md`).
+- `spectra-implementer` (Sonnet, high) implements fully specified changes.
+- `spectra-literature` (Opus, max) absorbs documents and runs literature scans. `spectra-hard-dev` (Fable 5.1, max; its own weekly limit, a reserve) does the hardest bounded development and deep synthesis.
+- Monitoring takes no model: background shell loops.
 - Review every subagent diff before it is deployed.
 - A subagent edits only the files named in its brief, runs no state-changing git, and never installs or imports torch on this laptop. CPU tests run on a staged copy on the login node.
