@@ -7510,3 +7510,88 @@ Reading:
 Never: "T1 transfers to unseen families on an unseen dataset" from these rows; a ShuffleNetV2 contrast at unequal size.
 
 Records: queue row HF-FM; next §360.
+
+## 360. (TM): one plan agent trained on T1's catalog under mixed budgets (each instance draws params or FLOPs, flagged in the state), width floor on (trains **22446352 / 392 / 433**, evals **22446353 / 354 / 387–389, 22446393–397, 22446434–438**; floored sens_F / uniform_F on VGG-19 C100 **22446390 / 391, 431 / 432, 439 / 440**; `tree_v17`) — PRELIM; registered call: (P) TM − T1 pooled over thin r56-w4, DepGraph R56 and VGG-19 C100 at equal params **−0.52** (bar −0.3) and (F) TM − mild_F on r56-w4 at FLOPs 0.6 **−0.66** (bar +0.5) → **FAILS**; [V] its plans barely use the budget flag
+
+Registered before submit 10 Oct 13:10:44 (commit `9f46846`; queue row TM, section "Night 10 Oct cells"; Ido's GO for the mixed-budget agent, 10 Oct ~03:20).
+- *Read.* 10 Oct 17:05 (`scripts/_tmp_s10oct_night_read.sh tm`).
+- *Checks.*
+  - 26 / 26 COMPLETED (smokes included; both read clean before release, 13:21).
+  - Trains ran about 3 h (22446352: 3:01:51).
+  - TM's arms land at their size points: params 0.595–0.600 on the thin pair and VGG-19, 0.469–0.470 on DepGraph R56; FLOPs 0.598–0.600 on r56-w4 and VGG-19. VGG-19's params rows at s43 / s44 came from the val_best fallback, within 0.01 of the target.
+  - Stall fallbacks: one in TM's own FLOPs arm on VGG-19 at s43, and one on the guard at s44 (params).
+  - The VGG-19 FLOPs comparators all stalled on the cut-rate grid (floored sens_F x0.635–0.638, uniform_F x0.653, then the fallback; §352 note).
+  - As registered, the params comparators ran without the floor.
+- *Comparators.*
+  - Params: T1 at the same seed (§346 thin and DepGraph rows; HF-V on VGG-19), sens, uniform and sens_cost (§355).
+  - FLOPs: T0-F2 and floored sens_F / inner_F / uniform_F (§357), and mild_F (§350) on r56-w4. r56-w4 is held out for TM but was T0-F2's training net.
+
+**At equal params, per seed** (TEST 5k; params / FLOPs kept):
+
+| net | s42 | s43 | s44 |
+|---|---|---|---|
+| r56-w4 (thin) | −5.16 (0.599 / 0.492) | −2.10 (0.596 / 0.650) | −3.28 (0.595 / 0.729) |
+| DepGraph R56 | −0.48 (0.469 / 0.494) | +0.36 (0.470 / 0.585) | +0.50 (0.469 / 0.582) |
+| VGG-19 C100 | +0.06 (0.600 / 0.709) | +0.30 (0.600 / 0.749) | +0.16 (0.600 / 0.735) |
+
+**At FLOPs 0.6, per seed:** r56-w4 −3.68 / −3.42 / −3.78 (params 0.503 / 0.523 / 0.419); VGG-19 C100 −0.04 / +0.44 / +0.18 (params 0.465 / 0.389 / 0.504).
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed; ratio of the other axis, TM to comparator):
+
+| budget, net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | other-axis ratio |
+|---|---|---|---|---|---|---|
+| params 0.6, r56-w4 | TM − T1 | **−1.16** (−2.96 / +0.60 / −1.12) | −0.87 | −1.02 | −1.29 | FLOPs 0.62–0.99 |
+| params 0.6, r56-w4 | TM − sens | −1.11 (−3.02 / +0.24 / −0.56) | −0.73 | −0.92 | −1.14 | FLOPs 0.86–1.27 |
+| params 0.6, r56-w4 | TM − sens_cost | −1.58 (−3.44 / +0.02 / −1.32) | −0.62 | −1.10 | −1.69 | FLOPs 0.68–1.00 |
+| params 0.6, r56-w4 | TM − uniform | −0.09 (−1.66 / +1.44 / −0.04) | +0.12 | +0.02 | +0.02 | FLOPs 0.84–1.25 |
+| params 0.47, DepGraph R56 | TM − T1 | **−0.37** (−1.02 / +0.00 / −0.10) | −0.07 | −0.22 | −0.42 | FLOPs 0.84–0.96 |
+| params 0.47, DepGraph R56 | TM − sens | +0.02 (−0.72 / +0.28 / +0.50) | +0.01 | +0.02 | +0.15 | FLOPs 1.24–1.38 |
+| params 0.47, DepGraph R56 | TM − sens_cost | −0.37 (−1.08 / +0.22 / −0.24) | −0.27 | −0.32 | −0.21 | FLOPs 0.85–1.04 |
+| params 0.47, DepGraph R56 | TM − uniform | +0.68 (+0.22 / +0.82 / +1.00) | +0.35 | +0.51 | +0.83 | FLOPs 1.05–1.24 |
+| params 0.6, VGG-19 C100 | TM − T1 | **−0.02** (−0.38 / +0.30 / +0.02) | −0.09 | −0.06 | −0.25 | FLOPs 0.95–1.00 |
+| params 0.6, VGG-19 C100 | TM − sens | −0.10 (−0.22 / −0.10 / +0.02) | +0.12 | +0.01 | +0.19 | FLOPs 0.95–1.00 |
+| params 0.6, VGG-19 C100 | TM − sens_cost | −0.54 (−1.10 / −0.08 / −0.44) | −0.02 | −0.28 | −0.44 | FLOPs 0.95–1.00 |
+| params 0.6, VGG-19 C100 | TM − uniform † | +1.14 (+0.76 / +1.58 / +1.08) | +1.40 | +1.27 | +1.04 | FLOPs 1.29–1.36 |
+| FLOPs 0.6, r56-w4 | TM − mild_F | **−0.66** (−0.96 / −0.08 / −0.94) | −0.91 | −0.79 | −0.31 | params 0.57–0.71 |
+| FLOPs 0.6, r56-w4 | TM − T0-F2 | −1.17 (−1.48 / −0.84 / −1.18) | −1.25 | −1.21 | −1.14 | params 0.65–0.83 |
+| FLOPs 0.6, r56-w4 | TM − sens_F (floored) | −1.74 (−1.82 / −1.80 / −1.60) | −1.50 | −1.62 | −1.83 | params 0.65–0.80 |
+| FLOPs 0.6, r56-w4 | TM − inner_F (floored) | −1.38 (−1.92 / −0.98 / −1.24) | −1.09 | −1.23 | −1.38 | params 0.65–0.81 |
+| FLOPs 0.6, r56-w4 | TM − uniform_F (floored) | +0.05 (−0.12 / +0.10 / +0.18) | −0.03 | +0.01 | +0.18 | params 0.66–0.82 |
+| FLOPs 0.6, VGG-19 C100 | TM − sens_F (floored) † | −0.29 (−0.88 / −0.10 / +0.10) | −0.03 | −0.16 | +0.13 | params 1.07–1.39 |
+| FLOPs 0.6, VGG-19 C100 | TM − uniform_F (floored) † | +0.51 (+0.78 / +0.48 / +0.28) | +0.93 | +0.72 | +0.12 | params 0.64–0.83 |
+
+† The comparator's walks stalled on the cut-rate grid and finished with the fallback (§352 note): reported, never a call. The guard r20-w2 is reported only, as always: at params TM − T1 −0.77; at FLOPs the floor collapses every rule (§357).
+
+- *Budget conditioning* (zero GPU, from the evals' `alloc_plan` records on r56-w4; plan structure, not TEST).
+  - [V] Mean group keep over the early / middle / late thirds of the 30 planned groups:
+
+    | agent, seed | params plan | FLOPs plan | Spearman, params plan vs FLOPs plan |
+    |---|---|---|---|
+    | TM s42 | 0.57 / 0.44 / 0.72 | 0.70 / 0.68 / 0.47 | +0.00 |
+    | TM s43 | 0.80 / 0.61 / 0.61 | 0.78 / 0.57 / 0.50 | +0.96 |
+    | TM s44 | 0.95 / 0.71 / 0.58 | 0.90 / 0.57 / 0.38 | +0.94 |
+    | T1 s42 (params only) | 1.00 / 0.88 / 0.54 | — | — |
+    | T0-F2 s42 (FLOPs only) | — | 0.62 / 0.47 / 0.76 | — |
+
+  - TM's s42 params plan correlates with T1's at Spearman −0.39.
+
+Reading:
+1. **FAILS on both budgets.**
+   - Params: −0.52 pooled against T1, past the −0.3 bar. The thin net carries it (−1.16, s42 −2.96); TM is −0.37 on DepGraph R56 and level on VGG-19 C100 (−0.02). It trails sens_cost on all three nets.
+   - FLOPs: on held-out r56-w4 TM is −0.66 against mild_F, level with uniform_F (+0.05), −1.74 against floored sens_F, and −1.17 against T0-F2, which trained on that net.
+2. **[V] TM barely uses the budget flag.**
+   - At s43 and s44 it ranks the groups almost the same way under both budgets (Spearman +0.96 / +0.94): one params-style ranking that keeps the early stages and cuts the late ones. That is the opposite of what the FLOPs budget rewards (T0-F2 keeps the late stage). So its FLOPs plans keep only 0.42–0.52 of the params and fall to the uniform level.
+   - At s42 the two plans differ, but inverted. Its params plan looks like T0-F2's FLOPs plan, and its params rows are the worst of the cell.
+   - [H] A single 0/1 flag in one action slot is too weak to steer a shared ranking, or the feature standardizer distorts it (the slot was fitted on walk states). A budget-specific prior, as in T2's `auto` residual, would carry the budget into the decoder itself.
+3. **VGG-19 C100 at equal FLOPs (reported).**
+   - On these stalled comparator rows, sens_F − uniform_F is +0.81 (+1.66 / +0.58 / +0.18) [H]. That disagrees with the walk-era −0.04 (§320), but it is unsized until a grid-rounded pair runs.
+   - TM's own params-kept spread there (0.39–0.50) shows that the agent's VGG-19 FLOPs plans differ widely by seed.
+4. **Consequence.** By the FLOPS_FIRST table (row FAILS):
+   - There is no sufficient agent. The protocol waits (`docs/TRANSFER_COVERAGE_PROTOCOL.md` §7, row FAILS).
+   - The next train is FLOPs-primary with a residual on sens_F (T2-F). It is registered for Ido's GO, not submitted.
+   - T1 stays the params agent of record (read against sens_cost), and T0-F2 the FLOPs control.
+   - The mixed-budget question reopens only as T2 with the `auto` residual, so that the prior carries the budget.
+
+Never: "the agent conditions on the budget type"; "TM learns FLOPs"; a TM row as a SOTA overlay or in the coverage matrix; a VGG-19 FLOPs contrast against the stalled comparators as a call; the guard as evidence; seeds beyond 42–44.
+
+Records: queue row TM; next §361.
