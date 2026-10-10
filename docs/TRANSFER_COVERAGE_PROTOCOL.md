@@ -47,7 +47,7 @@ Novelty lane [R LIT_SCAN §1 item 4, §4.1]: what survives is a frozen, learned 
 | Term | Definition | Label |
 |---|---|---|
 | Prior (per budget) | One rule per budget, fixed in advance from pooled evidence over the registered nets (never chosen per net, never on TEST), run with the agent's width floor; every other same-loop rule is reported beside it. Today: sens_cost at equal params (§355: +0.39 to +0.47 over sens at 5k on all three nets, but only +0.10 pooled on val [H]) and floored sens_F at equal FLOPs (§357). A rule replaces the prior only through a registered cell. Floored sens_cost_F and inner_F join every FLOPs comparator set, so the maximum is measured, not assumed: COST-HURTS was by 0.03, on walks that hit the fallback (§355). | [D] |
-| Sufficient agent | LEARNS on its train budget(s) by the registered bars, **and** agent − floored sens_F ≥ −0.3 at FLOPs 0.6 on thin r56-w4 (TEST 5k, mean over seeds 42–44, paired by seed). It gates every fold. **Awaiting Ido's confirmation.** | [D] |
+| Sufficient agent | LEARNS on its train budget(s) by the registered bars, **and** agent − floored sens_F ≥ −0.3 at FLOPs 0.6 on thin r56-w4 (TEST 5k, mean over seeds 42–44, paired by seed). It gates every fold. Confirmed by Ido (10 Oct ~18:15) and tightened for residual agents: an agent that starts at its prior (T2) gates the rotation and the coverage matrix only by **BEATS-PRIOR-F**, agent − floored sens_F ≥ +0.3 on held-out r56-w4. AT-PRIOR means the learned part added nothing that transfers, and the next step is then a design change, not a rotation. | [D] Ido |
 | FLOPs headline | Coverage and SOTA-facing rows are matched on FLOPs kept (or on the literature's ×), with params kept beside. Caption any pair more than 10 % apart on the other axis. BEATS-PRIOR is read against sens_cost at equal params and against floored sens_F at equal FLOPs. | [D] GO-Q |
 | Reference catalog | The sufficient agent's training catalog. Today this is T1's 10 nets (`configs/database_offline_v6_p5b2.json`): on C10, r20-w8, r20-w10, r56-w6, R32, VGG-11 / 13 BN, MBv2 ×0.5 / ×1 and DN-40; on SVHN, VGG-11 BN. TM uses it (row TM); T2 would [H]. | [V] |
 | Held-out instance | A net from a family the catalog holds, not trained on itself (a new width, depth, source, or architecture × dataset pair), on a dataset the catalog holds. | [D] |
@@ -148,7 +148,7 @@ Proposed calls per fold [H; to be registered]. Read on the fold's callable held-
 
 ## 5. Gate (Deliverable C)
 
-**A. Agent gate** (once, before step 3) [D, awaiting Ido]
+**A. Agent gate** (once, before step 3) [D, Ido 10 Oct ~18:15]
 - [ ] LEARNS on each budget it trained on ([H] for a mixed agent, both budgets; TM's registered params call is HOLDS-PARAMS against T1, and its mild rows are §346's).
   - FLOPs: agent − mild_F ≥ +0.5 on r56-w4 at FLOPs 0.6 (§357's bar).
   - Params: agent − mild ≥ +0.5 on r56-w4 at 0.6, and agent − uniform ≥ −0.3 on DepGraph R56 at 0.47 (§346's bars).
@@ -233,7 +233,7 @@ Wall clock [H]: a fold's three trains run in parallel for ≈ 3.5 h, and its eva
 
 ## 8. Open items [U]
 
-1. Ido confirms the sufficient-agent bar: −0.3 against floored sens_F, on r56-w4, at FLOPs 0.6.
+1. Resolved (Ido, 10 Oct ~18:15): −0.3 against floored sens_F on r56-w4 at FLOPs 0.6 for a free agent; BEATS-PRIOR-F (≥ +0.3) for a residual agent such as T2.
 2. **One recipe across folds [D].** LOFO-R and LOFO-V used T1's recipe, params only, with v10's standardizer. The paper's rotation re-runs them as LOFO-R′ and LOFO-V′ on the sufficient recipe with fold-fitted standardizers; the table never mixes recipes.
 3. **Standardizer leak** (§5.D). It is unknown what n=808 counts. New folds fit their own. A registered re-decode of LOFO-R with a fold-fitted standardizer would size the leak [H].
 4. **Fallback rows beyond R56C** [R]. These rows need floored re-reads (step 1) before they enter a quoted table. Whether G2-F's uniform rows at s42 / s43 hit the fallback is unchecked.
@@ -283,7 +283,7 @@ Wall clock [H]: a fold's three trains run in parallel for ≈ 3.5 h, and its eva
 ```
 ### Transfer coverage protocol (design stub, 10 Oct; `docs/TRANSFER_COVERAGE_PROTOCOL.md`; nothing registered, nothing submitted)
 
-- **Gate.** No row below is registered until a sufficient agent exists (protocol §5.A: LEARNS on its train budget and ≥ −0.3 vs floored sens_F at FLOPs 0.6 on r56-w4; awaiting Ido) and Ido GOs the row. §360 (TM) picks the branch (protocol §7).
+- **Gate.** No row below is registered until a sufficient agent exists (protocol §5.A: LEARNS on its train budget and ≥ −0.3 vs floored sens_F at FLOPs 0.6 on r56-w4; for a residual agent BEATS-PRIOR-F, ≥ +0.3, Ido 10 Oct ~18:15) and Ido GOs the row. §360 (TM) picks the branch (protocol §7).
 - **Common line.** The sufficient agent's recipe with one change per fold; the floor on in every arm; G2 + origin; one-shot mean plan; seeds 42–44, then 45–46 for every fold in the paper table (both stages registered up front); TEST 5k with val, 10k and honest; FLOPs headline, params beside; zero stall-fallback lines, zero masked edits, landing within 0.01.
 - **Stub rows, in order** (each becomes its own registration):
   1. HYG: floored, grid-rounded re-reads of the fallback comparators (R56C uniform s44–46; HF-V uniform; TM's VGG-19 sens_F / uniform_F) and of TM's unfloored params comparators; floored sens_cost_F / inner_F where missing. No train. ~10–12 GPU-h. Waits for `SPECTRA_ALLOC_GRID_ROUND`.
