@@ -7159,10 +7159,56 @@ inner_F keeps params 0.642, uniform_F 0.639 and mild_F 0.741.
 
 Reading:
 1. **FAILS-CONTROL.** Trained on the raw cut under a FLOPs budget, the plan agent did not learn the FLOPs lever on the one net where that lever is measured (sens_F − uniform_F +2.16). It is below sens_F and inner_F on all three seeds and below mild_F on two.
-2. [H] **The cut misranks the agent's FLOPs plans (Goodhart).** The agent optimized its reward (a large in-sample lead over sens), yet the final reverses the order by 1.5 pp, well beyond the final's per-plan noise (0.27–0.38 pp, §349). The cut was validated on params plans around sens and uniform (§340), never on the plans a FLOPs agent finds. T0-F keeps 0.61–0.74 of the params at FLOPs 0.59. On r56-w4 a stage-1 conv costs the same MACs as a stage-3 conv with 1/16 of its params, so the agent can buy FLOPs by thinning the early stages; the one-shot cut tolerates that and the final does not recover it. A stage-level census of the plans is not yet done.
+2. [H] **The cut misranks the agent's FLOPs plans (Goodhart).** The agent optimized its reward (a large in-sample lead over sens), yet the final reverses the order by 1.5 pp, well beyond the final's per-plan noise (0.27–0.38 pp, §349). The cut was validated on params plans around sens and uniform (§340), never on the plans a FLOPs agent finds. T0-F keeps 0.61–0.74 of the params at FLOPs 0.59. On r56-w4 a stage-1 conv costs the same MACs as a stage-3 conv with 1/16 of its params, so the agent can buy FLOPs by thinning the early stages; the one-shot cut tolerates that and the final does not recover it. A stage-level census of the plans is not yet done. *Superseded by §351 (10 Oct 05:15): at eval the cut ranks these plans correctly; the gap lies between the trainer's scoring of a plan and the eval's realization of it.*
 3. **Consequence.** Row 116's Never holds: no FLOPs budget for T1 from this read. A mixed-budget agent (Ido's GO, 10 Oct) first needs a reward that ranks FLOPs plans; that is D-PROXY-F's question (registered separately).
 4. **The comparators stand on their own.** At equal FLOPs, sens_F is the strongest rule on r56-w4. A cost-aware sensitivity (sens per unit of cost; Ido's GO, 10 Oct) is the next comparator.
 
 Never: an equal-params claim from these rows; a train-log value as TEST; T0-F seeds beyond 42–44; a FLOPs budget for T1 from this read.
 
 Records: queue row 116; next §351.
+
+## 351. D-PROXY-F: which cheap proxy ranks plans under a FLOPs budget the way the final does? (**22436524–537**, 527 / 528 not ours; `tree_v15`) — registered call: every proxy is **FLOPS-VALID** on r56-w4: each ranks T0-F's mean plan below sens_F on 3 / 3 seeds, with mean within-seed Spearman cut **+0.87**, ft1 +0.73, bn8 / bn32 +0.60
+
+Registered before submit 10 Oct 04:08:52 (commit `4b4604b`; queue row D-PROXY-F, section "Night 10 Oct cells").
+- *Read.* 10 Oct 05:13 (`scripts/_tmp_s10oct_night_read.sh dpf`).
+- *Checks.* 12 / 12 COMPLETED, none failed (ops poll 04:56). Each job carries its proxies and its own G2 final.
+- *Design.* T0-F's mean plans and sens_F / uniform_F / inner_F at FLOPs 0.6 on the thin pair, seeds 42–44: T0-F's eval line plus `SPECTRA_EVAL_PROXIES=cut,bn8,bn32,ft1`.
+
+**r56-w4 at FLOPs 0.6** (proxies on the val half, pp; final = TEST 5k of the same job; §350 = the T0-F cell at the same seed):
+
+| seed | plan | cut | bn8 | bn32 | ft1 | final 5k | §350 |
+|---|---|---|---|---|---|---|---|
+| 42 | T0-F | −78.36 | −64.20 | −64.18 | −18.76 | −2.52 | −2.62 |
+| 42 | sens_F | −66.30 | −51.60 | −51.60 | −9.84 | −2.12 | −2.06 |
+| 42 | inner_F | −75.90 | −50.36 | −50.48 | −13.30 | −2.68 | −2.24 |
+| 42 | uniform_F | −79.06 | −63.72 | −63.92 | −16.60 | −3.70 | −3.92 |
+| 43 | T0-F | −78.32 | −62.56 | −62.64 | −19.42 | −3.66 | −3.48 |
+| 43 | sens_F | −73.08 | −58.52 | −58.34 | −12.10 | −2.00 | −1.92 |
+| 43 | inner_F | −75.90 | −50.36 | −50.48 | −13.76 | −2.10 | −2.48 |
+| 43 | uniform_F | −79.06 | −63.72 | −63.92 | −15.68 | −3.70 | −4.34 |
+| 44 | T0-F | −78.32 | −67.58 | −67.44 | −19.56 | −4.00 | −4.06 |
+| 44 | sens_F | −72.80 | −49.10 | −49.14 | −11.22 | −1.90 | −1.70 |
+| 44 | inner_F | −75.90 | −50.36 | −50.48 | −13.44 | −2.46 | −2.80 |
+| 44 | uniform_F | −79.06 | −63.72 | −63.92 | −16.00 | −3.28 | −3.90 |
+
+**Calls** (r56-w4; T0-F below sens_F on n seeds; mean within-seed Spearman over the 4 plans, per seed in brackets):
+
+| proxy | below sens_F | Spearman | call |
+|---|---|---|---|
+| cut | 3 / 3 | **+0.87** (+0.80 / +1.00 / +0.80) | FLOPS-VALID |
+| bn8 | 3 / 3 | +0.60 (+0.00 / +0.80 / +1.00) | FLOPS-VALID |
+| bn32 | 3 / 3 | +0.60 (+0.00 / +0.80 / +1.00) | FLOPS-VALID |
+| ft1 | 3 / 3 | +0.73 (+0.40 / +0.80 / +1.00) | FLOPS-VALID |
+
+- *The registered consequence.* The candidate reward is the cheapest FLOPS-VALID proxy among bn8 / bn32 / ft1, which is bn8. The cut, which the rule left out because §350 suspected it, is FLOPS-VALID too and agrees best with the final.
+- *Replication.* The finals reproduce §350's same-seed rows within 0.06–0.64 pp (mean |d| 0.28; T0-F within 0.18). T0-F − sens_F here is −0.40 / −1.66 / −2.10, so §350's call stands.
+- *The guard r20-w2 (reported).* Every plan sits at −54 to −55 on the cut and −36 to −40 on ft1, the net's floor; not ranked.
+
+Reading:
+1. **At eval the cut ranks FLOPs plans the way the final does.** All four proxies put T0-F's plan below sens_F on every seed. The eval's cut puts T0-F's mean plan at the chance floor (−78.4 / −78.3 / −78.3), below sens_F (−66 to −73).
+2. **So §350's reading 2 does not hold as written.** The trains' in-sample summaries put the same policies 7–26 pp *above* sens on the cut at κ 0.6 (§350). [H] The gap lies between how the trainer scores a plan (its analytic decode and masked cut at κ exactly 0.6) and how the eval realizes it (the plan at 0.58, the walk's legal cuts, landing at 0.589). Under params the two agree for T0 (mean plan −60.8 in-sample at κ 0.6, −56.3 at eval; §341, §349), so the gap shows where a FLOPs plan concentrates its cuts, plausibly the 4-channel stage-1 groups. A CPU root-cause probe is next. Any fix goes into the trainer or the walk behind a default-off flag and is registered before a retrain.
+3. **Consequence.** A different proxy would not have rescued T0-F: the trainer must score what the eval realizes. That alignment is the prerequisite for T0-F2 and then for the mixed-budget agent (Ido's GO, 10 Oct).
+
+Never: a D-PROXY-F number as an agent TEST row; a proxy adopted as the reward on this read; added plans or seeds.
+
+Records: queue row D-PROXY-F; next §352.
