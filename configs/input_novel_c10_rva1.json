@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/repvgga1_cifar10_chenyaofo_94.89_12.82_1702.66.pt": [
+    "repvgg_a1",
+    "/home/paretsky/spectra_models_instantiation/repvgg_chenyaofo.py",
+    "cifar-10"
+  ]
+}
