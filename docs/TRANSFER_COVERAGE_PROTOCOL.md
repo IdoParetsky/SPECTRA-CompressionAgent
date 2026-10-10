@@ -1,6 +1,6 @@
 # Transfer coverage protocol (draft, 10 Oct 2026)
 
-Drafted by a Claude Code science subagent (Opus 5.5) from `docs/PROMPT_SCIENCE_TRANSFER_PROTOCOL.md` (Ido, 10 Oct ~14:05) and `docs/PROMPT_SCIENCE_FLOPS_FIRST.md` (GO-Q); reviewed and edited by the science agent (10 Oct 16:45). Design only: no GPU, no sbatch. **Nothing here is registered.**
+Drafted by a Claude Code science subagent (Opus 5.5) from `docs/PROMPT_SCIENCE_TRANSFER_PROTOCOL.md` (Ido, 10 Oct ~14:05) and `docs/PROMPT_SCIENCE_FLOPS_FIRST.md` (GO-Q); reviewed and edited by the science agent (10 Oct 16:30). Design only: no GPU, no sbatch. **Nothing here is registered.**
 
 Labels: [V] verified while drafting (file, code, or a read-only cluster listing); [R] recorded in the ledger or queue; [D] science-agent decision; [H] hypothesis, proposal, or arithmetic on [R] numbers; [U] unresolved. Numbers are TEST 5k Δacc in pp unless marked, with val / 10k / honest beside where the ledger gives them.
 
@@ -12,7 +12,7 @@ Labels: [V] verified while drafting (file, code, or a read-only cluster listing)
 | Gate | Nothing in §4 runs before a *sufficient agent* exists (§2, §5.A) and Ido GOs the cell. [D] |
 | Live input | TM (mixed budget, floor on; queue row TM) is read as §360 at ~17:30 today. §7 maps each §360 branch onto this protocol. TM is not read here. |
 | Evidence | §330, §332, §341, §346, §350–§359 [R]; `docs/CORNERSTONE_DIGEST_10OCT.md`; `docs/LIT_SCAN_9OCT_TRANSFER_BUDGET.md`; `configs/`; the cluster checkpoint folder [V]. |
-| Out of scope | New code: T2 behind `SPECTRA_PLAN_RESIDUAL` and ShuffleNetV2 structural-only plans behind `SPECTRA_PLAN_STRUCTURAL_ONLY`, both in progress (handoff §0b, 16:00) [R]. ImageNet. Any re-TEST of T1's coverage as final. |
+| Out of scope | New code: T2 behind `SPECTRA_PLAN_RESIDUAL` and ShuffleNetV2 structural-only plans behind `SPECTRA_PLAN_STRUCTURAL_ONLY`, both in progress (handoff §0b, 15:57) [R]. ImageNet. Any re-TEST of T1's coverage as final. |
 
 ## 1. Claims now
 
@@ -20,13 +20,13 @@ Can claim (PRELIM):
 
 | # | Claim (scope) | Evidence: 5k (val / 10k / honest) | Caveats that travel with it |
 |---|---|---|---|
-| C1 | A plan agent trained once on 10 CNNs (C10 plus one SVHN net), then frozen, transfers to held-out nets of a seen family at equal params | T1 − mild **+2.20** (+2.20 / +2.20 / +2.58) on thin r56-w4, five seeds; T1 − uniform **+0.96** (+0.54 / +0.75 / +0.98) on DepGraph R56 (§346) | Keeps 1.2–1.6× sens's FLOPs. The uniform rows at s44–46 hit the stall fallback, but their values sit inside the s42 / 43 range, so the margin stands (§346, 16:00 note). T1 − sens_cost is −0.42 / +0.01 (§355) |
+| C1 | A plan agent trained once on 10 CNNs (C10 plus one SVHN net), then frozen, transfers to held-out nets of a seen family at equal params | T1 − mild **+2.20** (+2.20 / +2.20 / +2.58) on thin r56-w4, five seeds; T1 − uniform **+0.96** (+0.54 / +0.75 / +0.98) on DepGraph R56 (§346) | Keeps 1.2–1.6× sens's FLOPs. The uniform rows at s44–46 hit the stall fallback, but their values sit inside the s42 / 43 range, so the margin stands (§346, 15:56 note). T1 − sens_cost is −0.42 / +0.01 (§355) |
 | C2 | Transfer to an unseen dataset within a seen family | T1 − uniform **+1.16** (+1.49 / +1.33 / +1.29) on DepGraph VGG-19 C100; level with sens (−0.08) (§352) | Every uniform walk hit the fallback (§352 checks). [V] The cut-rate grid {0.9, 0.8} rounds the uniform plan from x0.581 up to x0.642, and the fallback then cuts the following rows at rate 0.8 down to x0.600, so the comparator is not a uniform net; the margin is unsized until a grid-rounded uniform runs (§4 step 1). 1.36× uniform's FLOPs. −0.52 vs sens_cost (§355) |
 | C3 | Family-out transfer, weaker than in-family | LOFO-R − mild **+1.29** (+1.45 / +1.37 / +1.46) on r56-w4, but at the uniform level (+0.08) and −0.99 vs T1; − uniform **+0.84** on DepGraph R56 (§354). LOFO-V − uniform **+0.98** (+1.28 / +1.13 / +0.75) on VGG-19 C100, −0.18 vs T1; +0.74 on VGG-16 C10 (§358) | Params only. The uniform comparators are C1's and C2's fallback rows. LOFO-R's own DepGraph R56 s43 walk hit the fallback (§354 checks). Both folds loaded v10's standardizer (§5.D). LOFO-V − sens_cost −0.70 |
 | C4 | A plan agent learns a FLOPs budget once its plans are realizable | T0-F2 − mild_F **+0.51** (+0.33 / +0.42 / +0.83) on r56-w4 at FLOPs 0.6 (§357) | Trained on that net. − floored sens_F **−0.57** |
 | C5 | The catalog agent matches a net-specific one | T1 − T0 −0.06 at 5k, +0.04 at 10k, seeds 42–44 (§346) | Equal params |
 
-C1–C3 were run before the floor rule; they keep their PRELIM calls and caveats. New cells run every arm floored (§346, 16:00 note). A floored re-read of T1 itself would be its own registered cell (queue, T0-F2 never-list) [R].
+C1–C3 were run before the floor rule; they keep their PRELIM calls and caveats. New cells run every arm floored (§346, 15:56 note). A floored re-read of T1 itself would be its own registered cell (queue, T0-F2 never-list) [R].
 
 Cannot claim:
 

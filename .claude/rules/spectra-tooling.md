@@ -10,6 +10,7 @@
 - Scripts run with `powershell -NoProfile -File scripts/rexec.ps1 -File <script.sh>`. Filter its noise with `Select-String -NotMatch "NativeCommandError|CategoryInfo|FullyQualifiedErrorId|At C:|^\+ |^\s*$"`.
 - From Git Bash, use `ssh -o BatchMode=yes -o LogLevel=ERROR bgu-slurm '<cmd>'`.
 - Uploads go by `scp <file> bgu-slurm:/home/paretsky/scratch_audit/_up_<name>`. Deploy scripts strip CR and check each upload's `git hash-object` against the local blob before overlaying a new tree.
+- CPU tests on the login node: the user slice is capped at 4 CPUs and 8 GB, so set `OMP_NUM_THREADS=4 MKL_NUM_THREADS=4`, and run anything over a minute detached (`nohup … &`, output to a file); an interactive ssh session can drop mid-run (T2's tests, 10 Oct).
 
 **Waiting is event-driven (Ido, 10 Oct).** Never foreground-sleep or poll in a loop in the main tab. Wait with a background Bash until-loop over `sacct` that exits on a terminal state (COMPLETED, FAILED, CANCELLED, TIMEOUT, OUT_OF_MEMORY, NODE_FAIL, PREEMPTED); it wakes the session once. Let it exit early on the first non-COMPLETED terminal state, so a failure is seen at once. A timed wake (a background `sleep` to a clock time) is fine for a promised report.
 

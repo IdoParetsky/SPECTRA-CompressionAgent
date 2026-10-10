@@ -1665,7 +1665,7 @@ Spearman ρ across a net's groups between A0's sensitivity and each group-level 
 - **About 17 GPU-h.** Trains ~3 h each, evals and comparators ~15–25 min each.
 - **Never.** A train-log value as TEST; seeds beyond 42–44; "one agent beats both single-type agents" from a pooled mean; a wrong-type ablation added after the read (it is a separate registration).
 
-### Transfer coverage protocol (design stub, Claude Code, 10 Oct 16:45; `docs/TRANSFER_COVERAGE_PROTOCOL.md`; nothing registered, nothing submitted)
+### Transfer coverage protocol (design stub, Claude Code, 10 Oct 16:31; `docs/TRANSFER_COVERAGE_PROTOCOL.md`; nothing registered, nothing submitted)
 
 - **Gate.** No row below is registered until a sufficient agent exists (protocol §5.A: LEARNS on its train budget and ≥ −0.3 vs floored sens_F at FLOPs 0.6 on r56-w4; awaiting Ido) and Ido GOs the row. §360 (TM) picks the branch (protocol §7).
 - **Common line.** The sufficient agent's recipe with one change per fold; the floor on in every arm and plans rounded onto the walk's cut grid (`SPECTRA_ALLOC_GRID_ROUND`, in development); G2 + origin; one-shot mean plan; seeds 42–44, then 45–46 for every fold in the paper table (both stages registered up front); TEST 5k with val, 10k and honest; FLOPs headline, params beside; zero stall-fallback lines, zero masked edits, landing within 0.01.
