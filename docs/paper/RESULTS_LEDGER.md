@@ -7642,3 +7642,49 @@ Reading:
 Never: "the residual agent beats or matches sens_F"; an in-sample proxy value as a result; a checkpoint chosen on TEST; a rotation on this recipe.
 
 Records: queue row T2-F; next §362.
+
+## 362. (T2-F-W): T2-F's frozen agents and the floored, grid-rounded rules on DepGraph R56 at its FLOPs point and VGG-19 C100 at FLOPs 0.6 (agents **22491033 / 076 / 122** and **22491071 / 081 / 131**; rules **22491034–037, 077–080, 123–125, 130** and **22491072–075, 115 / 117 / 119 / 121, 132 / 133 / 166 / 169**; `tree_v19`, code `9c8452e`) — PRELIM, reported (no registered call); the headroom passes on both nets (+0.51, +0.77); T2-F − sens_F **−0.53** on DepGraph R56 and **+0.34** on VGG-19 C100
+
+Registered before submit 10 Oct 19:10 (commit `0bc9206`; queue row T2-F-W; the follow-on block of T2-F under Ido's GO ~18:15). Smoke 22490741 read clean 19:12. Cells submitted 19:13.
+- *Read.* 10 Oct 21:36 (`scripts/_tmp_s10oct_night_read.sh t2fw`).
+- *Checks.*
+  - 30 / 30 COMPLETED.
+  - Every arm on both nets logged its `[alloc] grid round:` line (15 / 15 per net), and none hit the stall fallback. Every arm lands at FLOPs 0.479–0.480 (DepGraph R56) or 0.600 (VGG-19 C100) at its size point.
+  - DepGraph R56's point is DepGraph's own released 2.11× model as our counter measures it: FLOPs 0.480, params 0.508 (§346).
+- *Comparators.* The four floored, grid-rounded rules in the same cell, at the same seeds.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed):
+
+| net, point | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|---|
+| DepGraph R56, FLOPs 0.48 | sens_F − uniform_F (headroom) | **+0.51** (−0.04 / +0.78 / +0.78) | +0.56 | +0.53 | +0.38 | 1.06–1.21 |
+| DepGraph R56, FLOPs 0.48 | T2-F − sens_F | **−0.53** (−0.24 / −0.74 / −0.60) | −0.17 | −0.35 | −0.23 | 1.06–1.18 |
+| DepGraph R56, FLOPs 0.48 | T2-F − sens_cost_F | −0.41 (−0.70 / −0.56 / +0.02) | +0.16 | −0.13 | −0.13 | 1.06–1.18 |
+| DepGraph R56, FLOPs 0.48 | T2-F − inner_F | −0.26 (−0.12 / −0.52 / −0.14) | +0.10 | −0.08 | −0.19 | 1.14–1.32 |
+| DepGraph R56, FLOPs 0.48 | T2-F − uniform_F | −0.02 (−0.28 / +0.04 / +0.18) | +0.39 | +0.18 | +0.15 | 1.13–1.31 |
+| VGG-19 C100, FLOPs 0.6 | sens_F − uniform_F (headroom) | **+0.77** (+0.80 / +0.12 / +1.38) | +0.57 | +0.67 | +0.68 | 0.57–0.59 |
+| VGG-19 C100, FLOPs 0.6 | T2-F − sens_F | **+0.34** (+0.34 / +0.64 / +0.04) | +0.09 | +0.22 | +0.77 | 1.01–1.11 |
+| VGG-19 C100, FLOPs 0.6 | T2-F − sens_cost_F | +0.29 (+0.68 / −0.20 / +0.38) | +0.27 | +0.28 | +0.69 | 1.04–1.11 |
+| VGG-19 C100, FLOPs 0.6 | T2-F − inner_F | +1.39 (+1.30 / +1.62 / +1.26) | +1.12 | +1.26 | +1.72 | 0.60–0.64 |
+| VGG-19 C100, FLOPs 0.6 | T2-F − uniform_F | +1.11 (+1.14 / +0.76 / +1.42) | +0.67 | +0.89 | +1.45 | 0.60–0.64 |
+
+Absolute TEST 5k means:
+- DepGraph R56: T2-F −0.05, sens_F +0.48, sens_cost_F +0.37, inner_F +0.21, uniform_F −0.03.
+- VGG-19 C100: T2-F +0.60, sens_F +0.26, sens_cost_F +0.31, inner_F −0.79, uniform_F −0.51.
+- Every pair keeps FLOPs within 1 %.
+
+Reading:
+1. **Grid rounding works in production** [V]. All 30 arms land exactly at their FLOPs points with no fallback, on the two nets whose walks stalled before (§352 note).
+2. **Both nets have a FLOPs lever** (the protocol's entry gate, +0.5, read on val first: +0.56 and +0.57). VGG-19 C100's +0.77 overturns the walk-era −0.04 (§320): under G2 one-shot with clean landings, VGG-19 C100 can carry a FLOPs headline.
+3. **T2-F helps the VGG net and hurts both ResNets.** It is +0.34 over sens_F on VGG-19 C100 (no seed negative, but val only +0.09), and −0.53 on DepGraph R56, where it sits at the uniform level; −1.89 on r56-w4 (§361).
+   - [H] The trainer ran with `NORM_ADV=0`, inherited from T0's single-net line (§341), so each instance's advantage is its raw reward minus the K-plan mean.
+   - The catalog's VGG / MobileNet / DenseNet instances have proxy rewards that span tens of pp (their mean plans beat the prior in-sample by +28 to +62 at κ 0.6, §361), against single digits for three of its four ResNets. So they dominate the gradient, and the residual learned their direction.
+   - With `NORM_ADV=1` (the trainer's default), every instance's advantage has unit scale.
+4. **FLOPs-matched DepGraph star (the rule, not the agent).**
+   - At DepGraph's own FLOPs point, sens_F lands +0.48 at 5k (+0.56 at 10k), and uniform_F −0.03 (+0.03 at 10k). DepGraph's published figure is +0.24 at 10k.
+   - Their fine-tune differs from ours (G2, 100 epochs, one shot).
+   - sens_F keeps params 0.53–0.60 against DepGraph's 0.508. Quote these beside DepGraph, never as a beat.
+
+Never: "T2-F beats sens_F on VGG-19 C100" as a call (a reported row; val +0.09); "beats DepGraph"; mixing these grid-rounded rows with unrounded rows in one comparison.
+
+Records: queue row T2-F-W; next §363.
