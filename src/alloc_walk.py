@@ -394,6 +394,10 @@ def grid_priority(info, rows):
         z = {row: float(sens.get(row, 0.0)) for row in rows}
         prior = (info.get("prior") or {}).get("weights") if info.get("residual") else None
         if prior:  # T2: a residual plan ranks groups by log(prior weight) + z (plan_agent.residual_decode)
+            zmax = float((info.get("prior") or {}).get("zmax", 0.0))
+            if zmax > 0:  # v20 trust region: the decoder exponentiated z_eff = zmax · tanh(z / zmax), so rank by that
+                from src import plan_agent
+                z = {row: plan_agent.trust_score(z[row], zmax) for row in rows}
             return {row: math.log(max(1e-12, float(prior.get(row, 1.0)))) + z[row] for row in rows}
         return z
     sample = info.get("sample") if kind_name == "sample" else None

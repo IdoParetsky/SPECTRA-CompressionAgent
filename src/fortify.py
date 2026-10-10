@@ -1197,6 +1197,27 @@ def plan_residual_sigma() -> float:
     return max(0.0, _env_float_or("SPECTRA_PLAN_RESIDUAL_SIGMA", 0.25))
 
 
+def plan_residual_zmax(default: Optional[float] = 0.0) -> Optional[float]:
+    """
+    ``SPECTRA_PLAN_RESIDUAL_ZMAX`` (default 0 = off): a trust region on the T2 residual (v20). With zmax > 0
+    ``plan_agent.residual_decode`` exponentiates z_eff = zmax · tanh(z / zmax) in place of z, so no group's weight
+    leaves a factor e^±zmax of the prior rule's; the agent still samples and scores the raw z. Ledger §361: unbounded,
+    T2-F's frozen residual moved 10–22 of r56-w4's 30 groups by up to 0.62 of keep and lost 1.89 pp to its prior.
+    ``default`` is returned when the flag is unset (None lets ``plan_for_env`` tell unset from 0); a negative, infinite
+    or non-numeric value is refused.
+    """
+    raw = os.environ.get("SPECTRA_PLAN_RESIDUAL_ZMAX", "").strip()
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError(f"SPECTRA_PLAN_RESIDUAL_ZMAX={raw!r}: expected a number >= 0") from None
+    if not 0.0 <= value < float("inf"):  # refuses nan too
+        raise ValueError(f"SPECTRA_PLAN_RESIDUAL_ZMAX={raw!r}: expected a finite number >= 0")
+    return value
+
+
 def alloc_grid_round() -> bool:
     """
     ``SPECTRA_ALLOC_GRID_ROUND=1`` (v18, default off): the alloc walk rounds a decoded plan onto its rate grid before it

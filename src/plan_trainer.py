@@ -24,7 +24,10 @@ prior weights, computed once per budget from the sensitivities and, for sens_cos
 prior's own plan joins the references as ``prior`` and the checkpoint carries ``residual`` / ``residual_alpha`` /
 ``residual_sigma``), RESIDUAL_ALPHA (0.5, the rule's power), RESIDUAL_SIGMA (0.25: the σ schedule scaled by
 RESIDUAL_SIGMA / SIGMA, as a unit of z moves a keep by about 100 % relative under the residual against
-keep · (1 − keep) under ``decode``).
+keep · (1 − keep) under ``decode``), RESIDUAL_ZMAX (``fortify.plan_residual_zmax``, 0 = off, read only with the
+residual on: v20's trust region, every plan, sampled or mean, decodes zmax · tanh(z / zmax) in place of z, so no
+group's weight leaves e^±zmax of its prior's; z is still what is sampled and scored, each step records how many
+groups' mean is past the bound, and the checkpoint carries ``residual_zmax``).
 """
 
 import json
@@ -130,6 +133,13 @@ def residual():
     return fortify.plan_residual(), fortify.plan_residual_alpha(), fortify.plan_residual_sigma()
 
 
+def residual_zmax() -> float:
+    """``SPECTRA_PLAN_RESIDUAL_ZMAX`` (``fortify.plan_residual_zmax``; 0 = off, as before): the trust region's bound on
+    the residual's decoded scores (``plan_agent.residual_decode``); ``run`` reads it once, only with the residual on."""
+    from src import fortify
+    return fortify.plan_residual_zmax()
+
+
 def prior_of(inst, res, budget="params"):
     """``inst``'s prior weights under ``res`` = (mode, alpha) on ``budget`` (``NetInstance.prior``); None when off."""
     if res is None:
@@ -142,11 +152,12 @@ def prior_of(inst, res, budget="params"):
     return weights
 
 
-def _decode(z, cm, kappa, cfg, floor=1, prior=None):
-    """``plan_agent.decode`` as before, or ``residual_decode`` on ``prior`` when the residual is on."""
+def _decode(z, cm, kappa, cfg, floor=1, prior=None, zmax=0.0):
+    """``plan_agent.decode`` as before, or ``residual_decode`` on ``prior`` when the residual is on, inside the trust
+    region when ``zmax`` is above 0."""
     if prior is None:
         return plan_agent.decode(z, cm, kappa, cfg.k_min, min_width=floor)
-    return plan_agent.residual_decode(z, prior, cm, kappa, cfg.k_min, min_width=floor)
+    return plan_agent.residual_decode(z, prior, cm, kappa, cfg.k_min, min_width=floor, zmax=zmax)
 
 
 def references(inst, kappa, cfg, batches, budget="params", floor=1, prior=None):
@@ -162,10 +173,10 @@ def references(inst, kappa, cfg, batches, budget="params", floor=1, prior=None):
     return out
 
 
-def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1, prior=None):
+def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1, prior=None, zmax=0.0):
     with torch.no_grad():
         mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
-    return _decode(mu.tolist(), inst.cost_model(budget), kappa, cfg, floor, prior)
+    return _decode(mu.tolist(), inst.cost_model(budget), kappa, cfg, floor, prior, zmax)
 
 
 def _budget_tag(budget) -> str:
@@ -173,7 +184,7 @@ def _budget_tag(budget) -> str:
     return "" if budget == "params" else f" b={budget}"
 
 
-def summary(policy, instances, cfg, log, floor=1, res=None):
+def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0):
     """Mean plan vs references per net at each summary κ (and budget) on one fixed batch set (val-half proxy reads)."""
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     for inst in instances:
@@ -181,7 +192,7 @@ def summary(policy, instances, cfg, log, floor=1, res=None):
             for budget in budgets:
                 batches = inst.batches(cfg.proxy, cfg.seed)
                 prior = prior_of(inst, res, budget)
-                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior)
+                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax)
                 r_mu = inst.reward(widths, cfg.proxy, batches)
                 refs = references(inst, kappa, cfg, batches, budget, floor, prior)
                 utils.print_flush(
@@ -198,12 +209,14 @@ def run(env, shard):
     floor = min_width()
     mode, alpha, sigma0 = residual()
     res = None if mode == "off" else (mode, alpha)
+    zmax = residual_zmax() if res else 0.0  # the trust region; 0 = every residual decode as before
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     with_cost = res is not None and "sens_cost" in {plan_agent.prior_kind(mode, b) for b in budgets}
     scale = sigma0 / cfg.sigma if res is not None and cfg.sigma > 0 else 1.0
     started = time.perf_counter()
     utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}" + (f" min_width={floor}" if floor > 1 else "")
-                      + (f" residual={mode} alpha={alpha:g} sigma={sigma0:g}" if res else ""))
+                      + (f" residual={mode} alpha={alpha:g} sigma={sigma0:g}" if res else "")
+                      + (f" zmax={zmax:g}" if zmax > 0 else ""))
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
@@ -253,7 +266,8 @@ def run(env, shard):
             "budget": cfg.budget, "nets": [inst.name for inst in instances], "config": asdict(cfg),
             "standardizer": resolve_standardizer_path(), "actor": os.environ.get("SPECTRA_ACTOR_CHECKPOINT_PATH", ""),
             **({"min_width": floor} if floor > 1 else {}),
-            **({"residual": mode, "residual_alpha": alpha, "residual_sigma": sigma0} if res else {})}
+            **({"residual": mode, "residual_alpha": alpha, "residual_sigma": sigma0} if res else {}),
+            **({"residual_zmax": zmax} if zmax > 0 else {})}
 
     def log(record):
         with open(log_path, "a", encoding="utf-8") as fh:
@@ -282,13 +296,16 @@ def run(env, shard):
         cm = inst.cost_model(budget)
         prior = prior_of(inst, res, budget)
         for k in range(cfg.k):
-            plan_widths, info = _decode(z[k].tolist(), cm, kappa, cfg, floor, prior)
+            plan_widths, info = _decode(z[k].tolist(), cm, kappa, cfg, floor, prior, zmax)
             rewards.append(inst.reward(plan_widths, cfg.proxy, batches))
             kept.append(info["kept"])
         r = torch.tensor(rewards, device=mu.device, dtype=mu.dtype)
         adv = r - r.mean()
         if cfg.norm_adv:
             adv = adv / (r.std() + 1e-6)
+        # The action is the raw z ~ N(mu, sigma²), under the trust region too: zmax squashes it only inside the decode,
+        # a deterministic map from action to plan, so log_prob(z) is still the exact log-density of what was sampled and
+        # the REINFORCE estimate stays unbiased (no tanh Jacobian: no density is taken of the squashed scores).
         loss = -(adv.detach() * plan_agent.log_prob(z, mu, sigma)).mean() / cfg.batch
         loss.backward()
         grad = None
@@ -300,11 +317,15 @@ def run(env, shard):
                   "kept": kept, "mu_std": float(mu.detach().std()), "loss": float(loss) * cfg.batch, "grad": grad}
         if res:
             record["residual"], record["prior"] = mode, plan_agent.prior_kind(mode, budget)
+        if zmax > 0:  # groups whose mean is past the bound, where tanh's slope (< 0.42) starts to thin their signal
+            record["mu_beyond_zmax"] = int((mu.detach().abs() > zmax).sum())
         line = (f"[plan] it={it + 1}/{cfg.instances} {inst.name} k={kappa:.3f}{_budget_tag(budget)} sigma={sigma:.3f} "
                 f"| plans mean {statistics.mean(rewards):+.2f} max {max(rewards):+.2f} min {min(rewards):+.2f} kept "
                 f"x{statistics.mean(kept):.3f} | mu std {record['mu_std']:.3f}")
+        if zmax > 0:
+            line += f" | mu beyond zmax {record['mu_beyond_zmax']}/{inst.n_groups}"
         if (it + 1) % cfg.ref_every == 0 or it == 0:
-            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior)
+            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax)
             record["mean_plan"] = {"r": inst.reward(plan_widths, cfg.proxy, batches), "kept": info["kept"]}
             record["refs"] = references(inst, kappa, cfg, batches, budget, floor, prior)
             line += f" | mean plan {record['mean_plan']['r']:+.2f}" + "".join(
@@ -324,5 +345,5 @@ def run(env, shard):
         optimizer.zero_grad()
     path = save(f"it{done:05d}")
     utils.print_flush(f"[plan] saved {path} after {done} instances, {(time.perf_counter() - started) / 60.0:.1f} min")
-    summary(policy, instances, cfg, log, floor, res)
+    summary(policy, instances, cfg, log, floor, res, zmax)
     utils.print_flush(f"[plan] DONE {done} instances in {(time.perf_counter() - started) / 60.0:.1f} min")

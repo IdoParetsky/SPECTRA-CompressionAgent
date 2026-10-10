@@ -13,7 +13,8 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
 * ``residual_decode`` (T2, ``SPECTRA_PLAN_RESIDUAL``, v18): the agent as a residual on a no-agent rule,
   keep_g = clip(c · w_g · exp(z_g), k_min, 1) with w the sens / sens_cost weights of ``prior_weights``
   (``prior_kind`` picks the rule per budget under ``auto``), so the zero-init agent's mean plan is the rule's
-  plan exactly and it learns only a change to it.
+  plan exactly and it learns only a change to it. ``SPECTRA_PLAN_RESIDUAL_ZMAX`` > 0 (v20) is a trust region on
+  that change: exp(z_g) becomes exp(zmax · tanh(z_g / zmax)) (``trust_score``), within e^±zmax of the rule's weight.
 * ``MaskedCut``: ``cut_to``'s L1 cut written as zeros on a working copy, for the reward.
 * ``PlanPolicy``: the agent's state encoder with a per-token linear head. A group's score is the mean
   over its tokens, centred over groups (b absorbs any common shift), and plans are z = μ + σ ε.
@@ -325,17 +326,38 @@ def prior_weights(kind: str, rows, sens, costs=None, budget: str = "params", a: 
     return alloc_walk.weights(kind, {row: float(sens[row]) for row in rows}, a, cost=cost)
 
 
-def residual_decode(z, prior, pm, kappa: float, k_min: float = 0.1, held=(), iters: int = 48, min_width: int = 1):
+def trust_score(v: float, zmax: float) -> float:
+    """The score ``residual_decode`` exponentiates for a raw score ``v`` under the trust region (zmax > 0,
+    ``SPECTRA_PLAN_RESIDUAL_ZMAX``): zmax · tanh(v / zmax), odd, within ±zmax and ≈ v for |v| ≪ zmax (it reaches ±zmax
+    exactly once tanh rounds to 1, |v| ≳ 19 · zmax); ``v`` itself at zmax 0."""
+    return float(zmax) * math.tanh(float(v) / float(zmax)) if zmax > 0 else float(v)
+
+
+def residual_decode(z, prior, pm, kappa: float, k_min: float = 0.1, held=(), iters: int = 48, min_width: int = 1,
+                    zmax: float = 0.0):
     """``(widths, info)`` for scores ``z`` (one per ``pm.rows``) as a residual on ``prior`` (``{row: weight}``,
     ``prior_weights``): keep_g = clip(c · w_g · exp(z_g), k_min, 1), c bisected, floored and polished exactly as
     ``scale_decode`` does, whose plan for ``prior`` this is at z = 0 (exp(0) · w = w). A unit of z moves a group's keep
     by about 100 % relative before c re-lands the budget; a group clipped at 1 (c · w_g ≥ 1) only moves once its z goes
     negative enough, and the floors (``k_min``, ``min_width``) bind as in every decoder. ``info`` adds the weights
-    decoded (``w``) and the scores."""
+    decoded (``w``) and the scores.
+
+    ``zmax`` > 0 is the trust region (v20): z_g is replaced by z_eff = ``trust_score(z_g, zmax)`` before exp, so each
+    weight stays within e^±zmax of the prior's and, as c then moves by at most as much, each unclipped keep within about
+    e^±2·zmax of the prior plan's before rounding; z = 0 is still the prior's plan exactly, and ``info`` adds ``z_eff``
+    and ``zmax``. A common shift of z is no longer absorbed by c (tanh is not linear); the policy's mean is centred
+    anyway. The squash sits inside this deterministic map from the sampled action z to a plan: the trainer still draws
+    z ~ N(μ, σ²) and scores ``log_prob(z)``, so its REINFORCE gradient E[A ∇ log π(z)] stays unbiased for the bounded
+    plan's reward, with no Jacobian term (that is owed only by a density over the squashed value, which nothing takes).
+    0 = as before: z clipped at ±``Z_CLIP``, which only keeps exp finite (it binds under the trust region only for
+    zmax > ``Z_CLIP``)."""
     scores = {row: float(v) for row, v in zip(pm.rows, z)}
-    w = {row: float(prior[row]) * math.exp(max(-Z_CLIP, min(Z_CLIP, scores[row]))) for row in pm.rows}
+    eff = {row: trust_score(v, zmax) for row, v in scores.items()} if zmax > 0 else scores
+    w = {row: float(prior[row]) * math.exp(max(-Z_CLIP, min(Z_CLIP, eff[row]))) for row in pm.rows}
     widths, info = scale_decode(w, pm, kappa, k_min, held=held, iters=iters, min_width=min_width)
     info["w"], info["z"] = w, scores
+    if zmax > 0:
+        info["z_eff"], info["zmax"] = eff, float(zmax)
     return widths, info
 
 
@@ -727,7 +749,9 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     the alloc walk's sens / sens_cost kinds use (``group_sensitivity.calibration_batches`` on ``env.train_loader`` at
     the point ``alloc_walk._state`` draws them, before the policy module is built, so the shuffled loader sees the
     same global RNG state and the prior is that comparator's rule); ``info`` then carries ``residual`` and a
-    ``prior`` entry with the rule's own plan and the agent's distance from it."""
+    ``prior`` entry with the rule's own plan and the agent's distance from it. Under the trust region (``residual_zmax``
+    in the blob, or ``SPECTRA_PLAN_RESIDUAL_ZMAX``, above 0) the decode is bounded by it, and ``prior`` adds ``zmax``
+    so the grid rounding ranks the groups by the scores decoded (``alloc_walk.grid_priority``)."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
     from src import fortify, group_sensitivity, state_dump
     from src.BERTInputModeler import action_cost_slot_dim
@@ -739,7 +763,7 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
         raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
     device = env.conf.device
     blob = read_blob(policy_path)
-    residual, alpha = eval_residual(blob)
+    residual, alpha, zmax = eval_residual(blob)
     batches = None
     if residual != "off":
         batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, device)
@@ -791,16 +815,18 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
         sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, env._input_shape(), costs=costs)
         prior = prior_weights(kind, pm.rows, sens, costs, budget, alpha)
         k_min_eff = float(blob.get("k_min", k_min))
-        widths, info = residual_decode(z, prior, pm, target, k_min_eff, min_width=min_width)
+        widths, info = residual_decode(z, prior, pm, target, k_min_eff, min_width=min_width, zmax=zmax)
         base, base_info = scale_decode(prior, pm, target, k_min_eff, min_width=min_width)
         delta = {row: (widths[row] - base[row]) / float(pm.widths0[row]) for row in pm.rows}
         moved = sum(widths[row] != base[row] for row in pm.rows)
         extra = {"residual": residual,
                  "prior": {"kind": kind, "alpha": float(alpha), "kept": float(base_info["kept"]), "widths": base,
                            "weights": prior, "moved": int(moved), "max_abs": max(abs(d) for d in delta.values()),
-                           "dist": math.sqrt(sum(d * d for d in delta.values()))}}
+                           "dist": math.sqrt(sum(d * d for d in delta.values())),
+                           **({"zmax": float(zmax)} if zmax > 0 else {})}}
         utils.print_flush(
-            f"[alloc] plan agent residual on {kind} alpha={alpha:g}: prior keeps x{base_info['kept']:.3f}, agent "
+            f"[alloc] plan agent residual on {kind} alpha={alpha:g}" + (f" zmax {zmax:g}" if zmax > 0 else "")
+            + f": prior keeps x{base_info['kept']:.3f}, agent "
             f"x{info['kept']:.3f}; {moved}/{len(pm.rows)} groups moved, max |Δkeep| {extra['prior']['max_abs']:.2f}, "
             f"dist {extra['prior']['dist']:.3f}")
     return widths, {"kind": "agent" if drawn is None else "agent_sample", "alpha": 0.0, "target": float(target),
@@ -814,9 +840,10 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
 
 
 def eval_residual(blob):
-    """``(mode, alpha)`` a frozen agent decodes with: the checkpoint's ``residual`` / ``residual_alpha`` (off / 0.5
-    when absent, the pre-T2 checkpoints), each overridden by ``SPECTRA_PLAN_RESIDUAL`` / ``SPECTRA_PLAN_RESIDUAL_ALPHA``
-    when that is set, with a WARNING line when it differs from what the agent trained with."""
+    """``(mode, alpha, zmax)`` a frozen agent decodes with: the checkpoint's ``residual`` / ``residual_alpha`` /
+    ``residual_zmax`` (off / 0.5 / 0 when absent: the pre-T2 and the unbounded checkpoints), each overridden by
+    ``SPECTRA_PLAN_RESIDUAL`` / ``SPECTRA_PLAN_RESIDUAL_ALPHA`` / ``SPECTRA_PLAN_RESIDUAL_ZMAX`` when that is set, with
+    a WARNING line when it differs from what the agent trained with. Off reads neither: (off, None, 0)."""
     from src import fortify
     import src.utils as utils
     mode = str(blob.get("residual", "off"))
@@ -826,7 +853,7 @@ def eval_residual(blob):
                           f"SPECTRA_PLAN_RESIDUAL={flag} overrides it")
         mode = flag
     if mode == "off":
-        return mode, None
+        return mode, None, 0.0
     if mode != "auto":
         prior_kind(mode)
     alpha = float(blob.get("residual_alpha", 0.5))
@@ -835,4 +862,10 @@ def eval_residual(blob):
         utils.print_flush(f"[alloc] WARNING: the plan agent trained with residual_alpha={alpha:g}; "
                           f"SPECTRA_PLAN_RESIDUAL_ALPHA={flag_alpha:g} overrides it")
         alpha = flag_alpha
-    return mode, alpha
+    zmax = float(blob.get("residual_zmax", 0.0))
+    flag_zmax = fortify.plan_residual_zmax(default=None)
+    if flag_zmax is not None and flag_zmax != zmax:
+        utils.print_flush(f"[alloc] WARNING: the plan agent trained with residual_zmax={zmax:g}; "
+                          f"SPECTRA_PLAN_RESIDUAL_ZMAX={flag_zmax:g} overrides it")
+        zmax = flag_zmax
+    return mode, alpha, zmax

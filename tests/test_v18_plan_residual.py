@@ -550,3 +550,303 @@ def test_alloc_agent_with_the_residual_calls_plan_for_env_by_its_real_signature(
     alloc_walk._state(types.SimpleNamespace(selected_net_path="other.pt", current_model=env.current_model,
                                             conf=env.conf, target_keep=0.6, train_loader=None))
     assert calls[-1] == {"budget": "flops", "kappa": 0.6}
+
+
+# ------------------------------------------------------------------ the trust region (v20, SPECTRA_PLAN_RESIDUAL_ZMAX)
+# With zmax > 0 the residual decodes z_eff = zmax · tanh(z / zmax) in place of z: every weight within e^±zmax of the
+# prior's. Unset or 0, in the trainer and at eval, every plan, line, record and blob key is as in tree_v19.
+
+
+def _hot_policy():
+    """A policy whose head is far from zero (std 2), so its mean scores move the plan well off the prior."""
+    policy = plan_agent.PlanPolicy(63)
+    with torch.no_grad():
+        torch.manual_seed(1)
+        policy.head.weight.normal_(std=2.0)
+    return policy
+
+
+def test_plan_residual_zmax_flag_default_off_parse_and_errors(monkeypatch):
+    assert fortify.plan_residual_zmax() == 0.0 and fortify.plan_residual_zmax(default=None) is None
+    assert plan_trainer.residual_zmax() == 0.0
+    for raw, want in (("0.5", 0.5), (" 1 ", 1.0), ("0", 0.0), ("2e-1", 0.2)):
+        monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", raw)
+        assert fortify.plan_residual_zmax() == want and fortify.plan_residual_zmax(default=None) == want
+    assert plan_trainer.residual_zmax() == 0.2
+    for bad in ("-0.1", "nan", "inf", "-inf", "half"):
+        monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", bad)
+        with pytest.raises(ValueError, match="SPECTRA_PLAN_RESIDUAL_ZMAX"):
+            fortify.plan_residual_zmax()
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", " ")
+    assert fortify.plan_residual_zmax() == 0.0 and fortify.plan_residual_zmax(default=None) is None
+
+
+def test_trust_score_is_odd_bounded_by_zmax_near_identity_inside_and_the_raw_score_at_zero():
+    for zmax in (0.1, 0.5, 2.0):
+        for v in (1.0 * zmax, 3.0 * zmax, 10.0 * zmax):                        # large |z|: strictly inside the bound
+            eff = plan_agent.trust_score(v, zmax)
+            assert 0.0 < eff < zmax and plan_agent.trust_score(-v, zmax) == -eff
+        for v in (1e4, -1e4, 1e300):                                            # tanh rounds to 1: at it, never past
+            assert abs(plan_agent.trust_score(v, zmax)) == zmax
+        for v in (0.01 * zmax, -0.02 * zmax):                                    # small |z|: z_eff ≈ z
+            assert plan_agent.trust_score(v, zmax) == pytest.approx(v, rel=1e-3)
+        assert plan_agent.trust_score(0.0, zmax) == 0.0
+        effs = [plan_agent.trust_score(k * zmax / 4.0, zmax) for k in range(-20, 21)]
+        assert all(a < b for a, b in zip(effs, effs[1:]))                         # increasing: z's order is kept
+    for v in (0.0, 0.7, -45.0, 1e4):
+        assert plan_agent.trust_score(v, 0.0) == v                               # off: the raw score
+
+
+@pytest.mark.parametrize("budget", ["params", "flops"])
+def test_residual_decode_zmax_zero_is_todays_decode_and_zero_scores_stay_the_prior_plan(budget):
+    model = _model()
+    plan = _plan(model)
+    pm = _cost_model(model, plan, budget)
+    sens, costs = _measured(model, plan)
+    prior = plan_agent.prior_weights(plan_agent.prior_kind("auto", budget), pm.rows, sens, costs, budget)
+    eps = torch.randn(len(pm.rows), generator=torch.Generator().manual_seed(2)).tolist()
+    assert plan_agent.Z_CLIP == 30.0
+    for z in ([0.0] * len(pm.rows), [0.25 * e for e in eps], [3.0 * e for e in eps],
+              [1e4 if k % 2 else -1e4 for k in range(len(pm.rows))]):
+        widths, info = plan_agent.residual_decode(z, prior, pm, 0.6)
+        assert plan_agent.residual_decode(z, prior, pm, 0.6, zmax=0.0) == (widths, info)
+        assert set(info) == {"c", "kept", "keeps", "w", "z"}
+        # tree_v19's decode written out: w = prior · exp(clip(z, ±30)), then scale_decode, bit for bit
+        old_w = {row: float(prior[row]) * math.exp(max(-30.0, min(30.0, float(z[k])))) for k, row in enumerate(pm.rows)}
+        o_widths, o_info = plan_agent.scale_decode(old_w, pm, 0.6)
+        assert widths == o_widths and info["w"] == old_w and {k: info[k] for k in o_info} == o_info
+    base, base_info = plan_agent.scale_decode(prior, pm, 0.6)
+    for zmax in (0.1, 0.5):                                                       # z = 0 under the bound: the prior
+        w_r, i_r = plan_agent.residual_decode([0.0] * len(pm.rows), prior, pm, 0.6, zmax=zmax)
+        assert w_r == base and {k: i_r[k] for k in base_info} == base_info
+        assert i_r["w"] == prior and i_r["z_eff"] == {row: 0.0 for row in pm.rows} and i_r["zmax"] == zmax
+
+
+def test_residual_decode_zmax_bounds_every_weight_and_pulls_the_plan_toward_the_prior():
+    model = _model()
+    plan = _plan(model)
+    pm = plan_agent.ParamModel(model, plan)
+    sens, costs = _measured(model, plan)
+    prior = plan_agent.prior_weights("sens_cost", pm.rows, sens, costs)
+    base, _i = plan_agent.scale_decode(prior, pm, 0.6)
+    eps = torch.randn(len(pm.rows), generator=torch.Generator().manual_seed(4)).tolist()
+    far = [3.0 * e for e in eps]                                                  # a residual moved far, as T2-F's
+    huge = [1e4 if k % 2 else -1e4 for k in range(len(pm.rows))]
+    for zmax in (0.1, 0.3, 1.0):
+        for z in (far, huge):
+            widths, info = plan_agent.residual_decode(z, prior, pm, 0.6, zmax=zmax)
+            assert info["z"] == {row: float(v) for row, v in zip(pm.rows, z)} and info["zmax"] == zmax
+            for k, row in enumerate(pm.rows):
+                assert info["z_eff"][row] == plan_agent.trust_score(z[k], zmax) and abs(info["z_eff"][row]) <= zmax
+                assert info["w"][row] == prior[row] * math.exp(info["z_eff"][row])
+                assert math.exp(-zmax) - 1e-12 <= info["w"][row] / prior[row] <= math.exp(zmax) + 1e-12
+            assert abs(info["kept"] - 0.6) < TOL["params"] and info["kept"] == pytest.approx(pm.kept(widths))
+            assert min(info["keeps"].values()) >= 0.1 - 1e-12
+    moved = lambda w: sum(abs(w[r] - base[r]) / pm.widths0[r] for r in pm.rows)  # noqa: E731
+    free = plan_agent.residual_decode(far, prior, pm, 0.6)[0]
+    tight = plan_agent.residual_decode(far, prior, pm, 0.6, zmax=0.1)[0]
+    assert tight != free and moved(tight) < moved(free)
+
+
+def test_grid_priority_ranks_a_bounded_residual_plan_by_log_w_plus_z_eff():
+    rows = [3, 7, 11, 13]
+    z = {3: 0.5, 7: 0.0, 11: -2.0, 13: 40.0}
+    prior = {3: 0.1, 7: 1.0, 11: 2.0, 13: 0.5}
+    info = {"kind": "agent", "sens": z, "residual": "sens", "prior": {"weights": prior}}
+    free = alloc_walk.grid_priority(info, rows)
+    assert free == {r: math.log(prior[r]) + z[r] for r in rows}                        # unbounded: as before
+    assert alloc_walk.grid_priority({**info, "prior": {"weights": prior, "zmax": 0.0}}, rows) == free
+    for kind in ("agent", "agent_sample"):
+        got = alloc_walk.grid_priority({**info, "kind": kind, "prior": {"weights": prior, "zmax": 0.3}}, rows)
+        assert got == {r: math.log(prior[r]) + 0.3 * math.tanh(z[r] / 0.3) for r in rows}
+        assert all(abs(got[r] - math.log(prior[r])) <= 0.3 for r in rows)
+        assert max(got, key=got.get) == 11 and max(free, key=free.get) == 13            # the bound reorders the steps
+    assert alloc_walk.grid_priority({"kind": "agent", "sens": z, "prior": {"zmax": 0.3}}, rows) == z  # no residual
+
+
+def _zmax_text(line):
+    """The trust region's own tokens in a trainer line (the run folder, named after the test, may say zmax too)."""
+    return " zmax=" in line or "mu beyond zmax" in line
+
+
+def test_trainer_zmax_unset_zero_or_residual_off_is_as_before(monkeypatch, tmp_path, v10_env):
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL", "sens_cost")
+    lines, records, blob = _run(monkeypatch, tmp_path / "unset", _instance(), "params")
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0")                          # an explicit 0 is the same run
+    lines0, records0, blob0 = _run(monkeypatch, tmp_path / "zero", _instance(), "params")
+    assert lines[0].endswith("} residual=sens_cost alpha=0.5 sigma=0.25") and lines0[0] == lines[0]
+    assert _strip(records0) == _strip(records) and set(blob0) == set(blob) and "residual_zmax" not in blob
+    assert not any(_zmax_text(line) for line in lines + lines0)
+    assert not any("mu_beyond_zmax" in r for r in records + records0)
+    monkeypatch.delenv("SPECTRA_PLAN_RESIDUAL")                                     # residual off: zmax is never read
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "-1")
+    monkeypatch.setattr(plan_agent, "residual_decode", lambda *a, **k: pytest.fail("off must decode as before"))
+    lines_off, records_off, blob_off = _run(monkeypatch, tmp_path / "off", _instance(with_cost=False), "params")
+    assert not any(_zmax_text(line) or " residual=" in line or line.startswith("[plan] prior") for line in lines_off)
+    assert not any(key.startswith("residual") for key in blob_off)
+    assert not any("mu_beyond_zmax" in r or "residual" in r for r in records_off)
+
+
+def test_trainer_zmax_bounds_every_decode_and_writes_the_line_records_and_blob(monkeypatch, tmp_path, v10_env):
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL", "sens_cost")
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0.5")
+    real, seen = plan_agent.residual_decode, []
+
+    def spy(*args, **kwargs):
+        seen.append(kwargs.get("zmax"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(plan_agent, "residual_decode", spy)
+    inst = _instance()
+    lines, records, blob = _run(monkeypatch, tmp_path, inst, "params")
+    steps = [r for r in records if "it" in r]
+    summaries = [r for r in records if "summary" in r]
+    # every sampled plan (5 instances x K=3), every mean plan of a step, and every summary's mean plan
+    assert len(seen) == 5 * 3 + sum("mean_plan" in r for r in steps) + len(summaries) and set(seen) == {0.5}
+    assert lines[0].endswith("} residual=sens_cost alpha=0.5 sigma=0.25 zmax=0.5")
+    assert blob["residual_zmax"] == 0.5 and blob["residual"] == "sens_cost" and "residual_zmax" not in blob["config"]
+    first = steps[0]                                                              # mu = 0 before the first update
+    assert first["mean_plan"] == first["refs"]["prior"]
+    assert all(r["mu_beyond_zmax"] == 0 for r in steps)                           # a few small steps from a zero head
+    it1 = next(line for line in lines if line.startswith("[plan] it=1/5 toy.pt k="))
+    assert f" | mu std {first['mu_std']:.3f} | mu beyond zmax 0/{inst.n_groups} | mean plan " in it1
+
+
+def test_trainer_zmax_counts_the_groups_whose_mean_is_past_the_bound(monkeypatch, tmp_path, v10_env):
+    """``mu_beyond_zmax`` reads the forward the plans are sampled around; with a hot head the first step's mean plan
+    is the bounded decode of its mean, not the free one."""
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL", "sens")
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0.5")
+    mus = []
+
+    class Hot(plan_agent.PlanPolicy):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            with torch.no_grad():
+                self.head.weight.normal_(std=2.0, generator=torch.Generator().manual_seed(1))
+
+        def forward(self, *args):
+            mu = super().forward(*args)
+            mus.append(mu.detach().clone())
+            return mu
+
+    monkeypatch.setattr(plan_agent, "PlanPolicy", Hot)
+    inst = _instance(with_cost=False)
+    lines, records, _blob = _run(monkeypatch, tmp_path, inst, "params")
+    first = next(r for r in records if "it" in r)
+    want = int((mus[0].abs() > 0.5).sum())
+    assert first["mu_beyond_zmax"] == want and 0 < want <= inst.n_groups
+    it1 = next(line for line in lines if line.startswith("[plan] it=1/5 toy.pt k="))
+    assert f" | mu beyond zmax {want}/{inst.n_groups} | mean plan " in it1
+    # the mean plan's own forward, before any update: equal up to float32 noise (it runs under no_grad, whose kernels
+    # round differently), so its plan is checked on the mean it decoded, mus[1]
+    torch.testing.assert_close(mus[1], mus[0], rtol=1e-4, atol=1e-3)
+    prior = inst.prior("sens", "params", 0.5)
+    widths, info = plan_agent.residual_decode(mus[1].tolist(), prior, inst.pm, first["kappa"], 0.1, zmax=0.5)
+    assert widths != plan_agent.residual_decode(mus[1].tolist(), prior, inst.pm, first["kappa"], 0.1)[0]
+    assert first["mean_plan"]["kept"] == info["kept"]
+    assert first["mean_plan"]["r"] == pytest.approx(inst.reward(widths, "bn2", inst.batches("bn2", 0)), abs=1e-9)
+
+
+def test_plan_for_env_bounds_the_plan_by_the_blobs_zmax_and_reports_it(monkeypatch, tmp_path, v10_env):
+    model, plan, rows, state = _origin(monkeypatch)
+    policy = _hot_policy()
+    meta = {"residual": "sens_cost", "residual_alpha": 0.5, "residual_sigma": 0.25}
+    free = _save(tmp_path, policy, "free", **meta)
+    bound = _save(tmp_path, policy, "bound", residual_zmax=0.3, **meta)
+    env = _env(model)
+    pm = plan_agent.ParamModel(model, plan)
+    lines = []
+    monkeypatch.setattr(utils, "print_flush", lambda s, *a, **k: lines.append(str(s)))
+    w_free, i_free = plan_agent.plan_for_env(env, 0.58, free)                    # no zmax anywhere: as before
+    assert "zmax" not in i_free["prior"] and not any("zmax" in line for line in lines)
+    lines.clear()
+    w_b, i_b = plan_agent.plan_for_env(env, 0.58, bound)
+    prior = _expected_prior(env, model, plan, "sens_cost", "params")
+    z = [i_b["sens"][row] for row in pm.rows]
+    assert z == [i_free["sens"][row] for row in pm.rows]                         # the same raw scores, bounded decode
+    assert w_b == plan_agent.residual_decode(z, prior, pm, 0.58, 0.1, zmax=0.3)[0] and w_b != w_free
+    assert i_b["prior"]["zmax"] == 0.3 and i_b["prior"]["weights"] == prior
+    assert i_b["prior"]["widths"] == i_free["prior"]["widths"] and i_b["prior"]["dist"] < i_free["prior"]["dist"]
+    assert abs(i_b["kept"] - 0.58) < TOL["params"] and not any("WARNING" in line for line in lines)
+    assert [line for line in lines if line.startswith("[alloc] plan agent residual on ")] == [
+        f"[alloc] plan agent residual on sens_cost alpha=0.5 zmax 0.3: prior keeps x{i_b['prior']['kept']:.3f}, agent "
+        f"x{i_b['kept']:.3f}; {i_b['prior']['moved']}/{len(pm.rows)} groups moved, max |Δkeep| "
+        f"{i_b['prior']['max_abs']:.2f}, dist {i_b['prior']['dist']:.3f}"]
+    # the grid rounding ranks the bounded plan's groups by what it decoded, log w + z_eff, and the free one's as before
+    assert alloc_walk.grid_priority(i_b, pm.rows) == {
+        row: math.log(max(1e-12, prior[row])) + plan_agent.trust_score(i_b["sens"][row], 0.3) for row in pm.rows}
+    assert alloc_walk.grid_priority(i_free, pm.rows) == {
+        row: math.log(max(1e-12, prior[row])) + i_free["sens"][row] for row in pm.rows}
+
+
+def test_plan_for_env_zmax_env_flag_overrides_the_blob_with_a_warning(monkeypatch, tmp_path, v10_env):
+    model, plan, rows, state = _origin(monkeypatch)
+    policy = _hot_policy()
+    meta = {"residual": "sens", "residual_alpha": 0.5, "residual_sigma": 0.25}
+    free = _save(tmp_path, policy, "free", **meta)
+    bound = _save(tmp_path, policy, "bound", residual_zmax=0.3, **meta)
+    plain = _save(tmp_path, policy, "plain")
+    env = _env(model)
+    pm = plan_agent.ParamModel(model, plan)
+    prior = _expected_prior(env, model, plan, "sens", "params")
+    lines = []
+    monkeypatch.setattr(utils, "print_flush", lambda s, *a, **k: lines.append(str(s)))
+
+    def decoded(info, zmax):
+        return plan_agent.residual_decode([info["sens"][row] for row in pm.rows], prior, pm, 0.58, 0.1, zmax=zmax)[0]
+
+    def warnings():
+        out = [line for line in lines if "WARNING" in line]
+        lines.clear()
+        return out
+
+    w0, i0 = plan_agent.plan_for_env(env, 0.58, free)                             # unset, unbounded blob: as before
+    assert w0 == decoded(i0, 0.0) and "zmax" not in i0["prior"] and warnings() == []
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0")                          # 0 on an unbounded blob: silent
+    assert plan_agent.plan_for_env(env, 0.58, free) == (w0, i0) and warnings() == []
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0.5")                        # the env bounds an unbounded blob
+    w1, i1 = plan_agent.plan_for_env(env, 0.58, free)
+    assert w1 == decoded(i1, 0.5) and w1 != w0 and i1["prior"]["zmax"] == 0.5
+    assert warnings() == ["[alloc] WARNING: the plan agent trained with residual_zmax=0; "
+                          "SPECTRA_PLAN_RESIDUAL_ZMAX=0.5 overrides it"]
+    w2, i2 = plan_agent.plan_for_env(env, 0.58, bound)                             # ... and re-bounds a bounded one
+    assert w2 == w1 and i2["prior"]["zmax"] == 0.5
+    assert warnings() == ["[alloc] WARNING: the plan agent trained with residual_zmax=0.3; "
+                          "SPECTRA_PLAN_RESIDUAL_ZMAX=0.5 overrides it"]
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0.3")                        # the same value: silent
+    w3, i3 = plan_agent.plan_for_env(env, 0.58, bound)
+    assert w3 == decoded(i3, 0.3) and i3["prior"]["zmax"] == 0.3 and warnings() == []
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0")                          # the env lifts the bound: a WARNING
+    w4, i4 = plan_agent.plan_for_env(env, 0.58, bound)
+    assert w4 == w0 and i4["prior"] == i0["prior"]
+    assert warnings() == ["[alloc] WARNING: the plan agent trained with residual_zmax=0.3; "
+                          "SPECTRA_PLAN_RESIDUAL_ZMAX=0 overrides it"]
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "-1")                         # a bad value fails a residual blob
+    with pytest.raises(ValueError, match="SPECTRA_PLAN_RESIDUAL_ZMAX"):
+        plan_agent.plan_for_env(env, 0.58, bound)
+    lines.clear()
+    w5, i5 = plan_agent.plan_for_env(env, 0.58, plain)                             # ... and is never read when off
+    assert w5 == plan_agent.decode([i5["sens"][row] for row in pm.rows], pm, 0.58)[0] and "prior" not in i5
+    assert not lines
+
+
+def test_trainer_blob_round_trips_zmax_into_plan_for_env(monkeypatch, tmp_path, v10_env):
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL", "sens_cost")
+    monkeypatch.setenv("SPECTRA_PLAN_RESIDUAL_ZMAX", "0.4")
+    _lines, _records, blob = _run(monkeypatch, tmp_path / "train", _instance(), "params")
+    assert blob["residual_zmax"] == 0.4 and blob["residual"] == "sens_cost"
+    monkeypatch.delenv("SPECTRA_PLAN_RESIDUAL")
+    monkeypatch.delenv("SPECTRA_PLAN_RESIDUAL_ZMAX")                               # the eval reads the blob alone
+    model, plan, rows, state = _origin(monkeypatch)
+    env = _env(model)
+    pm = plan_agent.ParamModel(model, plan)
+    lines = []
+    monkeypatch.setattr(utils, "print_flush", lambda s, *a, **k: lines.append(str(s)))
+    widths, info = plan_agent.plan_for_env(env, 0.58, str(tmp_path / "train" / "policy_latest.pt"))
+    prior = _expected_prior(env, model, plan, "sens_cost", "params")
+    z = [info["sens"][row] for row in pm.rows]
+    assert info["residual"] == "sens_cost" and info["prior"]["zmax"] == 0.4 and info["prior"]["weights"] == prior
+    assert widths == plan_agent.residual_decode(z, prior, pm, 0.58, 0.1, zmax=0.4)[0]
+    assert not any("WARNING" in line for line in lines)
+    assert any(line.startswith("[alloc] plan agent residual on sens_cost alpha=0.5 zmax 0.4: ") for line in lines)
