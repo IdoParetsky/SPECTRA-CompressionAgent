@@ -152,6 +152,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - The prior is fixed in advance per budget from pooled evidence, never chosen per net or on TEST (stance rule; supersedes "chosen on val" above).
 - Background code agents, each in its own worktree and reviewed before any deploy: T2 residual, ShuffleNetV2 structural-only, grid rounding.
 
+**Update 17:24 (§360 read; T2-F registered).**
+- **§360 TM → FAILS** (`cf17b6b`): TM − T1 −0.52 pooled at equal params (bar −0.3); TM − mild_F −0.66 on r56-w4 at FLOPs 0.6 (bar +0.5). [V] Its plans barely use the budget flag: the params and FLOPs plans rank r56-w4's groups alike at s43 / s44 (Spearman +0.96 / +0.94), and are inverted at s42.
+- **T2 code** reviewed, committed (`6258e91`) and deployed as `tree_v18` (= v17 + `SPECTRA_PLAN_RESIDUAL`). **T2-F** is registered (`3a36a00`): FLOPs budget, residual on sens, T1's catalog, floor, s42–44. Smokes 22478358 / 359 ran under a background watcher. **Trains wait for Ido's GO** (`scripts/_tmp_s10oct_t2f_submit.sh cells`).
+- Proposed to Ido: for a residual agent the rotation gate is BEATS-PRIOR-F (≥ +0.3 vs floored sens_F on r56-w4), since AT-PRIOR is nearly automatic.
+- **Incident 17:15:** a science script emptied `docs/SITTING_GPU_QUEUE.md` in the working tree. HEAD was restored at 17:16. 14 of about 30 unstaged ops stamps were re-inserted from the transcript; ops was asked to restore the rest. The safe-write rule is now in `.claude/rules/spectra-tooling.md`.
+- ShuffleNetV2 structural-only: done (worktree `agent-a45a7f7338772852f`), not yet deployed; it also found a flag-off misrouting bug (ledger §353 note). Grid rounding: agent still running.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
