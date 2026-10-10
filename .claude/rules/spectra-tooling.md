@@ -10,7 +10,7 @@
 - Scripts run with `powershell -NoProfile -File scripts/rexec.ps1 -File <script.sh>`. Filter its noise with `Select-String -NotMatch "NativeCommandError|CategoryInfo|FullyQualifiedErrorId|At C:|^\+ |^\s*$"`.
 - From Git Bash, use `ssh -o BatchMode=yes -o LogLevel=ERROR bgu-slurm '<cmd>'`.
 - Uploads go by `scp <file> bgu-slurm:/home/paretsky/scratch_audit/_up_<name>`. Deploy scripts strip CR and check each upload's `git hash-object` against the local blob before overlaying a new tree.
-- CPU tests on the login node: the user slice is capped at 4 CPUs and 8 GB, so set `OMP_NUM_THREADS=4 MKL_NUM_THREADS=4`, and run anything over a minute detached (`nohup … &`, output to a file); an interactive ssh session can drop mid-run (T2's tests, 10 Oct).
+- CPU tests on the login node: the user slice is capped at 4 CPUs and 8 GB, so set `OMP_NUM_THREADS=4 MKL_NUM_THREADS=4`, and run anything over a minute detached (`nohup … &`, output to a file); an interactive ssh session can drop mid-run (T2's tests, 10 Oct). Run one test file per pytest process, under `setsid nohup`: a combined run of eleven files died silently after about 4 min with no OOM and no exit code (10 Oct 18:27), while the same files passed one per process.
 
 **Write files safely (learned 10 Oct 17:15).** Compute a file's new content in full before opening it for writing, then write a temp file and `os.replace` it over the target. `open(p, "wb").write(f(x))` truncates `p` before `f` runs, so an exception in `f` leaves the file empty. That emptied the shared queue and lost ops' unstaged stamps. Assert every anchor before any write.
 

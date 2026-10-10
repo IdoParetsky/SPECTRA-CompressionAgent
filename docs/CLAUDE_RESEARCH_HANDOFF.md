@@ -159,6 +159,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **Incident 17:15:** a science script emptied `docs/SITTING_GPU_QUEUE.md` in the working tree. HEAD was restored at 17:16. 14 of about 30 unstaged ops stamps were re-inserted from the transcript; ops was asked to restore the rest. The safe-write rule is now in `.claude/rules/spectra-tooling.md`.
 - ShuffleNetV2 structural-only: done (worktree `agent-a45a7f7338772852f`), not yet deployed; it also found a flag-off misrouting bug (ledger §353 note). Grid rounding: agent still running.
 
+**Update 19:11 (T2-F running; tree_v19 deployed).**
+- **Ido's GO ~18:15**: T2-F submitted 18:16 (trains 22484944 / 951 / 954; evals 22484945 / 952 / 987; floored sens_cost_F 22484946 / 953 / 988). §361 is due around 21:45. The reader has a `t2f` section; run `scripts/_tmp_s10oct_night_read.sh t2f`.
+- **Gate (Ido):** a residual agent opens the rotation and coverage matrix only through BEATS-PRIOR-F (protocol §2, §5.A).
+- **tree_v19** = v18 + `9c8452e`: grid rounding, structural-only plans, and a residual grid priority, all default off. 221 tests pass, one pytest per file.
+- **T2-F-W** registered (`0bc9206`): T2-F's agents and floored, grid-rounded rules on DepGraph R56 (FLOPs 0.48, our counter) and VGG-19 C100 (FLOPs 0.6). Smoke 22490741; the cells go after the smoke read (`scripts/_tmp_s10oct_t2fw_submit.sh cells`).
+- Open for Ido: the hygiene re-read of HF-V / LOFO-V / DepGraph R56 as whole grid-rounded comparisons (~16–20 GPU-h).
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
