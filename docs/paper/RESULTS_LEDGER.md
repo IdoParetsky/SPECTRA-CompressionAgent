@@ -7338,7 +7338,7 @@ Records: queue row LOFO-R; next §355.
 ## 355. sens_cost: a cost-aware sensitivity rule (each group's sens loss rise per unit of what its half cut saves) against sens at equal FLOPs and at equal params (smoke **22436999**, cells **22437002–015**, 009 / 014 not ours; `tree_v16`, code `d240176`) — PRELIM; registered call on r56-w4 at FLOPs 0.6: sens_cost − sens_F **−0.33** (bars ±0.30) → **COST-HURTS**, by 0.03; reported: at equal params sens_cost beats sens on all three nets (+0.39 to +0.47) and the frozen T1 trails or ties it (−0.42, +0.01, −0.52)
 
 Registered before submit 10 Oct 05:08:32 (commit `e383200`; queue row sens_cost, section "Night 10 Oct cells"; Ido's GO, 10 Oct).
-- *Read.* 10 Oct 11:40 (`scripts/_tmp_s10oct_night_read.sh sc`).
+- *Read.* 10 Oct 11:15 (`scripts/_tmp_s10oct_night_read.sh sc`).
 - *Checks.* 13 / 13 COMPLETED (smoke included; its start check passed 07:30). Every arm sits at its size point. Two of the three FLOPs walks on r56-w4 (s42, s44), every FLOPs walk on the guard and the params walk at s42 hit the stall fallback once (unfloored decoders, §351's mechanism); §350's sens_F comparators ran under the same mechanics.
 - *Comparators.* (a) FLOPs: §350's sens_F / inner_F / mild_F / uniform_F / T0-F at the same seed (`tree_v15`, the same eval line). (b) Params, thin pair: T1's map (G2-H s42 / s43 and NR s44 for sens; walked, which sits within about 0.2 pp of one-shot, §341) and T1-E. (c) DepGraph R56 at params 0.47: G2-F / R56C sens and uniform (one-shot) and T1-E. (d) VGG-19 C100 at params 0.6: HF-V's sens / uniform / T1 (one-shot, the same eval line).
 
