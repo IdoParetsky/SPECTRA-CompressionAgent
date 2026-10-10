@@ -166,6 +166,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **T2-F-W** registered (`0bc9206`): T2-F's agents and floored, grid-rounded rules on DepGraph R56 (FLOPs 0.48, our counter) and VGG-19 C100 (FLOPs 0.6). Smoke 22490741; the cells go after the smoke read (`scripts/_tmp_s10oct_t2fw_submit.sh cells`).
 - Open for Ido: the hygiene re-read of HF-V / LOFO-V / DepGraph R56 as whole grid-rounded comparisons (~16–20 GPU-h).
 
+**Update 21:41 (§361, §362 read; T3-F registered).**
+- **§361 T2-F → BELOW-PRIOR** (`92a450e`): T2-F − floored sens_F −1.89 on r56-w4 at FLOPs 0.6; − mild_F −0.81. In-sample proxy +31 pp over its prior, yet worse than sens_F before the fine-tune on the held-out net (one-shot 0.09–0.21 vs 0.26–0.33), so the learned residual does not transfer. Floored sens_cost_F − sens_F −0.48: sens_F stays the FLOPs prior. By Ido's gate there is no rotation.
+- **§362 T2-F-W** (`c0de6cd`, reported): grid rounding lands all 30 arms with no fallback. Headroom +0.51 on DepGraph R56 (FLOPs 0.48) and +0.77 on VGG-19 C100 (FLOPs 0.6). T2-F − sens_F is −0.53 / +0.34, so it helps the VGG net and hurts both ResNets. [H] `NORM_ADV=0` lets high-variance VGG / MobileNet / DenseNet instances dominate.
+- **T3-F registered** (`b3d559f`): T2-F's line + `SPECTRA_PLAN_NORM_ADV=1`, tree_v19. The calls are Ido's gate on r56-w4 and the balance test (T3-F − T2-F pooled over the two held-out ResNets, ±0.5). **Needs Ido's GO**, then `scripts/_tmp_s10oct_t3f_submit.sh` (smokes first; cells held until the smoke read). The fallback design is a trust region on the residual.
+- Open for Ido: the hygiene re-read (HF-V / LOFO-V / DepGraph R56 at equal params, grid-rounded, ~16–20 GPU-h).
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
