@@ -7253,3 +7253,47 @@ Reading:
 Never: "T1 beats sens"; an equal-FLOPs claim; "unseen family" for VGG.
 
 Records: queue row HF-V; next §353.
+
+## 353. (HF-N): the frozen T1 on two families no catalog holds, ShuffleNetV2 ×1 / ×1.5 and RepVGG-A0 / A1 on CIFAR-10 (**22436279–339**, 36 evals; `tree_v13`) — PRELIM; registered outcome **LEVER-LIMITED (no call)**: ShuffleNetV2 is left out by the size rule (T1's walks end above the target, uniform's below), and on RepVGG sens − uniform is **+0.04**, under the +0.5 bar
+
+Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row HF-N, section "Night 10 Oct cells").
+- *Read.* 10 Oct 07:35 (`scripts/_tmp_s10oct_night_read.sh hfn`).
+- *Checks.* 36 / 36 COMPLETED, none failed. No Traceback.
+- *The size rule (registered).* "A net whose arms land more than 0.05 apart in mean params kept is reported and left out of the call"; a walk without a size row is read at val_best only when that row is within 0.01 of the target (reader rule set 04:15, before any cell was read).
+  - **ShuffleNetV2 ×1 and ×1.5 are left out.** In 5 of T1's 6 walks the episode ended above the target (params 0.611–0.682 for 0.600), so there is no size row; only T1 sn1 s42 landed at 0.5999. Each T1 walk logged 2–4 `prune_fallback_masked` edits (a structural edit on a channel-split consumer that breaks the forward is masked instead, so it is counted as a cut but does not shrink the net), and the walk ran out of legal cuts above the target. sens landed at 0.600 and uniform at 0.527 (×1) and 0.549 (×1.5). The size guard therefore drops both nets from the call; their rows are reported in the reader output.
+  - **RepVGG-A0 and A1 are complete**, every arm at params 0.599–0.600. RepVGG in the checkpoints' train-time form has four coupled groups (one per stage), so a plan has about four decisions.
+
+**RepVGG, per seed** (TEST 5k; FLOPs kept):
+
+| net | seed | T1 | sens | uniform | FLOPs T1 / sens / uniform |
+|---|---|---|---|---|---|
+| RepVGG-A0 | 42 | +0.20 | +0.06 | −0.20 | 0.654 / 0.654 / 0.604 |
+| RepVGG-A0 | 43 | +0.40 | −0.22 | −0.02 | 0.752 / 0.642 / 0.604 |
+| RepVGG-A0 | 44 | −0.10 | −0.02 | +0.02 | 0.646 / 0.654 / 0.604 |
+| RepVGG-A1 | 42 | +0.48 | +0.64 | +0.56 | 0.678 / 0.728 / 0.630 |
+| RepVGG-A1 | 43 | +0.80 | +0.56 | +0.58 | 0.667 / 0.728 / 0.630 |
+| RepVGG-A1 | 44 | +0.82 | +0.46 | +0.28 | 0.667 / 0.728 / 0.630 |
+
+T1 RepVGG-A0 s43 and every uniform RepVGG-A1 walk hit the stall fallback once.
+
+**Contrasts on RepVGG** (mean over seeds 42–44, paired by seed; 5k per seed):
+
+| net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| RepVGG-A0 | sens − uniform | +0.01 (+0.26 / −0.20 / −0.04) | −0.33 | −0.16 | −0.09 | 1.06–1.08 |
+| RepVGG-A1 | sens − uniform | +0.08 (+0.08 / −0.02 / +0.18) | −0.03 | +0.03 | +0.01 | 1.16 |
+| RepVGG-A0 | T1 − uniform | +0.23 (+0.40 / +0.42 / −0.12) | −0.23 | +0.00 | −0.06 | 1.07–1.25 |
+| RepVGG-A1 | T1 − uniform | +0.23 (−0.08 / +0.22 / +0.54) | +0.07 | +0.15 | +0.43 | 1.06–1.08 |
+| RepVGG-A0 | T1 − sens | +0.23 (+0.14 / +0.62 / −0.08) | +0.10 | +0.16 | +0.03 | 0.99–1.17 |
+| RepVGG-A1 | T1 − sens | +0.15 (−0.16 / +0.24 / +0.36) | +0.09 | +0.12 | +0.42 | 0.92–0.93 |
+
+- Pooled over the two RepVGG nets × three seeds: sens − uniform **+0.04**; T1 − uniform +0.23 (bootstrap 95 % [+0.04, +0.42]); T1 − sens +0.19 ([−0.02, +0.39]).
+
+Reading:
+1. **No call.** On the one callable family the allocation lever after the final is +0.04, under the registered +0.5, so neither transfer nor failure is identifiable there (§332 sense: uninformative, not failed). T1 sits 0.2 pp above both rules on RepVGG, inside the noise of a lever-less net; reported only.
+2. **ShuffleNetV2 cannot be compared at equal size with the current pruning code.** Its channel-split consumers make some structural edits fail and fall back to masks, so plans that lean on those groups cannot reach the target; which arm lands where depends on the plan, not on its quality. Making these edits structural (or excluding unrealizable groups from the plan) is a prerequisite for any ShuffleNetV2 row.
+3. **Consequence for the transfer claim.** The two families this zoo offers outside the catalog are, as built, uninformative (RepVGG has no lever; ShuffleNetV2 is not realizable at equal size). The family-level evidence must come from leave-one-family-out over the catalog's families, which carry real levers (thin ResNets §337, VGG-19 C100 §352), or from new unseen families chosen for headroom first (`docs/CORNERSTONE_DIGEST_10OCT.md` §5.3 item 4).
+
+Never: "T1 transfers to unseen families" from these rows; a ShuffleNetV2 contrast at unequal size.
+
+Records: queue row HF-N; next §354.
