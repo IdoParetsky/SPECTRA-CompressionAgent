@@ -7297,3 +7297,40 @@ Reading:
 Never: "T1 transfers to unseen families" from these rows; a ShuffleNetV2 contrast at unequal size.
 
 Records: queue row HF-N; next §354.
+
+## 354. (LOFO-R): the plan agent trained without any ResNet (6 catalog nets: VGG-11 / 13 C10, VGG-11 SVHN, MobileNetV2 ×0.5 / ×1, DenseNet-40), read on held-out ResNets (trains **22436251 / 262 / 272**, evals **22436252–278**; `tree_v13`) — PRELIM; registered call (T1's bars): LOFO-R − mild **+1.29** on thin r56-w4 (bar +0.5) and LOFO-R − uniform **+0.84** on DepGraph R56 (bar −0.3) → **FAMILY-TRANSFER**; reported: on thin r56-w4 it sits at the uniform level (+0.08) and 0.99 below T1, while on DepGraph R56 it is level with sens (+0.18)
+
+Registered before submit 10 Oct 03:57 (commit `99806a0`; queue row LOFO-R, section "Night 10 Oct cells").
+- *Read.* 10 Oct 11:05 (`scripts/_tmp_s10oct_night_read.sh lofor`).
+- *Checks.* 21 / 21 COMPLETED, none failed. Each train kept the 6 intended nets and logged `[plan] DONE 12000 instances` in 200.7 / 205.9 / 201.8 min, with no Traceback or WARNING. Every thin and DepGraph R56 row sits at its size point; the DepGraph R56 s43 walk and the guard s42 / s44 walks hit the stall fallback once.
+- *Design.* T1's train line (row 99) with `SPECTRA_PLAN_NETS=vgg,mobilenet,densenet`, seeds 42–44; evals on T1-E's lines (thin pair @0.6, DepGraph R56 @0.47) and the four HF-N nets @0.6. Comparators: T1's (NR + G2-H on the thin pair; G2-F + R56C on DepGraph R56) and T1-E itself at the same seeds.
+
+**LOFO-R per seed** (TEST 5k): r56-w4 −3.30 / −3.14 / −3.60 (params 0.597–0.598, FLOPs 0.530–0.593); DepGraph R56 +0.18 / +0.10 / +0.58 (params 0.467–0.469, FLOPs 0.520–0.581).
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed; FLOPs ratio of LOFO-R to the comparator):
+
+| net | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| r56-w4 | LOFO-R − mild | **+1.29** (+1.68 / +1.72 / +0.48) | +1.45 | +1.37 | +1.46 | 1.17–1.31 |
+| r56-w4 | LOFO-R − uniform | +0.08 (+0.20 / +0.40 / −0.36) | +0.13 | +0.11 | +0.13 | 0.91–1.02 |
+| r56-w4 | LOFO-R − sens | −0.95 (−1.16 / −0.80 / −0.88) | −0.71 | −0.83 | −1.03 | 0.92–1.04 |
+| r56-w4 | LOFO-R − inner | −0.97 (−1.42 / −0.28 / −1.22) | −0.85 | −0.91 | −0.91 | 0.91–1.02 |
+| r56-w4 | LOFO-R − T1 | −0.99 (−1.10 / −0.44 / −1.44) | −0.86 | −0.93 | −1.17 | 0.72–0.75 |
+| DepGraph R56 | LOFO-R − uniform | **+0.84** (+0.88 / +0.56 / +1.08) | +0.14 | +0.49 | +0.86 | 1.10–1.23 |
+| DepGraph R56 | LOFO-R − sens | +0.18 (−0.06 / +0.02 / +0.58) | −0.19 | −0.01 | +0.17 | 1.18–1.37 |
+| DepGraph R56 | LOFO-R − T1 | −0.21 (−0.36 / −0.26 / −0.02) | −0.27 | −0.24 | −0.39 | 0.86–0.95 |
+| guard r20-w2 | LOFO-R − uniform | −1.43 (−1.98 / −0.74 / −1.58) | −1.71 | −1.57 | −1.56 | 0.97–1.01 |
+| guard r20-w2 | LOFO-R − sens | −0.65 (−1.26 / +0.96 / −1.64) | −0.97 | −0.81 | −0.81 | 0.90–0.94 |
+| guard r20-w2 | LOFO-R − T1 | +0.16 (+1.50 / +0.58 / −1.60) | −0.70 | −0.27 | −0.46 | 0.88–0.97 |
+
+- *The HF-N nets (reported; §353's limits apply).* RepVGG-A0: LOFO-R − T1 +0.01, − uniform +0.25; RepVGG-A1: −0.41, −0.19 (no lever there). ShuffleNetV2: one size row out of six; no contrast.
+
+Reading:
+1. **FAMILY-TRANSFER by the registered bars.** An agent that never saw a ResNet beats mild by 1.29 on thin r56-w4 (every seed positive, +0.48 to +1.72) and does not trail uniform on DepGraph R56 (+0.84, every seed positive).
+2. **The reported contrasts qualify it.** On thin r56-w4 LOFO-R sits at the uniform level (+0.08) and about 1 pp below sens, inner and T1. It did not learn the lever those rules use there (keep the residual streams full): its FLOPs kept (0.53–0.59) look like uniform's, against T1's 0.72–0.75. The registered mild bar is weak on thin nets (mild is the worst thin arm, §338), so FAMILY-TRANSFER here means "above the weakest rule", not "as good as an agent that saw the family". On DepGraph R56 (standard widths) LOFO-R is level with sens (+0.18) and 0.21 below T1.
+3. **The price of never seeing the family** (against T1, same seeds): −0.99 on thin r56-w4, −0.21 on DepGraph R56.
+4. [H] **The shape of the transfer claim.** A frozen agent without the family reaches the prior's level where the target behaves like what it saw (a standard-width ResNet-56) and only the generic rules' level on an extreme member of the family (width 4). LOFO-V (VGG held out, running) and a full rotation test whether that holds per family.
+
+Never: "transfers to unseen families as well as with them"; an equal-FLOPs claim; a ShuffleNetV2 contrast.
+
+Records: queue row LOFO-R; next §355.
