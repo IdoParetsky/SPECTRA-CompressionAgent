@@ -17,7 +17,14 @@ NORM_ADV (1), MAX_MINUTES (0 = no limit; the trainer saves and stops when it is 
 (0.4,0.6,0.8: the κ of the closing per-net summary), BUDGET (params: what κ is a fraction of; flops decodes every
 plan to kept MACs on ``plan_agent.FlopModel`` and flags it in the state, mixed draws params or flops per instance),
 MIN_WIDTH (``fortify.plan_min_width``: no plan, sampled or reference, cuts a group below this width, so the reward
-only sees plans the eval walk can realize; ``walk`` = the walk's own floor; written to the checkpoint when above 1).
+only sees plans the eval walk can realize; ``walk`` = the walk's own floor; written to the checkpoint when above 1),
+RESIDUAL (``fortify.plan_residual``, off: T2, the agent as a residual on the sens / sens_cost rule, ``auto`` = the
+best rule of each instance's budget; every plan, sampled or mean, is then ``plan_agent.residual_decode`` on the net's
+prior weights, computed once per budget from the sensitivities and, for sens_cost, the costs of the same cuts; the
+prior's own plan joins the references as ``prior`` and the checkpoint carries ``residual`` / ``residual_alpha`` /
+``residual_sigma``), RESIDUAL_ALPHA (0.5, the rule's power), RESIDUAL_SIGMA (0.25: the σ schedule scaled by
+RESIDUAL_SIGMA / SIGMA, as a unit of z moves a keep by about 100 % relative under the residual against
+keep · (1 − keep) under ``decode``).
 """
 
 import json
@@ -96,9 +103,11 @@ def config() -> Config:
     return cfg
 
 
-def sigma_at(cfg: Config, it: int) -> float:
+def sigma_at(cfg: Config, it: int, scale: float = 1.0) -> float:
+    """The σ of instance ``it``: linear from SIGMA to SIGMA_FLOOR over the decay span, times ``scale`` (the residual's
+    RESIDUAL_SIGMA / SIGMA; 1 leaves the schedule as it was)."""
     span = max(1.0, cfg.sigma_decay * cfg.instances)
-    return max(cfg.sigma_floor, cfg.sigma - (cfg.sigma - cfg.sigma_floor) * min(1.0, it / span))
+    return float(scale) * max(cfg.sigma_floor, cfg.sigma - (cfg.sigma - cfg.sigma_floor) * min(1.0, it / span))
 
 
 def out_dir() -> str:
@@ -114,20 +123,49 @@ def min_width() -> int:
     return fortify.plan_min_width()
 
 
-def references(inst, kappa, cfg, batches, budget="params", floor=1):
+def residual():
+    """``(mode, alpha, sigma)`` of ``SPECTRA_PLAN_RESIDUAL`` (``fortify.plan_residual``; off = as before): the rule the
+    agent is a residual on, the rule's power and the trainer's starting σ under it."""
+    from src import fortify
+    return fortify.plan_residual(), fortify.plan_residual_alpha(), fortify.plan_residual_sigma()
+
+
+def prior_of(inst, res, budget="params"):
+    """``inst``'s prior weights under ``res`` = (mode, alpha) on ``budget`` (``NetInstance.prior``); None when off."""
+    if res is None:
+        return None
+    kind = plan_agent.prior_kind(res[0], budget)
+    weights = inst.prior(kind, budget, res[1])
+    if weights is None:
+        raise RuntimeError(f"{inst.name}: the {kind} prior needs the sensitivities"
+                           + (" and costs" if kind == "sens_cost" else "") + " of the origin")
+    return weights
+
+
+def _decode(z, cm, kappa, cfg, floor=1, prior=None):
+    """``plan_agent.decode`` as before, or ``residual_decode`` on ``prior`` when the residual is on."""
+    if prior is None:
+        return plan_agent.decode(z, cm, kappa, cfg.k_min, min_width=floor)
+    return plan_agent.residual_decode(z, prior, cm, kappa, cfg.k_min, min_width=floor)
+
+
+def references(inst, kappa, cfg, batches, budget="params", floor=1, prior=None):
     out = {}
     for kind in REFERENCES:
         ref = inst.reference(kind, kappa, cfg.k_min, budget=budget, min_width=floor)
         if ref is not None:
             widths, info = ref
             out[kind] = {"r": inst.reward(widths, cfg.proxy, batches), "kept": info["kept"]}
+    if prior is not None:  # the rule the agent starts from, decoded as its mean plan is: equal to it at z = 0
+        widths, info = plan_agent.scale_decode(prior, inst.cost_model(budget), kappa, cfg.k_min, min_width=floor)
+        out["prior"] = {"r": inst.reward(widths, cfg.proxy, batches), "kept": info["kept"]}
     return out
 
 
-def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1):
+def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1, prior=None):
     with torch.no_grad():
         mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
-    return plan_agent.decode(mu.tolist(), inst.cost_model(budget), kappa, cfg.k_min, min_width=floor)
+    return _decode(mu.tolist(), inst.cost_model(budget), kappa, cfg, floor, prior)
 
 
 def _budget_tag(budget) -> str:
@@ -135,16 +173,17 @@ def _budget_tag(budget) -> str:
     return "" if budget == "params" else f" b={budget}"
 
 
-def summary(policy, instances, cfg, log, floor=1):
+def summary(policy, instances, cfg, log, floor=1, res=None):
     """Mean plan vs references per net at each summary κ (and budget) on one fixed batch set (val-half proxy reads)."""
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     for inst in instances:
         for kappa in cfg.summary_kappas:
             for budget in budgets:
                 batches = inst.batches(cfg.proxy, cfg.seed)
-                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor)
+                prior = prior_of(inst, res, budget)
+                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior)
                 r_mu = inst.reward(widths, cfg.proxy, batches)
-                refs = references(inst, kappa, cfg, batches, budget, floor)
+                refs = references(inst, kappa, cfg, batches, budget, floor, prior)
                 utils.print_flush(
                     f"[plan] summary {inst.name} k={kappa:.2f}{_budget_tag(budget)}: mean plan {r_mu:+.2f} "
                     f"(x{info['kept']:.3f}) | "
@@ -157,8 +196,14 @@ def summary(policy, instances, cfg, log, floor=1):
 def run(env, shard):
     cfg = config()
     floor = min_width()
+    mode, alpha, sigma0 = residual()
+    res = None if mode == "off" else (mode, alpha)
+    budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
+    with_cost = res is not None and "sens_cost" in {plan_agent.prior_kind(mode, b) for b in budgets}
+    scale = sigma0 / cfg.sigma if res is not None and cfg.sigma > 0 else 1.0
     started = time.perf_counter()
-    utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}" + (f" min_width={floor}" if floor > 1 else ""))
+    utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}" + (f" min_width={floor}" if floor > 1 else "")
+                      + (f" residual={mode} alpha={alpha:g} sigma={sigma0:g}" if res else ""))
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
@@ -167,13 +212,18 @@ def run(env, shard):
         if cfg.nets and not any(part in name for part in cfg.nets):
             continue
         inst = plan_agent.NetInstance.from_env(env, net_path, net_model, net_loaders, tokens=cfg.tokens,
-                                               zero=cfg.zero)
+                                               zero=cfg.zero, with_cost=with_cost)
         sens = sorted(inst.sens.values()) if inst.sens else [0.0]
         utils.print_flush(
             f"[plan] net {inst.name}: {inst.n_groups} groups, {int(inst.token_mask.sum())}/{inst.token_mask.numel()} "
             f"tokens mapped, width {inst.feature_dim}, {inst.pm.total0} params, origin val {100 * inst.origin_val:.2f}, "
             f"sens min {sens[0]:.4f} median {statistics.median(sens):.4f} max {sens[-1]:.4f}, "
             f"{len(inst.held)} multi-producer groups; {inst.seconds:.1f}s")
+        for b in (budgets if res else ()):
+            w = sorted(prior_of(inst, res, b).values())
+            utils.print_flush(
+                f"[plan] prior {inst.name}{_budget_tag(b)}: {plan_agent.prior_kind(mode, b)} alpha={alpha:g} weights "
+                f"min {w[0]:.3f} median {statistics.median(w):.3f} max {w[-1]:.3f}")
         chk = inst.check()
         bad = abs(chk["analytic"] - chk["real"]) > 1e-6 or abs(chk["masked_r"] - chk["real_r"]) > 0.05
         utils.print_flush(
@@ -202,7 +252,8 @@ def run(env, shard):
     meta = {"tokens": cfg.tokens, "zero": list(cfg.zero), "k_min": cfg.k_min, "proxy": cfg.proxy,
             "budget": cfg.budget, "nets": [inst.name for inst in instances], "config": asdict(cfg),
             "standardizer": resolve_standardizer_path(), "actor": os.environ.get("SPECTRA_ACTOR_CHECKPOINT_PATH", ""),
-            **({"min_width": floor} if floor > 1 else {})}
+            **({"min_width": floor} if floor > 1 else {}),
+            **({"residual": mode, "residual_alpha": alpha, "residual_sigma": sigma0} if res else {})}
 
     def log(record):
         with open(log_path, "a", encoding="utf-8") as fh:
@@ -221,7 +272,7 @@ def run(env, shard):
         inst = rng.choice(instances)
         kappa = rng.uniform(cfg.kappa_lo, cfg.kappa_hi)
         budget = cfg.budget if cfg.budget != "mixed" else rng.choice(plan_agent.BUDGETS)
-        sigma = sigma_at(cfg, it)
+        sigma = sigma_at(cfg, it, scale)
         seed = cfg.seed * 100003 + it
         batches = inst.batches(cfg.proxy, seed)
         mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
@@ -229,8 +280,9 @@ def run(env, shard):
         z = plan_agent.sample_scores(mu, sigma, cfg.k, generator)
         rewards, kept = [], []
         cm = inst.cost_model(budget)
+        prior = prior_of(inst, res, budget)
         for k in range(cfg.k):
-            plan_widths, info = plan_agent.decode(z[k].tolist(), cm, kappa, cfg.k_min, min_width=floor)
+            plan_widths, info = _decode(z[k].tolist(), cm, kappa, cfg, floor, prior)
             rewards.append(inst.reward(plan_widths, cfg.proxy, batches))
             kept.append(info["kept"])
         r = torch.tensor(rewards, device=mu.device, dtype=mu.dtype)
@@ -246,13 +298,15 @@ def run(env, shard):
             optimizer.zero_grad()
         record = {"it": it, "net": inst.name, "kappa": kappa, "budget": budget, "sigma": sigma, "rewards": rewards,
                   "kept": kept, "mu_std": float(mu.detach().std()), "loss": float(loss) * cfg.batch, "grad": grad}
+        if res:
+            record["residual"], record["prior"] = mode, plan_agent.prior_kind(mode, budget)
         line = (f"[plan] it={it + 1}/{cfg.instances} {inst.name} k={kappa:.3f}{_budget_tag(budget)} sigma={sigma:.3f} "
                 f"| plans mean {statistics.mean(rewards):+.2f} max {max(rewards):+.2f} min {min(rewards):+.2f} kept "
                 f"x{statistics.mean(kept):.3f} | mu std {record['mu_std']:.3f}")
         if (it + 1) % cfg.ref_every == 0 or it == 0:
-            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor)
+            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior)
             record["mean_plan"] = {"r": inst.reward(plan_widths, cfg.proxy, batches), "kept": info["kept"]}
-            record["refs"] = references(inst, kappa, cfg, batches, budget, floor)
+            record["refs"] = references(inst, kappa, cfg, batches, budget, floor, prior)
             line += f" | mean plan {record['mean_plan']['r']:+.2f}" + "".join(
                 f" {name} {ref['r']:+.2f}" for name, ref in record["refs"].items())
         record["seconds"] = time.perf_counter() - t0
@@ -270,5 +324,5 @@ def run(env, shard):
         optimizer.zero_grad()
     path = save(f"it{done:05d}")
     utils.print_flush(f"[plan] saved {path} after {done} instances, {(time.perf_counter() - started) / 60.0:.1f} min")
-    summary(policy, instances, cfg, log, floor)
+    summary(policy, instances, cfg, log, floor, res)
     utils.print_flush(f"[plan] DONE {done} instances in {(time.perf_counter() - started) / 60.0:.1f} min")

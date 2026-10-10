@@ -1160,6 +1160,43 @@ def plan_min_width() -> int:
         raise ValueError(f"SPECTRA_PLAN_MIN_WIDTH={raw!r}: expected an integer or walk") from None
 
 
+PLAN_RESIDUAL_MODES = ("off", "sens", "sens_cost", "auto")
+
+
+def plan_residual(default: Optional[str] = "off") -> Optional[str]:
+    """
+    ``SPECTRA_PLAN_RESIDUAL`` (default off): the plan agent as a residual on a no-agent rule (T2, v18). ``sens`` /
+    ``sens_cost`` name the prior rule (``alloc_walk.weights``), ``auto`` takes sens_cost on a params instance and sens
+    on a FLOPs one (the best rule at each budget, ledger §357–§359), per instance so it holds under
+    ``SPECTRA_PLAN_BUDGET=mixed``. The plan is then ``plan_agent.residual_decode``: keep_g ∝ w_g · exp(z_g) with the
+    rule's weights w and the agent's scores z, so the zero-init agent starts at the rule's plan exactly. ``default``
+    is returned when the flag is unset (None lets ``plan_for_env`` tell unset from off); off is as before.
+    """
+    raw = os.environ.get("SPECTRA_PLAN_RESIDUAL", "").strip().lower()
+    if not raw:
+        return default
+    if raw not in PLAN_RESIDUAL_MODES:
+        raise ValueError(f"SPECTRA_PLAN_RESIDUAL={raw!r}: expected one of {PLAN_RESIDUAL_MODES}")
+    return raw
+
+
+def plan_residual_alpha(default: Optional[float] = 0.5) -> Optional[float]:
+    """``SPECTRA_PLAN_RESIDUAL_ALPHA`` (0.5): the prior rule's sensitivity power, the rules' own ``a``
+    (``SPECTRA_ALLOC_ALPHA`` at eval, so the prior is the comparator's plan). ``default`` when unset."""
+    raw = os.environ.get("SPECTRA_PLAN_RESIDUAL_ALPHA", "").strip()
+    return float(raw) if raw else default
+
+
+def plan_residual_sigma() -> float:
+    """
+    ``SPECTRA_PLAN_RESIDUAL_SIGMA`` (0.25): the trainer's starting σ under the residual, scaling its SIGMA →
+    SIGMA_FLOOR schedule by RESIDUAL_SIGMA / SIGMA (0.25 → 0.1 by default). ``decode`` moves a keep by
+    σ · keep · (1 − keep) per unit of z (0.12 at keep 0.6 under σ = 0.5); ``residual_decode`` moves it by about
+    σ · keep, so 0.25 explores the same ±0.12–0.15 of keep at the κ the trainer draws, before the rescale to the budget.
+    """
+    return max(0.0, _env_float_or("SPECTRA_PLAN_RESIDUAL_SIGMA", 0.25))
+
+
 def entropy_anneal_horizon() -> int:
     return max(1, int(os.environ.get("SPECTRA_ENTROPY_ANNEAL_HORIZON", "100")))
 

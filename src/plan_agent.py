@@ -10,6 +10,10 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
   with the scalar b bisected on the cost model so the kept cost comes closest to κ.
 * ``scale_decode``: the alloc walk's family, keep_g = clip(c · w_g, k_min, 1) with c bisected the same
   way, for the uniform / sens / inner reference plans.
+* ``residual_decode`` (T2, ``SPECTRA_PLAN_RESIDUAL``, v18): the agent as a residual on a no-agent rule,
+  keep_g = clip(c · w_g · exp(z_g), k_min, 1) with w the sens / sens_cost weights of ``prior_weights``
+  (``prior_kind`` picks the rule per budget under ``auto``), so the zero-init agent's mean plan is the rule's
+  plan exactly and it learns only a change to it.
 * ``MaskedCut``: ``cut_to``'s L1 cut written as zeros on a working copy, for the reward.
 * ``PlanPolicy``: the agent's state encoder with a per-token linear head. A group's score is the mean
   over its tokens, centred over groups (b absorbs any common shift), and plans are z = μ + σ ε.
@@ -31,6 +35,8 @@ from torch import nn
 TOKEN_KINDS = ("layer", "group")
 PROXIES = ("cut", "bn")
 BUDGETS = ("params", "flops")
+PRIOR_KINDS = ("sens", "sens_cost")
+Z_CLIP = 30.0  # |z| beyond this is clipped in residual_decode: exp stays finite, the plan is already saturated
 
 
 def sigmoid(x: float) -> float:
@@ -292,6 +298,47 @@ def scale_decode(weights, pm, kappa: float, k_min: float = 0.1, held=(), iters: 
     return widths, {"c": c, "kept": p / pm.total0, "keeps": keeps}
 
 
+def prior_kind(mode: str, budget: str = "params") -> str:
+    """The rule a ``SPECTRA_PLAN_RESIDUAL`` mode starts from on a ``budget`` instance: ``sens`` / ``sens_cost`` as
+    named; ``auto`` = sens_cost on params and sens on FLOPs, the best rule at each (ledger §357–§359)."""
+    if mode == "auto":
+        return "sens" if budget == "flops" else "sens_cost"
+    if mode not in PRIOR_KINDS:
+        raise ValueError(f"residual mode {mode!r}: expected one of {PRIOR_KINDS + ('auto',)}")
+    return mode
+
+
+def prior_weights(kind: str, rows, sens, costs=None, budget: str = "params", a: float = 0.5):
+    """``{row: weight}`` of the ``sens`` / ``sens_cost`` rule over ``rows`` (``alloc_walk.weights``, the alloc walk's
+    own floors and median) from the loss rises ``sens`` and, for sens_cost, ``costs`` = ``{row: (params saved, MACs
+    saved)}`` of ``group_sensitivity`` priced in the ``budget`` (params saved, or MACs saved under flops)."""
+    from src import alloc_walk
+    if kind not in PRIOR_KINDS:
+        raise ValueError(f"prior kind {kind!r}: expected one of {PRIOR_KINDS}")
+    if budget not in BUDGETS:
+        raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
+    cost = None
+    if kind == "sens_cost":
+        if costs is None:
+            raise ValueError("the sens_cost prior needs the costs of the sensitivity cuts (group_sensitivity costs=)")
+        cost = {row: float(costs[row][1 if budget == "flops" else 0]) for row in rows}
+    return alloc_walk.weights(kind, {row: float(sens[row]) for row in rows}, a, cost=cost)
+
+
+def residual_decode(z, prior, pm, kappa: float, k_min: float = 0.1, held=(), iters: int = 48, min_width: int = 1):
+    """``(widths, info)`` for scores ``z`` (one per ``pm.rows``) as a residual on ``prior`` (``{row: weight}``,
+    ``prior_weights``): keep_g = clip(c · w_g · exp(z_g), k_min, 1), c bisected, floored and polished exactly as
+    ``scale_decode`` does, whose plan for ``prior`` this is at z = 0 (exp(0) · w = w). A unit of z moves a group's keep
+    by about 100 % relative before c re-lands the budget; a group clipped at 1 (c · w_g ≥ 1) only moves once its z goes
+    negative enough, and the floors (``k_min``, ``min_width``) bind as in every decoder. ``info`` adds the weights
+    decoded (``w``) and the scores."""
+    scores = {row: float(v) for row, v in zip(pm.rows, z)}
+    w = {row: float(prior[row]) * math.exp(max(-Z_CLIP, min(Z_CLIP, scores[row]))) for row in pm.rows}
+    widths, info = scale_decode(w, pm, kappa, k_min, held=held, iters=iters, min_width=min_width)
+    info["w"], info["z"] = w, scores
+    return widths, info
+
+
 def _complement(kept, total):
     mask = torch.ones(int(total), dtype=torch.bool)
     mask[kept.detach().cpu().long()] = False
@@ -410,11 +457,20 @@ def save_policy(policy: PlanPolicy, path: str, **meta):
                 "encoder": policy.encoder_kind, **meta}, path)
 
 
-def load_policy(path: str, device="cpu"):
-    blob = torch.load(path, map_location="cpu", weights_only=False)
+def read_blob(path: str):
+    """The checkpoint's dict as saved (no module is built, so the global RNG is untouched)."""
+    return torch.load(path, map_location="cpu", weights_only=False)
+
+
+def policy_of(blob, device="cpu"):
     policy = PlanPolicy(blob["feature_dim"], blob.get("encoder", "transformer"))
     policy.load_state_dict(blob["state_dict"])
-    return policy.to(device).eval(), blob
+    return policy.to(device).eval()
+
+
+def load_policy(path: str, device="cpu"):
+    blob = read_blob(path)
+    return policy_of(blob, device), blob
 
 
 def _labels(y):
@@ -497,7 +553,7 @@ class NetInstance:
     """A catalog net's origin, read once; ``reward`` scores one plan on it."""
 
     def __init__(self, name, model, plan, state, token_rows, layout, train_loader, val_loader, device,
-                 zero=(), sens=None, input_shape=None):
+                 zero=(), sens=None, input_shape=None, cost=None):
         started = time.perf_counter()
         self.name, self.device, self.zero, self.input_shape = str(name), device, tuple(zero), input_shape
         self.model = model.to(device)
@@ -522,12 +578,16 @@ class NetInstance:
         self.val = eval_batches(val_loader, device)
         self.origin_val = accuracy(self.model, self.val)
         self.sens = sens
+        self.cost = cost  # {row: (params saved, MACs saved)} by the sensitivity half cut: the sens_cost prior (T2)
+        self._prior = {}
         self.held = {int(row) for group, row in plan if len(group.producers) > 1}
         self.seconds = time.perf_counter() - started
 
     @classmethod
-    def from_env(cls, env, net_path, net_model, net_loaders, kappa0=0.6, tokens="layer", zero=(), with_sens=True):
-        """Reset ``env`` on the net and read its origin as the D-IMIT dump does."""
+    def from_env(cls, env, net_path, net_model, net_loaders, kappa0=0.6, tokens="layer", zero=(), with_sens=True,
+                 with_cost=False):
+        """Reset ``env`` on the net and read its origin as the D-IMIT dump does; ``with_cost`` also prices the
+        sensitivity cuts (``group_sensitivity`` ``costs=``) for the sens_cost prior."""
         from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
         from src import group_sensitivity, state_dump
         from src.BERTInputModeler import action_cost_slot_dim
@@ -552,12 +612,14 @@ class NetInstance:
             rows, _conflicts = state_dump.group_token_rows(state["token_members"], rows)
             extra = GROUP_TOKEN_EXTRA_DIM
         layout = state_dump.layout(int(state["layer_features"].size(1)), num_actions, extra)
-        sens = None
+        sens = cost = None
         if with_sens:
             batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, device)
-            sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, env._input_shape())
+            cost = {} if with_cost else None
+            sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, env._input_shape(), costs=cost)
         return cls(os.path.basename(str(net_path)), model, plan, state, rows, layout,
-                   env.train_loader, env.val_loader, device, zero=zero, sens=sens, input_shape=env._input_shape())
+                   env.train_loader, env.val_loader, device, zero=zero, sens=sens, input_shape=env._input_shape(),
+                   cost=cost)
 
     def check(self, kappa: float = 0.6):
         """The uniform plan at ``kappa`` cut for real (``alloc_walk.cut_to``): analytic vs real kept params, masked vs
@@ -620,11 +682,28 @@ class NetInstance:
             recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
         return 100.0 * (accuracy(work, self.val) - self.origin_val)
 
+    def prior(self, kind: str, budget: str = "params", a: float = 0.5):
+        """``{row: weight}`` of the ``sens`` / ``sens_cost`` rule on this net priced in ``budget`` (T2's prior,
+        ``prior_weights``), computed once per (kind, budget, a); None without the sensitivities (or, for sens_cost,
+        the costs) it needs."""
+        if self.sens is None or (kind == "sens_cost" and self.cost is None):
+            return None
+        key = (str(kind), str(budget), float(a))
+        if key not in self._prior:
+            self._prior[key] = prior_weights(kind, self.pm.rows, self.sens, self.cost, budget, a)
+        return self._prior[key]
+
     def reference(self, kind: str, kappa: float, k_min: float = 0.1, a: float = 0.5, budget: str = "params",
                   min_width: int = 1):
         """``(widths, info)`` of the uniform / sens / inner plan at ``kappa`` on the ``budget`` cost model; None for
-        sens without sensitivities. ``min_width`` as ``decode``."""
+        sens without sensitivities. ``min_width`` as ``decode``. ``sens_cost`` (the T2 prior on a params budget) is
+        the same family on ``prior``'s weights; None without the costs."""
         from src import alloc_walk
+        if kind == "sens_cost":
+            weights = self.prior(kind, budget, a)
+            if weights is None:
+                return None
+            return scale_decode(weights, self.cost_model(budget), kappa, k_min, min_width=min_width)
         if kind == "sens" and self.sens is None:
             return None
         sens = self.sens if kind == "sens" else {row: 1.0 for row in self.pm.rows}
@@ -641,9 +720,16 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     ``target`` on a ``FlopModel`` (``kept`` is then the kept FLOPs) and flags the budget in the state; ``kappa``
     is the target the state carries (default ``env.target_keep``, else ``target``). The decoder's width floor is
     ``SPECTRA_PLAN_MIN_WIDTH`` when that is set above 1, else the floor the policy trained with (``min_width`` in
-    the checkpoint, written by the trainer only when it was above 1), else none."""
+    the checkpoint, written by the trainer only when it was above 1), else none.
+
+    A T2 checkpoint (``residual`` in the blob, or ``SPECTRA_PLAN_RESIDUAL`` set: ``eval_residual``) is decoded with
+    ``residual_decode`` on the prior rule's weights for this net and ``budget``, measured through the calibration path
+    the alloc walk's sens / sens_cost kinds use (``group_sensitivity.calibration_batches`` on ``env.train_loader`` at
+    the point ``alloc_walk._state`` draws them, before the policy module is built, so the shuffled loader sees the
+    same global RNG state and the prior is that comparator's rule); ``info`` then carries ``residual`` and a
+    ``prior`` entry with the rule's own plan and the agent's distance from it."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
-    from src import fortify, state_dump
+    from src import fortify, group_sensitivity, state_dump
     from src.BERTInputModeler import action_cost_slot_dim
     from src.group_sensitivity import group_plan
     from src.group_tokens import GROUP_TOKEN_EXTRA_DIM, group_token_state
@@ -652,7 +738,12 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     if budget not in BUDGETS:
         raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
     device = env.conf.device
-    policy, blob = load_policy(policy_path, device)
+    blob = read_blob(policy_path)
+    residual, alpha = eval_residual(blob)
+    batches = None
+    if residual != "off":
+        batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, device)
+    policy = policy_of(blob, device)
     trained, here = blob.get("standardizer") or "", resolve_standardizer_path() or ""
     if trained and os.path.abspath(trained) != os.path.abspath(here):
         utils.print_flush(f"[alloc] WARNING: the plan agent trained under standardizer {trained}; this job reads {here}")
@@ -691,7 +782,27 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     min_width = fortify.plan_min_width()
     if min_width <= 1:
         min_width = max(1, int(blob.get("min_width", 1)))
-    widths, info = decode(z, pm, target, float(blob.get("k_min", k_min)), min_width=min_width)
+    extra = {}
+    if residual == "off":
+        widths, info = decode(z, pm, target, float(blob.get("k_min", k_min)), min_width=min_width)
+    else:
+        kind = prior_kind(residual, budget)
+        costs = {} if kind == "sens_cost" else None
+        sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, env._input_shape(), costs=costs)
+        prior = prior_weights(kind, pm.rows, sens, costs, budget, alpha)
+        k_min_eff = float(blob.get("k_min", k_min))
+        widths, info = residual_decode(z, prior, pm, target, k_min_eff, min_width=min_width)
+        base, base_info = scale_decode(prior, pm, target, k_min_eff, min_width=min_width)
+        delta = {row: (widths[row] - base[row]) / float(pm.widths0[row]) for row in pm.rows}
+        moved = sum(widths[row] != base[row] for row in pm.rows)
+        extra = {"residual": residual,
+                 "prior": {"kind": kind, "alpha": float(alpha), "kept": float(base_info["kept"]), "widths": base,
+                           "weights": prior, "moved": int(moved), "max_abs": max(abs(d) for d in delta.values()),
+                           "dist": math.sqrt(sum(d * d for d in delta.values()))}}
+        utils.print_flush(
+            f"[alloc] plan agent residual on {kind} alpha={alpha:g}: prior keeps x{base_info['kept']:.3f}, agent "
+            f"x{info['kept']:.3f}; {moved}/{len(pm.rows)} groups moved, max |Δkeep| {extra['prior']['max_abs']:.2f}, "
+            f"dist {extra['prior']['dist']:.3f}")
     return widths, {"kind": "agent" if drawn is None else "agent_sample", "alpha": 0.0, "target": float(target),
                     "kept": float(info["kept"]), "budget": budget,
                     "keeps": {row: widths[row] / float(pm.widths0[row]) for row in pm.rows},
@@ -699,4 +810,29 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
                     "held": 0, "policy": os.path.basename(os.path.dirname(os.path.abspath(policy_path)))
                     + "/" + os.path.basename(policy_path),
                     **({"sample": drawn, "mu": {row: float(m) for row, m in zip(pm.rows, mu)}} if drawn else {}),
-                    **({"min_width": int(min_width)} if min_width > 1 else {})}
+                    **({"min_width": int(min_width)} if min_width > 1 else {}), **extra}
+
+
+def eval_residual(blob):
+    """``(mode, alpha)`` a frozen agent decodes with: the checkpoint's ``residual`` / ``residual_alpha`` (off / 0.5
+    when absent, the pre-T2 checkpoints), each overridden by ``SPECTRA_PLAN_RESIDUAL`` / ``SPECTRA_PLAN_RESIDUAL_ALPHA``
+    when that is set, with a WARNING line when it differs from what the agent trained with."""
+    from src import fortify
+    import src.utils as utils
+    mode = str(blob.get("residual", "off"))
+    flag = fortify.plan_residual(default=None)
+    if flag is not None and flag != mode:
+        utils.print_flush(f"[alloc] WARNING: the plan agent trained with residual={mode}; "
+                          f"SPECTRA_PLAN_RESIDUAL={flag} overrides it")
+        mode = flag
+    if mode == "off":
+        return mode, None
+    if mode != "auto":
+        prior_kind(mode)
+    alpha = float(blob.get("residual_alpha", 0.5))
+    flag_alpha = fortify.plan_residual_alpha(default=None)
+    if flag_alpha is not None and flag_alpha != alpha:
+        utils.print_flush(f"[alloc] WARNING: the plan agent trained with residual_alpha={alpha:g}; "
+                          f"SPECTRA_PLAN_RESIDUAL_ALPHA={flag_alpha:g} overrides it")
+        alpha = flag_alpha
+    return mode, alpha
