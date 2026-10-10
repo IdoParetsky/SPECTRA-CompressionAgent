@@ -313,7 +313,7 @@ def _state(env):
         plan_kw = {"budget": "flops"} if flops else {}
         floor = fortify.plan_min_width()
         if floor > 1:
-            agent_kw["min_width"] = floor
+            # plan_for_env reads SPECTRA_PLAN_MIN_WIDTH (or the policy blob's floor) itself; only the rule plans take it.
             plan_kw["min_width"] = floor
         if kind() in ("agent", "agent_sample"):
             from src import plan_agent

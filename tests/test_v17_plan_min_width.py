@@ -276,7 +276,9 @@ def _fake_agent(calls):
     return fake
 
 
-def test_alloc_state_passes_the_floor_to_the_agent_and_the_heuristics_only_when_set(monkeypatch):
+def test_alloc_state_passes_the_floor_to_the_heuristics_and_the_log_only_when_set(monkeypatch):
+    # The agent path gets no min_width keyword: plan_for_env reads SPECTRA_PLAN_MIN_WIDTH (or the blob) itself
+    # (10 Oct fix after eval smoke 22437994; see test_plan_for_env_takes_the_floor_from_the_checkpoint_then_from_the_env).
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "agent")
     monkeypatch.setenv("SPECTRA_PLAN_AGENT", POLICY)
     calls, lines, recorded = [], [], []
@@ -288,12 +290,12 @@ def test_alloc_state_passes_the_floor_to_the_agent_and_the_heuristics_only_when_
     assert "min_width" not in recorded[-1]
     monkeypatch.setenv("SPECTRA_PLAN_MIN_WIDTH", "2")
     alloc_walk._state(_alloc_env())
-    assert calls[-1] == (pytest.approx(0.58), POLICY, 0.1, {"min_width": 2})
+    assert calls[-1] == (pytest.approx(0.58), POLICY, 0.1, {})
     assert lines[-1].endswith("; group width floor 2") and recorded[-1]["min_width"] == 2
     monkeypatch.setenv("SPECTRA_ALLOC_BUDGET", "flops")
     monkeypatch.setenv("SPECTRA_EVAL_SIZE_MATCH", "flop:0.6")
     alloc_walk._state(_alloc_env())
-    assert calls[-1] == (pytest.approx(0.58), POLICY, 0.1, {"budget": "flops", "kappa": 0.6, "min_width": 2})
+    assert calls[-1] == (pytest.approx(0.58), POLICY, 0.1, {"budget": "flops", "kappa": 0.6})
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "uniform")
     planned = []
     monkeypatch.setattr(alloc_walk, "plan_targets",
@@ -333,3 +335,31 @@ def test_plan_targets_floor_under_both_budgets_and_default_unchanged(budget):
         del cut
         lifted += any(w1[row] < 2 <= w2[row] for row in rows)
     assert lifted >= 1                                                # at 0.3 the uniform plan cuts a 4-wide group to 1
+
+
+def test_alloc_agent_with_floor_calls_plan_for_env_by_its_real_signature(monkeypatch):
+    """Regression (10 Oct, eval smoke 22437994): with the floor on, ``_state`` passed ``min_width=`` to
+    ``plan_for_env``, whose signature has no such parameter (it reads ``SPECTRA_PLAN_MIN_WIDTH`` itself); the
+    runner caught the TypeError per net and the job still exited 0. Bind every call to the real signature."""
+    import inspect
+    monkeypatch.setenv("SPECTRA_ALLOC_KIND", "agent")
+    monkeypatch.setenv("SPECTRA_PLAN_AGENT", "/x/runs/job1/plan_agent/policy_latest.pt")
+    monkeypatch.setenv("SPECTRA_PLAN_MIN_WIDTH", "walk")
+    real = inspect.signature(plan_agent.plan_for_env)
+    calls = []
+
+    def fake(*args, **kwargs):
+        real.bind(*args, **kwargs)                       # TypeError on an unknown keyword, as the real call raised
+        calls.append(kwargs)
+        return {5: 3}, {"kind": "agent", "alpha": 0.0, "target": args[1], "kept": 0.57, "keeps": {5: 0.5},
+                        "origin_widths": {5: 6}, "sens": {5: 0.1}, "held": 0, "policy": "plan_agent/policy_latest.pt"}
+
+    monkeypatch.setattr(plan_agent, "plan_for_env", fake)
+    env = types.SimpleNamespace(selected_net_path="net.pt", current_model=ZOO["thin_r20_w4"]().eval(),
+                                conf=types.SimpleNamespace(device="cpu"), target_keep=0.6, train_loader=None)
+    lines = []
+    monkeypatch.setattr(utils, "print_flush", lambda s, *a, **k: lines.append(str(s)))
+    cache = alloc_walk._state(env)
+    assert cache["widths"] == {5: 3}
+    assert calls and "min_width" not in calls[0]
+    assert lines and lines[0].endswith("; group width floor 2")
