@@ -189,6 +189,29 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **Next:** read T4-F as §365 and POOL-F as §366 when the watcher fires (`scripts/_tmp_s10oct_night_read.sh t4f pool`). Watchers now exit after about four polls that cannot reach the cluster (`scripts/_tmp_s11oct_watch.sh`).
 - **On the next quota hit,** back up to Ido's Google Drive through an OAuth remote he sets up; never use a password.
 
+**Update 12 Oct 00:41 (§365, §366 and its diagnostic; HEAD-F running; the quota again).**
+- **§365 T4-F** (trust region zmax 0.3): BELOW-PRIOR on r56-w4 (−0.47); BOUND-HELPS (+1.07 over T3-F); +0.61 over mild_F.
+- **§366 POOL-F:** AT-PRIOR-POOL (T4-F D −0.21, bootstrap [−0.48, −0.00], positive on 2 of 9). Below sens_F on every lever net (mean −0.39). No rotation.
+- **§366 diagnostic** (from the logs, not TEST):
+  - In-sample, the agents learn the raw cut: +6.4 pp (T4-F), +31 pp (T3-F).
+  - Part of it transfers: on held-out nets T4-F keeps +2.4 pp more one-shot accuracy than sens_F, on 6 of 9 nets.
+  - Its sign matches TEST on only 10 of 27 net-seeds, and val selection among every plan family we have never beats sens_F on a lever net.
+  - §361 correction: the train proxy is the raw cut, with no BatchNorm re-estimation.
+- **HEAD-F** (registered 00:09, `d131beb`; no agent, so a sitting decision): is there any plan above floored sens_F at FLOPs 0.6 on the five lever nets?
+  - Alternatives: sens at α 0.25 / 1 / 2, and three σ-0.3 neighbours of sens_F.
+  - Screen at seed 45 with the proxies cut / bn8 / bn32 / ft1 / ft3: 35 evals, 22697895–934, running.
+  - Then, by rule, per net the val-best alternative at seeds 42–44 against POOL-F's sens_F rows.
+  - Tools:
+    - reader `scripts/_tmp_s12oct_head_read.sh` (it prints the confirm pairs);
+    - confirm with `bash s12oct_head_submit.sh confirm net:var …` in `scratch_audit`;
+    - watcher `scripts/_tmp_s12oct_watch.sh`, which also exits 6 on a failed write in home.
+- **The quota again at 00:10:** one write reported `Disk quota exceeded`, and a probe passed at 00:11.
+  - Usage is about 127 GB: scratch 52 (about 36 of it snapshots of ledgered cells), `.conda` 30, a stale PyCharm 2023.3 cache from 26 Feb (21), the repo 16.
+  - Under Ido's ~19:35 GO, tree_v20's 84 ledgered POOL-F snapshot dirs are being copied to `C:\SPECTRA_backups\cluster_traj_models\` on the laptop and deleted after a per-directory check.
+  - No Drive route exists yet: no rclone on the cluster, no Drive app on the laptop.
+  - Waiting on Ido: deleting the PyCharm cache, and backing up then deleting the older trees' ledgered snapshots (about 32 GB).
+- **Next:** read the screen, submit the confirm pairs the reader prints (15 evals), then read the call. T5-F is a train, so it needs Ido's GO, and its design depends on HEAD-F.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
