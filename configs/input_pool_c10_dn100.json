@@ -1,0 +1,7 @@
+{
+  "/home/paretsky/spectra_pretrained_networks/densenet100_cifar10_densenet-cifar_94.88_0.769_296.51.pt": [
+    "densenet100",
+    "/home/paretsky/spectra_models_instantiation/densenet_cifar.py",
+    "cifar-10"
+  ]
+}
