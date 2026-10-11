@@ -7889,3 +7889,66 @@ Reading:
 Never: "the agent matches sens_F across nine nets" without the lever split; a lever-less net as evidence; dropping a net from the pool after this read; a rotation on this recipe.
 
 Records: queue row POOL-F; next §367.
+
+## 367. (HEAD-F): is there a plan above floored sens_F at equal FLOPs on the five held-out lever nets? Six alternatives to sens_F (sens at α 0.25 / 1 / 2; three seeded σ-0.3 neighbours) screened at seed 45 with five proxies before each final, and per net the val-best confirmed at seeds 42–44 against POOL-F's floored sens_F rows (smokes **22697693 / 694**, screen **22697895–934**, confirm **22699051–066**; `tree_v20`) — PRELIM; registered call: H = mean over nets of (alternative − floored sens_F) **−0.04**, positive on 1 of 5 → **NO-HEADROOM**
+
+Registered before submit 12 Oct 00:09 (commit `d131beb`; queue row HEAD-F); no agent, a sitting decision (Ido 9 Oct).
+- *Read.* 12 Oct 02:09 (`scripts/_tmp_s12oct_head_read.sh`).
+- *Checks.*
+  - 50 / 50 COMPLETED with rows; the two smokes read clean (never quoted).
+  - Every plan lands on its FLOPs target (x0.593–0.600; DepGraph R56 x0.479–0.480) with no fallback, Traceback or quota line.
+  - At 00:10:45 an append reported `Disk quota exceeded`, though its line landed. Before the screen, the 84 ledgered tree_v20 `traj_models` were copied to the laptop (950 / 950 files verified) and then deleted.
+- *Selection* (the registered rule: the highest screen val Δ per net): r56-w4 α 1, DepGraph R56 α 2, VGG-19 C100 α 2, r56-w8 sample s2, r20-w8 C100 α 2.
+
+**Confirm, per net** (TEST 5k, mean over seeds 42–44, paired by seed; h = alternative − floored sens_F; FLOPs matched within 2 %):
+
+| net (FLOPs point) | alternative | h, 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|---|
+| thin r56-w4 (0.6) | α 1 | −0.41 (−0.32 / −0.74 / −0.18) | +0.19 | −0.11 | −0.51 | 1.02–1.05 |
+| DepGraph R56 (0.48) | α 2 | −0.33 (−0.14 / −0.26 / −0.60) | −0.30 | −0.32 | −0.18 | 0.97–1.06 |
+| VGG-19 C100 (0.6) | α 2 | −0.13 (−0.64 / +0.24 / +0.02) | +0.09 | −0.02 | −0.21 | 1.05–1.07 |
+| thin r56-w8 (0.6) | s2 | −0.53 (−0.56 / −0.68 / −0.34) | −0.04 | −0.28 | −0.67 | 0.97–0.99 |
+| thin r20-w8 C100 (0.6) | α 2 | **+1.19** (+0.94 / +1.22 / +1.42) | +0.71 | +0.95 | +1.47 | 1.06–1.07 |
+
+The guard r20-w2 is reported only. Under r56-w4's pick (α 1) it loses 6.31 (−1.68 / −8.74 / −8.50).
+
+**The screen** (seed 45; selection only, never a result). The SD of TEST 5k over each net's seven plans is 0.28 / 0.22 / 0.42 / 0.28 / 0.70, in the table's net order.
+
+**D-PROXY-3** (reported). Each proxy is Spearman's ρ on the val half before the final, against the screen's TEST 5k over each net's seven plans. The last column counts how often the proxy's sign of alternative − sens_F matches TEST 5k, over 30 pairs.
+
+| proxy | r56-w4 | DepGraph R56 | VGG-19 C100 | r56-w8 | r20-w8 C100 | mean ρ | sign agrees |
+|---|---|---|---|---|---|---|---|
+| cut | +0.29 | +0.18 | +0.82 | +0.64 | +0.43 | +0.47 | 19 / 30 |
+| bn8 | −0.04 | +0.50 | +0.54 | +0.57 | +0.04 | +0.32 | 18 / 30 |
+| bn32 | −0.04 | +0.43 | +0.54 | +0.57 | +0.11 | +0.32 | 18 / 30 |
+| ft1 | −0.39 | −0.14 | +0.32 | −0.50 | +0.75 | +0.01 | 17 / 30 |
+| ft3 | −0.75 | −0.21 | +0.43 | −0.29 | +0.89 | +0.01 | 15 / 30 |
+
+**Oracle bound** (a diagnostic with hindsight on TEST, biased upward by the choice; never a result). For each POOL-F net, take the best mean d against floored sens_F at seeds 42–44 over every plan family read so far, floored at 0 (sens_F itself). The families are sens_cost_F, inner_F, T2-F (where read), T3-F, T4-F and HEAD-F's confirmed alternative.
+- Per net: r56-w4 0, DepGraph R56 0, VGG-19 C100 +0.34 (T2-F), chenyaofo ResNet-56 0, r56-w8 0, MobileNetV2 ×1.4 +0.17 (sens_cost_F), DenseNet-100 +0.06 (T3-F), VGG-16 +0.18 (T4-F), r20-w8 C100 +1.19 (α 2).
+- Mean over the nine: **+0.22**, positive on 5 of 9.
+
+Reading:
+1. **NO-HEADROOM**, by the registered rule. At fresh seeds the val-picked alternative trails floored sens_F on four of the five lever nets (−0.13 to −0.53), and H is −0.04.
+   - The screen's picks regressed. On four nets the seven plans' finals spread by about one per-final seed SD (0.22–0.42), so a one-seed val pick mostly selected noise.
+   - [D] In these directions, floored sens_F is the best that selection on val reaches at FLOPs 0.6.
+2. **One net has real headroom.** On r20-w8 C100, α 2 beats sens_F on every seed: +1.19 (val +0.71, 10k +0.95, honest +1.47), keeping 6–7 % more params at equal FLOPs.
+   - The agents moved the other way on this net (T4-F −0.72, T3-F −2.34; §366).
+   - The same direction ruins the thinnest net: under α 1 the guard r20-w2 loses 6.31 (reported).
+   - [H] The right sensitivity tilt depends on the net. A frozen agent could learn that choice, but it pays only where the tilt matters.
+3. **The pooled gate cannot fire at this depth for any plan family tried.** Even with hindsight on TEST, the best family per net gives D +0.22, positive on 5 of 9: AT-PRIOR-POOL.
+   - [H] So BEATS-PRIOR-F-POOL at FLOPs 0.6 on this pool is out of reach for agents whose plans stay near sens_F.
+   - Testing BEATS-PRIOR needs points or nets where headroom above the prior has been measured.
+4. **The proxies** (reported). Near sens_F the raw cut ranks the screen's finals best on average (+0.47), BN recalibration reaches +0.32, and the fine-tune proxies about 0.
+   - The exception is r20-w8 C100, the one net whose finals spread: there ft1 / ft3 reach +0.75 / +0.89 against the cut's +0.43.
+   - Before the final on that net, only ft3 favours α 2 over sens_F (screen, val half: −9.46 against −11.40 pp; the cut ties at −57.8 against −57.6).
+   - With seven plans per net, this decides nothing, and no proxy is adopted.
+
+Never:
+- "sens_F is optimal" (only "no headroom found in these directions").
+- A seed-45 row or the oracle bound as a result.
+- "α 2 is better" beyond r20-w8 C100.
+- A proxy adopted as the reward on this read.
+- Variants or seeds added after this read.
+
+Records: queue row HEAD-F; next §368.
