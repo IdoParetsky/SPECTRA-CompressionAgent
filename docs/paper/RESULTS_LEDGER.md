@@ -7628,6 +7628,7 @@ Every pair keeps FLOPs within 1 %. The guard r20-w2 is reported only: there the 
   - s43: 10 / 30, 0.50, 0.73;
   - s44: 22 / 30, 0.62, 1.96.
 - *In-sample* (train-log proxy: one-shot cut with BN recalibration, on the val half; **never TEST**). At the closing summary, κ 0.6 under the FLOPs budget, the mean plan beats its own prior by **+31 pp** averaged over the 10 catalog nets: +26 on r56-w6, r56-w4's nearest relative, and +62 on MobileNetV2 ×1 and on VGG-13. The averages are +23 at κ 0.4 and +11 at κ 0.8.
+  - *12 Oct 00:07 (correction):* the train-log proxy is the raw one-shot cut, with no BatchNorm re-estimation. T2-F, T3-F and T4-F all train with `SPECTRA_PLAN_PROXY=cut` (`plan_agent.reward` re-estimates BatchNorm only for `bn<N>`). The numbers stand; only the description was wrong.
 - *Before the final fine-tune on the held-out net* [V]. At the size point (the TRAJ `size_flop0.60` row), T2-F keeps less one-shot accuracy than floored sens_F on every seed: 0.180 / 0.208 / 0.093 against 0.317 / 0.256 / 0.330 (origin 0.890).
 
 Reading:
@@ -7874,6 +7875,16 @@ Reading:
 3. **The trust region helps across the pool, not only on the gate net.** On the five lever nets, T4-F beats T3-F by +0.56 on average (T3-F's mean d there is −0.95). Its worst cases shrink from −2.34 / −0.93 to −0.72 / −0.36.
 4. **Headroom depends on the point read.** At FLOPs 0.6 the three standard-width nets and VGG-16 have no lever, while DepGraph R56 at 0.48 does (+0.51). [H] A pooled gate needs a FLOPs point chosen per net on val for headroom (protocol §5.B), or it dilutes the signal with ties.
 5. **What the agents have not done anywhere:** beat sens_F on a held-out net that has a lever. Across T2-F, T3-F and T4-F, every lever-net d is negative except VGG-19 C100 under T2-F (+0.34, val +0.09) and T3-F (+0.06).
+
+**Diagnostic, not a call** (12 Oct 00:07, after the read, from the logs; neither the pre-FT one-shot, the TRAJ size row's val Δ, nor the in-sample value, the train log's last `[plan] summary` at κ 0.6, is TEST):
+- *In-sample.* On the 10 catalog nets the mean plan beats its prior on the raw cut by **+6.35 pp** for T4-F and **+30.7 pp** for T3-F (mean over nets × seeds).
+- *Held-out, before the fine-tune.* T4-F's plans keep more raw one-shot val accuracy than floored sens_F's on 6 of 9 nets (mean **+2.4 pp**):
+  - higher on r56-w8 (+10.7), DenseNet-100 (+10.6), VGG-16 (+12.9), VGG-19 C100 (+1.7), chenyaofo ResNet-56 (+1.8) and r20-w8 C100 (+0.3);
+  - lower on r56-w4 (−9.6), DepGraph R56 (−3.7) and MobileNetV2 ×1.4 (−3.3).
+  On the lever nets the one-shot sits 33–78 pp under the origin.
+- *After it.* The sign of T4-F − sens_F agrees between the one-shot and TEST 5k on **10 of 27** net-seeds. Within a net, the one-shot ranks the 18 arm-seed points like TEST 5k at Spearman −0.37 (r20-w8 C100) to +0.66 (r56-w4), median +0.24.
+- *Plan families selected on val.* On the five lever nets, val selection among sens_F, sens_cost_F, inner_F, T3-F and T4-F picks sens_F (DepGraph R56, VGG-19 C100, r20-w8 C100) or sens_cost_F (r56-w4, r56-w8), which is −0.48 / −0.14 on TEST against sens_F. Selected on val, none of these beats sens_F on a lever net.
+- [H] The agents learn the raw cut and partly carry it to new nets. But at this depth the raw one-shot does not rank plans near sens_F by what they recover to. Whether any plan above sens_F exists at FLOPs 0.6 is untested; HEAD-F (queue) asks it before another agent is trained.
 
 Never: "the agent matches sens_F across nine nets" without the lever split; a lever-less net as evidence; dropping a net from the pool after this read; a rotation on this recipe.
 
