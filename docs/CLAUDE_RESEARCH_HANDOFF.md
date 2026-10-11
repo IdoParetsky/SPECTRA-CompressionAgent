@@ -172,6 +172,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **T3-F registered** (`b3d559f`): T2-F's line + `SPECTRA_PLAN_NORM_ADV=1`, tree_v19. The calls are Ido's gate on r56-w4 and the balance test (T3-F − T2-F pooled over the two held-out ResNets, ±0.5). **Needs Ido's GO**, then `scripts/_tmp_s10oct_t3f_submit.sh` (smokes first; cells held until the smoke read). The fallback design is a trust region on the residual.
 - Open for Ido: the hygiene re-read (HF-V / LOFO-V / DepGraph R56 at equal params, grid-rounded, ~16–20 GPU-h).
 
+**Update 11 Oct 08:01 (overnight under Ido's 23:50 GO; recommended option at every fork until he is back).**
+- **§363 HYG** (`0579c8b`): with every arm grid-rounded, HF-V → LEVER-LIMITED (VGG-19 C100 lever +0.45, not +1.24) and LOFO-V → FAILS-CLEAN (VGG-16 −0.33, no lever there). T1 and LOFO-R on DepGraph R56 HOLD (+1.10 / +0.95 vs uniform; +0.61 / +0.45 vs sens; +0.11 / −0.04 vs sens_cost). Protocol §1 is noted.
+- **§364 T3-F** (`5872e3a`): BELOW-PRIOR (−1.54 on r56-w4); BALANCE-NEUTRAL (+0.44); level with sens_F on DepGraph R56 (−0.01). The read was delayed: the laptop lost the cluster route after 01:48 (VPN) until ~07:48.
+- **tree_v20** = v19 + `d7f3c1d` (trust region, `SPECTRA_PLAN_RESIDUAL_ZMAX`). **T4-F** = T3-F + zmax 0.3, registered (`dd2e30b`), smokes clean, 12 cells released 08:01. Read as §365 (`scripts/_tmp_s10oct_night_read.sh t4f`) around 12:00.
+- Open for Ido: whether the next agent's gate should pool two or three held-out nets, registered before the train.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
