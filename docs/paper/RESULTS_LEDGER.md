@@ -7837,3 +7837,44 @@ Reading:
 Never: BEATS-PRIOR, or "matches sens_F", from these rows; an in-sample proxy as a result; a rotation on this read.
 
 Records: queue row T4-F; next §366.
+
+## 366. (POOL-F): the nine-net held-out gate pool at equal FLOPs: T4-F (the call) and T3-F (reported) against floored, grid-rounded sens_F on nine held-out nets (105 current evals in `scratch_audit/s11oct_pool_manifest.tsv`, with T4-F's / T3-F's / T2-F-W's / §357's rows for r56-w4, DepGraph R56 and VGG-19 C100; `tree_v20`) — PRELIM; registered call: D = mean over nets of (T4-F − floored sens_F) **−0.21** (95 % bootstrap over nets × seeds [−0.48, −0.00]), positive on 2 of 9 → **AT-PRIOR-POOL**; T3-F −0.49 → BELOW-PRIOR-POOL (reported)
+
+Registered before submit 11 Oct 08:04 (commit `faf9909`; queue row POOL-F). This was Ido's ~08:05 ask: "add more held-out nets to the gate pool"; the pooled gate replaces the single-net gate for the rotation. Smokes on the three new configs read clean.
+- *Read.* 11 Oct 23:47 (`scripts/_tmp_s10oct_night_read.sh pool`).
+- *Checks.*
+  - 105 / 105 current evals COMPLETED.
+  - 34 of the first wave died at start in the disk-quota stall and were resubmitted at 19:57. Another 9 that Slurm marked COMPLETED had written no size-point row, or no origin, during the stall, and were re-run at 22:30. Both reasons are registered in queue row POOL-F. The reader takes the last row per key.
+  - Every arm logs its grid-round line and lands at FLOPs 0.591–0.600 with no fallback. The c100r20w8 arms land at 0.591–0.600.
+- *Comparators.* The four floored, grid-rounded rules on each new net, in this cell; r56-w4 as §364 / §365 (floored, no grid); DepGraph R56 and VGG-19 C100 from T2-F-W.
+
+**Per net, d = agent − floored sens_F** (TEST 5k, mean over seeds 42–44, paired by seed; headroom = sens_F − uniform_F):
+
+| net (FLOPs point) | headroom | T4-F d, 5k (s42 / 43 / 44) | val | 10k | honest | T4-F − sens_cost_F | T3-F d |
+|---|---|---|---|---|---|---|---|
+| thin r56-w4 (0.6) | +1.79 | **−0.47** (+0.58 / −1.60 / −0.38) | −0.39 | −0.43 | −0.63 | +0.01 | −1.54 |
+| DepGraph R56 (0.48) | +0.51 | **−0.31** (−0.30 / −0.20 / −0.44) | −0.33 | −0.32 | −0.45 | −0.20 | −0.01 |
+| VGG-19 C100 (0.6) | +0.77 | **−0.10** (−0.38 / +0.16 / −0.08) | −0.19 | −0.15 | +0.03 | −0.15 | +0.06 |
+| thin r56-w8 (0.6) | +1.15 | **−0.36** (−0.12 / −0.52 / −0.44) | −0.09 | −0.22 | −0.58 | −0.22 | −0.93 |
+| thin r20-w8 C100 (0.6) | +0.95 | **−0.72** (+0.32 / −0.60 / −1.88) | −0.87 | −0.79 | +0.16 | −0.47 | −2.34 |
+| chenyaofo ResNet-56 (0.6) | +0.05 | −0.07 (−0.06 / +0.06 / −0.20) | +0.17 | +0.05 | −0.27 | +0.01 | −0.01 |
+| MobileNetV2 ×1.4 (0.6) | −0.23 | +0.07 (−0.30 / +0.24 / +0.28) | +0.06 | +0.07 | +0.06 | −0.10 | +0.12 |
+| DenseNet-100 (0.6) | +0.01 | −0.15 (−0.34 / −0.06 / −0.04) | −0.13 | −0.14 | −0.15 | −0.20 | +0.06 |
+| VGG-16 C10 (0.6) | +0.04 | +0.18 (+0.26 / +0.12 / +0.16) | +0.25 | +0.22 | +0.16 | +0.17 | +0.17 |
+
+Pooled:
+- T4-F: D **−0.21**, bootstrap [−0.48, −0.00], d > 0 on 2 / 9.
+- T3-F: D −0.49 [−1.12, +0.05], d > 0 on 4 / 9.
+
+Reading:
+1. **AT-PRIOR-POOL**, by the registered rule. Across nine held-out nets, the bounded residual agent sits 0.21 under floored sens_F, and the bootstrap interval ends at zero. By Ido's pooled gate there is no rotation: a design change is next.
+2. **Where allocation matters, it is below the prior on every net.**
+   - Five nets have a FLOPs lever at the point read (headroom ≥ +0.5): T4-F's d is −0.47, −0.31, −0.10, −0.36 and −0.72 (mean −0.39).
+   - The four lever-less nets are chenyaofo ResNet-56, MobileNetV2 ×1.4, DenseNet-100 and VGG-16, with headroom −0.23 to +0.05. There d averages +0.01, because every rule ties. They are uninformative, not evidence for the agent.
+3. **The trust region helps across the pool, not only on the gate net.** On the five lever nets, T4-F beats T3-F by +0.56 on average (T3-F's mean d there is −0.95). Its worst cases shrink from −2.34 / −0.93 to −0.72 / −0.36.
+4. **Headroom depends on the point read.** At FLOPs 0.6 the three standard-width nets and VGG-16 have no lever, while DepGraph R56 at 0.48 does (+0.51). [H] A pooled gate needs a FLOPs point chosen per net on val for headroom (protocol §5.B), or it dilutes the signal with ties.
+5. **What the agents have not done anywhere:** beat sens_F on a held-out net that has a lever. Across T2-F, T3-F and T4-F, every lever-net d is negative except VGG-19 C100 under T2-F (+0.34, val +0.09) and T3-F (+0.06).
+
+Never: "the agent matches sens_F across nine nets" without the lever split; a lever-less net as evidence; dropping a net from the pool after this read; a rotation on this recipe.
+
+Records: queue row POOL-F; next §367.
