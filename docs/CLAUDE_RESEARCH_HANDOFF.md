@@ -212,6 +212,17 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - Waiting on Ido: deleting the PyCharm cache, and backing up then deleting the older trees' ledgered snapshots (about 32 GB).
 - **Next:** read the screen, submit the confirm pairs the reader prints (15 evals), then read the call. T5-F is a train, so it needs Ido's GO, and its design depends on HEAD-F.
 
+**Update 12 Oct 02:15 (§367 read).**
+- HEAD-F is **NO-HEADROOM**: H −0.04 over the five lever nets, positive on 1 of 5.
+- Only r20-w8 C100 gains: α 2 +1.19 on every seed, while the guard r20-w2 loses 6.31 under α 1.
+- A hindsight oracle over every plan family read so far gives D +0.22, positive on 5 of 9. So the pooled FLOPs gate cannot fire at FLOPs 0.6 for anything tried.
+- **The fork is with Ido** (brief, "For you to decide"):
+  - A. HEAD-F at a deeper FLOPs point (recommended; eval-only).
+  - B. Reframe the FLOPs claim as AT-PRIOR while transferring, and open the rotation.
+  - C. A per-net shape agent T5-F (a train).
+- Also open: deleting the stale PyCharm cache (21 GB), and backing up then deleting the older ledgered snapshots (about 32 GB).
+- Nothing is queued by science; Stage-4 22688072 is running.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
