@@ -7739,3 +7739,52 @@ Reading:
 Never: "T1 transfers to VGG-19 C100" or "LOFO-V shows family transfer" as a call; "T1 beats sens_cost"; mixing these rows with the unrounded ones; an equal-FLOPs claim from equal-params rows.
 
 Records: queue row HYG; protocol §1 (C2 and C3 updated); next §364.
+
+## 364. (T3-F): T2-F's line with per-instance advantage normalization (`SPECTRA_PLAN_NORM_ADV=1`), read on held-out r56-w4 and the two wide nets (trains **22525703 / 740 / 745**, evals **22525704 / 742 / 746**, **22525738 / 743 / 747**, **22525739 / 744 / 748**; `tree_v19`) — PRELIM; registered calls: (1) T3-F − floored sens_F on r56-w4 at FLOPs 0.6 **−1.54** (bars ±0.3) → **BELOW-PRIOR**; (2) T3-F − T2-F pooled over r56-w4 and DepGraph R56 **+0.44** (bars ±0.5) → **BALANCE-NEUTRAL**
+
+Registered before any submit 10 Oct 21:39 (commit `b3d559f`; queue row T3-F). Ido's GO ~23:50. Smokes 22525701 / 702 read clean; 12 cells released 11 Oct 00:01.
+- *Read.* 11 Oct 07:50 (`scripts/_tmp_s10oct_night_read.sh t3f`). The read was delayed because the laptop lost its route to the cluster after 01:48 (VPN). The jobs ran unaffected.
+- *Checks.*
+  - 14 / 14 COMPLETED (smokes included). Each train logged `"norm_adv": true` and the residual as registered.
+  - Every r56-w4 arm lands at FLOPs 0.596–0.599 with no fallback; the wide-net arms land at 0.479–0.480 and 0.600.
+- *Comparators.*
+  - r56-w4: floored sens_F / inner_F / uniform_F (§357), floored sens_cost_F and T2-F (§361), mild_F (§350), T0-F2.
+  - Wide nets: T2-F-W's grid-rounded rules and T2-F (§362).
+
+**Contrasts** (TEST 5k, mean over seeds 42–44, paired by seed; params ratio T3-F to comparator):
+
+| net, point | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|---|
+| r56-w4, FLOPs 0.6 | T3-F − sens_F (floored) | **−1.54** (−1.26 / −2.84 / −0.52) | −1.39 | −1.47 | −1.53 | 0.81–1.08 |
+| r56-w4, FLOPs 0.6 | T3-F − sens_cost_F (floored) | −1.06 (−0.76 / −1.92 / −0.50) | −1.56 | −1.31 | −0.67 | 0.79–1.04 |
+| r56-w4, FLOPs 0.6 | T3-F − uniform_F (floored) | +0.25 (+0.44 / −0.94 / +1.26) | +0.07 | +0.16 | +0.47 | 0.82–1.11 |
+| r56-w4, FLOPs 0.6 | T3-F − mild_F | −0.46 (−0.40 / −1.12 / +0.14) | −0.81 | −0.63 | −0.02 | 0.70–0.96 |
+| r56-w4, FLOPs 0.6 | T3-F − T2-F | +0.35 (+1.30 / −1.32 / +1.08) | −0.19 | +0.08 | +0.47 | 0.95–1.25 |
+| DepGraph R56, FLOPs 0.48 | T3-F − sens_F (grid) | −0.01 (+0.48 / −0.50 / +0.00) | −0.23 | −0.12 | +0.08 | 1.01–1.11 |
+| DepGraph R56, FLOPs 0.48 | T3-F − sens_cost_F (grid) | +0.11 (+0.02 / −0.32 / +0.62) | +0.11 | +0.11 | +0.18 | 1.01–1.11 |
+| DepGraph R56, FLOPs 0.48 | T3-F − uniform_F (grid) | +0.50 (+0.44 / +0.28 / +0.78) | +0.33 | +0.42 | +0.46 | 1.08–1.24 |
+| DepGraph R56, FLOPs 0.48 | T3-F − T2-F | +0.52 (+0.72 / +0.24 / +0.60) | −0.05 | +0.23 | +0.31 | 0.94–0.98 |
+| VGG-19 C100, FLOPs 0.6 | T3-F − sens_F (grid) | +0.06 (−0.26 / +0.34 / +0.10) | −0.13 | −0.03 | +0.38 | 1.03–1.26 |
+| VGG-19 C100, FLOPs 0.6 | T3-F − uniform_F (grid) | +0.83 (+0.54 / +0.46 / +1.48) | +0.45 | +0.64 | +1.06 | 0.59–0.74 |
+| VGG-19 C100, FLOPs 0.6 | T3-F − T2-F | −0.28 (−0.60 / −0.30 / +0.06) | −0.22 | −0.25 | −0.39 | 0.97–1.24 |
+
+Every pair keeps FLOPs within 1 %. The guard r20-w2 is reported only.
+
+- *The residual's movement on r56-w4*:
+  - s42: 17 / 30 groups moved, max |Δkeep| 0.50, distance 1.23;
+  - s43: 24 / 30, 0.75, 2.33;
+  - s44: 13 / 30, 0.50, 0.91.
+
+Reading:
+1. **BELOW-PRIOR again**, on every seed (−0.52 to −2.84). By Ido's gate there is no rotation; the next step is a design change.
+2. **Normalization moves things the predicted way, but under the registered bar.**
+   - Pooled over the two held-out ResNets, T3-F gains +0.44 on T2-F: +0.52 on DepGraph R56 (every seed positive), +0.35 on noisy r56-w4.
+   - It gives back −0.28 on VGG-19 C100.
+   - On DepGraph R56 at DepGraph's own FLOPs point, the residual agent is now level with sens_F (−0.01).
+   - The VGG family no longer sets the direction, but the residual still moves far from its prior on the thin net, and that is where it loses.
+3. **The thin net remains the hard case.** Even T0-F2, trained on r56-w4 itself, sits 0.57 under floored sens_F there (§357). [H] Under a FLOPs budget the cuts concentrate in r56-w4's early groups, where the width floor leaves no slack, and the deviations learned on wider nets do not fit.
+4. **Consequence (the 23:58 fork rule, confirmed by Ido ~07:48):** the trust region (`SPECTRA_PLAN_RESIDUAL_ZMAX`, tree_v20) is trained next as T4-F on T3-F's line, with the same calls.
+
+Never: "normalization helps" as a call (BALANCE-NEUTRAL); "the residual agent matches sens_F" from DepGraph R56 alone; a rotation on this recipe.
+
+Records: queue row T3-F; next §365.
