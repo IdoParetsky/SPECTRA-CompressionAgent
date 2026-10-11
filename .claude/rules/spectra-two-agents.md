@@ -10,7 +10,7 @@
 
 **Shared tree.** `C:\SPECTRA-CompressionAgent`. Never `git stash`, `git restore`, `git checkout --`, `git reset --hard`, or `git clean`. Commit only your own files or hunks, then push. Ops’ usual unstaged files: `docs/PROMPT_FABLE_V6.md`, `docs/NEXT_DEV_PHASE.md`, `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`, `docs/paper/SPECTRA_draft.md`, `docs/paper/GILAD_OCT8_TRACKER.md`.
 
-**You never.** Scancel 22156116, 22156117, or 21767188. Start a new train without Ido’s GO. Submit a cell that is not registered in `docs/SITTING_GPU_QUEUE.md`. Ledger from a train log. Train or install CPU PyTorch on this laptop. (Ops authorises nothing: Ido gives GOs, science registers cells, and ops runs only cells already pre-authorised.)
+**You never.** Scancel 22156116, 22156117, 21767188, or Stage-4's resume 22688072 (21767188 was cancelled by the cluster on 11 Oct for low GPU utilisation during the disk-quota outage, and was resumed per runbook §10.5 (b)). Start a new train without Ido’s GO. Submit a cell that is not registered in `docs/SITTING_GPU_QUEUE.md`. Ledger from a train log. Train or install CPU PyTorch on this laptop. (Ops authorises nothing: Ido gives GOs, science registers cells, and ops runs only cells already pre-authorised.)
 
 **Ops never.** Ledgers your sitting TESTs (§346+ until you write them). Sbatches VG2 / D-PROXY-2 / T0-F. Starts you.
 

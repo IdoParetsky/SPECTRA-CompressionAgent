@@ -41,7 +41,7 @@ If HEAD is behind origin, `git pull --ff-only` only when the index is clean of *
 
 Poll `squeue` and `sacct` via `powershell -NoProfile -File scripts/rexec.ps1 -File <script.sh>` (or equivalent). Documents lie; the queue does not.
 
-Keep 22156116, 22156117, 21767188. Current state (what is live, unread, or next) comes from the top stamps of `docs/AGENT_MAIL.md` and the newest queue rows, not from this checklist. A job already submitted is never resubmitted without a registered reason.
+Keep 22156116, 22156117 and Stage-4: 21767188 until 11 Oct, now its resume 22688072 (runbook §10.5 (b)). Current state (what is live, unread, or next) comes from the top stamps of `docs/AGENT_MAIL.md` and the newest queue rows, not from this checklist. A job already submitted is never resubmitted without a registered reason.
 
 ## 4. Reply to Ido
 

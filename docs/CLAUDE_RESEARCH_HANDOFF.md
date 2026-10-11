@@ -178,6 +178,17 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **tree_v20** = v19 + `d7f3c1d` (trust region, `SPECTRA_PLAN_RESIDUAL_ZMAX`). **T4-F** = T3-F + zmax 0.3, registered (`dd2e30b`), smokes clean, 12 cells released 08:01. Read as §365 (`scripts/_tmp_s10oct_night_read.sh t4f`) around 12:00.
 - Open for Ido: whether the next agent's gate should pool two or three held-out nets, registered before the train.
 
+**Update 11 Oct 20:01 (disk quota; Stage-4 resumed; the day's reads pending).**
+- **The account hit its disk quota around 12:57.**
+  - Every job that started after that died within seconds (exit `0:53`, no log): all 9 of T4-F's evals, its 18 pool evals and 7 pool rule evals.
+  - Stage-4 21767188 stopped writing at 12:56 and was cancelled by the cluster at 19:46 for low GPU utilisation.
+  - The VPN outage hid all of this until ~19:15.
+- **On Ido's GO,** the `traj_models` of ledgered cells were deleted (292 dirs, about 37 GB, tree_v13 / v17 / v19; policies, events, logs and job maps kept), and writes are restored.
+- **The 34 evals were resubmitted** unchanged except `SPECTRA_EVAL_SAVE_TRAJ_MODELS=0` (reason in queue rows T4-F / POOL-F). They are appended to the job maps as `resub-of-<old>`, and the reader takes the last row per key.
+- **Stage-4 resumed as 22688072** (`v9c-paug-area-train-r2`) per runbook §10.5 (b), from `runs/job21767188/agent_checkpoints/train_resume.pt` at episode 349 (best 0.3028, 76 since improvement).
+- **Next:** read T4-F as §365 and POOL-F as §366 when the watcher fires (`scripts/_tmp_s10oct_night_read.sh t4f pool`). Watchers now exit after about four polls that cannot reach the cluster (`scripts/_tmp_s11oct_watch.sh`).
+- **On the next quota hit,** back up to Ido's Google Drive through an OAuth remote he sets up; never use a password.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
