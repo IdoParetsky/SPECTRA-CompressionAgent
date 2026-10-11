@@ -7788,3 +7788,52 @@ Reading:
 Never: "normalization helps" as a call (BALANCE-NEUTRAL); "the residual agent matches sens_F" from DepGraph R56 alone; a rotation on this recipe.
 
 Records: queue row T3-F; next §365.
+
+## 365. (T4-F): T3-F's line with a trust region on the residual (`SPECTRA_PLAN_RESIDUAL_ZMAX=0.3`: each group's weight within e^±0.3 of sens_F's), read on held-out r56-w4 and the two wide nets (trains **22584746 / 751 / 755**; evals resubmitted after the disk-quota stall; `tree_v20`, code `d7f3c1d`) — PRELIM; registered calls: (1) T4-F − floored sens_F on r56-w4 at FLOPs 0.6 **−0.47** (bars ±0.3) → **BELOW-PRIOR**; (2) T4-F − T3-F on r56-w4 **+1.07** (bars ±0.5) → **BOUND-HELPS**
+
+Registered before any submit 11 Oct 07:52 (commit `dd2e30b`; queue row T4-F). It follows the 23:58 fork rule, confirmed by Ido ~07:48. Smokes 22584712 / 745 read clean; 12 cells released 08:01.
+- *Read.* 11 Oct 22:03 (`scripts/_tmp_s10oct_night_read.sh t4f`).
+- *Checks.*
+  - The three trains COMPLETED (10:54–10:56). The first-wave evals died at start in the disk-quota stall (12:57–13:05, exit `0:53`, no log; queue row T4-F).
+  - The 9 were resubmitted at 19:57 after space was freed, unchanged except `SPECTRA_EVAL_SAVE_TRAJ_MODELS=0`, which only stops saving snapshots, and all COMPLETED. The reader takes the last row per key.
+  - Every r56-w4 arm lands at FLOPs 0.596–0.600 with no fallback; the wide-net arms land at 0.479 and 0.600.
+- *Comparators.* As T3-F's (§364): floored sens_F / sens_cost_F / inner_F / uniform_F, mild_F, T0-F2, T2-F and T3-F on r56-w4; T2-F-W's grid-rounded rules on the wide nets.
+
+**r56-w4 at FLOPs 0.6, per seed** (TEST 5k; params kept): T4-F **−1.28** (0.664), **−3.22** (0.595), **−2.56** (0.597).
+
+**Contrasts** (mean over seeds 42–44, paired by seed; 5k per seed):
+
+| net, point | contrast | 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|---|
+| r56-w4, FLOPs 0.6 | T4-F − sens_F (floored) | **−0.47** (+0.58 / −1.60 / −0.38) | −0.39 | −0.43 | −0.63 | 0.91–1.02 |
+| r56-w4, FLOPs 0.6 | T4-F − sens_cost_F (floored) | +0.01 (+1.08 / −0.68 / −0.36) | −0.56 | −0.27 | +0.23 | 0.87–1.01 |
+| r56-w4, FLOPs 0.6 | T4-F − inner_F (floored) | −0.11 (+0.48 / −0.78 / −0.02) | +0.02 | −0.04 | −0.19 | 0.93–1.03 |
+| r56-w4, FLOPs 0.6 | T4-F − uniform_F (floored) | +1.33 (+2.28 / +0.30 / +1.40) | +1.07 | +1.20 | +1.37 | 0.93–1.04 |
+| r56-w4, FLOPs 0.6 | T4-F − mild_F | **+0.61** (+1.44 / +0.12 / +0.28) | +0.19 | +0.40 | +0.88 | 0.80–0.89 |
+| r56-w4, FLOPs 0.6 | T4-F − T0-F2 | +0.11 (+0.92 / −0.64 / +0.04) | −0.14 | −0.02 | +0.05 | 0.92–0.98 |
+| r56-w4, FLOPs 0.6 | T4-F − T3-F | **+1.07** (+1.84 / +1.24 / +0.14) | +1.00 | +1.04 | +0.90 | 0.84–1.27 |
+| DepGraph R56, FLOPs 0.48 | T4-F − sens_F (grid) | −0.31 (−0.30 / −0.20 / −0.44) | −0.33 | −0.32 | −0.45 | 0.96–1.01 |
+| DepGraph R56, FLOPs 0.48 | T4-F − T3-F | −0.31 (−0.78 / +0.30 / −0.44) | −0.11 | −0.21 | −0.53 | 0.86–1.00 |
+| VGG-19 C100, FLOPs 0.6 | T4-F − sens_F (grid) | −0.10 (−0.38 / +0.16 / −0.08) | −0.19 | −0.15 | +0.03 | 0.98–1.00 |
+| VGG-19 C100, FLOPs 0.6 | T4-F − T3-F | −0.16 (−0.12 / −0.18 / −0.18) | −0.07 | −0.11 | −0.35 | 0.78–0.98 |
+
+Every pair keeps FLOPs within 1 %. The guard r20-w2 is reported only.
+
+- *The residual's movement on r56-w4* (bounded):
+  - s42: 11 / 30 groups moved, max |Δkeep| 0.19, distance 0.50;
+  - s43: 17 / 30, 0.25, 0.69;
+  - s44: 12 / 30, 0.25, 0.46.
+  - T3-F's was 0.50–0.75 and 0.91–2.33 (§364).
+
+Reading:
+1. **BELOW-PRIOR on the gate net, 0.17 past the bar.** T4-F trails floored sens_F by 0.47 on r56-w4; one seed is positive (+0.58).
+2. **The bound helps strongly where the residual had hurt.**
+   - +1.07 over T3-F on r56-w4, every seed positive. The learned moves shrink to max |Δkeep| 0.19–0.25.
+   - T4-F now beats mild_F by +0.61. That is the first catalog-trained FLOPs agent to clear §357's bar on held-out r56-w4.
+   - It is level with T0-F2, which trained on r56-w4 itself (+0.11), and with floored sens_cost_F (+0.01).
+3. **On the wide nets the bound gives back a little.** T4-F is −0.31 under sens_F on DepGraph R56 (T3-F −0.01) and −0.10 on VGG-19 C100 (T3-F +0.06). The bounded residual sits close to sens_F everywhere and slightly under it.
+4. **Consequence.** The rotation's gate is now the nine-net pool (POOL-F, Ido ~08:05), read in §366 once the 9 evals re-run after the quota stall land.
+
+Never: BEATS-PRIOR, or "matches sens_F", from these rows; an in-sample proxy as a result; a rotation on this read.
+
+Records: queue row T4-F; next §366.
