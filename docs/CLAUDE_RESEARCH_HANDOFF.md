@@ -255,6 +255,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **Login nodes:** `bgu-slurm` reaches more than one login node, so `/tmp` is not shared. Keep files in home.
 - **11:00:** the 13 rounded thin cells were released at 10:15, after their smokes read clean. The snapshot backup is **done**: 718 dirs (32.4 GB), every file verified, then deleted. Home use is about 70 GB. The backups are in `C:\SPECTRA_backups\cluster_traj_models\` on the laptop.
 
+**Update 12 Oct 12:05 (§368 read).**
+- **HEAD-F2 is NO-HEADROOM at FLOPs 0.45:** H +0.04, positive on 3 of 5. The lever sens_F − uniform_F grows to +0.97 – +2.37, and the hindsight oracle is +0.18.
+- **The proxies at 0.45:** the raw cut ranks at only +0.09; BN recalibration ranks best (bn32 +0.39).
+- **The framing fork is with Ido** (and Gilad): the FLOPs claim becomes "matches the best rule while transferring". Optionally, the frozen T4-F is placed at 0.45 (15 evals) for the Pareto.
+- Two confirm evals were preempted at 11:45 and resubmitted with a registered reason. The confirm mode now takes `net:var:seed`.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
