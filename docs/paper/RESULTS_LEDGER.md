@@ -8060,3 +8060,81 @@ Never:
 - A seed or net dropped after this read.
 
 Records: queue row T4F-45; next §370.
+
+## 370. (POOL-P): at equal params, the frozen T1 against floored, grid-rounded sens_cost (the params prior), sens and uniform across the nine-net held-out pool (72 new evals **22714582–740**, of which one was resubmitted after preemption; HYG's rows for VGG-19 C100, VGG-16 C10 and DepGraph R56; `tree_v20` and `tree_v19`) — PRELIM; registered calls: (1) P = mean of T1 − floored sens_cost **−0.01** (bootstrap [−0.21, +0.21]), positive on 4 of 9 → **AT-PRIOR-POOL**; (2) S = mean of T1 − sens over the nets whose val lever sens − uniform is at least +0.5 **+0.12** (two nets) → **NOT-BEYOND-SENS**
+
+Registered before submit 12 Oct 16:45 (commit `4b89ab5`; queue row POOL-P; Ido ~16:42: "choose the recommended avenue"). The preemption rule was registered at 17:44.
+- *Read.* 13 Oct 01:28 (`scripts/_tmp_s12oct_poolp_read.sh`).
+- *Checks.*
+  - 72 / 72 current COMPLETED with rows. One preempted cell (22714707) was resubmitted by the login-node guard at 22:21.
+  - Every arm lands at params 0.598–0.600 (DepGraph R56 0.469–0.470), with no fallback.
+  - The reader's first pass lost every row after call (2): a local `S` shadowed the scratch path. It was fixed and re-run; the calls are unchanged.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T1 to the rule):
+
+| net (params point) | T1 − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | lever sens − uniform: 5k / val | T1 − sens: 5k | FLOPs ratio |
+|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 (0.6) | −0.39 (−0.48 / −0.02 / −0.66) | −0.08 | −0.23 | −0.34 | 1.02–1.08 | +1.28 / +1.61 | −0.07 | 1.34–1.41 |
+| chenyaofo ResNet-56 (0.6) | +0.23 (−0.02 / +0.46 / +0.24) | +0.31 | +0.27 | +0.30 | 1.01–1.07 | −0.45 / −0.26 | **+0.52** | 1.42–1.53 |
+| thin r56-w8 (0.6) | −0.05 (−0.06 / −0.32 / +0.24) | −0.05 | −0.05 | −0.15 | 1.21–1.24 | +0.01 / +0.11 | **+0.80** | 1.73–1.85 |
+| MobileNetV2 ×1.4 (0.6) | +0.04 (−0.32 / +0.46 / −0.02) | −0.20 | −0.08 | +0.19 | 0.95–1.10 | +0.05 / −0.45 | +0.15 | 1.11–1.35 |
+| DenseNet-100 (0.6) | −0.01 (+0.02 / −0.32 / +0.26) | +0.23 | +0.11 | +0.10 | 0.98–1.05 | −0.01 / +0.14 | −0.06 | 1.05–1.14 |
+| thin r20-w8 C100 (0.6) | −0.12 (+0.12 / −0.20 / −0.28) | +0.43 | +0.16 | +0.01 | 1.00–1.02 | −0.65 / +0.14 | **+0.49** | 1.66–1.71 |
+| VGG-19 C100 (0.6) | +0.56 (+0.26 / +0.06 / +1.36) | +0.06 | +0.31 | +0.91 | 1.00 | +0.45 / +0.85 | +0.31 | 1.00 |
+| VGG-16 C10 (0.6) | −0.43 (−0.56 / −0.46 / −0.26) | +0.15 | −0.14 | −0.29 | 1.01–1.06 | −0.19 / +0.16 | −0.17 | 1.01–1.05 |
+| DepGraph R56 (0.47) | +0.11 (+0.06 / −0.18 / +0.46) | +0.14 | +0.13 | −0.07 | 1.02–1.10 | +0.49 / +0.43 | **+0.61** | 1.39–1.64 |
+
+**T1 − sens over all nine nets** (reported, not a call): +0.29, positive on 6 of 9. At equal params, T1 keeps 1.1–1.85× sens's FLOPs on the nets where it gains.
+
+Reading:
+1. **AT-PRIOR-POOL**, by call (1). The frozen T1 matches the params prior, floored sens_cost, across nine held-out nets: P −0.01. Every net is within 0.56 of it.
+   - T1 was trained on a params budget with no cost model and no prior. It reaches the allocation of the cost-aware rule on nets and families it never saw.
+2. **NOT-BEYOND-SENS**, by call (2). Only two nets pass the registered lever test (sens − uniform at least +0.5 on val), and on those T1 − sens is +0.12.
+   - That lever is the wrong one at params. The plain sensitivity rule ignores cost, and on several nets it is at or below uniform: chenyaofo ResNet-56 −0.45, r20-w8 C100 −0.65, r56-w8 +0.01.
+   - Those are exactly the nets where T1 beats sens most (+0.52, +0.49, +0.80), keeping 1.4–1.85× the FLOPs.
+   - The registered call stands. [H] The pattern is the one the cost-structure hypothesis predicts (memo, 12 Oct): at equal params a cost-blind rule mis-allocates, and the agent learned the cost-aware allocation.
+3. **What the pool supports.** The learning claim at params is "the frozen agent learns, from reward alone, an allocation at the level of the best hand-designed cost-aware rule, across nine held-out nets". It is not "beyond the best rule". HEAD-P (registered 17:44) asks whether anything beats sens_cost at params at all.
+
+Never:
+- "T1 beats sens_cost", or "beyond the plain rule" as a call.
+- The all-nine T1 − sens value as a call.
+- A lever re-defined after this read to change call (2).
+- Params rows mixed with FLOPs rows.
+
+Records: queue row POOL-P; next §371.
+
+## 371. (POOL-F45): the nine-net FLOPs pool at the deeper point, 0.45. The frozen T4-F against floored sens_F, with uniform_F beside it: T4F-45's five nets and HEAD-F2's rule rows, plus 36 new evals on chenyaofo ResNet-56, MobileNetV2 ×1.4, DenseNet-100 and VGG-16 (**22714582–740**, of which one was resubmitted after preemption; `tree_v20`) — PRELIM; registered call: D45P = mean of T4-F − floored sens_F **−0.21** (bootstrap [−0.58, +0.03]), positive on 3 of 9 → **AT-PRIOR-POOL**
+
+Registered before submit 12 Oct 16:45 (commit `4b89ab5`; queue row POOL-F45).
+- *Read.* 13 Oct 01:28.
+- *Checks.*
+  - 36 / 36 current COMPLETED with rows. One preempted cell (22714695) was resubmitted by the guard at 21:56.
+  - Every arm lands at FLOPs x0.445–0.450 with no fallback.
+  - 22711181 (T4F-45) finished its run, but Slurm shows TIMEOUT: its node lost DNS to the controller. The reader counts it from its "Run finished" line and prints a note.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired; T4-F − floored sens_F; FLOPs matched within 1 %):
+
+| net | T4-F − sens_F (s42 / 43 / 44) | val | 10k | honest | lever sens_F − uniform_F, 5k / val |
+|---|---|---|---|---|---|
+| thin r56-w4 | +0.04 (+0.20 / −0.24 / +0.16) | +0.15 | +0.09 | +0.01 | +2.37 / +2.19 (§368) |
+| DepGraph R56 | −0.27 (+0.06 / −0.26 / −0.62) | +0.11 | −0.08 | −0.21 | +0.97 / +0.41 |
+| VGG-19 C100 | −0.09 (+0.08 / −0.62 / +0.28) | +0.17 | +0.04 | +0.09 | +1.17 / +0.98 |
+| thin r56-w8 | −0.05 (−0.22 / +0.04 / +0.02) | −0.43 | −0.24 | +0.02 | +0.99 / +2.05 |
+| thin r20-w8 C100 | **−1.43** (−0.50 / −1.68 / −2.10) | −0.23 | −0.83 | −1.46 | +1.92 / +1.35 |
+| chenyaofo ResNet-56 | +0.01 (+0.22 / −0.58 / +0.38) | +0.13 | +0.07 | +0.03 | +0.04 / −0.15 |
+| MobileNetV2 ×1.4 | −0.05 (+0.10 / +0.06 / −0.30) | +0.25 | +0.10 | −0.25 | −1.02 / −0.77 |
+| DenseNet-100 | −0.15 (−0.34 / −0.06 / −0.06) | −0.14 | −0.15 | −0.19 | +0.17 / +0.25 |
+| VGG-16 C10 | +0.09 (−0.08 / +0.00 / +0.36) | +0.29 | +0.19 | +0.03 | +0.34 / +0.12 |
+
+Reading:
+1. **AT-PRIOR-POOL** at 0.45, as at 0.6 (§366: −0.21). One net carries the pooled deficit: r20-w8 C100 −1.43. On the other eight nets T4-F − sens_F averages −0.06.
+2. **The lever-less nets stay lever-less at depth.** chenyaofo ResNet-56, DenseNet-100 and VGG-16 sit within ±0.35 of uniform at 0.45. On MobileNetV2 ×1.4 uniform beats sens_F by 1.02.
+   - [H] On these standard-width nets the FLOPs allocation does not matter at either depth read.
+3. **With §366–§369:** at equal FLOPs, the frozen agent sits at its prior on eight of nine nets at both depths, and its learned residual never adds accuracy over the prior. The FLOPs results are the rule's.
+
+Never:
+- 0.45 rows mixed with 0.6 rows in one contrast.
+- "T4-F matches sens_F" without the r20-w8 C100 split.
+- A net dropped after this read.
+
+Records: queue row POOL-F45; next §372.
