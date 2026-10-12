@@ -281,6 +281,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   3. Read the HEAD-P screen (adapt HEAD-F2's reader to params, with REF = POOL-P / HYG sens_cost rows), then submit `bash s12oct_headp_submit.sh confirm <pairs>`.
   4. Refresh the Gilad memo.
 
+**Update 13 Oct 01:29 (§370, §371).**
+- **POOL-P:** T1 is AT-PRIOR-POOL against sens_cost at equal params (−0.01 over nine nets), and NOT-BEYOND-SENS by the registered lever test. T1 − sens over all nine is +0.29, positive on 6 of 9 (reported).
+- **POOL-F45:** T4-F is AT-PRIOR-POOL at FLOPs 0.45 (−0.21; the other eight nets −0.06).
+- **HEAD-P confirm:** 15 evals 22723687–701 running; the call goes in §372, read with `scripts/_tmp_s12oct_headp_read.sh`.
+- The guard is still on slurm-login-04. The Gilad memo is at v6.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
