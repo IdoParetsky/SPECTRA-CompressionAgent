@@ -7952,3 +7952,72 @@ Never:
 - Variants or seeds added after this read.
 
 Records: queue row HEAD-F; next §368.
+
+## 368. (HEAD-F2): HEAD-F's question at FLOPs 0.45 on the same five held-out lever nets. Six alternatives to floored sens_F were screened at seed 45 with five proxies before each final. Per net, the val-best was confirmed at seeds 42–44 against floored sens_F at 0.45, run in this cell with uniform_F beside it for the lever (smokes **22706763–768** and, after the amendment, **22709056 / 057**; wave 1 **22706783–838** on four nets and the rounded thin cells **22709058–072**; confirm **22709823–835**, **22710135 / 137**, and resubmits **22710197 / 22710278**; `tree_v20`) — PRELIM; registered call: H = mean over nets of (alternative − floored sens_F) **+0.04**, positive on 3 of 5 → **NO-HEADROOM**
+
+Registered before submit 12 Oct 08:00 (commit `2bd664e`; queue row HEAD-F2; Ido ~07:55: "Deeper-point HEAD-F"; no agent).
+- *Amendment 09:47* (`71a3195`): r56-w4 is grid-rounded at 0.45 for every arm. The login-node gate (08:08) had held wave 1 when the uniform_F smoke on the thin pair fell back (x0.441). The 13 unrounded thin cells were cancelled before they ran.
+- *Resubmit reasons 11:45 / 11:49:* the cluster preempted two confirm evals on ise-4090-09.
+
+- *Read.* 12 Oct 12:02 (`scripts/_tmp_s12oct_head2_read.sh`).
+- *Checks.*
+  - 80 / 80 current COMPLETED with rows (65 wave 1, 15 confirm).
+  - Every plan lands at FLOPs x0.445–0.450 with no fallback or Traceback.
+  - The rounded thin smokes read clean: r56-w4 uniform_F at `grid round: 2 groups moved; predicted x0.445`, landed x0.445; α 2 landed x0.449.
+  - The guard r20-w2 cannot reach 0.45 (predicted x0.516) and has no row. It is reported only.
+- *Selection* (the registered rule, the highest screen val Δ per net): r56-w4 s1, DepGraph R56 s1, VGG-19 C100 α 1, r56-w8 s2, r20-w8 C100 s1.
+
+**Confirm, per net** (TEST 5k, mean over seeds 42–44, paired by seed; h = alternative − floored sens_F; FLOPs matched within 2 %):
+
+| net (FLOPs 0.45) | alternative | h, 5k (s42 / 43 / 44) | val | 10k | honest | params ratio |
+|---|---|---|---|---|---|---|
+| thin r56-w4 | s1 | +0.20 (+0.14 / +0.08 / +0.38) | +0.19 | +0.20 | −0.15 | 1.00–1.05 |
+| DepGraph R56 | s1 | −0.58 (−0.12 / −0.72 / −0.90) | +0.23 | −0.18 | −0.39 | 1.01–1.02 |
+| VGG-19 C100 | α 1 | **+0.45** (+0.32 / +0.32 / +0.70) | +0.12 | +0.28 | +0.65 | 1.00 |
+| thin r56-w8 | s2 | −0.15 (−0.32 / −0.16 / +0.02) | −0.11 | −0.13 | +0.05 | 1.01–1.03 |
+| thin r20-w8 C100 | s1 | +0.27 (+0.06 / −0.06 / +0.82) | +1.24 | +0.76 | −0.17 | 1.09–1.16 |
+
+**The lever, floored sens_F − uniform_F** (reported; TEST 5k, mean over seeds 42–44, paired; val beside). The 0.6 column is from §366 / §362, and DepGraph R56's is at 0.48.
+
+| net | 0.45: 5k (s42 / 43 / 44) | val | at 0.6 |
+|---|---|---|---|
+| thin r56-w4 | **+2.37** (+1.72 / +2.52 / +2.86) | +2.19 | +1.79 |
+| DepGraph R56 | +0.97 (+0.88 / +0.80 / +1.24) | +0.41 | +0.51 |
+| VGG-19 C100 | +1.17 (+1.42 / +1.26 / +0.84) | +0.98 | +0.77 |
+| thin r56-w8 | +0.99 (+1.06 / +1.24 / +0.66) | +2.05 | +1.15 |
+| thin r20-w8 C100 | **+1.92** (+1.20 / +2.58 / +1.98) | +1.35 | +0.95 |
+
+**The screen** (seed 45; selection only, never a result). The SD of TEST 5k over each net's seven plans is 0.18 / 0.13 / 0.37 / 0.20 / 0.85, in the table's net order.
+
+**D-PROXY-3 at 0.45** (reported). Each proxy is Spearman's ρ on the val half before the final, against the screen's TEST 5k over each net's seven plans. The last column counts how often the proxy's sign of alternative − sens_F matches TEST 5k, over 30 pairs.
+
+| proxy | r56-w4 | DepGraph R56 | VGG-19 C100 | r56-w8 | r20-w8 C100 | mean ρ | sign agrees |
+|---|---|---|---|---|---|---|---|
+| cut | +0.14 | −0.18 | +0.19 | −0.23 | +0.56 | +0.09 | 22 / 30 |
+| bn8 | +0.75 | −0.21 | −0.18 | +0.43 | +0.82 | +0.32 | 18 / 30 |
+| bn32 | +0.75 | −0.07 | −0.18 | +0.63 | +0.82 | +0.39 | 19 / 30 |
+| ft1 | +0.79 | −0.50 | −0.61 | +0.07 | +0.75 | +0.10 | 14 / 30 |
+| ft3 | +0.86 | −0.18 | −0.43 | +0.44 | +0.71 | +0.28 | 16 / 30 |
+
+**Oracle bound** (a diagnostic with hindsight on TEST; never a result). Per net, take the better of floored sens_F and the confirmed alternative: r56-w4 +0.20, DepGraph R56 0, VGG-19 C100 +0.45, r56-w8 0, r20-w8 C100 +0.27. Mean over the five: **+0.18**.
+
+Reading:
+1. **NO-HEADROOM at 0.45 too**, by the registered rule: H +0.04. Three nets are positive (r56-w4 +0.20, VGG-19 C100 +0.45, r20-w8 C100 +0.27) and two negative (DepGraph R56 −0.58, r56-w8 −0.15).
+   - With hindsight per net, the better of sens_F and the alternative gives only +0.18.
+   - [D] At both depths read, FLOPs 0.6 (§367) and 0.45, floored sens_F is the best that val-selected variation around it finds on these nets.
+2. **The lever grows at depth, but the headroom above sens_F does not.** sens_F − uniform_F is +0.97 to +2.37 at 0.45, against +0.51 to +1.79 at 0.6. Only r56-w8 is level (+0.99 against +1.15).
+   - [H] So allocation matters more at the deeper cut, and sens_F captures that lever.
+   - What remains above sens_F is net-specific and mostly within one per-final seed SD. VGG-19 C100 α 1 (+0.45 on every seed, honest +0.65) is the clearest case.
+3. **The screen picks held up better than at 0.6:** 3 of 5 positive at fresh seeds, against 1 of 5. On four nets the seven plans' finals still spread by only 0.13–0.37.
+4. **The proxies at 0.45** (reported): the raw cut loses the edge it had at 0.6 (mean ρ +0.09, against +0.47), and BN recalibration ranks best (bn32 +0.39, bn8 +0.32).
+   - On the net whose finals spread (r20-w8 C100, SD 0.85), every proxy ranks well; bn8 / bn32 reach +0.82.
+   - [H] At deeper cuts, a BN-recalibrated reward is the better proxy for any agent trained there. Nothing is adopted on this read.
+5. **The consequence the registration named:** NO-HEADROOM at 0.45 as well supports reframing the FLOPs claim as "the frozen agent matches the best rule while transferring". That decision is for Ido and Gilad.
+
+Never:
+- "sens_F is optimal" (only "no headroom found in these directions at FLOPs 0.6 and 0.45").
+- A seed-45 row or the oracle bound as a result.
+- 0.45 rows mixed with 0.6 rows in one contrast.
+- A proxy adopted as the reward on this read.
+
+Records: queue row HEAD-F2; next §369.
