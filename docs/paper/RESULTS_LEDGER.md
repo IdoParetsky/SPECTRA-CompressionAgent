@@ -8138,3 +8138,55 @@ Never:
 - A net dropped after this read.
 
 Records: queue row POOL-F45; next §372.
+
+## 372. (HEAD-P): at equal params, is there a plan above floored, grid-rounded sens_cost (the params prior) on the five lever nets? Five alternatives (sens_cost at α 0.25 / 1 / 2, plain sens, inner) were screened at seed 45 with five proxies. Per net, the val-best was confirmed at seeds 42–44 against POOL-P's and HYG's sens_cost rows (smokes **22716243–251**, screen **22716252–319**, confirm **22723687–701**; `tree_v20`) — PRELIM; registered call: H_P = mean over nets of (alternative − floored sens_cost) **+0.22**, positive on 4 of 5 → **NO-HEADROOM-P**
+
+Registered before submit 12 Oct 17:44 (commit `4144769`; queue row HEAD-P; Ido ~16:42 and ~17:40; no agent). The login-node gate passed at 17:59:53 and released the screen.
+- *Read.* 13 Oct 01:47 (`scripts/_tmp_s12oct_headp_read.sh`).
+- *Checks.*
+  - 45 / 45 COMPLETED with rows. Every arm lands at params 0.595–0.600 (DepGraph R56 0.470), with no fallback.
+  - No cell of this cell was preempted.
+- *Selection* (the registered rule, the highest screen val Δ per net): r56-w4 sens_cost α 0.25, DepGraph R56 α 2, VGG-19 C100 α 0.25, r56-w8 α 0.25, r20-w8 C100 inner.
+
+**Confirm, per net** (TEST 5k, mean over seeds 42–44, paired by seed; h = alternative − floored sens_cost; params matched):
+
+| net (params point) | alternative | h, 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|
+| thin r56-w4 (0.6) | α 0.25 | +0.17 (+0.40 / +0.08 / +0.04) | +0.37 | +0.27 | +0.11 | 0.99–1.00 |
+| DepGraph R56 (0.47) | α 2 | +0.01 (+0.24 / −0.36 / +0.16) | −0.04 | −0.01 | −0.21 | 1.03–1.08 |
+| VGG-19 C100 (0.6) | α 0.25 | **+0.69** (+0.30 / +0.96 / +0.82) | −0.05 | +0.32 | +0.45 | 1.00 |
+| thin r56-w8 (0.6) | α 0.25 | −0.39 (−0.34 / −0.16 / −0.66) | +0.24 | −0.07 | −0.45 | 1.02–1.08 |
+| thin r20-w8 C100 (0.6) | inner | **+0.59** (−0.02 / +1.16 / +0.62) | +0.15 | +0.37 | +1.03 | **0.69–0.70** (caption) |
+
+The guard r20-w2 is reported only: under r56-w4's pick (α 0.25) it is −0.29 (+0.62 / −0.70 / −0.80).
+
+**The screen** (seed 45; selection only, never a result). The SD of TEST 5k over each net's six plans is 0.33 / 0.14 / 0.80 / 0.34 / 0.30, in the table's net order.
+
+**D-PROXY-3 at params** (reported). Each proxy is Spearman's ρ on the val half before the final, against the screen's TEST 5k over six plans. VGG-19 C100 logged no size-point proxy rows. The last column counts how often the proxy's sign of alternative − sens_cost matches TEST 5k, over 20 pairs.
+
+| proxy | r56-w4 | DepGraph R56 | r56-w8 | r20-w8 C100 | mean ρ | sign agrees |
+|---|---|---|---|---|---|---|
+| cut | −0.37 | +0.75 | +0.66 | −0.20 | +0.21 | 12 / 20 |
+| bn8 | +0.60 | +0.67 | +0.66 | −0.44 | +0.37 | 15 / 20 |
+| bn32 | +0.60 | +0.67 | +0.66 | −0.46 | +0.37 | 15 / 20 |
+| ft1 | +0.43 | +0.75 | +0.54 | +0.81 | +0.63 | 15 / 20 |
+| ft3 | −0.09 | +0.17 | +0.09 | +0.72 | +0.22 | 7 / 20 |
+
+Reading:
+1. **NO-HEADROOM-P**, by the registered rule: H_P +0.22 (10k +0.18), positive on 4 of 5, under the +0.3 bar.
+   - There is more room above the params prior than above the FLOPs prior (§367 / §368: −0.04 / +0.04). It sits on the two CIFAR-100 nets.
+2. **VGG-19 C100:** a flatter tilt (α 0.25) is +0.69 at 5k (+0.32 at 10k; val −0.05).
+   - The frozen T1 is +0.56 over sens_cost on this net (§370), so the agent already captures most of this net's room.
+3. **r20-w8 C100:** inner, which keeps the residual streams full, is +0.59 at 5k (10k +0.37, honest +1.03) while keeping 0.69–0.70× sens_cost's FLOPs. It is better on both axes on this net.
+   - T1 is −0.12 against sens_cost there (§370), so this room is missed.
+   - [H] On this wide CIFAR-100 ResNet, keeping the residual streams whole matters more than cost-weighted sensitivity. It is the same net where the FLOPs agent erred (§369).
+4. **Consequence.** At params, T1's parity with sens_cost (§370) is parity with a prior near the ceiling, not at it. The room left is net-specific: picking per net between a flatter tilt, inner and the prior would add about +0.2 on average.
+   - [H] A frozen agent that learns which allocation family suits a net is where one could add value beyond the best fixed rule. This is a design question for Ido and Gilad.
+
+Never:
+- "sens_cost is optimal", or "inner beats sens_cost" beyond r20-w8 C100.
+- A seed-45 row as a result.
+- Params rows mixed with FLOPs rows.
+- A proxy adopted as a reward on this read.
+
+Records: queue row HEAD-P; next §373.
