@@ -270,6 +270,17 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **Jobs:** registered 16:45, `4b89ab5`. Script `scripts/_tmp_s12oct_poolp_submit.sh` (smoke | cells | resub cell:arm:net:seed). Smokes 22714021–028.
 - **Ido's 16:42 authorisation:** choose the recommended avenue to maximize experimentation capacity; questions and insights are welcome.
 
+**Update 12 Oct 17:47 (laptop closed about 18:40 until late night; Ido ~17:40).**
+- **Running unattended:**
+  - POOL-P / POOL-F45: 108 cells 22714582–740, watcher `bw5oo31gk` (local, stops when the laptop closes).
+  - HEAD-P (registered 17:44, `4144769`; no agent; the sens_cost ceiling at params): smokes 22716243–251, screen 22716252–319 held.
+  - The gate (pid 2846089) and the preemption guard `s12oct_autoresub.sh` (pid 2846091, 14 h) run on slurm-login-04. Check them with `ssh paretsky@slurm-login-04.auth.ad.bgu.ac.il` (login nodes cannot ssh to each other).
+- **On return:**
+  1. Read `scratch_audit/s12oct_headp_gate.txt` and `_autoresub_12oct.log`.
+  2. Read POOL-P / POOL-F45 with `scripts/_tmp_s12oct_poolp_read.sh`; these become §370 / §371.
+  3. Read the HEAD-P screen (adapt HEAD-F2's reader to params, with REF = POOL-P / HYG sens_cost rows), then submit `bash s12oct_headp_submit.sh confirm <pairs>`.
+  4. Refresh the Gilad memo.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
