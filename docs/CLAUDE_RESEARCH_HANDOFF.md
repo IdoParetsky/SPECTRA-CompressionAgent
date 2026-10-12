@@ -287,6 +287,14 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **HEAD-P confirm:** 15 evals 22723687–701 running; the call goes in §372, read with `scripts/_tmp_s12oct_headp_read.sh`.
 - The guard is still on slurm-login-04. The Gilad memo is at v6.
 
+**Update 13 Oct 01:54 (§372; POOL-P45 deployed).**
+- **HEAD-P is NO-HEADROOM-P:** +0.22 over five nets, positive on 4 of 5. The room sits on the two CIFAR-100 nets: VGG-19 C100 α 0.25 +0.69, r20-w8 C100 inner +0.59 at 0.69–0.70× the FLOPs.
+- **POOL-P45** (registered 01:50, `3879587`): T1 vs sens_cost at params 0.45 on nine nets.
+  - Jobs: smokes 22724492–496; 108 cells 22724497–613, held.
+  - The gate and guard run on slurm-login-02. Check them with `ssh paretsky@slurm-login-02.auth.ad.bgu.ac.il`.
+  - Gate verdict: `scratch_audit/s13oct_poolp45_gate.txt`. Guard log: `_autoresub_13oct.log`.
+  - Read it by adapting `scripts/_tmp_s12oct_poolp_read.sh` to `size_param0.45` and the poolp45 manifest. The call goes in §373.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
