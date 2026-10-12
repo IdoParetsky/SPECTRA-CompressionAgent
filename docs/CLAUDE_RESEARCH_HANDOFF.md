@@ -240,6 +240,20 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - Method, per tree: list the remote files, stream a tar to `C:\SPECTRA_backups\cluster_traj_models\`, verify every file and size, then delete only verified dirs.
   - Exclude `tree_v9c` (Stage-4's tree), and keep any dir the ledger does not cover.
 
+**Update 12 Oct 09:55 (back online at 09:46).**
+- **The gate read FAIL at 08:08:** uniform_F on the thin pair fell back at 0.45; the other five smokes passed. Wave 1 stayed held.
+- **Amendment (09:47; queue row HEAD-F2):** the thin pair is grid-rounded at 0.45.
+  - The 52 cells on the other four nets were released.
+  - The 13 thin cells 22706769–781 were cancelled before they ran.
+  - New thin smokes 22709056 / 057; 13 rounded thin cells held. **Read the smokes, then `scontrol release` those 13.**
+- **Watchers:** thin smokes `bunine54d`; four-net wave 1 `by1zjd8qm`. Arm one on the 13 thin cells after their release.
+- **Reader:** `scripts/_tmp_s12oct_head2_read.sh`. Confirm: `bash s12oct_head2_submit.sh confirm <pairs>`. The call goes in §368.
+- **Disk:**
+  - The PyCharm cache is deleted (21 GB).
+  - The snapshot backup (`scripts/_tmp_s12oct_snap_backup.sh`, background task `byxczzoof`) covers 718 ledger-named dirs (32.4 GB, 12 trees; tree_v9b done). The 2 un-ledgered tree_v15 dirs (22427987 / 988) stay.
+  - Per-tree log: scratchpad `snap_backup.log`; cluster log `scratch_audit/_snap_backup_12oct.log`.
+- **Login nodes:** `bgu-slurm` reaches more than one login node, so `/tmp` is not shared. Keep files in home.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
