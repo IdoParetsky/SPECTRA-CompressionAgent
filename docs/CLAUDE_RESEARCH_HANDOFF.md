@@ -261,6 +261,15 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **The framing fork is with Ido** (and Gilad): the FLOPs claim becomes "matches the best rule while transferring". Optionally, the frozen T4-F is placed at 0.45 (15 evals) for the Pareto.
 - Two confirm evals were preempted at 11:45 and resubmitted with a registered reason. The confirm mode now takes `net:var:seed`.
 
+**Update 12 Oct 16:50 (§369; POOL-P and POOL-F45 registered under Ido's 16:42 authorisation).**
+- **T4F-45 is BELOW-PRIOR:** D45 −0.36. r20-w8 C100 is −1.43; the other four nets are within 0.27 of the rule.
+  - At equal FLOPs the residual never adds over its prior, so the FLOPs results are the rule's.
+  - The Gilad memo, https://claude.ai/artifact/2AuRSUmLQJhRqTKcpHejb4 (v2, a draft for Ido), says so.
+- **POOL-P** tests T1 at equal params on the nine-net pool against sens_cost, sens and uniform. Calls: P vs sens_cost, and BEYOND-SENS. HYG's rows are reused for VGG-19 C100, VGG-16 and DepGraph R56.
+- **POOL-F45** runs T4-F, sens_F and uniform_F at 0.45 on r56c / mbv214 / dn100 / v16.
+- **Jobs:** registered 16:45, `4b89ab5`. Script `scripts/_tmp_s12oct_poolp_submit.sh` (smoke | cells | resub cell:arm:net:seed). Smokes 22714021–028.
+- **Ido's 16:42 authorisation:** choose the recommended avenue to maximize experimentation capacity; questions and insights are welcome.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
