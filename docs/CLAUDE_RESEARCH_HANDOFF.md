@@ -253,6 +253,7 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - The snapshot backup (`scripts/_tmp_s12oct_snap_backup.sh`, background task `byxczzoof`) covers 718 ledger-named dirs (32.4 GB, 12 trees; tree_v9b done). The 2 un-ledgered tree_v15 dirs (22427987 / 988) stay.
   - Per-tree log: scratchpad `snap_backup.log`; cluster log `scratch_audit/_snap_backup_12oct.log`.
 - **Login nodes:** `bgu-slurm` reaches more than one login node, so `/tmp` is not shared. Keep files in home.
+- **11:00:** the 13 rounded thin cells were released at 10:15, after their smokes read clean. The snapshot backup is **done**: 718 dirs (32.4 GB), every file verified, then deleted. Home use is about 70 GB. The backups are in `C:\SPECTRA_backups\cluster_traj_models\` on the laptop.
 
 ---
 
