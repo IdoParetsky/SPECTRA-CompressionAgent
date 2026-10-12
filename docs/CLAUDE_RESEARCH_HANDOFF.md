@@ -223,6 +223,23 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - Also open: deleting the stale PyCharm cache (21 GB), and backing up then deleting the older ledgered snapshots (about 32 GB).
 - Nothing is queued by science; Stage-4 22688072 is running.
 
+**Update 12 Oct 08:04 (Ido's 07:55 answers; HEAD-F2 running; laptop closed about 08:20–09:50).**
+- **Ido's answers:** A, a deeper-point HEAD-F; delete the PyCharm cache; back up, then delete, the older snapshots.
+- **HEAD-F2** (registered 08:00, `2bd664e`) is HEAD-F's design at FLOPs 0.45 on the five lever nets, with sens_F and uniform_F at seeds 42–44.
+  - Jobs: smokes 22706763–768; wave 1 22706769–838 (65, afterok and held).
+  - The gate on the login node writes `scratch_audit/s12oct_head2_gate.txt` (PASS releases wave 1; FAIL leaves it held).
+  - Job map: `scratch_audit/s12oct_head2_manifest.tsv`.
+- **On return:**
+  1. Read the gate file and the smoke lines.
+  2. Arm `scripts/_tmp_s12oct_watch.sh` on wave 1.
+  3. Read the screen with a HEAD-F2 reader: HEAD-F's reader at `size_flop0.45`, with REF = this cell's sens rows and the lever sens − uniform.
+  4. Submit `bash s12oct_head2_submit.sh confirm <pairs>`.
+  5. Read the call as §368.
+- **The PyCharm delete** runs under `setsid nohup` (`/tmp/paretsky_pycharm_rm.txt` on the login node says when it is done).
+- **The snapshot backup** has not started; it needs the laptop on.
+  - Method, per tree: list the remote files, stream a tar to `C:\SPECTRA_backups\cluster_traj_models\`, verify every file and size, then delete only verified dirs.
+  - Exclude `tree_v9c` (Stage-4's tree), and keep any dir the ledger does not cover.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
