@@ -8021,3 +8021,42 @@ Never:
 - A proxy adopted as the reward on this read.
 
 Records: queue row HEAD-F2; next §369.
+
+## 369. (T4F-45): the frozen T4-F at FLOPs 0.45 on the five held-out lever nets, against HEAD-F2's floored sens_F and uniform_F rows, paired by seed (smoke **22711037**; cells **22711169–184**, with **22711286 / 293** resubmitted after preemption; `tree_v20`) — PRELIM; registered call: D45 = mean over nets of (T4-F − floored sens_F) **−0.36**, positive on 1 of 5 → **BELOW-PRIOR**
+
+Registered before submit 12 Oct 13:03 (commit `2fa3a14`; queue row T4F-45; Ido ~13:00: "Gilad package + T4-F at 0.45"). The resubmit reason (13:30) is registered in the queue row: the cluster preempted two thin cells at 13:26 on ise-4090-17.
+- *Read.* 12 Oct 16:48 (`scripts/_tmp_s12oct_t4f45_read.sh`).
+- *Checks.*
+  - 15 / 15 current cells with rows. The smoke read clean: r56-w4 `grid round: 2 groups moved; predicted x0.442`, landed x0.449, no fallback.
+  - FLOPs ratios against sens_F are 0.99–1.00.
+  - 22711181 (DepGraph R56, seed 44) finished its run at 16:31:42 ("Run finished in 18.2 min"), but Slurm still showed RUNNING. Its node, ise-4090-09, had lost DNS to the controller (`Unable to resolve "slurm-master"`). The reader counts a RUNNING job whose log says "Run finished" as complete, and prints a note naming it.
+- *T4-F's training range* covers the point read: budgets κ in [0.35, 0.85].
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs matched within 1 %):
+
+| net (FLOPs 0.45) | T4-F − sens_F, 5k (s42 / 43 / 44) | val | 10k | honest | T4-F − uniform_F |
+|---|---|---|---|---|---|
+| thin r56-w4 | +0.04 (+0.20 / −0.24 / +0.16) | +0.15 | +0.09 | +0.01 | +2.41 |
+| DepGraph R56 | −0.27 (+0.06 / −0.26 / −0.62) | +0.11 | −0.08 | −0.21 | +0.70 |
+| VGG-19 C100 | −0.09 (+0.08 / −0.62 / +0.28) | +0.17 | +0.04 | +0.09 | +1.09 |
+| thin r56-w8 | −0.05 (−0.22 / +0.04 / +0.02) | −0.43 | −0.24 | +0.02 | +0.93 |
+| thin r20-w8 C100 | **−1.43** (−0.50 / −1.68 / −2.10) | −0.23 | −0.83 | −1.46 | +0.49 |
+
+Reading:
+1. **BELOW-PRIOR**, by the registered rule: D45 −0.36, positive on 1 of 5. One net carries it.
+   - r20-w8 C100 is −1.43 at 5k, −0.83 at 10k and only −0.23 on val.
+   - On the other four nets T4-F stays within 0.27 of sens_F (mean −0.09).
+2. **The same net is the agent's worst at both depths** (−0.72 at 0.6, §366). It is also where a steeper sensitivity tilt (α 2) helped the rule by +1.19 at 0.6 (§367).
+   - [H] On this CIFAR-100 net the agent's learned residual pushes against the direction that helps.
+3. **The agent learns relative to uniform cutting:** +0.49 to +2.41 on every net.
+4. **What this says about the FLOPs claim:**
+   - Across §366 (0.6, nine nets, D −0.21) and this read (0.45, five nets, D −0.36), T4-F's learned residual never adds accuracy over its prior at equal FLOPs. On some nets it costs.
+   - With §367 / §368 (no headroom above sens_F at either depth), the FLOPs results are the rule's.
+   - [H] The agent's learned contribution has to be shown at equal params. POOL-P (registered 16:45) tests it on nine nets.
+
+Never:
+- "T4-F matches sens_F at 0.45" without the per-net split.
+- 0.45 rows mixed with 0.6 rows in one contrast.
+- A seed or net dropped after this read.
+
+Records: queue row T4F-45; next §370.
