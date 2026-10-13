@@ -8273,3 +8273,54 @@ Never:
 - Rows at 0.35 mixed with other depths in one contrast.
 
 Records: queue row POOL-P35; next §375.
+
+## 375. (D-PROXY-4): which cheap proxy ranks plans the way the 100-epoch final does at params 0.35, across nine nets? POOL-P35's 108 cells re-run with the five plan proxies and a 1-epoch final that is never read (smokes **22777794–796**, cells **22777797–2778256**; `tree_v20`)
+
+Registered before submit 13 Oct 18:37 (commit `5fe474b`; queue row D-PROXY-4). Clarified at 18:43, before any cell ran: ρ ≥ +0.6 with too few agreeing pairs reads WEAK. The login-node gate passed at 19:07:24: three smokes landed at params x0.348–0.350, carried all four measured proxies, and re-made POOL-P35's plans exactly.
+- *Read.* 14 Oct 02:17 (`scripts/_tmp_s13oct_dpx4_read.sh`), and again after the reader fix below.
+- *Checks.*
+  - All 108 cells COMPLETED.
+  - **Plan identity** (the registered check: the TRAJ cut line identical to POOL-P35's for the same cell). Nine cells differ: thin T1 s42 / s44, sens_cost s43 / s44 and sens s42–44; MobileNetV2 ×1.4 sens s43; DenseNet-100 sens s42. The differences are of two kinds:
+    - At the same step and params, the chance-level cut accuracy differs on another GPU node. thin T1 s42 reads 0.110 against 0.156; MobileNetV2 reads 0.103 against 0.102.
+    - The walk took another path: thin sens_cost s43 reached the size point at step 226 against 169.
+
+    The nine are left out of the statistic, as registered. That leaves thin 5 cells, under the reader's minimum of 6 (fixed in the reader before any cell ran), so thin has no ρ and the mean is over eight nets.
+  - **Reader fix after the first read.** Seven cells (MobileNetV2 T1 ×3 and sens_cost s42; VGG-16 T1 ×3) have a size point that is their val_best point, so their proxies are recorded once, under val_best. The first read dropped them. The fix takes that event, as `point()` does for the final. Both reads are reported below.
+  - **The registered pair count is an arithmetic slip.** (net, seed, alternative ∈ T1 / sens / uniform) over nine nets gives 81 pairs, not 27. The threshold is read as its stated fraction, ≥ 2/3 (18 of 27), over the pairs left after the identity check. Recorded after the read.
+
+**Spearman ρ per net** (each proxy's val Δ before the final against POOL-P35's TEST 5k 100-epoch final, over the net's paired cells; after the reader fix, registered identity; ceiling = the val final against the TEST 5k final):
+
+| proxy | chenyaofo R56 | r56-w8 | MBv2 ×1.4 | DN-100 | r20-w8 C100 | VGG-19 C100 | VGG-16 | DepGraph R56 | mean (8 nets) | sign agrees | min / plan |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| ceiling | +0.59 | +0.82 | +0.83 | +0.48 | +0.96 | +0.65 | +0.72 | +0.82 | +0.73 | – | – |
+| cut | +0.92 | +0.71 | +0.49 | −0.02 | −0.84 | +0.52 | +0.66 | +0.82 | +0.41 | 48 / 71 | 0.00 |
+| bn8 | +0.87 | +0.92 | +0.47 | +0.49 | −0.85 | +0.68 | +0.08 | +0.97 | +0.45 | 48 / 71 | 0.01 |
+| bn32 | +0.87 | +0.92 | +0.44 | +0.49 | −0.40 | +0.66 | +0.11 | +0.96 | +0.51 | 52 / 71 | 0.02 |
+| ft1 | +0.60 | +0.73 | +0.72 | +0.20 | **+0.94** | +0.64 | +0.23 | +0.75 | **+0.60** | **55 / 71** | 0.08 |
+| ft3 | +0.41 | +0.80 | +0.33 | −0.22 | +0.90 | +0.58 | +0.03 | +0.45 | +0.41 | 44 / 71 | 0.21 |
+
+**Robustness** (reported):
+- *First read, before the fix* (92 cells, eight nets): ft1 +0.63 (51 / 63 pairs), ft3 +0.49, bn32 +0.45, bn8 +0.39, cut +0.32.
+- *Loose identity*, a post-hoc check: same step and params, ignoring the chance-level cut accuracy. 102 cells, all nine nets:
+  - Means: ft1 +0.61 (56 / 72), bn32 +0.52, bn8 +0.48, ft3 +0.46, cut +0.35.
+  - On thin: ft1 +0.60, bn8 and bn32 +0.70, ft3 +0.77, cut −0.03.
+- ft1's exact mean is +0.6015 under the registered identity and +0.6072 under the loose one.
+
+Reading:
+1. **ft1 reads P35-VALID, at the threshold**: ρ +0.60 (≥ +0.6), with signs right on 55 of 71 pairs (77 %). It is the best proxy in every variant. It sits close to the ceiling (+0.73), so a one-epoch fine-tune ranks near-prior plans almost as well as the full final's own val half. bn32, bn8, cut and ft3 read **P35-WEAK** (+0.41 to +0.51).
+2. **The cheap proxies fail on the nets where the agent fails.** On r20-w8 C100 the raw cut (−0.84) and bn8 (−0.85) rank plans the wrong way round, and ft1 gets them right (+0.94).
+   - T1 trained on the raw cut and T5-bn on bn8. Neither reward could have taught the agent to avoid §374's collapse on that net.
+   - [H] If T5-floor and T5-deep do not remove the collapse either, this is the likely reason: no reward the agent has trained on can see it.
+3. **D-PROXY-3 replicates with about four times the cells.** At params 0.6 (§372; four nets, 24 cells), ft1 read +0.63 against bn8's +0.37. Here, at params 0.35, ft1 reads +0.60 against +0.45. The literature reports the same pattern: proxy fidelity drops among near-equivalent candidates (`docs/paper/LIT_ALLOCATION_PROXIES_13OCT.md`, Q2).
+4. [H] **For the reward lever.** ft1 costs about 0.08 min per plan, against 0.01 for bn8 (8×). A train with ft1 as its reward needs one of three things:
+   - fewer instances;
+   - ft1 on only part of them;
+   - a step-limited fine-tune inside the trainer's masked cut, re-masked after every step and measured this way before any train.
+
+Never:
+- A proxy value as a result.
+- The 1-epoch final as anything.
+- An arm picked per net from these numbers.
+- ft1's VALID quoted without "at the threshold".
+
+Records: queue row D-PROXY-4; next §376.
