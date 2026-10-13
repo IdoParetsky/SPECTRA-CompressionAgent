@@ -8234,3 +8234,42 @@ Never:
 - Seeds added to this cell after the read.
 
 Records: queue row POOL-P45; next §374.
+
+## 374. (POOL-P35): POOL-P at params 0.35, the lower edge of T1's training range. The frozen T1 against floored, grid-rounded sens_cost, sens and uniform on the nine-net held-out pool (smokes **22725456–460**, cells **22725461–573**, with **22745280** resubmitted after a hang; `tree_v20`) — PRELIM; registered call: P35 = mean over nets of (T1 − floored sens_cost) **−0.42** (bootstrap [−2.06, +0.33]), positive on 5 of 9 → **BELOW-PRIOR-POOL**
+
+Registered before submit 13 Oct 07:07 (commit `8c8a26d`; queue row POOL-P35), after §373, with the hypothesis that T1's edge over sens_cost grows with depth. The login-node gate passed at 07:20:58 (five smokes at params x0.350, no fallback).
+- *Read.* 13 Oct 13:45 (`scripts/_tmp_s13oct_poolp35_read.sh`).
+- *Checks.*
+  - 107 of the 108 current cells COMPLETED with rows. The resubmit reason is registered in the queue row: 22725553 (uniform_F, MobileNetV2 ×1.4, seed 44) hung after final-FT epoch 15 and hit its 3-h wall. It feeds only the reported lever on that net, which is read on two seeds.
+  - The call's arms (T1, sens_cost) are complete on all nine nets.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T1 to the rule):
+
+| net | T1 − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T1 − sens | lever sens_cost − uniform |
+|---|---|---|---|---|---|---|---|
+| thin r56-w4 | −0.01 (−0.36 / −0.02 / +0.34) | −0.30 | −0.16 | +0.17 | 0.95–1.12 | +0.10 | +2.81 |
+| chenyaofo ResNet-56 | +0.16 (−0.18 / +0.06 / +0.60) | +0.03 | +0.10 | +0.23 | 1.07–1.21 | +0.58 | +0.58 |
+| thin r56-w8 | +0.42 (+0.42 / +0.34 / +0.50) | −0.02 | +0.20 | +0.53 | 1.26–1.48 | +1.28 | +2.21 |
+| MobileNetV2 ×1.4 | **+0.67** (+0.42 / +0.76 / +0.82) | +0.72 | +0.69 | +0.43 | 0.93–1.21 | +1.16 | −0.43 |
+| DenseNet-100 | +0.08 (+0.02 / −0.10 / +0.32) | +0.15 | +0.11 | +0.15 | 1.10–1.13 | +0.27 | +0.19 |
+| thin r20-w8 C100 | **−5.23** (−3.86 / **−12.06** / +0.22) | −4.89 | −5.06 | −4.93 | 1.00–1.25 | −7.35 | −0.89 |
+| VGG-19 C100 | −0.01 (+0.22 / −0.12 / −0.12) | +0.21 | +0.10 | −0.05 | 0.97–1.00 | −0.09 | +2.26 |
+| VGG-16 C10 | +0.33 (−0.02 / +0.38 / +0.62) | +0.12 | +0.22 | +0.13 | 1.01–1.02 | −0.03 | +0.08 |
+| DepGraph R56 | −0.19 (−0.08 / +0.08 / −0.56) | −0.09 | −0.14 | −0.68 | 1.07–1.13 | +0.16 | +1.17 |
+
+**The collapse on r20-w8 C100** (one cell, diagnostic). At seed 43 T1's plan keeps x0.331 of the params with group keep min 0.09 and median 1.00: half the groups whole, others cut to 9 %. After recovery it is 27.4 pp under the origin. sens_cost's plan (min 0.34, median 0.69) is 15.3 pp under. Both one-shot cuts sit at chance (0.014).
+
+**Depth trend on the other eight nets** (a diagnostic after the read, never a call). The mean of T1 − sens_cost without r20-w8 C100 is +0.01 at params 0.6 (§370), +0.10 at 0.45 (§373) and +0.18 at 0.35.
+
+Reading:
+1. **BELOW-PRIOR-POOL**, by the registered rule: P35 −0.42. One net carries it: r20-w8 C100 is −5.23 (seed 43 −12.06). On the other eight nets T1 − sens_cost averages +0.18. MobileNetV2 ×1.4 (+0.67) and r56-w8 (+0.42) are positive on every seed.
+2. **The depth hypothesis holds on eight nets but never reaches the bar.** The agent's edge over the cost-aware rule grows as the budget tightens (+0.01 → +0.10 → +0.18), which is too small to beat the prior by +0.3.
+3. **At the edge of its training range, the agent can produce an extreme plan.** It keeps half the groups whole and cuts others to the 0.1 floor. On a wide CIFAR-100 net that is catastrophic: the same net where the cost-aware rule itself fails at depth (§373), and where keeping residual streams whole helps (§372).
+   - [H] A floor on each group's keep at decode time (`SPECTRA_ALLOC_MIN_KEEP`, 0.1 today; it also applies to the rules) is a candidate safety rail for a frozen agent at deep budgets. It needs its own registered cell.
+
+Never:
+- "T1 beats sens_cost at depth", or a depth trend presented as a call.
+- A net or seed dropped from this call after the read.
+- Rows at 0.35 mixed with other depths in one contrast.
+
+Records: queue row POOL-P35; next §375.
