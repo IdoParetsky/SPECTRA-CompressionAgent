@@ -295,6 +295,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - Gate verdict: `scratch_audit/s13oct_poolp45_gate.txt`. Guard log: `_autoresub_13oct.log`.
   - Read it by adapting `scripts/_tmp_s12oct_poolp_read.sh` to `size_param0.45` and the poolp45 manifest. The call goes in §373.
 
+**Update 13 Oct 07:11 (§373; POOL-P35 deployed).**
+- **POOL-P45 is AT-PRIOR-POOL:** T1 − sens_cost +0.18 over nine nets at params 0.45 ([−0.07, +0.46]), positive on 6 of 9. r56-w8 is +0.57 on every seed. On r20-w8 C100 the cost-aware rule falls 1.35 below uniform.
+- **POOL-P35** (registered 07:07, `8c8a26d`) tests whether T1's edge grows with depth, at params 0.35, the edge of its κ range.
+  - Jobs: smokes 22725456–460; 108 cells 22725461–573, held.
+  - The gate and guard run on slurm-login-01. Check them with `ssh paretsky@slurm-login-01.auth.ad.bgu.ac.il`. Local watcher: the POOL-P35 cells.
+  - Reader: `scripts/_tmp_s13oct_poolp45_read.sh` with 0.45 replaced by 0.35 and the poolp35 manifest. The call goes in §374.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
