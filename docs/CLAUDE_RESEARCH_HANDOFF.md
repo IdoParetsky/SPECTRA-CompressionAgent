@@ -328,6 +328,19 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **[H] to check at the read:** D-PROXY-3 at params ranked r20-w8 C100's plans the wrong way round with bn8 (ρ −0.44) and the right way with ft1 (+0.81). T5-bn may therefore help the other eight nets without fixing the collapse.
 - **Proposed to Ido for tonight: P25.** T5-deep, sens_cost and uniform at params 0.25 on the nine nets (81 evals; optionally T1 as well, +27). If he has not steered by the time T5's evals drain, register it and submit it under the 18:00 authority.
 
+**Update 13 Oct 23:31 (D-PROXY-4 and P25 deployed; T5 trains done or finishing).**
+- **Gates:** T5-P PASS 18:28 (6 trains released) and T5-DEEP PASS 18:33 (3). T5-floor's and T5-deep's trains are COMPLETED (12,000 instances, about 2:57). T5-bn's (bn8, 1.61 s per instance) finish around 23:40. Reader: `ssh bgu-slurm 'bash -s bn floor deep' < scripts/_tmp_s13oct_t5_read.sh`. Calls go in §375 onward.
+- **D-PROXY-4** (registered 18:37, `5fe474b`; gate PASS 19:07 on slurm-login-04): POOL-P35's 108 cells re-run with the five proxies and a 1-epoch final (never read). Reader: `scripts/_tmp_s13oct_dpx4_read.sh` (bash -s). It pairs each cell's proxies with POOL-P35's final for the same cell, drops any cell whose TRAJ cut line differs, and calls P35-VALID / WEAK / INVALID per proxy.
+- **RAIL-P35's sens_cost arm** is complete. It is T5-floor's comparator. Reported only: the floor changes sens_cost by −0.05 at 5k (val −0.03, 10k −0.04, honest +0.01), and by −0.55 on r20-w8 C100.
+- **P25** (registered 23:24, `b43bd81`, as the brief's default since Ido had not steered):
+  - T5-deep, sens_cost and uniform at params 0.25.
+  - Jobs: smokes 22801756–766; 81 cells 22801767–2802211, held.
+  - The gate on **slurm-login-03** sleeps until **04:00** (pid 58735), then releases the cells only on PASS. To stop it if Ido steers otherwise: `kill 58735` on login-03. Guard pid 58737.
+  - Reader: `scripts/_tmp_s13oct_p25_read.sh` (bash -s).
+- **Reaching login-03:** it is not in known_hosts. Add `-o HostKeyAlias=slurm.bgu.ac.il -o StrictHostKeyChecking=yes -i ~/.ssh/id_ed25519_bgu_slurm`.
+- **Literature:** `docs/paper/LIT_ALLOCATION_PROXIES_13OCT.md` (`c36c59d`). [H] "Matches the best rule while transferring" is the defensible headline: allocation gaps after a full fine-tune are 0.15–0.31 pp at about 50 % FLOPs, and the room is at tighter budgets and on CIFAR-100. One frozen policy across families, with no per-target search, has no CNN precedent. The memo for Gilad (v10) says this.
+- **Idea, not registered:** a random-search comparator, the best of N `sample` plans picked by the D-PROXY-4-best proxy, then a full final at seeds 42–44. About 20 GPU-h, no new code.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
