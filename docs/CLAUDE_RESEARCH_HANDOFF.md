@@ -309,7 +309,7 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - Jobs: smokes 22745708–743; 54 cells 22745744–959, held. The gate and guard run on slurm-login-02.
 - **Reading the call:** a new reader is needed that pairs RAIL's T1 rows with §374's T1 rows by seed. Base it on `scripts/_tmp_s13oct_poolp35_read.sh`.
 
-**Update 13 Oct 18:30 (RAIL-P35 amended; T5-P and T5-DEEP deployed).**
+**Update 13 Oct 18:28 (RAIL-P35 amended; T5-P and T5-DEEP deployed).**
 - **RAIL-P35's gate FAILED at 13:53, and that caught a design error.** `SPECTRA_ALLOC_MIN_KEEP` reaches only the rules. The agent decodes with the k_min saved in its policy file (`blob.get("k_min", k_min)` in `plan_agent.plan_for_env`), and T1's is 0.1. Amended 18:08 (`2ccb18a`): T1's 27 cells were cancelled before any ran; the 27 sens_cost cells run as T5-floor's comparator (sens_cost at floor 0.25, params 0.35). Calls (1)–(2) are void; (3) moved to T5-P.
 - **T5-P** (registered ~18:06, `491ce2d`; Ido ~18:00 authority) is two single-change retrains of T1's line, three seeds each:
   - T5-bn: reward bn8.
