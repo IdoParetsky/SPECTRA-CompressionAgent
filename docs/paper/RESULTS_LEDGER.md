@@ -8190,3 +8190,47 @@ Never:
 - A proxy adopted as a reward on this read.
 
 Records: queue row HEAD-P; next §373.
+
+## 373. (POOL-P45): POOL-P at a second depth, params 0.45. The frozen T1 against floored, grid-rounded sens_cost (the params prior), sens and uniform on the nine-net held-out pool (smokes **22724492–496**, cells **22724497–613**; `tree_v20`) — PRELIM; registered call: P45 = mean over nets of (T1 − floored sens_cost) **+0.18** (bootstrap [−0.07, +0.46]), positive on 6 of 9 → **AT-PRIOR-POOL**
+
+Registered before submit 13 Oct 01:50 (commit `3879587`; queue row POOL-P45; Ido ~16:42 / ~17:40 authorisation; frozen agents). The login-node gate passed at 02:02:00 (five smokes at params x0.447–0.450, grid lines, no fallback, no errors) and released the cells.
+- *Read.* 13 Oct 07:07 (`scripts/_tmp_s13oct_poolp45_read.sh`).
+- *Checks.*
+  - 108 / 108 COMPLETED with rows, and no preemption (the guard log shows only its start).
+  - Every arm lands at params x0.44–0.45.
+- *T1's training range* covers the point read: κ in [0.35, 0.85].
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T1 to the rule):
+
+| net | T1 − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T1 − sens: 5k | lever sens − uniform / sens_cost − uniform, 5k |
+|---|---|---|---|---|---|---|---|
+| thin r56-w4 | −0.28 (−0.52 / −0.44 / +0.12) | −0.03 | −0.15 | −0.06 | 0.93–1.06 | −0.12 | +1.89 / +2.05 |
+| chenyaofo ResNet-56 | +0.31 (+0.32 / +0.16 / +0.46) | +0.23 | +0.27 | +0.55 | 1.02–1.13 | +0.61 | −0.81 / −0.52 |
+| thin r56-w8 | **+0.57** (+0.54 / +0.68 / +0.50) | +0.33 | +0.45 | +0.66 | 1.30–1.46 | +1.21 | +0.41 / +1.04 |
+| MobileNetV2 ×1.4 | +0.31 (−0.02 / +0.54 / +0.42) | −0.09 | +0.11 | +0.17 | 0.97–1.19 | +0.78 | −0.79 / −0.32 |
+| DenseNet-100 | −0.19 (−0.26 / −0.34 / +0.04) | +0.15 | −0.02 | +0.09 | 1.03–1.07 | −0.13 | +0.13 / +0.19 |
+| thin r20-w8 C100 | **+0.82** (+0.50 / +0.02 / +1.94) | +0.70 | +0.76 | +0.89 | 1.01–1.10 | **−1.68** | +1.15 / **−1.35** |
+| VGG-19 C100 | +0.02 (+0.40 / −0.76 / +0.42) | −0.33 | −0.15 | −0.05 | 1.00 | +0.38 | +1.24 / +1.60 |
+| VGG-16 C10 | −0.01 (−0.10 / −0.12 / +0.20) | +0.09 | +0.04 | +0.03 | 1.01–1.06 | +0.17 | +0.38 / +0.55 |
+| DepGraph R56 | +0.07 (−0.20 / +0.08 / +0.34) | +0.09 | +0.08 | −0.09 | 1.02–1.09 | +0.43 | +0.45 / +0.80 |
+
+**T1 − sens over all nine nets** (reported, not a call): +0.18, bootstrap [−0.39, +0.67], positive on 6 of 9.
+
+Reading:
+1. **AT-PRIOR-POOL at params 0.45**, by the registered rule: P45 +0.18, positive on 6 of 9, under the +0.3 bar. At params 0.6 it was −0.01 (§370).
+   - Across both depths, the frozen T1 matches the cost-aware rule across nine held-out nets.
+   - At the deeper point it edges above it on the wide nets: r56-w8 +0.57 on every seed (val +0.33, 10k +0.45, keeping 1.30–1.46× the FLOPs), chenyaofo ResNet-56 +0.31, and MobileNetV2 ×1.4 +0.31.
+2. **On r20-w8 C100 the cost-aware rule itself fails at depth.** sens_cost is 1.35 below uniform there, while plain sens is 1.15 above it.
+   - T1 sits between the two: +0.82 over sens_cost, −1.68 under sens.
+   - This is the net where keeping the residual streams whole beat sens_cost at params 0.6 (§372).
+   - [H] On a wide CIFAR-100 ResNet, the late, param-heavy stages carry the capacity for 100 classes. A cost-aware cut that thins them hardest is the wrong allocation there, and a per-net choice of allocation family would pay on this net.
+3. **Across the four reads at equal params** (§363, §370, §372, this):
+   - The frozen agent reaches the best hand-designed rule's accuracy on nine held-out nets at two depths, from reward alone.
+   - What is left above that rule is net-specific.
+
+Never:
+- "T1 beats sens_cost" unless BEATS-PRIOR-P-POOL fires.
+- Rows at 0.45 mixed with rows at 0.6 in one contrast.
+- Seeds added to this cell after the read.
+
+Records: queue row POOL-P45; next §374.
