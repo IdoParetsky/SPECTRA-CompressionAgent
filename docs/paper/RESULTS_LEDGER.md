@@ -8324,3 +8324,45 @@ Never:
 - ft1's VALID quoted without "at the threshold".
 
 Records: queue row D-PROXY-4; next §376.
+
+## 376. (T5-floor, part of T5-P): T1's params line retrained with one change, a per-group keep floor of 0.25 in training instead of 0.1, read frozen at params 0.35 on the nine-net held-out pool (trains **22773501 / 551 / 570**, evals in `scratch_audit/s13oct_t5p_manifest.tsv`; comparators RAIL-P35's floored sens_cost **22745744–959** and POOL-P35's T1; `tree_v20`) — PRELIM; registered calls: P_floor = T5-floor − sens_cost at floor 0.25 **−0.35** → **BELOW-PRIOR-POOL**; L_floor = T5-floor − T1 **+0.02** → **SAME**
+
+Registered before submit 13 Oct ~18:06 (commit `491ce2d`; comparator amended `2ccb18a`, 18:08; queue row T5-P), under Ido's ~18:00 authority. The login-node gate passed at 18:28. The trainer line carried the one change (`"proxy": "cut"`, `"k_min": 0.25`), and the eval smoke landed at params x0.349.
+- *Read.* 14 Oct 02:31 (`scripts/_tmp_s13oct_t5_read.sh floor`; the reader reproduces §374's T1 − sens_cost of −0.42 as a self-check).
+- *Checks.*
+  - The three trains COMPLETED their 12,000 instances, and all 27 evals COMPLETED.
+  - The comparators are complete: RAIL-P35's 27 floored sens_cost cells, one of them resubmitted after preemption (22745745 → 22774015), and POOL-P35's 27 T1 cells.
+  - T5-floor decodes with its policy's own floor, 0.25; every r20-w8 C100 plan's keep min is 0.25.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T5-floor to the comparator):
+
+| net | T5-floor − sens_cost (floor 0.25): 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T5-floor − T1: 5k | val | 10k | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.24 (+0.16 / −0.46 / +1.02) | −0.14 | +0.05 | +0.39 | 0.89–1.17 | +0.09 | +0.13 | +0.11 | +0.17 |
+| chenyaofo ResNet-56 | −0.09 (+0.30 / −0.14 / −0.44) | +0.20 | +0.05 | −0.19 | 1.12–1.35 | +0.00 | +0.13 | +0.07 | +0.05 |
+| thin r56-w8 | −0.01 (−1.20 / +0.48 / +0.70) | −0.45 | −0.23 | +0.19 | 1.06–1.62 | −0.66 | −0.67 | −0.67 | −0.66 |
+| MobileNetV2 ×1.4 | **+0.51** (+0.00 / +0.64 / +0.88) | +0.33 | +0.42 | +0.55 | 1.06–1.16 | +0.15 | −0.07 | +0.04 | +0.27 |
+| DenseNet-100 | −0.23 (−0.16 / −0.36 / −0.16) | +0.00 | −0.11 | −0.13 | 1.39–1.78 | −0.36 | −0.18 | −0.27 | −0.34 |
+| thin r20-w8 C100 | **−3.79** (**−7.48** / −4.12 / +0.22) | −3.28 | −3.54 | −3.75 | 1.01–1.24 | +0.89 (−3.56 / +6.76 / −0.54) | +1.30 | +1.09 | +1.05 |
+| VGG-19 C100 | +0.27 (+0.22 / +0.48 / +0.12) | −0.43 | −0.08 | +0.16 | 0.99–1.00 | +0.07 | −0.85 | −0.39 | +0.49 |
+| VGG-16 C10 | −0.29 (−0.32 / −0.02 / −0.52) | −0.11 | −0.20 | −0.19 | 0.98–1.02 | −0.20 | −0.08 | −0.14 | −0.09 |
+| DepGraph R56 | +0.25 (+0.30 / +0.24 / +0.20) | +0.17 | +0.21 | +0.14 | 1.06–1.24 | +0.22 | +0.36 | +0.29 | +0.38 |
+
+FLOPs caption: the agent keeps more FLOPs than the rule at equal params on most nets, up to 1.78× on DenseNet-100. The pairs are equal-params comparisons.
+
+**The plans on r20-w8 C100** (diagnostic). T5-floor keeps min 0.25 with median 0.91 / 0.97 / 0.75 (s42 / 43 / 44). T1's plans there kept min 0.09 / 0.09 / 0.16 with median 0.88 / 1.00 / 0.78. The floor raised the lowest keep, but the shape is unchanged: most groups nearly whole, the rest pushed to the floor.
+
+**Reported (RAIL-P35's floor on the rule).** Floored sens_cost (0.25) − sens_cost at 0.1 is −0.05 at 5k over the nine nets (val −0.03, 10k −0.04, honest +0.01), and −0.55 on r20-w8 C100 (val −0.31, 10k −0.43, honest −0.14).
+
+Reading:
+1. **BELOW-PRIOR-POOL**, by the registered rule: P_floor −0.35 (95 % bootstrap [−1.48, +0.26]), positive on 4 of 9. r20-w8 C100 carries it again (−3.79). The other eight nets average +0.08.
+2. **SAME as T1**: L_floor +0.02 ([−0.50, +0.78]), positive on 5 of 9. A training floor of 0.25 neither helped nor hurt the agent overall.
+3. **The floor does not remove the collapse; it moves it.** The agent still learns all-or-nothing plans on the wide CIFAR-100 ResNet, now stopping at 0.25 instead of 0.09. §375 explains why a floor cannot fix this. The reward the agent trains on (the raw cut) ranks that net's plans the wrong way round (ρ −0.84), while a one-epoch fine-tune ranks them the right way (+0.94).
+   - [H] The lever is the reward, not the floor or the decode.
+
+Never:
+- "The floor fixes the collapse."
+- T5-floor − T1 read as the floor alone. It reads the training change together with the policy's own decode floor, as registered.
+- A train-log summary as a result.
+
+Records: queue row T5-P (T5-bn reads separately); next §377.
