@@ -302,6 +302,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - The gate and guard run on slurm-login-01. Check them with `ssh paretsky@slurm-login-01.auth.ad.bgu.ac.il`. Local watcher: the POOL-P35 cells.
   - Reader: `scripts/_tmp_s13oct_poolp45_read.sh` with 0.45 replaced by 0.35 and the poolp35 manifest. The call goes in §374.
 
+**Update 13 Oct 13:50 (§374; RAIL-P35 deployed).**
+- **POOL-P35 is BELOW-PRIOR-POOL:** −0.42. r20-w8 C100 is −5.23: T1's plan keeps half the groups whole and cuts others to 0.09, and seed 43 is −12.06. The other eight nets are +0.18, and the depth trend over those eight is +0.01 → +0.10 → +0.18.
+- **RAIL-P35** (registered 13:47, `ee999de`): `SPECTRA_ALLOC_MIN_KEEP=0.25` on T1 and sens_cost at params 0.35.
+  - Calls: RAIL-FIXES (r20-w8 C100 ≥ +2.0 against §374's T1), RAIL-SAFE (the other eight ≥ −0.2), and P35F against sens_cost.
+  - Jobs: smokes 22745708–743; 54 cells 22745744–959, held. The gate and guard run on slurm-login-02.
+- **Reading the call:** a new reader is needed that pairs RAIL's T1 rows with §374's T1 rows by seed. Base it on `scripts/_tmp_s13oct_poolp35_read.sh`.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
