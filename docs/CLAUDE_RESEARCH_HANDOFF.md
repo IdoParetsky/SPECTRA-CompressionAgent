@@ -309,6 +309,25 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - Jobs: smokes 22745708–743; 54 cells 22745744–959, held. The gate and guard run on slurm-login-02.
 - **Reading the call:** a new reader is needed that pairs RAIL's T1 rows with §374's T1 rows by seed. Base it on `scripts/_tmp_s13oct_poolp35_read.sh`.
 
+**Update 13 Oct 18:30 (RAIL-P35 amended; T5-P and T5-DEEP deployed).**
+- **RAIL-P35's gate FAILED at 13:53, and that caught a design error.** `SPECTRA_ALLOC_MIN_KEEP` reaches only the rules. The agent decodes with the k_min saved in its policy file (`blob.get("k_min", k_min)` in `plan_agent.plan_for_env`), and T1's is 0.1. Amended 18:08 (`2ccb18a`): T1's 27 cells were cancelled before any ran; the 27 sens_cost cells run as T5-floor's comparator (sens_cost at floor 0.25, params 0.35). Calls (1)–(2) are void; (3) moved to T5-P.
+- **T5-P** (registered ~18:06, `491ce2d`; Ido ~18:00 authority) is two single-change retrains of T1's line, three seeds each:
+  - T5-bn: reward bn8.
+  - T5-floor: training k_min 0.25.
+  - Jobs: smokes 22773354–357; trains 22773359 / 369 / 453 (bn) and 22773501 / 551 / 570 (floor), held behind the gate on slurm-login-01 (pid 1917043); 54 evals 22773360–579, afterok on their train. Guard pid 1917045.
+- **T5-DEEP** (registered 18:12, `b399764`) is a third single change: training κ [0.25, 0.85].
+  - Jobs: smokes 22773728 / 729; trains 22773730 / 772 / 826, held behind the gate on slurm-login-02 (pid 3672904); 27 evals 22773731–835. Guard pid 3672906.
+- **Calls per variant v:**
+  - P_v = T5-v − sens_cost: BEATS-PRIOR-P-POOL at ≥ +0.3 with 6 of 9 positive; BELOW-PRIOR-POOL at ≤ −0.3.
+  - L_v = T5-v − T1: LEARNS-MORE / SAME / LEARNS-LESS at ±0.3.
+  - Comparators: POOL-P35's rows; RAIL's floored sens_cost for T5-floor.
+- **Reader:** `ssh bgu-slurm 'bash -s bn floor deep' < scripts/_tmp_s13oct_t5_read.sh`. It reproduces §374's T1 − sens_cost (−0.42) as a self-check. The calls go in §375 onward.
+- **Watchers:**
+  - `scripts/_tmp_s13oct_watch2.sh` follows guard resubmits: each poll takes the newest job per cell from the manifest on the cluster.
+  - `scripts/_tmp_s13oct_gatewatch.sh` waits for a gate's verdict file.
+- **[H] to check at the read:** D-PROXY-3 at params ranked r20-w8 C100's plans the wrong way round with bn8 (ρ −0.44) and the right way with ft1 (+0.81). T5-bn may therefore help the other eight nets without fixing the collapse.
+- **Proposed to Ido for tonight: P25.** T5-deep, sens_cost and uniform at params 0.25 on the nine nets (81 evals; optionally T1 as well, +27). If he has not steered by the time T5's evals drain, register it and submit it under the 18:00 authority.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
