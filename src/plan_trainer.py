@@ -11,8 +11,9 @@ monitors. Nothing here is a TEST: the val half selects nothing and the TEST half
 
 Knobs, ``SPECTRA_PLAN_<NAME>``: INSTANCES (300), K (8), SIGMA (0.5), SIGMA_FLOOR (0.2), SIGMA_DECAY (0.6, the
 share of the instances over which σ falls linearly to the floor), LR (3e-4), BATCH (4 instances per update),
-KAPPA (0.35,0.85), KMIN (0.1), PROXY (bn32), TOKENS (layer), ENCODER (transformer), ZERO (channels set to 0,
-e.g. sens), NETS (name substrings to keep; all when unset), REF_EVERY (10), SAVE_EVERY (50), SEED (0),
+KAPPA (0.35,0.85), KMIN (0.1), PROXY (bn32; ``fs<S>``: S SGD steps on the masked cut, lr ``SPECTRA_PLAN_FS_LR``),
+TOKENS (layer), ENCODER (transformer), ZERO (channels set to 0, e.g. sens), NETS (name substrings to keep; all when
+unset), REF_EVERY (10), SAVE_EVERY (50), SEED (0),
 NORM_ADV (1), MAX_MINUTES (0 = no limit; the trainer saves and stops when it is reached), SUMMARY_KAPPAS
 (0.4,0.6,0.8: the κ of the closing per-net summary), BUDGET (params: what κ is a fraction of; flops decodes every
 plan to kept MACs on ``plan_agent.FlopModel`` and flags it in the state, mixed draws params or flops per instance),
@@ -216,7 +217,8 @@ def run(env, shard):
     started = time.perf_counter()
     utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}" + (f" min_width={floor}" if floor > 1 else "")
                       + (f" residual={mode} alpha={alpha:g} sigma={sigma0:g}" if res else "")
-                      + (f" zmax={zmax:g}" if zmax > 0 else ""))
+                      + (f" zmax={zmax:g}" if zmax > 0 else "")
+                      + (f" fs_lr={plan_agent.fs_lr():g}" if cfg.proxy.startswith("fs") else ""))
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
@@ -267,7 +269,8 @@ def run(env, shard):
             "standardizer": resolve_standardizer_path(), "actor": os.environ.get("SPECTRA_ACTOR_CHECKPOINT_PATH", ""),
             **({"min_width": floor} if floor > 1 else {}),
             **({"residual": mode, "residual_alpha": alpha, "residual_sigma": sigma0} if res else {}),
-            **({"residual_zmax": zmax} if zmax > 0 else {})}
+            **({"residual_zmax": zmax} if zmax > 0 else {}),
+            **({"fs_lr": plan_agent.fs_lr()} if cfg.proxy.startswith("fs") else {})}
 
     def log(record):
         with open(log_path, "a", encoding="utf-8") as fh:

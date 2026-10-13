@@ -15,7 +15,8 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
   (``prior_kind`` picks the rule per budget under ``auto``), so the zero-init agent's mean plan is the rule's
   plan exactly and it learns only a change to it. ``SPECTRA_PLAN_RESIDUAL_ZMAX`` > 0 (v20) is a trust region on
   that change: exp(z_g) becomes exp(zmax · tanh(z_g / zmax)) (``trust_score``), within e^±zmax of the rule's weight.
-* ``MaskedCut``: ``cut_to``'s L1 cut written as zeros on a working copy, for the reward.
+* ``MaskedCut``: ``cut_to``'s L1 cut written as zeros on a working copy, for the reward; ``remask`` zeroes
+  the same entries again, so the ``fs<S>`` proxy (``short_finetune``) trains a copy that stays the cut.
 * ``PlanPolicy``: the agent's state encoder with a per-token linear head. A group's score is the mean
   over its tokens, centred over groups (b absorbs any common shift), and plans are z = μ + σ ε.
 * ``NetInstance``: one catalog net's origin read once (state, plan, token map, param model, val batches,
@@ -34,10 +35,17 @@ import torch
 from torch import nn
 
 TOKEN_KINDS = ("layer", "group")
-PROXIES = ("cut", "bn")
+PROXIES = ("cut", "bn", "fs")
 BUDGETS = ("params", "flops")
 PRIOR_KINDS = ("sens", "sens_cost")
 Z_CLIP = 30.0  # |z| beyond this is clipped in residual_decode: exp stays finite, the plan is already saturated
+FS_MOMENTUM = 0.9  # the fs<S> proxy's short fine-tune: SGD momentum and weight decay, shared by the trainer and
+FS_WD = 5e-4  # the eval-side proxy (plan_proxies); the lr is fs_lr()
+
+
+def fs_lr() -> float:
+    """``SPECTRA_PLAN_FS_LR`` (0.01): the lr of the ``fs<S>`` proxy's SGD steps, on both sides."""
+    return float(os.environ.get("SPECTRA_PLAN_FS_LR", "0.01"))
 
 
 def sigmoid(x: float) -> float:
@@ -368,17 +376,28 @@ def _complement(kept, total):
 
 
 @torch.no_grad()
-def _zero_group(group, keep_idx):
-    """Zero what ``pruning.prune_group_structurally`` would remove for survivors ``keep_idx``."""
+def _zero_group(group, keep_idx, record=None):
+    """Zero what ``pruning.prune_group_structurally`` would remove for survivors ``keep_idx``. A list ``record`` also
+    gets one ``(parameter, idx, dim)`` per zeroing (the parameter itself, ``idx`` on its device, ``dim`` the axis
+    indexed), which ``MaskedCut.remask`` replays."""
     from src import pruning
     width = int(group.width)
     keep = keep_idx.detach().cpu().long()
     removed = _complement(keep, width)
+
+    def zero(param, idx, dim):
+        idx = idx.to(param.device)
+        if dim == 0:
+            param[idx] = 0
+        else:
+            param[:, idx] = 0
+        if record is not None:
+            record.append((param, idx, dim))
+
     for module in list(group.producers) + list(group.depthwise):
-        idx = removed.to(module.weight.device)
-        module.weight[idx] = 0
+        zero(module.weight, removed, 0)
         if module.bias is not None:
-            module.bias[idx] = 0
+            zero(module.bias, removed, 0)
     for ref in group.consumers:
         module = ref.module
         kept = pruning.surviving_input_channels(ref, width, keep)
@@ -388,13 +407,13 @@ def _zero_group(group, keep_idx):
             total = module.in_features
             if module.in_features != ref.total:
                 kept = pruning._expand_indices_for_flatten(kept, ref.total, module.in_features)
-        module.weight[:, _complement(kept, total).to(module.weight.device)] = 0
+        zero(module.weight, _complement(kept, total), 1)
     for ref in group.norms:
         norm = ref.module
         idx = _complement(pruning.surviving_input_channels(ref, width, keep), norm.num_features)
         if norm.weight is not None:
-            norm.weight[idx.to(norm.weight.device)] = 0
-            norm.bias[idx.to(norm.bias.device)] = 0
+            zero(norm.weight, idx, 0)
+            zero(norm.bias, idx, 0)
 
 
 class MaskedCut:
@@ -413,6 +432,7 @@ class MaskedCut:
         mwr = ModelWithRows(self.work)
         self.plan = group_plan(mwr, channel_groups.build_channel_groups(self.work) or [])
         self.origin = {key: value.detach().clone() for key, value in self.work.state_dict().items()}
+        self._masks = []
 
     @property
     def rows(self):
@@ -421,15 +441,26 @@ class MaskedCut:
     def cut(self, rates):
         from src import pruning
         self.work.load_state_dict(self.origin)
-        for group, row in self.plan:
-            rate = float(rates.get(row, 1.0))
-            if rate >= 1.0 - 1e-9:
-                continue
-            keep = pruning.select_group_survivors(group, rate, mode="l1")
-            if keep is None:
-                raise RuntimeError(f"group at row {row}: no L1 survivors")
-            _zero_group(group, keep)
+        self._masks = []
+        with torch.no_grad():
+            for group, row in self.plan:
+                rate = float(rates.get(row, 1.0))
+                if rate >= 1.0 - 1e-9:
+                    continue
+                keep = pruning.select_group_survivors(group, rate, mode="l1")
+                if keep is None:
+                    raise RuntimeError(f"group at row {row}: no L1 survivors")
+                _zero_group(group, keep, record=self._masks)
         return self.work
+
+    @torch.no_grad()
+    def remask(self):
+        """Zero again every entry the last ``cut`` zeroed (what a fine-tune step may have moved)."""
+        for param, idx, dim in self._masks:
+            if dim == 0:
+                param[idx] = 0
+            else:
+                param[:, idx] = 0
 
 
 def _no_dropout(module: nn.Module):
@@ -516,6 +547,41 @@ def recal_batches(loader, n, seed, device):
     return out
 
 
+def ft_batches(loader, n, seed, device):
+    """The first ``n`` ``(x, y)`` batches the loader yields under ``seed`` (``plan_proxies.seeded``), labels as class
+    indices: the fixed batches of the ``fs<S>`` proxy."""
+    from src.plan_proxies import seeded
+    out = []
+    with seeded(seed):
+        for x, y in loader:
+            out.append((x.to(device), _labels(y).to(device)))
+            if len(out) >= int(n):
+                break
+    return out
+
+
+def short_finetune(model, batches, lr, after_step=None):
+    """SGD (momentum ``FS_MOMENTUM``, weight decay ``FS_WD``) at ``lr``, one step per ``(x, y)`` in ``batches``, in
+    train mode with every parameter trainable (the flags are put back); ``after_step`` runs without grad after each
+    step (``MaskedCut.remask``). The model is left in eval mode."""
+    with torch.enable_grad():
+        flags = [p.requires_grad for p in model.parameters()]
+        for p in model.parameters():
+            p.requires_grad = True
+        model.train()
+        opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=FS_MOMENTUM, weight_decay=FS_WD)
+        for x, y in batches:
+            opt.zero_grad(set_to_none=True)
+            torch.nn.functional.cross_entropy(model(x), y).backward()
+            opt.step()
+            if after_step is not None:
+                with torch.no_grad():
+                    after_step()
+        for p, flag in zip(model.parameters(), flags):
+            p.requires_grad = flag
+        model.eval()
+
+
 @torch.no_grad()
 def accuracy(model, batches) -> float:
     was_training = model.training
@@ -529,13 +595,15 @@ def accuracy(model, batches) -> float:
 
 
 def parse_proxy(name: str):
-    """``("cut", 0)`` or ``("bn", N)``."""
+    """``("cut", 0)``, ``("bn", N)`` or ``("fs", S)``."""
     name = (name or "").strip().lower()
     if name == "cut":
         return "cut", 0
     if name.startswith("bn") and name[2:].isdigit() and int(name[2:]) > 0:
         return "bn", int(name[2:])
-    raise ValueError(f"plan reward proxy {name!r}: expected cut or bn<N>")
+    if name.startswith("fs") and name[2:].isdigit() and int(name[2:]) > 0:
+        return "fs", int(name[2:])
+    raise ValueError(f"plan reward proxy {name!r}: expected cut, bn<N> or fs<S>")
 
 
 def spans_of(layout):
@@ -693,15 +761,20 @@ class NetInstance:
 
     def batches(self, proxy: str, seed: int):
         kind, n = parse_proxy(proxy)
+        if kind == "fs":
+            return ft_batches(self.train_loader, n, seed, self.device)
         return recal_batches(self.train_loader, n, seed, self.device) if kind == "bn" else []
 
     def reward(self, widths, proxy: str, batches) -> float:
-        """Δ val accuracy (pp) of one cut to ``widths``, after ``proxy`` (BatchNorm re-estimated on ``batches``)."""
+        """Δ val accuracy (pp) of one cut to ``widths``, after ``proxy`` (BatchNorm re-estimated on ``batches``, or the
+        masked copy fine-tuned a step per ``(x, y)`` in ``batches``, re-masked after every step)."""
         from src import recovery_edits
         kind, _n = parse_proxy(proxy)
         work = self.cutter.cut(rates_of(widths, self.pm.widths0))
         if kind == "bn":
             recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
+        elif kind == "fs":
+            short_finetune(work, batches, fs_lr(), after_step=self.cutter.remask)
         return 100.0 * (accuracy(work, self.val) - self.origin_val)
 
     def prior(self, kind: str, budget: str = "params", a: float = 0.5):

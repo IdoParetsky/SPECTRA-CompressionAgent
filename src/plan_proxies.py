@@ -5,6 +5,8 @@ separated, from:
 
 * ``cut``     — the candidate as saved (no measurement; the TRAJ point already holds it);
 * ``bn<N>``   — BatchNorm running statistics re-estimated on N train batches (EagleEye's adaptive BN);
+* ``fs<S>``   — S SGD steps on S fixed train batches (``plan_agent.short_finetune``, lr ``SPECTRA_PLAN_FS_LR``), as
+  the plan trainer's ``fs<S>`` reward runs them on its masked cut;
 * ``ft<E>``   — E epochs of the per-step fine-tune (patience E + 1);
 * ``ft<E>_<P>`` — the per-step fine-tune at E epochs, patience P: ``ft12_4`` is v10's train recipe,
   ``ft40_10`` ft40's (ledger §112).
@@ -31,7 +33,7 @@ import src.utils as utils
 _RECIPE_KEYS = ("SPECTRA_FT_OPTIM", "SPECTRA_FT_LR", "SPECTRA_FT_SGD_LR", "SPECTRA_FT_MOMENTUM", "SPECTRA_FT_WD",
                 "SPECTRA_FT_COSINE", "SPECTRA_FT_SCHEDULE", "SPECTRA_FT_WARMUP_EPOCHS", "SPECTRA_FT_LR_MIN",
                 "SPECTRA_FT_MIXUP", "SPECTRA_FT_LABEL_SMOOTH", "SPECTRA_FT_KD")
-_NAME = re.compile(r"^(cut|bn(\d+)|ft(\d+)(?:_(\d+))?)$")
+_NAME = re.compile(r"^(cut|bn(\d+)|ft(\d+)(?:_(\d+))?|fs(0*[1-9]\d*))$")
 
 
 def proxies() -> list:
@@ -40,7 +42,7 @@ def proxies() -> list:
     names = [n.strip() for n in raw.split(",") if n.strip()]
     for name in names:
         if not _NAME.match(name):
-            raise ValueError(f"SPECTRA_EVAL_PROXIES: unknown proxy {name!r} (cut, bn<N>, ft<E>, ft<E>_<P>)")
+            raise ValueError(f"SPECTRA_EVAL_PROXIES: unknown proxy {name!r} (cut, bn<N>, fs<S>, ft<E>, ft<E>_<P>)")
     return names
 
 
@@ -99,6 +101,11 @@ def measure_one(env, model, name, label=""):
     with seeded(proxy_seed()):
         if m.group(2):
             recovery_edits.recalibrate_batchnorm(work, env.train_loader, env.conf.device, int(m.group(2)))
+        elif m.group(5):
+            from src import plan_agent
+            plan_agent.short_finetune(
+                work, plan_agent.ft_batches(env.train_loader, int(m.group(5)), proxy_seed(), env.conf.device),
+                plan_agent.fs_lr())
         elif m.group(3):
             epochs = int(m.group(3))
             patience = int(m.group(4)) if m.group(4) else epochs + 1
@@ -129,12 +136,17 @@ def measure(env, net_path, label, candidate, names):
             utils.print_flush(f"[proxy] {proxy} {label} {name} failed: {type(error).__name__}: {error}")
             out[proxy] = None
     val_origin, test_origin = float(point["val_origin"]), float(point["test_origin"])
+    fs = {}
+    if any(_NAME.match(p) and _NAME.match(p).group(5) for p in names):
+        from src import plan_agent
+        fs = {"fs_lr": plan_agent.fs_lr()}
     utils.print_flush(
         f"[proxy] {label} {name} step={point['step']} | params x{float(point['param']):.3f} | "
         + " | ".join(f"{p} val Δ {100.0 * (r['val'] - val_origin):+.2f} ({r['minutes']:.1f} min)" if r else f"{p} failed"
-                     for p, r in out.items()))
+                     for p, r in out.items())
+        + (f" | fs lr {fs['fs_lr']:g}" if fs else ""))
     run_recorder.record(
         "eval_plan_proxy", network=net_path, label=label, step=int(point["step"]),
         param=float(point["param"]), flop=float(point["flop"]), val_origin=val_origin, test_origin=test_origin,
-        seed=proxy_seed(), proxies=out)
+        seed=proxy_seed(), proxies=out, **fs)
     return out
