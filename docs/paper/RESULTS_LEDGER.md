@@ -8366,3 +8366,41 @@ Never:
 - A train-log summary as a result.
 
 Records: queue row T5-P (T5-bn reads separately); next §377.
+
+## 377. (T5-DEEP): T1's params line retrained with one change, the training budget range κ [0.25, 0.85] instead of [0.35, 0.85], read frozen at params 0.35 on the nine-net held-out pool (trains **22773730 / 772 / 826**, evals **22773731–835**; comparators POOL-P35's sens_cost and T1; `tree_v20`) — PRELIM; registered calls: P_deep = T5-deep − sens_cost **−0.46** → **BELOW-PRIOR-POOL**; L_deep = T5-deep − T1 **−0.04** → **SAME**
+
+Registered before submit 13 Oct 18:12 (commit `b399764`; queue row T5-DEEP), under Ido's ~18:00 authority. The login-node gate passed at 18:33: the trainer line showed `"proxy": "cut"`, `"k_min": 0.1` and `"kappa_lo": 0.25`, and the eval smoke landed at params x0.346.
+- *Read.* 14 Oct 02:43 (`scripts/_tmp_s13oct_t5_read.sh deep`).
+- *Checks.* The three trains COMPLETED 12,000 instances each, in about 2:57. All 27 evals COMPLETED; one counted from its "Run finished" line while Slurm still showed it RUNNING. POOL-P35's comparators are complete.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T5-deep to sens_cost):
+
+| net | T5-deep − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T5-deep − T1: 5k | val | 10k | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.01 (−0.16 / +0.28 / −0.10) | +0.12 | +0.06 | +0.36 | 0.88–1.04 | +0.02 | +0.42 | +0.22 | +0.19 |
+| chenyaofo ResNet-56 | −0.16 (−0.46 / +0.00 / −0.02) | +0.03 | −0.07 | −0.05 | 1.10–1.19 | −0.32 | −0.01 | −0.16 | −0.27 |
+| thin r56-w8 | +0.30 (+1.00 / −0.68 / +0.58) | +0.07 | +0.18 | +0.37 | 1.21–1.38 | −0.12 | +0.09 | −0.02 | −0.17 |
+| MobileNetV2 ×1.4 | **+0.93** (+0.46 / +1.16 / +1.18) | +0.65 | +0.79 | +0.85 | 1.10–1.31 | +0.27 | −0.07 | +0.10 | +0.41 |
+| DenseNet-100 | −0.17 (−0.44 / −0.46 / +0.38) | +0.01 | −0.08 | +0.00 | 1.31–1.46 | −0.25 | −0.14 | −0.20 | −0.15 |
+| thin r20-w8 C100 | **−5.11** (−1.10 / **−11.76** / −2.46) | −4.75 | −4.93 | −4.97 | 1.03–1.25 | +0.13 (+2.76 / +0.30 / −2.68) | +0.15 | +0.14 | −0.04 |
+| VGG-19 C100 | +0.12 (+0.50 / +0.20 / −0.34) | −0.15 | −0.02 | +0.15 | 0.96–1.00 | +0.13 | −0.37 | −0.12 | +0.20 |
+| VGG-16 C10 | +0.16 (+0.10 / +0.08 / +0.30) | +0.19 | +0.17 | −0.01 | 0.91–1.03 | −0.17 | +0.07 | −0.05 | −0.14 |
+| DepGraph R56 | −0.23 (−0.14 / −0.12 / −0.42) | −0.17 | −0.20 | −0.42 | 1.10–1.13 | −0.04 | −0.08 | −0.06 | +0.26 |
+
+FLOPs caption: at equal params the agent keeps more FLOPs than the rule on most nets, up to 1.46× on DenseNet-100.
+
+**The plans on r20-w8 C100** (diagnostic). T5-deep keeps min 0.09 with median 0.91 / 1.00 / 0.98. That is T1's shape (min 0.09 / 0.09 / 0.16, median 0.88 / 1.00 / 0.78).
+
+Reading:
+1. **BELOW-PRIOR-POOL**, by the registered rule: P_deep −0.46 (95 % bootstrap [−2.06, +0.33]), positive on 5 of 9. r20-w8 C100 again carries it (−5.11; seed 43 −11.76). The other eight nets average +0.12, with MobileNetV2 ×1.4 +0.93 on every seed.
+2. **SAME as T1**: L_deep −0.04 ([−0.34, +0.31]). Training down to κ 0.25 changed nothing measurable at 0.35.
+3. **The edge hypothesis is rejected for the collapse.** Params 0.35 now sits inside the training range, and the all-or-nothing plan on the wide CIFAR-100 ResNet is unchanged.
+   - Together with §376, neither a training floor nor a wider range removes it.
+   - §375 says what the agent's reward sees on that net: the raw cut ranks its plans backwards (ρ −0.84). [H] The lever is the reward.
+
+Never:
+- "Training on deeper budgets fixes the collapse."
+- A train-log summary as a result.
+- T5-deep's 0.35 rows mixed with P25's 0.25 rows in one contrast.
+
+Records: queue row T5-DEEP; next §378.
