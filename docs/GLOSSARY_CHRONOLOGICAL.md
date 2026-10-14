@@ -33,12 +33,12 @@ A number in chat such as “probe 0.065, under the 0.068 freeze” is **not** a 
 
 | Term | Meaning |
 |---|---|
-| **Train catalog** | The networks the agent is allowed to practice on. The current live trains use **10** networks (`database_offline_v6_p5b2.json`): nine CIFAR-10 (two thin ResNet-20s, one thin ResNet-56, ResNet-32, VGG-11, VGG-13, two MobileNets, DenseNet-40) plus VGG-11 on SVHN. |
+| **Train catalog** | The networks the agent is allowed to practice on. The current live trains use **10** networks (`database_offline_v6_p5b2.json`): nine CIFAR-10 (two thin ResNet-20s, one thin ResNet-56, ResNet-32, VGG-11, VGG-13, two MobileNets, DenseNet-40) plus VGG-11 on SVHN. **Updated 14 Oct:** T1-C trains on 18 nets (the 10 plus 8 CIFAR-100 nets), LOFO-R on 6, LOFO-V on 7. T5-DEEP draws κ from 0.25 to 0.85. |
 | **Hold-out** | A network or dataset kept out of that catalog so a later run is a real transfer. Catalog L, the skinny diagnostic pair, ShuffleNet, RepVGG, Fashion-MNIST, and ImageNet are hold-outs. |
 | **Episode** | One walk over one network: the agent visits groups, cuts or skips, and fine-tunes after each real cut. |
 | **Pass** | One sweep through the groups. Live walks use **2 passes**. A third pass was the “learned schedule” control. |
 | **Group-once** | Each group may be cut at most once per pass. |
-| **Mild** | The no-agent control that always keeps 90% of each legal group. |
+| **Mild** | The no-agent control that always keeps 90% of each legal group. **Updated 14 Oct:** "mild-landed" (walked to the size target) is the mild comparator in every §300+ cell, and mild_F is its FLOPs version. |
 | **L1 / FPGM / BN-scale / SVD** | Ways to choose *which* channels to remove. L1 keeps large-magnitude filters. The others are alternate rankings. They are not separate agents. |
 | **TRAJ** | A **trajectory evaluation**. A frozen agent, or a no-agent rule, walks a network for the configured passes. After each cut the CNN is fine-tuned (at TEST time, 40 epochs, patience 10). We record the whole path and then pick one point. |
 | **val_best** | The point we quote from a TRAJ. Among steps whose **validation** drop is still inside τ, take the **smallest** network. Report that step’s **test** Δacc and the fraction kept. We never pick the quoted point by looking at the test set. |
@@ -139,7 +139,7 @@ A number in chat such as “probe 0.065, under the 0.068 freeze” is **not** a 
 | **Memorized val (V9b)** | 28 Sep 23:30 finding. The legacy val is carved from the CIFAR train split, which the zoo nets were trained on. Unpruned val reads 1.000 / 1.000 / 0.999 on the chenyaofo R56·C10 / VGG16·C10 / VGG19·C100 twins, against TEST 0.943 / 0.936 / 0.739. val Δacc then measures forgetting, and every train's reward read it. §124 VGG-19 C100 sat at TEST −8.8 with val −30.9. |
 | **Clean val** (`SPECTRA_VAL_FROM_TEST=1`) | Val and TEST are disjoint halves of the held-out test split (fixed permutation, `SPECTRA_SPLIT_SEED`; `SPECTRA_VAL_TEST_FRACTION=0.5`), and fine-tuning uses the whole train split. Log: `Val from test on cifar-10: n_train=50000 … n_val=5000, n_test=5000`. TEST is then quoted on the 5k half, against the same half's unpruned accuracy. |
 | **Batch lottery** | `get_adaptive_batch_size()` sets the fine-tune batch from the GPU model (1080 64, 2080 128, 3090/4090 256, rtx_6000 384, >40 GB 512) at a fixed lr and epoch budget, and CIFAR profiles never pinned it. §93 ran at 64, most rows at 256. V9b cells pin `SPECTRA_BATCH_SIZE=256`. |
-| **Final fine-tune / "search short, finish long"** (`SPECTRA_EVAL_FINAL_FT_EPOCHS=100`) | After a TRAJ walk, copies of `val_best` and each size point get one fixed long recipe: SGD m 0.9, lr 0.01, wd 5e-4, cosine, CIFAR crop+flip, batch 128, no early stop. Log line `[eval] TRAJ final_ft <label> …` with `walk acc` beside it. The walk still uses its short per-step recipe. Published CIFAR numbers include such a fine-tune (DepGraph, PruningBench). **V9b queued this; every cell pickle-crashed in `_run_final_ft` (`torch.save` of a live module).** Walk numbers usable; zero `final_ft` accuracy until `tree_v9c`. |
+| **Final fine-tune / "search short, finish long"** (`SPECTRA_EVAL_FINAL_FT_EPOCHS=100`) | After a TRAJ walk, copies of `val_best` and each size point get one fixed long recipe: SGD m 0.9, lr 0.01, wd 5e-4, cosine, CIFAR crop+flip, batch 128, no early stop. Log line `[eval] TRAJ final_ft <label> …` with `walk acc` beside it. The walk still uses its short per-step recipe. Published CIFAR numbers include such a fine-tune (DepGraph, PruningBench). **V9b queued this; every cell pickle-crashed in `_run_final_ft` (`torch.save` of a live module).** Walk numbers usable; zero `final_ft` accuracy until `tree_v9c`. **Updated 14 Oct:** the recipe is now G2 for every P row (§348): SGD, cosine from lr 0.1, batch 256, GPU crop+flip, CUDA graphs, 100 epochs, keep the last epoch. The lr 0.01 / batch 128 description above is the pre-§330 state. |
 | **Origin control** (`SPECTRA_EVAL_FINAL_FT_ORIGIN=1`) | The unpruned net gets the same final fine-tune (`final_ft origin`). The honest recovery gain is the pruned net's `final_ft − walk acc` minus the origin's change. |
 | **Size points** (`SPECTRA_EVAL_SIZE_POINTS=param:0.8,0.6`) | Non-terminating size labels: the first point at or below each fraction kept (`[eval] TRAJ size_param0.80`). Pre-registered, so they do not move with where val crosses −τ. Quoted even outside τ, and captioned so. |
 | **P (V9b protocol)** | `SPECTRA_VAL_FROM_TEST=1 SPECTRA_BATCH_SIZE=256 SPECTRA_EVAL_FINAL_FT_EPOCHS=100 SPECTRA_EVAL_FINAL_FT_ORIGIN=1 SPECTRA_EVAL_SAVE_TRAJ_MODELS=1`. "Legacy" = train-split val, GPU-dependent batch, no final fine-tune. Name the protocol in every ledger row. |
@@ -150,7 +150,321 @@ A number in chat such as “probe 0.065, under the 0.068 freeze” is **not** a 
 | **tree_v9c** | `/home/paretsky/scratch_audit/tree_v9c` (29 Sep 17:30): tree_v9b + `src/traj_models.py` (candidates saved as `state_dict` + arch/recipe JSON, never the live module; saves never raise), per-candidate isolation in the final FT, the scratch control and final FT from a saved walk. CPU pytest 367/367. Serves wave 2 (`OPS_HANDOFF_RUNBOOK.md` §8). Frozen. |
 | **Scratch-B** (`SPECTRA_EVAL_FINAL_FT_SCRATCH=both\|only`) | Liu et al. (ICLR 2019): re-initialise a candidate's architecture (PyTorch default init per layer) and train it for a full budget — 200 ep SGD lr 0.1, cosine, crop+flip (`…_SCRATCH_EPOCHS` / `…_SCRATCH_LR`). Log label `<label>+scratch … init=scratch`; the control is `origin+scratch`. The network-level reading of "throw away and regenerate". |
 | **Final FT from saved** (`SPECTRA_EVAL_FINAL_FT_FROM=<run>/traj_models`) | Skip the walk; load each network's saved candidates (not the `__ft<E>` copies) into a fresh original and run the final FT on them. Lets KD / AutoAugment / scratch recipes reuse one walk. Log: `[eval] TRAJ final_ft from <dir>: [labels] for <net>`. |
-| **Honest gain** (`scripts/final_ft_readout.py`) | `(final − walk) − (origin final − origin walk)` on the TEST half, per label. ≥ 2 pp → paper tables use `final_ft` (captioned); < 0.5 pp → the long recipe is not the lever. |
+| **Honest gain** (`scripts/final_ft_readout.py`) | `(final − walk) − (origin final − origin walk)` on the TEST half, per label. ≥ 2 pp → paper tables use `final_ft` (captioned); < 0.5 pp → the long recipe is not the lever. **Updated 14 Oct:** the quoted form is now the TEST 5k change minus the origin control's change under the same final fine-tune (§330; "honest" in §6.2). |
 | **Paired read / early kill** (`scripts/paired_steps.py`) | Under mild the arm and its control hold the same widths at the same step, so val Δ(arm) − val Δ(control) per step is a paired statistic readable mid-run with no new control. KILL: ≥ 15 pairs, mean ≤ −1 pp, ≥ 75 % worse (C-G: 5 pairs, ≤ −3 pp). `ADOPT?` is a candidate only. Geometry-changing arms pair `--by params`. |
-| **Cross-fit (10k)** (`scripts/crossfit_readout.py`) | A walk that reads neither test half (mild geometry, train-loss FT stop, no rollback) gives the same points whichever half is val. So the τ rule is run twice with the halves swapped and averaged (both fold points printed), and size points use both halves: full-CIFAR-test numbers with no new run and no selection on the reported half. |
+| **Cross-fit (10k)** (`scripts/crossfit_readout.py`) | A walk that reads neither test half (mild geometry, train-loss FT stop, no rollback) gives the same points whichever half is val. So the τ rule is run twice with the halves swapped and averaged (both fold points printed), and size points use both halves: full-CIFAR-test numbers with no new run and no selection on the reported half. **Updated 14 Oct:** from §300 on, "10k" means both test halves read after the final fine-tune, quoted beside TEST 5k. |
 | **Census (positive Δ)** | Count of cut points with val / TEST Δacc > 0 on a walk (`crossfit_readout.py`). 29 Sep: 0 of 343 on six full-width nets under P; r20-w2 8 of 18. The "no accuracy increase" fact belongs to the walk fine-tune, not only to memorized val. |
+
+---
+
+## 6. 30 Sep to 14 Oct: the plan agent, the nine-net pools, and the proxies (added 14 Oct)
+
+Terms from ledger §300–§377 and the handoff's §0b updates. The third column names the ledger section where a term is first run or defined ("named §N" = mentioned earlier in passing). [H] marks an interpretation and [U] something the sources do not state. A plain-language overview of the same period is the page "SPECTRA Since 9 October".
+
+### 6.1 The lineage: literature names used in §300–§375
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **Le & Hua (ICLR 2021)** | Cited for "retraining after pruning wants a large learning rate" and for the 1-cycle schedule. Their −0.43 drop "going from CLR-100 to CLR-50 on one R56 cell" was the registered prior for the budget cells. | §221 |
+| **PFEC (Li et al., ICLR 2017)** | "Pruning Filters for Efficient ConvNets". The source of the per-group sensitivity measurement behind `sens`, and of the rule "prune only inside residual blocks" that `inner` implements. | §231 |
+| **POMO (Kwon et al., NeurIPS 2020)** | The idea of sampling several solutions for the same problem and scoring each against their shared average. The plan agent does this with its 8 plans per instance. | §332 |
+| **EagleEye (Li et al., ECCV 2020)** | Re-estimating BatchNorm statistics after a cut, used as a cheap way to rank pruned candidates. Ido's first choice of reward; the bn8 / bn32 proxies follow it. | §332 |
+| **Renda, Frankle & Carbin (ICLR 2020)** | Cited for step-by-step pruning beating one-shot pruning at very high compression, which matches the VGG 8.84× read. | §310 |
+| **Goyal et al. 2017** | The large-batch rule: scale the learning rate with the batch, with a warm-up. Tested as C3 and C4. | §311 |
+| **Agarwal et al. 2021** | The stratified bootstrap over nets × seeds used for the pooled intervals. | §346 |
+
+### 6.2 How a number becomes a quoted result: additions
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **TEST 5k** | The quoted accuracy change: measured on a fixed 5,000-image half of the test set that is never used to choose anything. Every quoted result is this number. | §249 (protocol: existing "Clean val") |
+| **val (half)** | The other 5,000 test images. They are used to choose a point, a recipe or a plan, and are reported beside TEST, never quoted as the result. | §249 |
+| **10k** | The same change measured on all 10,000 test images (both halves), quoted beside TEST 5k as the companion read. The older "Cross-fit (10k)" entry describes an earlier swapped-halves version for walks. | §249 |
+| **honest** | TEST 5k change minus how much the *unpruned* network itself changes under the same final fine-tune (its origin control). It strips out the part of a gain that is only "more training". This replaces the older "Honest gain" formula. | as "honest Δ" §221; current form §330 |
+| **Keep-last / "walk + 1 epoch"** | Every final fine-tune now reports its last epoch. Older rows that silently restored an early epoch (often epoch 1) are captioned "walk + 1 epoch" and are never compared with keep-last rows. | §235; rule §330 |
+| **PRELIM / LOCKED** | A ledger row's status. PRELIM rows can still change; LOCKED rows are final. Every row in §300–§375 is PRELIM. | §1 |
+| **Registered call / bars** | The verdict word and its thresholds, written in the queue before the jobs are submitted, so that a result cannot be read to fit. The call words are in group 6. | before §300 (§189) |
+| **Reported (no call)** | A section, or a number in one, that had no registered verdict. It informs; it does not decide. | before §300 |
+| **Paired by seed** | Two arms are compared at the same seed, and the per-seed differences are averaged. "(s42 / 43 / 44)" lists them. | before §300 |
+| **Seeds 42–46, seed 45** | The fixed random seeds. Most cells use 42–44; five-seed rows add 45 and 46. In the HEAD cells seed 45 is reserved for the screen. | §307 (five seeds); §367 (screen) |
+| **Bootstrap interval** | A 95 % range for a pooled mean, made by resampling seeds within each net (Agarwal et al.). | §346 |
+| **Equal params / equal FLOPs** | The two ways to make arms the same size: the same fraction of parameters kept, or of multiply-adds kept. An arm can win on one axis by spending the other. | before §300 |
+| **FLOPs caption** | The note required when two arms compared at equal params differ by more than 10 % in FLOPs, or the reverse. | rule in the stance; §307 |
+| **Interpolated at equal FLOPs (lever_eqF)** | Uniform's accuracy read off a straight line between two uniform cells, at exactly the FLOPs the sens plan keeps, so the two can be compared at equal FLOPs. | §305 |
+| **The lever** | How much a smarter allocation is worth over an even cut at the same budget: sens − uniform (or sens_F − uniform_F). "Lever present" means at least +0.5 on the read. | §227 / §229 |
+| **lever_cos, EQP, EQF** | The lever under the cosine-0.1 fine-tune; the lever at equal params; the lever at equal FLOPs. | §264; §308 |
+| **Headroom** | Two uses. (1) On a pool net, its FLOPs lever sens_F − uniform_F; a net with at least +0.5 counts as a lever net. (2) In the HEAD cells, whether any plan at all beats the prior. | (1) §366; (2) §367; first as "A0 allocation headroom" §201 |
+| **Lever nets / lever-less nets** | The five pool nets where allocation matters at FLOPs 0.6 (thin r56-w4, DepGraph R56, VGG-19 C100, thin r56-w8, thin r20-w8 C100), against the four where every rule ties (chenyaofo ResNet-56, MobileNetV2 ×1.4, DenseNet-100, VGG-16). A lever-less net is uninformative, not evidence for the agent. | §366 |
+| **Oracle bound** | The best plan family per net, chosen with hindsight on TEST. It shows how much room exists and is never a result. | §367 |
+| **Ceiling (ρ)** | How well two final fine-tunes of the same plans, at different seeds, agree on their order. No cheap proxy can be judged beyond it. | §340 |
+| **Spearman ρ** | Rank agreement from −1 to +1: +1 means two measures put the plans in the same order. | before §300 |
+| **Regret** | The best final among a set of plans, minus the final of the plan a proxy would have picked. | §340 |
+| **In-sample proxy (train-log value)** | The agent's own reward on its training nets, as printed in the train log. Never a TEST, never quoted. | §341 |
+| **One-shot / walked / cut-only** | One-shot: every group cut at once to its planned width, then one final fine-tune. Walked: cut step by step, with a short fine-tune after each step. Cut-only: the accuracy straight after the cut, before any recovery (often near chance). | §309 |
+| **K=1** | The wall-clock cost of producing one pruned net: the cut (or the walk) plus one final fine-tune. It is quoted beside epochs and optimizer steps, never alone, and never as a method beat. | §309 |
+| **Landed (fixed target)** | A walk that stops exactly at its size target, so arms compare at equal size. "Mild-landed" is the mild heuristic walked this way. | §211 |
+| **Stall fallback ("strongest legal cut from here")** | A walk that runs out of planned cuts above its target finishes with whatever cut is still allowed. The arm is then not the plan it claims to be. | §226 / §227 |
+| **Masked edit** | A cut that could not be made for real and was written as zeros instead. It counts as a cut, but the net does not shrink. | §353 |
+| **Realizable arm** | The quoting rule since 10 Oct: an arm respects the width floor, is grid-rounded, logs no fallback or masked edit, and lands within 0.01 of its target. | rules file; §346 / §352 / §357 |
+| **Size rule** | A registered rule that leaves a net out of a call when its arms land more than 0.05 apart in params kept. | §353 |
+| **Transplant** | Our pipeline cut to the layer widths DepGraph published, so that its allocation can be compared inside one pipeline. | §234 |
+| **Guard net (r20-w2)** | The thinnest net, run beside the thin r56-w4 but reported only, never voting. Its unpruned control gains 4–5 pp under the final fine-tune, so honest values there mean nothing. | §150 |
+| **Pool nets** | The nine held-out nets of the POOL cells: thin r56-w4, DepGraph R56, VGG-19 C100, thin r56-w8 (ResNet-56, width 8), thin r20-w8 C100 (ResNet-20, width 8, on CIFAR-100), chenyaofo ResNet-56, MobileNetV2 ×1.4, DenseNet-100 and VGG-16 C10. | §366 |
+| **chenyaofo** | The name on the standard-width CIFAR checkpoints used for several nets (ResNet-56, VGG-16, MobileNetV2). [H] A public CIFAR model collection named after its author. | §103 |
+| **Q7** | Ido's open question on the recovery recipe (cosine from lr 0.1, or lr 0.01), answered in §330. | §245 |
+| **The prior (to beat)** | The best no-agent rule at a budget, fixed in advance from pooled evidence: sens_cost at equal params, floored sens_F at equal FLOPs. BEATS-PRIOR is read against it. Before §355 the prior was plain sens. | §355; stance rule 10 Oct |
+
+### 6.3 The agent and the reward: the plan-as-action agent
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **Plan-as-action agent (contextual bandit)** | The current agent. For one net and budget it proposes a keep fraction for every channel group at once (a plan), cuts once, and gets one reward for the whole plan. There are no later steps to wait for, which is why it is a bandit. It replaced the step-by-step walk. | proposed §331; GO §332 (Ido's `plan_bandit`, §346); first train §341 |
+| **Instance** | One (net, κ) pair drawn during training. T1 trains on 12,000 instances, about 1,200 per net. | §341 |
+| **κ (kappa)** | The budget: the fraction of params (or of FLOPs, under a FLOPs budget) that the pruned net must keep. Training draws κ between 0.35 and 0.85 (T5-DEEP: 0.25 to 0.85). | §211 (walk era); §341 (training range) |
+| **K (plans per instance)** | The agent samples K = 8 plans per instance and compares them with each other. | §341 |
+| **σ (sigma)** | The noise added to the agent's scores when it samples plans. It shrinks from 0.5 to 0.2 during training. | §341 |
+| **Mean plan / draws** | The mean plan is the agent's noise-free plan, which the frozen agent uses at eval. Draws are noisy samples around it (`agent_sample`). | §341; draws §349 |
+| **Shared-mean baseline** | Each plan's reward is compared with the average of the 8 plans of the same instance (POMO style), so the agent learns which plan is better for that net and budget. | §332 |
+| **NORM_ADV** | A switch that also divides those differences by their spread, so that every instance counts equally. T0, T1 and T2-F ran without it; T3-F and T4-F with it. | §341; switched on §364 |
+| **Reward (cut, bnN)** | The agent's reward is a cheap proxy: val accuracy straight after the one-shot cut ("cut"), or after re-estimating BatchNorm on N batches ("bnN"). T1 trains on cut; T5-bn on bn8. | §340 |
+| **Residual agent** | An agent that starts from a rule's plan (sens_F) and learns only corrections to it (`SPECTRA_PLAN_RESIDUAL`). Untrained, it reproduces the rule exactly. | §361 |
+| **Trust region (zmax)** | A bound on how far the residual may move each group: within e^±zmax of the rule's weight (zmax 0.3 in T4-F; `SPECTRA_PLAN_RESIDUAL_ZMAX`). | named §361; flag §364; run §365 |
+| **Width floor** | The smallest width to which the walk can cut a group (2 channels). With `SPECTRA_PLAN_MIN_WIDTH=walk`, every plan respects it, so the plan the trainer scores is the one the eval can build. | named §346 note; run §357 |
+| **k_min** | The lowest keep fraction any group can get in a plan (0.1 by default). The agent stores its own k_min in its policy file, so a floor set for the rules does not reach it (the RAIL-P35 amendment). | handoff §0b 13 Oct 18:28; §376 |
+| **Keep floor for the rules (`SPECTRA_ALLOC_MIN_KEEP`)** | The same floor for the no-agent rules at decode time; RAIL-P35 tried 0.25. | §374 |
+| **Budget flag** | TM's 0/1 input saying whether an instance's budget is params or FLOPs. TM barely used it. | §360 |
+| **Sens channels** | The measured sensitivities written into the agent's input. D-IMIT showed that they carry the allocation: without them, imitation is only PARTIAL. | §344 |
+| **Standardizer** | The fixed rescaling of the input features, fitted once on v10's catalog. The LOFO folds reused it, so [H] they saw the held-out family's feature statistics. | §354 note (word in use since §68) |
+| **`auto` residual** | A planned T2 variant whose prior changes with the budget type, so that the budget reaches the decoder itself. Not run in §300–§375. | §360 |
+| **Sufficient agent** | Science's gate for opening the coverage study: an agent that LEARNS on its budget and sits within −0.3 of floored sens_F at FLOPs 0.6 on r56-w4. No agent has met it. | handoff §0b 10 Oct 15:57; §360 |
+| **Rotation (NEON-style family rotation)** | Hold out each catalog family in turn, retrain, and read the agent on the held-out family (5 seeds). It opens only through a registered gate, which no agent has passed. | named §354 note; handoff §0b |
+| **LOFO-R′ / LOFO-V′** | The rotation's planned re-runs of the two folds, with a standardizer fitted on the fold only. Not run. | §354 note |
+
+### 6.4 What the heartbeat is talking about: procedures (additions)
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **Registration (queue row)** | Each cell's question, call, comparators and never-list are written in `docs/SITTING_GPU_QUEUE.md` and committed before any job is submitted. | before §300 |
+| **Smoke** | A short test job run before a cell's real jobs. Its start-check lines are read before the cells are released. A smoke can exit 0 and still have failed: T0-F2's first eval smoke caught a TypeError and exited 0. | §8 (`smoke_v2`); lesson §357 |
+| **Start check** | The log lines read at the start of a job to confirm its flags, seed, recipe and inputs (for example `graph=1`, `select=last`). | before §300 |
+| **Held / released** | Cells are submitted on hold (`scontrol hold`) and released only after the smoke read or a gate's PASS. | §47 (scontrol); routine from §357 |
+| **Gate (cluster sense)** | A script on a login node that waits for the smokes, writes PASS or FAIL to a verdict file, and releases the held cells only on PASS. HEAD-F2's gate held a wave when a uniform_F smoke fell back. | §368 |
+| **Gate (science sense)** | A registered threshold that must be passed before a next step opens. Example: Ido's gate, under which a residual agent opens the rotation only through BEATS-PRIOR-F; the pooled gate replaced the single-net one. | §361; pooled §366 |
+| **Guard (cluster sense)** | A login-node script that resubmits a preempted cell with a registered reason (`s12oct_autoresub.sh`). Not to be confused with the guard net (group 2). | handoff §0b 12 Oct 17:47; §370 |
+| **Preemption** | The cluster stops one of our GPU jobs for higher-priority work. With `Requeue=0` the job does not come back, so that net and seed are resubmitted. | §323 (first in §281) |
+| **Resubmit (resub, `net:var:seed`)** | A re-run of one cell, unchanged except for a registered reason. The reader takes the last row per key. | §365 / §366 |
+| **Manifest (job map)** | A table listing every job id of a cell with its arm, net and seed (`scratch_audit/…_manifest.tsv`). | §366 |
+| **Reader** | The script (`scripts/_tmp_*_read.sh`) that turns a cell's logs into its registered contrasts. It never selects on TEST. | before §300 |
+| **Watcher** | A background loop over `sacct` that wakes the science session once, when a job reaches a final state. Since 11 Oct it also stops after about four polls that cannot reach the cluster. | handoff §0b 11 Oct 20:01 |
+| **afterok** | A Slurm dependency: a job starts only after another one finished with exit 0 (for example, evals after their train). | §3 |
+| **PD / R** | Slurm's states "pending" and "running", as the ledger's status notes use them. | before §300 |
+| **Disk-quota stall** | Jobs that start while the home directory is over quota die in seconds, with exit 0:53 and no log. Snapshot directories (`traj_models`) were backed up and deleted to free space. | §365 / §366 |
+| **DNS loss ("Run finished" counts)** | A node that loses contact with the controller leaves a finished job shown as RUNNING or TIMEOUT. The reader counts it from its "Run finished" log line and prints a note. | §369 / §371 |
+| **Age factor vs nice** | Slurm priority grows with waiting time, and on 10 Oct that outweighed small nice gaps, so priorities are set explicitly at submit. On 13 Oct `sprio` showed the age component at 0 for jobs pending under an hour, and priority followed nice exactly (about 91 − nice). Check `sprio` before re-nicing. | handoff §0b 10 Oct; rules file 13 Oct |
+| **Login nodes** | `bgu-slurm` reaches several login nodes (slurm-login-01 to -04) that do not share /tmp. Gates and guards run on a named node, and files are kept in home. | handoff §0b 12 Oct 09:55 |
+| **PROVENANCE file** | Each deployed tree carries a file that logs its source commit and any patch (for example fix `d106672` in tree_v17). | handoff §0b 10 Oct |
+| **Stage-4** | A long walk-agent train (21767188, `v9c-paug-area-train-r2`). The cluster cancelled it on 11 Oct during the quota outage, and it was resumed as 22688072. Science never cancels it. | §2 (Stage-4 DRL row); handoff §0b 11 Oct 20:01 |
+| **GO / standing authority** | Ido's explicit go-ahead; every new train needs one. Some windows carry a standing authority, such as "the recommended option at every fork". | before §300 |
+| **GO-Q / FLOPS_FIRST table** | Ido's 10 Oct orders: FLOPs is the headline axis for SOTA-facing rows (params beside), and BEATS-PRIOR is read against one prior per budget, fixed in advance. `docs/PROMPT_SCIENCE_FLOPS_FIRST.md` holds the table of next steps per outcome. | handoff §0b 10 Oct 15:57; §360 |
+| **Transfer coverage protocol** | `docs/TRANSFER_COVERAGE_PROTOCOL.md`: the drafted rules for the rotation and the coverage matrix (entry gates, grid-rounded comparators). | §352 note; handoff §0b 10 Oct 16:32 |
+| **Gilad memo** | The draft memo for Gilad, a private claude.ai page republished as results land. On 14 Oct (v11) it was rebuilt as the anchor for the 15 Oct meeting: two weeks, top-5 wins and losses, decision points. A companion page, "SPECTRA Since 9 October", is the plain-language progress report. | handoff §0b 12 Oct 16:50; 14 Oct |
+
+### 6.5 Versions, catalogs, and the letters (additions)
+
+#### 6.5a The agent lines
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **v10** | The last walk-based PPO agent (train 22156116). It collapsed onto mild (§331), and stopped by its own rule on 10 Oct after 280 episodes. | §211 (`tree_v10`); handoff §0b 10 Oct 12:55 |
+| **T0** | The first plan-as-action agent, trained on the thin r56-w4 alone, with the cut reward. LEARNS; not BEATS-PRIOR. | named §340; run §341 |
+| **T0-bn** | T0 with the bn32 reward. LEARNS, and ends 0.47 below T0. | named §340; run §341 |
+| **T1** | The plan agent trained on the 10-net catalog (12,000 instances, cut reward). The params agent of record. | §346 |
+| **T1-C** | T1's line with 8 recoverable CIFAR-100 nets added (18 nets). POOL-NEUTRAL. | §356 |
+| **T0-F** | T0 trained under a FLOPs budget. FAILS-CONTROL, because its plans asked for widths the walk cannot cut to. | named §346; run §350 |
+| **T0-F2** | T0-F retrained with the width floor. LEARNS, by 0.01. | named §351; run §357 |
+| **T0-F-W** | T0-F's old policies re-decoded with the width floor, without retraining. | §357 |
+| **TM** | One agent trained on both budget types, told which by a flag ("M" for mixed). FAILS. | named §354 note; run §360 |
+| **T2 / T2-F** | The residual agent: learned corrections on top of sens_F, under a FLOPs budget, trained on T1's catalog. BELOW-PRIOR. | §361 |
+| **T2-F-W** | T2-F's frozen agents read on the two wide nets (DepGraph R56 at FLOPs 0.48, VGG-19 C100 at 0.6). Reported only. [U] The letter W is not expanded in the ledger. | named §361; run §362 |
+| **T3-F** | T2-F with per-instance advantage normalization (NORM_ADV=1). BELOW-PRIOR. | named §361; run §364 |
+| **T4-F** | T3-F with a trust region (zmax 0.3). BELOW-PRIOR on r56-w4; AT-PRIOR-POOL on the nine-net pools. | named §361; run §365 |
+| **T4F-45** | The frozen T4-F read at FLOPs 0.45. | §369 |
+| **T5-P** | Two single-change retrains of T1's line, three seeds each: T5-bn and T5-floor. | handoff §0b 13 Oct 18:28 |
+| **T5-bn** | T1's line with the bn8 reward. Trains done; its 27 evals at params 0.35 were reading on 14 Oct. [H] bn8 ranks r20-w8 C100's plans backwards (§375), so it is unlikely to remove the collapse. | handoff §0b 13 Oct 18:28 / 23:31 |
+| **T5-floor** | T1's line with a training keep floor (k_min) of 0.25 instead of 0.1. Read frozen at params 0.35: BELOW-PRIOR-POOL (−0.35) and SAME as T1 (+0.02). | handoff §0b 13 Oct 18:28; §376 |
+| **T5-DEEP (T5-deep)** | T1's line trained on κ from 0.25 to 0.85 instead of from 0.35. Read at params 0.35: BELOW-PRIOR-POOL (−0.46) and SAME as T1 (−0.04). | handoff §0b 13 Oct 18:28; §377 |
+| **T5-F** | A proposed per-net "shape" agent under FLOPs, offered to Ido as fork C on 12 Oct; not registered. | handoff §0b 12 Oct 02:15 |
+| **T6** | The planned agent: T1's line with the short-fine-tune reward `fs<S>` (S and its lr picked by D-PROXY-5 on the val half). Ido's GO 13 Oct night, pending D-PROXY-4, which read ft1 P35-VALID. Not yet registered. | handoff §0b 14 Oct 03:00 |
+| **LOFO-R** | T1's line trained without any ResNet (6 nets) and read on ResNets. FAMILY-TRANSFER; holds on DepGraph R56 with clean comparators. | §354 |
+| **LOFO-V** | T1's line trained without any VGG (7 nets; also without SVHN and CIFAR-100) and read on VGGs. FAMILY-TRANSFER at first, then FAILS-CLEAN. | named §352; run §358 |
+| **LOFO-M / LOFO-D** | Planned folds without the MobileNets or without the DenseNets. They wait for a sufficient agent. | handoff §0b 10 Oct 15:57 |
+| **R56C comparators** | The one-shot DepGraph R56 sens and uniform rows at seeds 44–46, run for T1's read. | §346 |
+
+#### 6.5b The no-agent comparator rules
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **sens** | The sensitivity rule. It measures how much the loss rises when each group alone is cut to half width (4 batches, no fine-tune), then gives more sensitive groups larger keeps, scaled to the budget. A sitting construction on PFEC's measurement, not a published method. | A0 probe §201; walk rule §227 |
+| **α (alpha)** | The sens rule's tilt: how strongly the keeps follow the measured sensitivity (0.5 by default). The HEAD cells tried 0.25, 1 and 2. | §227 (α 0.5); §367 |
+| **sens_cost** | sens priced by cost: each group's loss rise per unit of what its half cut saves (params under a params budget, MACs under a FLOPs budget). The params prior since §355. | §355 |
+| **uniform** | Every group keeps the same fraction, scaled to the budget: the "even cut". | §229 |
+| **inner** | Keep every residual stream whole and cut the other groups evenly: PFEC's "prune only inside blocks". It carries the thin-ResNet lever and is the worst arm on MobileNetV2. | §231 |
+| **mild-landed** | The mild heuristic (keep 90 % per step) walked until it lands at the size target. The reference for "did the agent beat the heuristic". | §211 |
+| **_F suffix (sens_F, uniform_F, inner_F, sens_cost_F, mild_F)** | The same rule planned against a FLOPs target instead of a params target. | §350 (sens_cost_F §361) |
+| **floored** | An arm decoded with the walk's width floor, so that it can be built exactly. | named §352; §357 |
+| **grid-rounded** | A plan rounded onto the cut sizes the walk can make, so that it lands exactly at its target with no fallback (`SPECTRA_ALLOC_GRID_ROUND`, tree_v19). | named §352; run §362 |
+| **Cut-rate grid** | The cut sizes the walk allows per step ({0.9, 0.8}). Keeps that fall between them make uniform-like plans stall above their target on wide nets. | §352 note |
+| **widths (rule)** | A rule that cuts every group to a given list of widths, such as DepGraph's published ones (the transplant). | §234 |
+| **Structural-only plans** | Plans that touch only groups whose cut is exact; the fix for ShuffleNetV2 (`SPECTRA_PLAN_STRUCTURAL_ONLY`). | §353 note |
+| **Undershoot** | How far below the target the walk's plan aims (0.02 by default), so that the landing ends just under it. | §231 |
+| **Fortify** | A walk setting (`SPECTRA_FORTIFY=1`) that, among other things, holds VGG-19's first convolution at full width. [U] Its full scope is not stated in §300–§375. | §305 |
+
+#### 6.5c The final fine-tune recipes and cost cells
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **Wave N** | A numbered batch of cells registered together in one sitting; letters (a), (b), (c) are its parts. Waves 19–32 appear in §300–§335. | before §300 |
+| **cosine-0.1-last** | The final fine-tune with SGD on a cosine schedule from learning rate 0.1, 100 epochs, keeping the last epoch. §330's recipe for full-width nets. | §261 |
+| **Plain recipe (§330 recipe)** | The non-engineered final fine-tune: batch 128, crop+flip on the CPU, cosine from lr 0.1 (full-width nets) or 0.01 (narrow nets), keep-last, 100 epochs. The record for rows run before 10 Oct. | §330 |
+| **Tier 1 / 2 / 3** | Wave 28's three cost questions: one-shot cutting (Tier 1: A and B), fine-tune engineering (Tier 2: C, C2, FW-cos), fine-tune length (Tier 3: D). | §309 / §311 / §318 |
+| **A** | One-shot DepGraph R56 at params 0.47 with the sens and uniform rules. | §309 |
+| **B / B-VGG** | One-shot cuts to DepGraph's own widths, on ResNet-56 (2.11×) and VGG-19 C100 (8.84×). | §310 |
+| **C / C2 / C3 / C4** | The engineering stack (GPU crop+flip, mixed precision, channels-last memory) at batch 128 (C) and 256 (C2); then batch 256 at lr 0.2 (C3) and batch 512 at lr 0.4 with warm-up (C4). | §311 / §314 |
+| **D** | C at 50 epochs instead of 100. | §318 |
+| **E / E-M** | One-shot cutting on the thin pair and VGG-19 C100 (E), and on MobileNetV2 ×0.5 (E-M). | §319 / named §328, run §333 |
+| **F** | C2 applied to the one-shot candidates of Tier 1. | §316 |
+| **FW / FW-cos** | N3's mild walk with the cheaper 12/4 per-step fine-tune (§203), and its re-read with cosine-0.1-last. [U] The letters are not expanded in the ledger. | §203 / §315 |
+| **N3** | An older 5-pass mild walk to DepGraph R56's sizes (tree_v9c), the reference for the DepGraph comparisons. | before §300 (§223); §300 |
+| **AMP / channels-last / GPU crop+flip** | Mixed-precision arithmetic; a memory layout for convolutions; doing the image augmentation on the GPU. These are C's flags; only the GPU augmentation stayed in G. | §311 (GPU crop §203) |
+| **CUDA graph** | Recording one training step's GPU kernels once and replaying them, which removes the launch overhead without changing the arithmetic. | §313 |
+| **Launch-bound** | A fine-tune whose time is set by the number of GPU kernel launches, not by arithmetic: true for the ResNet-56 family, the thin nets and MobileNetV2, not for VGG-19. | §317 |
+| **G0** | The CUDA-graph speed bench (no accuracy). | §313 |
+| **G** | The plain final fine-tune with GPU crop+flip and CUDA graphs: the same arithmetic, ×3.10 to ×4.71 faster on the nets tested. ADOPT in §324. | §317 |
+| **G-F / G-H / GE / G-M / GE-M** | G on F's one-shot R56 candidates, on the held-out thin walks, on E's thin one-shot candidates, on the MobileNetV2 walks, and on E-M's MobileNetV2 one-shot candidates. | §322 / §324 / §325 / §328 / §333 |
+| **G2** | G at batch 256 (lr 0.1, cosine, 100 epochs, keep-last). The single final fine-tune for every P row since 10 Oct. | §329 (as G2-H); single recipe §348 |
+| **G2-H / G2-X (G2-F, G2-E, G2-M)** | G2 on the thin walks; then on three families' candidates (R56 one-shot, thin one-shot, MobileNetV2 walked). | §329 / §335 |
+| **GB50 / GB25 / GB75 / GB200** | G's budget at 50, 25, 75 or 200 epochs against 100. 75 is the fewest that is safe on both families tested. | §326 / §334 |
+| **C2-H / C2E** | C2 on the held-out walked candidates (thin and VGG), and on E's VGG one-shot candidates. | §323 / §327 |
+| **N01–N04** | The narrow-net cells: N01 (G against plain at lr 0.01, and against G2), N02 (the remaining narrow rows under §330), N03 (the step-size test: N03-a lr 0.05 at batch 128, N03-b lr 0.01 at batch 256), N04 (MobileNetV2 seeds 44–46). | §336 / §337 / §338 / §345 |
+| **NR** | "Narrow rows": the five-seed thin r56-w4 and MobileNetV2 ×0.5 rows under G2, now the paper's narrow rows. | §342 |
+| **VG / VG2** | The checks of G2 against the plain recipe on VGG-19 C100: 4 pairs (VG, outside the bar), then 16 pairs (VG2, SPEED-EQUIVALENT). | §343 / §348 |
+| **Step per sample (per 128 images)** | The learning rate expressed per 128 images: lr 0.1 at batch 256 is a step of 0.05. This, not the batch itself, explains batch 256's gain on the thin net. | §335 / §338 |
+
+#### 6.5d The evaluation cells and pools
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **K8** | T0 read at κ 0.8 on the thin pair. | §347 |
+| **HF-V / HF-N / HF-FM** | Held-out-family cells with the frozen T1: VGG nets (VGG-19 C100 as an unseen dataset, VGG-16 C10 as an unseen depth); new families (ShuffleNetV2, RepVGG) on CIFAR-10; the same families on Fashion-MNIST. | §352 / §353 / §359 |
+| **LOFO (leave one family out)** | Retrain the agent without one family, then read it on that family. | §354 (named §352) |
+| **HYG** | The hygiene re-read of the equal-params transfer cells, with every arm floored and grid-rounded. | §363 |
+| **POOL-F / POOL-F45** | The nine-net held-out pool at equal FLOPs, 0.6 (DepGraph R56 at 0.48) and 0.45. The pooled gate for FLOPs agents. | named §365; §366 / §371 |
+| **POOL-P / POOL-P45 / POOL-P35** | The nine-net pool at equal params 0.6, 0.45 and 0.35: T1 against sens_cost, sens and uniform. | named §369; §370 / §373 / §374 |
+| **HEAD-F / HEAD-F2 / HEAD-P** | Headroom searches with no agent: is there any plan above the prior at FLOPs 0.6 (HEAD-F), FLOPs 0.45 (HEAD-F2) or params 0.6 (HEAD-P), on the five lever nets? | named §366; §367 / §368 / §372 |
+| **Screen / confirm** | The HEAD design: several alternative plans are run once at seed 45 (the screen, for selection only), and per net the one best on val is re-run at seeds 42–44 (the confirm) and read against the prior. | §367 |
+| **RAIL-P35** | A registered test of a keep floor of 0.25 on T1 and sens_cost at params 0.35. Its gate failed and caught a design error (the agent keeps its own k_min of 0.1), so T1's cells were cancelled and the sens_cost cells became T5-floor's comparator. | handoff §0b 13 Oct 13:50 / 18:28; §376 |
+| **P25** | T5-deep, sens_cost and uniform at params 0.25 on the nine nets (81 cells), registered 13 Oct 23:24 behind a gate timed for 04:00. | handoff §0b 13 Oct 23:31; named §377 |
+
+#### 6.5e Diagnostics and proxies
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **D-CENSUS** | A count of the cut sizes an older actor chose in its TEST walks (one size, 0.9, everywhere). | §339 |
+| **D-IMIT** | A supervised probe: can the agent's input and encoder imitate the sens plan on held-out nets? | §344 |
+| **D-LEVER** | The learning-programme question of choosing, per net, between the fixed rules (in `docs/LEARNING_PROGRAM_OCT8.md`); it has no ledger section of its own. | §338 |
+| **D-PROXY** | Which cheap measure after a one-shot cut ranks plans like the final fine-tune (params 0.6, plans near sens and uniform). | §340 |
+| **D-PROXY-2** | The same question on the trained agent's own plans. | named §346; run §349 |
+| **D-PROXY-F** | The same question under a FLOPs budget. | named §350; run §351 |
+| **D-PROXY-3** | The proxy ranking reported inside the HEAD cells' screens; it has no section of its own. | §367 (also §368, §372) |
+| **D-PROXY-4** | The proxy ranking at params 0.35 across nine nets, on POOL-P35's cells. | §375 |
+| **cut (proxy)** | Val accuracy straight after the one-shot cut, with no recovery. The agents' main reward. | §340 |
+| **bn8 / bn32** | Val accuracy after re-estimating BatchNorm statistics on 8 or 32 training batches (EagleEye style). T0-bn used bn32; T5-bn uses bn8. | §340 |
+| **ft1 / ft3** | Val accuracy after 1 or 3 epochs of fine-tune. ft1 is the only proxy valid at params 0.35 (at the threshold), at about 8× bn8's cost. | ft1 §340; ft3 §367 |
+| **ft12_4 / ft40_10** | Longer short fine-tunes (12 epochs with patience 4; 40 with patience 10) tested once as proxies. They ranked worse than the cut on DepGraph R56. | §340 |
+| **fs\<S\> (short-fine-tune proxy / reward)** | S SGD steps (momentum 0.9, weight decay 5e-4, lr `SPECTRA_PLAN_FS_LR`, default 0.01) on S fixed train batches, then val accuracy. In the trainer (`SPECTRA_PLAN_PROXY=fs<S>`) it runs on the masked cut, re-masked after every step. As an eval proxy (`SPECTRA_EVAL_PROXIES=fs<S>`) it runs on the real cut. A test checks that the two give the same network. | git 9b537bc (tree_v21) |
+| **D-PROXY-5** | D-PROXY-4's 108 cells re-run with fs4 to fs64 at two learning rates (0.01, 0.05), read on the val half. The cheapest fs\<S\> that reads P35-VALID becomes T6's reward. Its first gate FAIL (03:12, 14 Oct) was a log-path bug in the gate; it was re-run and passed at 03:15. | queue row D-PROXY-5, 14 Oct |
+
+#### 6.5f The code trees (`/home/paretsky/scratch_audit/tree_vNN`; each is a copy of the previous tree plus the listed change, default off)
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **tree_v10** | The v10 walk agent's tree (train 22156116, fixed params target); it also serves the mild-landed walks. [U] What it added over the v9 trees is not stated in the sections searched. | §211 |
+| **tree_v10h** | Serves the allocation walks (`SPECTRA_ALLOC_KIND=sens` / `uniform`) and the 1-cycle final fine-tune. [U] Its added files are not named in the ledger. | §222 |
+| **tree_v10i** | tree_v10h + `SPECTRA_ALLOC_KIND=inner`. | §231 |
+| **tree_v10j** | tree_v10i + `SPECTRA_ALLOC_KIND=widths` (cut to a published list of widths). | §234 |
+| **tree_v10k** | tree_v10j + `SPECTRA_EVAL_FINAL_FT_SELECT=last` (keep the last epoch). | §235 |
+| **tree_v10l** | tree_v10k + `SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH` (code 9e635f6): the graphed final fine-tune behind G and G2. | §313 |
+| **tree_v10m** | A walk-side CUDA graph (`SPECTRA_FT_CUDA_GRAPH`): built, default off, never registered. | §315 |
+| **tree_v11** | Served D-PROXY's proxy cells. [U] Its added code is not named in §340. | §340 |
+| **tree_v12** | Served D-IMIT's dump and probe. [U] Its added code is not named in §344. | §344 |
+| **tree_v13** | The plan-as-action agent (handoff §2.2: `src/plan_agent.py`, `src/plan_trainer.py`, `src/alloc_walk.py`, commit 8426630). It serves T0, T1, T1-C, LOFO and the HF cells; later data-only configs were added (handoff §0b). | §341 |
+| **tree_v14** | Served D-PROXY-2 (code 30ffccc), whose cells drew plans around the frozen mean plan. [U] What the tree added is not stated. | §349 |
+| **tree_v15** | Served T0-F and D-PROXY-F (code b86e505); T0-F ran with `SPECTRA_PLAN_BUDGET=flops`. [U] What the tree added is not stated. | §350 |
+| **tree_v16** | `SPECTRA_ALLOC_KIND=sens_cost` (code d240176). | §355 |
+| **tree_v17** | `SPECTRA_PLAN_MIN_WIDTH=<int>\|walk`: one width floor for every plan decoder (code 136aa59 per handoff §0b; patched with fix d106672). Also served TM. | §357 |
+| **tree_v18** | tree_v17 + `SPECTRA_PLAN_RESIDUAL` (code 6258e91): the residual agent. | §361 |
+| **tree_v19** | tree_v18 + 9c8452e: grid rounding (`SPECTRA_ALLOC_GRID_ROUND`), structural-only plans (`SPECTRA_PLAN_STRUCTURAL_ONLY`) and a residual grid priority. | §362 |
+| **tree_v20** | tree_v19 + d7f3c1d: the trust region `SPECTRA_PLAN_RESIDUAL_ZMAX`. It serves T4-F and every pool, HEAD and D-PROXY-4 cell since. | named §364; §365 |
+| **tree_v21** | tree_v20 + 9b537bc: the fs\<S\> short-fine-tune proxy, both as the trainer's reward and as an eval proxy, default off (tests: 111 pass). It serves D-PROXY-5 and T6. | 14 Oct (PROVENANCE_v21.txt) |
+
+### 6.6 The call words (new group)
+
+Bars are given where the ledger or the handoff states them. [U] marks a bar that sits only in the queue row.
+
+#### 6.6a No-agent allocation and recipe calls
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **SURVIVES / WEAK / ABSORBED** | Whether the allocation lever survives the final fine-tune. Wave 8's bars at κ 0.6: SURVIVES ≥ +1.0, ABSORBED ≤ +0.3, WEAK between. At κ 0.35 (§243): ≥ +2.0 and ≤ +0.5. On DepGraph R56 (§236): ABSORBED ≤ +0.15. | §229 |
+| **SENS-MATTERS / NONE** | Wave 21's lever bars on MobileNetV2: SENS-MATTERS ≥ +1.0, NONE ≤ +0.3, WEAK between. | §278 |
+| **STRUCTURAL** | Wave 9's call that sens − inner ≤ +0.5: the lever comes from keeping the residual streams whole, not from the sensitivity measurement. | §231 |
+| **ALLOCATION / NOT-ALLOCATION / PARTIAL** | Whether DepGraph's widths lift accuracy over N3 in our pipeline. §262's bars: ALLOCATION ≥ +0.32, NOT-ALLOCATION ≤ +0.20. | §234; used §300 |
+| **FLOPS-ONLY / SENS-AT-EQUAL-FLOPS** | The equal-FLOPs lever on VGG-19: FLOPS-ONLY ≤ +0.3 (the lever is only the FLOPs sens keeps), SENS-AT-EQUAL-FLOPS ≥ +1.0. On DepGraph R56 the scale is ≥ +0.5, with NONE ≤ +0.15. | §305 / §306 |
+| **ONE-SHOT-EQUIVALENT / COST-TRADE / WALK-NEEDED** | One-shot minus walked accuracy at 10k: equivalent at ≥ −0.30 (inclusive), COST-TRADE between −0.30 and −0.60, WALK-NEEDED at ≤ −0.60. | §309 |
+| **SPEED-EQUIVALENT / DIVERGE / NO-GAIN / between the bars** | A faster recipe against the reference ("C's bars"): SPEED-EQUIVALENT if the mean 10k difference is within ±0.30 at ≥ 1.5× speed; DIVERGE if it is beyond ±0.50 (two-sided, so higher also counts); NO-GAIN when the recipe is not faster (C: −0.12 at ×0.95; [U] its exact bar is in the queue row); 0.30 < \|Δ\| ≤ 0.50 is uncalled. | §311 |
+| **R56-ONLY** | C2's recipe call once a held-out family fell outside the bar. | §323 |
+| **ADOPT** | A registered recipe call that makes a recipe the default for new no-agent cells (G in §324, G2 in §335). | §324 |
+| **GRAPH-WIN / parity ok** | The graphed steady epoch is at least 1.5× faster / one-step gradients and BatchNorm buffers agree within 1e-3. | §313 |
+| **BUDGET-SAFE / BUDGET-COST / HARM / BUDGET-FLAT / BUDGET-GAIN** | A shorter or longer final fine-tune against 100 epochs ("D's bars"). SAFE: the loss at 10k is no worse than −0.20. COST and HARM are larger losses ([U] bars in the queue; −0.350 read COST and −0.565 read HARM). FLAT: within ±0.30; GAIN: above that. | §318; §326 / §334 |
+| **BATCH** | b (batch 256 − batch 128 under graphs) ≥ +0.30 and \|p\| (the precision and layout effect) ≤ 0.30: the thin gain is the batch. | §329 |
+| **BATCH-GAIN / BATCH-FLAT / BATCH-LOSS** | Batch 256 against 128 on the val half: GAIN ≥ +0.30, LOSS ≤ −0.30, FLAT between. | §335 |
+| **BATCH-ADDS / LR-ABSORBS** | lr 0.01 at batch 128 against G2 on the val half: LR-ABSORBS if the mean is ≥ −0.30 (the narrow recipe already does as well), BATCH-ADDS if ≤ −0.30. | §335 / §336 |
+| **EFFECTIVE-LR** | N03's call that batch 256's gain equals its twin with the same step per sample, so the step size is the cause. [U] Exact bar in the queue row. | §338 |
+
+#### 6.6b Proxy and representation calls
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **VALID / INVALID** | A proxy ranks plans like the final: ρ ≥ 0.60 and median regret ≤ 0.5 pp. | §340 |
+| **CEILING-BOUND** | The finals do not agree with themselves across seeds (ceiling ρ under 0.60), so no proxy can be judged there. | §340 / §349 |
+| **LOCAL-VALID / LOCAL-INVALID** | VALID or INVALID judged only on the agent's own plans (D-PROXY-2's guard read). | §349 |
+| **FLOPS-VALID** | A proxy that ranks T0-F's plan below sens_F on every seed (D-PROXY-F). | §351 |
+| **P35-VALID / P35-WEAK / P35-INVALID** | D-PROXY-4's calls (also D-PROXY-5's, read on the val half). VALID: ρ ≥ +0.6 with signs right on at least 2/3 of pairs. INVALID: ρ < +0.3. WEAK: everything between, including ρ ≥ +0.6 with too few agreeing pairs (clarified before any cell ran). | §375 |
+| **SUFFICIENT / PARTIAL / INSUFFICIENT** | D-IMIT's imitation score: ≥ 0.70 / between / ≤ 0.40. | §344 |
+| **BEATS / TIES / LOSES TO** | A D-IMIT variant against its base: BEATS with a mean ≥ +0.10 and wins on ≥ 4 of 5 folds, LOSES TO symmetrically, TIES otherwise. | §344 |
+
+#### 6.6c Agent and transfer calls
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **LEARNS** | The agent beats the mild heuristic by ≥ +0.5 on the read net (for T1, also no worse than −0.3 against uniform on DepGraph R56). For FLOPs agents the bar is against mild_F. | §341 |
+| **BEATS-PRIOR** | The agent beats the prior by ≥ +0.3. In §341 and §346 the prior was plain sens; it later became sens_cost at params and floored sens_F at FLOPs. It has never fired. | §341 |
+| **FAILS-CONTROL** | Neither LEARNS nor BEATS-PRIOR. | §341 |
+| **FAILS** | TM's verdict: it failed both the params bar (−0.3 against T1) and the FLOPs bar (+0.5 against mild_F). | §360 |
+| **HOLDS-PARAMS / LEARNS-FLOPS / BUDGET-GENERIC** | The names of TM's registered calls. [U] Their bars are in the queue row; the ledger records the outcome as FAILS. | handoff §0b 10 Oct 13:50 |
+| **TRANSFERS** | The frozen T1 beats uniform by ≥ +0.5 on a held-out net that has a lever (HF-V). | §352 |
+| **LEVER-LIMITED** | No call, because the net's lever (sens − uniform) is under +0.5, so neither transfer nor failure can be seen ("uninformative, not failed"). | §353 |
+| **FAMILY-TRANSFER** | A LOFO agent passes T1's bars on the family it never saw. | §354 |
+| **FAILS-CLEAN** | A call that fails once the comparators are clean (LOFO-V in HYG). | §363 |
+| **T1-R56-HOLDS / LOFO-R-R56-HOLDS** | T1's and LOFO-R's DepGraph R56 results survive clean comparators. | §363 |
+| **POOL-NEUTRAL** | Adding nets to the training pool changes transfer by less than ±0.30. | §356 |
+| **COST-HURTS** | sens_cost − sens_F ≤ −0.30 under a FLOPs budget (bars ±0.30). | §355 |
+| **BELOW-PRIOR / AT-PRIOR** | The agent sits at least 0.3 below the prior / within it (bars ±0.3). For a residual agent AT-PRIOR is nearly automatic, so its gate is BEATS-PRIOR-F. | §361; AT-PRIOR handoff §0b 10 Oct 17:24 |
+| **BEATS-PRIOR-F** | Ido's gate for a residual agent: ≥ +0.3 over floored sens_F (on r56-w4 at first, later pooled as BEATS-PRIOR-F-POOL). | handoff §0b 10 Oct 17:24 / 19:11; §367 |
+| **BALANCE-NEUTRAL** | T3-F − T2-F, pooled over two held-out ResNets, within ±0.5. | §364 |
+| **BOUND-HELPS** | T4-F − T3-F ≥ +0.5 (bars ±0.5): the trust region helps. | §365 |
+| **AT-PRIOR-POOL / BELOW-PRIOR-POOL / BEATS-PRIOR-P-POOL** | The pooled versions over nine nets. BEATS-PRIOR-P-POOL needs ≥ +0.3 with 6 of 9 nets positive; BELOW is ≤ −0.3 (T5's registration, handoff §0b 13 Oct 18:28). AT is the band between. [H] The POOL rows appear to use the same band (§373: "under the +0.3 bar"). | §366; BEATS-PRIOR-P-POOL §373 |
+| **NO-HEADROOM / NO-HEADROOM-P** | No val-selected alternative beats the prior by the bar: +0.3 at params (§372); [H] the same at FLOPs. | §367 / §372 |
+| **NOT-BEYOND-SENS** | T1 does not beat plain sens on the nets whose lever is at least +0.5 (POOL-P's call 2). | §370 |
+| **RAIL-FIXES / RAIL-SAFE / P35F** | RAIL-P35's calls: r20-w8 C100 ≥ +2.0 against §374's T1 (RAIL-FIXES); the other eight nets ≥ −0.2 (RAIL-SAFE); and P35F against sens_cost. After the amendment the first two are void and the third moved to T5-P. | handoff §0b 13 Oct 13:50 / 18:28 |
+| **LEARNS-MORE / SAME / LEARNS-LESS** | A T5 variant against T1, with bars ±0.3. §376 and §377 both read SAME. | handoff §0b 13 Oct 18:28; §376 |
