@@ -354,6 +354,10 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **D-PROXY-5** (registered 02:50, `1f01fe6`): D-PROXY-4's cells with fs4–fs64 at lr 0.01 and 0.05.
   - **The selection reads the val half of the finals, not TEST:** the cheapest fs<S> that reads P35-VALID becomes T6's reward. Reader: `scripts/_tmp_s14oct_dpx5_read.sh`, which reproduces §375 on D-PROXY-4's cells.
   - Jobs: smokes 22828428–430; 216 cells held behind the gate on slurm-login-02 (pid 240609); guard pid 240611.
+- **Update 06:27:** §378 T5-bn and §379 D-PROXY-5 are read. **T6 waits for Ido:** the registered selection did not fire.
+  - **Options put to him** in the brief and the meeting page: (1, recommended) fs32 at lr 0.01, registered as his choice after a WEAK read; (2) the bn8 reward (T5-bn) as the params agent; (3) ft1 with fewer instances; (4) 1 plus the 60 % / 45 % re-read of T5-bn.
+  - **Prepared, not registered:** `scripts/_tmp_s14oct_t6_submit.sh`, run as `FS_S=<S> FS_LR=<lr> bash s14oct_t6_submit.sh smoke|main|gate`. Its gate fails if 12,000 instances do not fit 90 % of the 900-minute cap. Also `scripts/_tmp_s14oct_poolbn_submit.sh`, T5-bn at params 0.6 (DepGraph R56 0.47) and 0.45, 54 evals.
+  - **P25's 81 cells** were held 04:26–06:12 so that D-PROXY-5 ran first. Our fair-share is at the floor (every pending job at priority 1, ties by submission order); see the rules file.
 - **Next, T6:** T1's line with `SPECTRA_PLAN_PROXY=<selected fs<S>>` on tree_v21. Register it after D-PROXY-5 reads, sized to the measured per-plan cost (instances or K may need cutting to fit a train), and read it at params 0.35 against POOL-P35 (and at 0.25 if P25 reads).
 - **Ido's other asks (13 Oct night), for 15 Oct's meeting with Gilad:**
   - an outsider-readable progress summary (a new artifact);
