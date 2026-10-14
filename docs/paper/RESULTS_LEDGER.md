@@ -8404,3 +8404,45 @@ Never:
 - T5-deep's 0.35 rows mixed with P25's 0.25 rows in one contrast.
 
 Records: queue row T5-DEEP; next §378.
+
+## 378. (T5-bn, part of T5-P): T1's params line retrained with one change, the reward = the cut after BatchNorm re-estimation on 8 batches (bn8) instead of the raw cut, read frozen at params 0.35 on the nine-net held-out pool (trains **22773359 / 369 / 453**, evals in `scratch_audit/s13oct_t5p_manifest.tsv`; comparators POOL-P35's sens_cost and T1; `tree_v20`) — PRELIM; registered calls: P_bn = T5-bn − sens_cost **+0.03** → **AT-PRIOR-POOL**; L_bn = T5-bn − T1 **+0.45** → **LEARNS-MORE**
+
+Registered before submit 13 Oct ~18:06 (commit `491ce2d`; queue row T5-P), under Ido's ~18:00 authority. Gate PASS 18:28 (`"proxy": "bn8"`, `"k_min": 0.1`; eval smoke at params x0.347).
+- *Read.* 14 Oct 04:21 (`scripts/_tmp_s13oct_t5_read.sh bn`; the self-check reproduces §374's −0.42).
+- *Checks.*
+  - The three trains COMPLETED their 12,000 instances (bn8 at 1.61 s per instance in the smoke), and all 27 evals COMPLETED.
+  - POOL-P35's comparators are complete.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T5-bn to sens_cost):
+
+| net | T5-bn − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T5-bn − T1: 5k | val | 10k | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | **−0.96** (−2.54 / −0.20 / −0.14) | −1.05 | −1.00 | −0.71 | 0.78–1.02 | −0.95 | −0.75 | −0.85 | −0.89 |
+| chenyaofo ResNet-56 | −0.11 (−0.24 / −0.04 / −0.06) | −0.47 | −0.29 | +0.07 | 0.82–1.03 | −0.27 | −0.50 | −0.39 | −0.16 |
+| thin r56-w8 | −0.45 (−0.42 / −1.26 / +0.34) | −0.95 | −0.70 | −0.23 | 1.08–1.21 | −0.87 | −0.93 | −0.90 | −0.77 |
+| MobileNetV2 ×1.4 | +0.55 (+0.22 / +1.04 / +0.38) | +0.27 | +0.41 | +0.37 | 1.00–1.13 | −0.12 | −0.45 | −0.28 | −0.06 |
+| DenseNet-100 | −0.06 (−0.26 / −0.14 / +0.22) | −0.04 | −0.05 | −0.05 | 0.92–1.10 | −0.14 | −0.19 | −0.16 | −0.20 |
+| thin r20-w8 C100 | **+1.06** (+1.26 / +1.50 / +0.42) | +1.09 | +1.08 | +1.27 | 0.61–1.15 | **+6.29** (+5.12 / +13.56 / +0.20) | +5.99 | +6.14 | +6.20 |
+| VGG-19 C100 | +0.25 (+0.04 / +0.20 / +0.50) | −0.10 | +0.07 | +0.59 | 1.00–1.00 | +0.25 | −0.31 | −0.03 | +0.64 |
+| VGG-16 C10 | +0.07 (+0.12 / −0.18 / +0.28) | +0.33 | +0.20 | +0.01 | 1.01–1.02 | −0.25 | +0.21 | −0.02 | −0.13 |
+| DepGraph R56 | −0.12 (+0.38 / +0.22 / −0.96) | −0.27 | −0.20 | −0.20 | 0.94–1.13 | +0.07 | −0.19 | −0.06 | +0.48 |
+
+FLOPs caption: on r20-w8 C100 T5-bn keeps 0.61–1.15× sens_cost's FLOPs, so its gain there comes at fewer FLOPs on some seeds.
+
+**The plans on r20-w8 C100** (diagnostic). T5-bn keeps min / median 0.53 / 0.56 (s42), 0.16 / 0.94 (s43) and 0.22 / 0.81 (s44). T1's plans there were 0.09 / 0.88, 0.09 / 1.00 and 0.16 / 0.78. T5-deep's were 0.09 every seed; T5-floor's were pinned at its 0.25 floor. The bn8 reward moved the agent off the all-or-nothing plan, most clearly at s42.
+
+Reading:
+1. **AT-PRIOR-POOL**, by the registered rule: P_bn +0.03 (95 % bootstrap [−0.38, +0.43]), positive on 4 of 9. It is the first single-change retrain of T1 that is not below the params prior at 0.35.
+2. **LEARNS-MORE**, by the registered rule: L_bn +0.45 ([−0.51, +2.39]). One net carries it: r20-w8 C100 +6.29. Positive on only 3 of 9; the other eight average −0.29 against T1 (thin r56-w4 −0.95, thin r56-w8 −0.87).
+3. **The reward is the lever, as §376 and §377 suggested, but in a direction §375 did not predict.**
+   - The bn8 reward removes the collapse: r20-w8 C100 is +1.06 against sens_cost, every seed positive. The floor (§376) and the wider budget range (§377) did not.
+   - The cost is worse plans on the thin and wide ResNet-56s.
+   - §375 found bn8 ranking that net's four fixed plans backwards (ρ −0.85). What a reward teaches over the agent's own sampled plans is a different question from how it ranks four fixed plans. That [H] reading in the handoff and the pages ("unlikely to fix the collapse") was wrong and is corrected there.
+4. [H] **For T6.** The fs\<S\> reward runs its fine-tune steps in train mode, so it also re-estimates BatchNorm. If it keeps bn8's collapse fix and ranks the ResNet plans better (ft1's ρ +0.60 against bn8's +0.45, §375), it addresses both sides of this trade. D-PROXY-5 is measuring that now.
+
+Never:
+- "T5-bn beats sens_cost" (BEATS-PRIOR-P-POOL did not fire).
+- LEARNS-MORE quoted without "carried by one net, positive on 3 of 9".
+- A train-log summary as a result.
+
+Records: queue row T5-P; next §379.
