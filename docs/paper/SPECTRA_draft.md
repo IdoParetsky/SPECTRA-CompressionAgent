@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381 and 19:42 with §382, 21:20 with §383.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -18,7 +18,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 - Tags: **LOCKED** / **PRELIM** / **TBD** / **CLAIM** ([README.md](README.md)). Citations: [1]–[78] are the August 2024 thesis proposal's; [79]–[96] come from the August 2026 survey; [97] onward come from the October 2026 scans.
 
 **Claims guard (what this draft must not say).** These consolidate ops' pins of 6–14 Oct and the ledger's never-lists. A line leaves this list only when a registered call in the ledger fires.
-- Never "beats" (a rule, DepGraph, or the state of the art) unless a registered BEATS call fires. In particular, never "the agent beats the cost-aware rule" in general, at any depth, nor "beats DepGraph". The one registered BEATS call that has fired (§382: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only) is quoted only with that scope.
+- Never "beats" (a rule, DepGraph, or the state of the art) unless a registered BEATS call fires. In particular, never "the agent beats the cost-aware rule" in general, at any depth, nor "beats DepGraph". The one registered BEATS call that has fired (§382: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only) is quoted only with that scope. Never "the deep-range batch-norm agent beats the rule at 45 %": its +0.2956 is under the bar (§384).
 - Never "headroom" above a prior: every headroom screen so far found none (§367, §368, §372).
 - Never "transfers to unseen families" in general. Family transfer is claimed only fold by fold, as §363 states it. Never "the agent transfers to VGG-19 CIFAR-100" or "the no-VGG fold transfers to VGG" (§363).
 - Never "the agent conditions on the budget type" (§360). Never "advantage normalization helps" (§364). Never "a training floor or a deeper training range fixes the collapse" (§376, §377). Never "the batch-norm reward removes the collapse at 25 %": one seed still collapses there (§383).
@@ -31,7 +31,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Question | Answer so far | § |
 |---|---|---|
 | Does the frozen agent learn? | Yes. It beats mild and uniform on held-out networks, and it reaches, without passing, the sensitivity rule | §341, §346, §363 |
-| Equal parameters, nine held-out networks | With the raw-cut reward: at the cost-aware rule at 60 % and 45 % kept, below it at 35 % and 25 %, decided by one network (ResNet-20 ×8 CIFAR-100). With the batch-norm reward: at the rule at every depth read so far (60 %, 45 % and 35 % for the shallower-range agent; 35 % and 25 % for the deep-range agent) | §370, §373, §374, §380, §378, §381, §383 |
+| Equal parameters, nine held-out networks | With the raw-cut reward: at the cost-aware rule at 60 % and 45 % kept, below it at 35 % and 25 %, decided by one network (ResNet-20 ×8 CIFAR-100). With the batch-norm reward on the deep training range: **one frozen agent at the rule at all four depths read**, 60 %, 45 %, 35 % and 25 % | §370, §373, §374, §380, §383, §384 |
 | Equal FLOPs, nine held-out networks | At the FLOPs rule at 60 % and 45 % kept, but below it on most networks | §366, §371 |
 | Is there an allocation above the priors? | No headroom found at moderate budgets, for either budget type | §367, §368, §372 |
 | What removes the deep-budget failure? | Only a recovery-aware (batch-norm) reward. On the deep training range it removes the failure at 35 % with no thin-ResNet cost, and at 25 % shrinks it from −16.8 to −2.4, with one seed still collapsing | §376, §377, §378, §381, §383 |
@@ -39,7 +39,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
 | Against the literature (DepGraph's ResNet-56) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. The recipes differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382 |
 | Has a registered beat fired? | Once, narrowly: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it) | §382 |
-| Running | T6-fs (the 32-step reward on the deep range), read at 35 % and 25 % after its trains (about 09:00, 15 Oct). POOL-T6BN: the deep-range batch-norm agent at 60 % and 45 % (overnight) | queue |
+| Running | T6-fs (the 32-step reward on the deep range), read at 35 % and 25 % after its trains finish (about 09:00, 15 Oct) | queue |
 
 ---
 
@@ -49,7 +49,7 @@ Convolutional networks remain the workhorse of real-time vision, and structured 
 
 The agent reads a pretrained CNN as a sequence of per-layer tokens and proposes a whole keep plan in one step. A Transformer scores every channel group; a decoder turns the scores into integer channel widths that meet a parameter or FLOPs budget to the nearest channel, with per-group floors and rounding that make every plan realizable. The agent is trained as a contextual bandit with REINFORCE against cheap proxies of post-fine-tune accuracy. Every plan, the agent's and the rules', is cut once and recovered with the same fixed fine-tune. The agent is compared plan for plan with same-loop allocation rules, against a prior fixed in advance for each budget type.
 
-On nine held-out networks, the frozen agent learns allocations well above the uniform and mild rules and performs at the level of the strongest rule at 60 % and 45 % of parameters kept (§370, §373). At equal FLOPs it stays within the registered band of the strongest rule but below it on most networks (§366, §371). Screens of many alternative plans found no allocation above either prior at these budgets. At deeper budgets one held-out network exposes a reward-fidelity failure that grows with depth. A batch-norm-recalibrated reward removes it at 35 % without costing pooled ground at 60 % and 45 %, and on a deeper training range brings the agent back to the prior at 25 %, though one seed still collapses there (§378, §381, §383). A ranking study shows which cheap rewards order plans the way the final fine-tune does. Transfer across families is mixed: an agent trained without any ResNet holds on a held-out ResNet, and one trained without any VGG fails on a held-out VGG. **[PRELIM; numbers in §5 by ledger section]**
+On nine held-out networks, the frozen agent learns allocations well above the uniform and mild rules and performs at the level of the strongest rule at 60 % and 45 % of parameters kept (§370, §373). At equal FLOPs it stays within the registered band of the strongest rule but below it on most networks (§366, §371). Screens of many alternative plans found no allocation above either prior at these budgets. At deeper budgets one held-out network exposes a reward-fidelity failure that grows with depth. A batch-norm-recalibrated reward on a deeper training range removes most of it. That one frozen agent performs at the level of the strongest rule at every parameter budget read, from 60 % down to 25 % kept, though one seed still collapses at 25 % (§383, §384). A ranking study shows which cheap rewards order plans the way the final fine-tune does. Transfer across families is mixed: an agent trained without any ResNet holds on a held-out ResNet, and one trained without any VGG fails on a held-out VGG. **[PRELIM; numbers in §5 by ledger section]**
 
 ---
 
@@ -69,7 +69,7 @@ The first answer was NEON's design moved to CNNs: an agent that walks the networ
 
 1. **A plan-as-action formulation of transferable allocation** for structured CNN pruning. A Transformer over per-layer tokens scores every channel group. A decoder that matches the requested parameter or FLOPs budget to the nearest channel, with per-group floors and grid rounding, makes every plan realizable. The agent is trained offline as a contextual bandit with REINFORCE and a shared baseline over K = 8 plans per network (§3).
 2. **A same-loop evaluation protocol** that isolates allocation. The agent and every rule are cut once at the same budget and recovered with one fixed fine-tune. The read uses disjoint validation and test halves, an "honest" change that subtracts the unpruned network's own change under the same fine-tune, three paired seeds, and calls registered before any GPU time. One prior per budget type is fixed in advance (§4).
-3. **Evidence that a frozen agent learns allocation and transfers it.** On nine held-out networks across four families and two datasets, the agent beats the uniform and mild rules and performs at the level of the strongest rule at moderate budgets, under both budget types. Screens found no allocation above the priors at those budgets (§5.1–§5.4).
+3. **Evidence that a frozen agent learns allocation and transfers it.** On nine held-out networks across four families and two datasets, the agent beats the uniform and mild rules and performs at the level of the strongest rule at moderate budgets, under both budget types. With a recovery-aware reward, one agent does so at every parameter budget read, 60 % to 25 % (§383, §384). Screens found no allocation above the priors at those budgets (§5.1–§5.4).
 4. **A reward-fidelity study.** It measures which cheap rewards rank plans the way a 100-epoch fine-tune does, at equal parameters and at equal FLOPs. Where the training reward misranks plans, the frozen agent fails on one network at deep budgets; a recovery-aware reward removes that failure at 35 % and reduces it at 25 % (§5.6, §5.7).
 5. **A transfer map** of leave-one-family-out folds and unseen-dataset cells, which states where a frozen allocation policy holds and where it fails (§5.5).
 
@@ -291,7 +291,7 @@ No held-out network is in the catalog (§4.3).
 | Training floor 0.25 (T5-floor) | params | k_min 0.25 instead of 0.1 | §376 |
 | Deeper range (T5-deep) | params | κ ∈ [0.25, 0.85] | §377, §380 |
 | Batch-norm reward (T5-bn) | params | `bn8` reward | §378, §381, §382 |
-| Deeper range + batch-norm reward (T6-bn) | params | κ ∈ [0.25, 0.85] and `bn8` | §383 |
+| Deeper range + batch-norm reward (T6-bn) | params | κ ∈ [0.25, 0.85] and `bn8` | §383, §384 |
 | Deeper range + 32-step reward (T6-fs) | params | κ ∈ [0.25, 0.85] and `fs32` | running |
 | With CIFAR-100 networks (T1-C) | params | catalog plus 8 recoverable CIFAR-100 networks | §356 |
 | No ResNet / no VGG (LOFO-R / LOFO-V) | params | catalog without that family (6 / 7 networks) | §354, §358, §363 |
@@ -455,6 +455,10 @@ Once §355 showed that, at equal parameters, cost-aware sensitivity beats plain 
 | 45 % | catalog agent (T1) | **+0.18** [−0.07, +0.46] | +0.13 | +0.15 | +0.24 | 6 / 9 | AT-PRIOR-POOL (§373) | — | +0.10 |
 | 35 % | catalog agent (T1) | **−0.42** [−2.06, +0.33] | −0.45 | −0.44 | −0.45 | 5 / 9 | BELOW-PRIOR-POOL (§374) | ResNet-20 ×8 CIFAR-100, −5.23 | +0.18 |
 | 25 % | deeper-trained agent (T5-deep) | **−1.60** [−5.88, +0.49] | −1.56 | −1.58 | −1.49 | 5 / 9 | BELOW-PRIOR-POOL (§380) | ResNet-20 ×8 CIFAR-100, −16.84 | +0.30 |
+| 60 % | deep-range batch-norm agent (T6-bn) | **+0.02** [−0.12, +0.16] | +0.12 | +0.08 | +0.03 | 6 / 9 | AT-PRIOR-POOL (§384) | — | +0.00 |
+| 45 % | deep-range batch-norm agent (T6-bn) | **+0.30** [−0.05, +0.79] (exactly +0.2956) | +0.21 | +0.26 | +0.35 | 6 / 9 | AT-PRIOR-POOL (§384), 0.004 under the bar | ResNet-20 ×8 CIFAR-100, +1.89 | +0.10 |
+| 35 % | deep-range batch-norm agent (T6-bn) | **+0.19** [−0.02, +0.43] | +0.06 | +0.13 | +0.23 | 6 / 9 | AT-PRIOR-POOL (§383) | — | +0.17 |
+| 25 % | deep-range batch-norm agent (T6-bn) | **−0.17** [−1.11, +0.32] | −0.10 | −0.14 | −0.10 | 5 / 9 | AT-PRIOR-POOL (§383) | ResNet-20 ×8 CIFAR-100, −2.41 | +0.11 |
 
 **Table 5.2b — per network, TEST (val / 10k / honest).**
 
@@ -476,6 +480,7 @@ Once §355 showed that, at equal parameters, cost-aware sensitivity beats plain 
 - At 60 % and 45 % the frozen agent performs at the level of the best hand-designed cost-aware rule across nine held-out networks (§370, §373). It learned that allocation from its reward alone.
 - Against the cost-blind sensitivity rule, its mean advantage over the nine networks is +0.29 at 60 % (positive on six) and +0.18 at 45 % (§370, §373; reported, not calls). The registered test of going beyond the plain rule on the lever networks did not fire (+0.12, NOT-BEYOND-SENS, §370). It gains most where plain sensitivity is at or below uniform: ResNet-56, ResNet-20 ×8 CIFAR-100 and ResNet-56 ×8 (+0.52, +0.49, +0.80; §370).
 - At 35 % and 25 % one network decides the call. On ResNet-20 ×8 CIFAR-100 the agent proposes an all-or-nothing plan. At 35 % (seed 43) it keeps most groups whole (median group keep 1.00) and cuts a few to about a tenth of their width (minimum 0.09), and ends 27.4 points under the origin, against 15.3 for the rule. Both plans' accuracy right after the cut is at chance (§374), so the raw-cut reward cannot tell them apart (§5.7).
+- **With the batch-norm reward on the deep training range (T6-bn), one frozen agent is at the cost-aware rule at all four depths** (§383, §384; the reward and range are discussed in §5.6). At 45 % its pooled value, +0.2956, sits 0.004 under the BEATS bar, carried by ResNet-20 ×8 CIFAR-100.
 - On the other eight networks the agent's mean edge over the rule rises with depth: +0.01, +0.10, +0.18, then +0.30 for the deeper-trained agent at 25 % (§370–§374, §380). This is a diagnostic read after the calls, not a call.
 - Allocation matters most at the deepest budget. At 25 % the cost-aware rule beats uniform by +0.88 points over the nine networks (val +1.03, 10k +0.95, honest +0.86 [computed]), by 2.1–3.4 points on three of them, and it falls below uniform on MobileNetV2 ×1.4 and ResNet-20 ×8 CIFAR-100 (§380).
 
@@ -587,10 +592,12 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 | 45 % | +0.15 [−0.23, +0.60] (+0.13 / +0.14 / +0.12) | 5 / 9 | AT-PRIOR-POOL (§381) | −0.04 [−0.26, +0.28] (+0.00 / −0.02 / −0.12) | SAME |
 | 35 % | +0.03 [−0.38, +0.43] (−0.13 / −0.05 / +0.12) | 4 / 9 | AT-PRIOR-POOL (§378) | +0.45 [−0.51, +2.39] (+0.32 / +0.38 / +0.57) | LEARNS-MORE |
 
-**The batch-norm reward on the deep training range** (T6-bn: the deeper-range agent's line with `bn8`, §383):
+**The batch-norm reward on the deep training range** (T6-bn: the deeper-range agent's line with `bn8`, §383, §384). At 60 % and 45 % the second contrast is against the shallower-range batch-norm agent, because the raw-cut deep-range agent was not read there:
 
 | Kept | − cost-aware rule: TEST [CI] (val / 10k / honest) | Positive | Call | − deep-range agent, raw-cut reward: TEST [CI] (val / 10k / honest) | Call | ResNet-20 ×8 C100 vs rule |
 |---|---|---|---|---|---|---|
+| 60 % | **+0.02** [−0.12, +0.16] (+0.12 / +0.08 / +0.03) | 6 / 9 | AT-PRIOR-POOL (§384) | against the shallower-range batch-norm agent: −0.09 [−0.28, +0.11] (+0.07 / −0.01 / −0.07) | SAME | +0.20 (+0.63 / +0.42 / +0.03) |
+| 45 % | **+0.2956** [−0.05, +0.79] (+0.21 / +0.26 / +0.35) | 6 / 9 | AT-PRIOR-POOL (§384), 0.004 under the bar | against the shallower-range batch-norm agent: +0.15 [−0.11, +0.47] (+0.09 / +0.12 / +0.23) | SAME | +1.89 (+1.59 / +1.74 / +1.99) |
 | 35 % | **+0.19** [−0.02, +0.43] (+0.06 / +0.13 / +0.23) | 6 / 9 | AT-PRIOR-POOL | +0.65 [−0.12, +2.33] (+0.51 / +0.58 / +0.64) | REWARD-HELPS | +0.41 (+0.37 / +0.39 / +0.49) |
 | 25 % | **−0.17** [−1.11, +0.32] (−0.10 / −0.14 / −0.10) | 5 / 9 | AT-PRIOR-POOL | +1.43 [−0.34, +5.37] (+1.46 / +1.44 / +1.38) | REWARD-HELPS | −2.41 (−1.59 / −2.00 / −2.45) |
 
@@ -600,14 +607,15 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 - The batch-norm fix costs no pooled ground at the moderate budgets. At 60 % and 45 % the agent is at the cost-aware rule and the same as the catalog agent (§381). It is the first parameter agent at the prior at every depth read so far, where the catalog agent fell below it at 35 %. That summarises three per-depth calls; it is not a pooled call.
 - On DepGraph's ResNet-56 at params 0.38 (the literature cell, §382), the batch-norm agent's single-network call fired BEATS-PRIOR on the TEST half: +0.35, positive on every seed. The validation half (+0.02) and the full test set (+0.19) do not carry it, and the agent keeps up to 1.11× the rule's FLOPs. It is a fired call on one network, not a pooled result. The catalog agent sits at the rule there (+0.05).
 - Its cost on the thin ResNets persists below 60 %. ResNet-56 ×4 is −0.73 at 45 % (val −0.41, 10k −0.57, honest −0.93; every seed negative) and −0.96 at 35 %, and DepGraph's ResNet-56 is −0.28 at 45 %. Its gain on ResNet-20 ×8 CIFAR-100 holds: +1.57 at 45 % (val +1.44, 10k +1.50, honest +1.32), where the cost-aware rule is itself weak (§373, §381).
-- **On the deep training range, the batch-norm reward gives the first agent at the params prior at 25 %** (§383). The same line with the raw-cut reward was −1.60 there (§380).
+- **On the deep training range, the batch-norm reward gives the first single agent at the params prior at all four depths read** (§383, §384). It is also the first at 25 %. The same line with the raw-cut reward was −1.60 there (§380).
 - The reward's gain is carried by ResNet-20 ×8 CIFAR-100: +5.52 at 35 % and +14.43 at 25 % against the raw-cut agent. On the other eight networks its effect is +0.05 and −0.20.
 - The collapse is removed at 35 % (+0.41 against the rule) and reduced, not removed, at 25 % (−2.41, from −16.84). At 25 % seed 42 still writes the all-or-nothing plan (−7.56).
-- There is no thin-ResNet cost at 35 % on the deep range: ResNet-56 ×4 +0.25 and ResNet-56 ×8 +0.03 against the rule, where the shallower-range batch-norm agent had −0.96 and −0.45. [H] The deeper range and the reward together avoid that trade.
+- There is no thin-ResNet cost on the deep range. ResNet-56 ×4 reads +0.03, +0.31, +0.25 and +0.37 against the rule from 60 % to 25 %, where the shallower-range batch-norm agent had −0.73 at 45 % and −0.96 at 35 %. At 45 % the deep-range agent is +1.05 against that agent on this network (§384). [H] The deeper range and the reward together avoid that trade.
+- DepGraph's ResNet-56 sits slightly below the rule at every depth: −0.32 at 47 % (val +0.27), then −0.22, −0.05 and −0.17 (§383, §384).
 - The agent's edge on the other eight networks is +0.17 at 35 % and +0.11 at 25 %. The raw-cut agent had +0.30 at 25 %.
 - A training floor moves the collapse to the floor: plans with minimum keep 0.25 still fail, at −3.79 (§376). A deeper training range leaves it unchanged (§377).
 - At 25 % the agent trained on the raw-cut reward fails harder on the same network: −16.84 (§380). The failure grows with depth under that reward: −5.23 and −5.11 at 35 %, then −16.84 at 25 %.
-- **Next.** T6-fs, the same deep-range line with the 32-step reward, reads after its trains (about 09:00 on 15 Oct). It asks whether a reward closer to recovery removes the last seed's collapse at 25 %. POOL-T6BN reads the deep-range batch-norm agent at 60 % and 45 % overnight. If it holds there, one frozen agent sits at the prior at every depth read.
+- **Next.** T6-fs, the same deep-range line with the 32-step reward, reads after its trains (about 09:00 on 15 Oct). It asks whether a reward closer to recovery removes the last seed's collapse at 25 %. The choice of the params agent of record waits for it.
 
 ### 5.7 Which cheap rewards rank plans like the final fine-tune?
 
@@ -705,7 +713,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 SPECTRA carries NEON's idea [1] to structured CNN pruning in a form that learns. A frozen plan-as-action agent, trained offline on ten CIFAR-scale networks, allocates parameter and FLOPs budgets on nine held-out networks across four families and two datasets. It does so with no per-target training or search, and at moderate budgets it performs at the level of the strongest same-loop rule (§5.2, §5.3). The walk-based design that preceded it could not learn, because its reward could not tell its actions apart (Appendix B). Where the plan agent falls short, the cause is measurable: a training reward that ranks plans unlike the final fine-tune at tight budgets (§5.6, §5.7).
 
 **What a submission today would claim [CLAIM, PRELIM].**
-1. A frozen allocation policy that transfers to held-out networks and datasets and performs at the level of the best hand rule: at moderate budgets under both budget types, and at 35 % and 25 % of parameters with a recovery-aware reward (§383). This is new for CNNs, where reused pruning policies have stayed within one family [124–131].
+1. A frozen allocation policy that transfers to held-out networks and datasets and performs at the level of the best hand rule: at moderate budgets under both budget types, and, with a recovery-aware reward and a deeper training range, at every parameter budget read from 60 % to 25 % (§383, §384). This is new for CNNs, where reused pruning policies have stayed within one family [124–131].
 2. That the agent learns: it beats the uniform and mild rules where they were measured at equal parameters, where every walk agent was a clone (§341, §346, §363).
 3. A reward-fidelity account of where a learned allocation fails, and a recovery-aware reward that removes the failure at 35 %, reduces it at 25 %, and stays at the prior at 60 % and 45 % (§375, §378, §381, §383).
 4. A transfer map with its negative cells stated (§363).
@@ -713,7 +721,7 @@ SPECTRA carries NEON's idea [1] to structured CNN pruning in a form that learns.
 It would not claim to beat the best rule, any focused method on its home cell, or transfer to unseen families in general (claims guard).
 
 **Next, in order (registered or planned).**
-1. **T6-fs and POOL-T6BN.** T6-bn read on 14 Oct: at the prior at 35 % and 25 %, and the reward helps (§383). T6-fs (32 SGD steps, the cheap reward closest to the one-epoch fine-tune) reads on 15 Oct. POOL-T6BN reads T6-bn at 60 % and 45 % overnight. If T6-bn holds there, it becomes the params agent of record: one frozen agent at the prior at every depth read. If the last seed's collapse at 25 % persists under fs32 too, the one-epoch fine-tune reward (valid, about 4× fs32's cost) is next.
+1. **T6-fs, then the params agent of record.** T6-bn is at the prior at all four depths read (§383, §384). T6-fs (32 SGD steps, the cheap reward closest to the one-epoch fine-tune) reads on 15 Oct. The params agent of record is then chosen between them; that is Ido's decision. If the last seed's collapse at 25 % persists under fs32 too, the one-epoch fine-tune reward (valid, about 4× fs32's cost) is next.
 2. **The Pareto figure (NEON Fig. 5 analog).** TEST change against params kept and against FLOPs kept, per network, for the agent and every rule at each depth. The FLOPs panel headlines literature-facing rows; the params panel holds the agent's home budget.
 3. **Literature rows at matched FLOPs**, with a 10k companion column, the honest column and a different-recipe caption (§5.9). DepGraph's 2.11× and 2.57× points and OCSPruner's row are in (§362, §365, §382). Add others only where their protocol is stated.
 4. **Coverage.** CIFAR-100 networks in the training catalog once they are recoverable at the budgets used (the T1-C fold was neutral, §356). Frozen ImageNet transfer for coverage only.
@@ -795,7 +803,8 @@ The decisive change is the unit of decision. A walk makes dozens of small, seque
 | 14 Oct | The batch-norm agent at 60 % and 45 % params | at the prior at both, and the same as the catalog agent | §381 |
 | 14 Oct | The literature cell at DepGraph's 2.57× point | the FLOPs agent below the rule; the batch-norm agent's one-network BEATS-PRIOR fired, on the TEST half only | §382 |
 | 14 Oct | T6-bn: the batch-norm reward on the deep range | at the prior at 35 % and 25 %; the reward helps; one seed still collapses at 25 % | §383 |
-| 14 Oct | T6-fs: the 32-step reward on the deep range | trains running since 09:58; reads 15 Oct | queue |
+| 15 Oct | The deep-range batch-norm agent at 60 % and 45 % | at the prior at both; with §383, at the prior at all four depths | §384 |
+| 14–15 Oct | T6-fs: the 32-step reward on the deep range | trains running since 09:58 on 14 Oct; reads 15 Oct | queue |
 
 ---
 
