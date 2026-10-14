@@ -365,6 +365,15 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - the Gilad memo (https://claude.ai/artifact/2AuRSUmLQJhRqTKcpHejb4) rebuilt as the meeting's anchor: two weeks, management view, top-5 wins and losses, decision points in depth;
   - the brief freshened and lightened, since he has read it.
 
+**Update 14 Oct 15:33 (Ido's 09:43 answers; the draft rewrite; §381; LIT-39; Stage-4 done).**
+- **Ido, 09:43:** science owns the paper draft under a standing GO (CLAUDE.md, "The paper draft"); T6 runs both rewards in parallel.
+- **T6** was registered at 09:46 (`884224b`); its gate passed at 09:58. The T6-bn trains COMPLETED in 5:08–5:19 h, and their 54 evals pend on cluster priority. The T6-fs trains run until about 09:00 on 15 Oct, then 54 evals. Watchers: T6-bn's cells, and T6-fs's (40 h).
+- **The draft is rewritten** (`373e08f`): the plan agent is the method of record, §5 runs through the ledger, and a claims guard and an evidence board sit under the title. The walk-era text and ops' pins are in `docs/paper/SPECTRA_draft_archive_walk_era.md`. §381 is folded in (`7d4d1b8`). Update the draft after each ledger section; the open checks are listed under the "Edit SPECTRA_draft.md" line below.
+- **§381 POOL-BN:** T5-bn is AT-PRIOR-POOL at params 0.6 (+0.11) and 0.45 (+0.15), and SAME as T1 at both. With §378 it sits at the prior at every depth read. Its thin-ResNet cost persists at 0.45 (−0.73).
+- **LIT-39** was registered at 14:45 (`8cb04c1`): DepGraph R56 at DepGraph's 2.57× point, which is also OCSPruner's FLOPs point (FLOPs 0.39 and params 0.38), 21 cells. Its gate passed at 15:30, and the cells pend on priority. Reader: `scripts/_tmp_s14oct_lit39_read.sh`. After the read, fill the draft's §5.9 rows.
+- **Stage-4 (22688072) COMPLETED on 14 Oct at 10:05** after 2 d 13:54 h. Its log summary (a train log, never a result) reports entropy collapsed to 0.112, the return flat (59.7 → 58.6), and no eval records. It is not TESTed: under §332 a walk-based run over a collapsed policy is uninformative, and a TEST would need registration and Ido's word. The never-scancel rule for 22688072 is now moot.
+- **Next reads, in the order they land:** T6-bn, LIT-39, then T6-fs (15 Oct evening). Each gets the next ledger section (§382 on), a draft update, a queue stamp and a mail.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
