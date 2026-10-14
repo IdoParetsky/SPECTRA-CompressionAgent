@@ -8764,3 +8764,28 @@ Never:
 - The four-depth curve as a pooled call.
 
 Records: queue row POOL-T6BN; next §385.
+
+## 385. (LIT-39b): the frozen T6-bn at DepGraph's 2.57× params point (params 0.38) on DepGraph's ResNet-56, beside LIT-39's rows (cells **22981012 / 014 / 015**; `tree_v21`) — PRELIM; registered call: T6-bn − sens_cost **+0.03** → **AT-PRIOR** (one net)
+
+Registered before submit 15 Oct 01:44 (commit `2cea8ab`; queue row LIT-39b), under Ido's standing authority of 13 Oct ~18:00, eval-only on idle GPUs. There was no smoke: the line is LIT-39's params line (gate 14 Oct 15:30), and the policies passed POOL-T6BN's gate (21:22).
+- *Read.* 15 Oct 02:06 (`scripts/_tmp_s15oct_lit39b_read.sh`, LIT-39's reader extended; it reproduces §382's calls).
+- *Checks.* All three cells COMPLETED; the guard resubmitted none. They landed at params 0.379–0.380 at the size point, with no fallback and no masked edit.
+
+**Arm** (mean over seeds 42–44): TEST 5k +0.07 (+0.02 / +0.08 / +0.12), val +0.35, 10k +0.21, honest −0.88; params 0.380, FLOPs 0.509. The origin control gains +0.92 to +0.98 under G2.
+
+| contrast (paired by seed) | TEST 5k (s42 / 43 / 44) | val | 10k | honest | ratio |
+|---|---|---|---|---|---|
+| T6-bn − floored sens_cost (call) | **+0.03** (−0.10 / +0.24 / −0.06) | +0.15 | +0.09 | −0.08 | FLOPs 0.95–1.15 |
+| T6-bn − T5-bn | −0.33 (−0.66 / +0.18 / −0.50) | +0.13 | −0.10 | −0.44 | FLOPs 0.97–1.05 |
+| T6-bn − T1 | −0.02 (+0.00 / +0.20 / −0.26) | +0.17 | +0.07 | +0.08 | FLOPs 0.86–1.01 |
+| T6-bn − uniform | +0.45 (+0.20 / +0.32 / +0.84) | +0.27 | +0.36 | +0.51 | FLOPs 1.09–1.29 |
+
+Reading:
+1. **AT-PRIOR** on this net: T6-bn is at floored sens_cost at params 0.38 (+0.03; val +0.15, 10k +0.09). T5-bn's TEST-only BEATS-PRIOR here (+0.35, §382) does not carry over to the deep-range agent: T6-bn − T5-bn is −0.33 on TEST but +0.13 on val. That is a noise-level split on one net, consistent with §382's call sitting at the edge of the bar.
+2. **Beside the literature** (reported, never a beat): at DepGraph's 2.57× params (0.38), T6-bn ends at +0.21 at 10k, keeping FLOPs 0.51. DepGraph's published row is +0.11 at FLOPs 0.389, so T6-bn keeps 1.3× DepGraph's FLOPs. The recipes differ, and ours lifts the unpruned network by about +0.95 here.
+
+Never:
+- "T6-bn beats DepGraph".
+- T5-bn's §382 call restated as an agent property.
+
+Records: queue row LIT-39b; next §386.
