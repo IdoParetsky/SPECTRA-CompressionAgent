@@ -8488,3 +8488,43 @@ Never:
 - "fs32 is valid" (it is WEAK, at +0.58).
 
 Records: queue row D-PROXY-5; next §380.
+
+## 380. (P25): the next depth point, params 0.25 — the frozen T5-deep (T1's line trained on κ [0.25, 0.85], §377) against floored, grid-rounded sens_cost, with uniform beside it, on the nine-net held-out pool (smokes **22801756–766**, cells **22801767–2802211**; `tree_v20`) — PRELIM; registered call: P25 = T5-deep − sens_cost **−1.60** → **BELOW-PRIOR-POOL**
+
+Registered before submit 13 Oct 23:24 (commit `b43bd81`; queue row P25). It was the default the brief offered Ido if he had not steered by 04:00. The smokes were read by hand at 23:45, all PASS. The timed gate passed at 04:00:01. From 04:26 to 06:12 the pending cells were held so D-PROXY-5 could run first; no cell changed.
+- *Read.* 14 Oct 09:21 (`scripts/_tmp_s13oct_p25_read.sh`).
+- *Checks.* All 81 cells COMPLETED (T5-deep, sens_cost and uniform × nine nets × seeds 42–44). Every arm landed at params 0.25 with no fallback.
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of the first arm to the second):
+
+| net | T5-deep − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | lever sens_cost − uniform: 5k | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.75 (+1.00 / +0.70 / +0.56) | +1.06 | +0.91 | +0.69 | 0.93–1.09 | +3.35 | +3.19 | +3.27 | +3.67 | 1.77–1.81 |
+| chenyaofo ResNet-56 | +0.57 (+0.22 / +0.88 / +0.62) | +0.01 | +0.29 | +0.64 | 1.08–1.32 | +0.01 | +0.62 | +0.31 | +0.00 | 1.14–1.26 |
+| thin r56-w8 | −0.05 (−0.10 / +0.14 / −0.20) | +0.02 | −0.02 | +0.11 | 1.25–1.33 | +2.13 | +3.01 | +2.57 | +2.23 | 1.33–1.35 |
+| MobileNetV2 ×1.4 | **+0.93** (+0.94 / +0.58 / +1.26) | +0.64 | +0.78 | +1.20 | 1.10–1.34 | −0.66 | −0.55 | −0.61 | −0.65 | 1.36–1.71 |
+| DenseNet-100 | +0.26 (−0.18 / +0.32 / +0.64) | +0.23 | +0.24 | +0.06 | 1.34–1.55 | −0.17 | −0.09 | −0.13 | −0.15 | 0.78–0.83 |
+| thin r20-w8 C100 | **−16.84** (−10.28 / −20.32 / −19.92) | −16.21 | −16.53 | −16.55 | 1.16–1.25 | −1.60 | −1.73 | −1.66 | −1.81 | 1.93–2.05 |
+| VGG-19 C100 | +0.21 (+0.48 / +0.18 / −0.04) | +0.28 | +0.24 | +0.41 | 0.88–1.00 | +2.71 | +2.78 | +2.75 | +2.42 | 1.98 |
+| VGG-16 C10 | −0.15 (+0.08 / −0.48 / −0.04) | −0.15 | −0.15 | −0.09 | 0.91–1.01 | +0.94 | +0.83 | +0.89 | +0.75 | 2.38–2.40 |
+| DepGraph R56 | −0.09 (−0.18 / +0.02 / −0.10) | +0.06 | −0.01 | +0.16 | 1.05–1.17 | +1.17 | +1.19 | +1.18 | +1.25 | 1.44–1.51 |
+
+FLOPs caption: at equal params, sens_cost keeps up to 2.4× uniform's FLOPs (VGG-16), and T5-deep up to 1.55× sens_cost's (DenseNet-100).
+
+**The plans on r20-w8 C100** (diagnostic): keep min / median 0.09 / 0.72, 0.09 / 0.81 and 0.09 / 0.88. The all-or-nothing plan returns at 0.25, now catastrophic: about 17 pp below the rule, which is itself 1.60 below uniform on this net.
+
+**Depth trend on the other eight nets** (a diagnostic after the read, never a call). Without r20-w8 C100, T5-deep − sens_cost averages **+0.30** at params 0.25, positive on 5 of 8. The same agent read +0.12 at 0.35 (§377). T1's eight-net trend was +0.01 → +0.10 → +0.18 from params 0.6 to 0.35 (§370, §373, §374).
+
+Reading:
+1. **BELOW-PRIOR-POOL**, by the registered rule: P25 −1.60 (95 % bootstrap [−5.88, +0.49]), positive on 5 of 9. One net carries it: r20-w8 C100 −16.84.
+2. **Allocation matters most at this depth.** The cost-aware rule beats uniform by +0.88 on average (+2.1 to +3.4 on the thin r56-w4, the thin r56-w8 and VGG-19 C100). It falls below uniform on MobileNetV2 ×1.4 (−0.66) and on r20-w8 C100 (−1.60).
+3. **The agent's edge over the cost-aware rule keeps growing with depth on eight nets, reaching about +0.30 at 0.25.** That is the size the +0.3 bar asks for, but it is a diagnostic after the read and never a call.
+4. **The collapse on wide CIFAR-100 ResNets grows with depth under the raw-cut reward:** −5.23 at 0.35 for T1 (§374), −5.11 for T5-deep (§377), and −16.84 for T5-deep at 0.25. At 0.35 the bn8 reward removed it (§378).
+   - [H] The next agent should combine a recovery-aware reward with the deeper training range. Read against T5-deep, that is one change (the reward), and it can be read at both 0.35 and 0.25.
+
+Never:
+- "The agent beats the cost-aware rule at depth" (the call is BELOW-PRIOR-POOL; the eight-net +0.30 is a diagnostic).
+- Rows at 0.25 mixed with other depths in one contrast.
+- A net dropped from the call after the read.
+
+Records: queue row P25; next §381.
