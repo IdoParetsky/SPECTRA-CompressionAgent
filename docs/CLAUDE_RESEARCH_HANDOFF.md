@@ -346,6 +346,7 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **§376 T5-floor:** BELOW-PRIOR-POOL (−0.35) and SAME as T1 (+0.02). The 0.25 training floor moves r20-w8 C100's collapse (−3.79) without removing it.
 - **§377 T5-deep:** BELOW-PRIOR-POOL (−0.46) and SAME (−0.04). Training to κ 0.25 leaves the collapse unchanged (−5.11).
 - **T5-bn** (bn8 reward) is still evaluating. [H] It is unlikely to fix the collapse, because bn8 ranks that net backwards.
+  - **Read 04:21, §378: that [H] was wrong.** AT-PRIOR-POOL +0.03, and LEARNS-MORE +0.45 carried by r20-w8 C100 (+6.29). The bn8 reward removes the collapse (+1.06 against sens_cost, every seed), at a cost on the thin and wide ResNet-56 (−0.96, −0.45). How a reward ranks four fixed plans (§375) does not predict what it teaches over the agent's own samples. The three pages were corrected at 04:23.
 - **Ido's GO** (13 Oct night: "You have my GO, pending D-PROXY-4's result"). D-PROXY-4's result met the condition. The short-fine-tune reward is built:
   - `fs<S>`, in git `9b537bc`, default off. It runs S SGD steps (momentum 0.9, wd 5e-4, lr `SPECTRA_PLAN_FS_LR`, 0.01) on S fixed train batches: in the trainer on the masked cut, re-masked after every step (`MaskedCut.remask`), and as an eval proxy on the real cut.
   - `tests/test_plan_fs_reward.py` checks masked-vs-real-cut equivalence. With six existing files, 111 tests pass on the login node.
