@@ -341,6 +341,25 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
 - **Literature:** `docs/paper/LIT_ALLOCATION_PROXIES_13OCT.md` (`c36c59d`). [H] "Matches the best rule while transferring" is the defensible headline: allocation gaps after a full fine-tune are 0.15–0.31 pp at about 50 % FLOPs, and the room is at tighter budgets and on CIFAR-100. One frozen policy across families, with no per-target search, has no CNN precedent. The memo for Gilad (v10) says this.
 - **Idea, not registered:** a random-search comparator, the best of N `sample` plans picked by the D-PROXY-4-best proxy, then a full final at seeds 42–44. About 20 GPU-h, no new code.
 
+**Update 14 Oct 03:00 (§375–§377; the fs reward built; D-PROXY-5 deployed).**
+- **§375 D-PROXY-4:** ft1 is **P35-VALID at the threshold** (ρ +0.60 against a ceiling of +0.73; 55 of 71 signs); bn32, bn8, cut and ft3 are WEAK. On r20-w8 C100 the cut and bn8 rank plans backwards (−0.84 / −0.85), and ft1 gets them right (+0.94).
+- **§376 T5-floor:** BELOW-PRIOR-POOL (−0.35) and SAME as T1 (+0.02). The 0.25 training floor moves r20-w8 C100's collapse (−3.79) without removing it.
+- **§377 T5-deep:** BELOW-PRIOR-POOL (−0.46) and SAME (−0.04). Training to κ 0.25 leaves the collapse unchanged (−5.11).
+- **T5-bn** (bn8 reward) is still evaluating. [H] It is unlikely to fix the collapse, because bn8 ranks that net backwards.
+- **Ido's GO** (13 Oct night: "You have my GO, pending D-PROXY-4's result"). D-PROXY-4's result met the condition. The short-fine-tune reward is built:
+  - `fs<S>`, in git `9b537bc`, default off. It runs S SGD steps (momentum 0.9, wd 5e-4, lr `SPECTRA_PLAN_FS_LR`, 0.01) on S fixed train batches: in the trainer on the masked cut, re-masked after every step (`MaskedCut.remask`), and as an eval proxy on the real cut.
+  - `tests/test_plan_fs_reward.py` checks masked-vs-real-cut equivalence. With six existing files, 111 tests pass on the login node.
+  - **`tree_v21`** = tree_v20 + `9b537bc` (PROVENANCE_v21.txt).
+- **D-PROXY-5** (registered 02:50, `1f01fe6`): D-PROXY-4's cells with fs4–fs64 at lr 0.01 and 0.05.
+  - **The selection reads the val half of the finals, not TEST:** the cheapest fs<S> that reads P35-VALID becomes T6's reward. Reader: `scripts/_tmp_s14oct_dpx5_read.sh`, which reproduces §375 on D-PROXY-4's cells.
+  - Jobs: smokes 22828428–430; 216 cells held behind the gate on slurm-login-02 (pid 240609); guard pid 240611.
+- **Next, T6:** T1's line with `SPECTRA_PLAN_PROXY=<selected fs<S>>` on tree_v21. Register it after D-PROXY-5 reads, sized to the measured per-plan cost (instances or K may need cutting to fit a train), and read it at params 0.35 against POOL-P35 (and at 0.25 if P25 reads).
+- **Ido's other asks (13 Oct night), for 15 Oct's meeting with Gilad:**
+  - an outsider-readable progress summary (a new artifact);
+  - the glossary (`docs/GLOSSARY_CHRONOLOGICAL.md`) brought up to date;
+  - the Gilad memo (https://claude.ai/artifact/2AuRSUmLQJhRqTKcpHejb4) rebuilt as the meeting's anchor: two weeks, management view, top-5 wins and losses, decision points in depth;
+  - the brief freshened and lightened, since he has read it.
+
 ---
 
 ## 0. Status at a glance (cluster poll 9 Oct 18:17)
