@@ -8587,3 +8587,58 @@ Never:
 - The depth curve as a pooled call.
 
 Records: queue row POOL-BN; next §382.
+
+## 382. (LIT-39): DepGraph's ResNet-56 at DepGraph's 2.57× point, which is also OCSPruner's FLOPs point — the frozen T4-F against floored, grid-rounded sens_F and uniform_F at FLOPs 0.39, and the frozen T5-bn and T1 against floored, grid-rounded sens_cost and uniform at params 0.38 (smokes **22940572 / 573 / 606 / 607**, cells **22940608–22940660**; `tree_v20`) — PRELIM; registered calls: d_F = T4-F − sens_F **−0.35** → **BELOW-PRIOR**; d_P = T5-bn − sens_cost **+0.35** → **BEATS-PRIOR on TEST 5k only** (val +0.02, 10k +0.19)
+
+Registered before submit 14 Oct 14:45 (commit `8cb04c1`; queue row LIT-39), under Ido's standing authority of 13 Oct ~18:00, eval-only on idle GPUs. The gate passed at 15:30: the smokes landed at FLOPs 0.389 / 0.389 / 0.390 and params 0.379, with no fallback. The cells ran 18:19–19:36, behind other users' jobs.
+- *Read.* 14 Oct 19:39 (`scripts/_tmp_s14oct_lit39_read.sh`).
+- *Checks.* All 21 cells COMPLETED; the guard resubmitted none. Every arm is read at its size point, with no fallback and no masked edit. The FLOPs arms landed at 0.389–0.390, the params arms at 0.379–0.380.
+
+**Arms** (mean over seeds 42–44). The change is against the origin before recovery: TEST 5k, val and 10k. Honest = TEST 5k minus the origin's own change under G2. The origin's TEST 5k accuracy is 93.36 %, and its control gains +0.64 to +1.38 under G2.
+
+| budget | arm | TEST 5k (s42 / 43 / 44) | val | 10k | honest | params kept | FLOPs kept |
+|---|---|---|---|---|---|---|---|
+| FLOPs 0.39 | T4-F | −0.24 (−0.38 / −0.40 / +0.06) | +0.05 | −0.10 | −1.22 | 0.462 | 0.390 |
+| FLOPs 0.39 | floored sens_F | +0.11 (+0.14 / −0.12 / +0.32) | +0.36 | +0.24 | −0.70 | 0.463 | 0.389 |
+| FLOPs 0.39 | uniform_F | −0.54 (−0.50 / −0.44 / −0.68) | −0.59 | −0.57 | −1.47 | 0.375 | 0.390 |
+| params 0.38 | T5-bn | +0.40 (+0.68 / −0.10 / +0.62) | +0.21 | +0.31 | −0.44 | 0.380 | 0.508 |
+| params 0.38 | T1 | +0.09 (+0.02 / −0.12 / +0.38) | +0.18 | +0.14 | −0.96 | 0.379 | 0.531 |
+| params 0.38 | floored sens_cost | +0.05 (+0.12 / −0.16 / +0.18) | +0.19 | +0.12 | −0.80 | 0.380 | 0.481 |
+| params 0.38 | uniform | −0.38 (−0.18 / −0.24 / −0.72) | +0.08 | −0.15 | −1.39 | 0.379 | 0.420 |
+
+**Contrasts** (paired by seed; ratio of the first arm to the second):
+
+| contrast | TEST 5k (s42 / 43 / 44) | val | 10k | honest | ratio |
+|---|---|---|---|---|---|
+| T4-F − sens_F (call 1) | **−0.35** (−0.52 / −0.28 / −0.26) | −0.31 | −0.33 | −0.52 | params 0.99–1.00; FLOPs 1.00 |
+| T4-F − uniform_F | +0.30 (+0.12 / +0.04 / +0.74) | +0.64 | +0.47 | +0.25 | params 1.18–1.32 |
+| sens_F − uniform_F (lever) | +0.65 (+0.64 / +0.32 / +1.00) | +0.95 | +0.80 | +0.77 | params 1.19–1.32 |
+| T5-bn − sens_cost (call 2) | **+0.35** (+0.56 / +0.06 / +0.44) | +0.02 | +0.19 | +0.36 | FLOPs 0.96–1.11 |
+| T1 − sens_cost | +0.05 (−0.10 / +0.04 / +0.20) | −0.01 | +0.02 | −0.16 | FLOPs 1.07–1.14 |
+| T5-bn − T1 | +0.31 (+0.66 / +0.02 / +0.24) | +0.03 | +0.17 | +0.52 | FLOPs 0.87–1.05 |
+| sens_cost − uniform (lever) | +0.43 (+0.30 / +0.08 / +0.90) | +0.11 | +0.27 | +0.59 | FLOPs 1.12–1.17 |
+| T5-bn − uniform | +0.78 (+0.86 / +0.14 / +1.34) | +0.13 | +0.46 | +0.95 | FLOPs 1.10–1.30 |
+| T1 − uniform | +0.47 (+0.20 / +0.12 / +1.10) | +0.10 | +0.29 | +0.43 | FLOPs 1.24–1.28 |
+
+**Beside the literature** (reported, never a call or a beat; the recipes differ):
+
+| method | FLOPs kept | params kept | change at 10k | recovery |
+|---|---|---|---|---|
+| DepGraph 2.57×, as published | 0.389 (their counter) | 0.382 | +0.11 | their sparse training and fine-tune; their epoch is picked on the test set (§346) |
+| OCSPruner Table 5, pretrained start | 0.388 | 0.423 | −0.51 (94.01 → 93.50, their own baseline) | their one-cycle schedule |
+| floored sens_F (ours) | 0.389 | 0.463 | +0.24 (TEST 5k +0.11; honest −0.70) | one cut + G2 |
+| T4-F (ours) | 0.390 | 0.462 | −0.10 (TEST 5k −0.24; honest −1.22) | one cut + G2 |
+| T5-bn at params 0.38 (ours) | 0.508 | 0.380 | +0.31 (TEST 5k +0.40; honest −0.44) | one cut + G2 |
+
+Reading:
+1. **Call 1, BELOW-PRIOR.** At DepGraph's 2.57× FLOPs point the frozen FLOPs agent is 0.35 below floored sens_F, on every seed, and val (−0.31) and 10k (−0.33) agree. This matches its standing elsewhere: −0.31 at the 2.11× point (§365), and below the rule on most pool nets (§366, §371).
+2. **Call 2, BEATS-PRIOR on TEST 5k only.** At params 0.38 the frozen bn8 agent is +0.35 above floored sens_cost, positive on every seed, so the registered single-net rule fires, by 0.05. The validation half (+0.02) and the full test set (+0.19) do not carry it, and the agent keeps up to 1.11× the rule's FLOPs. It is a one-net, three-seed read at the edge of the bar. The pooled reads of the same agent are AT-PRIOR-POOL at 0.6, 0.45 and 0.35 (§378, §381). T1 sits at the rule here (+0.05).
+3. **The literature, side by side.** At the FLOPs of DepGraph's 2.57× row and OCSPruner's row, SPECTRA's FLOPs rule ends at +0.24 at 10k and the frozen FLOPs agent at −0.10, beside DepGraph's +0.11 and OCSPruner's −0.51. Ours keep more params (0.46, against 0.38 and 0.42). Our recipe lifts the unpruned network itself by +0.64 to +1.38 under G2, so every honest value here is negative. These rows sit side by side; they are not a beat.
+4. **The lever at this point.** sens_cost − uniform is +0.43 at params 0.38. sens_F − uniform_F is +0.65 at FLOPs 0.39, with 1.19–1.32× uniform's params.
+
+Never:
+- "Beats DepGraph" or "beats OCSPruner".
+- "T5-bn beats sens_cost" as a general claim. The call is one net, it fired on the TEST half only, and the pools are AT-PRIOR-POOL.
+- The 0.39 / 0.38 rows mixed with the 0.48 / 0.47 rows in one contrast.
+
+Records: queue row LIT-39; next §383.
