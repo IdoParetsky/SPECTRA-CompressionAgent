@@ -971,7 +971,7 @@ Later items: T2 / T2r (D-IMIT (a) is SUFFICIENT, so T2 is unlocked), T4, the CEM
 - Never scancel a train without Ido's explicit ask. Keep 22156116 / 22156117 and 21767188.
 - No new train without Ido's GO.
 - No `bypass_limits`. Never commit passwords; secrets live in `%USERPROFILE%\.spectra\bgu-slurm.secrets.md`. Ask before installing packages.
-- Edit `SPECTRA_draft.md` only with a GO, and never touch ops' pins.
+- Edit `SPECTRA_draft.md` only with a GO, and never touch ops' pins. **Superseded 14 Oct (Ido): science owns the draft under a standing GO; ops' pins are folded into the body; see CLAUDE.md.**
 
 ---
 

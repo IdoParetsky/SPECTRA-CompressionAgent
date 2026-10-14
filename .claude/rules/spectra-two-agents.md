@@ -6,7 +6,7 @@
 
 **Thin bus.** `docs/AGENT_MAIL.md` — newest stamp first, 4–8 lines, **untracked** (gitignore). Re-read just before prepending. Prune only your own stamps. Write a stamp at every pause. Do not ping through FABLE, the handoff, or the ledger.
 
-**Who owns what.** Science owns `CLAUDE.md`, `.claude/`, queue rows, ledger TEST sections, and runbook `### 10.0x` addenda. Ops owns the OPS DELTA, queue "Ops … (lean)" stamps, `docs/NEXT_DEV_PHASE.md` §0, canvases, and the heartbeat. Each suggests changes to the other's files by mail.
+**Who owns what.** Science owns `CLAUDE.md`, `.claude/`, queue rows, ledger TEST sections, the paper draft `docs/paper/SPECTRA_draft.md` (Ido 14 Oct, standing GO), and runbook `### 10.0x` addenda. Ops owns the OPS DELTA, queue "Ops … (lean)" stamps, `docs/NEXT_DEV_PHASE.md` §0, canvases, and the heartbeat. Each suggests changes to the other's files by mail.
 
 **Shared tree.** `C:\SPECTRA-CompressionAgent`. Never `git stash`, `git restore`, `git checkout --`, `git reset --hard`, or `git clean`. Commit only your own files or hunks, then push. Ops’ usual unstaged files: `docs/PROMPT_FABLE_V6.md`, `docs/NEXT_DEV_PHASE.md`, `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`, `docs/paper/SPECTRA_draft.md`, `docs/paper/GILAD_OCT8_TRACKER.md`.
 

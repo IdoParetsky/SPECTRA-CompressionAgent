@@ -26,6 +26,17 @@ Open this folder (`C:\SPECTRA-CompressionAgent`) as the workspace before startin
 - Fable has its own weekly limit on Max, so treat it as a reserve. Run `/usage` at the start and at checkpoints; if Opus runs tight, use `opusplan` or pause.
 - Waiting is event-driven: never poll in the main tab. No log dumps in the main tab: full outputs go to files, and the tab shows calls and compact tables.
 
+## The paper draft (Ido, 14 Oct 2026)
+Science owns `docs/paper/SPECTRA_draft.md` under a standing GO.
+- Keep §3–§6 (Approach, Evaluation, Results, Discussion) current with the method of record.
+- After each ledger section, update the draft in one reviewable commit.
+- Follow the draft's conventions:
+  - NEON section order;
+  - numbers only by ledger reference (§N), TEST 5k with val, 10k and honest beside it;
+  - every table marked PRELIM until it is locked;
+  - no train-log values.
+- Ops does not edit the draft. Its earlier one-line pins were folded into the body on 14 Oct.
+
 ## Never
 - Train, or install CPU PyTorch, on this laptop. GPU work runs only on BGU Slurm (`ssh bgu-slurm`). Run remote scripts with `powershell -NoProfile -File scripts/rexec.ps1 -File <script.sh>`.
 - Run `git stash`, `git checkout -- <file>`, `git restore`, `git reset --hard` or `git clean`. Each one destroys the ops agent's unstaged edits.
