@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384 and 02:08 with §385.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -18,7 +18,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 - Tags: **LOCKED** / **PRELIM** / **TBD** / **CLAIM** ([README.md](README.md)). Citations: [1]–[78] are the August 2024 thesis proposal's; [79]–[96] come from the August 2026 survey; [97] onward come from the October 2026 scans.
 
 **Claims guard (what this draft must not say).** These consolidate ops' pins of 6–14 Oct and the ledger's never-lists. A line leaves this list only when a registered call in the ledger fires.
-- Never "beats" (a rule, DepGraph, or the state of the art) unless a registered BEATS call fires. In particular, never "the agent beats the cost-aware rule" in general, at any depth, nor "beats DepGraph". The one registered BEATS call that has fired (§382: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only) is quoted only with that scope. Never "the deep-range batch-norm agent beats the rule at 45 %": its +0.2956 is under the bar (§384).
+- Never "beats" (a rule, DepGraph, or the state of the art) unless a registered BEATS call fires. In particular, never "the agent beats the cost-aware rule" in general, at any depth, nor "beats DepGraph". The one registered BEATS call that has fired (§382: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only) is quoted only with that scope; it does not carry over to the deep-range batch-norm agent (§385). Never "the deep-range batch-norm agent beats the rule at 45 %": its +0.2956 is under the bar (§384).
 - Never "headroom" above a prior: every headroom screen so far found none (§367, §368, §372).
 - Never "transfers to unseen families" in general. Family transfer is claimed only fold by fold, as §363 states it. Never "the agent transfers to VGG-19 CIFAR-100" or "the no-VGG fold transfers to VGG" (§363).
 - Never "the agent conditions on the budget type" (§360). Never "advantage normalization helps" (§364). Never "a training floor or a deeper training range fixes the collapse" (§376, §377). Never "the batch-norm reward removes the collapse at 25 %": one seed still collapses there (§383).
@@ -38,7 +38,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Which cheap reward is faithful? | One epoch of fine-tuning is valid at the threshold; the raw cut and batch-norm re-estimation are weak at 35 % params | §375, §379 |
 | Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
 | Against the literature (DepGraph's ResNet-56) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. The recipes differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382 |
-| Has a registered beat fired? | Once, narrowly: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it) | §382 |
+| Has a registered beat fired? | Once, narrowly: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only. Val and 10k do not carry it, and the deep-range agent is at the rule there | §382, §385 |
 | Running | T6-fs (the 32-step reward on the deep range), read at 35 % and 25 % after its trains finish (about 09:00, 15 Oct) | queue |
 
 ---
@@ -291,7 +291,7 @@ No held-out network is in the catalog (§4.3).
 | Training floor 0.25 (T5-floor) | params | k_min 0.25 instead of 0.1 | §376 |
 | Deeper range (T5-deep) | params | κ ∈ [0.25, 0.85] | §377, §380 |
 | Batch-norm reward (T5-bn) | params | `bn8` reward | §378, §381, §382 |
-| Deeper range + batch-norm reward (T6-bn) | params | κ ∈ [0.25, 0.85] and `bn8` | §383, §384 |
+| Deeper range + batch-norm reward (T6-bn) | params | κ ∈ [0.25, 0.85] and `bn8` | §383, §384, §385 |
 | Deeper range + 32-step reward (T6-fs) | params | κ ∈ [0.25, 0.85] and `fs32` | running |
 | With CIFAR-100 networks (T1-C) | params | catalog plus 8 recoverable CIFAR-100 networks | §356 |
 | No ResNet / no VGG (LOFO-R / LOFO-V) | params | catalog without that family (6 / 7 networks) | §354, §358, §363 |
@@ -605,7 +605,7 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 - Only the reward change removed the failure. With the batch-norm reward, ResNet-20 ×8 CIFAR-100 goes from −5.23 to +1.06 against the rule, positive on every seed, and its plans lose the all-or-nothing shape (§378).
 - The fix costs two thin ResNets: ResNet-56 ×4 −0.96 (val −1.05, 10k −1.00, honest −0.71) and ResNet-56 ×8 −0.45 against the rule. On the other eight networks it averages −0.29 against the catalog agent (§378).
 - The batch-norm fix costs no pooled ground at the moderate budgets. At 60 % and 45 % the agent is at the cost-aware rule and the same as the catalog agent (§381). It is the first parameter agent at the prior at every depth read so far, where the catalog agent fell below it at 35 %. That summarises three per-depth calls; it is not a pooled call.
-- On DepGraph's ResNet-56 at params 0.38 (the literature cell, §382), the batch-norm agent's single-network call fired BEATS-PRIOR on the TEST half: +0.35, positive on every seed. The validation half (+0.02) and the full test set (+0.19) do not carry it, and the agent keeps up to 1.11× the rule's FLOPs. It is a fired call on one network, not a pooled result. The catalog agent sits at the rule there (+0.05).
+- On DepGraph's ResNet-56 at params 0.38 (the literature cell, §382), the batch-norm agent's single-network call fired BEATS-PRIOR on the TEST half: +0.35, positive on every seed. The validation half (+0.02) and the full test set (+0.19) do not carry it, and the agent keeps up to 1.11× the rule's FLOPs. It is a fired call on one network, not a pooled result. The catalog agent sits at the rule there (+0.05), and so does the deep-range batch-norm agent (+0.03; val +0.15, 10k +0.09; §385).
 - Its cost on the thin ResNets persists below 60 %. ResNet-56 ×4 is −0.73 at 45 % (val −0.41, 10k −0.57, honest −0.93; every seed negative) and −0.96 at 35 %, and DepGraph's ResNet-56 is −0.28 at 45 %. Its gain on ResNet-20 ×8 CIFAR-100 holds: +1.57 at 45 % (val +1.44, 10k +1.50, honest +1.32), where the cost-aware rule is itself weak (§373, §381).
 - **On the deep training range, the batch-norm reward gives the first single agent at the params prior at all four depths read** (§383, §384). It is also the first at 25 %. The same line with the raw-cut reward was −1.60 there (§380).
 - The reward's gain is carried by ResNet-20 ×8 CIFAR-100: +5.52 at 35 % and +14.43 at 25 % against the raw-cut agent. On the other eight networks its effect is +0.05 and −0.20.
@@ -671,6 +671,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 | Frozen FLOPs agent (T4-F) | 0.390 | 0.462 | −0.24 (+0.05) | −0.10 | −1.22 | G2 |
 | Uniform_F | 0.390 | 0.375 | −0.54 (−0.59) | −0.57 | −1.47 | G2 |
 | Frozen batch-norm agent (T5-bn), at params 0.38 | 0.508 | 0.380 | +0.40 (+0.21) | +0.31 | −0.44 | G2; 1.3× DepGraph's FLOPs |
+| Frozen deep-range batch-norm agent (T6-bn), at params 0.38 | 0.509 | 0.380 | +0.07 (+0.35) | +0.21 | −0.88 | G2 (§385); 1.3× DepGraph's FLOPs |
 | Frozen catalog agent (T1), at params 0.38 | 0.531 | 0.379 | +0.09 (+0.18) | +0.14 | −0.96 | G2 |
 | Floored cost-aware rule, at params 0.38 | 0.481 | 0.380 | +0.05 (+0.19) | +0.12 | −0.80 | G2 |
 
@@ -678,7 +679,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **The FLOPs rule lands above DepGraph's published change at both points:** +0.56 and +0.24 at 10k, against +0.24 and +0.11. The frozen FLOPs agent lands at or below it: about +0.24 [computed] and −0.10. OCSPruner's row sits at −0.51.
 - **At equal FLOPs, SPECTRA keeps more parameters.** At the 2.57× point that is 0.46, against DepGraph's 0.38 and OCSPruner's 0.42.
 - **The honest caveat.** Our 100-epoch recovery lifts the unpruned network itself by +0.64 to +1.38 points (§382), so every honest value at the 2.57× point is negative. Raw changes under different recipes are not a contest: the rows sit side by side and are **not a beat**.
-- **The registered same-loop calls at this point** (§382): the FLOPs agent is BELOW-PRIOR, −0.35 (val −0.31, 10k −0.33, honest −0.52). At params 0.38 the batch-norm agent's call fired BEATS-PRIOR on the TEST half only: +0.35, with val +0.02, 10k +0.19 and honest +0.36 (§5.6).
+- **The registered same-loop calls at this point** (§382): the FLOPs agent is BELOW-PRIOR, −0.35 (val −0.31, 10k −0.33, honest −0.52). At params 0.38 the batch-norm agent's call fired BEATS-PRIOR on the TEST half only: +0.35, with val +0.02, 10k +0.19 and honest +0.36 (§5.6). The deep-range batch-norm agent is AT-PRIOR there (+0.03; val +0.15, 10k +0.09; §385), so that beat does not carry over to it.
 - The walk era's DepGraph row (§157) is history (Appendix B).
 
 ---
@@ -804,6 +805,7 @@ The decisive change is the unit of decision. A walk makes dozens of small, seque
 | 14 Oct | The literature cell at DepGraph's 2.57× point | the FLOPs agent below the rule; the batch-norm agent's one-network BEATS-PRIOR fired, on the TEST half only | §382 |
 | 14 Oct | T6-bn: the batch-norm reward on the deep range | at the prior at 35 % and 25 %; the reward helps; one seed still collapses at 25 % | §383 |
 | 15 Oct | The deep-range batch-norm agent at 60 % and 45 % | at the prior at both; with §383, at the prior at all four depths | §384 |
+| 15 Oct | The deep-range batch-norm agent at DepGraph's 2.57× params point | at the rule on that network; the shallower-range agent's one-network beat does not carry over | §385 |
 | 14–15 Oct | T6-fs: the 32-step reward on the deep range | trains running since 09:58 on 14 Oct; reads 15 Oct | queue |
 
 ---
