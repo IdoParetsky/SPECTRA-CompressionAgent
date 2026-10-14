@@ -290,11 +290,11 @@ Terms from ledger §300–§377 and the handoff's §0b updates. The third column
 | **T4-F** | T3-F with a trust region (zmax 0.3). BELOW-PRIOR on r56-w4; AT-PRIOR-POOL on the nine-net pools. | named §361; run §365 |
 | **T4F-45** | The frozen T4-F read at FLOPs 0.45. | §369 |
 | **T5-P** | Two single-change retrains of T1's line, three seeds each: T5-bn and T5-floor. | handoff §0b 13 Oct 18:28 |
-| **T5-bn** | T1's line with the bn8 reward. Trains done; its 27 evals at params 0.35 were reading on 14 Oct. [H] bn8 ranks r20-w8 C100's plans backwards (§375), so it is unlikely to remove the collapse. | handoff §0b 13 Oct 18:28 / 23:31 |
+| **T5-bn** | T1's line with the bn8 reward. At params 0.35 it removed the r20-w8 C100 collapse: AT-PRIOR-POOL and LEARNS-MORE (§378). At params 0.6 and 0.45: AT-PRIOR-POOL and SAME as T1 (§381). It costs the thin ResNets some accuracy below 0.6. (The earlier [H] that it would not remove the collapse was wrong.) | handoff §0b 13 Oct 18:28; §378, §381 |
 | **T5-floor** | T1's line with a training keep floor (k_min) of 0.25 instead of 0.1. Read frozen at params 0.35: BELOW-PRIOR-POOL (−0.35) and SAME as T1 (+0.02). | handoff §0b 13 Oct 18:28; §376 |
 | **T5-DEEP (T5-deep)** | T1's line trained on κ from 0.25 to 0.85 instead of from 0.35. Read at params 0.35: BELOW-PRIOR-POOL (−0.46) and SAME as T1 (−0.04). | handoff §0b 13 Oct 18:28; §377 |
 | **T5-F** | A proposed per-net "shape" agent under FLOPs, offered to Ido as fork C on 12 Oct; not registered. | handoff §0b 12 Oct 02:15 |
-| **T6** | The planned agent: T1's line with the short-fine-tune reward `fs<S>` (S and its lr picked by D-PROXY-5 on the val half). Ido's GO 13 Oct night, pending D-PROXY-4, which read ft1 P35-VALID. Not yet registered. | handoff §0b 14 Oct 03:00 |
+| **T6** (T6-bn, T6-fs) | T5-deep's line (trained on budgets κ [0.25, 0.85]) with a recovery-aware reward: **T6-bn** uses bn8, **T6-fs** uses fs32 at lr 0.01. Three seeds each, read at params 0.35 and 0.25 against sens_cost and T5-deep. D-PROXY-5 selected no reward, so Ido chose "both rewards, in parallel" (14 Oct ~09:43). Registered 09:46; trains running since 09:58. | queue row T6; §379 |
 | **LOFO-R** | T1's line trained without any ResNet (6 nets) and read on ResNets. FAMILY-TRANSFER; holds on DepGraph R56 with clean comparators. | §354 |
 | **LOFO-V** | T1's line trained without any VGG (7 nets; also without SVHN and CIFAR-100) and read on VGGs. FAMILY-TRANSFER at first, then FAILS-CLEAN. | named §352; run §358 |
 | **LOFO-M / LOFO-D** | Planned folds without the MobileNets or without the DenseNets. They wait for a sufficient agent. | handoff §0b 10 Oct 15:57 |
@@ -364,6 +364,10 @@ Terms from ledger §300–§377 and the handoff's §0b updates. The third column
 | **Screen / confirm** | The HEAD design: several alternative plans are run once at seed 45 (the screen, for selection only), and per net the one best on val is re-run at seeds 42–44 (the confirm) and read against the prior. | §367 |
 | **RAIL-P35** | A registered test of a keep floor of 0.25 on T1 and sens_cost at params 0.35. Its gate failed and caught a design error (the agent keeps its own k_min of 0.1), so T1's cells were cancelled and the sens_cost cells became T5-floor's comparator. | handoff §0b 13 Oct 13:50 / 18:28; §376 |
 | **P25** | T5-deep, sens_cost and uniform at params 0.25 on the nine nets (81 cells), registered 13 Oct 23:24 behind a gate timed for 04:00. | handoff §0b 13 Oct 23:31; named §377 |
+| **POOL-BN** | "The batch-norm agent at the shallower budgets": T5-bn read frozen at params 0.6 (DepGraph R56 at 0.47) and 0.45 on the nine nets (54 evals). AT-PRIOR-POOL and SAME as T1 at both. | queue row POOL-BN; §381 |
+| **T6-COST** | A cost probe before T6: T6's train smoke on the fs32 reward, timed, with no train. It measured 6.97 s per instance, too slow for T1's 900-min cap, so T6-fs got a 1,700-min cap. | queue row T6-COST |
+| **LIT-39** | "The literature cell at FLOPs 0.39": DepGraph's ResNet-56 at DepGraph's published 2.57× point, which is also OCSPruner's FLOPs point. The frozen FLOPs agent, floored sens_F and uniform_F at FLOPs 0.39; the frozen T5-bn and T1, floored sens_cost and uniform at params 0.38; seeds 42–44. It supplies the paper's second and third literature anchors. Registered 14 Oct 14:45. | queue row LIT-39 |
+| **Claims guard / evidence board** | The two blocks under the paper draft's title (14 Oct rewrite). The guard lists what the draft must not say, from ops' pins and the ledger's never-lists. The board gives the current answer to each question, by ledger section. | `docs/paper/SPECTRA_draft.md` |
 
 #### 6.5e Diagnostics and proxies
 
