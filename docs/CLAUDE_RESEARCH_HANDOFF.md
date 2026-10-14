@@ -885,7 +885,7 @@ Cited by table, section or code line in repo docs [R]:
   - `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`
   - `docs/paper/GILAD_NEWS_30SEP.md`
   - `docs/paper/GILAD_OCT8_TRACKER.md` (ops' restamp)
-  - `docs/paper/SPECTRA_draft.md` (ops pins, lines 12–45)
+  - `docs/paper/SPECTRA_draft.md`: ops pins until 14 Oct. They were folded into the body and archived word for word on 14 Oct, so the draft is no longer an ops file.
 - **[V] Untracked files are never committed.**
   - Ido's personal files: `docs/paper/EXTENSION_REQUEST_HE.*`, `docs/SPECTRA_literature_status_Aug2026.*`, `docs/paper/IDO_COMMUTE_BRIEF_30SEP_4OCT.*`, the root `*.pdf`, `*.docx` and `*.txt`, and `NAPv2-main.zip`.
   - Ops and sitting scratch: `runs/` (19 files) and about 1,570 `scripts/_tmp_*` files.
@@ -971,7 +971,12 @@ Later items: T2 / T2r (D-IMIT (a) is SUFFICIENT, so T2 is unlocked), T4, the CEM
 - Never scancel a train without Ido's explicit ask. Keep 22156116 / 22156117 and 21767188.
 - No new train without Ido's GO.
 - No `bypass_limits`. Never commit passwords; secrets live in `%USERPROFILE%\.spectra\bgu-slurm.secrets.md`. Ask before installing packages.
-- Edit `SPECTRA_draft.md` only with a GO, and never touch ops' pins. **Superseded 14 Oct (Ido): science owns the draft under a standing GO; ops' pins are folded into the body; see CLAUDE.md.**
+- Edit `SPECTRA_draft.md` only with a GO, and never touch ops' pins. **Superseded 14 Oct (Ido): science owns the draft under a standing GO; ops' pins are folded into the body; see CLAUDE.md.** **Rewritten 14 Oct** to the plan-as-action agent (§3 method, §4 protocol, §5 results by ledger section through §380, a claims guard and an evidence board under the title). The walk-era text and the pins are in `docs/paper/SPECTRA_draft_archive_walk_era.md`. Open checks:
+  - §377 prints the same bootstrap interval as §374; it may be a copy.
+  - OCSPruner-matched row (FLOPs 0.39): TBD.
+  - Leave-one-family-out re-runs with fold-fitted standardizers.
+  - Venue pass for references [10], [21], [27], [36], [41], [42], [50], [61], [65].
+  - Update the draft after each new ledger section (T6, POOL-BN).
 
 ---
 
@@ -992,7 +997,7 @@ Later items: T2 / T2r (D-IMIT (a) is SUFFICIENT, so T2 is unlocked), T4, the CEM
 |---|---|
 | science → ops | A dated `### 10.0x` addendum in `docs/OPS_HANDOFF_RUNBOOK.md` §10 (what is live, what ops may and may not do, failure rules). Queue-file rows: registration, job ids, start checks, the call when read |
 | ops → science | The **OPS DELTA** briefings at the top of `docs/PROMPT_FABLE_V6.md`; "Ops … (lean)" stamps in the queue file; `docs/NEXT_DEV_PHASE.md` §0 cluster table; the heartbeat file `C:\Users\User\.spectra\spectra_slurm_heartbeat.ps1` |
-| both | `docs/paper/RESULTS_LEDGER.md`: science writes TEST sections, ops never edits them. `docs/paper/GILAD_OCT8_TRACKER.md`: each agent writes only its own dated entries. `SPECTRA_draft.md`: ops pins only; science edits with a GO |
+| both | `docs/paper/RESULTS_LEDGER.md`: science writes TEST sections, ops never edits them. `docs/paper/GILAD_OCT8_TRACKER.md`: each agent writes only its own dated entries. `SPECTRA_draft.md`: science only (standing GO, 14 Oct); ops does not edit it |
 | live truth | `squeue` / `sacct` on the cluster, never a document's memory of them |
 
 ### 12.3 Rules for a shared working tree

@@ -4,121 +4,92 @@ Working title: **SPECTRA: Multi-Objective Structured Pruning of Convolutional Ne
 
 Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University  
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
-**Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Do not paste a job summary mean here.
+**Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-Status of this file: **DRAFT**. **Training freeze night of 17 Sep 2026** (no new reward A/Bs after that). **Paper including TESTs 30 Sep 2026** — no 6 Oct coverage buffer. First new-actor TESTs are in (§68–70); remaining spectrum catalogs must finish before 30 Sep.  
-Section order matches NEON [1]: Introduction → Related Work → Approach → Evaluation → Results → Discussion → Conclusions.  
-**Last restamp: 16 Sep 2026 10:55 IDT (Fable: §3, §4.1–4.2, §7 rewritten to the v3 method of record; §5 numbers unchanged).** Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md). Paper skeleton: [PAPER_SKELETON.md](PAPER_SKELETON.md). Cubes matching-std traj **21235566** r20 §75. Log1p cubes **21233227 COMPLETED** §73 is not the z-score curve. Prefer **21233371** r20 §74 / Path 3 **21233223** r20 §72 (r56 in FT). Similar **21230664** MobileNet **−2.1**. Train freeze **night of 17 Sep**. Keep L1. Queue **6 R**.
-**Ops pin 6 Oct 21:28 (TEST land §220, not a §5 fill):** τ-off **22288423** PATH-SAME vs N3 at DepGraph sizes; 100-ep CROSS-OFF; `val_best` keep 0.123. Paper DepGraph walk rows stay **N3 §157**. Ledger §220 / §2.4. Do not fill §5 from ops.
-**Ops pin 6 Oct 09:47 (not a TEST restamp):** paper freeze uses a **10k companion / labelled cross-fit** beside literature, different-FT caption; live recipe stays P 5k. Ledger §2.4. Do not fill §5 from ops.
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40).** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
-### Durable snapshot — 18 Aug 2026 08:55 IDT (do not rely on chat)
+**Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
-Write new TEST here and in the ledger in the same turn. This block is the memory.
+**Conventions.**
+- Section order follows NEON [1]: Introduction → Related Work → Approach → Evaluation → Results → Discussion → Conclusions.
+- A result is a **TEST** on the 5k test half, with the val half, the full 10k test set and the honest change beside it (§4.2). For a difference between two pruned arms, honest is the difference of the arms' honest values. Each job runs its own origin control, so honest can differ from raw (§352). Selection never reads TEST.
+- FLOPs is the headline axis for rows that face the literature, reviewers and the defense, with params beside them (Ido, 10 Oct). An agent row is headlined on the budget it trained on. When a pair differs by more than 10 % in FLOPs, the caption says so.
+- Each budget has one prior, fixed in advance from pooled evidence and run with the agent's floors: the cost-aware sensitivity rule at equal params (§355, §370) and the floored FLOPs sensitivity rule at equal FLOPs (§357, §366). Every other same-loop rule is reported beside it.
+- Tags: **LOCKED** / **PRELIM** / **TBD** / **CLAIM** ([README.md](README.md)). Citations: [1]–[78] are the August 2024 thesis proposal's; [79]–[96] come from the August 2026 survey; [97] onward come from the October 2026 scans.
 
-- **CIFAR-10 architecture transfer (C1–C5, C10 FLOP-floor):** LOCKED. Similar + unlike inside τ except skinny-deep ResNet-56 at 70% params (−15.9/−16.2/−17.2). FLOP floor 0.70 puts that net inside τ at ~91% params / 70% FLOPs (−8.9/−9.2/−9.6).
-- **Claim C9 (frozen 10-net → CIFAR-100):** LOCKED mixed. VGG-16 BN −7.5/−7.8/−7.3 inside τ. ShuffleNet-v2×1 **−3.9 / −3.4 / −4.3** three-seed (s44 −4.3 @ 0.837/0.823). Thin ResNets and RepVGG-A0 miss. Argmax s42 catalog **COMPLETED**: r20 **−16.2** and r56 **−17.9** miss; VGG **−8.3 @ 0.769** and ShuffleNet **−6.6 @ 0.726** inside; RepVGG **−11.3 @ 0.685/0.556** miss (§58). Ledger §21.
-- **Param floor 0.80 walk:** r56-w4 still cliffs on three seeds (−21.7 / −25.7 / −22.5 @ ~0.80p / 0.54f). Easy r20 inside τ. Ledger §24.
-- **Digit-MNIST LeNet (held-out dataset):** three-seed TEST **gain** +2.8/+2.7/+2.9 pp. Toy net. Ledger §22.
-- **SVHN r20-w8 (held-out width, dataset was in the 10-net train mix):** −2.0/−1.5/−2.0 inside τ. Not in-catalog r20-w16. Ledger §23.
-- **24-net:** Dedicated similar **20201260 COMPLETED** 21:08. s42: r20 **−5.9**; r56-w10 **−12.6** miss; r44 **−4.5**; VGG-19 **−2.8**; MobileNet **−1.7 @ 0.668/0.651**; DenseNet-100 **−1.7 @ 0.835/0.831**. Skip r32. s44 **20204215 COMPLETED**: r56-w10 **−8.6 @ 0.616/0.538** inside τ (not size-matched); DenseNet-100 **−2.4 @ 0.798/0.813**. Skinny **20201263 COMPLETED**: r56-w4 **−25.0 @ 0.704/0.499** miss (worse than 10-net −15.9 @ 0.704/0.550); easy r20-w2 **−5.7 @ 0.600/0.748**. Unlike **20201265 COMPLETED**: RepVGG-A0 **−4.9 @ 0.671/0.545**; A1 **−3.9 @ 0.662/0.552**; ShuffleNet **no TEST** (grouping / finetune fail). 24-net is not the remaining lever. Overnight fill uses the frozen 10-net actors. Ranking L2/SVD s42 **COMPLETED**: r56-w4 **−24.1 / −25.6 @ 0.667/0.482**. L2 s44 **20353577 COMPLETED**: **−23.4 @ 0.685/0.490** — two-seed greedy cliff (not size-matched to L1 **−15.9 @ 0.704/0.550**). Greedy L2/SVD r56 **−26.6 / −25.8 @ 0.667/0.454**. DRL L2 three-seed **−24.1 / −21.2 / −23.4** (s43 smaller). Unlike FLOP-floor s42 **COMPLETED**: ShuffleNet×1 **−1.9 @ 0.809/0.826**; ×1.5 **−2.0 @ 0.821/0.799**; RepVGG-A0 **−3.9 @ 0.792/0.702**; A1 **−4.3 @ 0.888/0.735** (milder than default unlike, already inside τ). SVD ranking three-seed r56 **−25.6 / −19.8 / −23.7** unmatched (keep L1). C100 residual FLOP-floor s42 **COMPLETED**: r20 **−5.7 @ 0.813/0.709**; r56 **−4.7 @ 0.871/0.702** inside τ (milder than SGD-no-floor −12.2 / −9.1). s43 r20 **−7.0 @ 0.881/0.702** (PRELIM; r56 in flight).
-- **FPGM ranking A/B (PRELIM, ledger §59):** thin argmax + FPGM **21040934 COMPLETED**. r20-w2 **−4.8 @ 0.600/0.741** same size as L1 **−4.4**. r56-w4 **−23.4 @ 0.667/0.465** vs L1 **−25.2** same size — 1.8 pp milder, still a cliff. **Do not retrain.** BN-scale **21040935 COMPLETED** r20 **−3.8**; r56 **−27.1 @ 0.667/0.465** — **worse** than L1 (§60). Keep L1.
-- **PROVENANCE CORRECTION (4 Sep audit, ledger §54).** Two eval-path defects affect how every row below was produced. (a) The frozen policy was **sampled**, not argmaxed, and the encoder's dropout was live at TEST: the same actor on the same net reaches parameter counts up to **10.7 pp apart** between `eval_train` and `eval_test` (154 of 277 net×job pairs differ). Seed spreads of 1–3 pp are inside single-actor resampling noise and must not be read as seed effects. (b) Every **prefer-Δparams/ΔFLOPs** arm bypasses the agent — `action_preferring_param_per_flop` discards the actor's action — so those rows are a *deterministic heuristic*, not DRL, and their "three seeds" are byte-identical. Sampled control **20945567 COMPLETED**: r20 **−3.9 @ 0.600/0.748**, r56-w4 **−25.4 @ 0.667/0.482** vs locked **−15.9 @ 0.704/0.550**. Argmax **20945568 COMPLETED**: r20 **−4.4 @ 0.600/0.741**; r56-w4 **−25.2 @ 0.667/0.465** — **not identity**; hard net is the cliff (path 3 vs locked **−15.9 @ 0.704/0.550**). Similar-argmax **20945570 COMPLETED** DenseNet **−2.1 @ 0.801**. C100 argmax **20945572 COMPLETED** §58. Reward retrain **20945574 COMPLETED** (`neon`+`cbrt`, FLAGS det=1) — train, do not quote. Eval **20945576 COMPLETED identity** §63 (actor `job20945574`). Band train **20945744** PD QOS (prio 1). Unlike look-ahead s43 **20382197 R** took the 576 GPU.
-- **FLOP-floor prefer-Δparams/ΔFLOPs (LOCKED three-seed):** r56-w4 **−8.9 / −8.0 / −8.1 @ 0.704/0.872**. r20 **−2.7 / −2.7 / −1.9 @ 0.600/0.886**. Same param/FLOP point, all inside τ. **Heuristic, not DRL, and one run not three (§54.2).**
-- **ImageNet 20308031 COMPLETED, no TEST.** Earlier truncated-JPEG attempt failed fine-tune. Do not quote 82.8%.
-- **ImageNet s42 20318168 TIMEOUT.** No TEST. 7-day retry **20715875** PD on QOS after parent **20412393 COMPLETED** (`rtx_4090`). No ImageNet DRL.
-- **ImageNet s43 20360208 COMPLETED (PRELIM, ledger §41):** frozen 10-net actor, truncated-JPEG MobileNet-v2 TEST **−4.6 @ 0.823/0.729** (0.719→0.673) inside τ. s44 **20382192 COMPLETED** **−5.1 @ 0.772/0.652** (0.719→0.668) inside unmatched. Two-seed PRELIM. s42 TIMEOUT. Not a SOTA ImageNet fight. No ImageNet DRL train. afterany Wave M **20412394** ShuffleNet×1 TEST **−1.7 @ 0.801/0.716**. Do not quote 82.8% or train-loader.
-- **C100 SGD (PRELIM three-seed):** r56-w15 **−9.1 / −9.4 / −10.8** — s44 misses at 0.571/0.360. r20 **−12.2 / −10.1 / −8.8** — only s44 inside. Sizes not matched. Do not overwrite C9. Ledger §25.
-- **Unlike FLOP floor 0.70 (LOCKED three-seed, ledger §28):** ShuffleNet×1 **−1.9 / −1.8 / −1.5**; ×1.5 **−2.0 / −2.3 / −2.8**; RepVGG-A0 **−3.9 / −4.6 / −4.6**; A1 **−4.3 / −4.2 / −4.2**. Milder than default unlike (already inside τ).
-- **Unlike FLOP+prefer (LOCKED three-seed, ledger §30):** ShuffleNet×1 **−1.5 / −1.1 / −1.5** @ 0.871/0.944; ×1.5 **−2.1 / −2.1 / −1.9** @ 0.879/0.950; RepVGG-A0 **−4.4 / −3.7 / −4.0** @ 0.715/0.756; A1 **−3.5 / −3.5 / −4.1** @ 0.705/0.753. Same size. Operating point; default unlike already inside τ. **Heuristic, not DRL, and one run not three (§54.2).**
-- **Unlike FLOP+prefer look-ahead (PRELIM one seed, ledger §62):** s42 **20715879 COMPLETED**. ShuffleNet-v2×1 **−1.0 @ 0.871/0.944**; ×1.5 **−1.8 @ 0.879/0.950**; RepVGG-A0 **−3.0 @ 0.715/0.756**; A1 **−2.5 @ 0.705/0.753** — all inside, **same sizes as §30**. Heuristic, not DRL. Catalog COMPLETED. Quote structural keep. Do not lock.
-- **Unlike FLOP-floor greedy s42 (PRELIM heuristic, ledger §64):** **20715872 COMPLETED** 1 d 20 h 22 m (ended 10 Sep 08:12). ShuffleNet-v2×1 **−2.0 @ 0.801/0.716**; ×1.5 **−2.4 @ 0.771/0.701** (quote structural keep); RepVGG-A0 **−6.7 @ 0.847/0.701**; A1 **−6.5 @ 0.857/0.702**. All four inside τ. **Same sizes as FLOP-floor look-ahead §47.** Heuristic, not DRL. Do not quote wrap job-mean. s43/s44 still HELD. Do not lock.
-- **C100 unlike-extra argmax (PRELIM, ledger §67):** s42 **21168557 COMPLETED** 13.9 h. Frozen Path 3 actor, det=1. ShuffleNet-v2×1.5 **−5.9 @ 0.758/0.738** (0.742→0.683) inside τ — quote **structural** keep; do not quote masked 0.716. RepVGG-A1 **−12.7 @ 0.667/0.547** (0.764→0.637) miss. Extra unlike nets; do not overwrite §21 / C9. Do not quote wrap job-mean.
-- **Prefer snapshot C10-thin argmax (PRELIM CLIFF, ledger §68):** **21229256 COMPLETED** 1 h 20 m (ended 13 Sep 07:26). Actor is continue **21184512** `latest_best` (prefer knob **off** at TEST, det=1). r20-w2 **−3.5 @ 0.600/0.753** (0.648→0.613) vs Path 3 **−4.4 @ 0.600/0.741**. r56-w4 **−23.8 @ 0.667/0.457** (0.888→0.650) vs Path 3 **−25.2 @ 0.667/0.465** — matched params, 1.4 pp kinder, still a cliff. **Not a WIN.** Dispatch labeled WIN (min-keep is r20) and queued spectrum + FLOP-0.70; skipped ep99. Prefer similar **21230664 R**. Do not quote wrap **−0.14 pp** or train 73.23. Do not overwrite locked −15.9.
-- **Cubes snapshot C10-thin argmax (PRELIM, ledger §69):** **21229257 COMPLETED** 45 m (ended 13 Sep 08:11). Actor is continue **21184514** `latest_best` (prefer knob **off**, det=1). r20-w2 **−4.3 @ 0.600/0.741** (0.648→0.605) — size-matched **tie** vs Path 3 **−4.4 @ 0.600/0.741**. r56-w4 **−21.9 @ 0.722/0.524** (0.888→0.669) miss at a **larger** keep than Path 3 0.667 — unmatched, still fails τ. Do not quote wrap **−0.13 pp** or train 75.04. Spectrum catalogs **21230675–678** PD QOS.
-- **Prefer snapshot similar-family (PRELIM in flight, ledger §70):** **21230664 R**. r20-w16 **−5.2 @ 0.669/0.614** vs Path 3 **−5.1 @ 0.669/0.649** — matched-params tie. r56-w10 **−22.7 @ 0.613/0.344** vs Path 3 **−12.8 @ 0.661/0.421** — unmatched, **deeper miss**. r44 **−8.1 @ 0.620/0.356** vs Path 3 **−4.5 @ 0.699/0.542** — inside τ, unmatched, **3.6 pp worse**. VGG-19 **−3.0 @ 0.679/0.706** vs Path 3 **−2.7 @ 0.699/0.738** — inside τ, unmatched. MobileNet **−2.1 @ 0.691/0.590** vs Path 3 **−2.4 @ 0.688/0.587** — near-matched **tie**. Skip r32. DenseNet in FT. Do not quote wrap.
-- **Cubes C10-thin trajectory (PRELIM COMPLETED, log1p, ledger §73):** **21233227 COMPLETED** 2 h 31 m (ended 13:46). r20 val_best **−3.5 @ 0.698/0.760**. r56 val_best **−7.0 @ 0.965/0.792** (val **−9.82 pp**, inside τ; almost no compression). r56 terminal **−8.8 @ 0.894/0.678** has val **−11.65** over τ — do not pick it. `floor_cross` NONE. Not a cliff fix vs pad **−21.9 @ 0.722**. Do not quote wrap **−0.06 pp**. Matching-std redo is §75 — do not quote this log1p catalog as the cubes policy.
-- **Cubes C10-thin trajectory r20 with matching std (PRELIM in flight, ledger §75):** **21235566 R**. Std loaded n=721. TRAJ floor_hold **−1.5 @ 0.824/0.809**; val_best **−8.6 @ 0.442/0.658** (val **−9.01 pp**); terminal **−17.0 @ 0.378/0.633** (val **−17.85**, over τ — do not pick). Same deep walk as Path 3 §72 **−8.1 @ 0.478**, not the shallow log1p §73. r56 in FT.
-- **Prefer snapshot C10-thin trajectory (PRELIM identity, invalid protocol, ledger §71):** **21233226 COMPLETED** 4 m 12 s. TRAJ **+0.0 @ 1.000/1.000** on r20-w2 and r56-w4. T1105 freeze had no `standardizer.pt`; eval used **log1p fallback**. Not a prefer-policy TEST.
-- **Prefer C10-thin trajectory r20 with matching std (PRELIM in flight, ledger §74):** **21233371 R**. Std loaded n=721. TRAJ floor_hold **−2.9 @ 0.763/0.785**; floor_cross **−3.6 @ 0.682/0.753**; val_best=terminal **−7.5 @ 0.470/0.670** (val **−7.88 pp**). Near-clone of Path 3 traj §72 (**−3.0 / −4.8 / −8.1**). Not identity. Do not mix with pad §68 **−3.5 @ 0.600**. r56 in FT.
-- **Path 3 C10-thin trajectory r20 (PRELIM in flight, ledger §72):** **21233223 R**. Log1p. TRAJ floor_hold **−3.0 @ 0.755/0.772**; floor_cross **−4.8 @ 0.673/0.740**; val_best=terminal **−8.1 @ 0.478/0.663** (val **−9.04 pp**, inside τ). pass 1/1 params **x0.400** at the same Δacc — different counter; quote TRAJ. r56 in FT. Do not mix with pad **20945568 −4.4 @ 0.600/0.741**.
-- **Chain B neon+cbrt thin eval (PRELIM identity, ledger §63):** **20945576 COMPLETED** 3 m 22 s. Actor `job20945574`, FLAGS det=1 neon. r20-w2 **+0.0 @ 1.000/1.000**; r56-w4 **+0.0 @ 1.000/1.000**. Frozen-actor Path 3 **unchanged** (20945568 still prunes). cbrt-only retrain did not yield a pruning argmax. Band **20945744** CANCELLED 10 Sep 04:15 (5-step train); replacement **21194543 R** (128-step, not TEST). Overnight C10 retrains continued past 36h (full-net, **not TEST**): prefer **21184512**, cubes **21184514**, floor **21184407**, F1 **21184409**. Do not overwrite locked −15.9 / C9.
-- **CIFAR-100 DRL residual eval (PRELIM one seed, ledger §31):** **20353582 COMPLETED**. r20-w16 **−8.3 @ 0.673/0.627**; r56-w15 **−8.4 @ 0.662/0.469**. Both inside τ. Do not quote train returns. Do not overwrite frozen-C10-agent §21.
-- **C100 residual SGD FLOP-floor (ledger §25):** r20 **−5.7 / −7.0 / −7.7** inside. r56 **−4.7 / −10.4 / −6.4** — s43 **misses at 95% params**. FLOP+prefer: r56 **−8.2 / −4.5 / −8.5 @ 0.703/0.872** three-seed inside; r20 s44 **−10.4** miss. Do not overwrite C9 Adam-40.
-- **Similar-family FLOP floor (PRELIM, ledger §29):** three-seed COMPLETED. DenseNet **−2.2 / −2.4 / −2.2** @ 0.837/0.833, 0.822/0.827, 0.780/0.797. r56-w10 s43 **−14.3 @ 0.946/0.700** still a miss. s42 **−5.9** / s44 **−5.6** inside at ~90% params.
-- **Similar-family FLOP+prefer (LOCKED three-seed including DenseNet, ledger §33):** s42/s43/s44 **COMPLETED**. r20 **−3.8 / −3.5 / −3.8 @ 0.717/0.880**. r56-w10 **−3.8 / −4.0 / −4.4 @ 0.702/0.872**. r44 **−2.3 / −2.6 / −2.6 @ 0.702/0.872**. VGG-19 **−2.2 / −2.6 / −2.4 @ 0.837/0.923**. MobileNet **−1.9 / −2.0 / −2.2 @ 0.767/0.912**. DenseNet **−2.0 / −1.9 / −2.7 @ 0.870/0.951** (s42 0.949→0.929). Prefer is the lever — but it is a **same-loop heuristic lever, not the agent**, and these are one run reported three times (§54.2).
-- **Similar look-ahead greedy (PRELIM, ledger §34):** s42/s43/s44 **20382177 / 178 / 179 ALL COMPLETED.** r20 three-seed **−7.4 / −7.0 / −7.3 @ 0.713/0.525** inside. r56 three-seed **−22.4 / −20.1 / −22.2 @ 0.702/0.376** cliff (s42 0.959→0.735). r44 three-seed **−8.0 / −9.0 / −8.0 @ 0.703/0.391** inside τ. VGG-19 three-seed **−3.5 / −3.2 / −2.5 @ 0.703/0.669** (s42 0.934→0.899) inside. MobileNet three-seed **−3.2 / −3.3 / −3.0 @ 0.708/0.511** (s42 0.938→0.906) inside. DenseNet three-seed **−2.4 / −2.6 / −2.6 @ 0.701/0.679** (s42 0.949→0.925) inside. Catalogs COMPLETED. Do not lock.
-- **C100 C9 Adam-40 random (PRELIM, ledger §40):** s42 **20412533 COMPLETED**. RepVGG-A0 **−13.4 @ 0.662/0.498** (0.753→0.619) miss unmatched; three-seed **−13.4 / −12.8 / −12.6**. Catalog COMPLETED PRELIM. r20 three-seed **−18.0 / −17.0 / −17.3** miss unmatched; r56 three-seed **−26.2 / −26.4 / −30.3** miss unmatched, worse than default **−17.8**; VGG three-seed **−9.3 / −8.5 / −8.5** inside unmatched; ShuffleNet three-seed **−4.2 / −5.5 / −4.4** inside unmatched (quote structural keep). Same family split as default. Designed leaves — do not attach Wave O. Do not overwrite §21.
-- **C10-thin eval τ=5 (PRELIM three-seed COMPLETED, ledger §32):** s42 r20 **−4.4 @ 0.600/0.748**; r56 **−23.9 @ 0.667/0.481**. s43 r20 **−4.4 @ 0.600/0.780**; r56 **−20.1 @ 0.593/0.475**. s44 r20 **−2.5 @ 0.600/0.794**; r56 **−21.0 @ 0.685/0.490** (0.888→0.678). Easy net stays 60% params (s44 milder, inside τ=5). Skinny ResNet cliffs on all three seeds at unmatched sizes. Tightening eval τ did not make the frozen τ=10 actor milder on the hard net. Do not expand τ=5.
-- **C100 C9 Adam-40 FLOP+prefer (LOCKED mixed, ledger §35):** s42/s43/s44 **20381800 / 801 / 802 COMPLETED**. Three-seed r20 **−14.5 / −13.8 / −12.7 @ 0.716/0.879** miss; three-seed r56 **−12.0 / −11.4 / −10.5 @ 0.703/0.872** miss; three-seed VGG **−7.6 / −7.7 / −7.3 @ 0.838/0.931** inside; three-seed ShuffleNet **−3.5 / −4.1 / −4.6 @ 0.873/0.944** inside; three-seed RepVGG **−13.0 / −12.5 / −13.0 @ 0.719/0.756** miss, same sizes. Prefer is not an Adam-40 residual/RepVGG rescue. **Heuristic, not DRL, and one run not three (§54.2).** Child FLOP-only **20382180 COMPLETED**. Do not overwrite §21.
-- **C100 C9 Adam-40 FLOP-floor only (PRELIM, ledger §36):** s42/s43/s44 **20382180 / 181 / 182 COMPLETED**. r20 **−11.8 / −12.1 / −10.6** miss unmatched; r56 **−10.4 / −11.7 / −12.0** miss unmatched; VGG **−8.4 / −8.4 / −7.7** inside unmatched; ShuffleNet three-seed unmatched **−3.4 / −3.9 / −4.0** inside (s42 **@ 0.881/0.858**, quote structural keep); RepVGG **−10.2 @ 0.886/0.761** miss vs s43/s44 **−8.2 / −7.4** inside only at ~95% params. Prefer still misses RepVGG at 72%/76%. Do not overwrite §21.
-- **C100 C9 Adam-40 look-ahead greedy (PRELIM, ledger §37):** s42/s43/s44 **20412388 / 389 / 390 COMPLETED**. r20 three-seed **−18.1 / −17.3 / −17.9 @ 0.716/0.525** miss; r56 three-seed **−34.6 / −32.1 / −33.2 @ 0.701/0.357** cliff; VGG three-seed **−8.8 / −8.6 / −9.0 @ 0.701/0.672** inside; ShuffleNet three-seed **−6.2 / −6.4 / −5.9 @ 0.736/0.682** inside (quote structural keep); RepVGG three-seed **−11.4 / −11.7 / −12.1 @ 0.709/0.577** miss. Catalogs COMPLETED. Not an Adam-40 residual/RepVGG rescue. Do not lock.
-- **C100 C9 Adam-40 mild (PRELIM, ledger §38):** s42/s43/s44 **20412530 / 531 / 532 COMPLETED**. r20 three-seed **−17.0 / −16.0 / −16.1 @ 0.669/0.649** miss; r56 three-seed **−18.2 / −16.8 / −17.7 @ 0.689/0.499** miss (not a look-ahead cliff); VGG three-seed **−8.0 / −8.3 / −8.0 @ 0.811/0.822** inside; ShuffleNet three-seed **−4.0 / −4.4 / −4.3 @ 0.860/0.835** inside (quote structural 0.860); RepVGG three-seed **−11.8 / −11.5 / −11.8 @ 0.684/0.548** miss. Same family split as default. afterok random **20412533 COMPLETED** (designed leaf). Do not overwrite §21.
-- **Similar FLOP-floor look-ahead (PRELIM, ledger §39):** s42 **20412391 COMPLETED**. s43 **20412392 COMPLETED**. s44 **20412393 COMPLETED** DenseNet **−2.8 @ 0.798/0.700** (0.949→0.921) three-seed **−2.6 / −2.1 / −2.8** same size inside. MobileNet three-seed **−3.3 / −3.1 / −3.2 @ 0.933/0.700** (s44 0.938→0.906); VGG three-seed **−3.6 / −2.7 / −2.8 @ 0.804/0.701**; r44 three-seed **−4.2 / −4.4 / −4.4 @ 0.947/0.702**; r56 three-seed **−8.3 / −9.2 / −8.6 @ 0.952/0.702** inside (FLOP-floor-only s43 was **−14.3 miss**); r20 three-seed **−4.6 / −5.9 / −5.2 @ 0.908/0.701**. r32 skipped. Catalogs COMPLETED PRELIM. Floor stopped the unconstrained look-ahead r56 cliff on three seeds. ImageNet **20715875 CANCELLED** 10 Sep 02:13 (no TEST). Frozen ImageNet serial **21166873 R** (afterany fired early when 774 cancelled). Prefer-greedy **20715876 COMPLETED** DenseNet **−2.1 @ 0.870/0.951** (ledger §48). Do not lock.
-- **Similar mild (PRELIM, ledger §42):** s44 **20382186 COMPLETED** DenseNet-100 **−2.3 @ 0.823/0.828** (0.949→0.926) two-seed **−2.1 / −2.3** same size inside; r20 **−6.8**; r56 **−13.9** miss; r44 **−4.2**; VGG **−3.5**; MobileNet **−2.3 @ 0.689/0.666**. s42 **20382184 COMPLETED** DenseNet **−2.4 @ 0.823/0.828** (0.949→0.925) three-seed **−2.4 / −2.1 / −2.3** same size inside; r20 **−5.9 @ 0.669/0.649** three-seed **−5.9 / −5.7 / −6.8** inside; r56 **−14.0 @ 0.661/0.421** (0.959→0.819) three-seed **−14.0 / −12.8 / −13.9** miss; r44 **−4.7 @ 0.699/0.542** (0.935→0.888) three-seed **−4.7 / −4.1 / −4.2** same size inside; VGG **−3.3 @ 0.811/0.819** (0.934→0.901) three-seed **−3.3 / −2.6 / −3.5** same size inside; MobileNet **−2.3 @ 0.689/0.666** (0.938→0.915) three-seed **−2.3 / −2.1 / −2.3** same size inside. Floor did not bind. s43 **20382185** DenseNet **−2.1** inside. Tracks DRL default s44 on r56; far milder than look-ahead cliff **−22.2**. Mild is not a τ rescue on the hard similar net. s42/s44 catalogs COMPLETED PRELIM. afterok **20382187** PD on QOS. r32 skipped. Do not lock.
-- **Similar FLOP-floor mild (PRELIM, ledger §43):** s42 **20412538 COMPLETED**. r20 **−5.6 @ 0.801/0.706** inside; r56 **−11.6 @ 0.946/0.701** **miss τ**; r44 **−3.9 @ 0.905/0.703** inside; VGG-19 **−2.8 @ 0.811/0.819** inside (floor did **not** bind); MobileNet **−2.4 @ 0.791/0.703** inside (floor **did** bind vs unconstrained **−2.1 @ 0.689/0.666**); DenseNet **−2.2 @ 0.823/0.828** (0.949→0.927) inside (floor did **not** bind vs unconstrained mild **−2.1 / −2.3** same size). s43 **20412540 COMPLETED** catalog PRELIM. r20 **−5.1 @ 0.801/0.706** two-seed inside same size; r56 **−9.9 @ 0.946/0.701** (0.959→0.860) **inside τ** at the same size as s42 miss (two-seed split — do not lock); r44 **−3.6 @ 0.905/0.703**; VGG **−3.0 @ 0.811/0.819**; MobileNet **−2.3 @ 0.791/0.703**; DenseNet **−2.1 @ 0.823/0.828** (0.949→0.928) two-seed **−2.2 / −2.1** same size inside (floor did **not** bind). Skip r32. Child spoof **20884670 COMPLETED** (ledger §55). Do not lock.
-- **Unlike look-ahead greedy (PRELIM, ledger §44):** s42/s43/s44 **20382196 / 197 / 198 ALL COMPLETED.** ShuffleNet-v2×1 three-seed **−2.2 / −1.9 / −1.8 @ 0.723/0.682**; ×1.5 three-seed **−2.5 / −2.4 / −2.4 @ 0.710/0.675** (quote structural; skip masked 0.666); RepVGG-A0 three-seed **−7.2 / −7.2 / −6.4 @ 0.709/0.577**; A1 three-seed **−6.3 / −6.1 / −6.3 @ 0.710/0.574** same size. Heuristic. Default unlike already inside; look-ahead is worse Δacc on RepVGG at similar size. Do not lock.
-- **Unlike mild (PRELIM, ledger §45):** s42 **20412380 COMPLETED**. ShuffleNet-v2×1 **−1.6 @ 0.857/0.835** (0.924→0.908) inside (quote structural; do not quote masked 0.831); RepVGG-A0 **−5.3 @ 0.680/0.548** (0.943→0.890) inside; RepVGG-A1 **−4.2 @ 0.663/0.539** (0.944→0.902) inside; ShuffleNet-v2×1.5 **−2.6 @ 0.849/0.828** (0.932→0.906) inside (quote structural; do not quote masked 0.818). All four inside τ one seed. Look-ahead is worse Δacc on both RepVGGs. Child unlike-random **20412385 COMPLETED** (ledger §49). Do not lock.
-- **Unlike random (PRELIM, ledger §49):** s42 **20412385 COMPLETED**. ShuffleNet-v2×1 **−1.6 @ 0.801/0.753** (0.924→0.908) inside (quote structural; do not quote masked 0.764); RepVGG-A0 **−6.2 @ 0.659/0.503** (0.943→0.881) inside; RepVGG-A1 **−5.3 @ 0.649/0.508** (0.944→0.891) inside; ShuffleNet-v2×1.5 **−2.2 @ 0.794/0.761** (0.932→0.910) inside (quote structural; do not quote masked 0.755). All four inside τ one seed. ×1.5 is milder Δacc than mild **−2.6 @ 0.849/0.828** and look-ahead **−2.5 @ 0.710/0.675** at unmatched sizes; default unlike already **−2.4 @ 0.818/0.801**. A1 is 0.6 pp worse than default unlike **−4.7 @ 0.650/0.521** at nearly the same size. Not a new transfer win. Catalog COMPLETED PRELIM. Child Wave Q **20412555 COMPLETED** §66. Do not lock.
-- **Similar random (PRELIM, ledger §46):** First-pass keep: s43 **20382188** r20 **−6.7 @ 0.691/0.606**; r56 **−14.9 @ 0.628/0.368** miss; r44 **−6.2 @ 0.589/0.437**; VGG-19 BN **−3.1 @ 0.755/0.744**. s44 **20382189** first-pass r20 **−7.4**; r56 **−16.6** miss; r44 **−7.8**; VGG **−3.1 @ 0.741/0.719**. Restart (`Restarts=2`) s43 catalog **COMPLETED**: r20 **−6.9**; r56 **−17.6** miss; r44 **−6.9**; VGG **−2.6**; MobileNet **−2.4 @ 0.692/0.581**; DenseNet **−2.3 @ 0.735/0.754**. s44 restart catalog **COMPLETED**: MobileNet **−2.9 @ 0.694/0.615**; DenseNet **−2.5 @ 0.740/0.745** (0.949→0.924). Do not replace first-pass rows. r32 skip. s42 **20382187 COMPLETED** first-pass catalog PRELIM: r20 **−6.4 @ 0.688/0.588**; r56 **−18.2 @ 0.577/0.347** miss; r44 **−6.2 @ 0.590/0.415**; VGG **−3.5 @ 0.756/0.754**; MobileNet **−2.7 @ 0.697/0.554**; DenseNet **−2.3 @ 0.730/0.755**. Child unlike look-ahead **20382198 COMPLETED** (ledger §44). Child C100 recoverable **20884673 COMPLETED** — do not quote train. Random is not a look-ahead cliff and not a τ rescue on the hard similar net. Do not lock.
-- **Unlike FLOP-floor look-ahead (PRELIM, ledger §47 / §65):** s42/s43/s44 **20412394 / 395 / 396 ALL COMPLETED**. Three-seed **same size**: ShuffleNet-v2×1 **−1.7 / −2.0 / −2.2 @ 0.801/0.716**; ×1.5 **−2.5 / −2.6 / −2.4 @ 0.771/0.701** (quote structural; skip masked 0.763 / 0.725); RepVGG-A0 **−6.9 / −6.6 / −7.1 @ 0.847/0.701**; A1 **−6.7 / −5.7 / −6.2 @ 0.857/0.702**. All four unlike nets inside τ. Heuristic, not DRL. Look-ahead is deterministic; seed spreads are FT noise. DRL FLOP-floor unlike is still better Δacc on both RepVGGs. Do not lock.
-- **Similar FLOP+prefer greedy (PRELIM, ledger §48):** s42 **20715876 COMPLETED**. r20 **−3.9 @ 0.717/0.880**; r56 **−4.4 @ 0.702/0.872**; r44 **−2.6 @ 0.702/0.872** (0.935→0.909); VGG **−2.9 @ 0.837/0.923** (0.934→0.905); MobileNet **−2.0 @ 0.767/0.912** (0.938→0.918); DenseNet **−2.1 @ 0.870/0.951** (0.949→0.928) — all size-matched to DRL prefer. Prefer stopped the r56 greedy cliff. DRL keeps a small Δacc edge on VGG (−2.2 vs −2.9); DenseNet is a near-tie (−2.0 vs −2.1). Catalog COMPLETED one seed. Child **20715877 PD QOS**. Skip r32. Do not quote eval_train. Do not lock.
-- **Similar FLOP+prefer look-ahead (PRELIM, ledger §66):** s42 **20412555 COMPLETED**. r20 **−3.4 @ 0.717/0.880**; r56 **−4.1 @ 0.702/0.872**; r44 **−2.6 @ 0.702/0.872**; VGG **−2.4 @ 0.837/0.923**; MobileNet **−1.9 @ 0.767/0.912**; DenseNet **−1.8 @ 0.870/0.951** — all inside, **same sizes as §33/§48**. Heuristic, not DRL. Look-ahead is a small Δacc edge vs prefer-greedy; DRL prefer still 0.3 pp better on r56/r44. Catalog COMPLETED one seed. Skip r32. Do not quote eval_train. Do not lock.
-- **Similar FLOP-floor greedy (PRELIM, ledger §51):** s42/s43/s44 **20715868 / 870 / 871 ALL COMPLETED**. Three-seed **same size**: r20 **−4.8 / −5.7 / −5.1 @ 0.908/0.701**; r56-w10 **−9.2 / −9.3 / −9.0 @ 0.952/0.702** **inside τ**; r44 **−4.6 / −5.1 / −4.1 @ 0.947/0.702**; VGG-19 **−3.1 / −2.7 / −2.5 @ 0.804/0.701**; MobileNet **−3.1 / −3.0 / −2.8 @ 0.933/0.700**; DenseNet **−2.2 / −2.2 / −2.3 @ 0.798/0.700**. L1 greedy does not use the actor — spreads are fine-tune noise. Greedy still **ties** look-ahead once the FLOP floor binds. Skip r32. Do not lock.
-- **C100 class-count spoof (PRELIM, ledger §55):** s42 **20884670 COMPLETED**. Same family split as locked §21: VGG-16 **−7.3 @ 0.893/0.926** inside; ShuffleNet-v2×1 **−4.2 @ 0.778/0.794** inside; r20 **−20.4** miss; r56-w15 **−18.2** miss; RepVGG-A0 **−11.5** miss. Spoofing the encoder's class-count token 100→10 did **not** rescue residuals. Diag **20930175 COMPLETED**: every non-identity C100 step was over-budget (empty band). Shaping **20967060 COMPLETED** (`structural_shaped` confirmed in FLAGS) — train, do not quote; kids=NONE. Matched-VGG DRL **20884671 COMPLETED** — train, do not quote. Residual eval **20884672 COMPLETED** (actor `job20884671`, sampled, no det=1): r20 **−12.0 @ 0.612/0.598 miss**; r56 **−10.4 @ 0.697/0.402 miss** §61. Do not lock.
-- **C100 matched-VGG residual eval s42 (PRELIM, ledger §61):** **20884672 COMPLETED** 16 h 3 m (ended 9 Sep 04:35). Sampled, SGD-80. r20-w16 **−12.0 @ 0.612/0.598** (0.730→0.610) **miss** unmatched vs §31 **−8.3 @ 0.673/0.627** and milder than §56 s43 **−16.4 @ 0.597/0.611**. r56-w15 **−10.4 @ 0.697/0.402** (0.784→0.680) **miss** unmatched vs §31 **−8.4 @ 0.662/0.469** and §56 **−7.5 @ 0.623/0.495** (more params, fewer FLOPs). Matched-VGG train did not rescue held-out residuals. Do not overwrite C9 / §21 / §31. Do not quote `eval_train`.
-- **Advisor 18 Aug:** Compare constantly to SOTA as a reference (do not claim home-court wins). Keep coverage **and** a NEON-style Pareto. No ImageNet DRL train; frozen C10 → ImageNet transfer now has two-seed TEST unmatched (ledger §41). **NAP2 scanned 20 Aug:** Michael’s NAPv2 is NAS performance prediction on NAS-Bench-201, not a pruner — complementary, do not lift. Minutes: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Claims guard (what this draft must not say).** These consolidate ops' pins of 6–14 Oct and the ledger's never-lists. A line leaves this list only when a registered call in the ledger fires.
+- Never "beats" (a rule, DepGraph, or the state of the art) unless a registered BEATS call fires. In particular, never "the agent beats the cost-aware rule", at any depth, nor "beats DepGraph".
+- Never "headroom" above a prior: every headroom screen so far found none (§367, §368, §372).
+- Never "transfers to unseen families" in general. Family transfer is claimed only fold by fold, as §363 states it. Never "the agent transfers to VGG-19 CIFAR-100" or "the no-VGG fold transfers to VGG" (§363).
+- Never "the agent conditions on the budget type" (§360). Never "advantage normalization helps" (§364). Never "a training floor or a deeper training range fixes the collapse" (§376, §377).
+- Never a proxy's value, a train-log value, a smoke, a projection, `eval_train` or an in-walk number as a result. Never say a proxy is valid unless its registered fidelity call says VALID (§375, §379). Never the 1-epoch final as a result.
+- Never mix budgets or depths in one contrast. Never drop the network that carries a result (ResNet-20 ×8 on CIFAR-100 at 35 % and 25 % params, §374, §380).
+- The walk-era DepGraph comparison (§157, "M4") keeps its caption; it is not re-quoted for the plan agent (Appendix B).
 
-Citation numbers **[1]–[78]** are those of the August 2024 thesis proposal, kept wherever the claim still holds. **[79]–[92]** are papers from the August 2026 literature survey (DepGraph was already [12] in the proposal). Tags: **LOCKED** / **DRAFT** / **TBD** / **CLAIM** — see [README.md](README.md).
+**Where the evidence stands (14 Oct 2026; PRELIM; TEST with val, 10k and honest beside it in §5).**
 
-**What this draft does *not* inherit from the proposal.** ImageNet [71] and Places365 [75] are not in the DRL fine-tune loop. Default keep-rates are `{1.0, 0.9, 0.8}`, not `{0.7, 0.6}`. Fine-tune is full-net, not layer-only. The reward is NEON’s preference function with *realized* param/FLOP credit, not the proposal’s skip-connection / filter-count cube. Frozen BERT is an ablation, not the default encoder. Channel grouping is environment bookkeeping, not a novelty claim (that layer is occupied by DepGraph [12] and SPA [81]).
+| Question | Answer so far | § |
+|---|---|---|
+| Does the frozen agent learn? | Yes. It beats mild and uniform on held-out networks, and it reaches, without passing, the sensitivity rule | §341, §346, §363 |
+| Equal parameters, nine held-out networks | At the cost-aware rule at 60 % and 45 % kept; below it at 35 % and 25 %, decided by one network (ResNet-20 ×8 CIFAR-100) | §370, §373, §374, §380 |
+| Equal FLOPs, nine held-out networks | At the FLOPs rule at 60 % and 45 % kept, but below it on most networks | §366, §371 |
+| Is there an allocation above the priors? | No headroom found at moderate budgets, for either budget type | §367, §368, §372 |
+| What removes the deep-budget failure? | Only a recovery-aware (batch-norm) reward: at the rule at 35 %, at a cost on two thin ResNets | §376, §377, §378 |
+| Which cheap reward is faithful? | One epoch of fine-tuning is valid at the threshold; the raw cut and batch-norm re-estimation are weak at 35 % params | §375, §379 |
+| Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
+| Running | T6: the deep-range agent retrained with the batch-norm reward and with the 32-step reward. POOL-BN: the batch-norm agent at 60 % and 45 % | queue |
 
 ---
 
-## Abstract — DRAFT
+## Abstract — DRAFT (14 Oct 2026)
 
-Convolutional networks remain the workhorse of real-time vision, but their computational cost limits deployment where connectivity and compute are scarce [2, 5]. Pruning reduces that cost [6, 10]; *structured* pruning (channels, filters, feature maps) actually shrinks GPU work, unlike unstructured weight zeros [7, 11, 13]. Most structured methods, including recent architecture-agnostic grouping engines [12, 81], still *solve one target network at a time*.
+Convolutional networks remain the workhorse of real-time vision, and structured pruning, which removes whole channels, is the form of compression that actually shrinks the work a GPU does [7, 11, 12]. At a given budget, much of the accuracy that survives depends on the *allocation*: how much of each layer is kept. Today allocation is solved one network at a time: by a search, by a reinforcement-learning controller trained for that network [79], or by a hand rule such as layer sensitivity [18]. SPECTRA asks whether one policy, trained offline on a catalog of networks and then frozen, can allocate a budget on networks it has never seen, as NEON did for dense networks [1].
 
-SPECTRA (Structured Pruning & Efficient CNN Training Reinforcement Agent) extends NEON [1] from dense DNNs to CNNs: one offline actor-critic, trained on a catalog of architectures and datasets, then applied to unseen checkpoints without retraining the agent. A user-set accuracy budget τ (NEON’s preference-aware reward) trades size against accuracy. Unlike NEON, the environment *rebuilds* Conv2d/BatchNorm groups (residuals [3], DenseNet concat [4], depthwise ties) so reported parameter and FLOP ratios are real shape changes.
+The agent reads a pretrained CNN as a sequence of per-layer tokens and proposes a whole keep plan in one step. A Transformer scores every channel group; a decoder turns the scores into integer channel widths that meet a parameter or FLOPs budget to the nearest channel, with per-group floors and rounding that make every plan realizable. The agent is trained as a contextual bandit with REINFORCE against cheap proxies of post-fine-tune accuracy. Every plan, the agent's and the rules', is cut once and recovered with the same fixed fine-tune. The agent is compared plan for plan with same-loop allocation rules, against a prior fixed in advance for each budget type.
 
-On CIFAR-10 [73], the 10-net agent keeps similar-family and unlike-family held-out networks inside a 10 pp budget, except skinny-deep ResNets. Learned schedules tie greedy filter ranking [18] on easy nets and beat size-matched greedy on the hard similar ResNet-56. Encoder capacity (BERT / wider / set) did not move that hard net; catalog diversity 3→10 did, and 24-net reversed it. The 10-net freeze is the scientific product of this thesis; a large shelf-product catalog is future work and needs a fresh hold-out. CIFAR-100 is a recoverability problem: VGG-11 BN [76] admits a ~10% structured cut with a test-set *gain* under a long SGD recipe; residual, DenseNet, and MobileNet families have not yet shown a comparable *no-agent* cut. The same frozen 10-net agent, applied to CIFAR-100 with no extra agent training, keeps VGG-16 BN inside τ=10 (−7.5 / −7.8 / −7.3 pp) and ShuffleNet-v2×1 (−3.9 / −3.4 / −4.3 pp, mask fallback), and misses on thin ResNets and RepVGG-A0 under Adam-40; an 80-ep SGD recipe (one seed) puts thin ResNet-56 w15 inside τ at a smaller size while ResNet-20 w16 still misses. Digit-MNIST LeNet, a held-out dataset, is a three-seed TEST gain (+2.8 / +2.7 / +2.9 pp). SVHN ResNet-20 width 8 (new width; SVHN was already in the train mix) stays inside τ (−2.0 / −1.5 / −2.0 pp). **[C1–C7 LOCKED; C8 LOCKED miss; C9 LOCKED mixed; MNIST + SVHN-w8 three-seed LOCKED; C100 SGD A/B PRELIM]**
+On nine held-out networks, the frozen agent learns allocations well above the uniform and mild rules and performs at the level of the strongest rule at 60 % and 45 % of parameters kept (§370, §373). At equal FLOPs it stays within the registered band of the strongest rule but below it on most networks (§366, §371). Screens of many alternative plans found no allocation above either prior at these budgets. At deeper budgets one held-out network exposes a reward-fidelity failure that grows with depth. A batch-norm-recalibrated reward removes it at 35 % (§378), and a ranking study shows which cheap rewards order plans the way the final fine-tune does. Transfer across families is mixed: an agent trained without any ResNet holds on a held-out ResNet, and one trained without any VGG fails on a held-out VGG. **[PRELIM; numbers in §5 by ledger section]**
 
 ---
 
 ## 1. Introduction — DRAFT
 
-Convolutional Neural Networks (CNNs) have transformed computer vision — classification, detection, segmentation [2] — by stacking learned filters. Residual Networks [3] and DenseNets [4] made very deep stacks trainable via skip / dense connectivity. The cost of that accuracy is compute and memory. For edge and real-time settings the relevant question is not a leaderboard delta but a *user-set* accuracy budget: how much size can we drop without crossing τ.
+Convolutional Neural Networks (CNNs) transformed computer vision, in classification, detection and segmentation [2], by stacking learned filters. Residual Networks [3] and DenseNets [4] made very deep stacks trainable through skip and dense connections. That accuracy costs compute and memory, and at the edge or in real time the cost is what decides deployment [5].
 
-CNN pruning [6, 10] removes redundant components. Magnitude, channel, and filter pruning [7, 11, 12, 18] work well on the network they were tuned for, and usually need another search when the architecture or dataset changes. Unstructured zeros [13–16] look strong on paper and do not reduce commodity-GPU inference cost. Structured cuts do, but residual adds and grouped convolutions make “keep 80% of filters” a different question from “keep 80% of parameters.”
+CNN pruning [6, 10] removes redundant components. Unstructured pruning zeroes individual weights [13–16]: it looks strong on paper but does not reduce inference cost on commodity GPUs. Structured pruning removes whole filters and channels [7, 11, 12, 18], and so shrinks the matrices that are actually multiplied. Two decisions remain once the granularity is fixed: *which* channels to remove inside a layer (the importance criterion, e.g. L1 magnitude [18]), and *how many* to remove from each layer (the allocation). Residual additions and concatenations couple layers into groups that must be cut together, so the allocation is made per channel group [12, 81].
 
-NEON [1] showed that one preference-aware DRL agent, trained offline on many *dense* networks, can prune unseen dense nets without per-network retraining, and that a user can state the prune–accuracy trade-off in the reward. Applying that dense agent to *flattened* image data was the proposal’s negative control: modest size cuts and poor accuracy, worst on CIFAR-100 [73] (proposal §4). SPECTRA is the CNN-native answer to that gap — not a claim that NEON failed, a claim that image CNNs need a structured environment, a CNN-aware state, and a recoverability check before a dataset joins the train catalog.
+Allocation matters. At 25 % of parameters kept, a cost-aware sensitivity allocation beats a uniform one by +0.88 points of TEST accuracy, averaged over the nine held-out networks studied here (val +1.03, 10k +0.95, honest +0.86), and by 2–3 points on three of them (§380, §5.2). Existing methods find a good allocation per network: by search or a learned controller for that network [79, 80], by a global criterion [12, 17–26], or by a hand rule [18, 24]. Each new architecture or dataset means another search.
 
-**Contributions (LOCKED as intent; numbers in §5 / ledger):**
+NEON [1] showed that one preference-aware deep-RL agent, trained offline on many *dense* networks, can prune unseen dense networks without per-network retraining. SPECTRA (Structured Pruning & Efficient CNN Training Reinforcement Agent) asks the same question for structured CNN pruning: can one frozen agent, trained offline on a catalog of CNNs, allocate a budget on networks and datasets it has never seen, at least as well as the best hand rule?
 
-1. A structured CNN environment whose compression credit matches rebuilt layer shapes (residuals [3], DenseNet concat [4], grouped / depthwise ties). Grouping is infrastructure in the sense of DepGraph [12]; the thesis claim is the *policy*, not a new dependency algorithm.
-2. A small Transformer state encoder [35] trained with A2C (one token per layer, coupling-aware attention). Frozen BERT remains an ablation; encoder capacity did not fix skinny-deep ResNets (ledger §16).
-3. NEON’s preference-aware reward [1], with τ = 10 pp, scored on *realized* param/FLOP ratios. Same-loop greedy / mild / random rate-pickers (filter ranking after Li et al. [18]) so “beats greedy” is a schedule comparison, not a different importance criterion.
-4. An offline train / similar / unlike protocol. On CIFAR-10, family and width transfer hold except skinny-deep ResNets. CIFAR-100 is limited by fine-tuning recoverability, not by “C100 missing from the 10-net train set.” The **10-net catalog is the scientific product of this thesis** (held-out families and datasets are the evidence). A large “shelf product” catalog — tens to hundreds of nets, trained so a deployed agent is ready for many arch × dataset pairs — is **future work** and needs a *fresh* held-out set; it is not a missing table here. 3-net → 10-net helped; 10-net → 24-net *hurt* the hard ResNet (ledger §17). Admit extra train nets on recoverability-band health, not on count.
+The first answer was NEON's design moved to CNNs: an agent that walks the network layer by layer, fine-tunes after each cut, and is scored on the running accuracy change. It collapsed onto the safe "keep 90 % everywhere" action, because its per-step reward could not tell its actions apart (Appendix B, ledger §331). SPECTRA therefore treats allocation as one decision per network: the agent proposes a whole plan, the plan is cut once, and a cheap proxy of post-fine-tune accuracy scores it. This turns an episodic RL problem with sparse, noisy credit into a contextual bandit with one clean reward per plan, and it shortens a training run from days to hours (§3.7).
 
-NEON’s 28 tabular datasets are not re-run. ImageNet overnight fine-tune is out of the loop (**CLAIM**, freeze 15 Sep). ViT / DeiT are out of scope [42].
+**Contributions (as intent; status and numbers in §5):**
+
+1. **A plan-as-action formulation of transferable allocation** for structured CNN pruning. A Transformer over per-layer tokens scores every channel group. A decoder that matches the requested parameter or FLOPs budget to the nearest channel, with per-group floors and grid rounding, makes every plan realizable. The agent is trained offline as a contextual bandit with REINFORCE and a shared baseline over K = 8 plans per network (§3).
+2. **A same-loop evaluation protocol** that isolates allocation. The agent and every rule are cut once at the same budget and recovered with one fixed fine-tune. The read uses disjoint validation and test halves, an "honest" change that subtracts the unpruned network's own change under the same fine-tune, three paired seeds, and calls registered before any GPU time. One prior per budget type is fixed in advance (§4).
+3. **Evidence that a frozen agent learns allocation and transfers it.** On nine held-out networks across four families and two datasets, the agent beats the uniform and mild rules and performs at the level of the strongest rule at moderate budgets, under both budget types. Screens found no allocation above the priors at those budgets (§5.1–§5.4).
+4. **A reward-fidelity study.** It measures which cheap rewards rank plans the way a 100-epoch fine-tune does, at equal parameters and at equal FLOPs. Where the training reward misranks plans, the frozen agent fails on one network at deep budgets; a recovery-aware reward removes that failure at 35 % (§5.6, §5.7).
+5. **A transfer map** of leave-one-family-out folds and unseen-dataset cells, which states where a frozen allocation policy holds and where it fails (§5.5).
+
+Out of scope: NEON's 28 tabular datasets; DRL training on ImageNet (frozen transfer only; Gilad, 18 Aug); vision Transformers [42]. SPECTRA does not claim a new grouping algorithm (that layer belongs to DepGraph [12] and SPA [81]), and it does not claim to beat a focused method on its own architecture and dataset.
 
 ---
 
 ## 2. Related Work — DRAFT
 
-This section follows NEON’s related-work order [1]: reinforcement learning, neural-network pruning, then neural architecture search. CNN background and structured-CNN methods sit inside §2.2. The arena is generic *offline* DRL for structured CNNs with a user τ, versus same-loop rate-pickers. It is not ImageNet ResNet-50 versus 2024 grouping engines.
+This section follows NEON’s related-work order [1]: reinforcement learning, neural-network pruning, then neural architecture search. CNN background and structured-CNN methods sit inside §2.2. The arena is generic *offline* DRL for structured CNN allocation at a user budget, versus same-loop allocation rules. It is not ImageNet ResNet-50 versus 2024 grouping engines.
 
-Two kinds of generality are both real and sit on different layers. **Mechanism-level generality** — one *tool* that can prune many architectures — is occupied well by DepGraph [12] and SPA [81]. **Policy-level generality** — one *agent* that transfers across nets and datasets under τ — is NEON’s idea [1], moved to CNNs. No 2023–2026 paper in the survey closes that lane.
+Two kinds of generality are both real and sit on different layers. **Mechanism-level generality** — one *tool* that can prune many architectures — is occupied well by DepGraph [12] and SPA [81]. **Policy-level generality** — one *agent* that transfers across nets and datasets under a user's trade-off (NEON: an accuracy band τ; SPECTRA: a parameter or FLOPs budget) — is NEON’s idea [1], moved to CNNs. No 2023–2026 paper in the surveys closes that lane for CNNs; the closest reuse a policy within one family or one architecture (§2.2.6).
 
 ### 2.1 Reinforcement learning
 
 “Reinforcement Learning (RL) is the problem faced by an agent that learns behavior through trial-and-error interactions with a dynamic environment” [46]. Applications range from robotics [47] and games [48] to routing [49] and dialogue [50, 51]. At step *t* the agent observes state *s_t*, picks *a_t* ∈ *A*, the environment returns *s_{t+1}* and a scalar reward [1].
 
-Deep RL combines RL with deep networks [52]. SPECTRA, like NEON, uses an on-policy policy-gradient family. NEON’s derivation is REINFORCE [53]; the implementation is A2C. The policy update (proposal Eq. 1) is
+Deep RL combines RL with deep networks [52]. SPECTRA, like NEON, uses an on-policy policy-gradient family. NEON’s derivation is REINFORCE [53] and its implementation is A2C [151]; the walk agent used A2C and then PPO [152]. SPECTRA's plan agent uses REINFORCE directly. Each decision is a whole plan with a single reward, which makes the problem a contextual bandit [102, 103]. The baseline is the mean reward of K plans sampled for the same network [97–100]. The policy update (proposal Eq. 1) is
 
 *h_{t+1} = h_t + α · G_t · ∇ log p(a_t | s_t; h_t)*,
 
-with *G_t* the return from *t*. AMC [79] is the canonical *CNN* RL compressor: a DDPG controller searches layer-wise compression for a *given* MobileNet / VGG. SPECTRA’s contrast is the same as NEON vs per-task RL: the actor is trained once on a catalog and frozen at eval. Lookahead-search RL for channel pruning [57] is likewise a per-target search, not an offline multi-net agent.
+with *G_t* the return from *t*. For a one-step plan, *G* is the plan's reward minus the shared baseline of its K sibling plans. AMC [79] is the canonical *CNN* RL compressor: a DDPG controller searches layer-wise compression for a *given* MobileNet / VGG. SPECTRA’s contrast is the same as NEON vs per-task RL: the actor is trained once on a catalog and frozen at eval. Lookahead-search RL for channel pruning [57] is likewise a per-target search, not an offline multi-net agent.
 
 ### 2.2 Neural network pruning
 
@@ -134,9 +105,9 @@ Structured pruning operates at channels, filters, or feature maps and reduces th
 
 #### 2.2.3 Global vs local; generalizability
 
-Benchmarking, from the proposal, still has two axes. **Global optimality:** does the method see the whole net [17–26], or only one or two successive layers [8, 27]? **Generalizability:** can it prune a previously unseen architecture and dataset without another controller training? NEON [1] is the dense-DNN existence proof of the second axis, with a user trade-off later echoed in OCNNA [28] and in interactive plans such as CNNPruner [29]. Filter pruning for efficient ConvNets [18] is the importance ranking SPECTRA *uses inside each layer*; the DRL policy only chooses the *rate*. Auto-balanced filter pruning [19], GDP [20], lottery tickets [21], importance estimation [22], Gate Decorator [23], layer-adaptive magnitude [24], manifold-regularized pruning [25], and ThiNet-style algorithms [26] are global or near-global *per-model* methods. Lookahead magnitude pruning [27] is a far-sighted alternative of the same ranking family — conceptually related to SPECTRA’s look-ahead *greedy* control, not to the learned actor.
+Benchmarking, from the proposal, still has two axes. **Global optimality:** does the method see the whole net [17–26], or only one or two successive layers [8, 27]? **Generalizability:** can it prune a previously unseen architecture and dataset without another controller training? NEON [1] is the dense-DNN existence proof of the second axis, with a user trade-off later echoed in OCNNA [28] and in interactive plans such as CNNPruner [29]. Filter pruning for efficient ConvNets [18] is the importance ranking SPECTRA *uses inside each channel group*; the DRL policy chooses only the *allocation*, the keep fraction of each group. The same paper's per-layer sensitivity analysis [18] is the origin of the sensitivity rules SPECTRA is compared with (§4.1). Auto-balanced filter pruning [19], GDP [20], lottery tickets [21], importance estimation [22], Gate Decorator [23], layer-adaptive magnitude [24], manifold-regularized pruning [25], and ThiNet-style algorithms [26] are global or near-global *per-model* methods. Lookahead magnitude pruning [27] is a far-sighted alternative of the same ranking family — conceptually related to the walk era's look-ahead *greedy* control (Appendix B), not to the learned agent.
 
-Proposal Table 1 still has the right axes. CONVNETS [18], AFP [19], GDP [20], DeepPruningES [30], FPAC [37], multi-layer residual compression [34], and DepGraph [12] are automatic and often global; none combine offline multi-architecture / multi-dataset training with an explicit user τ the way NEON / SPECTRA do. DepGraph’s and SPA’s [81] “adaptability” is *grouping* adaptability, not policy transfer. AMC [79] has a resource budget on a *given* net, not a transferred τ.
+Proposal Table 1 still has the right axes. CONVNETS [18], AFP [19], GDP [20], DeepPruningES [30], FPAC [37], multi-layer residual compression [34], and DepGraph [12] are automatic and often global; none combine offline multi-architecture / multi-dataset training with an explicit user trade-off the way NEON (an accuracy band τ) and SPECTRA (a parameter or FLOPs budget) do. DepGraph’s and SPA’s [81] “adaptability” is *grouping* adaptability, not policy transfer. AMC [79] has a resource budget on a *given* net, not a transferred policy.
 
 **Table 1 — feature comparison (proposal Table 1, plus 2018–2024 neighbors).** Y = yes; N = no; P = partial. “Adaptability” for DepGraph / SPA = can group many architectures, not “one frozen agent on an unseen dataset.”
 
@@ -152,11 +123,11 @@ Proposal Table 1 still has the right axes. CONVNETS [18], AFP [19], GDP [20], De
 | SPA [81] | Y | Y | Y (groups) | Y | N |
 | AMC [79] | Y | Y | N (per target) | Y | P (resource) |
 | MetaPruning [80] | Y | Y | P (family) | Y | N |
-| SPECTRA | Y | Y | Y (policy) | Y | Y (user τ) |
+| SPECTRA | Y | Y | Y (frozen policy) | Y | Y (user budget: params or FLOPs) |
 
 #### 2.2.4 Mechanism-level generality: DepGraph and SPA
 
-DepGraph [12] (CVPR 2023) models layer I/O dependencies and prunes coupled groups with a sparse-training + norm criterion, on CNNs, RNNs, GNNs, and Transformers. SPECTRA should thank it, then differentiate: skip/concat coupling and structured cuts are table stakes; they are not the thesis contribution. DepGraph *solves a given model*. It does not train an offline agent, does not encode τ as a reward, and does not transfer a schedule to an unseen net without re-solving.
+DepGraph [12] (CVPR 2023) models layer I/O dependencies and prunes coupled groups with a sparse-training + norm criterion, on CNNs, RNNs, GNNs, and Transformers. SPECTRA should thank it, then differentiate: skip/concat coupling and structured cuts are table stakes; they are not the thesis contribution. DepGraph *solves a given model*. It does not train an offline agent, does not take a user budget as the input of a transferred policy, and does not carry an allocation to an unseen net without re-solving.
 
 SPA [81] (2024) attacks three practical barriers: coupled channels that differ by architecture, pruning at different training stages, and tools locked to one framework. It uses ONNX graphs and group-level importance (OBSPA is a post-training, calibration-light variant) and positions itself beyond DepGraph / OTO-v2. SPA’s “any architecture / any framework / any time” is about the *tool*. SPECTRA’s “any architecture / any dataset” is about a *transferred policy*. Using the same slogan would invite a fair referee objection. “Any time” in SPA means training stage, not “any previously unseen dataset without re-solving.”
 
@@ -170,371 +141,540 @@ Other proposal-era CNN-pruning mechanisms still worth a clause: evolution strate
 
 MetaPruning [80] learns a PruningNet for channel configs of a target family — automatic, not an offline cross-dataset agent.
 
+#### 2.2.6 Allocation, its cheap proxies, and transferring a pruning policy
+
+**Allocation priors, and how much allocation matters.** Once channels are ranked inside a layer, the remaining decision is how much of each layer to keep. Closed-form priors include:
+- per-layer sensitivity [18]: measure each layer's accuracy drop when it alone is pruned, then cut less where it hurts;
+- ERK [107], which gives larger layers higher sparsity, and so keeps more FLOPs at equal parameters;
+- LAMP's layer-adaptive magnitude scores [24].
+
+Cost-aware allocators trade importance against what a cut saves: NetAdapt [116], constraint-aware importance [115], and HALP's latency knapsack [114]. SPECTRA's cost-aware sensitivity rule (§4.1) is the same idea in closed form.
+
+How much allocation matters after a full recovery is contested:
+- At about 50 % FLOPs on CIFAR ResNets, sensible allocations end within 0.15–0.31 points of each other under one recovery [110, 111], about one seed's spread [11].
+- The best of many random allocations, chosen by a cheap selector, is a strong baseline [108].
+- The retraining recipe moves accuracy more than the allocation does [108, 109].
+- Network Slimming's learned allocations [106] beat uniform on VGG-16 but not on PreResNet-164 [11].
+- Gains of a point or more appear against uniform cuts, at tight budgets, on CIFAR-100 or on compact networks [12, 79, 117].
+
+SPECTRA's evaluation is built for this regime: one recovery for every arm, paired seeds, and a prior fixed in advance (§4).
+
+**Cheap proxies for post-recovery accuracy.** An allocation search needs a cheap estimate of the accuracy after recovery. AMC [79] rewards the accuracy of the cut network directly. EagleEye [117] showed that this "vanilla" evaluation is misled by stale BatchNorm statistics [118]. Re-estimating them with the weights frozen (adaptive BN) raised the rank correlation with post-fine-tune accuracy from at most 0.40 to 0.64–0.85 on MobileNetV1 / ImageNet, and a thousand images are enough to re-estimate the statistics [119]. Short fine-tunes are the other common proxy [79, 120], although at low FLOPs a few steps may not be representative [120].
+
+Proxy fidelity drops among near-best candidates [111, 121] and when measured at the cut [122], and reduced-training proxies differ in how well they keep the rank order [123]. SPECTRA therefore measures each proxy's rank fidelity on its own plans before training on it (§5.7). Its `bn8` reward is EagleEye's adaptive-BN evaluation used as an RL reward, as EagleEye itself did inside AMC [117].
+
+**Transferring a pruning policy.** Most learned pruners search or train per target:
+- AMC runs hundreds of episodes per model [79];
+- MetaPruning trains a PruningNet per network [80];
+- graph-based RL agents retrain their heads on the target [33, 125].
+
+Others warm-start from earlier agents [126, 127], or reuse a policy only on the same architecture [128–130]. Optimised widths transfer across width, depth and resolution within a family [131].
+
+The closest frozen transfer for CNNs applies a graph metanetwork trained on ResNet-56 to ResNet-110 and back, 0.34–0.59 points below a same-architecture metanetwork, within one family [124]. Outside CNNs:
+- one allocation function searched on one LLM is reused across LLM families [132];
+- an RL quantization policy transfers zero-shot between LLMs [133];
+- NEON transferred a pruning agent across dense networks [1].
+
+Budget conditioning in pruning is mostly on the level of one budget type: an AMC-style agent conditioned on the rate [137], or routers conditioned on a latency target [141]. Other methods re-optimise or re-search per budget type or constraint [112, 113, 139, 140, 142–144], and a NAS hypernetwork conditions on device and objective preferences [138]. Recent work names per-model policies as a fundamental limitation [135], and LLM-driven pipelines still loop per target [136].
+
+SPECTRA's mechanisms have precedents:
+- a single-step policy that maps per-layer scores to an exact budget, for LLM pruning [104];
+- bisection to an exact budget [113];
+- a plan-level allocation policy trained with a group baseline [105];
+- a Transformer controller over per-layer features [134].
+
+What SPECTRA adds is the protocol and the claim. One policy is trained once on a catalog of CNNs from four families and applied frozen to held-out networks and datasets, with no per-target search or update. It is compared under one recovery with the best same-loop rule, and the cross-family cells are reported fold by fold, including the one that fails.
+
 ### 2.3 Neural architecture search
 
-NAS explores automatic architecture design: search space, optimization method, candidate evaluation [1]. RL was applied to NAS in [54] and followed by [55–57]; evolution [58, 59], SMBO [60], and gradient-based search [61, 62] followed. Some works use CNN pruning to help NAS [63–65]; others use NAS to help CNN pruning [66–68]; a few prune or search at initialization without data [69, 70]. SPECTRA is **not** NAS. The agent does not invent a new topology; it walks an existing CNN and picks keep-rates. Keep this subsection short, as NEON did.
+NAS explores automatic architecture design: search space, optimization method, candidate evaluation [1]. RL was applied to NAS in [54] and followed by [55–57]; evolution [58, 59], SMBO [60], and gradient-based search [61, 62] followed. Some works use CNN pruning to help NAS [63–65]; others use NAS to help CNN pruning [66–68]; a few prune or search at initialization without data [69, 70]. SPECTRA is **not** NAS. The agent does not invent a new topology; it allocates keep fractions over an existing CNN's channel groups. Its plans resemble the width search of channel-number search [66–68, 112], but the policy is trained once and frozen rather than searched per network. Keep this subsection short, as NEON did.
 
 ---
 
-## 3. Approach — method of record (v3, 16 Sep 2026)
+## 3. Approach — method of record: the plan-as-action agent (14 Oct 2026)
 
-NEON §3 order: Overview, State, Action, Reward, Architecture, Training, Complexity. This section
-describes the implementation that produces the paper's DRL rows (the "v3" agent; profiles
-`offline_train_v3_*`). Earlier agents (the frozen 10-net actors and the v2 arms) are kept in
-`docs/AUDIT_13SEP_OVERHAUL.md` as provenance; their rows in §5 are captioned there and are not
-rewritten here.
+NEON's §3 order: overview, state, action, reward, architecture and training, complexity. This section describes the code that produces every agent row of §5 (`src/plan_agent.py`, `src/plan_trainer.py`, `src/alloc_walk.py`). The walk-based agent that preceded it is described in Appendix B.
 
-### 3.1 Overview
+### 3.1 Problem and overview
 
-SPECTRA is an offline, preference-aware DRL pruner in the NEON lineage [1]: one agent is trained
-once on a catalog of pretrained CNNs and then applied, **frozen**, to architectures and datasets it
-has never seen, without per-target training or adaptation. A pruning episode is a walk over the
-network's prunable rows (every `Conv2d` / `Linear` that opens a channel dimension; the classifier's
-output dimension is never a target). At each row the agent chooses one action from a small menu of
-(keep-rate, filter-ranking) pairs; the environment resizes the whole **channel group** that row
-belongs to, fine-tunes the network, measures validation accuracy and size, and returns NEON's
-trichotomy reward. A walk makes **two passes** over the rows; a coupled group may be structurally
-cut at most once per pass.
+A pretrained CNN has G prunable **channel groups**: sets of layers that must keep the same number of channels (§3.2). Given a budget type b (parameters or FLOPs) and a kept fraction κ, an allocation chooses a width w_g ≤ w⁰_g for every group, so that the network's cost under b is the fraction κ of the original. Inside each group, the channels removed are always the lowest-L1 ones [18]; the allocation decides only *how many*. The cut network is then recovered with one fixed fine-tune (§4.2), and the objective is its accuracy after that recovery.
 
-What distinguishes SPECTRA from a per-model pruner is that nothing in the loop is fitted to the
-target network: the ranking criteria, the group rebuild, the fine-tune recipe and the accuracy
-band τ are identical for the DRL agent and for every heuristic it is compared with (§4.1). The agent
-contributes the *schedule*: which groups to cut, by how much, with which criterion, and when to
-stop.
+SPECTRA learns one policy π(w | network, b, κ) offline on a catalog of networks, freezes it, and applies it to held-out networks with no per-target training, search or adaptation. At test time, a held-out network is pruned in five steps:
+1. The network is read as a sequence of per-layer tokens (§3.3).
+2. A Transformer scores every channel group.
+3. A decoder turns the scores into integer widths at the budget (§3.4).
+4. Floors and grid rounding make the plan realizable.
+5. The network is cut once to that plan and recovered.
 
-**Channel groups.** A `torch.fx` trace recovers the layers that must share a channel dimension —
-producers joined by a residual add, segments of a concatenation, depthwise ties, and the norms and
-consumers that read them (DepGraph-class bookkeeping [12], SPA-style criterion wrapping [81]).
-Pruning a row rebuilds every producer of its group, the normalisations over that dimension and each
-consumer's input slice in one consistent edit, verified by a dummy forward; a group that cannot be
-resized is masked instead and earns no size credit. On a CIFAR ResNet one residual stream is owned
-by 9–10 rows per pass; without the once-per-pass rule the walk re-cuts the same stream on every
-owning row (the 13 Sep audit traced the −25 pp cliff on skinny ResNet-56 to exactly this:
-8→7→6→5→4→3→2 channels on six consecutive rows), so the rule is part of the method, applied
-identically to every compared policy.
+Every rule SPECTRA is compared with (§4.1) produces its plan through the same steps 3–5, so the agent and the rules differ only in where the plan comes from.
 
-### 3.2 State
+**Why one action per network.** NEON's agent walks a network layer by layer and is rewarded step by step [1]. Carried over to CNNs, that design collapsed: every walk agent through v10 converged on "keep 90 % everywhere", because after a per-step fine-tune the step reward barely separates the actions (Appendix B, §331). Here the whole allocation is a single action, scored once on the whole plan. The problem becomes a contextual bandit [102, 103]: the context is (network, budget), the action is a plan, and the reward is one number. No fine-tune runs inside the training loop.
 
-The state is a variable-length sequence of per-layer tokens read by a small Transformer encoder
-(3 layers, d = 256, 8 heads, no dropout) with a learned marker on the row **about to be pruned**, a
-Graphormer-style attention bias on channel-coupling ids, sinusoidal positions and a pooled read-out
-(mean over layers blended with the target token). Per-layer token contents (all database
-z-scored except the bounded channels):
+### 3.2 Channel groups and the cut
 
-| Block | Channels | Content |
+A `torch.fx` trace recovers the layers that must share a channel dimension: producers joined by a residual addition (one group per residual stream), the segments of a concatenation, depthwise ties, and the normalisations and consumers that read them. This bookkeeping is the same class as DepGraph's [12] and SPA's [81], and SPECTRA claims no novelty for it. Cutting a group rebuilds every producer, every normalisation over that dimension and each consumer's input slice in one edit, and a dummy forward verifies the result. A group whose structure is not recognised is blocked; if a cut cannot be expressed, it falls back to a mask, earns no size credit, and is logged.
+
+Inside a group, each producer's per-filter L1 norms are divided by their own maximum and summed across producers; the top-w_g channels survive [18]. The planned groups are the prunable groups at least two channels wide. The classifier's output dimension is never a target.
+
+### 3.3 State
+
+The network is read as one token per leaf module: every convolution, linear layer, normalisation, activation and pooling layer. Each token has 63 columns:
+
+| Columns | Width | Content |
 |---|---|---|
-| Topology | 7 | layer family, kernel, width, stride, in/out features |
-| Activation moments | 12 | statistics of the layer's activations on a fixed probe batch |
-| Weight moments + filter-L1 shape | 12 + 7 | statistics of the weights and of the per-filter L1 distribution |
-| Fortify | 4 | relative depth, stem flag, coupled flag, normalised width |
-| Budget | 1 | fraction of parameters kept so far |
-| **Slack** | 2 | **accuracy slack** \(\mathrm{clip}((\tau+\Delta acc)/\tau,-1,1)\) and pass progress |
-| **Group cost** | 4 | parameter share and MAC share of the layer's whole group (all producers plus the slices every consumer and norm reads), owner count over the largest owner count in the net, structural cuts already applied to that group in this episode |
-| Action cost | 2 × A | for the target row only: parameter and MAC fraction of the whole network each menu action would remove |
+| Topology, activation and weight statistics | 38 | layer kind, kernel, width, stride, in/out features; 12 moments of the layer's activations on a fixed probe batch; 12 moments of its weights; 7 descriptors of its per-filter L1 distribution. Z-scored with a standardizer fitted on the catalog |
+| Position and structure | 4 | relative depth, stem flag, coupled flag, normalised width |
+| Group cost | 4 | the owning group's share of the network's parameters and of its multiply-accumulates; its number of producers relative to the largest group; cuts so far (0 at the origin) |
+| **Group sensitivity** | 2 | log(s_g / median s) / 3, clipped to [−1, 1], and its percentile rank. Here s_g is the rise in calibration loss when that group alone is cut to half width (§4.1) |
+| **Budget** | 2 | the target κ, written on every token |
+| Budget type | 1 | 0 for parameters, 1 for FLOPs, on every token |
+| Legacy slots | 12 | kept fraction and accuracy slack (fixed at the origin's values) and per-action costs (zeroed); inherited from the walk agent's state |
 
-Slack and group cost are the two additions the v2 trains showed to be necessary. NEON's trichotomy
-is scored on the *cumulative* Δacc against the origin, so the optimal policy is "cut while the band
-has room, stop when it is spent"; without an explicit slack channel that rule is not a function of
-the state. Group cost makes the cost side of every row observable: two layers with identical local
-statistics can differ by an order of magnitude in what pruning them removes from the network,
-and the schedule that reaches a deep operating point on a skinny ResNet (heavy cuts on wide,
-cheap-in-accuracy block-internal convolutions; protection of the thin early streams) is expressible
-only when the policy can see that cost.
+The agent therefore sees what the rules see: each group's measured sensitivity and its cost share. It also sees the network's structure and statistics, which no rule uses. The layout is the walk agent v10's state contract, kept unchanged. The reason was a test: with the sensitivity columns, the default encoder learns to imitate the sensitivity rule's plan on held-out networks (Spearman ρ 0.872), whereas without them every variant does only partially (§344).
 
-The frozen `bert-base-uncased` encoder of the earlier design note (*Extending BERT Input
-Mechanisms…*) is retained as an ablation flag; it tied the small Transformer on the hard held-out
-net (ledger §16) and is not the default.
+### 3.4 Action: a whole plan
 
-### 3.3 Action space
+**Encoder and scores.** The tokens pass through a linear projection to 256 dimensions with a layer-type embedding, sinusoidal positions and a learned marker. Then come three pre-norm Transformer layers [35] (256 wide, 8 heads, feed-forward 1024, GELU, no dropout). An additive attention bias, one learned scalar, applies to every pair of tokens that share a channel group. A linear head, zero-initialised, gives one output per token. A group's score μ_g is the mean output over the layers that produce its channels, centred across groups. The encoder and head have about 2.4 M parameters. At initialisation every score is 0, so the untrained agent proposes the uniform plan.
 
-The menu is a small set of **(keep-rate, ranking)** pairs: identity, and the rates {0.9, 0.8} each
-paired with two filter-importance criteria — L1 magnitude [18] and one partner criterion — five
-actions in total. The paper agent's partner is FPGM (geometric-median distance, He et al. 2019);
-BN-scale (Network Slimming, |γ|) and SVD (per-filter nuclear norm) are trained as sibling agents
-and compared in §5. The rate is applied to the *alive* width with whole-channel rounding
-(`round(rate·alive)`, never a no-op: any rate < 1 removes at least one channel); the ranking decides
-which channels of the group survive, with every producer voting on the shared channel index after
-per-layer max-normalisation. Stem rows and layers at ≤ 2 channels are identity-only.
+**Decoder.** Each group keeps keep_g(β) = clip(σ(μ_g + β), k_min, 1), where σ is the logistic function and k_min = 0.1. The scalar β is found by bisection on an analytic cost model: an exact parameter count for the parameter budget, or a FLOPs model that counts convolution and linear multiply-accumulates exactly and is checked against real cuts. Bisection to a budget follows ChipNet [113], and a single-step policy that maps per-layer scores to an exact budget has been used for LLM pruning [104]. Keeps are rounded to integer widths. A polish step then moves single channels on the worst-rounded groups while that brings the cost closer to κ. The plan's cost therefore matches the budget to within the rounding of single channels. It is not guaranteed to sit at or below κ in training; at evaluation, every arm lands within 0.01 below its target (§4.2).
 
-Finer rungs are deliberately absent: on widths ≤ 16 a 0.95 rounds onto 0.9 or 0.8, so a finer
-ladder adds actions without adding reachable widths (audit §2.1). A larger flat menu over four
-rankings was also rejected for the paper agent: L1, L2 and SVD are near-collinear criteria, and
-correlated arms dilute credit assignment without adding information (see §7 for the factored
-alternative).
+**Realizable plans at evaluation.** Every evaluation plan, the agent's and the rules', goes through four guards:
+1. It is decoded 0.02 below the target.
+2. It is held to a width floor of two channels, the narrowest width the cutting walk can produce.
+3. It is rounded to widths the walk can reach exactly, from a five-rate menu {1.0, 0.9, 0.8, 0.7, 0.6}, ties to the wider. Low-priority groups step down while the plan is above target, and high-priority groups step up while it is more than 0.01 below. The priority is the agent's score, or the rule's weight.
+4. A one-shot walk realizes it, with a fixed-target landing that narrows the last cut to stop at the target.
 
-### 3.4 Reward
+A quoted arm logs no fallback cut and no masked edit (§4.2).
 
-NEON's preference-aware trichotomy [1] on the **realised** cut: with Δ the cumulative validation
-accuracy change (pp) against the unpruned network and \(r\) the percentage of parameters removed by
-this step,
+**The FLOPs agent: a residual on the prior.** Under a FLOPs budget, a direct plan agent learned but stayed below the FLOPs sensitivity rule (§357). The FLOPs line therefore parameterises the plan relative to that rule. Each group keeps keep_g = clip(c · w_g · e^{z′_g}, k_min, 1), where w_g is the sensitivity rule's weight (α = 0.5, §4.1) and c is bisected to the budget. The residual is z′_g = 0.3 · tanh(z_g / 0.3), a trust region that keeps every weight within e^{±0.3} of the rule's (§365). With z = 0 the agent reproduces the rule's plan exactly.
 
-\[
-R = \begin{cases} +r^{3} & \Delta > 0 \\ +r & -\tau \le \Delta \le 0 \\ -r^{3} & \Delta < -\tau \end{cases}
-\qquad \text{learning signal } \tilde R = \operatorname{sign}(R)\,|R|^{1/3}.
-\]
+### 3.5 Reward
 
-The cube-root is a strictly monotone rescaling — the ordering of steps is NEON's — that puts the
-signal in percentage-point units so the critic can regress it. The nominal-rate form (score
-\(100(1-\text{rate})\) regardless of what the group edit removed) and the raw cubic scale were both
-run as controls: nominal-raw collapsed the policy (audit Part II/III; the in-band arm is invisible
-next to the cubic arms once returns are normalised) and is reported as an ablation, not a paper
-agent. Masked (non-structural) edits inside the band earn no size credit. Keeping a skip connection
-is a hard constraint of the group rebuild, not a reward term.
+For a plan sampled in training, the reward is r = 100 · (acc_val(cut network after the proxy) − acc_val(origin)), in points. acc_val is top-1 accuracy on the **validation half**, the 5,000 images of the 10,000-image test split that are never used for TEST (§4.2), measured on the training network. There is no size term: the decoder fixes the budget, so a plan cannot gain by spending less. The *proxy* stands in for the 100-epoch recovery, which is far too slow to run inside training:
 
-### 3.5 Architecture
+| Proxy | What is done to the cut network before the read | Cost per training instance (K = 8) |
+|---|---|---|
+| `cut` | nothing: the masked cut is read as is | 0.86 s (§346) |
+| `bn8` | BatchNorm running statistics are re-estimated on 8 training batches (2,048 images), with no gradient | 1.61 s |
+| `fs32` | 32 SGD steps (lr 0.01, momentum 0.9, weight decay 5·10⁻⁴) on fixed training batches, re-masking after every step | 6.9 s |
+| `ft1` | one epoch of fine-tuning; measured at evaluation only, as the fidelity reference | about 4× `fs32` |
 
-`NetworkEnv` (prune → fine-tune → evaluate), the `torch.fx` channel-group library, the state
-builder, and a PPO actor–critic (separate encoders, MLP heads 300-300, zero-initialised policy
-output so training starts from an exactly uniform policy). Legal-action masking is applied to the
-policy distribution at sampling and at update time. The agent is ≈ 2.7 M parameters.
+All K plans of an instance share the same proxy batches, so their rewards differ only through the plans (common random numbers). The masked cut used in training is checked against the real structural cut at the start of every train (kept parameters within 10⁻⁶; validation accuracy within 0.05 points).
+
+Which proxy to train on is itself measured. Each candidate proxy ranks a fixed set of real plans; that ranking is compared with the one given by the 100-epoch final fine-tune (§4.4, §5.7). The raw cut was chosen first, as the cheapest proxy valid on both voting families (§340). It later proved weak at equal parameters (§375), and the batch-norm reward removed the agent's deep-budget failure (§378). T6 trains on `bn8` and on `fs32` in parallel (§7).
 
 ### 3.6 Training
 
-**Catalog.** 24 pretrained CIFAR-scale networks (`configs/database_offline_wide.json`): thin
-ResNet-20/56 at widths 6–16, chenyaofo ResNet-20/32/56, VGG-11/13/16-BN, MobileNet-v2 ×0.5/×1/×1.4,
-DenseNet-BC-40, on CIFAR-10, SVHN and Fashion-MNIST. Every held-out cell of §5 (similar, unlike,
-skinny-thin, CIFAR-100, ImageNet) is disjoint from this catalog by construction
-(`configs/offline_pools_manifest.json`).
+Training is REINFORCE [53] on a contextual bandit:
+1. Each training instance draws a catalog network uniformly and a budget κ ~ U[κ_lo, κ_hi].
+2. The policy gives the mean scores μ. Eight plans are sampled as z_k = μ + σ ε_k, with ε_k ~ N(0, I).
+3. Each plan is decoded, cut once on a masked copy, and rewarded r_k.
+4. The advantage of each plan is its reward minus the mean of the eight, A_k = r_k − r̄: a shared baseline in the manner of POMO [98], which acts as a control variate [101]. It equals (K − 1)/K times the leave-one-out baseline [97, 99] and is close in spirit to GRPO's group baseline [100]. The shared baseline removes the network's and the budget's difficulty from the gradient, so no critic is needed.
+5. The loss is −(1/K) Σ_k A_k log π(z_k), with a Gaussian log-density around μ.
 
-**Optimiser.** PPO over batches of four whole episodes: GAE (λ = 0.95, γ = 0.99) with a
-bootstrapped critic, rewards scaled by the running standard deviation of discounted returns,
-batch-normalised advantages, four clipped epochs (ε = 0.2) per batch with an approximate-KL stop,
-gradient clipping 0.5, Adam 3·10⁻⁴ for the agent (decoupled from the fine-tune optimiser), entropy
-bonus 0.01 annealed to 0.005 over 300 episodes. Each episode walks one catalog network for two
-passes with full-network fine-tuning after every structural cut (Adam, 12 epochs, patience 4
-during training; the evaluation protocol uses 40 / 10 for every method, so the policy trains under
-a harsher recovery than it is tested with).
+Updates use Adam (lr 3·10⁻⁴) over 4 instances per step, with gradient-norm clipping at 1.0. The exploration scale σ decays from 0.5 to 0.2 over the first 60 % of training. A train is 12,000 instances (3,000 updates), with no entropy bonus, no imitation term and no critic. The frozen policy is the **last iterate**: nothing is selected on validation, and nothing in training reads the TEST half.
 
-**Selection and stopping (the learning governor).** The training-side score of an episode is
-\(1-\text{kept}\) at the deepest point whose validation Δacc is still inside τ — the same object the
-evaluation protocol quotes. Snapshots are selected on a **fixed deterministic probe**: every 12
-on-policy episodes the current policy is run argmax on two fixed catalog networks
-(`resnet56-width6`, `resnet20-width10`) and the mean probe score, not the noisy on-policy batch
-mean, decides `latest_best`, freezes a snapshot (actor, critic, standardizer, action/state contract)
-and drives patience. Training never stops before 250 episodes, then stops after 150 episodes
-without probe improvement or at a 6-day fuse. When the probe has not improved for 50 episodes the
-trainer **rewinds** to the elite weights (actor and critic), resets Adam and raises the entropy
-bonus to 0.02 for 30 episodes (at most three times) — a return-then-explore restart from the elite
-in the sense of population-based training's exploit step and Go-Explore, used as search, never as
-evidence that the policy improved. This replaces the earlier rule "stop after 100 episodes without
-beating the best 4-episode batch mean", which the audit showed to terminate a still-learning policy
-on a lucky order statistic.
+**Catalog.** Ten pretrained networks from four families and two datasets:
+- CIFAR-10: thin ResNet-20 at widths 8 and 10, thin ResNet-56 at width 6, ResNet-32, VGG-11-BN, VGG-13-BN, MobileNetV2 ×0.5 and ×1, DenseNet-40;
+- SVHN: VGG-11-BN.
 
-**Contract.** Every checkpoint directory carries `policy_config.json` (menu, per-action rankings,
-state channels, marker alignment, passes) and `standardizer.pt`; the evaluation runner pins that
-contract before it builds its configuration, so a frozen actor is always replayed under the state
-and menu it was trained with.
+No held-out network is in the catalog (§4.3).
+
+**Agent lines.** Each registered train changes one thing from the catalog-trained parameter agent (T1):
+
+| Agent (code) | Budget | Change from T1 | Read in |
+|---|---|---|---|
+| Single-network agent (T0) | params | trained on thin ResNet-56 ×4 alone, 3,000 instances | §341 |
+| **Catalog agent (T1)** | params | the reference line: κ ∈ [0.35, 0.85], raw-cut reward | §346, §370, §373, §374 |
+| Training floor 0.25 (T5-floor) | params | k_min 0.25 instead of 0.1 | §376 |
+| Deeper range (T5-deep) | params | κ ∈ [0.25, 0.85] | §377, §380 |
+| Batch-norm reward (T5-bn) | params | `bn8` reward | §378 |
+| Deeper range + batch-norm reward (T6-bn) | params | κ ∈ [0.25, 0.85] and `bn8` | running |
+| Deeper range + 32-step reward (T6-fs) | params | κ ∈ [0.25, 0.85] and `fs32` | running |
+| With CIFAR-100 networks (T1-C) | params | catalog plus 8 recoverable CIFAR-100 networks | §356 |
+| No ResNet / no VGG (LOFO-R / LOFO-V) | params | catalog without that family (6 / 7 networks) | §354, §358, §363 |
+| Direct FLOPs agent (T0-F, T0-F2) | FLOPs | trained on thin ResNet-56 ×4 under a FLOPs budget; T0-F2 adds the width floor | §350, §357 |
+| Mixed-budget agent (TM) | both | each instance draws params or FLOPs, flagged in the state | §360 |
+| FLOPs residual agents (T2-F → T4-F) | FLOPs | residual on the FLOPs sensitivity rule, width floor 2. T3-F adds per-instance advantage normalisation; T4-F adds the trust region | §361, §364, §365, §366 |
+
+**Differences between training and evaluation**, stated so a reader can weigh them:
+- The parameter trains use a floor of one channel, while every evaluation uses two. The FLOPs and mixed trains use two throughout.
+- Training rewards analytic plans decoded at κ. Evaluation decodes at κ − 0.02, rounds to the walk's grid, and realizes the plan by the walk, while the state still reads κ.
+- The trainer samples and scores the raw residual z, without the trust region's Jacobian.
 
 ### 3.7 Complexity
 
-Wall-clock is dominated by fine-tuning: a 24-net training episode (two passes, 12-epoch FT) takes
-≈ 11–25 min on an RTX-4090-class GPU; a held-out evaluation walk with the 40-epoch protocol takes
-1–6 h per network (DenseNet-100 ≈ 2 days). Deterministic probes add two episodes per twelve. Image
-datasets and deep CNNs remain substantially heavier than NEON's tabular DNNs (proposal limitation;
-still true). Training runs single-GPU; two-plus GPUs do not halve the sequential prune+FT chain.
+Training cost is the number of instances times K masked cuts and proxy reads, on one RTX 4090:
+- the raw-cut reward: 0.86 s per instance, so the catalog agent's 12,000 instances took 175 min (§346);
+- the batch-norm reward: about 5 h;
+- the 32-step reward: about 23 h (projected from its smoke).
+
+The walk agent, by comparison, spent 11–25 min per training *episode* (two passes, a 12-epoch fine-tune after every cut) and trained for days (Appendix B).
+
+Evaluation is one cut and one 100-epoch recovery per network, budget and seed. With CUDA graphs and GPU-side augmentation, the recovery takes about 3 min on thin ResNet-56 ×4, against 15–17 min for the earlier recipe (§329). From job start to the end of recovery, one plan on DepGraph's ResNet-56 takes 7.2–8.1 min with 100 recovery epochs, against 85.1 min for DepGraph's own pipeline on the same GPU model (§334). Applying the frozen agent adds one forward pass and a bisection, which is negligible. The calibration the rules need, four batches per group, is shared with the agent's sensitivity columns.
 
 ---
 
 ## 4. Evaluation
 
-NEON §4: algorithms, setup, results, discussion. SPECTRA splits setup here and numbers in §5.
+NEON's §4 covers algorithms, setup, results and discussion. SPECTRA gives the setup here and the numbers in §5.
 
 ### 4.1 Compared methods
 
-Every method below shares the environment: the same channel-group rebuild, the once-per-pass rule,
-the same L1 (or per-action) ranking, the same fine-tune (Adam, 40 epochs, patience 10), the same τ
-and the same trajectory protocol. They differ only in the rate picker.
+Every rule below shares the agent's loop:
+- the same channel groups and L1 ranking;
+- the same width floor, undershoot and grid rounding;
+- the same one-shot walk with fixed-target landing;
+- the same recovery fine-tune and seed.
 
-| Method | What it chooses | Same loop? |
+The rules differ from the agent only in where the plan comes from.
+
+**Sensitivity.** For each group g, s_g is the rise in cross-entropy over 4 training batches (batch 256) when that group alone is cut to half width by L1, with no fine-tune. This is the per-layer sensitivity analysis of Li et al. [18], measured per channel group. Small values are floored at 5 % of the median. The same s_g feeds the agent's sensitivity columns (§3.3).
+
+| Rule | Plan | Role |
 |---|---|---|
-| **SPECTRA (DRL, v3)** | (rate, ranking) per row from the learned policy, argmax at test | yes |
-| Greedy (“l1-once”) | strongest legal cut (0.8) on every unlocked row | yes |
-| Mild (“mild-once”) | 0.9 on every unlocked row | yes |
-| Random | uniform over legal cuts | yes |
-| Ranking ablations | greedy / mild with `SPECTRA_FILTER_IMPORTANCE` ∈ {l2, svd, fpgm, bn_scale} | yes |
-| Frozen 10-net actor (Path 3) | provenance row: argmax ≡ mild (audit F4) | yes |
+| uniform (uniform_F) | the same keep fraction for every group, bisected to the parameter (FLOPs) budget | the allocation-free baseline |
+| sens (sens_F) | keep_g ∝ (s_g / median s)^α, α = 0.5, bisected on real cuts to the budget | sensitivity allocation [18] |
+| **sens_cost** | keep_g ∝ (v_g / median v)^α, where v_g = s_g / c_g and c_g is the parameters (MACs) saved by the half cut: sensitivity per unit of cost saved | **the prior at equal parameters** (§355) |
+| **floored sens_F** | sens under a FLOPs budget, with the width floor | **the prior at equal FLOPs** (§357) |
+| inner (inner_F) | uniform, with every residual stream held whole: cut only inside blocks | the "keep the skip streams" heuristic |
+| mild (mild_F) | not a plan but a walked heuristic: keep 90 % of each legal group, else the strongest legal cut; fine-tuned after each cut, then given the same final recovery | the heuristic every walk agent collapsed onto |
 
-Group-once is applied to all of them: the plain-walk heuristics (H0 mild-plain, l1-plain; ledger
-§85, §88) are reported once to show that the once-per-pass rule, not the rate picker, sets the
-easy-net plateau. DepGraph [12] / SPA [81] / OCS [93] / SACP [94] are quoted on the Pareto with a
-different-fine-tune caption; they are not same-loop baselines and SPECTRA does not claim to beat
-them on their home cells (Gilad 18 Aug).
+**One prior per budget, fixed in advance.** BEATS-PRIOR is read against one rule per budget type. The rule is chosen from pooled evidence before the agent's pool reads, never per network and never on TEST. At equal parameters it is the cost-aware sensitivity rule, which beat plain sensitivity on all three networks measured (§355). At equal FLOPs, where the cost weighting hurt (COST-HURTS, §355), it is the floored FLOPs sensitivity rule (§357). Every other rule is reported beside the prior.
 
-**OCS ResNet-56 row (locked 27 Sep 2026).** Beside SPECTRA, quote OCSPruner [93] Table 5, the
-run that starts from a pretrained network, because SPECTRA does too: 38.82% of FLOPs remaining,
-42.26% of parameters, 94.01 → 93.50, drop 0.51. Footnote Table 2 (from scratch): 38.88% of FLOPs
-remaining, 41.42% of parameters, 93.97 → 93.65, drop 0.32. The table’s FLOPs column is percent
-remaining (their VGG text: “26.01% of the original network FLOPs remaining”); do not read the
-section 4.3 phrase “38.88% reduced FLOPs” as the column definition. Do not put the lighter
-from-scratch row (46.93% FLOPs remaining, drop 0.17) in the same cell. OCS’s baseline is their
-own training run, not DepGraph’s 93.53.
+**The literature.** Published methods are quoted beside SPECTRA's rows with their own fine-tune recipes, under a different-recipe caption; they are not same-loop comparators. FLOPs is the headline axis for these rows, with parameters beside them (Ido, 10 Oct). The anchor is DepGraph's ResNet-56 on CIFAR-10 [12], because its checkpoint is in the pool (§5.9). OCSPruner's ResNet-56 row [93] is the second anchor, quoted from its pretrained-start table:
 
-**Figure (NEON Fig. 5 analog):** per architecture · dataset, TEST Δacc vs parameters kept and vs
-MACs kept at the quoted operating point of every method; the coverage matrix remains a separate
-genericity map.
+> **OCSPruner ResNet-56 row (locked 27 Sep 2026).** Beside SPECTRA, quote OCSPruner [93] Table 5, the run that starts from a pretrained network, because SPECTRA does too: 38.82 % of FLOPs remaining, 42.26 % of parameters, 94.01 → 93.50, a drop of 0.51. Footnote Table 2 (from scratch): 38.88 % of FLOPs remaining, 41.42 % of parameters, 93.97 → 93.65, a drop of 0.32. The table's FLOPs column is percent remaining (their VGG text: "26.01 % of the original network FLOPs remaining"); do not read the §4.3 phrase "38.88 % reduced FLOPs" as the column definition. Do not put the lighter from-scratch row (46.93 % FLOPs remaining, drop 0.17) in the same cell. OCS's baseline is their own training run, not DepGraph's 93.53.
 
 ### 4.2 Protocol
 
-- **Trajectory protocol.** No identity-pad and no size stop. A held-out network is walked for
-  the same number of passes the actor was trained with (two); after every structural cut the
-  validation and test loaders are scored. The operating point quoted is **`val_best`**: the most
-  compressed point whose *validation* Δacc is within τ = 10 pp; its **test** Δacc is reported but
-  never used for selection. `floor_hold` / `floor_cross` (the last point ≥ 0.70 and the first
-  below) are labels for size-matched comparison, not stops. Terminal points with validation over τ
-  are not operating points.
-- **Counts.** Parameter and MAC fractions are exact ratios of counts (the earlier three-decimal
-  megaparameter counter quantised skinny nets to 0.2 steps and is not quoted).
-- **Deterministic evaluation.** Argmax over the legal-masked policy; encoder in inference mode.
-- **Final fine-tune (recovery).** Every pruned network and its unpruned origin control receive the
-  same final fine-tune: SGD (momentum 0.9, weight decay 5·10⁻⁴), batch 128, random crop and flip,
-  100 epochs on a cosine schedule. The **last epoch is kept**; no checkpoint is selected. The
-  initial learning rate is chosen per architecture family on the validation half, never on TEST:
-  0.1 for full-width networks (ResNet-56, VGG-19) and 0.01 for narrow ones (ResNet-56 at width/4,
-  MobileNetV2 ×0.5), whose unpruned controls lose accuracy at 0.1. Retraining at a large learning
-  rate is the variable Le & Hua (ICLR 2021) identify as deciding post-pruning accuracy. We report
-  raw Δacc and honest Δacc (raw minus the origin control's change under the same recipe), because
-  a stronger fine-tune also lifts the unpruned network. An earlier default restored the
-  lowest-training-loss epoch, which was epoch 1 on most pruned points; those rows measured
-  "walk + 1 epoch" and are not compared with keep-last rows (ledger §235, §330).
-- **Win criterion (per network, against the same-loop heuristic at its own `val_best`):** kept
-  fraction ≤ the heuristic's at equal-or-kinder test Δacc, or ≥ 2 pp kinder test Δacc at equal
-  kept fraction. Unmatched keep is reported as a different Pareto point, not as a win.
-- **Datasets in DRL train:** CIFAR-10 [73], SVHN [74], Fashion-MNIST [72]. CIFAR-100 [73] and
-  ImageNet [71] are held-out transfer cells (no DRL training on either).
-- **Held-out cells:** similar families (thin r20-w16, r56-w10, r44, VGG-19-BN, MobileNet-v2×0.75,
-  DenseNet-100), unlike families (ShuffleNet-v2 ×1/×1.5, RepVGG-A0/A1), skinny-thin
-  (r20-w2, r56-w4), CIFAR-100 (5 nets), ImageNet (frozen probe). Skip akamaster ResNet-32.
-- **Quote `eval_test` TRAJ lines only.** Log `eval_train` scores the CNN's training loader and is
-  never a result.
-- **10k companion (Ido 6 Oct 09:47 — paper freeze).** Live decisions stay on protocol P's 5k TEST
-  half. Beside every literature row, add a companion **10k** column (or labelled cross-fit of both
-  halves) and a **different-FT** caption. Do not switch the live recipe to full-10k val/TEST.
-  `crossfit_readout.py` is valid only for walks that do not read val for rollback. Draft tables
-  that quote DepGraph / OCS / HRank / Slimming must carry this column at finalization. Ledger
-  quoting rules + §2.4.
+- **Halves.** The 10,000-image test split of each dataset is divided once by a fixed permutation (seed 0) into a **validation half** (5,000 images) and a **TEST half** (5,000). Every seed and every job uses the same two halves. Training reads only the validation half, and only of the catalog networks (§3.5). Nothing reads the TEST half before the final read: no selection, no stopping and no reward.
+- **Cut.** For each held-out network, budget and seed, the plan is realized in one shot (§3.4), with no fine-tune between cuts. The quoted point is the network at the target size, fixed in advance; it is never picked on TEST.
+- **Recovery (G2).** The cut network and the unpruned origin each receive the same final fine-tune:
+  - SGD with momentum 0.9 and weight decay 5·10⁻⁴;
+  - learning rate 0.1, cosine-annealed to 0 over 100 epochs;
+  - batch 256 with random crop and flip on the GPU, fp32, CUDA graphs;
+  - no early stopping, and the **last epoch is kept**.
+
+  Le & Hua [109] identify retraining at a large learning rate as the variable that decides post-pruning accuracy. G2 replaced §330's per-family recipes once it matched the plain recipe on VGG-19 CIFAR-100, the family where an earlier four-pair check had kept the plain recipe (SPEED-EQUIVALENT over 16 pairs, §343, §348). An earlier default restored the epoch with the lowest training loss. That was epoch 1 on most pruned networks, so those rows measured "cut + 1 epoch"; they are never mixed with keep-last rows (§235, §330).
+- **Reads.** For a pruned arm:
+  - **TEST** = 100 · (TEST accuracy after recovery − the origin's TEST accuracy before recovery), in points, on the 5k TEST half;
+  - **val** = the same on the validation half;
+  - **10k** = the same on all 10,000 images;
+  - **honest** = TEST accuracy after recovery − the origin's TEST accuracy after the *same* recovery: the raw change minus the origin's own change. A stronger fine-tune also lifts the unpruned network, and honest removes that lift.
+
+  For a difference between two pruned arms (agent − rule), honest is the difference of the two arms' honest values. Each job runs its own origin control, and controls of one seed differ between jobs by up to 0.7 points (§352), so honest can differ from raw. Each result is quoted as TEST, with val, 10k and honest beside it.
+- **Seeds and pooling.** Three seeds, 42–44. An agent's evaluation seed is its training seed, and each rule runs at the same seed, so the contrasts are paired by seed. A network's value is the mean over seeds; a pool value is the mean over the nine networks. Uncertainty is a bootstrap over networks × seeds (4,000 resamples). The pooled interval is wide when one network dominates, and §5 always names that network.
+- **Realizable arms only.** A quoted arm keeps the width floor, logs no fallback cut and no masked edit, and lands within 0.01 of its target. Rows run before this rule (10 Oct) keep their calls with a scope note (§346, §352, §357).
+- **Size counting.** Parameters kept = all parameters of the rebuilt network, counted by shape, over the original's count, so masked zeros earn nothing. FLOPs kept = multiply-accumulates per 32 × 32 sample (convolutions, linear layers, normalisations and activations; pooling and additions are not counted), over the original's. When the two arms of a pair differ by more than 10 % in the other axis, the row says so.
+
+### 4.3 Networks
+
+- **Training catalog** (§3.6): ten networks from four families (ResNet, VGG, MobileNetV2, DenseNet) on CIFAR-10 and SVHN.
+- **The nine-network held-out pool.** It covers the same four families on CIFAR-10 and CIFAR-100, and two of its networks are DepGraph's own checkpoints [12]. No pool checkpoint is in the catalog. One shares its architecture with a catalog network but was trained on CIFAR-100.
+
+| Key | Network | Dataset | Note |
+|---|---|---|---|
+| thin | ResNet-56, width ×4 | CIFAR-10 | the skinny ResNet that defeated every walk agent |
+| r56c | ResNet-56 (chenyaofo) | CIFAR-10 | |
+| r56w8 | ResNet-56, width ×8 | CIFAR-10 | |
+| mbv214 | MobileNetV2 [147] ×1.4 | CIFAR-10 | |
+| dn100 | DenseNet-100 | CIFAR-10 | |
+| v16 | VGG-16-BN (chenyaofo) | CIFAR-10 | a depth unseen in the catalog |
+| c100r20w8 | ResNet-20, width ×8 | CIFAR-100 | a catalog architecture on an unseen dataset |
+| v19 | VGG-19 (DepGraph) | CIFAR-100 | DepGraph's checkpoint |
+| dgr56 | ResNet-56 (DepGraph) | CIFAR-10 | DepGraph's checkpoint; the literature anchor |
+
+- **The five lever networks.** These are the networks where the FLOPs rule beats uniform by at least +0.5 points at FLOPs 0.6 (§366): thin ResNet-56 ×4, DepGraph's ResNet-56, VGG-19 CIFAR-100, ResNet-56 ×8 and ResNet-20 ×8 CIFAR-100. On the other four the FLOPs rule lands within 0.25 of uniform at that point, so allocation barely matters there. The headroom screens and two FLOPs calls read only the five (§367–§369).
+- **Leave-one-family-out folds.**
+  - No ResNet (LOFO-R): six catalog networks, namely VGG-11 and VGG-13 on CIFAR-10, VGG-11 on SVHN, MobileNetV2 ×0.5 and ×1, and DenseNet-40.
+  - No VGG (LOFO-V): seven networks, namely four CIFAR ResNets, MobileNetV2 ×0.5 and ×1, and DenseNet-40.
+  - Each is read on held-out networks of the family it lacks (§354, §358, §363).
+- **Families no catalog holds.** ShuffleNetV2 [148] ×1 and ×1.5 and RepVGG [149] A0 and A1 on CIFAR-10 (§353); ShuffleNetV2 ×1 and RepVGG-A0 on Fashion-MNIST (§359).
+
+### 4.4 Registered calls
+
+Every cell is registered in `docs/SITTING_GPU_QUEUE.md` before any GPU time. A registration states the question, the comparators, the call and its thresholds, and what may not be claimed. §5 reports the calls exactly as they fired.
+
+| Call | Rule (TEST, mean over seeds paired by seed) | Used in |
+|---|---|---|
+| LEARNS | agent − mild ≥ +0.5 on thin ResNet-56 ×4. For the catalog agent, also agent − uniform ≥ −0.3 on DepGraph's ResNet-56. FLOPs agents use mild_F | §341, §346, §357 |
+| BEATS-PRIOR / AT-PRIOR / BELOW-PRIOR (one network) | agent − prior ≥ +0.3 / within ±0.3 / ≤ −0.3 | §341, §346, §361, §364, §365, §369 |
+| BEATS-PRIOR-P-POOL (-F-POOL) | pooled agent − prior ≥ +0.3 **and** positive on at least 6 of 9 networks | §366, §370, §371, §373, §374, §376–§378, §380 |
+| AT-PRIOR-POOL | pooled difference strictly between −0.3 and +0.3 (or ≥ +0.3 without the 6-of-9 majority) | same |
+| BELOW-PRIOR-POOL | pooled difference ≤ −0.3 | same |
+| LEARNS-MORE / SAME / LEARNS-LESS | pooled retrain − catalog agent ≥ +0.3 / within ±0.3 / ≤ −0.3 | §376, §377, §378 |
+| HEADROOM (-P) | mean over the five lever networks of (best confirmed alternative − prior) ≥ +0.3, positive on at least 3 of 5 | §367, §368, §372 |
+| LEVER-LIMITED (no call) | sensitivity − uniform < +0.5 in the cell: allocation barely matters, so an allocation policy cannot be tested there | §353, §359, §363 |
+| HOLDS / FAILS-CLEAN (realizable arms) | HOLDS: agent − uniform ≥ −0.3 on DepGraph's ResNet-56. The no-VGG fold holds only if it reaches ≥ +0.5 on VGG-19 CIFAR-100 and ≥ −0.3 on VGG-16 | §363 |
+| COST-HELPS / COST-HURTS | cost-aware − plain sensitivity ≥ +0.3 / ≤ −0.3 | §355 |
+| POOL-HELPS / NEUTRAL / HURTS | catalog-with-CIFAR-100 agent − catalog agent, ±0.3 | §356 |
+| SPEED-EQUIVALENT | \|mean change\| ≤ 0.30 at 10k, at ≥ 1.5× the speed | §336, §348 |
+
+**Proxy fidelity.** A proxy is scored by how it ranks a fixed set of real plans against the ranking from the 100-epoch recovery: Spearman's ρ on the validation half, plus the share of plan pairs whose order it gets right. The early studies (§340, §349) call a proxy VALID if its mean ρ ≥ 0.60 and its median regret (the accuracy lost by taking its top plan) is ≤ 0.5 points. A family is CEILING-BOUND when the recovery's own seed-to-seed ρ is below 0.60: then no proxy can do better, and the test is uninformative. At 35 % params (§375, §379) a proxy is P35-VALID if the mean over networks of ρ is ≥ +0.6 and it orders at least two thirds of plan pairs correctly; WEAK between +0.3 and +0.6; INVALID below +0.3.
 
 ---
 
-## 5. Evaluation results — fill from the ledger
+## 5. Results — PRELIM (every number cites its ledger section)
 
-Proposal §4 (NEON on flattened Fashion-MNIST / CIFAR / SVHN) is **motivation**, not a SPECTRA table. Do not mix those DNN-on-pixels numbers into §5.
+Proposal §4 (NEON on flattened images) is motivation, not a SPECTRA table. The walk-era results are in Appendix B.
 
-### 5.1 Similar-family transfer (C10) — LOCKED
+**How to read the tables.** A row gives a difference in points of accuracy after recovery, agent − rule unless stated. It is the mean over seeds 42–44, paired by seed; the catalog agent's first reads (§346) use seeds 42–46. **TEST** is the 5k test half, and val, 10k and honest stand beside it (§4.2). For differences between two pruned arms, honest is the difference of the arms' honest values. Each job has its own origin control, so honest can differ from raw.
 
-See ledger §3. Easy nets (VGG-19 BN [76], DenseNet-100 [4], ResNet-44 [3], MobileNet-v2×0.75 [78], thin ResNet-20 w16) stay inside τ=10 on seeds 42/43/44. Thin ResNet-56 w10 is the similar-family miss and is seed-sensitive (−9.2 / −12.4 / −13.0). Chain A argmax **20945570** (ledger §57, PRELIM `det=1`): r20-w16 **−5.1 @ 0.669/0.649** inside unmatched vs sampled s42 **−5.4 @ 0.603/0.639**; r56-w10 **−12.8 @ 0.661/0.421** **miss** vs sampled s42 **−9.2 @ 0.658/0.488** (ties mild at the same size); r44 **−4.5 @ 0.699/0.542** inside unmatched vs sampled s42 **−4.3 @ 0.632/0.519** (ties mild **−4.7 / −4.1 / −4.2 @ 0.699/0.542**); VGG-19 **−2.7 @ 0.699/0.738** inside unmatched vs sampled s42 **−2.7 @ 0.879/0.882** (same Δacc, fewer params); MobileNet **−2.4 @ 0.688/0.587** inside near-matched vs sampled s42 **−2.5 @ 0.689/0.630**; DenseNet **−2.1 @ 0.801/0.803** inside unmatched vs sampled s42 **−2.0 @ 0.847/0.849**. Do not overwrite §3. Catalog **COMPLETED**. C100 argmax **20945572 COMPLETED**: r20-w16 **−16.2** miss; RepVGG **−11.3 @ 0.685** miss (§58). Eval-only FLOP floor 0.70 on the same frozen actors (ledger §29, PRELIM): r56-w10 s42 **−5.9 @ 0.902/0.702** and s44 **−5.6 @ 0.911/0.702** inside τ at ~90% params; s43 **−14.3 @ 0.946/0.700** still misses at 95% params. DenseNet **−2.2 / −2.4 / −2.2** @ 0.837/0.833, 0.822/0.827, 0.780/0.797. Operating point, not a three-seed rescue of the similar r56-w10 miss. FLOP+prefer (ledger §33): r56-w10 **−3.8 / −4.0 / −4.4 @ 0.702/0.872** **LOCKED three-seed inside τ**; r20 **−3.8 / −3.5 / −3.8 @ 0.717/0.880**; r44 **−2.3 / −2.6 / −2.6 @ 0.702/0.872**; VGG-19 **−2.2 / −2.6 / −2.4 @ 0.837/0.923**. DenseNet **−2.0 / −1.9 / −2.7 @ 0.870/0.951** **LOCKED three-seed**. MobileNet **−1.9 / −2.0 / −2.2 @ 0.767/0.912** **LOCKED three-seed**. Prefer is the lever; FLOP-floor-only s43 was **−14.3 at 95% params**. Look-ahead greedy (ledger §34, PRELIM): r20 three-seed **−7.4 / −7.0 / −7.3 @ 0.713/0.525** inside; r56-w10 three-seed **−22.4 / −20.1 / −22.2 @ 0.702/0.376** cliff; r44 **−8.0 / −9.0 / −8.0 @ 0.703/0.391** inside τ; VGG-19 **−3.5 / −3.2 / −2.5 @ 0.703/0.669**; MobileNet three-seed **−3.2 / −3.3 / −3.0 @ 0.708/0.511** (s42 0.938→0.906) inside at 51% FLOPs vs prefer 91%; DenseNet three-seed **−2.4 / −2.6 / −2.6 @ 0.701/0.679** (s42 0.949→0.925) inside. Catalogs COMPLETED. Same-loop FLOP+prefer greedy s42 (**20715876 COMPLETED**, ledger §48, PRELIM): DenseNet **−2.1 @ 0.870/0.951** near-tie vs DRL prefer **−2.0** same size; r56 **−4.4 @ 0.702/0.872** vs DRL **−3.8** (prefer stopped the look-ahead cliff). Same-loop FLOP-floor greedy s42 (**20715868 RUNNING**, ledger §51, PRELIM): r56 **−9.2 @ 0.952/0.702** inside, size-matched to FLOP-floor look-ahead three-seed **−8.3 / −9.2 / −8.6**; unconstrained greedy was **−23.1**. Do not lock.
+A pooled value is the equal-weight mean over the nine networks. Its interval is the ledger's bootstrap over networks × seeds. The ledger states the pooled TEST value. The pooled val, 10k and honest values are means of the ledger's per-network rows **[computed]**, and every pooled TEST value and positive count reproduces the ledger's. Every row is PRELIM.
 
-**Figure TBD:** bar or table of Δacc vs params kept, three seeds.
+### 5.1 The agent learns
 
-### 5.2 Unlike-family transfer (C10) — LOCKED (n=3 seeds)
+| Agent, network, budget | Contrast | TEST | val | 10k | honest | FLOPs ratio | Call |
+|---|---|---|---|---|---|---|---|
+| Single-network agent (T0), thin ResNet-56 ×4 (its training network), params 0.6 | − mild | **+2.35** | +2.17 | +2.26 | not given | 1.58–1.72 | LEARNS (§341) |
+| | − sens | +0.11 | +0.01 | +0.06 | not given | 1.24–1.37 | not BEATS-PRIOR |
+| Catalog agent (T1), thin ResNet-56 ×4 (held out), params 0.6 | − mild | **+2.20** | +2.20 | +2.20 | +2.58 | 1.47–1.78 | LEARNS (§346) |
+| | − sens | +0.12 | +0.02 | +0.07 | +0.29 | 1.18–1.42 | BEATS-PRIOR not fired |
+| Catalog agent, DepGraph's ResNet-56 (held out), params 0.47 | − uniform | **+0.96** | +0.54 | +0.75 | +0.98 | 1.25–1.34 | LEARNS (§346) |
+| | − sens | +0.28 | +0.11 | +0.20 | +0.39 | 1.37–1.58 | |
+| Same, re-read with realizable arms | − uniform | **+1.10** | +0.79 | +0.94 | +1.18 | 1.38–1.43 | HOLDS (§363) |
 
-See ledger §4. ShuffleNet-v2 and RepVGG, never in train, all inside τ=10 on seeds 42/43/44. RepVGG-A0 is −4.8 / −4.6 / −4.8 pp at 0.681/0.565 (same size). RepVGG-A1 is −4.7 / −4.4 / −4.3 at 0.650/0.521 (same size). ShuffleNet logs a mask fallback on some layers; quote TEST Δacc, do not claim every ShuffleNet layer was structurally resized. Eval-only FLOP floor 0.70 on unlike (**LOCKED three-seed**, ledger §28): ShuffleNet×1 **−1.9 / −1.8 / −1.5**; ×1.5 **−2.0 / −2.3 / −2.8**; RepVGG-A0 **−3.9 / −4.6 / −4.6**; A1 **−4.3 / −4.2 / −4.2**. Milder operating point; default unlike was already inside τ. FLOP+prefer on the same frozen actors (**LOCKED three-seed**, ledger §30): ShuffleNet×1 **−1.5 / −1.1 / −1.5 @ 0.871/0.944**; ×1.5 **−2.1 / −2.1 / −1.9 @ 0.879/0.950**; RepVGG-A0 **−4.4 / −3.7 / −4.0 @ 0.715/0.756**; A1 **−3.5 / −3.5 / −4.1 @ 0.705/0.753**. Same size. FLOP-floor **look-ahead** three-seed (ledger §47 / §65, PRELIM): ShuffleNet×1 **−1.7 / −2.0 / −2.2 @ 0.801/0.716**; ×1.5 **−2.5 / −2.6 / −2.4 @ 0.771/0.701**; RepVGG-A0 **−6.9 / −6.6 / −7.1 @ 0.847/0.701**; A1 **−6.7 / −5.7 / −6.2 @ 0.857/0.702** — **same size**, heuristic. FLOP-floor **greedy** s42 (ledger §64, PRELIM): ShuffleNet×1 **−2.0 @ 0.801/0.716**; ×1.5 **−2.4 @ 0.771/0.701**; RepVGG-A0 **−6.7 @ 0.847/0.701**; A1 **−6.5 @ 0.857/0.702** — **same sizes as §47**; heuristic.
+The first plan agent, trained on one network, left the mild heuristic behind by more than two points (§341), where every walk agent had converged onto it (Appendix B). Trained on the ten-network catalog and applied frozen, the agent kept that margin on a held-out thin ResNet and beat the uniform rule on DepGraph's checkpoint (§346). The finding survived the re-read with floored, grid-rounded comparators (§363). In both cases the agent reached the level of the sensitivity rule, not above it.
 
-### 5.3 Held-out thin ResNets and learned vs greedy — LOCKED
+The agent keeps more FLOPs than mild or uniform at equal parameters (ratios above), so these rows are parameter-budget results, not compute claims. The held-out networks of §346 are CIFAR ResNets, a family in the catalog: this is transfer to held-out networks of a seen family.
 
-See ledger §5–6 and catalog ladder §17. Easy r20-w2: DRL ≈ greedy [18] at 60% params (s43 **−4.9 @ 0.600/0.760**; look-ahead greedy r20 **−4.0 @ 0.600/0.753**; FLOP-floor s42 **−2.1 @ 0.600/0.773**, s43 **−3.7 @ 0.600/0.763**; s44 FLOP-floor r20 **−4.0 @ 0.800/0.799**, a larger net). Chain A argmax **20945568** r20 **−4.4 @ 0.600/0.741** vs sampled **20945567 −3.9 @ 0.600/0.748** vs locked s42 **−4.2 @ 0.600/0.760**. Hard r56-w4 argmax **−25.2 @ 0.667/0.465** vs sampled **−25.4 @ 0.667/0.482** vs locked s42 **−15.9 @ 0.704/0.550** (ledger §54.5). The **policy** is the cliff at 0.667 params; locked −15.9 was a milder *sample*. Do not overwrite that LOCKED row. Hard r56-w4: C10-thin-only and encoder A/Bs stay near −24 pp; 10-net DRL **−15.9 / −16.2 / −17.2** at **identical** 0.704/0.550 (three seeds, **misses τ**). **24-net s42 (20201263) is worse: −25.0 @ 0.704/0.499.** Unmatched greedy ~−24 at 0.667. Param-floor look-ahead greedy **−24.9 @ 0.722/0.477** (job 20213131). Eval-only FLOP floor 0.70 on the **same frozen 10-net actors**: s42 **−8.9 @ 0.907/0.702**, s43 **−9.2 @ 0.926/0.703**, s44 **−9.6 @ 0.907/0.703** — all **inside τ=10**, at ~91–93% params / 70% FLOPs (**LOCKED** three seeds). Prefer-Δparams/ΔFLOPs under that FLOP floor (**LOCKED three seeds**): r56-w4 **−8.9 / −8.0 / −8.1 @ 0.704/0.872**; r20-w2 **−2.7 / −2.7 / −1.9 @ 0.600/0.886**. Similar r56-w10: DRL −13.0 vs greedy −23.1 at ~0.60 params. AMP, skinny-in-train, and budget-in-state did not move r56-w4 (ledger §18). Param floor 0.80 (no FLOP floor) still cliffs: **−21.7 / −25.7 / −22.5** at ~0.80 params / 0.54 FLOPs (ledger §24). Same-loop L2 ranking three-seed: r56-w4 **−24.1 / −21.2 / −23.4** (unmatched sizes). SVD s42 **−25.6 @ 0.667/0.482**; SVD s43 **−19.8 @ 0.593/0.475** (same size as L2 s43 −21.2). SVD s44 **−23.7 @ 0.685/0.490** (same size as L2 s44 −23.4). Keep L1 as the default ranker. FPGM ranking A/B (ledger §59, PRELIM catalog **COMPLETED**): r20-w2 **−4.8 @ 0.600/0.741** same size as L1 argmax **−4.4**; r56-w4 **−23.4 @ 0.667/0.465** vs L1 **−25.2** same size (1.8 pp milder, still a cliff). BN-scale (ledger §60, PRELIM): r20-w2 **−3.8 @ 0.600/0.741** same size as L1; r56-w4 **−27.1 @ 0.667/0.465** — **worse** than L1. Do **not** retrain the frozen actor.
+At 80 % params, reported without a call, the single-network agent is level with sensitivity (−0.13; val −0.17, 10k −0.15; §347).
 
-### 5.4 CIFAR-100 recoverability — LOCKED VGG / LOCKED tiny-cut others
+### 5.2 Equal parameters: the frozen agent against the cost-aware rule
 
-See ledger §7. **CLAIM:** C100 is not a second genericity table until a 5–10% structured cut recovers on more than VGG [76]. Probe 20204214 is complete. VGG-11 BN recipe is two-run (TEST gains at 90–95% params). Residual keep-rate 0.8 still leaves ~95–96% params. DenseNet-40 keep 0.8 left 99.0% params (TEST −0.43). MobileNet-v2×1 keep 0.8–0.9: TEST gain at ~98–99% params but **val DROP** (~−12.5 pp). Do not describe early C100 failure as “the C10 agent was not trained on C100.” That failure mode was already visible in the proposal’s NEON-on-images C100 table (very low absolute accuracy); SPECTRA’s CNN probes show the *structured* version of the same hardness.
+Once §355 showed that, at equal parameters, cost-aware sensitivity beats plain sensitivity on all three networks it was measured on, the prior became the cost-aware rule (§4.1). The frozen agent was then read against it on the nine-network pool at four depths.
 
-### 5.5 24-net catalog — LOCKED miss (r56-w4) / PRELIM similar + unlike
+**Table 5.2a — pooled (agent − cost-aware rule, params budget).** "Other eight" is the pool without ResNet-20 ×8 CIFAR-100, a diagnostic read after the calls.
 
-Jobs 20201235 / **20202693 COMPLETED** / 20204215. Question for skinny r56-w4: does 24-net move past −15.9/−16.2/−17.2? **No. 20201263 COMPLETED** 22:30: **−25.0 @ 0.704/0.499** (same params as 10-net s42, fewer FLOPs). Easy r20-w2 **−5.7 @ 0.600/0.748**. Catalog diversity 3-net→10-net was the gain; 10-net→24-net is a miss. Dedicated similar skip-train **20201260 COMPLETED** 21:08 (24-net s42): r20-w16 **−5.9 @ 0.695/0.611**; r56-w10 **−12.6 @ 0.634/0.410** miss vs 10-net s42 **−9.2 @ 0.658/0.488**; r44 **−4.5 @ 0.682/0.542**; VGG-19 **−2.8 @ 0.817/0.771**; MobileNet-v2×0.75 **−1.7 @ 0.668/0.651**; DenseNet-100 **−1.7 @ 0.835/0.831**. Skip r32. 24-net s44 (**20204215 COMPLETED** 01:09): r56-w10 **−8.6 @ 0.616/0.538** inside τ vs 10-net s44 **−13.0 @ 0.604/0.397** (not size-matched); r44 **−3.3 @ 0.693/0.576**; VGG-19 **−2.6 @ 0.752/0.801**; MobileNet **−2.2 @ 0.721/0.630**; DenseNet-100 **−2.4 @ 0.798/0.813** vs 10-net s44 **−2.1 @ 0.834/0.851**. s42/s43 r56-w10 still miss. Unlike **20201265 COMPLETED** (ledger §27): RepVGG-A0 **−4.9 @ 0.671/0.545** vs 10-net s42 **−4.8 @ 0.681/0.565**; A1 **−3.9 @ 0.662/0.552** vs 10-net **−4.7 @ 0.650/0.521**; ShuffleNet **no TEST** (grouping / finetune fail). Do not quote the job-mean −0.02 pp.
+| Kept | Agent | TEST [95 % CI] | val | 10k | honest | Positive | Call | Network that decides it | Other eight (TEST) |
+|---|---|---|---|---|---|---|---|---|---|
+| 60 % | catalog agent (T1) | **−0.01** [−0.21, +0.21] | +0.11 | +0.05 | +0.07 | 4 / 9 | AT-PRIOR-POOL (§370) | — | +0.01 |
+| 45 % | catalog agent (T1) | **+0.18** [−0.07, +0.46] | +0.13 | +0.15 | +0.24 | 6 / 9 | AT-PRIOR-POOL (§373) | — | +0.10 |
+| 35 % | catalog agent (T1) | **−0.42** [−2.06, +0.33] | −0.45 | −0.44 | −0.45 | 5 / 9 | BELOW-PRIOR-POOL (§374) | ResNet-20 ×8 CIFAR-100, −5.23 | +0.18 |
+| 25 % | deeper-trained agent (T5-deep) | **−1.60** [−5.88, +0.49] | −1.56 | −1.58 | −1.49 | 5 / 9 | BELOW-PRIOR-POOL (§380) | ResNet-20 ×8 CIFAR-100, −16.84 | +0.30 |
 
-### 5.6 Frozen 10-net → CIFAR-100 (claim C9) — LOCKED mixed
+**Table 5.2b — per network, TEST (val / 10k / honest).**
 
-See ledger §21. Same actors as §5.1–5.3, no extra agent training. VGG-16 BN [76] stays inside τ=10 (−7.5 / −7.8 / −7.3 pp at ~80–83% params). Thin ResNet-20 w16 and ResNet-56 w15 miss under Adam-40 (≈ −14 to −19 pp). RepVGG-A0 misses (≈ −11 to −13 pp). ShuffleNet-v2×1 s42 **−3.9 @ 0.833/0.823** (job 20289197); s43 **−3.4 @ 0.819/0.823** (job 20307286); s44 **−4.3 @ 0.837/0.823** (job 20307395; masked effective-params 0.815 — quote 0.837). Three-seed inside τ. Read with §5.4: under the C9 recipe, the families that recover from a structured cut are the families this frozen agent can transfer to. Chain A C100 argmax **20945572** (ledger §58, PRELIM `det=1`, catalog **COMPLETED**): r20-w16 **−16.2 @ 0.669/0.649** **miss** vs sampled s42 **−19.3 @ 0.604/0.645** (ties mild **−17.0 / −16.0 / −16.1 @ 0.669/0.649**); r56-w15 **−17.9 @ 0.689/0.499** **miss** vs sampled s42 **−15.0 @ 0.694/0.600** (ties mild **−18.2 / −16.8 / −17.7 @ 0.689/0.499**; still beats look-ahead **−34.6**); VGG-16 BN **−8.3 @ 0.769/0.771** **inside** vs sampled s42 **−7.5 @ 0.797/0.834**; ShuffleNet-v2×1 **−6.6 @ 0.726/0.718** **inside** vs sampled s42 **−3.9 @ 0.833/0.823** (quote structural keep); RepVGG-A0 **−11.3 @ 0.685/0.556** **miss** vs sampled s42 **−12.1 @ 0.571/0.446** (ties mild **−11.8 / −11.5 / −11.8 @ 0.684/0.548**). Mixed split is policy-grade. Do not overwrite §21.
+| Network | 60 % (§370) | 45 % (§373) | 35 % (§374) | 25 % (§380) |
+|---|---|---|---|---|
+| ResNet-56 ×4, C10 | −0.39 (−0.08 / −0.23 / −0.34) | −0.28 (−0.03 / −0.15 / −0.06) | −0.01 (−0.30 / −0.16 / +0.17) | +0.75 (+1.06 / +0.91 / +0.69) |
+| ResNet-56, C10 | +0.23 (+0.31 / +0.27 / +0.30) | +0.31 (+0.23 / +0.27 / +0.55) | +0.16 (+0.03 / +0.10 / +0.23) | +0.57 (+0.01 / +0.29 / +0.64) |
+| ResNet-56 ×8, C10 | −0.05 (−0.05 / −0.05 / −0.15) | +0.57 (+0.33 / +0.45 / +0.66) | +0.42 (−0.02 / +0.20 / +0.53) | −0.05 (+0.02 / −0.02 / +0.11) |
+| MobileNetV2 ×1.4, C10 | +0.04 (−0.20 / −0.08 / +0.19) | +0.31 (−0.09 / +0.11 / +0.17) | +0.67 (+0.72 / +0.69 / +0.43) | +0.93 (+0.64 / +0.78 / +1.20) |
+| DenseNet-100, C10 | −0.01 (+0.23 / +0.11 / +0.10) | −0.19 (+0.15 / −0.02 / +0.09) | +0.08 (+0.15 / +0.11 / +0.15) | +0.26 (+0.23 / +0.24 / +0.06) |
+| ResNet-20 ×8, C100 | −0.12 (+0.43 / +0.16 / +0.01) | +0.82 (+0.70 / +0.76 / +0.89) | **−5.23** (−4.89 / −5.06 / −4.93) | **−16.84** (−16.21 / −16.53 / −16.55) |
+| VGG-19, C100 (DepGraph) | +0.56 (+0.06 / +0.31 / +0.91) | +0.02 (−0.33 / −0.15 / −0.05) | −0.01 (+0.21 / +0.10 / −0.05) | +0.21 (+0.28 / +0.24 / +0.41) |
+| VGG-16-BN, C10 | −0.43 (+0.15 / −0.14 / −0.29) | −0.01 (+0.09 / +0.04 / +0.03) | +0.33 (+0.12 / +0.22 / +0.13) | −0.15 (−0.15 / −0.15 / −0.09) |
+| ResNet-56, C10 (DepGraph) | +0.11 (+0.14 / +0.13 / −0.07), at 47 % | +0.07 (+0.09 / +0.08 / −0.09) | −0.19 (−0.09 / −0.14 / −0.68) | −0.09 (+0.06 / −0.01 / +0.16) |
 
-SGD-recipe A/B (ledger §25, PRELIM three-seed): same frozen actors, 80-ep SGD+cosine+MixUp+AutoAugment. r56-w15 **−9.1 @ 0.612/0.442** / **−9.4 @ 0.672/0.450** / **−10.8 @ 0.571/0.360** — s44 misses τ at a smaller net. r20-w16: s42 **−12.2** miss, s43 **−10.1** miss, s44 **−8.8 @ 0.698/0.613** inside τ. FLOP floor 0.70 on that recipe (three-seed): r20 **−5.7 / −7.0 / −7.7** inside; r56 **−4.7 / −10.4 / −6.4** — s43 **misses at 95% params / 70% FLOPs**. FLOP+prefer (same recipe): r56 **−8.2 / −4.5 / −8.5 @ 0.703/0.872** three-seed inside τ; r20 s44 **−10.4 @ 0.716/0.879** miss. C9 Adam-40 FLOP+prefer (ledger §35, **LOCKED mixed**): three-seed VGG **−7.6 / −7.7 / −7.3 @ 0.838/0.931** inside; ShuffleNet **−3.5 / −4.1 / −4.6 @ 0.873/0.944** inside; residuals **−14.5 / −13.8 / −12.7** and **−12.0 / −11.4 / −10.5** miss; RepVGG **−13.0 / −12.5 / −13.0 @ 0.719/0.756** miss at matched sizes. Random (ledger §40, PRELIM) tracks the same split: VGG three-seed unmatched **−9.3 / −8.5 / −8.5** inside; ShuffleNet two-seed inside unmatched; residuals/RepVGG miss (s44 RepVGG **−12.6 @ 0.664/0.498**). FLOP-floor only (ledger §36, PRELIM s42/s43/s44 catalogs COMPLETED): VGG **−8.4 / −8.4 / −7.7** inside unmatched; ShuffleNet **−3.4 @ 0.881/0.858 / −3.9 / −4.0** inside unmatched (quote structural keep); RepVGG s42 **−10.2 @ 0.886/0.761** miss vs s43/s44 **−8.2 / −7.4** inside only at ~95% params; r20 **−11.8 / −12.1 / −10.6** miss unmatched; r56 **−10.4 / −11.7 / −12.0** miss unmatched. Prefer still misses RepVGG at 72%/76%. Look-ahead greedy (ledger §37, PRELIM): s42/s43/s44 catalogs COMPLETED; r20 three-seed **−18.1 / −17.3 / −17.9 @ 0.716/0.525** miss; r56 three-seed **−34.6 / −32.1 / −33.2 @ 0.701/0.357** cliff; VGG three-seed **−8.8 / −8.6 / −9.0 @ 0.701/0.672** inside; ShuffleNet three-seed **−6.2 / −6.4 / −5.9 @ 0.736/0.682** inside (quote structural keep); RepVGG three-seed **−11.4 / −11.7 / −12.1 @ 0.709/0.577** miss vs prefer **−12.5 / −13.0 @ 0.719/0.756**. Mild (ledger §38, PRELIM catalogs COMPLETED): r20 three-seed **−17.0 / −16.0 / −16.1 @ 0.669/0.649** miss; r56 three-seed **−18.2 / −16.8 / −17.7 @ 0.689/0.499** miss; VGG three-seed **−8.0 / −8.3 / −8.0 @ 0.811/0.822** inside; ShuffleNet three-seed **−4.0 / −4.4 / −4.3 @ 0.860/0.835** inside (quote structural keep); RepVGG three-seed **−11.8 / −11.5 / −11.8 @ 0.684/0.548** miss (tracks default family split). Do not overwrite §21.
+*FLOPs caption.* At equal parameters the agent often keeps more FLOPs than the rule. The largest ratios are 1.21–1.24× at 60 % and 1.30–1.46× at 45 % (both ResNet-56 ×8), 1.26–1.48× at 35 % (ResNet-56 ×8), and up to 1.55× at 25 % (DenseNet-100).
 
-C100-trained DRL actor on the same held-out residuals (ledger §31, PRELIM one seed, job **20353582**): r20-w16 **−8.3 @ 0.673/0.627**; r56-w15 **−8.4 @ 0.662/0.469**. Both inside τ. Not size-matched to §21. Do not quote the DRL train returns. s43 residual eval **20884674 COMPLETED** (ledger §56, PRELIM **sampled**, no `det=1`): r20-w16 **−16.4 @ 0.597/0.611** miss unmatched vs §31; r56-w15 **−7.5 @ 0.623/0.495** inside τ unmatched vs §31 **−8.4 @ 0.662/0.469**. Do not treat as a second seed. Do not overwrite §31. Matched-VGG residual eval s42 **20884672 COMPLETED** (ledger §61, PRELIM **sampled**): r20-w16 **−12.0 @ 0.612/0.598 miss**; r56-w15 **−10.4 @ 0.697/0.402 miss** unmatched vs §31. Both residuals miss. s44 recoverable train **20884675 COMPLETED** — do not quote train.
+**Reading.**
+- At 60 % and 45 % the frozen agent performs at the level of the best hand-designed cost-aware rule across nine held-out networks (§370, §373). It learned that allocation from its reward alone.
+- Against the cost-blind sensitivity rule, its mean advantage over the nine networks is +0.29 at 60 % (positive on six) and +0.18 at 45 % (§370, §373; reported, not calls). The registered test of going beyond the plain rule on the lever networks did not fire (+0.12, NOT-BEYOND-SENS, §370). It gains most where plain sensitivity is at or below uniform: ResNet-56, ResNet-20 ×8 CIFAR-100 and ResNet-56 ×8 (+0.52, +0.49, +0.80; §370).
+- At 35 % and 25 % one network decides the call. On ResNet-20 ×8 CIFAR-100 the agent proposes an all-or-nothing plan. At 35 % (seed 43) it keeps most groups whole (median group keep 1.00) and cuts a few to about a tenth of their width (minimum 0.09), and ends 27.4 points under the origin, against 15.3 for the rule. Both plans' accuracy right after the cut is at chance (§374), so the raw-cut reward cannot tell them apart (§5.7).
+- On the other eight networks the agent's mean edge over the rule rises with depth: +0.01, +0.10, +0.18, then +0.30 for the deeper-trained agent at 25 % (§370–§374, §380). This is a diagnostic read after the calls, not a call.
+- Allocation matters most at the deepest budget. At 25 % the cost-aware rule beats uniform by +0.88 points over the nine networks (val +1.03, 10k +0.95, honest +0.86 [computed]), by 2.1–3.4 points on three of them, and it falls below uniform on MobileNetV2 ×1.4 and ResNet-20 ×8 CIFAR-100 (§380).
 
-### 5.7 Digit-MNIST LeNet (held-out dataset) — LOCKED three seeds
+### 5.3 Equal FLOPs
 
-See ledger §22. Never in the 10-net train catalog (Fashion-MNIST was). TEST **+2.8 / +2.7 / +2.9 pp**. Toy 1-channel net, modest param cut. NEON-style cheap dataset cell, not ImageNet.
+**The road to the FLOPs agent.**
+- **A direct agent on one network** (T0-F) failed its control: −0.42 against mild_F, and −1.49 against the FLOPs rule, at FLOPs 0.6 (val −0.59 / −1.40, 10k −0.50 / −1.45, honest −0.11 / −1.55; §350). The gap lay between what the trainer scored and what the evaluation realized (§351).
+- **With the width floor in training** (T0-F2), it learned: +0.51 against mild_F (val +0.33, 10k +0.42, honest +0.83). It stayed below the floored FLOPs rule: −0.57 (val −0.25, 10k −0.41, honest −0.69; §357).
+- **One agent for both budgets** (TM) failed. Its parameter and FLOPs plans ranked the groups alike (Spearman +0.96 / +0.94 on two seeds). It sat 0.52 below the catalog agent at equal params (pooled over three networks), and 0.66 below mild_F at equal FLOPs (val −0.91, 10k −0.79, honest −0.31; §360).
+- **The catalog-trained FLOPs agents** therefore act as a residual on the FLOPs rule (§3.4):
 
-### 5.8 SVHN ResNet-20 width 8 (held-out width) — LOCKED three seeds
+| Agent (FLOPs 0.6, ResNet-56 ×4) | − floored FLOPs rule: TEST | val | 10k | honest | Call |
+|---|---|---|---|---|---|
+| residual (T2-F) | −1.89 | −1.21 | −1.55 | −2.01 | BELOW-PRIOR (§361) |
+| + per-instance advantage normalization (T3-F) | −1.54 | −1.39 | −1.47 | −1.53 | BELOW-PRIOR; BALANCE-NEUTRAL (§364) |
+| + trust region e^{±0.3} (T4-F) | **−0.47** | −0.39 | −0.43 | −0.63 | BELOW-PRIOR; BOUND-HELPS, +1.07 over T3-F (§365) |
 
-See ledger §23. SVHN [74] is in the 10-net train mix; this is a **new width**, not a held-out dataset. TEST **−2.0 / −1.5 / −2.0 pp**, all inside τ=10. Do not quote in-catalog r20-w16 or VGG-11 SVHN as transfer.
+The trust-region agent was the first catalog-trained FLOPs agent to clear the mild_F bar on a held-out network: +0.61 (val +0.19, 10k +0.40, honest +0.88; §365). It was then read on the pool.
 
-### 5.9 Frozen 10-net → ImageNet MobileNet-v2 — PRELIM one seed
+**Table 5.3 — the nine-network pool at equal FLOPs (trust-region agent − floored FLOPs rule).** The lever is the FLOPs rule minus uniform_F (TEST) at each depth.
 
-See ledger §41. Same frozen C10 actor, **no** ImageNet DRL train. Truncated-JPEG loader. s43 **20360208** TEST **−4.6 @ 0.823/0.729** (71.9% → 67.3%), inside τ=10. s42 TIMEOUT (no TEST). s44 running. Origin 71.9% is this loader’s unpruned `eval_test`, not a literature ImageNet number. Do not quote 82.8% or train-loader. Probe sentence, not a home-court SOTA claim vs DepGraph / OCS.
+| Network | Lever, 60 % | Agent − rule, 60 %: TEST (val / 10k / honest) | Lever, 45 % | Agent − rule, 45 % |
+|---|---|---|---|---|
+| ResNet-56 ×4, C10 | +1.79 | −0.47 (−0.39 / −0.43 / −0.63) | +2.37 | +0.04 (+0.15 / +0.09 / +0.01) |
+| ResNet-56, C10 (DepGraph; FLOPs 0.48 in the 60 % column) | +0.51 | −0.31 (−0.33 / −0.32 / −0.45) | +0.97 | −0.27 (+0.11 / −0.08 / −0.21) |
+| VGG-19, C100 (DepGraph) | +0.77 | −0.10 (−0.19 / −0.15 / +0.03) | +1.17 | −0.09 (+0.17 / +0.04 / +0.09) |
+| ResNet-56 ×8, C10 | +1.15 | −0.36 (−0.09 / −0.22 / −0.58) | +0.99 | −0.05 (−0.43 / −0.24 / +0.02) |
+| ResNet-20 ×8, C100 | +0.95 | −0.72 (−0.87 / −0.79 / +0.16) | +1.92 | **−1.43** (−0.23 / −0.83 / −1.46) |
+| ResNet-56, C10 | +0.05 | −0.07 (+0.17 / +0.05 / −0.27) | +0.04 | +0.01 (+0.13 / +0.07 / +0.03) |
+| MobileNetV2 ×1.4, C10 | −0.23 | +0.07 (+0.06 / +0.07 / +0.06) | −1.02 | −0.05 (+0.25 / +0.10 / −0.25) |
+| DenseNet-100, C10 | +0.01 | −0.15 (−0.13 / −0.14 / −0.15) | +0.17 | −0.15 (−0.14 / −0.15 / −0.19) |
+| VGG-16-BN, C10 | +0.04 | +0.18 (+0.25 / +0.22 / +0.16) | +0.34 | +0.09 (+0.29 / +0.19 / +0.03) |
+| **Pool** | | **−0.21** [−0.48, −0.00] (−0.17 / −0.19 / −0.19); 2 of 9; **AT-PRIOR-POOL** (§366) | | **−0.21** [−0.58, +0.03] (+0.03 / −0.09 / −0.21); 3 of 9; **AT-PRIOR-POOL** (§371) |
+
+Every pair is matched within 1 % of FLOPs.
+
+**Reading.**
+- At both depths the frozen FLOPs agent stays within the registered band of the FLOPs rule, but below it on most networks. On the five lever networks at 60 % every difference is negative, with a mean of −0.39 (§366). At 45 %, five lever networks only, the call is BELOW-PRIOR (−0.36, §369).
+- One network again weighs most: ResNet-20 ×8 CIFAR-100. Without it the other eight average −0.06 at 45 % (§371).
+- The FLOPs results are, in effect, the rule's (§371): the trust region keeps the agent near the rule by design.
+- The lever grows with depth on the lever networks, from 60 % to 45 % FLOPs. The lever-less networks stay within ±0.35 of uniform at both depths, except MobileNetV2 ×1.4 at 45 %, where uniform beats the rule by 1.02 (§366, §368, §371).
+
+**Cost-awareness depends on the budget.** On ResNet-56 ×4 at FLOPs 0.6, the cost-aware rule is *worse* than plain sensitivity: −0.33 (val −0.35, 10k −0.34, honest −0.78; COST-HURTS, §355). With both rules floored the gap is −0.48 (§361). At equal parameters it is better on all three networks measured: +0.47, +0.39 and +0.44 (§355). This asymmetry is why each budget type has its own prior.
+
+### 5.4 Is there an allocation above the priors?
+
+Three screens searched for plans above each prior on the five lever networks, with no agent involved. The alternatives were tilts of the rule (α 0.25 to 2), perturbed samples around it, plain sensitivity, and inner. Each was screened on a separate seed and confirmed on seeds 42–44.
+
+| Screen | Budget | Mean of best alternative − prior: TEST | 10k | Positive | Call |
+|---|---|---|---|---|---|
+| FLOPs 0.6 (HEAD-F) | FLOPs | −0.04 | not given | 1 of 5 | NO-HEADROOM (§367) |
+| FLOPs 0.45 (HEAD-F2) | FLOPs | +0.04 | not given | 3 of 5 | NO-HEADROOM (§368) |
+| Params 0.6 (HEAD-P) | params | +0.22 | +0.18 | 4 of 5 | NO-HEADROOM-P (§372) |
+
+- No direction tried found headroom above either prior at these budgets. That supports "the agent matches the best rule" as the honest framing at moderate budgets, and it bounds what any allocation agent could add there.
+- The parameter prior leaves more room than the FLOPs prior. The room sits on the two CIFAR-100 networks: VGG-19 +0.69 with a flatter tilt, and ResNet-20 ×8 +0.59 with inner, at 0.69–0.70× the rule's FLOPs (§372).
+- The catalog agent captures most of VGG-19's room at 60 % (+0.56 over the rule, §370) but not ResNet-20 ×8's (−0.12).
+- The screens also re-measured the proxies (§5.7).
+
+### 5.5 Transfer across families and datasets
+
+**Table 5.5 — transfer cells (params 0.6; DepGraph's ResNet-56 at 0.47).** The first seven rows use realizable arms (§363). The last three predate that rule (§353, §356, §359).
+
+| Agent (catalog) | Network (role) | Contrast | TEST | val | 10k | honest | Call |
+|---|---|---|---|---|---|---|---|
+| catalog (T1) | ResNet-56 DepGraph (held out) | − uniform | +1.10 | +0.79 | +0.94 | +1.18 | T1-R56-HOLDS (§363) |
+| no ResNet (LOFO-R, 6 networks) | ResNet-56 DepGraph (unseen family) | − uniform | **+0.95** | +0.63 | +0.79 | +1.19 | LOFO-R-R56-HOLDS (§363) |
+| | | − cost-aware rule | −0.04 | −0.01 | −0.03 | −0.06 | reported |
+| no VGG (LOFO-V, 7 networks) | VGG-19 C100 (unseen family and dataset) | − uniform | +0.65 | +1.11 | +0.88 | +0.61 | **FAILS-CLEAN** (§363), with the next row |
+| | VGG-16 C10 (unseen family) | − uniform | **−0.33** | −0.01 | −0.17 | −0.34 | |
+| catalog (T1) | VGG-19 C100 (unseen dataset) | − uniform | +0.76 | +1.13 | +0.94 | +1.34 | LEVER-LIMITED: sens − uniform +0.45 < +0.5 (§363) |
+| catalog (T1) | VGG-16 C10 (unseen depth) | − uniform | −0.35 | +0.12 | −0.12 | −0.33 | lever −0.19 (§363) |
+| catalog (T1) | RepVGG-A0 / A1, C10 (no catalog family) | − uniform | +0.23 (pooled) | — | — | — | LEVER-LIMITED: lever +0.04 (§353) |
+| catalog (T1) | RepVGG-A0, Fashion-MNIST | − uniform | −0.12 | +0.21 | +0.04 | −0.16 | LEVER-LIMITED: lever −0.27 (§359) |
+| with 8 CIFAR-100 networks (T1-C) | five contexts | − catalog agent | +0.02 (mean) | — | — | — | POOL-NEUTRAL (§356) |
+
+**Reading.**
+- **One fold holds.** Trained without any ResNet, the frozen agent beats uniform on DepGraph's ResNet-56 and lands at the cost-aware rule (§363). It does less well on the skinny ResNet-56 ×4: there it sits at uniform's level, about a point below sensitivity, inner and the catalog agent, so it did not learn to keep residual streams whole (§354).
+- **One fold fails, in a cell where allocation barely matters.** Trained without any VGG, the agent beats uniform on VGG-19 CIFAR-100 but falls 0.33 below it on VGG-16. On VGG-16 at 60 % the sensitivity rule is itself below uniform (−0.19), and the catalog agent, which saw VGGs, is −0.35 there too (§363). The registered call stands as FAILS-CLEAN.
+- **Families no catalog holds give no informative cell.** On RepVGG the sensitivity rule is level with uniform, so no allocation can show anything (§353, §359). ShuffleNetV2's stage streams can only be masked, not cut, so its rows are invalid as cuts (§353).
+- **Within the pool**, the frozen agent's parameter results (§5.2) cover:
+  - two CIFAR-100 networks, a dataset absent from the catalog;
+  - a VGG depth the catalog lacks;
+  - two of DepGraph's own checkpoints.
+
+  The four families themselves are all in the catalog.
+- **A caveat on both folds.** Each used the input standardizer fitted on the full catalog, which includes the left-out family, so that family's feature statistics shape the folds' input scaling [H]. Re-runs with fold-fitted standardizers are planned (§354, §358).
+- **Adding recoverable CIFAR-100 networks to the catalog** was neutral overall (+0.02). It helped on the added dataset: +0.61 over the catalog agent on VGG-19 CIFAR-100 (val −0.37, 10k +0.12, honest +0.40; §356; reported).
+
+### 5.6 Deep budgets and the reward
+
+Three single-change retrains of the catalog agent asked what removes the ResNet-20 ×8 CIFAR-100 failure at 35 %. Each is read against the cost-aware rule and against the catalog agent.
+
+| Retrain (one change) | − cost-aware rule: TEST [CI] (val / 10k / honest) | Positive | Call | − catalog agent: TEST (val / 10k / honest) | Call | ResNet-20 ×8 C100 vs rule |
+|---|---|---|---|---|---|---|
+| training floor 0.25 (T5-floor; rule also floored at 0.25) | −0.35 [−1.48, +0.26] (−0.41 / −0.38 / −0.31) | 4 / 9 | BELOW-PRIOR-POOL (§376) | +0.02 (+0.01 / +0.01 / +0.15) | SAME | −3.79 |
+| training range down to 25 % (T5-deep) | −0.46 [−2.06, +0.33]† (−0.44 / −0.46 / −0.41) | 5 / 9 | BELOW-PRIOR-POOL (§377) | −0.04 (+0.01 / −0.02 / +0.03) | SAME | −5.11 |
+| batch-norm reward (T5-bn) | **+0.03** [−0.38, +0.43] (−0.13 / −0.05 / +0.12) | 4 / 9 | **AT-PRIOR-POOL** (§378) | **+0.45** (+0.32 / +0.38 / +0.57), positive on 3 of 9 | **LEARNS-MORE**, carried by one network | **+1.06** (+1.09 / +1.08 / +1.27) |
+| *(catalog agent, for reference)* | −0.42 | 5 / 9 | BELOW (§374) | — | — | −5.23 |
+
+† §377 prints the same interval as §374; it may be a copy (ledger check pending).
+
+**Reading.**
+- Only the reward change removed the failure. With the batch-norm reward, ResNet-20 ×8 CIFAR-100 goes from −5.23 to +1.06 against the rule, positive on every seed, and its plans lose the all-or-nothing shape (§378).
+- The fix costs two thin ResNets: ResNet-56 ×4 −0.96 (val −1.05, 10k −1.00, honest −0.71) and ResNet-56 ×8 −0.45 against the rule. On the other eight networks it averages −0.29 against the catalog agent (§378).
+- A training floor moves the collapse to the floor: plans with minimum keep 0.25 still fail, at −3.79 (§376). A deeper training range leaves it unchanged (§377).
+- At 25 % the agent trained on the raw-cut reward fails harder on the same network: −16.84 (§380). The failure grows with depth under that reward: −5.23 and −5.11 at 35 %, then −16.84 at 25 %.
+- **Next: T6** retrains the deeper-range agent with the batch-norm reward or with the 32-step reward, three seeds each, and reads both at 35 % and 25 % (registered 14 Oct; trains running since 09:58). In parallel, the batch-norm agent is re-read at 60 % and 45 % (POOL-BN).
+
+### 5.7 Which cheap rewards rank plans like the final fine-tune?
+
+A proxy is useful as a reward only if it orders plans the way the 100-epoch recovery does. Each measurement takes a fixed set of real plans per network, scores them with the proxy on the validation half before recovery, and compares that ranking with the recovered one.
+
+| Study | Plans | Result | § |
+|---|---|---|---|
+| D-PROXY, params 0.6 | 11 per family, near the rules | The raw cut is VALID on both voting families (ρ +0.90 thin, +0.66 DepGraph's ResNet-56), so it is the reward. MobileNetV2 is CEILING-BOUND: the recovery does not rank its own plans consistently | §340 |
+| D-PROXY-2, the agent's own plans | 12 per instance | CEILING-BOUND at κ 0.6 and 0.8 (ceiling ρ +0.23 / −0.22). After recovery the agent's sampled plans are indistinguishable, so the cut reward stands | §349 |
+| D-PROXY-F, FLOPs 0.6 | the direct FLOPs agent's plan and three rules | All four proxies FLOPS-VALID: each ranks the agent's plan below the rule on all three seeds (cut ρ +0.87) | §351 |
+| D-PROXY-3, inside the headroom screens | 6–7 per lever network | FLOPs 0.6: cut +0.47, ft1 +0.01. FLOPs 0.45: bn32 +0.39 best. Params 0.6: **ft1 +0.63**, cut +0.21 | §367, §368, §372 |
+| D-PROXY-4, params 0.35 | POOL-P35's plans | ft1 **P35-VALID at the threshold** (+0.60, 55 / 71 pairs; ceiling +0.73). Cut +0.41, bn8 +0.45, bn32 +0.51, ft3 +0.41, all WEAK. On ResNet-20 ×8 C100: cut −0.84, bn8 −0.85, ft1 +0.94 | §375 |
+| D-PROXY-5, step-limited fine-tunes | as D-PROXY-4, two learning rates | None VALID. fs32 at lr 0.01 is closest (+0.58, 52 / 71; +0.43 on ResNet-20 ×8 C100) at about a quarter of ft1's cost. Every lr-0.05 arm is worse. ft1 is VALID again (+0.61) | §379 |
+
+**Reading.**
+- At equal parameters and deep budgets, the cheap rewards (the raw cut and batch-norm re-estimation) rank plans weakly, and on the network where the agent fails they rank them backwards. One epoch of fine-tuning ranks them validly.
+- Fidelity is a property of the plan set, not of the proxy alone. Among near-equivalent plans it falls toward the recovery's own ceiling (§349), as the literature reports for near-best candidates [111, 121].
+- A proxy's ranking of four fixed plans is not a sufficient test of what it teaches. The batch-norm proxy ranks ResNet-20 ×8 C100's fixed plans backwards (§375), yet training on it removed the failure (§378).
+- **Selection.** D-PROXY-4's reference ranking was the TEST-half recovery. D-PROXY-5 moved it to the validation half, so that no reward is selected on TEST (§379). The T6 rewards were chosen by Ido after D-PROXY-5's registered selection found none valid.
+
+### 5.8 The recovery recipe
+
+Every row from §341 on uses one recovery, G2 (§4.2). It replaced the per-family recipes of §330 through a sequence of registered checks:
+- **Keep the last epoch** on every final fine-tune (§330). The old default restored epoch 1 on most pruned networks.
+- **A one-shot cut** costs little against a walked one at the size point (MobileNetV2 ×0.5: −0.39 at 10k, COST-TRADE; §333).
+- **75–100 epochs** of recovery suffice (§334).
+- **Batch 256** helps two narrow families, and the gain is the step size, not the batch (§335, §338).
+- **On VGG-19 CIFAR-100**, the one family where a four-pair check had kept the plain recipe (§343), G2 is SPEED-EQUIVALENT to it over 16 pairs: mean 10k −0.08 (TEST −0.05, val −0.12, honest +0.08; §348).
+
+Under G2 the allocation lever survives on the thin ResNet: sensitivity − uniform +1.02 over five seeds (SURVIVES, §342). It is absorbed on MobileNetV2 ×0.5 (+0.29, §342). A G2 recovery takes about 3 min on thin ResNet-56 ×4, against 15–17 min for the plain recipe (§329).
+
+### 5.9 The literature anchor: DepGraph's ResNet-56 on CIFAR-10
+
+| Arm | FLOPs kept | Params kept | TEST | 10k | Recovery |
+|---|---|---|---|---|---|
+| DepGraph, as published [12] | 0.474 (their counter); 0.480 (ours, on their released model) | 0.470 (theirs); 0.508 (ours) | — | +0.24 | their sparse training and fine-tune; their epoch is picked on the test set (§346) |
+| Floored FLOPs sensitivity rule, one cut + G2 | 0.48 | 0.53–0.60 | +0.48 | +0.56 | G2 (§362) |
+| Uniform_F, one cut + G2 | 0.48 | — | −0.03 | +0.03 | G2 (§362) |
+| Frozen FLOPs agent (T4-F), one cut + G2 | 0.48 | 0.96–1.01× the rule's | the rule's −0.31 | the rule's −0.32, i.e. about +0.24 [computed] | G2 (§365) |
+| Frozen catalog agent (T1) at DepGraph's *params* point | about 0.61 | 0.47 | +0.50 | +0.51 | G2 (§346); about 1.2–1.3× DepGraph's FLOPs on our counter |
+
+- At DepGraph's FLOPs point, SPECTRA's sensitivity rule lands above DepGraph's published change, and the frozen FLOPs agent lands at about DepGraph's published change. That is with one cut and a 100-epoch recovery, where DepGraph spends 200 epochs in all (§334).
+- The rule keeps more parameters than DepGraph's model (0.53–0.60 against 0.508 on our counter), and the recipes differ. These rows therefore sit side by side and are **not a beat**.
+- OCSPruner's ResNet-56 row (§4.1; 38.82 % FLOPs) has no matched SPECTRA row yet [TBD].
+- The walk era's DepGraph row (§157) is history (Appendix B).
 
 ---
 
 ## 6. Discussion — DRAFT
 
-**NEON’s pruning strategy, CNN version.** The agent learns *where* to cut. On easy C10 nets the strongest legal cut [18] is already good, so DRL ties greedy. On skinny-deep ResNets the schedule matters, but the environment is still harsh: residual groups decide params/FLOPs, and a 0.8 rate is not a 20% size cut [3]. Catalog diversity **3-net → 10-net** moved the hard thin ResNet-56 (−24 → −15.9). **24-net did not** (ledger §17: **−25.0 @ 0.704/0.499**). Encoder width did not.
+**Why a plan, not a walk.** NEON's walk carried over to CNNs gave the agent dozens of sequential decisions per episode, each followed by a fine-tune and scored by a per-step reward that barely separated the actions (§331). The policy that maximised that signal was "keep 90 % everywhere" (§248). Making the whole allocation one action changes three things. Credit assignment becomes exact: one plan, one reward, and K plans for the same network give a baseline that removes the network's difficulty from the gradient. The fine-tune leaves the training loop, so a train takes hours instead of days (§3.7). And the budget is met by construction, so a plan can never "win" by under-spending. The first plan agent learned on its training network (§341), and the catalog-trained agent learned on held-out ones (§346), where every walk agent through v10 had been a mild or uniform clone.
 
-**Mechanism vs policy.** DepGraph [12] and SPA [81] are the right papers to thank. SPECTRA should not claim “first grouping for any CNN.” It should claim “first (in this lineage) offline preference-aware *policy* for structured CNNs,” with honest held-out splits.
+**What the agent learned: cost-awareness, where cost matters [H].** In a CIFAR ResNet each stage halves the feature map and doubles the channels, so every 3×3 convolution costs about the same FLOPs ([3], §3.3 of that paper). The same fraction of the last stage holds about 16× the parameters of the first. At equal FLOPs, then, a plain sensitivity rule is already cost-aware, and a learned allocation has little to add. At equal parameters, cost-awareness is the whole game, and it is what the frozen agent learned from its reward alone. At equal parameters it performs at the level of the cost-aware rule (§370, §373). It gains most over the cost-blind rule on exactly the networks where plain sensitivity is at or below uniform (+0.52, +0.49 and +0.80 on ResNet-56, ResNet-20 ×8 CIFAR-100 and ResNet-56 ×8; §370). The FLOPs agent sits slightly below the FLOPs rule (§366, §371). The record agrees in the other direction too: at equal FLOPs the cost-aware rule is worse than plain sensitivity, and at equal parameters it is better (§355, §361). This is a hypothesis about mechanism; the per-group plans in §370–§374 are the evidence to test it, and a figure of kept fraction by stage is planned.
 
-**Advisor 18 Aug — comparison and Pareto.** Results are compared to SOTA / similar papers as a reference, not as a home-court contest. The justification for a generic DRL agent is transfer **without** per-target agent training or adaptation. Claiming to beat a focused method on its own architecture × dataset would be mind-boggling; hope is not a claim. Maintain a NEON-style Pareto (compression vs TEST Δacc vs heuristics) in addition to the coverage matrix. ImageNet is frozen transfer from CIFAR-10 / CIFAR-100, not DRL training. Details: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Is there anything above the prior?** At 60 % and 45 % kept, searches over plan families around the priors found nothing above them by the bar, at either budget type (§367, §368, §372). The parameter prior leaves more room than the FLOPs prior, and that room sits on the two CIFAR-100 networks (§372). This is consistent with the literature: at about 50 % FLOPs on CIFAR ResNets, controlled comparisons find that sensible allocations end within 0.15–0.31 points of each other after a full fine-tune [110, 111], about one seed's spread [11]. Gains of a point or more are reported against uniform cuts, at tighter budgets, on CIFAR-100 or on compact networks. SPECTRA's own room appears in the same place. At 25 % params the cost-aware rule beats uniform by +0.88 points over the nine networks (§380), and the FLOPs rule's lever grows from 60 % to 45 % FLOPs (§368). On eight of the nine networks the agent's mean edge over the rule rises with depth: +0.01, +0.10 and +0.18 from 60 % to 35 %, then +0.30 for the deeper-trained agent at 25 % (§370–§374, §380). These are diagnostics after the calls, not calls.
 
-**Why C100 is a different chapter — and what “solve” means.** Recoverability probes have no agent. If fine-tune cannot undo a mid-layer prune, A2C cannot learn a useful C100 policy. VGG-11 BN under SGD+aug 160 ep *can*; thin C100 ResNets at keep-rate 0.8 still keep ~95% of parameters (ledger §7.2). Mixing those nets into a C10 agent is how train returns go to −100, not how dataset transfer is demonstrated. Frozen 10-net → C100 TEST (ledger §21 / argmax §58) matches that split under Adam-40: VGG-16 BN and ShuffleNet stay inside τ=10; thin ResNets and RepVGG-A0 miss. Changing the *fine-tune* (ledger §25) can move r56-w15 inside τ while r20-w16 still misses. The 3 Sep root cause is sharper than “C100 is hard”: under NEON’s `−reduction³`, a net whose every real cut busts τ has an empty reward band, so the training argmax is “never prune” (42/42 C100 steps over-budget, job **20930175**). That is **not** class count (spoof §55; ImageNet 1000-way already transfers). Prefer **solving** that band (graded overshoot reward, a fine-tune that reopens the band, admit-only-recoverable nets) over stopping at a limitation caption — but the mixed C9 split is already writeable if the solve does not land before freeze. The proposal already flagged C100 as the hardest image set for a generic pruner; the CNN experiments refined that to *family-wise recoverability plus a non-degenerate reward*, not “needs BERT.”
+**Reward fidelity is the bottleneck at depth.** The training reward is a proxy for the accuracy after the final fine-tune. Measured on real plans at equal parameters, the raw-cut reward ranks plans only weakly like the final, and on the network where the agent fails it ranks them backwards (§375). A one-epoch fine-tune ranks them validly (§375, §379), but it costs too much to train on. The FLOPs agents never failed the same way. The likely reason is the trust region, which keeps every group within e^{±0.3} of the rule's weight, so an all-or-nothing plan cannot form [H]. Their worst network is the same one (−0.72 at 60 %, −1.43 at 45 %; §366, §369). The failure on ResNet-20 ×8 CIFAR-100 grows with depth under the raw-cut reward (§374, §377, §380). Neither a training floor nor a deeper training range removes it (§376, §377). A reward that re-estimates batch-norm statistics after the cut, a small step toward recovery, removes it at 35 % at a cost on two ResNets (§378). The lesson is the one EagleEye drew for candidate selection [117]: a pruned network's accuracy before recovery is a poor guide to its accuracy after it, and a cheap recovery step restores much of the ranking. SPECTRA adds that the same holds for *training* a policy, and that the damage concentrates at tight budgets. The next train (T6) tests two recovery-aware rewards on the deep range (§7).
 
-**Catalog size is not the remaining lever in this thesis.** Diversity 3 → 10 moved the hard thin ResNet-56. 24 CIFAR cousins reversed that gain. Empty-band nets teach identity. So the paper’s 10-net agent is the right *scientific* object: it leaves ShuffleNet, RepVGG, CIFAR-100, and ImageNet as transfer evidence. A large shelf-product catalog is a different experiment (new hold-out, band screen, weeks of GPU) and does not replace those tables.
+**Transfer: what holds.** One frozen agent per budget type, with no per-target training or search, was trained on ten networks from four families (CIFAR-10 and SVHN) and applied to nine held-out networks from those families, CIFAR-100 among them. Where the literature reuses a pruning policy across networks, it stays within one family or needs a warm-start search [124–131]. Across families, the leave-one-family-out folds are mixed: trained without any ResNet, the agent holds on DepGraph's ResNet-56, though not on the skinny ResNet-56 ×4 (§354); trained without any VGG, it fails on VGG-16. There the sensitivity rule is itself below uniform, and the agent that saw VGGs is below uniform too (§363), so this cell says more about VGG-16 at 60 % than about the missing family. On RepVGG, a family no catalog holds, allocation itself barely matters: the sensitivity rule is level with uniform, so no allocation policy can show anything there (§353, §359); ShuffleNetV2 could not be cut cleanly (§353). That is a limit of the testbed, not evidence for or against transfer.
 
-**Limitations (write them):** ImageNet is a **frozen-transfer probe** (two-seed unmatched PRELIM, truncated JPEG; ledger §41), not DRL train and not a SOTA ImageNet fight; ShuffleNet grouping incomplete (mask fallback); r56-w4 misses τ=10 at the 0.70-param operating point (sampled 10-net DRL −15.9; **argmax −25.2 @ 0.667** — the policy is the cliff; **24-net DRL −25.0 @ 0.704/0.499**); FLOP-floor 0.70 enters τ at ~91–93% params / 70% FLOPs (s42 −8.9, s43 −9.2, s44 −9.6); prefer-Δparams/ΔFLOPs is a **heuristic** that puts the same net inside τ at **0.704 params / 0.872 FLOPs**; C9 Adam-40 misses on C100 thin ResNets (SGD-80 one-seed puts r56-w15 inside τ, r20 still miss); Places365 [75] and GoogLeNet [77] unused. Cheap-dataset transfer that *is* in: digit-MNIST LeNet TEST gain; SVHN r20-w8 inside τ (width held out, dataset in train). Do not quote overnight-matrix −1.2 pp or eval_train as TEST (ledger §10).
+**Recovery is part of the measurement.** A stronger fine-tune also lifts the unpruned network, so every row reports the honest change beside the raw one, and the final fine-tune keeps its last epoch rather than a checkpoint picked on data (§330). One graphed recipe, G2, serves every family. It matched the per-family recipe on the family where they had differed (mean 10k −0.08 over 16 pairs, §348), at about a fifth of the wall time (§329). Allocation differences shrink after a long fine-tune [11, 109], so a 100-epoch recovery is the conservative setting for an allocation claim.
+
+**Limitations.**
+- CIFAR-scale networks only; ImageNet is frozen-transfer coverage, not training (Gilad, 18 Aug).
+- Nine held-out networks and three seeds; pooled calls use bootstrap intervals over networks, and one network can carry a pooled result (§374, §380).
+- The agent reads the same measured sensitivity as the rules (§3.3, §4.1). It saves no measurement; what it adds is a learned rather than a designed allocation, and so far that allocation matches the best design rather than passing it.
+- Training and evaluation differ in floors, target and rounding (§3.6), and the FLOPs agents are held near the rule by design (§3.4).
+- The FLOPs agent sits below the FLOPs rule on most networks (§366).
+- The deep-budget failure is fixed at 35 % only, and only by a reward that costs two ResNets some accuracy (§378).
+- One recovery recipe. Allocation rankings may differ under much shorter recoveries.
 
 ---
 
 ## 7. Conclusions and future work — DRAFT
 
-SPECTRA shows that NEON's offline, preference-aware DRL protocol [1] extends to structured CNNs:
-one agent, trained on a catalog of CIFAR-scale networks, is applied frozen to similar and unlike
-families, to skinny widths it never saw, and to held-out datasets, under one loop that is identical
-for the agent and for every heuristic it is compared with. The grouping problem that used to look
-like part of the thesis is professionally handled by DepGraph [12] and SPA [81]; that is a gift.
-The remaining question is the one the proposal posed — whether a single preference-aware agent can
-carry a pruning *schedule* across CNN families and datasets — and §5 answers it cell by cell with
-the v3 agent's `val_best` operating points against the same-loop heuristics (fill from the ledger;
-the frozen 10-net rows stay as provenance).
+SPECTRA carries NEON's idea [1] to structured CNN pruning in a form that learns. A frozen plan-as-action agent, trained offline on ten CIFAR-scale networks, allocates parameter and FLOPs budgets on nine held-out networks across four families and two datasets. It does so with no per-target training or search, and at moderate budgets it performs at the level of the strongest same-loop rule (§5.2, §5.3). The walk-based design that preceded it could not learn, because its reward could not tell its actions apart (Appendix B). Where the plan agent falls short, the cause is measurable: a training reward that ranks plans unlike the final fine-tune at tight budgets (§5.6, §5.7).
 
-**Future work — V4 candidates, in the order we would run them if the v3 TESTs do not clear the
-win criterion (for Gilad to approve; not this freeze's GPU plan).**
+**What a submission today would claim [CLAIM, PRELIM].**
+1. A frozen allocation policy that transfers to held-out networks and datasets and matches the best hand rule at moderate budgets, under both budget types: new for CNNs, where reused pruning policies have stayed within one family [124–131].
+2. That the agent learns: it beats the uniform and mild rules where they were measured at equal parameters, where every walk agent was a clone (§341, §346, §363).
+3. A reward-fidelity account of where a learned allocation fails, and a recovery-aware reward that removes the failure at 35 % (§375, §378).
+4. A transfer map with its negative cells stated (§363).
 
-1. **Factored action head (rate × ranking) — implemented and queued (16 Sep, `offline_train_v4_factored`).**
-   Two Categorical heads — rate ∈ {1.0, 0.9, 0.8} and ranking ∈ {L1, FPGM, BN-scale, SVD,
-   Taylor} — with the joint log-probability as their sum and the ranking head inactive on
-   identity. Each head receives the full sample count, so correlated criteria stop diluting
-   credit; Taylor (first-order |w·∂L/∂w| on a training batch, bound before each cut) is the one
-   data-dependent criterion. It is the principled version of "one agent for all rankings" and
-   the natural successor of the three sibling agents of §3.3. A second copy adds a stricter
-   training band (τ_train = 6) as a curriculum. Flag-gated (`SPECTRA_FACTORED_HEAD`); the v3
-   agents are unchanged.
-2. **Merging the sibling agents at evaluation.** Two honest variants: (a) a *portfolio* — run
-   each sibling's trajectory and select the actor per network on **validation** `val_best`
-   (a light per-network adaptation; label it as such on the Pareto); (b) *distillation* — a
-   student with the factored head trained to imitate the siblings' argmax choices on the catalog,
-   then fine-tuned with PPO. Averaging the siblings' action probabilities is not one of them:
-   their action indices mean different criteria.
-3. **Train-only τ curriculum** (`SPECTRA_TRAIN_TAU`, implemented, off): a stricter band during
-   training so the band edge is reached on every catalog network, with slack and reward both
-   τ-relative so the policy transfers to the evaluation τ unchanged. To be used if two passes
-   still leave the edge rare (v2: 2.5 % of steps).
-4. **Per-layer sensitivity proxy in the state:** the validation Δacc caused by the last cut of
-   each group, so allocation can condition on observed fragility rather than on cost alone; and
-   refreshed activation moments for every layer a group edit touched.
-5. **BN-recalibration step proxy.** Score each step with BN-statistics recalibration (a forward
-   pass, no backward) and fine-tune only at labelled points; ~50× cheaper steps, thousands of
-   episodes per GPU-day. Requires a calibration table (BN-recal Δacc vs fine-tune Δacc on the
-   catalog) before it can replace the per-step signal.
-6. **Self-imitation of elite walks** (SIL / AWR) as the alternative to the elite-weights rewind,
-   with an importance-corrected buffer of high-`val_best` episodes; the honest research sentence
-   for "keep learning after the first peak" if the rewind proves too greedy.
-7. **Larger band-screened catalog** (100–150 nets across the 287-file pool, new hold-out cells of
-   the same roles), only after a peaked policy exists; the 24-net catalog is the thesis object.
-8. **Preference sweep as product knobs** (τ ∈ {5, 10, 15}; FLOP-matched labels) — NEON's Pareto
-   family, not a new architecture search. **No ImageNet DRL train** (Gilad 18 Aug); broader
-   *frozen* ImageNet transfer stays in scope as coverage.
-9. **10k companion column at paper freeze (Ido 6 Oct).** Do not change the live P recipe. Add the
-   10k / cross-fit column beside literature; caption different-FT. Ledger §2.4.
+It would not claim to beat the best rule, any focused method on its home cell, or transfer to unseen families in general (claims guard).
 
-Closed lines (do not retry as future work): encoder / BERT / AMP / skinny-in-train A/Bs
-(ledger §16–§18); finer rate rungs (audit §2.1); Taylor ranking without a cost calibration;
-warm-starts from any pre-v2 actor. Michael Bohadana's NAP2 is NAS performance prediction, not a
-SPECTRA lift.
+**Next, in order (registered or planned).**
+1. **T6, the reward on the deep range (running since 14 Oct 09:58).** T1's line trained on budgets down to 25 % with one change each: the batch-norm reward (T6-bn) or 32 SGD steps at lr 0.01 (T6-fs). Each is read frozen at 35 % and 25 % params on the nine-net pool against the cost-aware rule and against the agent trained on the raw-cut reward, three seeds. The question: does a recovery-aware reward remove the collapse at 25 % and keep the agent's edge on the other eight networks? If it does, BEATS-PRIOR at depth becomes reachable; if neither reward does, the one-epoch fine-tune reward (valid, about 4× the cost of 32 steps) is next. The batch-norm agent is also being re-read at 60 % and 45 % (POOL-BN) to check that the fix costs nothing at moderate budgets.
+2. **The Pareto figure (NEON Fig. 5 analog).** TEST change against params kept and against FLOPs kept, per network, for the agent and every rule at each depth. The FLOPs panel headlines literature-facing rows; the params panel holds the agent's home budget.
+3. **Literature rows at matched FLOPs**, with a 10k companion column and a different-recipe caption (§5.9). DepGraph's ResNet-56 CIFAR-10 is the anchor. OCSPruner and others are added only where their protocol is stated.
+4. **Coverage.** CIFAR-100 networks in the training catalog once they are recoverable at the budgets used (the T1-C fold was neutral, §356). Frozen ImageNet transfer for coverage only.
+5. **Write-up.** Lock the tables, then the thesis chapters. The walk era (Appendix B) becomes a short negative-result section.
+
+**Further work.** Conditioning on a recovered sensitivity (for example, each group's batch-norm-recalibrated loss) rather than the raw half-cut sensitivity. Cross-family catalogs with more families per fold. Budget-type conditioning in one agent (it failed once, §360). A preference sweep over budgets as NEON's product knob.
 
 ---
 
@@ -560,9 +700,60 @@ Numbers in [RESULTS_LEDGER.md](RESULTS_LEDGER.md) §§10–20. Do not promote th
 
 ---
 
+## Appendix B — From the walk agent to the plan agent (Aug–Oct 2026) — DRAFT
+
+The thesis's first agent was NEON's design moved to CNNs: an iterative walk. This appendix records what it showed and why it was replaced, so that the thesis can tell the path honestly. The old text and every walk-era row are kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md); each number there carries its ledger section.
+
+### B.1 The walk agent
+
+An episode walked a pretrained network's prunable layers, twice. At each layer the agent chose an action from a small menu of keep rates (1.0, 0.9 or 0.8 of the alive width) and, in later versions, a filter-ranking criterion (L1 [18], FPGM [145], BN-scale [106] or SVD). The environment cut the layer's whole channel group, fine-tuned the network and returned NEON's preference-aware trichotomy reward [1] on the cumulative validation change against a user budget τ = 10 points. The last walk agent, v10, replaced it with a fixed-target reward: the per-step change in validation accuracy toward a sampled target. The state was a sequence of per-layer tokens read by a small Transformer; the learner was A2C [151] and later PPO [152] with a critic. A held-out network was walked frozen, and the operating point quoted was the most compressed point whose validation change stayed inside τ.
+
+### B.2 What it showed
+
+- **Transfer inside τ, except skinny-deep ResNets.** The frozen 10-net agent kept similar and unlike CIFAR-10 families inside τ on three seeds. The skinny ResNet-56 at width 4 missed (−15.9 / −16.2 / −17.2 at 70 % params; ledger §3–§6).
+- **Catalog diversity helped once.** Going from 3 to 10 training networks moved the hard net; going to 24 reversed it (§17). Encoder capacity (frozen BERT [146], wider or set encoders) did not move it (§16).
+- **CIFAR-100 is a recoverability problem.** Under the 40-epoch recipe, VGG-16 BN and ShuffleNetV2 stayed inside τ while the thin ResNets and RepVGG-A0 missed (§21). A spoofed class count did not change that (§55). The root cause was an empty reward band: every real cut on those networks broke τ, so the reward taught "never prune" (§55).
+- **Held-out datasets.** Digit-MNIST LeNet [150] gained accuracy on three seeds (§22). SVHN ResNet-20 at a new width stayed inside τ (§23). A frozen CIFAR-10 agent on ImageNet MobileNetV2 is a two-seed probe at unmatched sizes (§41).
+- **The provenance correction (4 Sep, §54).** At evaluation the frozen policy had been sampled rather than argmaxed, with encoder dropout live. The "prefer Δparams/ΔFLOPs" arms bypassed the agent altogether, so they are deterministic heuristics and their three seeds are one run. Re-read argmax, the hard net's policy itself was the cliff (−25.2 at 66.7 % params; §54.5).
+- **The literature anchor of that era.** On DepGraph's ResNet-56 CIFAR-10 at its 2.11× FLOPs point, the walk's 10k change was −0.46 against DepGraph's +0.24 (§157, "M4"). That caption stands as history; it is not re-quoted for the plan agent.
+- **The collapse.** The last walk agent, v10, chose the mild keep-90 % action almost everywhere: its frozen policy tied the mild heuristic (§248, "FLAT"). §331 traced the cause to the reward. At least half of v10's per-step reward variance was read noise, and the action explained about 1 % of it. Over training, the share of 0.9 cuts rose from 0.38 to 0.73, while the sensitivity rule, whose input was in the state, beat mild by about four points on the same return. Every walk-based A/B run over such a uniform or collapsed policy is uninformative rather than failed (§332).
+
+### B.3 What carried over
+
+The plan agent keeps the walk era's infrastructure and its measured facts:
+- the channel-group bookkeeping and rebuild (§3.2);
+- L1 ranking inside each group [18];
+- the finding that allocation is a real lever. On thin ResNet-56 ×4, sensitivity-shaped and residual-preserving allocations beat a uniform one by about a point at equal parameters, and beat mild by about two (§227–§277, §337, §342);
+- the recovery work: keep the last epoch of every final fine-tune (§330), and a single fast recipe for every family (G2, §348).
+
+The decisive change is the unit of decision. A walk makes dozens of small, sequential, fine-tuned decisions with a near-flat reward. A plan makes one decision per network, scored on the whole plan.
+
+### B.4 Milestones of the plan agent (8–14 Oct 2026)
+
+| Date | Step | Result | § |
+|---|---|---|---|
+| 8 Oct | Why the walk agent collapsed | its step reward was at least half read noise; the action explained about 1 % of it | §331 |
+| 8 Oct | Decision: the plan-as-action agent | one decision per network, K = 8 plans, shared baseline | §332 |
+| 9 Oct | Reward and state chosen by measurement | the raw cut ranks plans validly near the rules; v10's state with the sensitivity columns can imitate the sensitivity plan | §340, §344 |
+| 9 Oct | Single-network agent (T0) | LEARNS: +2.35 against mild | §341 |
+| 9 Oct | Catalog agent (T1) | LEARNS on held-out networks | §346 |
+| 10 Oct | One recovery recipe (G2) | SPEED-EQUIVALENT on the last family | §348 |
+| 10 Oct | Priors fixed per budget type | cost-aware rule at equal params; floored FLOPs rule at equal FLOPs | §355, §357 |
+| 10 Oct | One agent for both budget types (TM) | FAILS | §360 |
+| 10–11 Oct | FLOPs residual agents | T2-F and T3-F below the rule; the trust region (T4-F) helps by +1.07 | §361, §364, §365 |
+| 11 Oct | Transfer cells re-read with realizable arms | the no-ResNet fold holds; the no-VGG fold fails | §363 |
+| 11–13 Oct | Nine-network pool | at the prior at 60 % and 45 % for both budget types; below it at 35 % params | §366, §370, §371, §373, §374 |
+| 12–13 Oct | Headroom screens | none found | §367, §368, §372 |
+| 14 Oct | Reward fidelity at 35 % params | one-epoch fine-tune valid at the threshold; cheap rewards weak | §375, §379 |
+| 14 Oct | Single-change retrains | only the batch-norm reward removes the collapse | §376, §377, §378 |
+| 14 Oct | The 25 % params point | below the prior; the collapse reaches −16.84 on one network, +0.30 on the other eight | §380 |
+| 14 Oct | T6: two recovery-aware rewards on the deep range | registered after Ido's GO; trains running since 09:58 | queue |
+
+---
+
 ## References
 
-Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[91]**.
+Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[96]** (August 2026). October 2026 scans **[97]–[152]** (`LIT_ALLOCATION_PROXIES_13OCT.md`, `LIT_SCAN_9OCT_TRANSFER_BUDGET.md`; bibliographic lines verified 14 Oct; [97], [122] and [124] have open venue checks). Venue updates confirmed on 14 Oct for arXiv-only entries [10], [21], [27], [36], [41], [42], [50], [61], [65] are pending a pass.
 
 [1] Hirsch, L., & Katz, G. (2022). Multi-objective pruning of dense neural networks using deep reinforcement learning. *Information Sciences*, 610, 381–400. https://doi.org/10.1016/j.ins.2022.07.134
 
@@ -584,7 +775,7 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[91]**.
 
 [10] Molchanov, P., Tyree, S., Karras, T., Aila, T., & Kautz, J. (2016). Pruning convolutional neural networks for resource efficient inference. arXiv:1611.06440.
 
-[11] Liu, Z., Sun, M., Zhou, T., Huang, G., & Darrell, T. (2018). Rethinking the value of network pruning. arXiv:1810.05270.
+[11] Liu, Z., Sun, M., Zhou, T., Huang, G., & Darrell, T. (2019). Rethinking the value of network pruning. *ICLR*. arXiv:1810.05270.
 
 [12] Fang, G., Ma, X., Song, M., Mi, M. B., & Wang, X. (2023). DepGraph: Towards any structural pruning. *CVPR*, 16091–16101. arXiv:2301.12900.
 
@@ -610,7 +801,7 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[91]**.
 
 [23] You, Z., Yan, K., Ye, J., Ma, M., & Wang, P. (2019). Gate decorator: Global filter pruning method for accelerating deep convolutional neural networks. *NeurIPS*, 32.
 
-[24] Lee, J., Park, S., Mo, S., Ahn, S., & Shin, J. (2020). Layer-adaptive sparsity for the magnitude-based pruning. arXiv:2010.07611.
+[24] Lee, J., Park, S., Mo, S., Ahn, S., & Shin, J. (2021). Layer-adaptive sparsity for the magnitude-based pruning. *ICLR*. arXiv:2010.07611.
 
 [25] Tang, Y., Wang, Y., Xu, Y., Deng, Y., Xu, C., Tao, D., & Xu, C. (2021). Manifold regularized dynamic network pruning. *CVPR*, 5018–5028.
 
@@ -648,7 +839,7 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[91]**.
 
 [42] Dosovitskiy, A., Beyer, L., Kolesnikov, A., Weissenborn, D., Zhai, X., Unterthiner, T., … & Houlsby, N. (2020). An image is worth 16×16 words: Transformers for image recognition at scale. arXiv:2010.11929.
 
-[43] Kuznedelev, D., Kurtic, E., Frantar, E., & Alistarh, D. (2024). CAP: Correlation-aware pruning for highly-accurate sparse vision models. *NeurIPS*, 36.
+[43] Kuznedelev, D., Kurtic, E., Frantar, E., & Alistarh, D. (2023). CAP: Correlation-aware pruning for highly-accurate sparse vision models. *NeurIPS*, 36, 28805–28831.
 
 [44] He, H., Cai, J., Liu, J., Pan, Z., Zhang, J., Tao, D., & Zhuang, B. (2024). Pruning self-attentions into convolutional layers in single path. *IEEE TPAMI*.
 
@@ -658,7 +849,7 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[91]**.
 
 [47] Kober, J., Bagnell, J. A., & Peters, J. (2013). Reinforcement learning in robotics: A survey. *IJRR*, 32(11), 1238–1274.
 
-[48] Kaiser, Ł., Babaeizadeh, M., Miłoś, P., Osiński, B., Campbell, R. H., Czechowski, K., … & Michalewski, H. (2019). Model-based reinforcement learning for Atari. *ICLR*.
+[48] Kaiser, Ł., Babaeizadeh, M., Miłoś, P., Osiński, B., Campbell, R. H., Czechowski, K., … & Michalewski, H. (2020). Model-based reinforcement learning for Atari. *ICLR*.
 
 [49] Mammeri, Z. (2019). Reinforcement learning based routing in networks: Review and classification of approaches. *IEEE Access*, 7, 55916–55950.
 
@@ -722,7 +913,7 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[91]**.
 
 [79] He, Y., Lin, J., Liu, Z., Wang, H., Li, L. J., & Han, S. (2018). AMC: AutoML for model compression and acceleration on mobile devices. *ECCV*, 784–800. arXiv:1802.03494.
 
-[80] Liu, Z., Mu, H., Zhang, X., Guo, Z., Yang, X., Cheng, K. T., & Sun, J. (2019). MetaPruning: Meta learning for automatic channel pruning. *ICCV*.
+[80] Liu, Z., Mu, H., Zhang, X., Guo, Z., Yang, X., Cheng, K. T., & Sun, J. (2019). MetaPruning: Meta learning for automatic neural network channel pruning. *ICCV*, 3295–3304.
 
 [81] Wang, X., Rachwan, J., Günnemann, S., & Charpentier, B. (2024). Structurally Prune Anything: Any architecture, any framework, any time. arXiv:2403.18955.
 
@@ -755,3 +946,115 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[91]**.
 [95] Li, X., & Xiu, X. (2025). GoPrune: Accelerated structured pruning with ℓ2,p-norm optimization. arXiv:2511.22120. https://github.com/xianchaoxiu/GoPrune
 
 [96] Liu, X., Li, M., Li, X., Qu, L., Wang, G., Peng, Z., Song, Y., Liu, Z., Jiang, L., & Li, J. (2025). Enhanced structured lasso pruning with class-wise information. arXiv:2502.09125.
+
+[97] Kool, W., van Hoof, H., & Welling, M. (2019). Buy 4 REINFORCE samples, get a baseline for free! *ICLR 2019 Workshop: Deep Reinforcement Learning Meets Structured Prediction*. https://openreview.net/forum?id=r1lgTGL5DE
+
+[98] Kwon, Y.-D., Choo, J., Kim, B., Yoon, I., Gwon, Y., & Min, S. (2020). POMO: Policy optimization with multiple optima for reinforcement learning. *NeurIPS*, 33, 21188–21198. arXiv:2010.16011.
+
+[99] Ahmadian, A., Cremer, C., Gallé, M., Fadaee, M., Kreutzer, J., Pietquin, O., Üstün, A., & Hooker, S. (2024). Back to basics: Revisiting REINFORCE-style optimization for learning from human feedback in LLMs. *ACL (Volume 1: Long Papers)*, 12248–12267. https://doi.org/10.18653/v1/2024.acl-long.662
+
+[100] Shao, Z., Wang, P., Zhu, Q., Xu, R., Song, J., Bi, X., Zhang, H., Zhang, M., Li, Y. K., Wu, Y., & Guo, D. (2024). DeepSeekMath: Pushing the limits of mathematical reasoning in open language models. arXiv:2402.03300.
+
+[101] Greensmith, E., Bartlett, P. L., & Baxter, J. (2004). Variance reduction techniques for gradient estimates in reinforcement learning. *Journal of Machine Learning Research*, 5, 1471–1530.
+
+[102] Langford, J., & Zhang, T. (2007). The epoch-greedy algorithm for multi-armed bandits with side information. *NeurIPS*, 20, 817–824.
+
+[103] Li, L., Chu, W., Langford, J., & Schapire, R. E. (2010). A contextual-bandit approach to personalized news article recommendation. *WWW*, 661–670. https://doi.org/10.1145/1772690.1772758
+
+[104] Yuan, X., Li, S., Wei, J., Zhu, C., Wu, Y., Li, Q., Lv, J., Lan, X., Chen, J., & Liu, Y. (2025). FastForward Pruning: Efficient LLM pruning via single-step reinforcement learning. arXiv:2511.18977.
+
+[105] Bai, L., Tabia, H., & Santos-Rodriguez, R. (2026). HiPP-Prune: Hierarchical preference-conditioned structured pruning for vision-language models. arXiv:2603.06270.
+
+[106] Liu, Z., Li, J., Shen, Z., Huang, G., Yan, S., & Zhang, C. (2017). Learning efficient convolutional networks through network slimming. *ICCV*, 2755–2763. https://doi.org/10.1109/ICCV.2017.298
+
+[107] Evci, U., Gale, T., Menick, J., Castro, P. S., & Elsen, E. (2020). Rigging the lottery: Making all tickets winners. *ICML*, 2943–2952. arXiv:1911.11134.
+
+[108] Li, Y., Adamczewski, K., Li, W., Gu, S., Timofte, R., & Van Gool, L. (2022). Revisiting random channel pruning for neural network compression. *CVPR*, 191–201. https://doi.org/10.1109/CVPR52688.2022.00029
+
+[109] Le, D. H., & Hua, B.-S. (2021). Network pruning that matters: A case study on retraining variants. *ICLR*. arXiv:2105.03193.
+
+[110] Wang, Y., Zhang, X., Xie, L., Zhou, J., Su, H., Zhang, B., & Hu, X. (2020). Pruning from scratch. *AAAI*, 34(07), 12273–12280. https://doi.org/10.1609/aaai.v34i07.6910
+
+[111] Lee, S., & Song, B. C. (2022). Ensemble knowledge guided sub-network search and fine-tuning for filter pruning. *ECCV*, 569–585. https://doi.org/10.1007/978-3-031-20083-0_34
+
+[112] Yu, J., & Huang, T. (2019). AutoSlim: Towards one-shot architecture search for channel numbers. arXiv:1903.11728.
+
+[113] Tiwari, R., Bamba, U., Chavan, A., & Gupta, D. K. (2021). ChipNet: Budget-aware pruning with Heaviside continuous approximations. *ICLR*. arXiv:2102.07156.
+
+[114] Shen, M., Yin, H., Molchanov, P., Mao, L., Liu, J., & Alvarez, J. M. (2022). Structural pruning via latency-saliency knapsack. *NeurIPS*, 35, 12894–12908. arXiv:2210.06659.
+
+[115] Wu, Y.-C., Liu, C.-T., Chen, B.-Y., & Chien, S.-Y. (2020). Constraint-aware importance estimation for global filter pruning under multiple resource constraints. *CVPR Workshops*, 2935–2943. https://doi.org/10.1109/CVPRW50498.2020.00351
+
+[116] Yang, T.-J., Howard, A., Chen, B., Zhang, X., Go, A., Sandler, M., Sze, V., & Adam, H. (2018). NetAdapt: Platform-aware neural network adaptation for mobile applications. *ECCV*, 289–304. https://doi.org/10.1007/978-3-030-01249-6_18
+
+[117] Li, B., Wu, B., Su, J., & Wang, G. (2020). EagleEye: Fast sub-net evaluation for efficient neural network pruning. *ECCV*, 639–654. https://doi.org/10.1007/978-3-030-58536-5_38. arXiv:2007.02491.
+
+[118] Ioffe, S., & Szegedy, C. (2015). Batch normalization: Accelerating deep network training by reducing internal covariate shift. *ICML*, 448–456.
+
+[119] Yu, J., & Huang, T. (2019). Universally slimmable networks and improved training techniques. *ICCV*, 1803–1811. https://doi.org/10.1109/ICCV.2019.00189
+
+[120] Chin, T.-W., Ding, R., Zhang, C., & Marculescu, D. (2020). Towards efficient model compression via learned global ranking. *CVPR*, 1515–1525. https://doi.org/10.1109/CVPR42600.2020.00159
+
+[121] Abdelfattah, M. S., Mehrotra, A., Dudziak, Ł., & Lane, N. D. (2021). Zero-cost proxies for lightweight NAS. *ICLR*. arXiv:2101.08134.
+
+[122] Laurent, C., Ballas, C., George, T., Ballas, N., & Vincent, P. (2020). Revisiting loss modelling for unstructured pruning. arXiv:2006.12279.
+
+[123] Zhou, D., Zhou, X., Zhang, W., Loy, C. C., Yi, S., Zhang, X., & Ouyang, W. (2020). EcoNAS: Finding proxies for economical neural architecture search. *CVPR*, 11393–11401. https://doi.org/10.1109/CVPR42600.2020.01141
+
+[124] Liu, Y., Wang, X., & Zhang, M. (2025). Meta pruning via graph metanetworks: A universal meta learning framework for network pruning. arXiv:2506.12041.
+
+[125] Yu, S., Mazaheri, A., & Jannesari, A. (2022). Topology-aware network pruning using multi-stage graph embedding and reinforcement learning. *ICML*, 25656–25667. arXiv:2102.03214.
+
+[126] Ashok, A., Rhinehart, N., Beainy, F., & Kitani, K. M. (2018). N2N learning: Network to network compression via policy gradient reinforcement learning. *ICLR*. arXiv:1709.06030.
+
+[127] Mu, J., Wang, M., Zhu, F., Yang, J., Lin, W., & Zhang, W. (2024). Boosting the convergence of reinforcement learning-based auto-pruning using historical data. *IEEE TCAD*, 43(2), 548–561. https://doi.org/10.1109/TCAD.2023.3319594
+
+[128] Venkatesan, R., Swaminathan, G., Zhou, X., & Luo, A. (2020). Out-of-the-box channel pruned networks. arXiv:2004.14584.
+
+[129] Gonzalez-Sahagun, G., Conant-Pablos, S. E., Ortiz-Bayliss, J. C., & Cruz-Duarte, J. M. (2024). A generalist reinforcement learning agent for compressing convolutional neural networks. *IEEE Access*, 12, 51100–51114. https://doi.org/10.1109/ACCESS.2024.3385857
+
+[130] Gonzalez-Sahagun, G., Conant-Pablos, S. E., Ortiz-Bayliss, J. C., & Cruz-Duarte, J. M. (2024). A generalist reinforcement learning agent for compressing multiple convolutional networks using singular value decomposition. *IEEE Access*, 12, 136131–136147. https://doi.org/10.1109/ACCESS.2024.3457863
+
+[131] Chin, T.-W., Marculescu, D., & Morcos, A. S. (2021). Width transfer: On the (in)variance of width optimization. *CVPR Workshops*, 2984–2993. https://doi.org/10.1109/CVPRW53098.2021.00334
+
+[132] Li, L., Dong, P., Tang, Z., Liu, X., Wang, Q., Luo, W., Xue, W., Liu, Q., Chu, X., & Guo, Y. (2024). Discovering sparsity allocation for layer-wise pruning of large language models. *NeurIPS*, 37, 141292–141317. https://doi.org/10.52202/079017-4487
+
+[133] Gautam, A. S., & Jha, S. (2026). RAMP: Reinforcement adaptive mixed precision quantization for efficient on device LLM inference. arXiv:2603.17891.
+
+[134] Guo, B., Chang, X., Chao, F., Zheng, X., Lin, C.-M., Chen, Y., Shang, C., & Shen, Q. (2024). ARLP: Automatic multi-agent transformer reinforcement learning pruner for one-shot neural network pruning. *Knowledge-Based Systems*, 300, 112122. https://doi.org/10.1016/j.knosys.2024.112122
+
+[135] Balemans, D., Huybrechts, T., Steckel, J., & Mercelis, S. (2025). Resource-aware neural network pruning using graph-based reinforcement learning. arXiv:2509.10526.
+
+[136] Esmat, S., Banisharif, M., & Jannesari, A. (2026). AgenticPruner: MAC-constrained neural network compression via LLM-driven strategy search. arXiv:2601.12272.
+
+[137] Liu, Y., Guo, Y., Guo, J., Jiang, L., & Chen, J. (2021). Conditional automated channel pruning for deep neural networks. *IEEE Signal Processing Letters*, 28, 1275–1279. https://doi.org/10.1109/LSP.2021.3088323
+
+[138] Sukthanker, R. S., Zela, A., Staffler, B., Dooley, S., Grabocka, J., & Hutter, F. (2025). Multi-objective differentiable neural architecture search. *ICLR*. arXiv:2402.18213.
+
+[139] Cai, H., Gan, C., Wang, T., Zhang, Z., & Han, S. (2020). Once-for-all: Train one network and specialize it for efficient deployment. *ICLR*. arXiv:1908.09791.
+
+[140] Lemaire, C., Achkar, A., & Jodoin, P.-M. (2019). Structured pruning of neural networks with budget-aware regularization. *CVPR*, 9100–9108. https://doi.org/10.1109/CVPR.2019.00932
+
+[141] Cai, R., Muralidharan, S., Heinrich, G., Yin, H., Wang, Z., Kautz, J., & Molchanov, P. (2024). Flextron: Many-in-one flexible large language model. *ICML*, 5298–5311. arXiv:2406.10260.
+
+[142] Sengupta, A., Chaudhary, S., & Chakraborty, T. (2025). You only prune once: Designing calibration-free model compression with policy learning. *ICLR*. arXiv:2501.15296.
+
+[143] Ma, Z., Cui, Y., & Qin, Y. (2025). Beyond manually designed pruning policies with second-level performance prediction: A pruning framework for LLMs. arXiv:2508.02381.
+
+[144] Chen, Y., Duan, J., Zhang, R., Liang, M., Wei, X., Pu, Y., … & Liu, X. (2026). End-to-end dynamic sparsity for resource-adaptive LLM inference. arXiv:2606.27743.
+
+[145] He, Y., Liu, P., Wang, Z., Hu, Z., & Yang, Y. (2019). Filter pruning via geometric median for deep convolutional neural networks acceleration. *CVPR*, 4335–4344. https://doi.org/10.1109/CVPR.2019.00447
+
+[146] Devlin, J., Chang, M.-W., Lee, K., & Toutanova, K. (2019). BERT: Pre-training of deep bidirectional transformers for language understanding. *NAACL-HLT*, 4171–4186. https://doi.org/10.18653/v1/N19-1423
+
+[147] Sandler, M., Howard, A., Zhu, M., Zhmoginov, A., & Chen, L.-C. (2018). MobileNetV2: Inverted residuals and linear bottlenecks. *CVPR*, 4510–4520. https://doi.org/10.1109/CVPR.2018.00474
+
+[148] Ma, N., Zhang, X., Zheng, H.-T., & Sun, J. (2018). ShuffleNet V2: Practical guidelines for efficient CNN architecture design. *ECCV*, 122–138. https://doi.org/10.1007/978-3-030-01264-9_8
+
+[149] Ding, X., Zhang, X., Ma, N., Han, J., Ding, G., & Sun, J. (2021). RepVGG: Making VGG-style ConvNets great again. *CVPR*, 13728–13737. https://doi.org/10.1109/CVPR46437.2021.01352
+
+[150] LeCun, Y., Bottou, L., Bengio, Y., & Haffner, P. (1998). Gradient-based learning applied to document recognition. *Proceedings of the IEEE*, 86(11), 2278–2324. https://doi.org/10.1109/5.726791
+
+[151] Mnih, V., Badia, A. P., Mirza, M., Graves, A., Lillicrap, T., Harley, T., Silver, D., & Kavukcuoglu, K. (2016). Asynchronous methods for deep reinforcement learning. *ICML*, 1928–1937.
+
+[152] Schulman, J., Wolski, F., Dhariwal, P., Radford, A., & Klimov, O. (2017). Proximal policy optimization algorithms. arXiv:1707.06347.
