@@ -8528,3 +8528,62 @@ Never:
 - A net dropped from the call after the read.
 
 Records: queue row P25; next §381.
+
+## 381. (POOL-BN): the bn8-reward agent at the shallower budgets — the frozen T5-bn (T1's line with the bn8 reward, §378) at params 0.6 (DepGraph R56 at 0.47) and at params 0.45, against floored, grid-rounded sens_cost and against T1, on the nine-net held-out pool (smokes **22881435–436**, cells **22881437–1678**; `tree_v20`) — PRELIM; registered calls: P_bn **+0.11** at 0.6 and **+0.15** at 0.45 → **AT-PRIOR-POOL** at both; L_bn **+0.12** and **−0.04** → **SAME** at both
+
+Registered before submit 14 Oct 09:23 (commit `f46e123`; queue row POOL-BN), under Ido's standing authority of 13 Oct ~18:00, because the GPUs were idle while T6 waited for his choice. The smokes passed the login-node gate. From 09:50 to 10:02 the pending cells were held so that T6's trains started first (`s14oct_poolbn_yield.sh`); no cell changed.
+- *Read.* 14 Oct 14:33 (`scripts/_tmp_s14oct_poolbn_read.sh`; it reproduces T1's −0.01 / +0.18 / −0.42 and T5-bn's +0.03 from the comparator rows).
+- *Checks.* All 54 cells COMPLETED; the guard resubmitted none. Every pair is matched within 1 % of params, and no arm is flagged FALLBACK. Comparators at the same seeds: POOL-P's and HYG's sens_cost and T1 rows at 0.6 (DepGraph R56 at 0.47), POOL-P45's at 0.45.
+
+**Per net at params 0.6** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of the first arm to the second):
+
+| net | T5-bn − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T5-bn − T1: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.04 (+0.20 / +0.40 / −0.48) | −0.23 | −0.10 | −0.02 | 0.96–1.07 | +0.43 (+0.68 / +0.42 / +0.18) | −0.15 | +0.14 | +0.32 | 0.94–0.99 |
+| chenyaofo ResNet-56 | +0.23 (+0.10 / +0.54 / +0.06) | +0.16 | +0.20 | +0.21 | 0.92–0.93 | +0.01 (+0.12 / +0.08 / −0.18) | −0.15 | −0.07 | −0.09 | 0.86–0.91 |
+| thin r56-w8 | +0.19 (+0.60 / +0.00 / −0.02) | −0.11 | +0.04 | +0.32 | 1.15–1.24 | +0.24 (+0.66 / +0.32 / −0.26) | −0.06 | +0.09 | +0.47 | 0.95–1.00 |
+| MobileNetV2 ×1.4 | −0.12 (−0.22 / +0.38 / −0.52) | −0.26 | −0.19 | −0.13 | 0.97–1.10 | −0.16 (+0.10 / −0.08 / −0.50) | −0.06 | −0.11 | −0.33 | 0.88–1.10 |
+| DenseNet-100 | +0.04 (−0.14 / +0.54 / −0.28) | −0.08 | −0.02 | +0.15 | 0.84–1.03 | +0.05 (−0.16 / +0.86 / −0.54) | −0.31 | −0.13 | +0.05 | 0.80–1.00 |
+| thin r20-w8 C100 | +0.00 (−0.10 / +0.98 / −0.88) | +0.69 | +0.35 | −0.15 | 0.73–1.04 | +0.12 (−0.22 / +1.18 / −0.60) | +0.26 | +0.19 | −0.17 | 0.71–1.04 |
+| VGG-19 C100 | **+0.51** (+0.36 / +0.32 / +0.84) | +0.07 | +0.29 | +0.87 | 1.00 | −0.05 (+0.10 / +0.26 / −0.52) | +0.01 | −0.02 | −0.05 | 1.00 |
+| VGG-16 C10 | −0.07 (−0.26 / +0.12 / −0.08) | +0.27 | +0.10 | −0.29 | 1.02–1.04 | +0.35 (+0.30 / +0.58 / +0.18) | +0.13 | +0.24 | +0.01 | 0.97–1.01 |
+| DepGraph R56 (0.47) | +0.17 (+0.74 / −0.10 / −0.12) | −0.02 | +0.08 | −0.04 | 0.94–1.05 | +0.06 (+0.68 / +0.08 / −0.58) | −0.16 | −0.05 | +0.03 | 0.92–1.04 |
+
+**Per net at params 0.45**:
+
+| net | T5-bn − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T5-bn − T1: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | **−0.73** (−1.08 / −0.86 / −0.26) | −0.41 | −0.57 | −0.93 | 0.87–1.03 | −0.45 (−0.56 / −0.42 / −0.38) | −0.39 | −0.42 | −0.87 | 0.81–1.01 |
+| chenyaofo ResNet-56 | +0.17 (+0.36 / −0.20 / +0.34) | +0.16 | +0.16 | +0.47 | 0.82–0.93 | −0.15 (+0.04 / −0.36 / −0.12) | −0.07 | −0.11 | −0.08 | 0.78–0.91 |
+| thin r56-w8 | +0.37 (−0.08 / +0.56 / +0.64) | −0.21 | +0.08 | +0.57 | 1.16–1.26 | −0.20 (−0.62 / −0.12 / +0.14) | −0.54 | −0.37 | −0.09 | 0.86–0.94 |
+| MobileNetV2 ×1.4 | +0.36 (+0.04 / +0.40 / +0.64) | −0.12 | +0.12 | −0.07 | 1.02–1.14 | +0.05 (+0.06 / −0.14 / +0.22) | −0.03 | +0.01 | −0.24 | 0.85–1.16 |
+| DenseNet-100 | −0.07 (+0.08 / −0.44 / +0.14) | +0.41 | +0.17 | +0.25 | 0.91–1.06 | +0.11 (+0.34 / −0.10 / +0.10) | +0.26 | +0.19 | +0.16 | 0.86–1.00 |
+| thin r20-w8 C100 | **+1.57** (+1.72 / +1.76 / +1.22) | +1.44 | +1.50 | +1.32 | 0.62–1.03 | +0.75 (+1.22 / +1.74 / −0.72) | +0.74 | +0.74 | +0.43 | 0.59–1.02 |
+| VGG-19 C100 | +0.09 (+0.58 / −0.48 / +0.16) | −0.07 | +0.01 | −0.09 | 1.00 | +0.07 (+0.18 / +0.28 / −0.26) | +0.25 | +0.16 | −0.04 | 1.00 |
+| VGG-16 C10 | −0.16 (−0.42 / −0.40 / +0.34) | −0.11 | −0.14 | −0.03 | 1.03 | −0.15 (−0.32 / −0.28 / +0.14) | −0.20 | −0.18 | −0.07 | 0.98–1.02 |
+| DepGraph R56 | −0.28 (−0.36 / −0.36 / −0.12) | +0.09 | −0.10 | −0.39 | 0.90–1.07 | −0.35 (−0.16 / −0.44 / −0.46) | −0.01 | −0.18 | −0.30 | 0.87–1.05 |
+
+**Pooled** (the registered calls are on TEST 5k; val, 10k and honest are equal-weight means of the per-net rows above, computed after the read):
+
+| depth | P_bn = T5-bn − sens_cost: 5k [95 % bootstrap] | val | 10k | honest | positive | call | L_bn = T5-bn − T1: 5k [95 % bootstrap] | val | 10k | honest | positive | call |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.6 | **+0.11** [−0.07, +0.29] | +0.05 | +0.08 | +0.10 | 7 of 9 | **AT-PRIOR-POOL** | **+0.12** [−0.08, +0.31] | −0.05 | +0.03 | +0.03 | 7 of 9 | **SAME** |
+| 0.45 | **+0.15** [−0.23, +0.60] | +0.13 | +0.14 | +0.12 | 5 of 9 | **AT-PRIOR-POOL** | **−0.04** [−0.26, +0.28] | +0.00 | −0.02 | −0.12 | 4 of 9 | **SAME** |
+
+FLOPs caption: at equal params T5-bn keeps 1.15–1.26× sens_cost's FLOPs on the thin r56-w8 at both depths, and 0.62–1.04× on r20-w8 C100. Against T1 it keeps fewer FLOPs on several nets (chenyaofo ResNet-56 0.78–0.91 at 0.45).
+
+**Depth curve** (reported, never a call): T5-bn − sens_cost +0.11 / +0.15 / +0.03 at params 0.6 / 0.45 / 0.35 (§381, §378); T1 −0.01 / +0.18 / −0.42 (§370, §373, §374). Without r20-w8 C100, T5-bn − sens_cost averages +0.12 at 0.6 and −0.03 at 0.45.
+
+Reading:
+1. **AT-PRIOR-POOL at both depths and SAME as T1 at both**, by the registered rules. The bn8 reward's collapse fix (§378) costs no pooled ground at the moderate budgets.
+2. **T5-bn sits at the params prior at every depth read so far** (0.6, 0.45, 0.35), where T1 fell below it at 0.35. This summarises three per-depth calls; it is not a pooled call.
+3. **The bn8 reward's cost on the thin ResNets persists below 0.6.** Thin r56-w4 is −0.73 at 0.45 against the rule (every seed negative), after −0.96 at 0.35 (§378) and +0.04 at 0.6. DepGraph R56 is −0.28 at 0.45 (every seed negative). Thin r56-w8 is above the rule at 0.45 (+0.37) but below T1 (−0.20).
+4. **Its gain on r20-w8 C100 holds:** +1.57 at 0.45 against the rule (every seed positive) and +0.75 against T1. At this depth the cost-aware rule is itself weak on this net (1.35 below uniform, §373).
+5. [H] The bn8 reward trades the thin ResNets for the wide CIFAR-100 ResNet at 0.45 and 0.35. T6 asks whether the trade persists on the deep range, and whether the fs32 reward avoids it.
+
+Never:
+- "T5-bn beats sens_cost" (AT-PRIOR-POOL at both depths).
+- 0.6 and 0.45 rows mixed in one contrast.
+- The depth curve as a pooled call.
+
+Records: queue row POOL-BN; next §382.
