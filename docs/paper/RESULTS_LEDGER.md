@@ -8446,3 +8446,45 @@ Never:
 - A train-log summary as a result.
 
 Records: queue row T5-P; next §379.
+
+## 379. (D-PROXY-5): does a step-limited fine-tune (fs\<S\>: S SGD steps on fixed train batches) rank plans like the 100-epoch final at params 0.35, and at which S and lr? D-PROXY-4's 108 cells re-run on `tree_v21` in two lr arms (smokes **22828428–430**, dpx5lo **22828432–2829151**, dpx5hi **22829158–2829770**) — registered selection: **none reads P35-VALID → nothing selected; T6 waits for Ido**
+
+Registered before submit 14 Oct 02:50 (commit `1f01fe6`; queue row D-PROXY-5), under Ido's GO of 13 Oct night ("You have my GO, pending D-PROXY-4's result"; §375 met it). The code is `9b537bc` (`tree_v21`). The first gate FAILED at 03:12 on a log-path bug in the gate: it compared against an empty line because it read POOL-P35's logs from tree_v21. With the registered checks unchanged, the gate re-ran PASS at 03:15. From 04:26 P25's pending cells were held so that this cell ran first; they were released at 06:12.
+- *Read.* 14 Oct 06:20 (`scripts/_tmp_s14oct_dpx5_read.sh`). Before the run, the reader reproduced §375's TEST column exactly on D-PROXY-4's cells.
+- *Checks.*
+  - All 216 cells COMPLETED.
+  - Plan identity as §375: 99 of 108 cells paired in each arm. thin keeps 5 cells, under the reader's minimum of 6, so the means are over eight nets.
+  - Minutes per proxy (median): fs4 / fs8 0.01, fs16 / fs32 0.02, fs64 0.03, ft1 0.09, bn8 0.01.
+
+**Mean Spearman ρ against the val final** (the registered target), with TEST 5k beside it, over eight nets:
+
+| proxy | lr 0.01: ρ_val (TEST) | val signs | lr 0.05: ρ_val (TEST) | val signs | r20-w8 C100 ρ_val at lr 0.01 |
+|---|---|---|---|---|---|
+| cut | +0.41 (+0.40) | 46 / 71 | +0.42 (+0.41) | 46 / 71 | −0.82 |
+| bn8 | +0.44 (+0.46) | 39 / 71 | +0.45 (+0.45) | 38 / 71 | −0.79 |
+| ft1 | **+0.61** (+0.60) | 50 / 71 | **+0.61** (+0.59) | 49 / 71 | **+0.91** |
+| fs4 | +0.45 (+0.42) | 46 / 71 | +0.44 (+0.31) | 42 / 71 | −0.84 |
+| fs8 | +0.41 (+0.41) | 46 / 71 | +0.40 (+0.33) | 42 / 71 | −0.65 |
+| fs16 | +0.41 (+0.40) | 46 / 71 | +0.34 (+0.33) | 43 / 71 | −0.41 |
+| fs32 | **+0.58** (+0.59) | **52 / 71** | +0.43 (+0.35) | 43 / 71 | **+0.43** |
+| fs64 | +0.55 (+0.56) | 46 / 71 | +0.29 (+0.26) | 42 / 71 | +0.35 |
+
+Calls (registered: P35-VALID needs ρ_val ≥ +0.6 and val signs ≥ 2/3; P35-INVALID is ρ_val < +0.3; P35-WEAK otherwise):
+- ft1 is **P35-VALID** in both arms (+0.6139 and +0.6060), replicating §375.
+- Every fs\<S\> is **P35-WEAK**, except fs64 at lr 0.05, which is **P35-INVALID** (+0.29).
+- **Selection: none.**
+
+Reading:
+1. **No step-limited fine-tune reaches the bar, and the registered rule selects nothing.** T6 waits for Ido.
+2. **fs32 at lr 0.01 comes closest.** It reads ρ_val +0.58, with signs right on 52 of 71 (73 %), so it misses only the ρ bar, by 0.02. It is positive on all eight nets.
+   - It is the first step count that ranks r20-w8 C100's plans the right way round (+0.43). Below it the trend runs from −0.84 at 4 steps to −0.41 at 16; ft1 reads +0.91.
+   - It costs about a quarter of ft1 per plan (0.02 against 0.09 min).
+3. **The higher lr hurts.** At lr 0.05 every fs\<S\> ranks worse, falling to +0.29 at 64 steps. [H] A few large steps on a heavily cut net mostly add noise.
+4. **The proxy view and the training view can disagree.** §378 found that the bn8 reward fixes r20-w8 C100's collapse in training, although bn8 ranks that net's four fixed plans backwards here (−0.79). A proxy's ranking over four fixed plans is therefore not a sufficient test of what it teaches. [H] The decision on T6 should weigh §378's training result beside this table.
+
+Never:
+- A proxy value as a result.
+- A step count or lr picked on TEST.
+- "fs32 is valid" (it is WEAK, at +0.58).
+
+Records: queue row D-PROXY-5; next §380.
