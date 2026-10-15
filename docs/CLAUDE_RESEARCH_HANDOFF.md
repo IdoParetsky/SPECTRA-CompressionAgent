@@ -380,6 +380,11 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **Reader** `scripts/_tmp_s15oct_lct7_read.sh` (args `lc`, `t7`). Run it with `ssh bgu-slurm 'bash -s lc' < file`. Its self-checks reproduce §383 (+0.19 / −0.17) and P(12k) = −0.17.
   - **The Gilad page is v20.** It has NEON's Algorithm 1 beside SPECTRA's, NEON's components marked kept / adjusted / replaced, the rules defined, and the ImageNet rows. The NEON material comes from `scratchpad/lit_neon_imagenet.md` (the literature agent, 15 Oct). The progress page "SPECTRA Since 9 October" is v6, with a Latest section.
   - **Next reads:** LC (rule), T6-fs (about 09:00 + evals), then T7-C. Each gets a ledger section from §386, a draft update, a queue stamp and a mail.
+- **15 Oct 08:10.**
+  - **§386 ENS-T6BN** (registered 04:05 `f76e8fc`; tree_v22 = the seed-ensemble decode, `c4aa1c7`). It is AT-PRIOR-POOL (−0.2837; val −0.36, 10k −0.32) and SAME as T6-bn (−0.1096). It does **not** remove the collapse on r20-w8 C100 (−3.61 against the rule on every recovery seed): every member cuts the same groups to the floor. The draft is updated (`a0bb0de`).
+  - **Re-ordering.** The ensemble ran ahead of LC-T6BN's pending cells from 04:36 (`s15oct_ens_yield.sh` holds them until no ENS cell is pending, at most 4 h). LC's DenseNet-100 cells take about 1.5 h, so LC reads early afternoon.
+  - **v23 code** (`67e66cb`, default off, not deployed): the `ft<E>` training reward and `SPECTRA_PLAN_INIT`. Built by the hard-dev agent and reviewed here, with one amendment (a NaN / inf loss is flagged in the job log). 209 tests pass on `_stage_v23`. Cost: about 1–1.4 min per training instance. A warm start plus 3,000 instances is 2–3 days per seed; 12,000 from scratch is 8–12 days, past the 7-day partition limit, so it would need a resume feature. The train design is Ido's GO.
+  - **Next reads:** T6-fs (trains about 09:00, then 54 evals), LC-T6BN, T7-C. Ledger from §387.
 
 ---
 
