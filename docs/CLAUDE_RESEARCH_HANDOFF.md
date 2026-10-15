@@ -385,6 +385,10 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **Re-ordering.** The ensemble ran ahead of LC-T6BN's pending cells from 04:36 (`s15oct_ens_yield.sh` holds them until no ENS cell is pending, at most 4 h). LC's DenseNet-100 cells take about 1.5 h, so LC reads early afternoon.
   - **v23 code** (`67e66cb`, default off, not deployed): the `ft<E>` training reward and `SPECTRA_PLAN_INIT`. Built by the hard-dev agent and reviewed here, with one amendment (a NaN / inf loss is flagged in the job log). 209 tests pass on `_stage_v23`. Cost: about 1–1.4 min per training instance. A warm start plus 3,000 instances is 2–3 days per seed; 12,000 from scratch is 8–12 days, past the 7-day partition limit, so it would need a resume feature. The train design is Ido's GO.
   - **Next reads:** T6-fs (trains about 09:00, then 54 evals), LC-T6BN, T7-C. Ledger from §387.
+- **15 Oct 10:50.**
+  - **§387 T6-fs** (the fs32 reward on the deep range): AT-PRIOR-POOL at 0.35 (+0.2356, 95 % [+0.01, +0.50], 7 of 9) and 0.25 (+0.1615); REWARD-HELPS at both. Reported T6-fs − T6-bn: +0.04 and +0.34. r20-w8 C100 at 0.25 is −0.93, with no all-or-nothing plan (s43 −4.70). The draft is updated (`196ae9c`). T6-fs is the natural params agent of record; that is Ido's call.
+  - **POOL-T6FS** registered 10:45 (`1e03ff0`) and submitted: T6-fs at 0.6 / 0.45, 54 cells behind a login-03 gate (pid 2555963), guard pid 2555965. It reads overnight behind LC-T6BN and T7-C. Reader: adapt `_tmp_s14oct_poolt6bn_read.sh`.
+  - **Pages:** Gilad v26, brief v68, progress v9. The meeting with Gilad is at 11:30.
 
 ---
 
