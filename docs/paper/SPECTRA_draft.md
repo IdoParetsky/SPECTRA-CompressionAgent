@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387 and 13:00 with §388.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388 and 15:10 with §389.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -21,7 +21,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 - Never "beats" (a rule, DepGraph, or the state of the art) unless a registered BEATS call fires. In particular, never "the agent beats the cost-aware rule" in general, at any depth, nor "beats DepGraph". The one registered BEATS call that has fired (§382: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only) is quoted only with that scope; it does not carry over to the deep-range batch-norm agent (§385). Never "the deep-range batch-norm agent beats the rule at 45 %": its +0.2956 is under the bar (§384). Never "the 32-step agent beats the rule at 35 %": its +0.2356 is under the bar, though its 95 % range lies above zero (§387).
 - Never "headroom" above a prior: every headroom screen so far found none (§367, §368, §372).
 - Never "transfers to unseen families" in general. Family transfer is claimed only fold by fold, as §363 states it. Never "the agent transfers to VGG-19 CIFAR-100" or "the no-VGG fold transfers to VGG" (§363).
-- Never "the agent conditions on the budget type" (§360). Never "advantage normalization helps" (§364). Never "a training floor or a deeper training range fixes the collapse" (§376, §377). Never "the batch-norm reward removes the collapse at 25 %": one seed still collapses there (§383). Never "a seed ensemble fixes the collapse" or "is more robust": averaging the three seeds' scores leaves it (§386).
+- Never "the agent conditions on the budget type" (§360). Never "advantage normalization helps" (§364). Never "a training floor or a deeper training range fixes the collapse" (§376, §377). Never "the batch-norm reward removes the collapse at 25 %": one seed still collapses there (§383). Never "a seed ensemble fixes the collapse" or "is more robust": averaging the three seeds' scores leaves it (§386). Never "unseen dataset" for the CIFAR-100 rows of an agent trained with CIFAR-100 in its catalog (T7-C, §389).
 - Never a proxy's value, a train-log value, a smoke, a projection, `eval_train` or an in-walk number as a result. Never say a proxy is valid unless its registered fidelity call says VALID (§375, §379). Never the 1-epoch final as a result.
 - Never mix budgets or depths in one contrast. Never drop the network that carries a result (ResNet-20 ×8 on CIFAR-100 at 35 % and 25 % params, §374, §380).
 - The walk-era DepGraph comparison (§157, "M4") keeps its caption; it is not re-quoted for the plan agent (Appendix B).
@@ -34,13 +34,13 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Equal parameters, nine held-out networks | With the raw-cut reward: at the cost-aware rule at 60 % and 45 % kept, below it at 35 % and 25 %, decided by one network (ResNet-20 ×8 CIFAR-100). With the batch-norm reward on the deep training range: **one frozen agent at the rule at all four depths read**, 60 %, 45 %, 35 % and 25 %. The 32-step reward on the same range is at the rule at 35 % and 25 % too, its 35 % range above zero, and better than batch-norm at 25 % | §370, §373, §374, §380, §383, §384, §387 |
 | Equal FLOPs, nine held-out networks | At the FLOPs rule at 60 % and 45 % kept, but below it on most networks | §366, §371 |
 | Is there an allocation above the priors? | No headroom found at moderate budgets, for either budget type | §367, §368, §372 |
-| What removes the deep-budget failure? | Only a recovery-aware (batch-norm) reward. On the deep training range it removes the failure at 35 % with no thin-ResNet cost, and at 25 % shrinks it from −16.8 to −2.4, with one seed still collapsing. Averaging the three seeds' scores does not remove that collapse. The 32-step reward shrinks it to −0.9, with no all-or-nothing plan | §376, §377, §378, §381, §383, §386, §387 |
+| What removes the deep-budget failure? | Only a recovery-aware (batch-norm) reward. On the deep training range it removes the failure at 35 % with no thin-ResNet cost, and at 25 % shrinks it from −16.8 to −2.4, with one seed still collapsing. Averaging the three seeds' scores does not remove that collapse. The 32-step reward shrinks it to −0.9, with no all-or-nothing plan. CIFAR-100 networks in the training catalog remove it at 25 % (+2.09; CATALOG-HELPS) | §376, §377, §378, §381, §383, §386, §387, §389 |
 | Which cheap reward is faithful? | One epoch of fine-tuning is valid at the threshold; the raw cut and batch-norm re-estimation are weak at 35 % params | §375, §379 |
 | Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
 | Against the literature (DepGraph's ResNet-56) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. The recipes differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382 |
 | Has a registered beat fired? | Once, narrowly: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only. Val and 10k do not carry it, and the deep-range agent is at the rule there | §382, §385 |
 | Does training longer help? | Not on this catalog: T6-bn's edge on the other eight is flat on val from 3,000 to 12,000 instances, and the collapse on ResNet-20 ×8 CIFAR-100 appears only from 6,000 | §388 |
-| Running | T7-C (the batch-norm line with CIFAR-100 networks in the catalog), reading 15 Oct afternoon; T6-fs at 60 % and 45 % (POOL-T6FS), overnight | queue |
+| Running | T6-fs at 60 % and 45 % (POOL-T6FS), overnight | queue |
 
 ---
 
@@ -296,6 +296,7 @@ No held-out network is in the catalog (§4.3).
 | Batch-norm reward (T5-bn) | params | `bn8` reward | §378, §381, §382 |
 | Deeper range + batch-norm reward (T6-bn) | params | κ ∈ [0.25, 0.85] and `bn8` | §383, §384, §385 |
 | Deeper range + 32-step reward (T6-fs) | params | κ ∈ [0.25, 0.85] and `fs32` (20 h per train) | §387 |
+| Deeper range + batch-norm reward, 18-network catalog with CIFAR-100 (T7-C) | params | T6-bn's line on the catalog of §356 | §389 |
 | Deeper range + 32-step reward (T6-fs) | params | κ ∈ [0.25, 0.85] and `fs32` | running |
 | With CIFAR-100 networks (T1-C) | params | catalog plus 8 recoverable CIFAR-100 networks | §356 |
 | No ResNet / no VGG (LOFO-R / LOFO-V) | params | catalog without that family (6 / 7 networks) | §354, §358, §363 |
@@ -623,7 +624,7 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 - A training floor moves the collapse to the floor: plans with minimum keep 0.25 still fail, at −3.79 (§376). A deeper training range leaves it unchanged (§377).
 - **More instances do not help, and the collapse is learned with training** (§388). T6-bn's snapshots at 3,000, 6,000 and 9,000 instances, read beside its 12,000-instance policy, leave the other eight flat on val (+0.13, +0.13, +0.14, +0.09). The registered rule (a rise of +0.10 from 6k to 12k on TEST and val) does not fire: −0.12 and −0.04. On ResNet-20 ×8 CIFAR-100 the 3,000-instance snapshot does not collapse (+0.15, median keeps 0.69–0.75). From 6,000 instances seed 42 does (−14.86, −19.58, −7.56). [H] Longer training on a CIFAR-10-heavy catalog teaches the habit that fails on CIFAR-100, so the catalog, not the length, is the lever.
 - At 25 % the agent trained on the raw-cut reward fails harder on the same network: −16.84 (§380). The failure grows with depth under that reward: −5.23 and −5.11 at 35 %, then −16.84 at 25 %.
-- **Next.** T7-C, the batch-norm line with CIFAR-100 networks in the catalog, asks whether seeing the dataset in training removes what is left of the collapse. The choice of the params agent of record, between T6-bn and T6-fs (below), is Ido's.
+- **Next.** The choice of the params agent of record, among T6-bn, T6-fs and T7-C (below), is Ido's.
 
 **The 32-step reward on the deep training range** (T6-fs: the same line with `fs32`, which ranks plans closer to the final, ρ 0.58 against bn8's 0.44 in §379; §387). Read at 35 % and 25 %:
 
@@ -636,6 +637,18 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 - **At 25 % the 32-step reward gives the better agent:** +0.16 against the rule, where the batch-norm reward reads −0.17 (a reported +0.34). On the other eight networks it is +0.30, against +0.11.
 - **The collapse on ResNet-20 ×8 CIFAR-100 shrinks again,** to −0.93 at 25 % (from −2.41 and −16.84). No seed writes the all-or-nothing plan. The batch-norm agent's collapsing seed reads +3.40, but another seed is still −4.70, with a plan that cuts some groups to the floor (§387).
 - [H] Of the two rewards trained in parallel, the one that ranks plans more like the final gives the better agent at the tightest budget, as the fidelity account (§5.7) predicts. T6-fs is not yet read at 60 % and 45 %.
+
+**CIFAR-100 networks in the training catalog** (T7-C: T6-bn's line on the 18-network catalog of §356, T1's ten plus eight CIFAR-100 networks; §389). CIFAR-100 is now a seen dataset, so the two CIFAR-100 pool networks are held-out instances of it:
+
+| Kept | − cost-aware rule: TEST [CI] (val / 10k / honest) | Positive | Call | − T6-bn (the same line without CIFAR-100): TEST [CI] | Call | CIFAR-100 pair / CIFAR-10 seven, against T6-bn | ResNet-20 ×8 C100 vs rule |
+|---|---|---|---|---|---|---|---|
+| 35 % | **+0.2778** [−0.06, +0.70] (+0.11 / +0.19 / +0.32) | 6 / 9 | AT-PRIOR-POOL (§389) | +0.08 [−0.20, +0.49] | SAME | +0.67 / −0.08 | +1.57 |
+| 25 % | **+0.3422** [−0.12, +1.09] (+0.32 / +0.33 / +0.50) | 5 / 9 | AT-PRIOR-POOL (§389) | +0.52 [−0.24, +2.03] | CATALOG-HELPS | +2.13 / +0.06 | +2.09 |
+
+- **Seeing CIFAR-100 in training removes the collapse at 25 %:** ResNet-20 ×8 CIFAR-100 reads +2.09 against the rule, against −2.41 without CIFAR-100 and −0.93 with the 32-step reward. No seed writes the all-or-nothing plan; one seed is still −1.78 (§389).
+- The seven CIFAR-10 networks do not move (+0.06 at 25 %, −0.08 at 35 %). The small cost is on VGG-19 CIFAR-100 (−0.17 against the rule at 25 %).
+- **Two near-misses of BEATS-PRIOR-P-POOL, on different conditions.** At 35 % the pooled +0.2778 is under the +0.3 bar, with 6 of 9 positive. At 25 % the pooled +0.3422 is above the bar on TEST, val and 10k, but only 5 of 9 networks are positive where six are required. Both calls are AT-PRIOR-POOL.
+- [H] The reward lever (T6-fs) and the catalog lever (T7-C) each help at 25 %, through different networks. Their combination is the first rung of the catalog scale-up.
 
 ### 5.7 Which cheap rewards rank plans like the final fine-tune?
 
@@ -745,7 +758,7 @@ It would not claim to beat the best rule, any focused method on its home cell, o
 1. **The params agent of record.** T6-bn is at the prior at all four depths read (§383, §384). T6-fs (32 SGD steps, the cheap reward closest to the one-epoch fine-tune) is at the prior at 35 % and 25 % and better than T6-bn at 25 % (§387); it is not yet read at 60 % and 45 %. The params agent of record is chosen between them; that is Ido's decision. If the last seed's collapse at 25 % persists under fs32 too, the one-epoch fine-tune reward (valid; built in v23, default off; about 1–1.4 min per training instance) is next. A seed ensemble does not remove it (§386); T7-C tests the catalog lever.
 2. **The Pareto figure (NEON Fig. 5 analog).** TEST change against params kept and against FLOPs kept, per network, for the agent and every rule at each depth. The FLOPs panel headlines literature-facing rows; the params panel holds the agent's home budget.
 3. **Literature rows at matched FLOPs**, with a 10k companion column, the honest column and a different-recipe caption (§5.9). DepGraph's 2.11× and 2.57× points and OCSPruner's row are in (§362, §365, §382). Add others only where their protocol is stated.
-4. **Coverage.** CIFAR-100 networks in the training catalog once they are recoverable at the budgets used (the T1-C fold was neutral, §356). Frozen ImageNet transfer for coverage only.
+4. **Coverage.** CIFAR-100 networks in the training catalog: neutral on T1's line (§356), and CATALOG-HELPS at 25 % on the deep-range batch-norm line (§389). The catalog scale-up with held-out splits follows (`docs/CATALOG_SCALE_PLAN.md`). Frozen ImageNet transfer for coverage.
 5. **Write-up.** Lock the tables, then the thesis chapters. The walk era (Appendix B) becomes a short negative-result section.
 
 **Further work.** Conditioning on a recovered sensitivity (for example, each group's batch-norm-recalibrated loss) rather than the raw half-cut sensitivity. Cross-family catalogs with more families per fold. Budget-type conditioning in one agent (it failed once, §360). A preference sweep over budgets as NEON's product knob.
