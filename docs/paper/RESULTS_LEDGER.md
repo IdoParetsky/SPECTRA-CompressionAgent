@@ -8900,3 +8900,47 @@ Never:
 - 0.35 and 0.25 rows mixed in one contrast.
 
 Records: queue row T6; next §388.
+
+## 388. (LC-T6BN): T6-bn's learning curve — its saved snapshots at 3,000, 6,000 and 9,000 training instances read at params 0.25 beside its final 12,000-instance policy (§383), against floored, grid-rounded sens_cost, on the nine-net held-out pool (smoke **22983184**, cells within **22983205–22983331**; `tree_v21`) — PRELIM; registered rule: the other eight move **−0.1233** on TEST and **−0.04** on val from 6k to 12k (bar: a rise of ≥ +0.10 on both) → **the instance count is not the bottleneck on this line**; reported: r20-w8 C100 does not collapse at 3k (+0.15) and does from 6k on
+
+Registered before submit 15 Oct 03:00 (commit `c7c0451`; queue row LC-T6BN), eval-only under Ido's 13 Oct standing authority and his 15 Oct ~02:15 ask for a performance-first training setting. The gate passed at 03:14 (the smoke landed at 0.247, no fallback). Seven cells started before their hold took effect and stand under the PASS. From 04:36 the 59 cells still pending were held so that ENS-T6BN ran first (§386); they were released at 06:36.
+- *Read.* 15 Oct 12:56 (`scripts/_tmp_s15oct_lct7_read.sh lc`). Its self-check reproduces §383: P(12k) = −0.17, the same bootstrap range and the same positive count.
+- *Checks.* All 81 cells COMPLETED.
+
+**Per net, T6-bn(n) − sens_cost at params 0.25** (TEST 5k, mean over seeds 42–44, paired by seed; for r20-w8 C100 the per-seed values are given):
+
+| net | 3k | 6k | 9k | 12k (§383) |
+|---|---|---|---|---|
+| thin r56-w4 | +0.78 | +0.77 | +0.88 | +0.37 |
+| chenyaofo ResNet-56 | +0.18 | +0.41 | +0.43 | +0.12 |
+| thin r56-w8 | −0.29 | +0.05 | −0.03 | −0.24 |
+| MobileNetV2 ×1.4 | +0.83 | +0.87 | +0.79 | +0.57 |
+| DenseNet-100 | +0.43 | +0.24 | +0.36 | +0.41 |
+| **thin r20-w8 C100** | +0.15 (+0.66 / +0.34 / −0.54) | −5.08 (−14.86 / +0.74 / −1.12) | −3.89 (−19.58 / +3.16 / +4.76) | −2.41 (−7.56 / −1.02 / +1.34) |
+| VGG-19 C100 | −0.71 | +0.05 | +0.23 | +0.07 |
+| VGG-16 C10 | −0.42 | −0.16 | −0.25 | −0.29 |
+| DepGraph R56 | −0.07 | −0.39 | −0.07 | −0.17 |
+
+**Pooled.** Exact means of whole-image differences are given to four places; val, 10k and honest are equal-weight means of the per-net rows. "Other eight" leaves out r20-w8 C100.
+
+| instances | P = T6-bn(n) − sens_cost: 5k [95 % bootstrap] | val | 10k | honest | positive | other eight: 5k / val |
+|---|---|---|---|---|---|---|
+| 3,000 | **+0.0985** [−0.25, +0.45] | +0.09 | +0.10 | +0.08 | 5 of 9 | +0.0917 / +0.13 |
+| 6,000 | **−0.3607** [−2.18, +0.45] | −0.43 | −0.40 | −0.20 | 6 of 9 | +0.2292 / +0.12 |
+| 9,000 | **−0.1741** [−2.39, +0.90] | −0.31 | −0.24 | −0.07 | 5 of 9 | +0.2900 / +0.14 |
+| 12,000 | **−0.1741** [−1.11, +0.32] | −0.10 | −0.14 | −0.10 | 5 of 9 | +0.1058 / +0.09 |
+
+**r20-w8 C100's plans** (keep min / median): 3k s42 0.09 / 0.72, s43 0.16 / 0.69, s44 0.09 / 0.75; 6k s42 0.09 / 0.91, s43 0.09 / 0.56, s44 0.09 / 0.66; 9k s42 0.09 / 0.91, s43 0.16 / 0.62, s44 0.12 / 0.50; 12k s42 0.09 / 1.00, s43 0.09 / 0.78, s44 0.16 / 0.66.
+
+Reading:
+1. **By the registered rule, more instances do not help this line.** The other eight move −0.1233 on TEST and −0.04 on val from 6k to 12k. On val the curve is flat, from +0.13 at 3k to +0.09 at 12k. On TEST it rises to +0.29 at 9k and falls back at 12k; val does not follow that, so it is not read as a peak.
+2. **The collapse on r20-w8 C100 is learned with more training.** At 3k the hard network is +0.15 against the rule, every seed's median keep is 0.69–0.75, and the pooled P is +0.10. From 6k seed 42 collapses (−14.86 at 6k, −19.58 at 9k, −7.56 at 12k), and the pooled P falls to −0.36, −0.17 and −0.17. [H] Longer training on this CIFAR-10-heavy catalog moves the agent toward the cut-the-last-stage habit that fails on CIFAR-100. That fits §386 (the failure is systematic) and argues for the catalog (T7-C; the scale-up plan), not the length.
+3. VGG-19 C100, the other CIFAR-100 network, goes the other way: −0.71 at 3k, then +0.05, +0.23 and +0.07.
+4. No snapshot is chosen here. LC-T6BN reads a curve and fixes nothing, by its registration. A snapshot chosen on validation networks is a design for the big-catalog trains (`docs/CATALOG_SCALE_PLAN.md` §4), registered there.
+
+Never:
+- "More instances hurt": the val curve is flat.
+- A snapshot picked on this TEST read.
+- The 3k snapshot quoted as an agent of record.
+
+Records: queue row LC-T6BN; next §389.
