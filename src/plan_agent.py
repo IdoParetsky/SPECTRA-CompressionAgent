@@ -824,7 +824,13 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     same global RNG state and the prior is that comparator's rule); ``info`` then carries ``residual`` and a
     ``prior`` entry with the rule's own plan and the agent's distance from it. Under the trust region (``residual_zmax``
     in the blob, or ``SPECTRA_PLAN_RESIDUAL_ZMAX``, above 0) the decode is bounded by it, and ``prior`` adds ``zmax``
-    so the grid rounding ranks the groups by the scores decoded (``alloc_walk.grid_priority``)."""
+    so the grid rounding ranks the groups by the scores decoded (``alloc_walk.grid_priority``).
+
+    v22 (ENS, default off): ``policy_path`` may list several checkpoints, comma-separated (``ensemble_paths``). The
+    agent is then one frozen policy, the mean of their scores mu = (1/n) sum_i mu_i, decoded once. Every member must
+    agree with the first on ``ENSEMBLE_KEYS``. The global RNG is put back after the extra modules are built, so the
+    recovery downstream draws as it does with one checkpoint. ``info`` then carries ``ensemble`` (n, and the members'
+    spread: the mean over groups of their scores' standard deviation). One path is decoded exactly as before."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
     from src import fortify, group_sensitivity, state_dump
     from src.BERTInputModeler import action_cost_slot_dim
@@ -835,12 +841,24 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     if budget not in BUDGETS:
         raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
     device = env.conf.device
-    blob = read_blob(policy_path)
+    paths = ensemble_paths(policy_path)
+    blob = read_blob(paths[0])
+    members = [read_blob(p) for p in paths[1:]]
+    for p, other in zip(paths[1:], members):
+        for key in ENSEMBLE_KEYS:
+            if other.get(key) != blob.get(key):
+                raise ValueError(f"plan-agent ensemble: {p} differs from {paths[0]} in {key} "
+                                 f"({other.get(key)!r} against {blob.get(key)!r})")
     residual, alpha, zmax = eval_residual(blob)
     batches = None
     if residual != "off":
         batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, device)
     policy = policy_of(blob, device)
+    others = []
+    if members:  # building more modules moves the global RNG that the recovery draws from later: put it back
+        rng = torch.get_rng_state()
+        others = [policy_of(b, device) for b in members]
+        torch.set_rng_state(rng)
     trained, here = blob.get("standardizer") or "", resolve_standardizer_path() or ""
     if trained and os.path.abspath(trained) != os.path.abspath(here):
         utils.print_flush(f"[alloc] WARNING: the plan agent trained under standardizer {trained}; this job reads {here}")
@@ -869,6 +887,14 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     mask, token_k = token_index(rows, pm.rows, device)
     with torch.no_grad():
         mu = policy(state, mask, token_k, len(pm.rows)).tolist()
+        ens = None
+        if others:
+            each = [mu] + [p(state, mask, token_k, len(pm.rows)).tolist() for p in others]
+            mu = [sum(v) / len(each) for v in zip(*each)]
+            spread = sum(math.sqrt(sum((x - m) ** 2 for x in v) / len(v)) for v, m in zip(zip(*each), mu)) / max(1, len(mu))
+            ens = {"n": len(each), "spread": float(spread)}
+            utils.print_flush(f"[alloc] plan agent ensemble of {len(each)} policies (mean score), member spread "
+                              f"{spread:.3f}: " + ", ".join(_run_label(p) for p in paths))
     z, drawn = mu, None
     if sample is not None:
         sigma, seed = float(sample[0]), int(sample[1])
@@ -906,10 +932,33 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
                     "kept": float(info["kept"]), "budget": budget,
                     "keeps": {row: widths[row] / float(pm.widths0[row]) for row in pm.rows},
                     "origin_widths": dict(pm.widths0), "sens": {row: float(v) for row, v in zip(pm.rows, z)},
-                    "held": 0, "policy": os.path.basename(os.path.dirname(os.path.abspath(policy_path)))
-                    + "/" + os.path.basename(policy_path),
+                    "held": 0, "policy": _policy_label(paths[0]) if len(paths) == 1
+                    else "+".join(_run_label(p) for p in paths),
                     **({"sample": drawn, "mu": {row: float(m) for row, m in zip(pm.rows, mu)}} if drawn else {}),
-                    **({"min_width": int(min_width)} if min_width > 1 else {}), **extra}
+                    **({"min_width": int(min_width)} if min_width > 1 else {}),
+                    **({"ensemble": ens} if ens else {}), **extra}
+
+
+ENSEMBLE_KEYS = ("feature_dim", "encoder", "tokens", "zero", "k_min", "min_width", "budget", "standardizer",
+                 "residual", "residual_alpha", "residual_zmax")
+
+
+def ensemble_paths(policy_path: str):
+    """The checkpoints ``policy_path`` names: one path, or several comma-separated (v22, ENS)."""
+    paths = [p.strip() for p in str(policy_path).split(",") if p.strip()]
+    if not paths:
+        raise ValueError("plan_for_env: no plan-agent checkpoint given")
+    return paths
+
+
+def _policy_label(path: str) -> str:
+    """``<dir>/<file>`` of a checkpoint, as ``info["policy"]`` has always named one."""
+    return os.path.basename(os.path.dirname(os.path.abspath(path))) + "/" + os.path.basename(path)
+
+
+def _run_label(path: str) -> str:
+    """``<run>/<dir>/<file>``: tells an ensemble's members apart (each seed's train writes plan_agent/...)."""
+    return os.path.basename(os.path.dirname(os.path.dirname(os.path.abspath(path)))) + "/" + _policy_label(path)
 
 
 def eval_residual(blob):
