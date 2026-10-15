@@ -82,7 +82,7 @@ def test_parse_proxy_accepts_fs_and_keeps_cut_and_bn():
     assert plan_agent.parse_proxy(" FS1 ") == ("fs", 1)
     assert plan_agent.parse_proxy("cut") == ("cut", 0)
     assert plan_agent.parse_proxy("bn8") == ("bn", 8)
-    for bad in ("fs0", "fs", "fsx", "fs-3", "fs1.5", "ft1", "bn0", ""):
+    for bad in ("fs0", "fs", "fsx", "fs-3", "fs1.5", "ft0", "bn0", ""):
         with pytest.raises(ValueError, match="fs<S>"):
             plan_agent.parse_proxy(bad)
 

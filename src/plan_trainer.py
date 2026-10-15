@@ -11,9 +11,11 @@ monitors. Nothing here is a TEST: the val half selects nothing and the TEST half
 
 Knobs, ``SPECTRA_PLAN_<NAME>``: INSTANCES (300), K (8), SIGMA (0.5), SIGMA_FLOOR (0.2), SIGMA_DECAY (0.6, the
 share of the instances over which σ falls linearly to the floor), LR (3e-4), BATCH (4 instances per update),
-KAPPA (0.35,0.85), KMIN (0.1), PROXY (bn32; ``fs<S>``: S SGD steps on the masked cut, lr ``SPECTRA_PLAN_FS_LR``),
-TOKENS (layer), ENCODER (transformer), ZERO (channels set to 0, e.g. sens), NETS (name substrings to keep; all when
-unset), REF_EVERY (10), SAVE_EVERY (50), SEED (0),
+KAPPA (0.35,0.85), KMIN (0.1), PROXY (bn32; ``fs<S>``: S SGD steps on the masked cut, lr ``SPECTRA_PLAN_FS_LR``;
+``ft<E>``, v23: E epochs of the learning handler's own fine-tune on the real cut, the eval-side ft<E> proxy, under the
+instance's seed, ``plan_agent.NetInstance.finetune_reward``; the handler's recipe is logged once per run and written to
+the checkpoints as ``recipe_line``), TOKENS (layer), ENCODER (transformer), ZERO (channels set to 0, e.g. sens), NETS
+(name substrings to keep; all when unset), REF_EVERY (10), SAVE_EVERY (50), SEED (0),
 NORM_ADV (1), MAX_MINUTES (0 = no limit; the trainer saves and stops when it is reached), SUMMARY_KAPPAS
 (0.4,0.6,0.8: the κ of the closing per-net summary), BUDGET (params: what κ is a fraction of; flops decodes every
 plan to kept MACs on ``plan_agent.FlopModel`` and flags it in the state, mixed draws params or flops per instance),
@@ -28,7 +30,10 @@ RESIDUAL_SIGMA / SIGMA, as a unit of z moves a keep by about 100 % relative unde
 keep · (1 − keep) under ``decode``), RESIDUAL_ZMAX (``fortify.plan_residual_zmax``, 0 = off, read only with the
 residual on: v20's trust region, every plan, sampled or mean, decodes zmax · tanh(z / zmax) in place of z, so no
 group's weight leaves e^±zmax of its prior's; z is still what is sampled and scored, each step records how many
-groups' mean is past the bound, and the checkpoint carries ``residual_zmax``).
+groups' mean is past the bound, and the checkpoint carries ``residual_zmax``), INIT (v23, unset: a plan-agent checkpoint
+whose policy weights the run starts from, ``warm_start``; refused when it trained under other settings than this run's,
+``plan_agent.ENSEMBLE_KEYS``; no optimizer state exists to load, and the σ schedule stays SIGMA / SIGMA_FLOOR /
+SIGMA_DECAY; recorded as ``init`` in the config line and in every checkpoint).
 """
 
 import json
@@ -141,6 +146,32 @@ def residual_zmax() -> float:
     return fortify.plan_residual_zmax()
 
 
+def init_path() -> str:
+    """``SPECTRA_PLAN_INIT`` (v23; empty = off, as before): a plan-agent checkpoint whose policy weights the run starts
+    from."""
+    return _env("INIT", "")
+
+
+def warm_start(policy, blob, meta, path):
+    """Load ``blob``'s policy weights (``SPECTRA_PLAN_INIT``, v23) into ``policy`` for a run whose checkpoint meta is
+    ``meta``. Refused (ValueError) when the checkpoint trained under other settings than this run's: every
+    ``plan_agent.ENSEMBLE_KEYS`` entry (feature_dim, encoder, tokens, zero, k_min, min_width, budget and the residual
+    settings) but the standardizer path, which only warns, as ``plan_for_env`` does. No optimizer state is saved, so
+    none is loaded, and the σ schedule stays the run's own."""
+    want = {**meta, "feature_dim": policy.feature_dim, "encoder": policy.encoder_kind}
+    for key in plan_agent.ENSEMBLE_KEYS:
+        if key != "standardizer" and blob.get(key) != want.get(key):
+            raise ValueError(f"SPECTRA_PLAN_INIT={path}: trained with {key}={blob.get(key)!r}; this run has "
+                             f"{want.get(key)!r}")
+    trained, here = blob.get("standardizer") or "", want.get("standardizer") or ""
+    if trained and os.path.abspath(trained) != os.path.abspath(here):
+        utils.print_flush(f"[plan] WARNING: SPECTRA_PLAN_INIT trained under standardizer {trained}; "
+                          f"this run reads {here}")
+    policy.load_state_dict(blob["state_dict"])
+    utils.print_flush(f"[plan] init {path}: policy weights loaded (trained with proxy={blob.get('proxy')!r} "
+                      f"budget={blob.get('budget')!r} on {len(blob.get('nets') or [])} nets)")
+
+
 def prior_of(inst, res, budget="params"):
     """``inst``'s prior weights under ``res`` = (mode, alpha) on ``budget`` (``NetInstance.prior``); None when off."""
     if res is None:
@@ -211,6 +242,8 @@ def run(env, shard):
     mode, alpha, sigma0 = residual()
     res = None if mode == "off" else (mode, alpha)
     zmax = residual_zmax() if res else 0.0  # the trust region; 0 = every residual decode as before
+    init = init_path()
+    init_blob = plan_agent.read_blob(init) if init else None  # read now: a wrong path fails before the origins are read
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     with_cost = res is not None and "sens_cost" in {plan_agent.prior_kind(mode, b) for b in budgets}
     scale = sigma0 / cfg.sigma if res is not None and cfg.sigma > 0 else 1.0
@@ -218,7 +251,8 @@ def run(env, shard):
     utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}" + (f" min_width={floor}" if floor > 1 else "")
                       + (f" residual={mode} alpha={alpha:g} sigma={sigma0:g}" if res else "")
                       + (f" zmax={zmax:g}" if zmax > 0 else "")
-                      + (f" fs_lr={plan_agent.fs_lr():g}" if cfg.proxy.startswith("fs") else ""))
+                      + (f" fs_lr={plan_agent.fs_lr():g}" if cfg.proxy.startswith("fs") else "")
+                      + (f" init={init}" if init else ""))
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
@@ -270,7 +304,10 @@ def run(env, shard):
             **({"min_width": floor} if floor > 1 else {}),
             **({"residual": mode, "residual_alpha": alpha, "residual_sigma": sigma0} if res else {}),
             **({"residual_zmax": zmax} if zmax > 0 else {}),
-            **({"fs_lr": plan_agent.fs_lr()} if cfg.proxy.startswith("fs") else {})}
+            **({"fs_lr": plan_agent.fs_lr()} if cfg.proxy.startswith("fs") else {}),
+            **({"init": init} if init else {})}
+    if init_blob is not None:
+        warm_start(policy, init_blob, meta, init)
 
     def log(record):
         with open(log_path, "a", encoding="utf-8") as fh:
@@ -302,6 +339,9 @@ def run(env, shard):
             plan_widths, info = _decode(z[k].tolist(), cm, kappa, cfg, floor, prior, zmax)
             rewards.append(inst.reward(plan_widths, cfg.proxy, batches))
             kept.append(info["kept"])
+        if it == 0 and getattr(inst, "recipe_line", None):  # the ft<E> reward's handler recipe, once per run
+            utils.print_flush(f"[plan] ft recipe {inst.name}: {inst.recipe_line}")
+            meta["recipe_line"] = inst.recipe_line
         r = torch.tensor(rewards, device=mu.device, dtype=mu.dtype)
         adv = r - r.mean()
         if cfg.norm_adv:

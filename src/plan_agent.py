@@ -17,6 +17,9 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
   that change: exp(z_g) becomes exp(zmax · tanh(z_g / zmax)) (``trust_score``), within e^±zmax of the rule's weight.
 * ``MaskedCut``: ``cut_to``'s L1 cut written as zeros on a working copy, for the reward; ``remask`` zeroes
   the same entries again, so the ``fs<S>`` proxy (``short_finetune``) trains a copy that stays the cut.
+* ``NetInstance.finetune_reward`` (v23, ``SPECTRA_PLAN_PROXY=ft<E>``, default off): the eval-side ``ft<E>`` proxy
+  (``plan_proxies.measure_one``) as a training reward: the net cut for real (``alloc_walk.cut_to``), fine-tuned E
+  epochs by the learning handler's own recipe under the instance's seed, then read on the val batches.
 * ``PlanPolicy``: the agent's state encoder with a per-token linear head. A group's score is the mean
   over its tokens, centred over groups (b absorbs any common shift), and plans are z = μ + σ ε.
 * ``NetInstance``: one catalog net's origin read once (state, plan, token map, param model, val batches,
@@ -26,6 +29,7 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
   (``SPECTRA_ALLOC_KIND=agent_sample``), so the existing walk, final fine-tune and TEST read it.
 """
 
+import contextlib
 import copy
 import math
 import os
@@ -35,7 +39,7 @@ import torch
 from torch import nn
 
 TOKEN_KINDS = ("layer", "group")
-PROXIES = ("cut", "bn", "fs")
+PROXIES = ("cut", "bn", "fs", "ft")
 BUDGETS = ("params", "flops")
 PRIOR_KINDS = ("sens", "sens_cost")
 Z_CLIP = 30.0  # |z| beyond this is clipped in residual_decode: exp stays finite, the plan is already saturated
@@ -594,16 +598,36 @@ def accuracy(model, batches) -> float:
     return correct / max(1, total)
 
 
+def default_handler(model):
+    """The learning handler ``NetworkEnv.create_learning_handler`` builds, a ``ClassificationHandler`` with
+    cross-entropy (its KD teacher plays no part under ``plan_proxies.handler_recipe``): what the ``ft<E>`` reward
+    fine-tunes with when an instance was built without an env (``NetInstance.from_env`` passes the env's own)."""
+    from src.ModelHandlers.ClassificationHandler import ClassificationHandler
+    return ClassificationHandler(model, nn.CrossEntropyLoss())
+
+
+@contextlib.contextmanager
+def _captured(into):
+    """Route ``utils.print_flush`` (the handler's recipe and epoch lines go through it, bound at call time) into the
+    list ``into`` for the body, then put it back."""
+    import src.utils as utils
+    before = utils.print_flush
+    utils.print_flush = lambda msg, *args, **kwargs: into.append(str(msg))
+    try:
+        yield
+    finally:
+        utils.print_flush = before
+
+
 def parse_proxy(name: str):
-    """``("cut", 0)``, ``("bn", N)`` or ``("fs", S)``."""
+    """``("cut", 0)``, ``("bn", N)``, ``("fs", S)`` or ``("ft", E)`` (v23: E ≥ 1 epochs of the handler's fine-tune)."""
     name = (name or "").strip().lower()
     if name == "cut":
         return "cut", 0
-    if name.startswith("bn") and name[2:].isdigit() and int(name[2:]) > 0:
-        return "bn", int(name[2:])
-    if name.startswith("fs") and name[2:].isdigit() and int(name[2:]) > 0:
-        return "fs", int(name[2:])
-    raise ValueError(f"plan reward proxy {name!r}: expected cut, bn<N> or fs<S>")
+    for kind in ("bn", "fs", "ft"):
+        if name.startswith(kind) and name[2:].isdigit() and int(name[2:]) > 0:
+            return kind, int(name[2:])
+    raise ValueError(f"plan reward proxy {name!r}: expected cut, bn<N>, fs<S> or ft<E>")
 
 
 def spans_of(layout):
@@ -643,9 +667,13 @@ class NetInstance:
     """A catalog net's origin, read once; ``reward`` scores one plan on it."""
 
     def __init__(self, name, model, plan, state, token_rows, layout, train_loader, val_loader, device,
-                 zero=(), sens=None, input_shape=None, cost=None):
+                 zero=(), sens=None, input_shape=None, cost=None, create_handler=None):
         started = time.perf_counter()
         self.name, self.device, self.zero, self.input_shape = str(name), device, tuple(zero), input_shape
+        # model -> learning handler, for the ft<E> reward (v23): the env's own ``create_learning_handler`` through
+        # ``from_env``, else the handler the env would build; ``recipe_line`` is the last ft<E> fine-tune's recipe
+        self.create_handler = create_handler if create_handler is not None else default_handler
+        self.recipe_line = None
         self.model = model.to(device)
         self.plan = plan
         self.pm = ParamModel(self.model, plan)
@@ -709,7 +737,7 @@ class NetInstance:
             sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, env._input_shape(), costs=cost)
         return cls(os.path.basename(str(net_path)), model, plan, state, rows, layout,
                    env.train_loader, env.val_loader, device, zero=zero, sens=sens, input_shape=env._input_shape(),
-                   cost=cost)
+                   cost=cost, create_handler=env.create_learning_handler)
 
     def check(self, kappa: float = 0.6):
         """The uniform plan at ``kappa`` cut for real (``alloc_walk.cut_to``): analytic vs real kept params, masked vs
@@ -760,22 +788,73 @@ class NetInstance:
         return plan_state(self.state, self.spans, kappa, self.zero, budget)
 
     def batches(self, proxy: str, seed: int):
+        """What ``reward`` needs for ``proxy`` under the instance's ``seed``, drawn once and shared by all its plans
+        (common random numbers): the fixed ``(x, y)`` batches of ``fs<S>``, the recalibration batches of ``bn<N>``,
+        nothing for ``cut``, and for ``ft<E>`` the seed itself (its fine-tune draws its epochs from the loader under
+        it)."""
         kind, n = parse_proxy(proxy)
+        if kind == "ft":
+            return int(seed)
         if kind == "fs":
             return ft_batches(self.train_loader, n, seed, self.device)
         return recal_batches(self.train_loader, n, seed, self.device) if kind == "bn" else []
 
     def reward(self, widths, proxy: str, batches) -> float:
         """Δ val accuracy (pp) of one cut to ``widths``, after ``proxy`` (BatchNorm re-estimated on ``batches``, or the
-        masked copy fine-tuned a step per ``(x, y)`` in ``batches``, re-masked after every step)."""
+        masked copy fine-tuned a step per ``(x, y)`` in ``batches``, re-masked after every step). ``ft<E>`` (v23)
+        instead cuts the net for real and fine-tunes that copy E epochs with the handler's own recipe
+        (``finetune_reward``); ``batches`` is then the seed ``batches`` returned for it."""
         from src import recovery_edits
-        kind, _n = parse_proxy(proxy)
+        kind, n = parse_proxy(proxy)
+        if kind == "ft":
+            if isinstance(batches, bool) or not isinstance(batches, int):
+                raise ValueError(f"the {proxy} reward takes the seed batches() returns for it, "
+                                 f"not {type(batches).__name__}")
+            return self.finetune_reward(widths, n, batches)
         work = self.cutter.cut(rates_of(widths, self.pm.widths0))
         if kind == "bn":
             recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
         elif kind == "fs":
             short_finetune(work, batches, fs_lr(), after_step=self.cutter.remask)
         return 100.0 * (accuracy(work, self.val) - self.origin_val)
+
+    def finetune_reward(self, widths, epochs: int, seed: int) -> float:
+        """The ``ft<E>`` reward (v23): Δ val accuracy (pp) of the net cut for real to ``widths`` (``alloc_walk.cut_to``,
+        the structural cut the eval walk makes; never the masked copy, which the handler could not re-mask) after
+        ``epochs`` epochs of the learning handler's own fine-tune, the eval-side proxy's recipe
+        (``plan_proxies.measure_one``): ``train_model`` on this net's train loader with ``max_epochs`` = E and patience
+        E + 1, every parameter trainable, under ``handler_recipe`` (the ``SPECTRA_FT_*`` keys cleared and put back) and
+        ``seeded(seed)``, entered after the cut: the cut rebuilds modules, whose constructors draw from the global RNG by
+        an amount that depends on the plan, so the seed is set right before the fine-tune and every plan of an instance
+        starts it from the same state (the same shuffle, and the same crops and flips when the loader draws them in
+        this process; a persistent worker keeps its own stream), as the eval side seeds its candidate's. An outer
+        ``seeded`` puts the global torch / CUDA / random / numpy state back after the whole reward. The handler's own
+        lines (recipe, epochs) are captured rather than printed once per plan: the recipe, without its trailing
+        ``trainable`` count (the plan's), is kept in ``recipe_line`` for the trainer's once-per-run line, and a
+        fine-tune that did not run (no recipe line, or an empty loader) raises rather than return the bare cut's own
+        accuracy."""
+        from src import alloc_walk
+        from src.plan_proxies import handler_recipe, seeded
+        epochs, lines = int(epochs), []
+        with seeded(seed):
+            real = alloc_walk.cut_to(self.model, self.plan, rates_of(widths, self.pm.widths0), self.input_shape)
+            real = real.to(self.device)
+            for param in real.parameters():
+                param.requires_grad = True
+            with seeded(seed), handler_recipe(), _captured(lines):
+                self.create_handler(real).train_model(self.train_loader, allow_reinit_retry=False, max_epochs=epochs,
+                                                      patience=epochs + 1, tag=f"plan ft{epochs} {self.name}")
+            acc = accuracy(real, self.val)
+        del real
+        recipe = [line.split("Fine-tune recipe:", 1)[1].strip() for line in lines if "Fine-tune recipe:" in line]
+        if not recipe or any("produced no loss" in line for line in lines):
+            raise RuntimeError(f"{self.name}: the ft{epochs} fine-tune did not run: " + " | ".join(lines[-3:]))
+        if any(" = nan" in line.lower() or " = inf" in line.lower() for line in lines if "loss" in line.lower()):
+            import src.utils as utils  # the captured lines never reach the job log, which smoke gates grep for NaN
+            utils.print_flush(f"[plan] WARNING: {self.name}: the ft{epochs} fine-tune's loss went NaN or inf for this "
+                              "plan; its reward reads the diverged net")
+        self.recipe_line = recipe[-1].split(" trainable=", 1)[0]
+        return 100.0 * (acc - self.origin_val)
 
     def prior(self, kind: str, budget: str = "params", a: float = 0.5):
         """``{row: weight}`` of the ``sens`` / ``sens_cost`` rule on this net priced in ``budget`` (T2's prior,

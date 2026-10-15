@@ -277,7 +277,7 @@ def test_trainer_config_defaults_schedule_and_errors(monkeypatch):
     assert cfg.summary_kappas == (0.4, 0.6, 0.8) and cfg.max_minutes == 0.0
     assert plan_trainer.sigma_at(cfg, 0) == 0.5 and plan_trainer.sigma_at(cfg, 300) == pytest.approx(0.2)
     assert plan_trainer.sigma_at(cfg, 90) == pytest.approx(0.35)
-    for key, value in (("SPECTRA_PLAN_PROXY", "ft1"), ("SPECTRA_PLAN_K", "1"), ("SPECTRA_PLAN_KAPPA", "0.9,0.5"),
+    for key, value in (("SPECTRA_PLAN_PROXY", "ft0"), ("SPECTRA_PLAN_K", "1"), ("SPECTRA_PLAN_KAPPA", "0.9,0.5"),
                        ("SPECTRA_PLAN_TOKENS", "bert")):
         monkeypatch.setenv(key, value)
         with pytest.raises(ValueError):
