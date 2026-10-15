@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386 and 10:45 with §387.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387 and 13:00 with §388.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -39,7 +39,8 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
 | Against the literature (DepGraph's ResNet-56) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. The recipes differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382 |
 | Has a registered beat fired? | Once, narrowly: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only. Val and 10k do not carry it, and the deep-range agent is at the rule there | §382, §385 |
-| Running | T7-C (the batch-norm line with CIFAR-100 networks in the catalog) and the learning curve of T6-bn's snapshots (LC-T6BN), reading 15 Oct afternoon | queue |
+| Does training longer help? | Not on this catalog: T6-bn's edge on the other eight is flat on val from 3,000 to 12,000 instances, and the collapse on ResNet-20 ×8 CIFAR-100 appears only from 6,000 | §388 |
+| Running | T7-C (the batch-norm line with CIFAR-100 networks in the catalog), reading 15 Oct afternoon; T6-fs at 60 % and 45 % (POOL-T6FS), overnight | queue |
 
 ---
 
@@ -620,6 +621,7 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 - DepGraph's ResNet-56 sits slightly below the rule at every depth: −0.32 at 47 % (val +0.27), then −0.22, −0.05 and −0.17 (§383, §384).
 - The agent's edge on the other eight networks is +0.17 at 35 % and +0.11 at 25 %. The raw-cut agent had +0.30 at 25 %.
 - A training floor moves the collapse to the floor: plans with minimum keep 0.25 still fail, at −3.79 (§376). A deeper training range leaves it unchanged (§377).
+- **More instances do not help, and the collapse is learned with training** (§388). T6-bn's snapshots at 3,000, 6,000 and 9,000 instances, read beside its 12,000-instance policy, leave the other eight flat on val (+0.13, +0.13, +0.14, +0.09). The registered rule (a rise of +0.10 from 6k to 12k on TEST and val) does not fire: −0.12 and −0.04. On ResNet-20 ×8 CIFAR-100 the 3,000-instance snapshot does not collapse (+0.15, median keeps 0.69–0.75). From 6,000 instances seed 42 does (−14.86, −19.58, −7.56). [H] Longer training on a CIFAR-10-heavy catalog teaches the habit that fails on CIFAR-100, so the catalog, not the length, is the lever.
 - At 25 % the agent trained on the raw-cut reward fails harder on the same network: −16.84 (§380). The failure grows with depth under that reward: −5.23 and −5.11 at 35 %, then −16.84 at 25 %.
 - **Next.** T7-C, the batch-norm line with CIFAR-100 networks in the catalog, asks whether seeing the dataset in training removes what is left of the collapse. The choice of the params agent of record, between T6-bn and T6-fs (below), is Ido's.
 
