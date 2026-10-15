@@ -389,6 +389,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§387 T6-fs** (the fs32 reward on the deep range): AT-PRIOR-POOL at 0.35 (+0.2356, 95 % [+0.01, +0.50], 7 of 9) and 0.25 (+0.1615); REWARD-HELPS at both. Reported T6-fs − T6-bn: +0.04 and +0.34. r20-w8 C100 at 0.25 is −0.93, with no all-or-nothing plan (s43 −4.70). The draft is updated (`196ae9c`). T6-fs is the natural params agent of record; that is Ido's call.
   - **POOL-T6FS** registered 10:45 (`1e03ff0`) and submitted: T6-fs at 0.6 / 0.45, 54 cells behind a login-03 gate (pid 2555963), guard pid 2555965. It reads overnight behind LC-T6BN and T7-C. Reader: adapt `_tmp_s14oct_poolt6bn_read.sh`.
   - **Pages:** Gilad v26, brief v68, progress v9. The meeting with Gilad is at 11:30.
+- **15 Oct 15:15.**
+  - **Ido's GO (about 11:50, after the group meeting):** (1) the catalog inventory and split design, done as `docs/CATALOG_SCALE_PLAN.md` (`ae34597`); (2) the first big-catalog train once T7-C and LC have read, and pretraining for new families later.
+  - **Gilad's concern is the evaluation.** The meeting page now opens with section E, the plan against the field's own rules: Blalock's checklist, PruningBench, and Wang et al.'s S1–S4.2 setups (our claims are S3.2). Table 1 has 17 verified published rows and the large-LR caveat; E5 has the gaps and their costs. Sources are in `scratchpad/lit_eval_conventions.md`. I asked Ido for a GO on the eval-only gap cells (random baselines, ResNet-110 / VGG-16 cells, throughput); the Scratch-E / Scratch-B runs are trains and need their own GO.
+  - **§388 LC-T6BN:** the instance count is not the bottleneck (other eight 12k − 6k −0.12 TEST, −0.04 val); r20-w8 C100 does not collapse at 3k and does from 6k.
+  - **§389 T7-C:** CATALOG-HELPS at 0.25 (+0.52, all on the CIFAR-100 pair); AT-PRIOR-POOL at both depths (+0.28 with 6 of 9; +0.34 with 5 of 9). r20-w8 C100 +2.09 at 0.25. The draft is updated through §389 (`2bbdac0`); Gilad page v31, brief v70.
+  - **Proposed next train (Ido's call):** T6-fs's fs32 reward on T1-C's 18-net catalog. It combines the two levers that helped at 0.25 and needs no new networks.
 
 ---
 
