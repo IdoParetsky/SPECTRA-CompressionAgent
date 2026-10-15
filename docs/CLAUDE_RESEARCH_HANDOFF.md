@@ -395,6 +395,7 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§388 LC-T6BN:** the instance count is not the bottleneck (other eight 12k − 6k −0.12 TEST, −0.04 val); r20-w8 C100 does not collapse at 3k and does from 6k.
   - **§389 T7-C:** CATALOG-HELPS at 0.25 (+0.52, all on the CIFAR-100 pair); AT-PRIOR-POOL at both depths (+0.28 with 6 of 9; +0.34 with 5 of 9). r20-w8 C100 +2.09 at 0.25. The draft is updated through §389 (`2bbdac0`); Gilad page v31, brief v70.
   - **Proposed next train (Ido's call):** T6-fs's fs32 reward on T1-C's 18-net catalog. It combines the two levers that helped at 0.25 and needs no new networks.
+- **15 Oct 17:25.** **§390 POOL-T6FS:** T6-fs is **BEATS-PRIOR-P-POOL at 0.45** (+0.4193, 6 of 9; val +0.34, 10k +0.38, honest +0.46). It is the first pooled beat of the params prior by a frozen agent. The other eight are +0.19, r20-w8 C100 is +2.28, and it keeps up to 1.36× the rule's FLOPs. It is AT-PRIOR-POOL at 0.6 (+0.05), and the same as T6-bn at both depths. The draft's claims guard allows only this scoped statement (`7efa96f`). Gilad page v32, brief v71. Still waiting on Ido: the next train, and the evaluation-gap cells.
 
 ---
 
