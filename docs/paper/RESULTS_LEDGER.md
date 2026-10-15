@@ -9003,3 +9003,64 @@ Never:
 - 0.35 and 0.25 mixed in one contrast.
 
 Records: queue row T7-C; next §390.
+
+## 390. (POOL-T6FS): the fs32-reward agent at the shallower budgets — the frozen T6-fs (T5-DEEP's line with the fs32 reward, §387) at params 0.6 (DepGraph R56 at 0.47) and at params 0.45, against floored, grid-rounded sens_cost and against T6-bn, on the nine-net held-out pool (smokes **22988924 / 925**, cells **22988926–980**; `tree_v21`) — PRELIM; registered calls: P **+0.0504** at 0.6 → **AT-PRIOR-POOL**; P **+0.4193** at 0.45, positive on 6 of 9 → **BEATS-PRIOR-P-POOL** (val +0.34, 10k +0.38, honest +0.46); F **+0.0267** and **+0.1237** → **SAME** at both
+
+Registered before submit 15 Oct 10:45 (commit `1e03ff0`; queue row POOL-T6FS), eval-only under Ido's 13 Oct ~18:00 standing authority. The gate passed at 11:01: the smokes landed at 0.469 (target 0.47) and 0.450 (target 0.45), with no fallback.
+- *Read.* 15 Oct 17:15 (`scripts/_tmp_s15oct_poolt6fs_read.sh`, a copy of POOL-T6BN's). Its self-checks reproduce §384 (T6-bn − sens_cost +0.02 / +0.30) and §387 (T6-fs − sens_cost +0.24 / +0.16).
+- *Checks.* All 54 cells COMPLETED. The reader flags no fallback and no masked edit.
+
+**Per net at params 0.6** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T6-fs to sens_cost):
+
+| net | T6-fs − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T6-fs − T6-bn: 5k (s42 / 43 / 44) | val | 10k | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | −0.21 (−0.78 / +0.24 / −0.10) | +0.03 | −0.09 | −0.36 | 0.99–1.10 | −0.24 (−0.64 / −0.16 / +0.08) | +0.10 | −0.07 | −0.67 |
+| chenyaofo ResNet-56 | +0.36 (+0.00 / +0.56 / +0.52) | +0.25 | +0.31 | +0.35 | 0.99–1.15 | +0.13 (−0.20 / +0.42 / +0.16) | +0.29 | +0.21 | +0.10 |
+| thin r56-w8 | −0.14 (+0.28 / −0.42 / −0.28) | −0.02 | −0.08 | −0.21 | 1.21–1.31 | −0.10 (+0.08 / −0.14 / −0.24) | −0.01 | −0.06 | −0.11 |
+| MobileNetV2 ×1.4 | −0.09 (−0.40 / +0.46 / −0.32) | −0.09 | −0.09 | −0.21 | 1.02–1.16 | −0.15 (−0.32 / +0.30 / −0.42) | +0.06 | −0.04 | −0.22 |
+| DenseNet-100 | +0.17 (+0.12 / +0.14 / +0.24) | −0.05 | +0.06 | +0.01 | 0.87–1.11 | +0.14 (+0.32 / +0.12 / −0.02) | −0.25 | −0.05 | −0.34 |
+| thin r20-w8 C100 | **+0.43** (−0.20 / +0.44 / +1.06) | +0.97 | +0.70 | +0.51 | 0.86–1.02 | **+0.23** (−0.18 / −0.04 / +0.92) | +0.34 | +0.29 | +0.49 |
+| VGG-19 C100 | +0.42 (−0.28 / +0.34 / +1.20) | +0.57 | +0.49 | +0.29 | 1.00 | +0.23 (+0.04 / −0.14 / +0.80) | +0.52 | +0.38 | +0.13 |
+| VGG-16 C10 | −0.36 (−0.02 / −0.36 / −0.70) | +0.24 | −0.06 | −0.59 | 0.99–1.03 | −0.20 (−0.10 / −0.40 / −0.10) | −0.01 | −0.10 | −0.42 |
+| DepGraph R56 (0.47) | −0.13 (−0.30 / −0.36 / +0.28) | +0.25 | +0.06 | −0.47 | 1.07–1.13 | +0.19 (+0.04 / −0.12 / +0.66) | −0.01 | +0.09 | +0.09 |
+
+**Per net at params 0.45**:
+
+| net | T6-fs − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T6-fs − T6-bn: 5k (s42 / 43 / 44) | val | 10k | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | −0.02 (+0.22 / −0.02 / −0.26) | +0.04 | +0.01 | +0.07 | 1.02–1.05 | −0.33 (+0.12 / −0.62 / −0.50) | −0.01 | −0.17 | −0.33 |
+| chenyaofo ResNet-56 | +0.58 (+0.14 / +0.36 / +1.24) | +0.74 | +0.66 | +0.69 | 1.05–1.22 | +0.33 (−0.22 / +0.28 / +0.94) | +0.45 | +0.39 | +0.14 |
+| thin r56-w8 | +0.65 (+0.68 / +0.42 / +0.86) | +0.03 | +0.34 | +0.65 | 1.27–1.36 | +0.21 (−0.02 / −0.14 / +0.80) | +0.16 | +0.19 | +0.23 |
+| MobileNetV2 ×1.4 | +0.39 (+0.56 / +0.22 / +0.40) | −0.05 | +0.17 | +0.21 | 1.06–1.21 | +0.20 (+0.56 / −0.10 / +0.14) | −0.05 | +0.07 | −0.03 |
+| DenseNet-100 | −0.13 (−0.38 / −0.04 / +0.02) | +0.13 | −0.00 | +0.07 | 0.80–1.16 | −0.33 (−0.62 / +0.30 / −0.66) | +0.03 | −0.15 | −0.30 |
+| thin r20-w8 C100 | **+2.28** (+2.60 / +1.06 / +3.18) | +2.12 | +2.20 | +2.14 | 0.87–1.10 | **+0.39** (+0.28 / +0.40 / +0.50) | +0.53 | +0.46 | +0.15 |
+| VGG-19 C100 | +0.03 (+0.84 / −0.72 / −0.02) | +0.22 | +0.13 | +0.07 | 1.00 | +0.15 (+0.74 / −0.02 / −0.26) | +0.31 | +0.23 | +0.65 |
+| VGG-16 C10 | +0.13 (+0.36 / +0.00 / +0.04) | −0.19 | −0.03 | +0.39 | 0.99–1.03 | +0.41 (+0.68 / +0.64 / −0.10) | −0.29 | +0.06 | +0.53 |
+| DepGraph R56 | −0.15 (−0.36 / −0.22 / +0.14) | +0.03 | −0.06 | −0.16 | 1.04–1.14 | +0.07 (−0.40 / −0.04 / +0.66) | +0.03 | +0.05 | −0.09 |
+
+**Pooled.** Exact means of whole-image differences are given to four places; val, 10k and honest are equal-weight means of the per-net rows. "Other eight" leaves out r20-w8 C100.
+
+| depth | P = T6-fs − sens_cost [95 % bootstrap] | val | 10k | honest | positive | call | other eight | F = T6-fs − T6-bn [95 % bootstrap] | val | 10k | honest | positive | call |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.6 | **+0.0504** [−0.17, +0.28] | +0.24 | +0.14 | −0.08 | 4 of 9 | **AT-PRIOR-POOL** | +0.00 | **+0.0267** [−0.13, +0.19] | +0.11 | +0.07 | −0.11 | 5 of 9 | **SAME** |
+| 0.45 | **+0.4193** [+0.02, +1.00] | +0.34 | +0.38 | +0.46 | 6 of 9 | **BEATS-PRIOR-P-POOL** | +0.19 | **+0.1237** [−0.11, +0.34] | +0.13 | +0.13 | +0.11 | 7 of 9 | **SAME** |
+
+FLOPs caption: at equal params T6-fs keeps up to 1.27–1.36× sens_cost's FLOPs on thin r56-w8 at 0.45 and 1.21–1.31× at 0.6. On chenyaofo ResNet-56 the ratio reaches 1.22×, and on MobileNetV2 ×1.4 1.21×.
+
+**The four-depth curve** (reported; each depth's call is its own): T6-fs − sens_cost +0.05 / +0.42 / +0.24 / +0.16 at params 0.6 / 0.45 / 0.35 / 0.25 (§390, §387). It is AT-PRIOR-POOL at three depths and BEATS-PRIOR-P-POOL at 0.45.
+
+Reading:
+1. **BEATS-PRIOR-P-POOL at 0.45, the first pooled beat of the params prior by a frozen agent.** By the registered rule: P = +0.4193 ≥ +0.3 and positive on 6 of 9. The other views agree: val +0.34, 10k +0.38, honest +0.46. The bootstrap range [+0.02, +1.00] lies above zero, though barely.
+2. **What carries it.** r20-w8 C100 contributes +2.28 (every seed positive: +2.60 / +1.06 / +3.18). On that net at 0.45 the cost-aware rule is itself weak; it is 1.35 below uniform (§373). The other eight average +0.19, under the bar on their own. Six nets are positive: chenyaofo ResNet-56 +0.58, thin r56-w8 +0.65 and MobileNetV2 ×1.4 +0.39 lead. Three are negative: thin r56-w4 −0.02, DenseNet-100 −0.13 and DepGraph R56 −0.15.
+3. **The same as T6-bn at both depths** (F +0.03 and +0.12). T6-bn's +0.2956 at 0.45 (§384) missed the bar by 0.004; T6-fs clears it. The two agents are not distinguishable by the registered contrast.
+4. At 0.6 the agent is at the rule (+0.05; the other eight +0.00). There is little room at 0.6 (§372).
+5. [H] With §387, T6-fs is the first single agent to beat the params prior at one depth (0.45) while staying at it at the other three (0.6, 0.35, 0.25). T6-bn is at the prior at all four (§383, §384). That makes T6-fs the natural params agent of record, which is Ido's decision.
+
+Never:
+- "T6-fs beats the rule" without "at 45 % params, pooled over the nine held-out nets", and without the other eight (+0.19) and the FLOPs caption beside it.
+- "Beats" at 0.6, 0.35 or 0.25: those are AT-PRIOR-POOL.
+- The four-depth curve as one call.
+- T6-fs − T6-bn as a difference: SAME.
+- "Beats DepGraph" or any literature method: this is a same-pipeline result.
+
+Records: queue row POOL-T6FS; next §391.
