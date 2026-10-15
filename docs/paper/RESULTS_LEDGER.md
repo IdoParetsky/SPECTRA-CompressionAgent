@@ -8789,3 +8789,50 @@ Never:
 - T5-bn's §382 call restated as an agent property.
 
 Records: queue row LIT-39b; next §386.
+
+## 386. (ENS-T6BN): the three-seed ensemble of T6-bn — the mean of T6-bn's three final policies' scores, decoded once (one frozen agent, no per-target search), read at params 0.25 against floored, grid-rounded sens_cost and against T6-bn's single seeds, on the nine-net held-out pool (smoke **22983616**, cells **22983617–643**; `tree_v22`, code `c4aa1c7`) — PRELIM; registered calls: P_ens **−0.2837** → **AT-PRIOR-POOL**; E **−0.1096** → **SAME**; the ensemble does not remove the collapse on r20-w8 C100 (**−3.61** against the rule, against T6-bn's −2.41)
+
+Registered before submit 15 Oct 04:05 (commit `f76e8fc`; queue row ENS-T6BN), eval-only under Ido's 13 Oct ~18:00 standing authority, on his 15 Oct ~02:15 ask on the recurring weak net. The decode is tree_v22's (`c4aa1c7`): `SPECTRA_PLAN_AGENT` lists the three checkpoints (trains 22886177 / 263 / 354), the scores are averaged per group and decoded once, and the global RNG is restored after the extra modules are built, so each eval seed's recovery draws as in T6-bn's single-policy run (tests on `_stage_v22`: 8 files, 165 pass). The gate passed at 04:08: the smoke's ensemble line names all three members, and it landed at params 0.248 (target 0.25) with no fallback. The cells ran ahead of LC-T6BN's pending cells from 04:36 (`s15oct_ens_yield.sh`).
+- *Read.* 15 Oct 08:01 (`scripts/_tmp_s15oct_lct7_read.sh ens`). Its self-check reproduces §383 (T6-bn − sens_cost −0.17 at 0.25).
+- *Checks.* All 27 cells COMPLETED. The reader flags no fallback and no masked edit.
+
+**Per net at params 0.25** (TEST 5k, mean over eval seeds 42–44, paired by seed; ENS − T6-bn pairs each eval seed with that seed's single policy; FLOPs ratio of the first arm to the second):
+
+| net | ENS − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | ENS − T6-bn: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.39 (+0.74 / +0.70 / −0.28) | +0.03 | +0.21 | +0.47 | 1.09–1.11 | +0.01 (+0.78 / +0.00 / −0.74) | −0.67 | −0.33 | +0.17 | 0.93–1.27 |
+| chenyaofo ResNet-56 | +0.26 (+0.16 / +0.54 / +0.08) | +0.13 | +0.20 | +0.19 | 1.02–1.15 | +0.14 (+0.32 / +0.12 / −0.02) | +0.59 | +0.37 | −0.04 | 0.94–1.20 |
+| thin r56-w8 | −0.22 (−0.62 / +0.00 / −0.04) | −0.61 | −0.41 | −0.09 | 1.44–1.52 | +0.02 (+0.04 / −1.14 / +1.16) | −0.09 | −0.04 | +0.15 | 0.95–1.42 |
+| MobileNetV2 ×1.4 | +0.83 (+0.76 / +0.74 / +1.00) | +0.55 | +0.69 | +1.31 | 0.95–1.15 | +0.26 (+0.46 / −0.12 / +0.44) | +0.23 | +0.24 | +0.55 | 0.92–1.20 |
+| DenseNet-100 | +0.19 (+0.14 / +0.22 / +0.22) | +0.02 | +0.11 | +0.21 | 1.15–1.21 | −0.22 (−0.04 / −0.22 / −0.40) | −0.21 | −0.21 | −0.24 | 0.95–1.07 |
+| thin r20-w8 C100 | −3.61 (−3.62 / −2.26 / −4.94) | −3.21 | −3.41 | −3.43 | 1.15–1.25 | −1.19 (+3.94 / −1.24 / −6.28) | −1.61 | −1.40 | −0.97 | 0.95–1.22 |
+| VGG-19 C100 | −0.31 (−1.32 / −0.18 / +0.58) | −0.13 | −0.22 | −0.23 | 1.00 | −0.37 (−1.88 / +0.12 / +0.64) | −0.64 | −0.51 | −0.30 | 1.00–1.01 |
+| VGG-16 C10 | −0.10 (−0.32 / −0.30 / +0.32) | +0.11 | +0.01 | +0.21 | 0.93–0.97 | +0.19 (+0.00 / +0.10 / +0.48) | +0.17 | +0.18 | +0.18 | 0.96–1.09 |
+| DepGraph R56 | +0.01 (−0.04 / −0.04 / +0.10) | −0.13 | −0.06 | −0.03 | 1.05–1.11 | +0.17 (−0.48 / +0.40 / +0.60) | −0.07 | +0.05 | +0.07 | 0.95–1.24 |
+
+**Pooled.** The registered calls are on TEST 5k. Each per-seed TEST 5k difference is a whole number of 5,000 images, so the pooled means are exact; they are given to four places. val, 10k and honest are equal-weight means of the per-net rows. "Other eight" leaves out r20-w8 C100 and is a diagnostic.
+
+| contrast | 5k [95 % bootstrap] | val | 10k | honest | positive | call | other eight (5k / val / 10k) | CIFAR-100 pair / CIFAR-10 seven |
+|---|---|---|---|---|---|---|---|---|
+| P_ens = ENS − sens_cost | **−0.2837** [−1.24, +0.33] | −0.36 | −0.32 | −0.15 | 5 of 9 | **AT-PRIOR-POOL** | +0.13 / −0.00 / +0.07 | −1.96 / +0.19 |
+| E = ENS − T6-bn | **−0.1096** [−0.83, +0.42] | −0.26 | −0.18 | −0.05 | 6 of 9 | **SAME** | +0.03 / −0.09 / −0.03 | −0.78 / +0.08 |
+
+For reference, T6-bn − sens_cost at 0.25 is −0.17, with the other eight at +0.11 (§383).
+
+**r20-w8 C100's plans** (keep min / median over its groups): the ensemble 0.09 / 0.83 on every eval seed (the same plan; the members' scores spread 1.461 on average per group). The single seeds: s42 0.09 / 1.00, s43 0.09 / 0.78, s44 0.16 / 0.66.
+
+FLOPs caption: at equal params the ensemble keeps 1.44–1.52× sens_cost's FLOPs on thin r56-w8 and 1.09–1.25× on thin r56-w4, DenseNet-100 and r20-w8 C100.
+
+Reading:
+1. **AT-PRIOR-POOL and SAME as T6-bn, by the registered rules.** P_ens is −0.2837, 0.016 above the BELOW bar of −0.3. val (−0.36) and 10k (−0.32) are both past −0.3, so the TEST call sits at the edge, and the other halves lean below it. Against T6-bn the ensemble is level (E −0.1096, positive on 6 of 9).
+2. **The ensemble does not remove the collapse on r20-w8 C100. It makes that net worse on average:** −3.61 against the rule on all three recovery seeds (−3.62 / −2.26 / −4.94), against T6-bn's −2.41 (−7.56 / −1.02 / +1.34). Averaging removes the one collapsing seed's extreme plan (median keep 1.00) but keeps the groups that every member cuts to the floor (min 0.09). [H] So the failure is systematic in what this training line learned about this net, not one seed's accident. It cannot be fixed at decode time by averaging seeds.
+3. **No cost and no gain elsewhere.** The other eight are +0.13 against the rule (T6-bn +0.11) and +0.03 against T6-bn. MobileNetV2 ×1.4 gains (+0.83 against the rule, +0.26 against T6-bn). VGG-19 C100, the other CIFAR-100 net, is the second negative (−0.31; −0.37 against T6-bn).
+4. Fix 3 for the hard net (seed averaging) is ruled out. The open levers are the reward (T6-fs, fs32, reading 15 Oct) and the catalog (T7-C, CIFAR-100 in training).
+
+Never:
+- "The ensemble fixes the collapse", or "is more robust".
+- ENS rows quoted as T6-bn's.
+- The ensemble picked over the single policies on TEST.
+- The −0.28 restated as "at the prior" without its val and 10k (−0.36 / −0.32) beside it.
+
+Records: queue row ENS-T6BN; next §387.
