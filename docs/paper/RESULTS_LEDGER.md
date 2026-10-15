@@ -8944,3 +8944,62 @@ Never:
 - The 3k snapshot quoted as an agent of record.
 
 Records: queue row LC-T6BN; next §389.
+
+## 389. (T7-C): T6-bn's line trained on T1-C's 18-net catalog (T1's ten plus eight CIFAR-100 networks) — the frozen T7-C read at params 0.35 and 0.25 against floored, grid-rounded sens_cost and against T6-bn (the same line without CIFAR-100 in the catalog), on the nine-net held-out pool (trains **22983185 / 233 / 282**, evals 54 of `scratch_audit/s15oct_t7lc_manifest.tsv`; `tree_v21`) — PRELIM; registered calls: P **+0.2778** at 0.35 and **+0.3422** at 0.25 → **AT-PRIOR-POOL** at both; C **+0.0844** → **SAME** at 0.35 and **+0.5163** → **CATALOG-HELPS** at 0.25 (carried by the two CIFAR-100 nets)
+
+Registered before submit 15 Oct 03:00 (commit `c7c0451`; queue row T7-C), on Ido's 15 Oct ~02:15 answers ("let's experiment with and without"; D4 "A+B"). It is the "CIFAR-100 included" branch; T6-bn (§383) is "excluded". The gate passed at 03:14: the trainer line carried bn8, κ_lo 0.25, k_min 0.1 and the CIFAR-100 catalog; 1.771 s per instance.
+- *Read.* 15 Oct 15:02 (`scripts/_tmp_s15oct_lct7_read.sh t7`). Its self-checks reproduce §383 (T6-bn − sens_cost +0.19 / −0.17).
+- *Checks.* All 3 trains and 54 evals COMPLETED.
+- **Scope.** CIFAR-100 is in this agent's training catalog, so its rows on r20-w8 C100 and VGG-19 C100 are held-out *instances* of a seen dataset, not unseen-dataset rows.
+
+**Per net at params 0.35** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T7-C to sens_cost):
+
+| net | T7-C − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T7-C − T6-bn: 5k (s42 / 43 / 44) | val | 10k | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.09 (−0.98 / +0.94 / +0.30) | −0.53 | −0.22 | +0.17 | 0.84–1.05 | −0.16 (−1.18 / +0.14 / +0.56) | −0.38 | −0.27 | −0.62 |
+| chenyaofo ResNet-56 | −0.13 (−0.22 / −0.24 / +0.06) | −0.49 | −0.31 | −0.17 | 0.86–1.02 | −0.30 (−0.40 / −0.44 / −0.06) | −0.41 | −0.35 | −0.27 |
+| thin r56-w8 | +0.23 (+0.70 / −0.64 / +0.64) | −0.18 | +0.03 | +0.47 | 1.05–1.25 | +0.21 (+0.82 / −0.64 / +0.44) | −0.03 | +0.09 | +0.38 |
+| MobileNetV2 ×1.4 | +0.65 (+0.28 / +0.92 / +0.74) | +0.46 | +0.55 | +0.66 | 0.93–1.27 | +0.01 (+0.02 / +0.00 / +0.00) | −0.22 | −0.11 | +0.33 |
+| DenseNet-100 | −0.27 (−0.36 / −0.56 / +0.10) | −0.12 | −0.20 | −0.16 | 1.02–1.20 | −0.23 (−0.36 / −0.28 / −0.04) | −0.03 | −0.13 | −0.26 |
+| thin r20-w8 C100 | **+1.57** (+1.28 / +2.62 / +0.80) | +1.86 | +1.71 | +1.82 | 0.86–1.12 | **+1.15** (+2.16 / +1.82 / −0.52) | +1.49 | +1.32 | +1.33 |
+| VGG-19 C100 | +0.15 (+0.54 / +0.04 / −0.12) | −0.19 | −0.02 | +0.27 | 0.95–1.00 | +0.19 (+0.34 / −0.12 / +0.36) | +0.16 | +0.18 | +0.17 |
+| VGG-16 C10 | +0.30 (+0.44 / +0.14 / +0.32) | +0.15 | +0.23 | +0.07 | 0.99–1.01 | −0.08 (+0.34 / −0.68 / +0.10) | −0.12 | −0.10 | −0.12 |
+| DepGraph R56 | −0.08 (+0.36 / −0.10 / −0.50) | +0.03 | −0.02 | −0.21 | 0.89–1.04 | −0.03 (+0.08 / −0.62 / +0.44) | −0.02 | −0.03 | −0.05 |
+
+**Per net at params 0.25**:
+
+| net | T7-C − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T7-C − T6-bn: 5k (s42 / 43 / 44) | val | 10k | honest |
+|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.13 (+0.54 / −0.84 / +0.68) | +0.30 | +0.21 | +0.01 | 0.82–1.20 | −0.25 (+0.58 / −1.54 / +0.22) | −0.41 | −0.33 | −0.30 |
+| chenyaofo ResNet-56 | +0.45 (+0.10 / +0.64 / +0.62) | −0.25 | +0.10 | +0.49 | 0.81–1.03 | +0.33 (+0.26 / +0.22 / +0.52) | +0.21 | +0.27 | +0.25 |
+| thin r56-w8 | −0.10 (+0.34 / −0.16 / −0.48) | −0.17 | −0.14 | +0.09 | 0.94–1.18 | +0.14 (+1.00 / −1.30 / +0.72) | +0.34 | +0.24 | +0.33 |
+| MobileNetV2 ×1.4 | +0.71 (+0.16 / +0.88 / +1.10) | +0.47 | +0.59 | +0.89 | 0.92–1.31 | +0.14 (−0.14 / +0.02 / +0.54) | +0.15 | +0.14 | +0.13 |
+| DenseNet-100 | +0.39 (+0.16 / +0.26 / +0.74) | +0.27 | +0.33 | +0.47 | 1.04–1.20 | −0.03 (−0.02 / −0.18 / +0.12) | +0.05 | +0.01 | +0.01 |
+| thin r20-w8 C100 | **+2.09** (+3.26 / +4.78 / −1.78) | +2.35 | +2.22 | +2.43 | 0.70–1.28 | **+4.50** (+10.82 / +5.80 / −3.12) | +3.94 | +4.22 | +4.89 |
+| VGG-19 C100 | −0.17 (−0.64 / +0.60 / −0.48) | −0.17 | −0.17 | +0.21 | 0.90–1.00 | −0.24 (−1.20 / +0.90 / −0.42) | −0.68 | −0.46 | +0.14 |
+| VGG-16 C10 | −0.19 (+0.06 / −0.82 / +0.20) | −0.02 | −0.10 | +0.10 | 0.97–1.01 | +0.11 (+0.38 / −0.42 / +0.36) | +0.04 | +0.07 | +0.07 |
+| DepGraph R56 | −0.23 (+0.22 / −0.46 / −0.44) | +0.13 | −0.05 | −0.16 | 0.81–1.04 | −0.06 (−0.22 / −0.02 / +0.06) | +0.19 | +0.06 | −0.07 |
+
+**Pooled.** Exact means of whole-image differences are given to four places; val, 10k and honest are equal-weight means of the per-net rows. "Other eight" leaves out r20-w8 C100. The CIFAR-100 pair is r20-w8 C100 and VGG-19 C100; the CIFAR-10 seven are the rest.
+
+| depth | P = T7-C − sens_cost [95 % bootstrap] | val | 10k | honest | positive | call | other eight | C100 pair / C10 seven | C = T7-C − T6-bn [95 % bootstrap] | val | 10k | positive | call | C100 pair / C10 seven |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.35 | **+0.2778** [−0.06, +0.70] | +0.11 | +0.19 | +0.32 | 6 of 9 | **AT-PRIOR-POOL** | +0.12 | +0.86 / +0.11 | **+0.0844** [−0.20, +0.49] | +0.05 | +0.07 | 4 of 9 | **SAME** | +0.67 / −0.08 |
+| 0.25 | **+0.3422** [−0.12, +1.09] | +0.32 | +0.33 | +0.50 | 5 of 9 | **AT-PRIOR-POOL** | +0.12 | +0.96 / +0.17 | **+0.5163** [−0.24, +2.03] | +0.43 | +0.47 | 5 of 9 | **CATALOG-HELPS** | +2.13 / +0.06 |
+
+**r20-w8 C100's plans** (keep min / median): at 0.35, s42 0.09 / 0.75, s43 0.09 / 0.75, s44 0.19 / 0.84; at 0.25, s42 0.09 / 0.62, s43 0.09 / 0.50, s44 0.09 / 0.72.
+
+Reading:
+1. **CATALOG-HELPS at 0.25 and SAME at 0.35**, by the registered rule. The effect sits on the CIFAR-100 pair (+2.13 at 0.25, +0.67 at 0.35); the seven CIFAR-10 nets do not move (+0.06, −0.08).
+2. **The collapse on r20-w8 C100 is gone at 0.25 when CIFAR-100 is in the catalog:** +2.09 against the rule, against T6-bn's −2.41 and T6-fs's −0.93 (§383, §387). Seed 44 is still −1.78. No seed writes the all-or-nothing plan; the medians are 0.50–0.72. [H] Seeing CIFAR-100 in training removes the cut-the-last-stage habit that §386 and §388 trace to the CIFAR-10-heavy catalog.
+3. **Two near-misses of BEATS-PRIOR-P-POOL, on different conditions.** At 0.35, P = +0.2778, positive on 6 of 9, under the +0.3 bar. At 0.25, P = +0.3422, above the bar on TEST, val (+0.32) and 10k (+0.33), but positive on only 5 of 9 where six are required. Both calls are AT-PRIOR-POOL. The 0.25 value is carried by r20-w8 C100; the other eight are +0.12.
+4. **The cost is small and on VGG-19 C100:** −0.17 against the rule at 0.25, −0.24 against T6-bn.
+5. [H] The catalog lever (this section) and the reward lever (T6-fs, §387) each help at 0.25, through different networks. Their combination, the fs32 reward on a catalog that includes CIFAR-100, is the natural first rung of the catalog scale-up (`docs/CATALOG_SCALE_PLAN.md` §4). It is a new train and is registered on its own.
+
+Never:
+- "Unseen dataset" for T7-C's CIFAR-100 rows.
+- "T7-C beats sens_cost": both calls are AT-PRIOR-POOL. At 0.25 only 5 of 9 nets are positive.
+- T7-C's rows mixed with T6-bn's except in C, or with T6-fs's in any call.
+- 0.35 and 0.25 mixed in one contrast.
+
+Records: queue row T7-C; next §390.
