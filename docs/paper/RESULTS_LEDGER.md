@@ -8836,3 +8836,67 @@ Never:
 - The −0.28 restated as "at the prior" without its val and 10k (−0.36 / −0.32) beside it.
 
 Records: queue row ENS-T6BN; next §387.
+
+## 387. (T6-fs): T5-DEEP's line retrained with the fs32 reward — the frozen T6-fs read at params 0.35 and 0.25 against floored, grid-rounded sens_cost and against T5-deep, on the nine-net held-out pool (trains **22886409 / 499 / 586**, evals 54 of T6's job map; `tree_v21`) — PRELIM; registered calls: P **+0.2356** at 0.35 and **+0.1615** at 0.25 → **AT-PRIOR-POOL** at both; R **+0.70** and **+1.76** → **REWARD-HELPS** at both; reported: T6-fs − T6-bn **+0.0422** and **+0.3356**
+
+Registered before submit 14 Oct 09:46 (commit `884224b`; queue row T6), on Ido's 09:43 choice "Both rewards, in parallel". Its sibling T6-bn (the bn8 reward) is §383 and §384. The gate passed at 09:58.
+- *Trains.* 12,000 instances each in 20:00–20:02 h, inside the 1,700-min cap (T6-COST's projection: 6.97 s per instance).
+- *Read.* 15 Oct 10:35 (`scripts/_tmp_s14oct_t6_read.sh`). Its self-check reproduces T5-deep − sens_cost: −0.46 at 0.35 (§377) and −1.60 at 0.25 (§380). Its T6-bn rows reproduce §383 (+0.19 / −0.17).
+- *Checks.* All 54 T6-fs cells COMPLETED (the guard follows the newest job per cell). Comparators at the same seeds: POOL-P35's sens_cost and T5-DEEP's rows at 0.35, and P25's sens_cost and T5-deep rows at 0.25.
+
+**Per net at params 0.35** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of the first arm to the second; the last column is T6-fs − T6-bn per seed, both against the same sens_cost rows, reported and not a call):
+
+| net | T6-fs − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T6-fs − T5-deep: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T6-fs − T6-bn: 5k (reported) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.22 (−0.66 / +0.36 / +0.96) | +0.08 | +0.15 | +0.12 | 0.95–1.07 | +0.21 (−0.50 / +0.08 / +1.06) | −0.04 | +0.09 | −0.24 | 1.03–1.10 | −0.03 |
+| chenyaofo ResNet-56 | +0.29 (+0.14 / +0.30 / +0.44) | +0.17 | +0.23 | +0.35 | 1.05–1.27 | +0.45 (+0.60 / +0.30 / +0.46) | +0.15 | +0.30 | +0.40 | 0.96–1.06 | +0.13 |
+| thin r56-w8 | −0.07 (−0.30 / −0.28 / +0.36) | −0.39 | −0.23 | +0.20 | 1.15–1.36 | −0.37 (−1.30 / +0.40 / −0.22) | −0.45 | −0.41 | −0.17 | 0.89–0.99 | −0.10 |
+| MobileNetV2 ×1.4 | +0.72 (+0.24 / +1.04 / +0.88) | +0.55 | +0.63 | +0.62 | 1.03–1.26 | −0.21 (−0.22 / −0.12 / −0.30) | −0.11 | −0.16 | −0.23 | 0.94–1.11 | +0.08 |
+| DenseNet-100 | −0.04 (+0.00 / −0.18 / +0.06) | +0.03 | −0.00 | +0.09 | 0.86–1.21 | +0.13 (+0.44 / +0.28 / −0.32) | +0.03 | +0.08 | +0.09 | 0.63–0.92 | +0.01 |
+| thin r20-w8 C100 | **+0.54** (+1.42 / −1.22 / +1.42) | +0.67 | +0.60 | +1.18 | 0.85–1.23 | **+5.65** (+2.52 / +10.54 / +3.88) | +5.41 | +5.53 | +6.15 | 0.76–1.19 | +0.13 |
+| VGG-19 C100 | +0.12 (+0.16 / −0.02 / +0.22) | +0.38 | +0.25 | +0.09 | 1.00 | +0.00 (−0.34 / −0.22 / +0.56) | +0.53 | +0.27 | −0.05 | 1.00–1.04 | +0.16 |
+| VGG-16 C10 | +0.23 (−0.18 / +0.20 / +0.66) | +0.39 | +0.31 | +0.31 | 0.98–1.01 | +0.07 (−0.28 / +0.12 / +0.36) | +0.21 | +0.14 | +0.32 | 0.97–1.07 | −0.15 |
+| DepGraph R56 | +0.11 (+0.14 / +0.04 / +0.16) | +0.05 | +0.08 | −0.17 | 1.08–1.25 | +0.34 (+0.28 / +0.16 / +0.58) | +0.21 | +0.28 | +0.25 | 0.96–1.14 | +0.16 |
+
+**Per net at params 0.25**:
+
+| net | T6-fs − sens_cost: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T6-fs − T5-deep: 5k (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | T6-fs − T6-bn: 5k (reported) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.10 (−0.12 / −0.34 / +0.76) | +0.45 | +0.27 | +0.18 | 0.85–1.03 | −0.65 (−1.12 / −1.04 / +0.20) | −0.61 | −0.63 | −0.51 | 0.91–1.03 | −0.27 |
+| chenyaofo ResNet-56 | +0.42 (−0.06 / +0.68 / +0.64) | +0.32 | +0.37 | +0.53 | 1.20–1.43 | −0.15 (−0.28 / −0.20 / +0.02) | +0.31 | +0.08 | −0.11 | 0.92–1.17 | +0.30 |
+| thin r56-w8 | +0.35 (+0.04 / +0.68 / +0.32) | +0.16 | +0.25 | +0.44 | 1.16–1.39 | +0.40 (+0.14 / +0.54 / +0.52) | +0.14 | +0.27 | +0.33 | 0.88–1.11 | +0.59 |
+| MobileNetV2 ×1.4 | +0.79 (+0.56 / +0.68 / +1.14) | +0.51 | +0.65 | +1.10 | 1.02–1.29 | −0.13 (−0.38 / +0.10 / −0.12) | −0.13 | −0.13 | −0.10 | 0.92–1.17 | +0.22 |
+| DenseNet-100 | +0.27 (+0.54 / +0.04 / +0.24) | +0.23 | +0.25 | +0.23 | 0.87–1.29 | +0.01 (+0.72 / −0.28 / −0.40) | +0.00 | +0.01 | +0.17 | 0.64–0.96 | −0.14 |
+| thin r20-w8 C100 | **−0.93** (+3.40 / −4.70 / −1.48) | −0.68 | −0.80 | −1.05 | 0.92–1.32 | **+15.91** (+13.68 / +15.62 / +18.44) | +15.53 | +15.72 | +15.50 | 0.78–1.14 | +1.49 |
+| VGG-19 C100 | +0.67 (+0.72 / +0.24 / +1.06) | +0.67 | +0.67 | +0.67 | 1.00 | +0.47 (+0.24 / +0.06 / +1.10) | +0.39 | +0.43 | +0.25 | 1.00–1.13 | +0.61 |
+| VGG-16 C10 | −0.22 (−0.24 / −0.58 / +0.16) | −0.01 | −0.11 | −0.16 | 0.97–1.00 | −0.07 (−0.32 / −0.10 / +0.20) | +0.14 | +0.03 | −0.07 | 0.97–1.07 | +0.07 |
+| DepGraph R56 | −0.01 (+0.28 / −0.04 / −0.26) | +0.29 | +0.14 | +0.02 | 1.08–1.33 | +0.08 (+0.46 / −0.06 / −0.16) | +0.23 | +0.16 | −0.14 | 1.03–1.14 | +0.16 |
+
+**Pooled.** The registered calls are on TEST 5k. Each per-seed TEST 5k difference is a whole number of 5,000 images, so the pooled means are exact; they are given to four places. val, 10k and honest are equal-weight means of the per-net rows. "Other eight" leaves out r20-w8 C100 and is a diagnostic.
+
+| depth | P = T6-fs − sens_cost: 5k [95 % bootstrap] | val | 10k | honest | positive | call | other eight | R = T6-fs − T5-deep: 5k [95 % bootstrap] | positive | call | T6-fs − T6-bn (reported): all nine / other eight |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.35 | **+0.2356** [+0.01, +0.50] | +0.21 | +0.22 | +0.31 | 7 of 9 | **AT-PRIOR-POOL** | +0.1975 | **+0.70** [−0.09, +2.25] | 6 of 9 | **REWARD-HELPS** | +0.0422 / +0.0317 |
+| 0.25 | **+0.1615** [−0.46, +0.60] | +0.22 | +0.19 | +0.22 | 6 of 9 | **AT-PRIOR-POOL** | +0.2975 | **+1.76** [−0.20, +5.51] | 5 of 9 | **REWARD-HELPS** | +0.3356 / +0.1917 |
+
+For reference, T6-bn − sens_cost is +0.19 at 0.35 (other eight +0.17) and −0.17 at 0.25 (other eight +0.11) (§383).
+
+**r20-w8 C100's plans** (keep min / median): at 0.35, s42 0.25 / 0.75, s43 0.09 / 0.75, s44 0.09 / 0.91; at 0.25, s42 0.16 / 0.62, s43 0.09 / 0.59, s44 0.09 / 0.78. No seed writes the all-or-nothing plan (median 1.00) that T6-bn's seed 42 wrote at both depths.
+
+FLOPs caption: at equal params T6-fs keeps up to 1.36–1.39× sens_cost's FLOPs on thin r56-w8 and up to 1.43× on chenyaofo ResNet-56 at 0.25; most other pairs are within 0.85–1.33.
+
+Reading:
+1. **AT-PRIOR-POOL at both depths and REWARD-HELPS at both**, by the registered rules.
+2. **At 0.35 the pooled 95 % range lies above zero for the first time against the params prior** ([+0.01, +0.50], positive on 7 of 9). It is still under the +0.3 BEATS bar, so the call is AT-PRIOR-POOL. val (+0.21) and 10k (+0.22) agree in sign.
+3. **At 0.25 the fs32 reward does better than the bn8 reward:** P +0.1615 against T6-bn's −0.17, a reported difference of +0.3356. On the other eight it reaches +0.2975, against T6-bn's +0.11.
+4. **The collapse on r20-w8 C100 shrinks again at 0.25:** −0.93 against the rule (+3.40 / −4.70 / −1.48), from T6-bn's −2.41 and T5-deep's −16.84. T6-bn's collapsing seed (s42) now reads +3.40. Seed 43 is still −4.70, with a plan that keeps the median group at 0.59 and cuts some to the floor (0.09). [H] What is left is a weaker plan rather than the all-or-nothing one.
+5. At 0.35 T6-fs is level with T6-bn pooled (+0.0422). Its largest gains are on VGG-19 C100 and DepGraph R56 (+0.16 each), chenyaofo ResNet-56 and r20-w8 C100 (+0.13 each), and its losses on VGG-16 C10 (−0.15) and thin r56-w8 (−0.10).
+6. [H] Of the two rewards trained in parallel, the one closer to recovery (fs32, ρ 0.58 in §379) gives the better agent at the tight budget, as the fidelity account predicts. The params agent of record is Ido's decision. T6-fs is the natural candidate; it costs about four times T6-bn's train (20 h against 5 h).
+
+Never:
+- "T6-fs beats sens_cost": AT-PRIOR-POOL at both depths. The 0.35 range above zero is under the bar.
+- "The collapse is removed": seed 43 is −4.70 at 0.25.
+- T6-fs − T6-bn as a call: it is reported.
+- 0.35 and 0.25 rows mixed in one contrast.
+
+Records: queue row T6; next §388.
