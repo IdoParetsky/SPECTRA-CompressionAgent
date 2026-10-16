@@ -111,7 +111,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     model = copy.deepcopy(candidate["model"])
     if scratch:
         traj_models.reinit_parameters(model)
-        epochs = fortify_mod.eval_final_ft_scratch_epochs()
+        epochs = fortify_mod.scratch_epochs_for(point["flop"])  # E unless SPECTRA_EVAL_FINAL_FT_SCRATCH_BUDGET=flops
         lr = fortify_mod.eval_final_ft_scratch_lr()
     else:
         lr = fortify_mod.eval_final_ft_lr()
@@ -151,6 +151,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     test_acc = float(handler.evaluate_model(env.test_loader))
     val_acc = float(handler.evaluate_model(env.val_loader))
     minutes = (time.perf_counter() - t0) / 60.0
+    scratch_budget = bool(scratch and fortify_mod.eval_final_ft_scratch_budget())
     test_origin, val_origin = float(point["test_origin"]), float(point["val_origin"])
     utils.print_flush(
         f"[eval] TRAJ final_ft {label} {name} step={point['step']} | "
@@ -159,7 +160,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         f"val Δacc {(val_acc - val_origin) * 100.0:+.2f} pp | walk acc {float(point['test_acc']):.3f} | "
         f"sgd lr={lr:g} m=0.9 wd=5e-4 {shape} e{epochs}{' keep=last' if select else ''} "
         f"bs={loader.batch_size} aug={aug} kd={int(kd)}{' graph=1' if graph else ''} "
-        f"init={'scratch' if scratch else 'inherit'} | {minutes:.1f} min")
+        f"init={'scratch' if scratch else 'inherit'}{' budget=flops' if scratch_budget else ''} | {minutes:.1f} min")
     run_recorder.record(
         "eval_traj_final_ft", network=net_path, label=label, step=int(point["step"]),
         param=float(point["param"]), flop=float(point["flop"]),
@@ -167,7 +168,8 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         val_origin=val_origin, val_walk=float(point["val_acc"]), val_final=val_acc,
         epochs=int(epochs), lr=float(lr), batch=int(loader.batch_size), aug=aug, kd=bool(kd),
         scratch=bool(scratch), schedule=schedule or "cos", warmup=float(warmup) if schedule else 0.0,
-        select=select or "train_loss", minutes=round(minutes, 2), **({"graph": True} if graph else {}))
+        select=select or "train_loss", minutes=round(minutes, 2), **({"graph": True} if graph else {}),
+        **({"scratch_budget": "flops"} if scratch_budget else {}))
     if save_dir:
         traj_models.save_candidate(
             model, traj_models.candidate_stem(save_dir, name, label, point["step"], f"__ft{epochs}"), point,
@@ -176,6 +178,48 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
                 "schedule": schedule or "cos", "warmup": float(warmup) if schedule else 0.0,
                 "select": select or "train_loss", "test_final": test_acc, "val_final": val_acc}})
     return test_acc
+
+
+def _measure_candidates_throughput(env, net_path, candidates):
+    """``SPECTRA_EVAL_THROUGHPUT=1``: one ``[eval] THROUGHPUT`` line and ``eval_throughput`` record per distinct candidate
+    step (the origin included), before any fine-tune. Candidate models are only deep-copied; the DataLoader's base-seed
+    draw is undone so the global RNG stream the fine-tunes read is the one they would have had."""
+    from src import fortify as fortify_mod
+    if not torch.cuda.is_available():
+        utils.print_flush("[eval] THROUGHPUT skipped: no CUDA device")
+        return
+    name = os.path.basename(net_path)
+    device = env.conf.device
+    batches = fortify_mod.eval_throughput_batches()
+    cpu_state = torch.get_rng_state()
+    cuda_state = torch.cuda.get_rng_state_all()
+    try:
+        input_shape = tuple(next(iter(env.val_loader))[0].shape[1:])
+    finally:
+        torch.set_rng_state(cpu_state)
+        torch.cuda.set_rng_state_all(cuda_state)
+    gpu = torch.cuda.get_device_name(torch.device(device))
+    seen = set()
+    for label, cand in candidates.items():
+        step = int(cand["point"]["step"])
+        if step in seen:
+            continue
+        seen.add(step)
+        point = cand["point"]
+        try:
+            results = fortify_mod.measure_throughput(cand["model"], input_shape, device, batches)
+            deterministic = int(bool(torch.backends.cudnn.deterministic))
+            cells = " | ".join(f"bs{b} {results[b]['img_s']:.0f} img/s {results[b]['ms']:.3f} ms" for b in results)
+            utils.print_flush(
+                f"[eval] THROUGHPUT {label} {name} step={step} | params x{point['param']:.3f} | "
+                f"FLOPs x{point['flop']:.3f} | {cells} | {gpu} fp32 cudnn.benchmark=1 deterministic={deterministic}")
+            run_recorder.record(
+                "eval_throughput", network=net_path, label=label, step=step, param=float(point["param"]),
+                flop=float(point["flop"]), results={str(b): r for b, r in results.items()}, gpu=gpu,
+                cudnn_benchmark=1, cudnn_deterministic=deterministic)
+        except Exception as error:  # noqa: BLE001 - one candidate must not cost the others
+            logging_utils.exception(f"[eval] THROUGHPUT {label} {name} failed; continuing")
+            run_recorder.issue("throughput_failed", f"{type(error).__name__}: {error}", network=net_path, label=label)
 
 
 def _run_final_ft(env, net_path, picked, candidates, epochs):
@@ -192,6 +236,8 @@ def _run_final_ft(env, net_path, picked, candidates, epochs):
         origin_model = env.data_dict[env.selected_net_path][0]
         candidates["origin"] = {"point": dict(picked["origin"]),
                                 "model": copy.deepcopy(origin_model).cpu(), "key": None}
+    if fortify_mod.eval_throughput():
+        _measure_candidates_throughput(env, net_path, candidates)
     save_dir = None
     if fortify_mod.eval_save_traj_models():
         save_dir = os.path.join(run_recorder.recorder().run_dir, "traj_models")
@@ -632,6 +678,10 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                     compression_rate = conf.compression_rates_dict[int(action.item())]
                     ranking = _ranking_for(conf, fortify_mod, int(action.item()), chosen_rank)
                     is_cut = abs(float(compression_rate) - 1.0) >= 1e-9
+                    if is_cut and eval_policy == "alloc":
+                        # SPECTRA_CUT_RANK (default unset: ranking unchanged), only on the eval walk's own cuts
+                        from src import alloc_walk
+                        ranking = alloc_walk.cut_ranking(ranking)
                     snapshot = env.rollback_snapshot() if (rollback and is_cut) else None
                     next_state, reward, done = env.step(compression_rate, ranking=ranking)
                     rolled_back = False

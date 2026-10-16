@@ -20,6 +20,15 @@ of ``SPECTRA_ALLOC_SAMPLE_AROUND`` (sens or uniform) times exp(σ ε) per group,
 ``agent_sample`` draws one plan around that mean as the agent samples in training, z = μ + σ ε
 with ε ~ N(0, I) seeded by ``SPECTRA_ALLOC_SAMPLE_SEED`` and σ = ``SPECTRA_ALLOC_SAMPLE_SIGMA``,
 decoded like the mean (D-PROXY-2).
+``randbest`` (v23) is the per-network random-search baseline of Li et al. (CVPR 2022, "Revisiting Random Channel
+Pruning") in the agent's own action space, set beside the frozen agent: N = ``SPECTRA_ALLOC_RANDBEST_N`` (100) plans
+z_g ~ N(0, σ²) per group, σ = ``SPECTRA_ALLOC_RANDBEST_SIGMA`` (1.0), from a CPU generator seeded by
+``SPECTRA_ALLOC_SAMPLE_SEED`` and the run's seed (``randbest_seed``), each decoded as ``agent`` decodes the mean plan
+(``plan_agent.decode`` at the same target, k_min, width floor and budget) and scored on the val half with the proxy
+``SPECTRA_ALLOC_RANDBEST_PROXY`` (no default: cut, bn<N>, fs<S> or ft<E>, the trainer's reward through
+``plan_proxies.PlanScorer``, on the batches ``SPECTRA_EVAL_PROXY_SEED`` draws). The best val (ties to the lower draw)
+is the plan the walk then follows exactly as it follows the agent's. The TEST half is never read, and the global RNG is
+put back after the search, so the walk and the final fine-tune draw as they do under ``agent``.
 ``SPECTRA_ALLOC_BUDGET=flops`` (default params) measures the plan's kept fraction, its target and the stall
 check in MACs (``utils.calc_flops``) instead of parameters, the T0-F variant.
 Each decision then plays the legal cut whose resulting width is closest to its group's
@@ -37,6 +46,7 @@ import math
 import os
 import random
 import statistics
+import time
 
 import torch
 
@@ -47,7 +57,7 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost")
+KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest")
 SAMPLE_AROUND = ("sens", "uniform")
 BUDGETS = ("params", "flops")
 
@@ -66,6 +76,19 @@ def budget() -> str:
     if name not in BUDGETS:
         raise ValueError(f"SPECTRA_ALLOC_BUDGET={name!r}: expected one of {BUDGETS}")
     return name
+
+
+def cut_ranking(ranking):
+    """
+    The ranking ``env.step`` takes for a cut the walk plays: ``SPECTRA_CUT_RANK`` (``fortify.cut_rank``; ``random`` is
+    the control that keeps the walk's widths and picks the surviving channels at random) when it is set, else
+    ``ranking`` unchanged. The eval loop applies it to its own ``env.step`` calls only, under
+    ``SPECTRA_EVAL_POLICY=alloc``: ``plan_targets`` / ``cut_to`` / ``group_sensitivity`` and the plan agent cut with an
+    explicit ``l1``, so the plan (and the agent's tokens, which carry sensitivities measured with the ranking in force)
+    never see it.
+    """
+    mode = fortify.cut_rank()
+    return mode if mode else ranking
 
 
 def alpha() -> float:
@@ -115,6 +138,55 @@ def agent_path() -> str:
     if not path:
         raise ValueError("SPECTRA_ALLOC_KIND=agent or agent_sample needs SPECTRA_PLAN_AGENT=<plan-agent checkpoint>")
     return path
+
+
+def randbest_n() -> int:
+    """``SPECTRA_ALLOC_RANDBEST_N`` (100): how many random plans ``randbest`` draws and scores."""
+    n = int(os.environ.get("SPECTRA_ALLOC_RANDBEST_N", "100"))
+    if n < 1:
+        raise ValueError(f"SPECTRA_ALLOC_RANDBEST_N={n}: need at least one draw")
+    return n
+
+
+def randbest_sigma() -> float:
+    """``SPECTRA_ALLOC_RANDBEST_SIGMA`` (1.0): std of each draw's per-group scores, z_g ~ N(0, σ²)."""
+    return max(0.0, float(os.environ.get("SPECTRA_ALLOC_RANDBEST_SIGMA", "1.0")))
+
+
+def randbest_proxy() -> str:
+    """``SPECTRA_ALLOC_RANDBEST_PROXY`` (no default): the proxy every draw is scored with, one of the plan trainer's
+    (``plan_agent.parse_proxy``: cut, bn<N>, fs<S>, ft<E>), the one the agent of record trained on."""
+    name = os.environ.get("SPECTRA_ALLOC_RANDBEST_PROXY", "").strip().lower()
+    if not name:
+        raise ValueError("SPECTRA_ALLOC_KIND=randbest needs SPECTRA_ALLOC_RANDBEST_PROXY=<cut | bn<N> | fs<S> | ft<E>>, "
+                         "the proxy the plan agent trained on (SPECTRA_PLAN_PROXY)")
+    from src import plan_agent
+    plan_agent.parse_proxy(name)
+    return name
+
+
+def run_seed(env) -> int:
+    """The run's seed (``--seed``, ``SPECTRA_SEED`` in the submit scripts): ``env.conf.seed`` when the env carries one,
+    else ``SPECTRA_SEED``, else 0."""
+    seed = getattr(getattr(env, "conf", None), "seed", None)
+    if seed is None:
+        seed = os.environ.get("SPECTRA_SEED", "").strip() or 0
+    return int(seed)
+
+
+def randbest_seed(sample: int, run: int) -> int:
+    """One generator seed from ``SPECTRA_ALLOC_SAMPLE_SEED`` and the run's seed: the same pair, the same N plans."""
+    return int(sample) * 100003 + int(run)
+
+
+def randbest_draws(n, n_groups, sigma, seed):
+    """``[[z_g]]``: the scores of ``n`` draws, z_g ~ N(0, σ²) independently per group in plan order, from a CPU
+    generator seeded by ``seed`` (float64, as ``plan_agent.plan_for_env`` draws ``agent_sample``'s ε); the global RNG
+    is untouched. One ``randn`` call per draw, so draw i is the same under any N (a longer search extends a shorter
+    one; one call for all N would reorder the stream past torch's 16-element vectorised path)."""
+    generator = torch.Generator().manual_seed(int(seed))
+    return [(float(sigma) * torch.randn(int(n_groups), generator=generator, dtype=torch.float64)).tolist()
+            for _ in range(int(n))]
 
 
 def widths_table() -> dict:
@@ -390,7 +462,7 @@ def grid_priority(info, rows):
     by closeness to the plan instead."""
     kind_name = info.get("kind")
     sens = info.get("sens") or {}
-    if kind_name in ("agent", "agent_sample"):
+    if kind_name in ("agent", "agent_sample", "randbest"):
         z = {row: float(sens.get(row, 0.0)) for row in rows}
         prior = (info.get("prior") or {}).get("weights") if info.get("residual") else None
         if prior:  # T2: a residual plan ranks groups by log(prior weight) + z (plan_agent.residual_decode)
@@ -549,6 +621,101 @@ def _grid_watch(env, entry):
             utils.print_flush(f"[alloc] grid watch unavailable ({type(error).__name__}: {error})")
 
 
+# ------------------------------------------------------------------ v23 randbest (SPECTRA_ALLOC_KIND=randbest)
+
+
+def randbest_plan(env, target, budget="params"):
+    """
+    ``(widths, info)`` of the best of N random plans in the plan agent's action space, in ``plan_agent.plan_for_env``'s
+    format with ``kind`` randbest, so ``_state`` logs, records, grid-rounds and walks it exactly as the agent's mean
+    plan: the per-network random-search baseline of Li et al. (CVPR 2022) scored with the agent's own training proxy.
+
+    Draw i's scores are z_g ~ N(0, σ²) per planned group (``randbest_draws``; σ ``randbest_sigma``, N ``randbest_n``,
+    the generator seeded by ``randbest_seed`` of ``SPECTRA_ALLOC_SAMPLE_SEED`` and the run's seed), decoded by
+    ``plan_agent.decode`` at ``target`` on the ``budget``'s cost model (``ParamModel`` / ``FlopModel``) with the k_min
+    and width floor ``plan_for_env`` would decode the agent with: the checkpoint's ``k_min`` and, when
+    ``fortify.plan_min_width`` is off, its ``min_width`` if ``SPECTRA_PLAN_AGENT`` names the agent of record (read
+    without building it, so the RNG stands), else ``min_keep`` and the flag's floor. Each plan is scored by
+    ``plan_proxies.PlanScorer`` with ``randbest_proxy`` on ``env.val_loader`` only, on the batches
+    ``SPECTRA_EVAL_PROXY_SEED`` draws once for all draws (common random numbers; ``SPECTRA_PLAN_FS_LR`` for fs<S>); the
+    highest val accuracy wins, ties to the lower draw index (indices are 0-based). The search runs inside
+    ``plan_proxies.seeded`` on its own seed, so the Python, NumPy, torch CPU and CUDA RNG states are put back after it
+    and the walk and final fine-tune draw as they do under ``agent``. Only the per-draw scores, decoded widths and
+    landed params / FLOPs ratios are kept (the FLOPs through a ``FlopModel``, built for the report under a params
+    budget), never N models. One line per draw, a summary line and an ``alloc_randbest`` record carry every draw.
+    ``SPECTRA_PLAN_RESIDUAL`` is refused: the draws live in the plain decoder's space, not a residual on a prior.
+    """
+    from src import plan_agent, plan_proxies
+    if budget not in BUDGETS:
+        raise ValueError(f"budget={budget!r}; expected one of {BUDGETS}")
+    n, sigma, proxy = randbest_n(), randbest_sigma(), randbest_proxy()
+    residual = fortify.plan_residual(default=None)
+    if residual not in (None, "off"):
+        raise ValueError(f"SPECTRA_ALLOC_KIND=randbest draws in the plain decoder's space (plan_agent.decode); "
+                         f"SPECTRA_PLAN_RESIDUAL={residual} would decode the agent on a prior instead")
+    seeds = (sample_seed(), run_seed(env))
+    seed, proxy_seed = randbest_seed(*seeds), plan_proxies.proxy_seed()
+    net = os.path.basename(str(env.selected_net_path))
+    device = env.conf.device
+    k_min, min_width = min_keep(), fortify.plan_min_width()
+    agent = os.environ.get("SPECTRA_PLAN_AGENT", "").strip()
+    if agent:  # the agent of record's checkpoint: its k_min, and its floor when no flag sets one, as plan_for_env reads
+        blob = plan_agent.read_blob(plan_agent.ensemble_paths(agent)[0])
+        k_min = float(blob.get("k_min", k_min))
+        if min_width <= 1:
+            min_width = max(1, int(blob.get("min_width", 1)))
+    flops = budget == "flops"
+    started = time.perf_counter()
+    draws, best = [], None
+    with plan_proxies.seeded(seed):  # the search's own stream; every global RNG state is put back after it
+        model = env.current_model.to(device)
+        mwr = ModelWithRows(model)
+        plan = group_sensitivity.group_plan(mwr, env._dependency_groups(mwr))
+        shape = env._input_shape()
+        pm = plan_agent.FlopModel(model, plan, shape, device) if flops else plan_agent.ParamModel(model, plan)
+        fm = pm if flops else plan_agent.FlopModel(model, plan, shape, device)
+        params0 = float(pm.pm.total0 if flops else pm.total0)
+        z = randbest_draws(n, len(pm.rows), sigma, seed)
+        scorer = plan_proxies.PlanScorer(model, plan, env.val_loader, device, train_loader=env.train_loader,
+                                         input_shape=shape, create_handler=getattr(env, "create_learning_handler", None),
+                                         name=net)
+        batches = scorer.batches(proxy, proxy_seed)
+        for i in range(n):
+            widths, decoded = plan_agent.decode(z[i], pm, target, k_min, min_width=min_width)
+            score = float(scorer.score(widths, proxy, batches))
+            p, f = pm.params(widths) / params0, float(fm.kept(widths))
+            draws.append({"score": score, "kept": float(decoded["kept"]), "params": float(p), "flops": f,
+                          "widths": widths})
+            utils.print_flush(f"[alloc] randbest {net} draw={i} score={score:.4f} params x{p:.3f} FLOPs x{f:.3f}")
+            if best is None or score > draws[best]["score"]:
+                best = i
+        del scorer, batches
+    minutes = (time.perf_counter() - started) / 60.0
+    scores = [d["score"] for d in draws]
+    utils.print_flush(
+        f"[alloc] randbest {net}: best draw {best} of {n}, val {scores[best]:.4f} (spread {min(scores):.4f}-"
+        f"{max(scores):.4f}, median {statistics.median(scores):.4f}), proxy {proxy}, sigma {sigma:g}, {minutes:.1f} min")
+    try:
+        import src.run_recorder as run_recorder
+        run_recorder.record(
+            "alloc_randbest", network=str(env.selected_net_path), proxy=proxy, sigma=sigma, n=n, seed=seed,
+            sample_seed=seeds[0], run_seed=seeds[1], proxy_seed=proxy_seed, budget=budget, target=float(target),
+            k_min=k_min, **({"min_width": min_width} if min_width > 1 else {}), **({"agent": agent} if agent else {}),
+            **({"fs_lr": plan_agent.fs_lr()} if proxy.startswith("fs") else {}),
+            pick=best, score=scores[best], minutes=round(minutes, 3),
+            draws=[{"score": d["score"], "kept": d["kept"], "params": d["params"], "flops": d["flops"],
+                    "widths": {str(r): int(w) for r, w in d["widths"].items()}} for d in draws])
+    except Exception:  # noqa: BLE001 - the record is a convenience
+        pass
+    widths = draws[best]["widths"]
+    summary = {"pick": best, "n": n, "score": scores[best], "proxy": proxy, "sigma": sigma, "seed": seed,
+               "minutes": minutes, "scores": scores}
+    return widths, {"kind": "randbest", "alpha": 0.0, "target": float(target), "kept": draws[best]["kept"],
+                    "budget": budget, "keeps": {row: widths[row] / float(pm.widths0[row]) for row in pm.rows},
+                    "origin_widths": dict(pm.widths0), "sens": {row: float(v) for row, v in zip(pm.rows, z[best])},
+                    "held": 0, "randbest": summary, **({"min_width": int(min_width)} if min_width > 1 else {})}
+
+
 def _state(env):
     """Per-network plan, measured on the origin the first time the network comes round; under
     ``SPECTRA_ALLOC_GRID_ROUND`` put on the walk's grid (``_grid_round_state``) and checked at every later call
@@ -578,6 +745,8 @@ def _state(env):
                                                        sample=(sample_sigma(), sample_seed()), **agent_kw)
             else:
                 widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep(), **agent_kw)
+        elif kind() == "randbest":
+            widths, info = randbest_plan(env, target, budget="flops" if flops else "params")
         else:
             batches = group_sensitivity.calibration_batches(
                 env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
@@ -594,6 +763,10 @@ def _state(env):
         if info["kind"] == "agent_sample":
             s = info["sample"]
             source = f"agent_sample sigma={s['sigma']:g} seed={s['seed']} around the mean of {info['policy']}"
+        if info["kind"] == "randbest":
+            r = info["randbest"]
+            source = (f"randbest best draw {r['pick']} of {r['n']} (val {r['score']:.4f}, proxy {r['proxy']}, "
+                      f"sigma {r['sigma']:g}, seed {r['seed']})")
         if info["kind"] == "sample" and info.get("sample"):
             sample = info["sample"]
             source = (f"sample around {sample['around']} sigma={sample['sigma']:g} seed={sample['seed']} "
@@ -606,11 +779,18 @@ def _state(env):
             f"max {keeps[-1]:.2f}" + (f"; {info['held']} coupled groups held at full width" if info["held"] else "")
             + (f"; {info['unnamed']} groups not named in the table, kept whole" if info.get("unnamed") else "")
             + (f"; group width floor {floor}" if floor > 1 else ""))
+        if fortify.cut_rank():
+            utils.print_flush(
+                f"[alloc] cut ranking: {fortify.cut_rank()}"
+                + (f" (seed {pruning.random_rank_seed()})" if fortify.cut_rank() == "random" else "")
+                + f" for {os.path.basename(str(net))}")
         try:
             import src.run_recorder as run_recorder
             run_recorder.record(
                 "alloc_plan", network=str(net), kind=info["kind"], alpha=info["alpha"], target=target,
                 kept=info["kept"], **({"sample": info["sample"]} if info.get("sample") else {}),
+                **({"randbest": {key: info["randbest"][key] for key in ("pick", "n", "score", "proxy", "sigma", "seed")}}
+                   if info.get("randbest") else {}),
                 **({"budget": "flops"} if flops else {}), **({"min_width": floor} if floor > 1 else {}),
                 rows={str(r): {"origin": info["origin_widths"].get(r), "target": widths[r],
                                                   "keep": round(info["keeps"][r], 4),

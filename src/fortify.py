@@ -698,6 +698,119 @@ def eval_final_ft_scratch_lr() -> float:
     return max(1e-6, _env_float_or("SPECTRA_EVAL_FINAL_FT_SCRATCH_LR", 0.1))
 
 
+def eval_final_ft_scratch_budget() -> str:
+    """
+    ``SPECTRA_EVAL_FINAL_FT_SCRATCH_BUDGET`` (default ``""`` = off): ``flops`` trains each scratch candidate for
+    ``round(E / flop)`` epochs, E = :func:`eval_final_ft_scratch_epochs` and ``flop`` the candidate's kept-FLOPs
+    ratio (the origin's is 1.0) -- Liu et al. (ICLR 2019) "Scratch-B": the compute of training the large model for
+    the Scratch-E epochs. Anything else raises ValueError. See :func:`scratch_epochs_for`.
+    """
+    raw = os.environ.get("SPECTRA_EVAL_FINAL_FT_SCRATCH_BUDGET", "").strip().lower()
+    if raw in ("", "flops"):
+        return raw
+    raise ValueError(f"SPECTRA_EVAL_FINAL_FT_SCRATCH_BUDGET={raw!r}: expected '' or 'flops'")
+
+
+def eval_final_ft_scratch_max_epochs() -> int:
+    """``SPECTRA_EVAL_FINAL_FT_SCRATCH_MAX_EPOCHS`` (default 0 = no cap): ceiling on the Scratch-B epochs."""
+    return max(0, _env_int_or("SPECTRA_EVAL_FINAL_FT_SCRATCH_MAX_EPOCHS", 0))
+
+
+def scratch_epochs_for(flop_ratio: float) -> int:
+    """
+    Epochs of one scratch run. Budget unset: :func:`eval_final_ft_scratch_epochs` whatever ``flop_ratio`` is.
+    ``flops``: ``max(1, round(E / max(flop_ratio, 1e-6)))``, then at most
+    :func:`eval_final_ft_scratch_max_epochs` when that is above 0.
+    """
+    base = eval_final_ft_scratch_epochs()
+    if not eval_final_ft_scratch_budget():
+        return base
+    epochs = max(1, int(round(base / max(float(flop_ratio), 1e-6))))
+    cap = eval_final_ft_scratch_max_epochs()
+    return min(epochs, cap) if cap > 0 else epochs
+
+
+def cut_rank() -> str:
+    """
+    ``SPECTRA_CUT_RANK`` (default unset = off): the filter ranking every cut of the eval allocation walk
+    (``SPECTRA_EVAL_POLICY=alloc``) takes as its explicit ``ranking`` -- ``random`` is the control that keeps the
+    walk's widths and picks the surviving channels at random. Any name :func:`src.pruning.strict_importance_mode`
+    does not accept raises ValueError. It is applied only at the eval walk's ``env.step``
+    (``alloc_walk.cut_ranking``); the sensitivity probes, the plan agent and the training environment pass their
+    own rankings and never read it.
+    """
+    raw = os.environ.get("SPECTRA_CUT_RANK", "").strip()
+    return pruning.strict_importance_mode(raw) if raw else ""
+
+
+def eval_throughput() -> bool:
+    """``SPECTRA_EVAL_THROUGHPUT=1`` (default off): measure each final-FT candidate's GPU inference throughput
+    (:func:`measure_throughput`) before any fine-tune."""
+    return _flag("SPECTRA_EVAL_THROUGHPUT")
+
+
+def eval_throughput_batches() -> Tuple[int, ...]:
+    """``SPECTRA_EVAL_THROUGHPUT_BATCHES`` (default ``256,1``): the batch sizes :func:`measure_throughput` times."""
+    out = []
+    for part in (os.environ.get("SPECTRA_EVAL_THROUGHPUT_BATCHES", "").strip() or "256,1").split(","):
+        try:
+            value = int(part)
+        except ValueError:
+            continue
+        if value > 0 and value not in out:
+            out.append(value)
+    return tuple(out) or (256, 1)
+
+
+def measure_throughput(model, input_shape, device, batches=(256, 1), warmup_iters=None, timed_iters=None,
+                       repeats=3) -> dict:
+    """
+    ``{batch: {"img_s": float, "ms": float}}``: fp32 inference speed of a deepcopy of ``model`` (eval mode,
+    ``torch.no_grad``) on zero-filled synthetic inputs ``torch.zeros(batch, *input_shape)`` -- no RNG is drawn and
+    ``model`` is never touched. Per batch size: ``warmup_iters`` forwards, then ``repeats`` timed runs of
+    ``timed_iters`` forwards each (CUDA: ``torch.cuda.synchronize()`` before and after each run); ``img_s`` and
+    ``ms`` (per forward) are medians over the repeats. ``warmup_iters`` / ``timed_iters`` default to 20 / 50 for
+    batches above 1 and 50 / 300 for batch 1. On CUDA ``torch.backends.cudnn.benchmark`` is True while measuring
+    and restored afterwards; ``cudnn.deterministic`` is left as it is.
+    """
+    import copy
+    import statistics
+    import time
+    device = torch.device(device)
+    work = copy.deepcopy(model).to(device).eval()
+    cuda = device.type == "cuda"
+    prev_benchmark = torch.backends.cudnn.benchmark
+    results = {}
+    try:
+        if cuda:
+            torch.backends.cudnn.benchmark = True
+        with torch.no_grad():
+            for batch in batches:
+                batch = int(batch)
+                warm = int(warmup_iters) if warmup_iters is not None else (50 if batch == 1 else 20)
+                timed = int(timed_iters) if timed_iters is not None else (300 if batch == 1 else 50)
+                x = torch.zeros(batch, *tuple(int(d) for d in input_shape), device=device)
+                for _ in range(warm):
+                    work(x)
+                img_s, ms = [], []
+                for _ in range(max(1, int(repeats))):
+                    if cuda:
+                        torch.cuda.synchronize()
+                    start = time.perf_counter()
+                    for _ in range(timed):
+                        work(x)
+                    if cuda:
+                        torch.cuda.synchronize()
+                    elapsed = max(time.perf_counter() - start, 1e-9)
+                    img_s.append(batch * timed / elapsed)
+                    ms.append(1000.0 * elapsed / timed)
+                results[batch] = {"img_s": float(statistics.median(img_s)), "ms": float(statistics.median(ms))}
+    finally:
+        torch.backends.cudnn.benchmark = prev_benchmark
+        del work
+    return results
+
+
 def eval_final_ft_from() -> str:
     """
     ``SPECTRA_EVAL_FINAL_FT_FROM=<traj_models dir>`` (TRAJ TEST; default off): skip the walk and run the

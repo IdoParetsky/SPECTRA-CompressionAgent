@@ -16,6 +16,11 @@ state saved and restored, so candidates in different jobs see the same batches (
 and the final fine-tune that follows is not moved by the proxies. The per-step fine-tune runs with the
 handler's own recipe (``SPECTRA_FT_*`` recipe keys are cleared for its duration), the recipe v10 trained
 with; its "Fine-tune recipe" log line is the check.
+
+``PlanScorer`` (v23) is the plan trainer's reward read without its policy state, for a search over plans at eval
+(``alloc_walk`` ``randbest``): the origin cut once to a plan's widths and read on the val half after ``cut``, ``bn<N>``,
+``fs<S>`` or ``ft<E>`` (the trainer's names, ``plan_agent.parse_proxy``), with the trainer's own implementation and
+batches. It never reads the TEST half.
 """
 from __future__ import annotations
 
@@ -150,3 +155,89 @@ def measure(env, net_path, label, candidate, names):
         param=float(point["param"]), flop=float(point["flop"]), val_origin=val_origin, test_origin=test_origin,
         seed=proxy_seed(), proxies=out, **fs)
     return out
+
+
+# ------------------------------------------------------------------ v23: the trainer's reward read, shared with a search
+
+
+class PlanScorer:
+    """
+    The plan trainer's reward path without its policy state (``plan_agent.NetInstance`` less the encoder state, the
+    tokens and the sensitivities): the origin ``model`` cut once to a plan's widths and read on ``val_loader`` after a
+    proxy, as ``NetInstance.reward`` scores a training plan. ``cut`` / ``bn<N>`` / ``fs<S>`` score the masked working
+    copy (``plan_agent.MaskedCut``: ``alloc_walk.cut_to``'s L1 cut written as zeros, re-masked after every SGD step of
+    ``plan_agent.short_finetune`` at ``plan_agent.fs_lr``); ``ft<E>`` cuts for real (``alloc_walk.cut_to``) and
+    fine-tunes that copy E epochs by the learning handler's own recipe under ``seeded(seed)``, as
+    ``NetInstance.finetune_reward``. ``batches`` draws what a proxy needs once, so every plan scored on them shares the
+    same batches (common random numbers), as ``NetInstance.batches``. A score is the val accuracy (a fraction) the
+    trainer subtracts the origin's from. Only ``val_loader`` is read, once, at construction: the TEST half is never
+    touched, so a search over plans (``alloc_walk`` ``randbest``) selects on val alone.
+    """
+
+    def __init__(self, model, plan, val_loader, device, train_loader=None, input_shape=None, create_handler=None,
+                 name=""):
+        from src import plan_agent
+        self.model, self.plan, self.device, self.name = model, plan, device, str(name)
+        self.train_loader, self.input_shape = train_loader, input_shape
+        self.create_handler = create_handler if create_handler is not None else plan_agent.default_handler
+        self.recipe_line = None  # the last ft<E> fine-tune's recipe, as NetInstance keeps it
+        self.widths0 = {int(row): int(group.width) for group, row in plan}
+        self.cutter = plan_agent.MaskedCut(model)
+        if self.cutter.rows != list(self.widths0):
+            raise RuntimeError(f"{self.name}: the working copy plans rows {self.cutter.rows}, "
+                               f"the origin {list(self.widths0)}")
+        self.val = plan_agent.eval_batches(val_loader, device)
+
+    def batches(self, proxy: str, seed: int):
+        """What ``score`` needs for ``proxy`` under ``seed``, drawn once and shared by every plan scored on them, as
+        ``NetInstance.batches``: the fixed ``(x, y)`` batches of ``fs<S>`` (``plan_agent.ft_batches``), the
+        recalibration batches of ``bn<N>`` (``plan_agent.recal_batches``), nothing for ``cut``, and for ``ft<E>`` the
+        seed itself (its fine-tune draws its epochs from the loader under it)."""
+        from src import plan_agent
+        kind, n = plan_agent.parse_proxy(proxy)
+        if kind == "ft":
+            return int(seed)
+        if kind == "fs":
+            return plan_agent.ft_batches(self.train_loader, n, seed, self.device)
+        return plan_agent.recal_batches(self.train_loader, n, seed, self.device) if kind == "bn" else []
+
+    def score(self, widths, proxy: str, batches) -> float:
+        """Val accuracy (a fraction) of the net cut once to ``widths`` after ``proxy`` on ``batches``:
+        ``NetInstance.reward``'s read before its origin subtraction, by the same calls."""
+        from src import plan_agent, recovery_edits
+        kind, n = plan_agent.parse_proxy(proxy)
+        if kind == "ft":
+            return self._finetune_score(widths, n, batches)
+        work = self.cutter.cut(plan_agent.rates_of(widths, self.widths0))
+        if kind == "bn":
+            recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
+        elif kind == "fs":
+            plan_agent.short_finetune(work, batches, plan_agent.fs_lr(), after_step=self.cutter.remask)
+        return float(plan_agent.accuracy(work, self.val))
+
+    def _finetune_score(self, widths, epochs: int, seed) -> float:
+        """``NetInstance.finetune_reward``'s read: the real cut (``alloc_walk.cut_to``) fine-tuned ``epochs`` epochs by
+        the handler's own recipe (``handler_recipe``) under ``seeded(seed)``, entered after the cut as there; the
+        handler's lines are captured, the recipe kept in ``recipe_line``, and a fine-tune that did not run raises."""
+        from src import alloc_walk, plan_agent
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise ValueError(f"the ft{epochs} score takes the seed batches() returns for it, not {type(seed).__name__}")
+        epochs, lines = int(epochs), []
+        with seeded(seed):
+            real = alloc_walk.cut_to(self.model, self.plan, plan_agent.rates_of(widths, self.widths0), self.input_shape)
+            real = real.to(self.device)
+            for param in real.parameters():
+                param.requires_grad = True
+            with seeded(seed), handler_recipe(), plan_agent._captured(lines):
+                self.create_handler(real).train_model(self.train_loader, allow_reinit_retry=False, max_epochs=epochs,
+                                                      patience=epochs + 1, tag=f"plan ft{epochs} {self.name}")
+            acc = float(plan_agent.accuracy(real, self.val))
+        del real
+        recipe = [line.split("Fine-tune recipe:", 1)[1].strip() for line in lines if "Fine-tune recipe:" in line]
+        if not recipe or any("produced no loss" in line for line in lines):
+            raise RuntimeError(f"{self.name}: the ft{epochs} fine-tune did not run: " + " | ".join(lines[-3:]))
+        if any(" = nan" in line.lower() or " = inf" in line.lower() for line in lines if "loss" in line.lower()):
+            utils.print_flush(f"[alloc] WARNING: {self.name}: the ft{epochs} fine-tune's loss went NaN or inf for this "
+                              "plan; its score reads the diverged net")
+        self.recipe_line = recipe[-1].split(" trainable=", 1)[0]
+        return acc

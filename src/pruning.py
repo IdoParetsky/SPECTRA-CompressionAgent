@@ -47,6 +47,13 @@ Filter ranking (``SPECTRA_FILTER_IMPORTANCE``, default ``l1``)
             Network Slimming" (ICCV 2017). Survival score is ``|γ|`` of the BatchNorm that
             immediately follows the conv. Falls back to L1 when there is no matching BN.
             Call ``bind_bn_scales(model)`` before ranking (NetworkEnv does this).
+    ``random`` A control, not a criterion: a fresh uniform score u in (0, 1] per filter, 0 for a filter
+            that is all zeros (so ``alive_filters`` is unchanged), drawn from one process-wide CPU
+            generator seeded from ``SPECTRA_CUT_RANK_SEED``, else ``SPECTRA_SEED``, else 0
+            (``reset_random_rank``). It keeps the widths a walk plays and randomises *which*
+            channels survive. The eval allocation walk selects it per cut with ``SPECTRA_CUT_RANK=random``
+            (``fortify.cut_rank``, ``alloc_walk.cut_ranking``); nothing else ranks by it unless
+            ``SPECTRA_FILTER_IMPORTANCE=random`` is set on purpose.
 
     Poplar / metaheuristic channel search, MLPruner, DAGP, flow-guided pruning, and
     activation spectral-entropy scores are *per-model* solvers (they need a new search or
@@ -89,7 +96,20 @@ def normalize_importance_mode(raw) -> str:
         return "bn_scale"
     if raw in ("taylor", "taylor_fo", "first_order", "molchanov"):
         return "taylor"
+    if raw == "random":
+        return "random"
     return "l1"
+
+
+IMPORTANCE_MODES = ("l1", "l2", "svd", "fpgm", "bn_scale", "taylor", "random")
+
+
+def strict_importance_mode(raw) -> str:
+    """``normalize_importance_mode`` for a flag that must not fall back silently: an unrecognised name raises."""
+    mode = normalize_importance_mode(raw)
+    if mode == "l1" and (raw or "l1").strip().lower() != "l1":
+        raise ValueError(f"unknown filter ranking {raw!r}: expected one of {IMPORTANCE_MODES}")
+    return mode
 
 
 _TAYLOR_SCORES: Dict[int, torch.Tensor] = {}
@@ -162,6 +182,46 @@ def _taylor_per_filter(layer: nn.Module, weight: torch.Tensor) -> torch.Tensor:
     return scores
 
 
+_RANDOM_RANK: Dict[str, object] = {"gen": None, "seed": None}
+
+
+def _random_rank_env_seed() -> int:
+    for key in ("SPECTRA_CUT_RANK_SEED", "SPECTRA_SEED"):
+        raw = os.environ.get(key, "").strip()
+        if raw:
+            try:
+                return int(raw)
+            except ValueError as error:
+                raise ValueError(f"{key}={raw!r}: expected an integer") from error
+    return 0
+
+
+def reset_random_rank(seed: Optional[int] = None) -> int:
+    """(Re)seed the ``random`` ranking's CPU generator: ``seed``, else ``SPECTRA_CUT_RANK_SEED``, else
+    ``SPECTRA_SEED``, else 0. The generator is process-wide, created on first use, and advanced on every call
+    of ``filter_importance(..., "random")``; it never touches the global torch RNG. Returns the seed."""
+    seed = _random_rank_env_seed() if seed is None else int(seed)
+    gen = torch.Generator(device="cpu")
+    gen.manual_seed(seed)
+    _RANDOM_RANK.update(gen=gen, seed=seed)
+    return seed
+
+
+def random_rank_seed() -> int:
+    """The seed of the ``random`` ranking's generator now in force (the one it would take, before first use)."""
+    return int(_RANDOM_RANK["seed"]) if _RANDOM_RANK["gen"] is not None else _random_rank_env_seed()
+
+
+def _random_per_filter(weight: torch.Tensor) -> torch.Tensor:
+    """u_i in (0, 1] per output filter (``1 - rand``), 0 for an all-zero filter; float32 on the weight's device."""
+    if _RANDOM_RANK["gen"] is None:
+        reset_random_rank()
+    cout = int(weight.size(0))
+    u = 1.0 - torch.rand(cout, generator=_RANDOM_RANK["gen"], dtype=torch.float32)
+    alive = weight.reshape(cout, -1).abs().sum(dim=1) > 0
+    return u.to(device=weight.device) * alive.to(dtype=torch.float32)
+
+
 def filter_importance_mode(mode: Optional[str] = None) -> str:
     """
     Ranking in force: an explicit ``mode`` (the agent's *action* may carry one when the
@@ -209,7 +269,8 @@ def filter_importance(layer: nn.Module, mode: Optional[str] = None) -> torch.Ten
     weight-only criteria at group level (SPA 2024). ``bn_scale`` uses the following BN's
     ``|γ|`` when ``bind_bn_scales`` has paired it. All of these are zero iff the filter is
     all zeros, so ``alive_filters`` stays well-defined. ``mode`` overrides the environment
-    default for one call (ranking chosen by the action).
+    default for one call (ranking chosen by the action). ``random`` draws a fresh score per call
+    (see the module docstring).
     """
     weight = layer.weight.detach()
     mode = filter_importance_mode(mode)
@@ -223,6 +284,8 @@ def filter_importance(layer: nn.Module, mode: Optional[str] = None) -> torch.Ten
         return _bn_scale_per_filter(layer, weight)
     if mode == "taylor":
         return _taylor_per_filter(layer, weight)
+    if mode == "random":
+        return _random_per_filter(weight)
     return weight.reshape(weight.size(0), -1).abs().sum(dim=1)
 
 
