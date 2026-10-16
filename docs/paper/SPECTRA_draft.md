@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391 and 05:50 with §392.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391, 05:50 with §392 and 06:40 with §393–§395.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -40,6 +40,9 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Against the literature (DepGraph's ResNet-56; VGG-16; ResNet-110) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. On VGG-16 and ResNet-110 at the field's standard FLOPs points the frozen FLOPs agent is at the rule, and the allocation matters little. The recipes and base checkpoints differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382, §391, §392 |
 | Has a registered beat fired? | Twice. Narrowly, on one network: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it). Pooled: the 32-step agent at 45 % params over the nine networks, +0.42 with val +0.34, 10k +0.38 and honest +0.46. One network carries part of it; the other eight average +0.19 | §382, §385, §390 |
 | Does training longer help? | Not on this catalog: T6-bn's edge on the other eight is flat on val from 3,000 to 12,000 instances, and the collapse on ResNet-20 ×8 CIFAR-100 appears only from 6,000 | §388 |
+| Do the inherited weights matter? | With Scratch-B's compute, the 32-step agent's architecture trains from scratch to the same accuracy as with its inherited weights (SCRATCH-SAME at both DepGraph points). With Scratch-E's 200 epochs, the inherited weights help at 38 % params (+0.39) | §394 |
+| Are fewer FLOPs faster? | Not on DepGraph's ResNet-56 on an RTX 4090: 37–61 % fewer FLOPs run at 0.93–1.07× at batch 256. VGG-16 gains 1.32–1.65×. Batch-1 latency is unchanged | §395 |
+| How reproducible is one cell? | Two runs of an identical cut differ by 0.12 and 0.38 on TEST: the fine-tune is not bit-reproducible on the GPU [H]. Pooled calls are robust to it; a single-net call can move by about ±0.2 | §393 |
 | Running | T6-fs at 60 % and 45 % (POOL-T6FS), overnight | queue |
 
 ---
@@ -763,6 +766,34 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **The registered calls** (§392): T4-F − sens_F is −0.07 at 0.48 and −0.21 at 0.40, AT-PRIOR at both. The lever is limited at both points: +0.13 and +0.31.
 - **Beside the published rows (setup S1, never a beat).** Every SPECTRA arm ends within 0.3 of its origin on TEST at both points. Our recovery lifts the unpruned ResNet-110 by about +0.4 to +0.7, so every honest value is negative.
 
+### 5.10 Scratch training, measured speed and run-to-run noise
+
+**Would training from scratch do as well?** (Liu et al.; §394; DepGraph's ResNet-56, the 32-step agent's architectures; mean over seeds 42–44; PRELIM)
+
+| Point | inherit − Scratch-E (200 epochs) | inherit − Scratch-B (297–388 epochs) |
+|---|---|---|
+| params 0.47 (DepGraph's 2.11×) | +0.05 (val +0.30, 10k +0.18): SCRATCH-SAME | −0.23 (val −0.11, 10k −0.17): SCRATCH-SAME |
+| params 0.38 (DepGraph's 2.57×) | +0.39 (val +0.61, 10k +0.50): INHERIT-HELPS | −0.03 (val −0.16, 10k −0.10): SCRATCH-SAME |
+
+- **Scratch-B matches the inherited weights at both points.** This is Liu et al.'s result for structured pruning. The agent's contribution is the architecture (the allocation), not the weights the pruned network inherits.
+- **A shorter scratch run (Scratch-E) falls behind at the tighter point.**
+- **The checkpoint is a weak baseline for this recipe.** Our recipe trains the unpruned network from scratch to +0.2 to +0.8 above DepGraph's checkpoint.
+
+**Are fewer FLOPs faster?** (§395; RTX 4090, fp32, eager PyTorch; images per second at batch 256 and ms at batch 1, each against the unpruned network in the same job; seed 42)
+
+| Network and arms | FLOPs kept | Speed-up at batch 256 | Speed-up at batch 1 |
+|---|---|---|---|
+| DepGraph ResNet-56: agents and rules | 0.39–0.63 | 0.93–0.99× | 0.94–1.03× |
+| DepGraph ResNet-56: uniform cuts | 0.39–0.42 | 1.06–1.07× | 0.97–1.00× |
+| VGG-16: all arms | 0.465 | 1.32–1.42× | 1.01–1.08× |
+| VGG-16: all arms | 0.34 | 1.63–1.65× | 1.01–1.06× |
+
+- **On the small CIFAR ResNet, fewer FLOPs are not faster on this GPU.** [H] The network is bound by memory traffic and kernel launches. The agents and rules keep the residual streams whole, while the uniform cuts thin them and gain 6–7 %.
+- **On VGG-16 the FLOPs saving becomes speed at batch 256,** though less than one for one: 2.15× fewer FLOPs gives 1.32–1.42×, and 2.94× fewer gives 1.63–1.65×.
+- Table 1's FLOPs ratios carry this table beside them. Compiled or fused runtimes are not measured.
+
+**Run-to-run noise** (§393). Two runs of an identical cut, with the same plan and seed, differed by 0.12 and 0.38 on TEST. [H] No deterministic GPU algorithms are set, so the 100-epoch fine-tune at lr 0.1 is not bit-reproducible. Under such noise a pooled call over 27 cells moves by well under 0.1, and a single-net call over three seeds by about ±0.2. RAND-CH-L1's 54 paired cells will measure it at scale.
+
 ---
 
 ## 6. Discussion — DRAFT
@@ -787,6 +818,8 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - The FLOPs agent sits below the FLOPs rule on most networks (§366).
 - The deep-budget failure is removed at 35 % and reduced, not removed, at 25 %, where one seed still collapses (§378, §381, §383). A three-seed ensemble does not remove it (§386). The 32-step reward shrinks it to −0.93, with one seed still at −4.70 (§387).
 - One recovery recipe. Allocation rankings may differ under much shorter recoveries.
+- Fewer FLOPs are not faster for the small ResNets on a GPU (§395). SPECTRA's budgets are FLOPs and parameters, not latency.
+- Runs are not bit-reproducible: two runs of one cell differed by up to 0.38 on TEST (§393). Pooled calls are robust to this, single-net calls less so.
 
 ---
 
