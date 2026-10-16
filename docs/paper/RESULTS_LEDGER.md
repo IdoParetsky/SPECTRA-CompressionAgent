@@ -9360,3 +9360,36 @@ Never:
 - 0.45 and 0.25 mixed in one contrast.
 
 Records: queue row RAND-BEST; next §397.
+
+## 397. (DET): does `SPECTRA_EVAL_FT_DETERMINISTIC=1` make one cell give the same number twice? The control's cell (T6-fs, params 0.45, s42, G2) run twice with the flag on tree_v24, on DepGraph R56 and r20-w8 C100 — DET-EXACT: the two runs agree to 4 decimals on every number, on both nets; without the flag the same cell spreads over 0.42 and 0.76 points across three runs, the tree_v21 repeat included
+
+Registered 16 Oct 13:31 (`759fb91`; queue row DET), under Ido's 16 Oct ~09:05 GO. The code is `a89a9d0`, deployed as tree_v24 at 13:40 after `_stage_v24b` passed every test.
+- *Gate.* It passed at 13:58. The two flag-on 2-epoch smokes were identical: their epoch-1 losses agree to 5 decimals in all three fine-tunes, and PyTorch named no op as non-deterministic.
+- *Read.* 14:35 (`scripts/_tmp_s16oct_det_read.sh`, from the run records at full precision).
+
+| net (params 0.45, s42) | run | size point: TEST 5k / val / 10k | origin: TEST 5k / val / 10k | minutes |
+|---|---|---|---|---|
+| DepGraph R56 | flag on, a | +0.3200 / +0.4200 / +0.3700 | +0.6800 / +0.9200 / +0.8000 | 25.5 |
+| DepGraph R56 | flag on, b | +0.3200 / +0.4200 / +0.3700 | +0.6800 / +0.9200 / +0.8000 | 25.8 |
+| DepGraph R56 | flag off, tree_v21 (POOL-T6FS) | +0.16 / +0.48 / +0.32 | — | 19.1 |
+| DepGraph R56 | flag off, tree_v23 (the control, §393) | +0.04 / +0.42 / +0.23 | — | 18.7 |
+| DepGraph R56 | flag off, tree_v21 repeat (RAND-CH-L1) | +0.46 / +0.08 / +0.27 | — | 19.0 |
+| r20-w8 C100 | flag on, a | −10.2800 / −9.0000 / −9.6400 | −0.1400 / +1.1400 / +0.5000 | 7.1 |
+| r20-w8 C100 | flag on, b | −10.2800 / −9.0000 / −9.6400 | −0.1400 / +1.1400 / +0.5000 | 7.0 |
+| r20-w8 C100 | flag off, tree_v21 (POOL-T6FS) | −9.76 / −9.42 / −9.59 | — | 4.6 |
+| r20-w8 C100 | flag off, tree_v23 (the control) | −10.14 / −8.42 / −9.28 | — | 4.7 |
+| r20-w8 C100 | flag off, tree_v21 repeat | −9.38 / −9.36 / −9.37 | — | 4.5 |
+
+Reading:
+1. **DET-EXACT.** The two flag-on runs of each cell agree to 4 decimals on every number: the size point and the origin, on TEST 5k, val and 10k. The runs landed on different nodes, so a reviewer can reproduce a cell exactly on the same GPU type.
+2. **§393's cause is confirmed.** The same cell re-run on tree_v21 itself moved by +0.30 on DepGraph R56 and +0.38 on r20-w8 C100. So the control's differences were run-to-run noise, not the v23 code. Without the flag, three runs of one cell spread over 0.42 points on DepGraph R56 and 0.76 points on r20-w8 C100 on TEST 5k. The runner's `cudnn.benchmark = True`, which picks GPU algorithms by timing, is the likely main source [H].
+3. **The cost.** The flag lengthens a cell by about 35 % on DepGraph R56 (25.5–25.8 against 18.7–19.1 min) and about 50 % on r20-w8 C100 (7.0–7.1 against 4.5–4.7).
+4. **What it means for the record.** Every call so far pairs flag-off runs, so each arm carries the same kind of noise. A pooled call over 27 cells averages it down, and a single-net call over three seeds carries it, as §393 says. The flag-on numbers differ from the flag-off ones only by this noise (+0.32 here, against +0.04 to +0.46 off). Flag-on rows are a new protocol, not a correction of old rows.
+5. [D, Ido's call] **A proposal for the final tables.** Run them with the flag: every arm of a final cell re-run on tree_v24 with `SPECTRA_EVAL_FT_DETERMINISTIC=1`, at five seeds, so that each published number can be reproduced exactly.
+
+Never:
+- Flag-on rows mixed with flag-off rows in one contrast.
+- "SPECTRA's earlier rows are reproducible": they are reproducible only up to run-to-run noise of a few tenths per cell.
+- A single flag-off cell's difference under about 0.4 read as a property of a method.
+
+Records: queue rows DET and RAND-CH-L1 (its two tree_v21 repeats); next §398.
