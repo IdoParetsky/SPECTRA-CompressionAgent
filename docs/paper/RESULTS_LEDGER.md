@@ -9317,3 +9317,46 @@ Never:
 - The 1-epoch fine-tunes' accuracy.
 
 Records: queue rows RAND-CH (call 3), SCRATCH, THRU; next §396.
+
+## 396. (RAND-BEST): the frozen 32-step agent against a per-network random search, Li et al.'s best-of-N with the agent's own cheap reward (100 random plans in the agent's action space, decoded with its own decoder, k_min and floor, each scored by fs32 at lr 0.01 on the val half, the best recovered with G2), at params 0.45 and 0.25 on the nine pool nets, seeds 42–44 — AGENT-BEATS-SEARCH at both budgets (+0.51, 8 of 9; +0.45, 6 of 9); at 0.25 the bootstrap range includes zero and r20-w8 C100 goes the other way (−2.67); the search itself sits at the cost-aware rule
+
+Registered 16 Oct 04:35 (`8eb2fd4`; queue row RAND-BEST). The smoke passed at 04:57. Read 13:40 (`scripts/_tmp_s16oct_gaps_read.sh`).
+- *Checks.* All 54 cells COMPLETED. The reader flags no fallback and no masked edit. Every search logged 100 draws and its pick. The search took 2.5 min per network on average (0.6 min on r20-w8 C100 to 9.3 min on DenseNet-100).
+
+**Per net** (TEST 5k, mean over seeds 42–44, paired by seed; FLOPs ratio of T6-fs to randbest at equal params):
+
+| net | 0.45: T6-fs − randbest (s42 / 43 / 44) | val | 10k | honest | FLOPs ratio | 0.25: T6-fs − randbest | val | 10k | honest | FLOPs ratio |
+|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +1.20 (+0.62 / +1.80 / +1.18) | +1.15 | +1.18 | +0.95 | 1.16–1.53 | +1.69 (+1.26 / +2.18 / +1.62) | +1.63 | +1.66 | +1.84 | 1.07–1.68 |
+| chenyaofo ResNet-56 | +0.00 (−0.16 / −0.16 / +0.32) | +0.25 | +0.12 | −0.05 | 0.94–1.19 | −0.03 (+0.18 / −0.30 / +0.02) | +0.24 | +0.10 | +0.27 | 1.00–1.10 |
+| thin r56-w8 | +1.59 (+1.92 / +0.68 / +2.18) | +0.95 | +1.27 | +1.59 | 1.35–1.46 | +2.04 (+0.46 / +1.30 / +4.36) | +2.11 | +2.07 | +1.93 | 1.39–2.10 |
+| MobileNetV2 ×1.4 | +0.14 (+0.76 / −0.34 / +0.00) | +0.05 | +0.10 | +0.24 | 1.13–1.27 | +0.04 (+0.06 / +0.02 / +0.04) | −0.07 | −0.01 | +0.21 | 1.41–1.43 |
+| DenseNet-100 | −0.03 (−0.02 / −0.04 / −0.04) | +0.03 | +0.00 | −0.05 | 0.72–1.04 | −0.05 (+0.22 / −0.34 / −0.02) | +0.17 | +0.06 | −0.16 | 0.86–1.20 |
+| thin r20-w8 C100 | +0.24 (−0.46 / +0.36 / +0.82) | +0.44 | +0.34 | +0.15 | 1.16–1.47 | **−2.67** (+0.52 / −3.74 / −4.78) | −2.73 | −2.70 | −3.08 | 1.42–1.64 |
+| VGG-19 C100 | +0.59 (+1.46 / +0.38 / −0.08) | +1.39 | +0.99 | +0.33 | 1.21–1.25 | +2.01 (+2.44 / +1.88 / +1.70) | +1.45 | +1.73 | +1.90 | 1.43–1.60 |
+| VGG-16 C10 | +0.60 (+1.06 / +0.52 / +0.22) | +0.21 | +0.41 | +0.75 | 1.23–1.30 | +0.45 (+0.30 / +0.68 / +0.36) | +0.47 | +0.46 | +0.21 | 1.39–1.72 |
+| DepGraph R56 | +0.29 (−0.16 / +0.58 / +0.46) | +0.03 | +0.16 | +0.29 | 1.12–1.29 | +0.56 (+0.88 / +0.48 / +0.32) | +0.95 | +0.75 | +0.67 | 1.06–1.49 |
+
+**Pooled** (equal-weight means of the per-net rows; "other eight" leaves out r20-w8 C100):
+
+| depth | S = T6-fs − randbest [95 % bootstrap] | val | 10k | honest | positive | call | other eight | reported: randbest − sens_cost [95 %] | positive |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.45 | **+0.51** [+0.16, +0.91] | +0.50 | +0.51 | +0.47 | 8 of 9 | **AGENT-BEATS-SEARCH** | +0.55 | −0.09 [−0.64, +0.59] | 3 of 9 |
+| 0.25 | **+0.45** [−0.61, +1.31] | +0.47 | +0.46 | +0.42 | 6 of 9 | **AGENT-BEATS-SEARCH** | +0.84 | −0.29 [−1.06, +0.54] | 4 of 9 |
+
+FLOPs caption: at equal params, T6-fs keeps 1.1–1.5× the search's FLOPs at 0.45 and up to 2.10× at 0.25 (thin r56-w8). The search's plans are cheaper in FLOPs, and part of the agent's edge may be FLOPs that a params budget does not count [H].
+
+Reading:
+1. **AGENT-BEATS-SEARCH at both budgets, by the registered rule** (≥ +0.3 and positive on six of nine). At 0.45 every view agrees (val +0.50, 10k +0.51, honest +0.47), the bootstrap range sits above zero, and 8 of 9 nets are positive. At 0.25 the views agree (+0.47 / +0.46 / +0.42), but the range [−0.61, +1.31] includes zero: r20-w8 C100 goes the other way by 2.67. That is the net where T6-fs still collapses on two seeds (§387), and the search's unstructured plans avoid the collapse.
+2. **The frozen agent, with no per-network search, beats a 100-plan per-network search scored by its own training reward.** So the agent is not a random search in disguise, and its cheap reward alone, used for search, does not recover what the agent learned. The search costs about 2.5 min per network (up to 9 min on DenseNet-100); the agent's plan costs one forward pass.
+3. **The search sits at the cost-aware rule** pooled (−0.09 at 0.45, −0.29 at 0.25), but it swings widely by net: +2.04 and +1.74 on r20-w8 C100, −1.22 and −1.59 on the thin ResNet-56. Where the proxy is near chance (r20-w8 C100 at 0.25, best val 0.037 in the smoke), its pick is close to random, yet random plans avoid the rule's and the agent's failure mode there.
+4. **Against Li et al. (CVPR 2022).** They found random search competitive with learned methods. Here, with N = 100 and the fs32 proxy in the agent's action space, it is not competitive with the frozen agent on these nine nets. Larger N, structured proposals or a better proxy could narrow the gap; none of these is tested.
+5. [H] **What the agent adds over search is a learned prior.** It keeps residual streams and stage structure where random plans scatter; the per-net plans are the evidence to check this.
+
+Never:
+- "The agent beats search" without "at params 0.45 and 0.25, pooled over the nine held-out nets", the r20-w8 C100 exception at 0.25, and the FLOPs caption.
+- "Beats Li et al.": this is our implementation of their baseline in our action space, with N = 100 and fs32.
+- A randbest row's 10k as its call: it includes the val half the search selected on.
+- 0.45 and 0.25 mixed in one contrast.
+
+Records: queue row RAND-BEST; next §397.
