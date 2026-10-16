@@ -428,6 +428,17 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
     - read RAND-BEST, then RAND-CH (after RAND-CH-L1);
     - review the deterministic flag;
     - T8-fs reads on 17 Oct (its reader is ready).
+- **16 Oct 17:00 (back since 13:26).**
+  - **The window was clean.** No preemption; no guard acted. This session's PATH has no `python`: use `/c/Users/User/miniconda3/python.exe`.
+  - **Reads since:**
+    - §396 RAND-BEST: AGENT-BEATS-SEARCH at 0.45 (+0.51, 8 of 9) and 0.25 (+0.45, 6 of 9; the range includes zero; r20-w8 C100 −2.67). The claims guard admits it with that scope.
+    - §397 DET: DET-EXACT. Two flag-on runs agree to 4 decimals. The flag costs +35–50 % time.
+    - §398 RAND-CH: RANK-SAME at both depths (+0.13, +0.23). Run noise over 54 pairs: SD 0.40–0.45; the §390 replication reads +0.36.
+    - Draft `6ee5f5f`; Gilad page v38; brief v82.
+  - **tree_v24** (`a89a9d0`): `SPECTRA_EVAL_FT_DETERMINISTIC`, default off. Stage and deploy via `s16oct_v24_stage.sh`.
+  - **Proposed to Ido, his call:** run the final 5-seed tables with the flag, every arm re-run.
+  - **CURVE-DG** (registered 16:55, `0d9c34e`) is running on idle GPUs: DepGraph R56 at params 0.18 / 0.125 and FLOPs 0.25 / 0.125, with 36 cells behind a gate (login-01; watcher armed). A reader is still to write: dgr56 per point, agent − prior, with the existing curve points beside it.
+  - **Still running:** the T8-fs trains, to about 04:30 17 Oct, then 108 evals with priority by submission order. Their reader `_tmp_s16oct_t8_read.sh` is ready.
 
 ---
 
