@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391, 05:50 with §392, 06:40 with §393–§395, 13:45 with §396 and 14:40 with §397.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391, 05:50 with §392, 06:40 with §393–§395, 13:45 with §396, 14:40 with §397 and 16:55 with §398.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -41,6 +41,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Has a registered beat fired? | Twice. Narrowly, on one network: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it). Pooled: the 32-step agent at 45 % params over the nine networks, +0.42 with val +0.34, 10k +0.38 and honest +0.46. One network carries part of it; the other eight average +0.19 | §382, §385, §390 |
 | Does training longer help? | Not on this catalog: T6-bn's edge on the other eight is flat on val from 3,000 to 12,000 instances, and the collapse on ResNet-20 ×8 CIFAR-100 appears only from 6,000 | §388 |
 | Does a per-network search match the frozen agent? | No. A random best-of-100, scored by the agent's own cheap reward on each network, ends below the frozen agent at 45 % and 25 % params (+0.51 and +0.45 for the agent), and level with the cost-aware rule. At 25 % one CIFAR-100 network goes the other way | §396 |
+| Does the agent's choice of channels matter? | Little, after the 100-epoch recovery: L1 channels beat random channels at the agent's own widths by +0.13 and +0.23 (RANK-SAME). The widths carry the result | §398 |
 | Do the inherited weights matter? | With Scratch-B's compute, the 32-step agent's architecture trains from scratch to the same accuracy as with its inherited weights (SCRATCH-SAME at both DepGraph points). With Scratch-E's 200 epochs, the inherited weights help at 38 % params (+0.39) | §394 |
 | Are fewer FLOPs faster? | Not on DepGraph's ResNet-56 on an RTX 4090: 37–61 % fewer FLOPs run at 0.93–1.07× at batch 256. VGG-16 gains 1.32–1.65×. Batch-1 latency is unchanged | §395 |
 | How reproducible is one cell? | Without deterministic algorithms, not exactly: three runs of one cell spread over 0.42 and 0.76 points on TEST. With `SPECTRA_EVAL_FT_DETERMINISTIC=1`, two runs agree to 4 decimals on both networks, at about 35–50 % more wall time | §393, §397 |
@@ -791,6 +792,16 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **The search itself is level with the cost-aware rule.** Its cheap reward alone does not recover what the agent learned.
 - **Two scope limits.** At 25 % the range includes zero: on ResNet-20 ×8 CIFAR-100 the search wins by 2.67, where the agent still collapses on two seeds. And at equal params the agent keeps 1.1–2.1× the search's FLOPs.
 
+**Does the agent's choice of channels matter?** (Blalock et al.'s random baseline at the agent's proportions; §398; T6-fs's own widths with L1 or with random channels, both on tree_v23; nine networks, seeds 42–44; PRELIM)
+
+| Params kept | L1 − random [95 % bootstrap] | val | 10k | honest | positive | call | random − cost-aware rule |
+|---|---|---|---|---|---|---|---|
+| 45 % | +0.13 [−0.13, +0.34] | +0.02 | +0.07 | +0.15 | 7 of 9 | RANK-SAME | +0.23 |
+| 25 % | +0.23 [−0.08, +0.59] | +0.24 | +0.24 | +0.20 | 6 of 9 | RANK-SAME | −0.12 |
+
+- **After the 100-epoch recovery, which channels survive matters little.** The agent's layer widths carry its result, as the scratch runs suggest too.
+- **L1 still helps where it matters most:** on the thin ResNet-56 ×4 and MobileNetV2 ×1.4 at 25 % (+0.86, +0.99).
+
 **Are fewer FLOPs faster?** (§395; RTX 4090, fp32, eager PyTorch; images per second at batch 256 and ms at batch 1, each against the unpruned network in the same job; seed 42)
 
 | Network and arms | FLOPs kept | Speed-up at batch 256 | Speed-up at batch 1 |
@@ -808,6 +819,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 
 - **The noise.** Without deterministic GPU algorithms, the 100-epoch fine-tune is not bit-reproducible. The runner also switched on cuDNN's benchmark mode, which picks algorithms by timing. Three runs of one identical cut spread over 0.42 points on DepGraph's ResNet-56 and 0.76 on ResNet-20 ×8 CIFAR-100, a tree_v21 repeat among them. So the noise is run-to-run, not a code change.
 - **Its effect on the calls.** A pooled call over 27 cells averages it down. A single-network call over three seeds carries a few tenths of it.
+- **Measured at scale** (§398): over 54 pairs of the same cell on two trees, the difference has a mean of −0.05 and an SD of 0.40–0.45. That is about 0.3 per run and about 0.23 for a three-seed single-network contrast. The replication of §390 reads +0.36, against +0.42.
 - **The fix.** With `SPECTRA_EVAL_FT_DETERMINISTIC=1`, two runs of the same cell agree to 4 decimals on every number on both networks (DET-EXACT). It costs about 35–50 % more wall time, and it is proposed for the final tables.
 
 ---
@@ -817,6 +829,8 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 **Why a plan, not a walk.** NEON's walk carried over to CNNs gave the agent dozens of sequential decisions per episode, each followed by a fine-tune and scored by a per-step reward that barely separated the actions (§331). The policy that maximised that signal was "keep 90 % everywhere" (§248). Making the whole allocation one action changes three things. Credit assignment becomes exact: one plan, one reward, and K plans for the same network give a baseline that removes the network's difficulty from the gradient. The fine-tune leaves the training loop, so a train takes hours instead of days (§3.7). And the budget is met by construction, so a plan can never "win" by under-spending. The first plan agent learned on its training network (§341), and the catalog-trained agent learned on held-out ones (§346), where every walk agent through v10 had been a mild or uniform clone.
 
 **What the agent learned: cost-awareness, where cost matters [H].** In a CIFAR ResNet each stage halves the feature map and doubles the channels, so every 3×3 convolution costs about the same FLOPs ([3], §3.3 of that paper). The same fraction of the last stage holds about 16× the parameters of the first. At equal FLOPs, then, a plain sensitivity rule is already cost-aware, and a learned allocation has little to add. At equal parameters, cost-awareness is the whole game, and it is what the frozen agent learned from its reward alone. At equal parameters it performs at the level of the cost-aware rule (§370, §373). It gains most over the cost-blind rule on exactly the networks where plain sensitivity is at or below uniform (+0.52, +0.49 and +0.80 on ResNet-56, ResNet-20 ×8 CIFAR-100 and ResNet-56 ×8; §370). The FLOPs agent sits slightly below the FLOPs rule (§366, §371). The record agrees in the other direction too: at equal FLOPs the cost-aware rule is worse than plain sensitivity, and at equal parameters it is better (§355, §361). This is a hypothesis about mechanism; the per-group plans in §370–§374 are the evidence to test it, and a figure of kept fraction by stage is planned.
+
+**Allocation, not channels or weights.** Three controls point the same way. Random channels at the agent's own widths end level with L1 channels (§398). The agent's architecture trained from scratch with the same compute ends level with its inherited weights (§394). A per-network random search over allocations ends below the agent (§396). So what SPECTRA learns, and what matters after a long recovery, is how much of each layer to keep.
 
 **Search versus a learned prior.** A per-network random search with the agent's own cheap reward, the baseline Li et al. found competitive, ends level with the cost-aware rule and below the frozen agent at 45 % and 25 % params (§396). What the agent adds is not search but a prior learned across networks [H]: random plans scatter where the agent's plans keep structure.
 
