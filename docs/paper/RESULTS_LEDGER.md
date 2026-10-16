@@ -9064,3 +9064,79 @@ Never:
 - "Beats DepGraph" or any literature method: this is a same-pipeline result.
 
 Records: queue row POOL-T6FS; next §391.
+
+## 391. (LIT-B, first part): the field's VGG-16 C10 cells, and T6-fs at DepGraph's 2.57× point — frozen T4-F against floored sens_F and uniform_F on VGG-16-BN C10 at FLOPs 0.465 (HRank's 53.5 % ↓) and 0.34 (CHIP's 66.6 % ↓); frozen T6-fs against floored sens_cost (LIT-39) at params 0.38 on DepGraph R56; seeds 42–44 — AT-PRIOR in all three cells; VGG-16's lever is limited at both points; ResNet-110 reads in §392
+
+Registered before submit 16 Oct 03:07 (commit `e2d92c6`; queue row LIT-B), eval-only under Ido's 13 Oct standing authority and his 16 Oct "continue as planned". The gate passed at 03:15: the smokes landed at FLOPs 0.340 (target 0.34) and params 0.379 (target 0.38), with no fallback and no masked edit. Three VGG-16 cells started before their hold landed, after the VGG-16 smoke had passed (row status).
+- *Read.* 16 Oct 04:05 (`scripts/_tmp_s16oct_litb_read.sh`).
+- *Checks.* All 21 VGG-16 and DepGraph cells COMPLETED. The reader flags no fallback and no masked edit. The 18 ResNet-110 cells of the redo are still running and read in §392. Every earlier ResNet-110 job is void: the akamaster model file loaded the net at chance (row status).
+
+**VGG-16-BN C10 at FLOPs 0.465** (chenyaofo's net, one of the nine held-out pool nets; TEST 5k change against the origin before recovery, mean over seeds 42–44; origin TEST 5k 93.74 %):
+
+| arm | 5k | val | 10k | honest | params kept | final TEST 5k |
+|---|---|---|---|---|---|---|
+| T4-F (frozen FLOPs agent) | +0.15 | +0.23 | +0.19 | −0.41 | 0.116 | 93.89 |
+| floored sens_F | −0.06 | +0.31 | +0.12 | −0.57 | 0.109 | 93.68 |
+| uniform_F | −0.10 | −0.08 | −0.09 | −0.73 | 0.528 | 93.64 |
+
+Contrasts, paired by seed:
+- T4-F − sens_F **+0.21** (s42 / 43 / 44: +0.38 / −0.14 / +0.40); val −0.07, 10k +0.07, honest +0.15; params ratio 0.98–1.14. **AT-PRIOR.**
+- sens_F − uniform_F **+0.04** (−0.52 / +0.30 / +0.34); val +0.39, 10k +0.21, honest +0.16. **LEVER-LIMITED.**
+- T4-F − uniform_F +0.25.
+
+**VGG-16-BN C10 at FLOPs 0.34:**
+
+| arm | 5k | val | 10k | honest | params kept | final TEST 5k |
+|---|---|---|---|---|---|---|
+| T4-F (frozen FLOPs agent) | −0.49 | −0.18 | −0.33 | −0.97 | 0.071 | 93.25 |
+| floored sens_F | −0.22 | +0.07 | −0.07 | −0.49 | 0.063 | 93.52 |
+| uniform_F | −0.63 | −0.37 | −0.50 | −1.03 | 0.321 | 93.11 |
+
+Contrasts, paired by seed:
+- T4-F − sens_F **−0.27** (−0.40 / −0.36 / −0.04); val −0.25, 10k −0.26, honest −0.49; params ratio 1.00–1.26. **AT-PRIOR.**
+- sens_F − uniform_F **+0.41** (+0.78 / +0.46 / +0.00); val +0.45, 10k +0.43, honest +0.55. **LEVER-LIMITED.**
+- T4-F − uniform_F +0.15.
+
+**DepGraph ResNet-56 C10 at params 0.38** (origin TEST 5k 93.36 %; sens_cost and uniform from LIT-39 (§382), the same eval line and seeds):
+
+| arm | 5k | val | 10k | honest | FLOPs kept | final TEST 5k |
+|---|---|---|---|---|---|---|
+| T6-fs (frozen 32-step agent) | +0.32 | +0.54 | +0.43 | −0.62 | 0.554 | 93.68 |
+| floored sens_cost | +0.05 | +0.19 | +0.12 | −0.80 | 0.481 | 93.41 |
+| uniform | −0.38 | +0.08 | −0.15 | −1.39 | 0.420 | 92.98 |
+
+Contrasts, paired by seed:
+- T6-fs − sens_cost **+0.27** (+0.12 / +0.40 / +0.30); val +0.35, 10k +0.31, honest +0.18; FLOPs ratio 1.10–1.23. **AT-PRIOR.**
+- T6-fs − uniform +0.70; sens_cost − uniform +0.43.
+
+FLOPs caption: at equal params, T6-fs keeps 1.10–1.23× sens_cost's FLOPs and 1.42× DepGraph's published FLOPs at this point. On VGG-16 the FLOPs arms are at equal FLOPs, and T4-F keeps up to 1.14× sens_F's params at 0.465 and up to 1.26× at 0.34.
+
+**Beside the literature (setup S1: same network type, dataset and FLOPs point, but a different base checkpoint and recipe; never a beat).** For VGG-16 C10, the GAL / HRank / CHIP lineage starts from a base of 93.96 (literature file B3, verified):
+- HRank: 93.96 → 93.43 at 53.5 % FLOPs ↓ (params ↓ 82.9 %), and 92.34 at 65.3 %.
+- CHIP: 93.96 → 93.86 at 58.1 % (params ↓ 81.6 %), and 93.72 at 66.6 %.
+
+Ours, on TEST 5k:
+- At 53.5 % ↓, T4-F goes 93.74 → 93.89 (10k +0.19) with params ↓ 88.4 %.
+- At 66 % ↓, sens_F goes 93.74 → 93.52 (10k −0.07) and T4-F ends at 93.25, with params ↓ about 93 %.
+
+Our 100-epoch recovery lifts the unpruned VGG-16 by about +0.56 on TEST 5k and the unpruned DepGraph R56 by about +0.94. Honest = raw − that lift (the large-learning-rate caveat, meeting page E).
+
+At DepGraph R56's 2.57× point, DepGraph published FLOPs 0.389, params 0.382 and +0.11 at 10k. T6-fs at params 0.38 reads +0.43 at 10k, at 1.42× DepGraph's FLOPs.
+
+Reading:
+1. **AT-PRIOR in all three cells.** On VGG-16 the frozen FLOPs agent is level with the FLOPs rule at 53.5 % ↓ (+0.21). At 66 % ↓ it trails the rule (−0.27, with every view negative: val −0.25, 10k −0.26, honest −0.49) but stays within the bar. With DepGraph R56 at FLOPs 0.39 (§382: −0.35, BELOW-PRIOR), T4-F has not yet beaten the FLOPs prior on a literature cell.
+2. **VGG-16's lever is limited.** The FLOPs rule is only +0.04 above uniform at 0.465 and +0.41 above it at 0.34, both under +0.5. Allocation moves the result less on this net than on the pool's ResNets. At equal FLOPs, uniform_F keeps about 4.5–5× the rules' params (0.53 against 0.11 at 0.465) and still ends lower.
+3. **T6-fs at DepGraph's 2.57× point is +0.27 against the params rule.** It is positive on every seed and every view, and 0.03 under the bar: AT-PRIOR.
+   - T5-bn read +0.35 at this cell on TEST alone (§382; val +0.02, 10k +0.19).
+   - T6-fs is positive on val (+0.35) and 10k (+0.31) as well, but it keeps 1.10–1.23× the rule's FLOPs.
+4. **Against the literature (S1).** T4-F lands at +0.15 on TEST 5k at HRank's VGG-16 point with 88 % of params removed, where HRank published −0.53 with 83 % removed. The comparison is not like for like: the base checkpoint differs (93.74 % on TEST 5k against 93.96 %), and our recovery lifts the unpruned net by +0.56. Its honest value is −0.41.
+5. [H] At these FLOPs points every VGG-16 rule removes about 89–94 % of params. VGG-16's deep 512-channel layers at 4×4 and 2×2 resolution hold most of the params and few of the FLOPs, so a FLOPs budget cuts them almost for free.
+
+Never:
+- "T4-F beats HRank" or "beats CHIP", or any published method. S1 rows sit beside ours, with the recipe lift and the base checkpoint stated.
+- "Beats" from any LIT-B cell: all three are AT-PRIOR.
+- T6-fs's +0.43 at 10k beside DepGraph's +0.11 without the FLOPs caption (1.42× DepGraph's FLOPs).
+- VGG-16's 0.465 and 0.34 rows in one contrast.
+- A ResNet-110 row from a job before 03:26 (void).
+
+Records: queue row LIT-B; next §392 (ResNet-110).
