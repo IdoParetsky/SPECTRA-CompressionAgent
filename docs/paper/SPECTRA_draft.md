@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -37,7 +37,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | What removes the deep-budget failure? | Only a recovery-aware (batch-norm) reward. On the deep training range it removes the failure at 35 % with no thin-ResNet cost, and at 25 % shrinks it from −16.8 to −2.4, with one seed still collapsing. Averaging the three seeds' scores does not remove that collapse. The 32-step reward shrinks it to −0.9, with no all-or-nothing plan. CIFAR-100 networks in the training catalog remove it at 25 % (+2.09; CATALOG-HELPS) | §376, §377, §378, §381, §383, §386, §387, §389 |
 | Which cheap reward is faithful? | One epoch of fine-tuning is valid at the threshold; the raw cut and batch-norm re-estimation are weak at 35 % params | §375, §379 |
 | Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
-| Against the literature (DepGraph's ResNet-56) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. The recipes differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382 |
+| Against the literature (DepGraph's ResNet-56; VGG-16) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. On VGG-16 at HRank's and CHIP's FLOPs points the frozen FLOPs agent is at the rule. The recipes and base checkpoints differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382, §391 |
 | Has a registered beat fired? | Twice. Narrowly, on one network: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it). Pooled: the 32-step agent at 45 % params over the nine networks, +0.42 with val +0.34, 10k +0.38 and honest +0.46. One network carries part of it; the other eight average +0.19 | §382, §385, §390 |
 | Does training longer help? | Not on this catalog: T6-bn's edge on the other eight is flat on val from 3,000 to 12,000 instances, and the collapse on ResNet-20 ×8 CIFAR-100 appears only from 6,000 | §388 |
 | Running | T6-fs at 60 % and 45 % (POOL-T6FS), overnight | queue |
@@ -531,6 +531,7 @@ Every pair is matched within 1 % of FLOPs.
 - One network again weighs most: ResNet-20 ×8 CIFAR-100. Without it the other eight average −0.06 at 45 % (§371).
 - The FLOPs results are, in effect, the rule's (§371): the trust region keeps the agent near the rule by design.
 - At DepGraph's 2.57× point (FLOPs 0.39) on DepGraph's ResNet-56, the FLOPs agent is BELOW-PRIOR: −0.35 (val −0.31, 10k −0.33, honest −0.52; §382).
+- On VGG-16 C10 at HRank's and CHIP's FLOPs points (0.465 and 0.34), the FLOPs agent is AT-PRIOR: +0.21 (val −0.07, 10k +0.07, honest +0.15) and −0.27 (val −0.25, 10k −0.26, honest −0.49). The lever is limited there: +0.04 and +0.41 (§391).
 - The lever grows with depth on the lever networks, from 60 % to 45 % FLOPs. The lever-less networks stay within ±0.35 of uniform at both depths, except MobileNetV2 ×1.4 at 45 %, where uniform beats the rule by 1.02 (§366, §368, §371).
 
 **Cost-awareness depends on the budget.** On ResNet-56 ×4 at FLOPs 0.6, the cost-aware rule is *worse* than plain sensitivity: −0.33 (val −0.35, 10k −0.34, honest −0.78; COST-HURTS, §355). With both rules floored the gap is −0.48 (§361). At equal parameters it is better on all three networks measured: +0.47, +0.39 and +0.44 (§355). This asymmetry is why each budget type has its own prior.
@@ -684,7 +685,7 @@ Every row from §341 on uses one recovery, G2 (§4.2). It replaced the per-famil
 
 Under G2 the allocation lever survives on the thin ResNet: sensitivity − uniform +1.02 over five seeds (SURVIVES, §342). It is absorbed on MobileNetV2 ×0.5 (+0.29, §342). A G2 recovery takes about 3 min on thin ResNet-56 ×4, against 15–17 min for the plain recipe (§329).
 
-### 5.9 The literature anchors: DepGraph's ResNet-56 on CIFAR-10
+### 5.9 The literature anchors: DepGraph's ResNet-56 and VGG-16 on CIFAR-10
 
 DepGraph's own checkpoint is in the pool, so its published rows are the natural anchors. OCSPruner reports the same network at the FLOPs of DepGraph's 2.57× row. SPECTRA's arms run one cut and the G2 recovery; the published methods use their own recipes.
 
@@ -698,7 +699,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 | Frozen FLOPs agent (T4-F) | 0.48 | 0.96–1.01× the rule's | the rule's −0.31 | the rule's −0.32, i.e. about +0.24 [computed] | G2 (§365) |
 | Frozen catalog agent (T1), at DepGraph's *params* point | about 0.61 | 0.47 | +0.50 | +0.51 | G2 (§346); about 1.2–1.3× DepGraph's FLOPs on our counter |
 
-**At DepGraph's 2.57× point, which is also OCSPruner's (FLOPs 0.39), and at its params (0.38)** (§382; mean over seeds 42–44).
+**At DepGraph's 2.57× point, which is also OCSPruner's (FLOPs 0.39), and at its params (0.38)** (§382, §385, §391; mean over seeds 42–44).
 
 | Arm | FLOPs kept | Params kept | TEST (val) | 10k | Honest | Recovery |
 |---|---|---|---|---|---|---|
@@ -709,6 +710,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 | Uniform_F | 0.390 | 0.375 | −0.54 (−0.59) | −0.57 | −1.47 | G2 |
 | Frozen batch-norm agent (T5-bn), at params 0.38 | 0.508 | 0.380 | +0.40 (+0.21) | +0.31 | −0.44 | G2; 1.3× DepGraph's FLOPs |
 | Frozen deep-range batch-norm agent (T6-bn), at params 0.38 | 0.509 | 0.380 | +0.07 (+0.35) | +0.21 | −0.88 | G2 (§385); 1.3× DepGraph's FLOPs |
+| Frozen deep-range 32-step agent (T6-fs), at params 0.38 | 0.554 | 0.379 | +0.32 (+0.54) | +0.43 | −0.62 | G2 (§391); 1.42× DepGraph's FLOPs |
 | Frozen catalog agent (T1), at params 0.38 | 0.531 | 0.379 | +0.09 (+0.18) | +0.14 | −0.96 | G2 |
 | Floored cost-aware rule, at params 0.38 | 0.481 | 0.380 | +0.05 (+0.19) | +0.12 | −0.80 | G2 |
 
@@ -716,8 +718,28 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **The FLOPs rule lands above DepGraph's published change at both points:** +0.56 and +0.24 at 10k, against +0.24 and +0.11. The frozen FLOPs agent lands at or below it: about +0.24 [computed] and −0.10. OCSPruner's row sits at −0.51.
 - **At equal FLOPs, SPECTRA keeps more parameters.** At the 2.57× point that is 0.46, against DepGraph's 0.38 and OCSPruner's 0.42.
 - **The honest caveat.** Our 100-epoch recovery lifts the unpruned network itself by +0.64 to +1.38 points (§382), so every honest value at the 2.57× point is negative. Raw changes under different recipes are not a contest: the rows sit side by side and are **not a beat**.
-- **The registered same-loop calls at this point** (§382): the FLOPs agent is BELOW-PRIOR, −0.35 (val −0.31, 10k −0.33, honest −0.52). At params 0.38 the batch-norm agent's call fired BEATS-PRIOR on the TEST half only: +0.35, with val +0.02, 10k +0.19 and honest +0.36 (§5.6). The deep-range batch-norm agent is AT-PRIOR there (+0.03; val +0.15, 10k +0.09; §385), so that beat does not carry over to it.
+- **The registered same-loop calls at this point** (§382): the FLOPs agent is BELOW-PRIOR, −0.35 (val −0.31, 10k −0.33, honest −0.52). At params 0.38 the batch-norm agent's call fired BEATS-PRIOR on the TEST half only: +0.35, with val +0.02, 10k +0.19 and honest +0.36 (§5.6). The deep-range batch-norm agent is AT-PRIOR there (+0.03; val +0.15, 10k +0.09; §385), so that beat does not carry over to it. The deep-range 32-step agent is AT-PRIOR there too: +0.27, positive on every seed and every view (val +0.35, 10k +0.31, honest +0.18), at 1.10–1.23× the rule's FLOPs (§391).
 - The walk era's DepGraph row (§157) is history (Appendix B).
+
+**VGG-16-BN on CIFAR-10 at HRank's 53.5 % ↓ and CHIP's 66.6 % ↓ FLOPs points** (§391; mean over seeds 42–44). This is chenyaofo's checkpoint, one of the nine held-out pool networks, with an origin of 93.74 % on TEST 5k. The published rows start from a base of 93.96 (the GAL / HRank / CHIP lineage) and are quoted on the full test set. PRELIM.
+
+| Arm | FLOPs kept | Params kept | TEST (val) | 10k | Honest | Recovery |
+|---|---|---|---|---|---|---|
+| HRank, as published | 0.465 | 0.171 | — | 93.96 → 93.43 (−0.53) | — | their recipe |
+| CHIP, as published | 0.419 | 0.184 | — | 93.96 → 93.86 (−0.10) | — | their recipe |
+| Floored FLOPs sensitivity rule | 0.465 | 0.109 | −0.06 (+0.31) | +0.12 | −0.57 | G2 |
+| Frozen FLOPs agent (T4-F) | 0.465 | 0.116 | +0.15 (+0.23) | +0.19 | −0.41 | G2 |
+| Uniform_F | 0.465 | 0.528 | −0.10 (−0.08) | −0.09 | −0.73 | G2 |
+| HRank, as published | 0.347 | — | — | 93.96 → 92.34 (−1.62) | — | their recipe |
+| CHIP, as published | 0.334 | — | — | 93.96 → 93.72 (−0.24) | — | their recipe |
+| Floored FLOPs sensitivity rule | 0.340 | 0.063 | −0.22 (+0.07) | −0.07 | −0.49 | G2 |
+| Frozen FLOPs agent (T4-F) | 0.340 | 0.071 | −0.49 (−0.18) | −0.33 | −0.97 | G2 |
+| Uniform_F | 0.340 | 0.321 | −0.63 (−0.37) | −0.50 | −1.03 | G2 |
+
+**Reading.**
+- **The registered calls** (§391): T4-F − sens_F is +0.21 at 0.465 and −0.27 at 0.34, AT-PRIOR at both. The lever is limited at both points: +0.04 and +0.41.
+- **Beside the published rows (setup S1, never a beat).** The base checkpoint differs (93.74 % on TEST 5k against 93.96), and our 100-epoch recovery lifts the unpruned VGG-16 by about +0.56 on TEST 5k. At HRank's point the SPECTRA arms sit within ±0.2 of their origin on the full test set, with the rules removing 88–89 % of params. HRank published −0.53 with 83 % removed.
+- [H] VGG-16's deep 512-channel layers hold most of the params and few of the FLOPs, so a FLOPs budget removes about 90 % of the params almost for free.
 
 ---
 
@@ -759,9 +781,9 @@ SPECTRA carries NEON's idea [1] to structured CNN pruning in a form that learns.
 It would not claim to beat the best rule, any focused method on its home cell, or transfer to unseen families in general (claims guard).
 
 **Next, in order (registered or planned).**
-1. **The params agent of record.** T6-bn is at the prior at all four depths read (§383, §384). T6-fs (32 SGD steps, the cheap reward closest to the one-epoch fine-tune) is at the prior at 35 % and 25 % and better than T6-bn at 25 % (§387); it is not yet read at 60 % and 45 %. The params agent of record is chosen between them; that is Ido's decision. If the last seed's collapse at 25 % persists under fs32 too, the one-epoch fine-tune reward (valid; built in v23, default off; about 1–1.4 min per training instance) is next. A seed ensemble does not remove it (§386); T7-C tests the catalog lever.
+1. **The params agent of record.** T6-bn is at the prior at all four depths read (§383, §384). T6-fs (32 SGD steps, the cheap reward closest to the one-epoch fine-tune) beats the prior at 45 % pooled and is at it at 60 %, 35 % and 25 % (§387, §390), which makes it the natural candidate. The params agent of record is chosen between them; that is Ido's decision. T8-fs, T6-fs's line on the 18-network catalog with CIFAR-100, is training (queue row T8-fs). If the last seed's collapse at 25 % persists under fs32 too, the one-epoch fine-tune reward (valid; built in v23, default off; about 1–1.4 min per training instance) is next. A seed ensemble does not remove it (§386); T7-C tests the catalog lever.
 2. **The Pareto figure (NEON Fig. 5 analog).** TEST change against params kept and against FLOPs kept, per network, for the agent and every rule at each depth. The FLOPs panel headlines literature-facing rows; the params panel holds the agent's home budget.
-3. **Literature rows at matched FLOPs**, with a 10k companion column, the honest column and a different-recipe caption (§5.9). DepGraph's 2.11× and 2.57× points and OCSPruner's row are in (§362, §365, §382). Add others only where their protocol is stated.
+3. **Literature rows at matched FLOPs**, with a 10k companion column, the honest column and a different-recipe caption (§5.9). DepGraph's 2.11× and 2.57× points and OCSPruner's row are in (§362, §365, §382), and VGG-16 at HRank's and CHIP's points (§391). ResNet-110 at its two standard points reads next (queue row LIT-B). Add others only where their protocol is stated.
 4. **Coverage.** CIFAR-100 networks in the training catalog: neutral on T1's line (§356), and CATALOG-HELPS at 25 % on the deep-range batch-norm line (§389). The catalog scale-up with held-out splits follows (`docs/CATALOG_SCALE_PLAN.md`). Frozen ImageNet transfer for coverage.
 5. **Write-up.** Lock the tables, then the thesis chapters. The walk era (Appendix B) becomes a short negative-result section.
 
