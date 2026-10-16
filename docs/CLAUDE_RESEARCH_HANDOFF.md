@@ -396,6 +396,17 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§389 T7-C:** CATALOG-HELPS at 0.25 (+0.52, all on the CIFAR-100 pair); AT-PRIOR-POOL at both depths (+0.28 with 6 of 9; +0.34 with 5 of 9). r20-w8 C100 +2.09 at 0.25. The draft is updated through §389 (`2bbdac0`); Gilad page v31, brief v70.
   - **Proposed next train (Ido's call):** T6-fs's fs32 reward on T1-C's 18-net catalog. It combines the two levers that helped at 0.25 and needs no new networks.
 - **15 Oct 17:25.** **§390 POOL-T6FS:** T6-fs is **BEATS-PRIOR-P-POOL at 0.45** (+0.4193, 6 of 9; val +0.34, 10k +0.38, honest +0.46). It is the first pooled beat of the params prior by a frozen agent. The other eight are +0.19, r20-w8 C100 is +2.28, and it keeps up to 1.36× the rule's FLOPs. It is AT-PRIOR-POOL at 0.6 (+0.05), and the same as T6-bn at both depths. The draft's claims guard allows only this scoped statement (`7efa96f`). Gilad page v32, brief v71. Still waiting on Ido: the next train, and the evaluation-gap cells.
+- **16 Oct 04:45.** Ido (about 02:50): "Reconnected to VPN, please continue as planned, and according to recent results". I read it as a GO on T8-fs and on every evaluation-gap cell, Scratch-E and Scratch-B included, and told him so in the brief (v72) and the reply; he may correct it.
+  - **T8-fs** (`64abdb9`): gate PASS 03:15 (7.47 s per instance, about 1,494 of the 1,700 cap minutes). Trains 23022470 / 531 / 594 run to about 04:30 17 Oct; the 108 evals are afterok. The guard `s16oct_autoresub_t8.sh` covers the evals only. Reader `_tmp_s16oct_t8_read.sh` is ready: its six self-checks reproduce §387, §389 and §390 exactly.
+  - **LIT-B** (`e2d92c6`): **§391** (VGG-16 and DepGraph R56 at params 0.38): AT-PRIOR in all three cells, and VGG-16's lever is limited (draft `d7026ed`).
+  - **The ResNet-110 bug.** `resnet_akamaster.py`'s init overwrites PadShortcut's identity, so every akamaster net has loaded at chance since 14 Aug. The fixed copy is `resnet_akamaster_a.py` (`1797b3f`), in the repo and in `/home/paretsky/spectra_models_instantiation/`. The 18 redo cells (`r110a`) passed gate110 (origin 0.938) and read as §392 with `_tmp_s16oct_litb_read.sh`. No earlier result is affected.
+  - **v23 code** (`8999357`), written by subagents in worktrees and reviewed. The implementer wrote `SPECTRA_CUT_RANK=random`, the Scratch-B epochs and the throughput flag; Fable wrote `SPECTRA_ALLOC_KIND=randbest`. **tree_v23** was deployed at 04:35 from `_stage_v23f` (ALL PASS, 20 files), as tree_v22 plus only the v23 files. The repo's parked ClassificationHandler (0199c52) stays out; the script is `s16oct_v23_stage.sh`.
+  - **The gap cells:** RAND-CH (with a reproduction control), RAND-BEST, SCRATCH and THRU. They were registered at 04:35 (`8eb2fd4`) and 139 cells are held behind a per-program gate (`s16oct_gaps_gate.txt`; watcher armed). The reader `_tmp_s16oct_gaps_read.sh` is written.
+  - **New rules.**
+    - Held cells also get an afterany dependency on their smokes: 3 LIT-B cells slipped a hold at 03:09.
+    - A gate on a network new to the pipeline checks its origin accuracy.
+    - Catalog plan gate 6: every network passes a load screen before use.
+  - **Next.** Read RAND / SCRATCH / THRU as they finish, then the ResNet-110 read (§392). After both, update the Gilad page once (Table 1's companions and E5 progress), then T8-fs tomorrow around midday.
 
 ---
 
