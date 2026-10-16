@@ -47,6 +47,10 @@ def parse_args():
     p.add_argument("--milestones", type=int, nargs="*", default=[100, 150])
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--select", choices=("best", "last"), default="best",
+                   help="Which epoch's weights to save. 'best' (the old default) picks the epoch with the best TEST "
+                        "accuracy, which selects on the test set; 'last' keeps the final epoch (G2's keep-last), for "
+                        "any network that may later be a held-out test network.")
     p.add_argument("--ckpt-root", type=Path, default=Path("/home/paretsky/spectra_pretrained_networks"))
     p.add_argument("--manifest", type=Path,
                    default=Path("/home/paretsky/pretrained_pool_manifest.json"))
@@ -176,7 +180,11 @@ def main():
             best_acc = acc
             best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
 
-    model.load_state_dict(best_state)
+    last_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+    chosen = best_state if args.select == "best" else last_state
+    print(f"select={args.select}: best test-epoch acc {best_acc:.2f}"
+          f"{' (logged only; the saved weights are the last epoch)' if args.select == 'last' else ''}", flush=True)
+    model.load_state_dict(chosen)
     model.to(device)
     final_acc = accuracy(model, test_loader, device)
     params_m = sum(p.numel() for p in model.parameters()) / 1e6
@@ -189,7 +197,7 @@ def main():
              f"{final_acc:.2f}_{params_m:.3f}_{flops_m:.2f}.pt")
     args.ckpt_root.mkdir(parents=True, exist_ok=True)
     out_path = args.ckpt_root / fname
-    torch.save(best_state, out_path)
+    torch.save(chosen, out_path)
     print(f"saved {out_path}  acc={final_acc:.2f} paramsM={params_m:.3f} flopsM={flops_m:.2f}")
 
     spec = dataset_spec(canonical)
@@ -202,7 +210,7 @@ def main():
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     manifest[str(out_path)] = {
         "row": row, "acc": round(final_acc, 2), "params_m": round(params_m, 3),
-        "flops_m": round(flops_m, 2), "epochs": args.epochs, "seed": args.seed,
+        "flops_m": round(flops_m, 2), "epochs": args.epochs, "seed": args.seed, "select": args.select,
     }
     args.manifest.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
