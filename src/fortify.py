@@ -749,6 +749,49 @@ def eval_throughput() -> bool:
     return _flag("SPECTRA_EVAL_THROUGHPUT")
 
 
+def eval_ft_deterministic() -> bool:
+    """
+    ``SPECTRA_EVAL_FT_DETERMINISTIC=1`` (default off): run the evaluation's fine-tunes with deterministic GPU
+    algorithms (:func:`apply_ft_determinism`), so two runs of one cell (same seed, same cut) give the same TEST
+    accuracy. Unrelated to ``SPECTRA_EVAL_DETERMINISTIC`` (:func:`eval_deterministic`), which only makes the walk
+    policy take its argmax.
+    """
+    return _flag("SPECTRA_EVAL_FT_DETERMINISTIC")
+
+
+_FT_DETERMINISM_APPLIED = False
+
+
+def apply_ft_determinism(log=print) -> bool:
+    """
+    ``SPECTRA_EVAL_FT_DETERMINISTIC=1`` (default off): switch on deterministic GPU algorithms for the whole process.
+    Returns False and touches nothing when the flag is off. When on: ``CUBLAS_WORKSPACE_CONFIG=:4096:8`` unless
+    already set (an existing value is kept), ``torch.use_deterministic_algorithms(True, warn_only=True)`` (ops
+    with no deterministic CUDA kernel still run and PyTorch names them in a warning), ``cudnn.deterministic=True``
+    and ``cudnn.benchmark=False``; one ``[eval] deterministic GPU algorithms ON`` line is logged, and a warning
+    if CUDA was already initialised (cuBLAS reads its workspace config at its first use, so determinism may
+    not hold). Call it before the first CUDA use. Idempotent: a second call changes and logs nothing and
+    returns True.
+    """
+    global _FT_DETERMINISM_APPLIED
+    if not eval_ft_deterministic():
+        return False
+    if _FT_DETERMINISM_APPLIED:
+        return True
+    if not os.environ.get("CUBLAS_WORKSPACE_CONFIG"):
+        os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    torch.use_deterministic_algorithms(True, warn_only=True)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    if torch.cuda.is_initialized():
+        log("[eval] WARNING: CUDA was initialised before SPECTRA_EVAL_FT_DETERMINISTIC was applied; "
+            "cuBLAS determinism may not hold")
+    log("[eval] deterministic GPU algorithms ON: cudnn.deterministic=1 benchmark=0 "
+        f"CUBLAS_WORKSPACE_CONFIG={os.environ['CUBLAS_WORKSPACE_CONFIG']} (warn_only)")
+    _FT_DETERMINISM_APPLIED = True
+    return True
+
+
 def eval_throughput_batches() -> Tuple[int, ...]:
     """``SPECTRA_EVAL_THROUGHPUT_BATCHES`` (default ``256,1``): the batch sizes :func:`measure_throughput` times."""
     out = []
@@ -771,7 +814,9 @@ def measure_throughput(model, input_shape, device, batches=(256, 1), warmup_iter
     ``timed_iters`` forwards each (CUDA: ``torch.cuda.synchronize()`` before and after each run); ``img_s`` and
     ``ms`` (per forward) are medians over the repeats. ``warmup_iters`` / ``timed_iters`` default to 20 / 50 for
     batches above 1 and 50 / 300 for batch 1. On CUDA ``torch.backends.cudnn.benchmark`` is True while measuring
-    and restored afterwards; ``cudnn.deterministic`` is left as it is.
+    and restored afterwards; ``cudnn.deterministic`` is left as it is. With ``SPECTRA_EVAL_FT_DETERMINISTIC=1``
+    (:func:`eval_ft_deterministic`) ``benchmark`` is left untouched, so the timer cannot switch on a
+    non-deterministic algorithm selection.
     """
     import copy
     import statistics
@@ -782,7 +827,7 @@ def measure_throughput(model, input_shape, device, batches=(256, 1), warmup_iter
     prev_benchmark = torch.backends.cudnn.benchmark
     results = {}
     try:
-        if cuda:
+        if cuda and not eval_ft_deterministic():
             torch.backends.cudnn.benchmark = True
         with torch.no_grad():
             for batch in batches:

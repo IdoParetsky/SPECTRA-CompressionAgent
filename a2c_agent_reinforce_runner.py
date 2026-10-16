@@ -209,14 +209,16 @@ def _measure_candidates_throughput(env, net_path, candidates):
         try:
             results = fortify_mod.measure_throughput(cand["model"], input_shape, device, batches)
             deterministic = int(bool(torch.backends.cudnn.deterministic))
+            # measure_throughput turns benchmark on only when SPECTRA_EVAL_FT_DETERMINISTIC is off
+            bench = 0 if fortify_mod.eval_ft_deterministic() else 1
             cells = " | ".join(f"bs{b} {results[b]['img_s']:.0f} img/s {results[b]['ms']:.3f} ms" for b in results)
             utils.print_flush(
                 f"[eval] THROUGHPUT {label} {name} step={step} | params x{point['param']:.3f} | "
-                f"FLOPs x{point['flop']:.3f} | {cells} | {gpu} fp32 cudnn.benchmark=1 deterministic={deterministic}")
+                f"FLOPs x{point['flop']:.3f} | {cells} | {gpu} fp32 cudnn.benchmark={bench} deterministic={deterministic}")
             run_recorder.record(
                 "eval_throughput", network=net_path, label=label, step=step, param=float(point["param"]),
                 flop=float(point["flop"]), results={str(b): r for b, r in results.items()}, gpu=gpu,
-                cudnn_benchmark=1, cudnn_deterministic=deterministic)
+                cudnn_benchmark=bench, cudnn_deterministic=deterministic)
         except Exception as error:  # noqa: BLE001 - one candidate must not cost the others
             logging_utils.exception(f"[eval] THROUGHPUT {label} {name} failed; continuing")
             run_recorder.issue("throughput_failed", f"{type(error).__name__}: {error}", network=net_path, label=label)
@@ -827,6 +829,11 @@ if __name__ == "__main__":
     # Logging is configured before anything else so that even an argument-parsing failure or
     # an import-time crash lands in the run directory with a full traceback.
     RUN_DIR = logging_utils.setup()
+    # SPECTRA_EVAL_FT_DETERMINISTIC=1 (default off): deterministic GPU algorithms for the whole process. It has to
+    # run before log_environment() below, whose torch.cuda.get_device_name() is the first CUDA initialisation
+    # (cuBLAS reads CUBLAS_WORKSPACE_CONFIG at its first use). Nothing earlier in this block touches the GPU.
+    from src import fortify as _fortify_early
+    _fortify_early.apply_ft_determinism(utils.print_flush)
     logging_utils.start_heartbeat()
     utils.print_flush(f"SPECTRA run {logging_utils.run_id()} -> {RUN_DIR}")
     logging_utils.log_environment()
@@ -844,7 +851,9 @@ if __name__ == "__main__":
     torch._dynamo.config.suppress_errors = True
 
     # Helps Conv2D tune performance across batch shapes
-    torch.backends.cudnn.benchmark = True
+    # (left off when SPECTRA_EVAL_FT_DETERMINISTIC=1, which applied benchmark=False above)
+    if not _fortify_early.eval_ft_deterministic():
+        torch.backends.cudnn.benchmark = True
 
     #Filtering out a harmless warning
     warnings.filterwarnings("ignore", message="xindex is not in var_ranges")
