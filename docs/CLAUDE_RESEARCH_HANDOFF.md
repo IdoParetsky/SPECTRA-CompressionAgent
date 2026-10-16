@@ -407,6 +407,27 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
     - A gate on a network new to the pipeline checks its origin accuracy.
     - Catalog plan gate 6: every network passes a load screen before use.
   - **Next.** Read RAND / SCRATCH / THRU as they finish, then the ResNet-110 read (§392). After both, update the Gilad page once (Table 1's companions and E5 progress), then T8-fs tomorrow around midday.
+- **16 Oct 09:20 (the laptop closes for a few hours).**
+  - **Read since 04:45:**
+    - §392: ResNet-110 AT-PRIOR at both points; LIT-B is fully read.
+    - §393: RAND-CH's control does not reproduce. The cut is identical and the fine-tune diverges at epoch 1; no deterministic GPU algorithms are set, so this is run-to-run noise [H].
+    - §394 SCRATCH: Scratch-B equals the inherited weights at both points.
+    - §395 THRU: no GPU speed-up on DepGraph R56; 1.32–1.65× on VGG-16.
+    - The draft is current through §395 (`4df3bcb`). Gilad page v35, brief v78.
+  - **RAND-CH-L1** (registered 06:27, `7fd67ae`): T6-fs's L1 arm on tree_v23, 54 cells, plus 2 tree_v21 repeats. RAND-CH's RANK call waits for it. The reader `_tmp_s16oct_gaps_read.sh` reads RANK from the `randch` rows against `poolt6fs` / `t6eval`, so before the RANK read, point its L1 arm at the `l1v23` rows (manifest `s16oct_l1_manifest.tsv`) and add the noise readout.
+  - **Ido's GO (about 09:05): the deterministic fine-tune flag.** The implementer is writing `SPECTRA_EVAL_FT_DETERMINISTIC` in a worktree (cuBLAS workspace config, `use_deterministic_algorithms(True, warn_only=True)`, cudnn deterministic, benchmark off). On return: review it, stage it as tree_v24, then register a GPU check: the same 2-epoch cell twice with the flag must agree exactly.
+  - **Running cluster-side**, each pid checked on its host at 09:16:
+    - the gaps guard (login-04, 165839);
+    - the L1 guard (login-01, 582522);
+    - the T8 eval guard (login-01, 257966);
+    - **new**, the T8 train guard (login-02, 1362982), under the rule registered in row T8-fs at 09:15 (`f36482a`).
+
+    If a T8 train is resubmitted, cancel its 36 evals and resubmit them against the new job id: they name the old one.
+  - **On return:**
+    - re-arm the laptop watchers (they stop while the laptop is closed);
+    - read RAND-BEST, then RAND-CH (after RAND-CH-L1);
+    - review the deterministic flag;
+    - T8-fs reads on 17 Oct (its reader is ready).
 
 ---
 
