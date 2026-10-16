@@ -92,6 +92,7 @@ The same splits are read at three catalog sizes: 10 (T1's), about 30, and about 
 3. Every S-split network that carries a call passes a lever screen: sens − uniform ≥ +0.5 at the read budget. A network below it is reported as LEVER-LIMITED (§353).
 4. The standardizer is refitted on the new catalog and recorded.
 5. Disk space: the checkpoint folder is 65 GB, mostly ImageNet models. Probe the quota and free space before a wave (`.claude/rules/spectra-tooling.md`).
+6. Every network passes a load screen before any use. Its unpruned accuracy on val must come within 1 point of its source's reported accuracy, through SPECTRA's own loader and normalisation. A structural check alone is not enough. From 14 Aug to 16 Oct the akamaster model file loaded every akamaster net at chance, because its init overwrote the shortcut identity. ResNet-110 still passed every landing and masking check (LIT-B, 16 Oct). The fixed copy is `spectra_models_instantiation/resnet_akamaster_a.py`.
 
 ## 7. Never
 
