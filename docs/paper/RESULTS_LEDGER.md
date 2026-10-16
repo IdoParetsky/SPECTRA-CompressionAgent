@@ -9140,3 +9140,70 @@ Never:
 - A ResNet-110 row from a job before 03:26 (void).
 
 Records: queue row LIT-B; next §392 (ResNet-110).
+
+## 392. (LIT-B, second part): ResNet-110 C10 at the field's two standard FLOPs points — frozen T4-F against floored sens_F and uniform_F at FLOPs 0.48 (the ≈52 % ↓ point of FPGM, CHIP, TAS and OCSPruner) and 0.40 (the ≈60 % ↓ point of LFPC, ResRep, HRank and DECORE), akamaster's checkpoint through the repaired loader; seeds 42–44 — AT-PRIOR at both points; ResNet-110's lever is limited at both
+
+Registered before submit 16 Oct 03:07 (commit `e2d92c6`; queue row LIT-B). The ResNet-110 redo was registered at 03:26 (`1797b3f`): every earlier ResNet-110 job loaded the net at chance (§391, row status) and is void. gate110 passed at 03:43: both smokes started at origin accuracy 0.938 with the fixed file named in the log, landed at FLOPs 0.479 and 0.400, and showed no fallback and no masked edit.
+- *Read.* 16 Oct 05:40 (`scripts/_tmp_s16oct_litb_read.sh`; only the redo's rows count).
+- *Checks.* All 18 redo cells COMPLETED. The reader flags no fallback, no masked edit, no old model file and no origin below 90 %. The origin is 93.84 % on TEST 5k; the CPU check of the repaired loader read 93.85 % on the first 2,000 test images.
+
+**ResNet-110 C10 at FLOPs 0.48** (TEST 5k change against the origin before recovery, mean over seeds 42–44; origin TEST 5k 93.84 %):
+
+| arm | 5k | val | 10k | honest | params kept | final TEST 5k |
+|---|---|---|---|---|---|---|
+| T4-F (frozen FLOPs agent) | −0.03 | +0.45 | +0.21 | −0.47 | 0.572 | 93.81 |
+| floored sens_F | +0.05 | +0.58 | +0.31 | −0.58 | 0.584 | 93.89 |
+| uniform_F | −0.09 | +0.52 | +0.22 | −0.69 | 0.500 | 93.75 |
+
+Contrasts, paired by seed:
+- T4-F − sens_F **−0.07** (s42 / 43 / 44: −0.02 / +0.04 / −0.24); val −0.13, 10k −0.10, honest +0.11; params ratio 0.95–1.01. **AT-PRIOR.**
+- sens_F − uniform_F **+0.13** (−0.18 / +0.74 / −0.16); val +0.06, 10k +0.10, honest +0.11. **LEVER-LIMITED.**
+- T4-F − uniform_F +0.06.
+
+**ResNet-110 C10 at FLOPs 0.40:**
+
+| arm | 5k | val | 10k | honest | params kept | final TEST 5k |
+|---|---|---|---|---|---|---|
+| T4-F (frozen FLOPs agent) | −0.16 | +0.53 | +0.18 | −0.86 | 0.485 | 93.68 |
+| floored sens_F | +0.05 | +0.52 | +0.29 | −0.51 | 0.493 | 93.89 |
+| uniform_F | −0.25 | +0.35 | +0.05 | −0.61 | 0.380 | 93.59 |
+
+Contrasts, paired by seed:
+- T4-F − sens_F **−0.21** (−0.40 / +0.24 / −0.48); val +0.01, 10k −0.10, honest −0.35; params ratio 0.95–1.01. **AT-PRIOR.**
+- sens_F − uniform_F **+0.31** (+0.62 / +0.20 / +0.10); val +0.17, 10k +0.24, honest +0.10. **LEVER-LIMITED.**
+- T4-F − uniform_F +0.09.
+
+Params caption: the arms are at equal FLOPs. The rules keep 1.06–1.24× uniform_F's params at 0.48 and 1.18–1.37× at 0.40; T4-F and sens_F keep almost the same params (0.95–1.01×).
+
+**Beside the literature (setup S1: same network type, dataset and FLOPs point, but a different base checkpoint and recipe; never a beat).** ResNet-110 C10 rows from literature file B2 (verified):
+- **At about 52 % ↓:**
+  - FPGM-only 40 %: 93.68 → 93.74 at 52.3 % (its printed Δ is inconsistent).
+  - CHIP: 93.50 → 94.44 at 52.1 % (params ↓ 48.3 %).
+  - TAS: 94.33, a drop of 0.64 with knowledge distillation, at 53.0 %.
+  - OCSPruner: 94.36 → 94.30 at 53.6 % [H].
+- **At about 60 % ↓:**
+  - LFPC: 93.68 → 93.07 from pre-trained at 60.3 % (93.79 from scratch).
+  - ResRep: 94.64 → 94.62 at 58.2 % (a higher base).
+  - HRank: 93.50 → 93.36 at 58.2 %.
+  - DECORE-300: 93.50 → 93.50 at 61.8 % (params ↓ 64.8 %).
+
+Ours, on TEST 5k:
+- At 52 % ↓: sens_F 93.84 → 93.89 (10k +0.31) and T4-F 93.81 (10k +0.21), keeping 0.57–0.58 of the params.
+- At 60 % ↓: sens_F 93.89 (10k +0.29) and T4-F 93.68 (10k +0.18), keeping about 0.49 of the params.
+
+Our 100-epoch recovery lifts the unpruned ResNet-110 by about +0.4 to +0.7 on TEST 5k (each job's own origin control), so every honest value is negative.
+
+Reading:
+1. **AT-PRIOR at both points.** T4-F − sens_F is −0.07 at 0.48 and −0.21 at 0.40, and every view is within ±0.35. With §365, §382, §391 and this section, the frozen FLOPs agent has not beaten the FLOPs prior on any literature cell. On DepGraph R56 it is the rule's −0.31 at 0.48 (§365) and BELOW-PRIOR at 0.39 (−0.35, §382). It is AT-PRIOR on VGG-16 (+0.21, −0.27) and on ResNet-110 (−0.07, −0.21).
+2. **ResNet-110's lever is limited.** The FLOPs rule is +0.13 and +0.31 above uniform, both under +0.5. Uniform_F keeps fewer params at the same FLOPs and ends within 0.3 of the rule. After the 100-epoch recovery at lr 0.1, all three allocations end within 0.3 of the origin's TEST accuracy at 52 % and 60 % ↓. The per-seed contrasts swing by up to 0.9 (for example sens_F − uniform_F at 0.48: −0.18 / +0.74 / −0.16), as much as the differences between the arms.
+3. **The repaired loader is sound.** The origin reads 93.84 % on TEST 5k, close to akamaster's published 93.68 % (their full test set) and to the 93.85 % CPU check. No row had a masked edit or a fallback through the padding shortcuts' frozen 1×1 identity.
+4. **Against the literature (S1).** At 52 % ↓ the FLOPs rule ends 93.89 % on TEST 5k (+0.05) and +0.31 on 10k, beside FPGM's +0.06, CHIP's +0.94 and OCSPruner's −0.06. At 60 % ↓ it ends +0.05 (10k +0.29), beside LFPC's −0.61 from pre-trained, HRank's −0.14 and DECORE's 0.00. The comparison is not like for like: the base checkpoints and recipes differ, and our recovery lifts the unpruned net.
+5. [H] On the three standard CIFAR-10 nets beside ResNet-56, the frozen FLOPs agent tracks the FLOPs rule within the bar, and the rule tracks uniform more closely than on the pool's thin and wide ResNets. These literature nets leave less room for allocation than the pool's lever nets (§353).
+
+Never:
+- "T4-F beats", "SPECTRA beats" or "beats CHIP / FPGM / LFPC", or any published method: S1 rows sit beside ours.
+- A ResNet-110 row from a job before 03:26 (void: the net was loaded at chance).
+- 0.48 and 0.40 rows in one contrast.
+- A raw row in the literature table without its honest value beside it.
+
+Records: queue row LIT-B; next §393.
