@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391, 05:50 with §392, 06:40 with §393–§395, 13:45 with §396, 14:40 with §397 and 16:55 with §398.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391, 05:50 with §392, 06:40 with §393–§395, 13:45 with §396, 14:40 with §397, 16:55 with §398 and 18:50 with §399.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -38,6 +38,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Which cheap reward is faithful? | One epoch of fine-tuning is valid at the threshold; the raw cut and batch-norm re-estimation are weak at 35 % params | §375, §379 |
 | Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
 | Against the literature (DepGraph's ResNet-56; VGG-16; ResNet-110) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. On VGG-16 and ResNet-110 at the field's standard FLOPs points the frozen FLOPs agent is at the rule, and the allocation matters little. The recipes and base checkpoints differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382, §391, §392 |
+| How far does the agent go? | To 8× on DepGraph's ResNet-56: at the prior at 8× under both budgets, while the priors beat uniform by 2–3 points there. Two single-network calls fired on TEST only, within run noise | §399 |
 | Has a registered beat fired? | Twice. Narrowly, on one network: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it). Pooled: the 32-step agent at 45 % params over the nine networks, +0.42 with val +0.34, 10k +0.38 and honest +0.46. One network carries part of it; the other eight average +0.19 | §382, §385, §390 |
 | Does training longer help? | Not on this catalog: T6-bn's edge on the other eight is flat on val from 3,000 to 12,000 instances, and the collapse on ResNet-20 ×8 CIFAR-100 appears only from 6,000 | §388 |
 | Does a per-network search match the frozen agent? | No. A random best-of-100, scored by the agent's own cheap reward on each network, ends below the frozen agent at 45 % and 25 % params (+0.51 and +0.45 for the agent), and level with the cost-aware rule. At 25 % one CIFAR-100 network goes the other way | §396 |
@@ -767,6 +768,19 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 **Reading.**
 - **The registered calls** (§392): T4-F − sens_F is −0.07 at 0.48 and −0.21 at 0.40, AT-PRIOR at both. The lever is limited at both points: +0.13 and +0.31.
 - **Beside the published rows (setup S1, never a beat).** Every SPECTRA arm ends within 0.3 of its origin on TEST at both points. Our recovery lifts the unpruned ResNet-110 by about +0.4 to +0.7, so every honest value is negative.
+
+**Toward 8× on DepGraph's ResNet-56** (§399; the fifth and sixth operating points; single network, three seeds; PRELIM)
+
+| Point | agent − prior | val | 10k | honest | call | prior − uniform |
+|---|---|---|---|---|---|---|
+| params 0.18 (5.5×) | −0.35 | +0.37 | +0.01 | −0.47 | BELOW-PRIOR (TEST only) | +2.13 |
+| params 0.125 (8×) | +0.01 | −0.02 | −0.01 | −0.12 | AT-PRIOR | +3.07 |
+| FLOPs 0.25 (4×) | +0.40 | −0.23 | +0.09 | +0.48 | BEATS-PRIOR (TEST only) | +1.07 |
+| FLOPs 0.125 (8×) | −0.19 | +0.50 | +0.16 | −0.19 | AT-PRIOR | +1.92 |
+
+- **Across seven params points and four FLOPs points, from 2× to 8×,** the frozen agents track the priors within ±0.35.
+- **The two TEST-only calls lie within the run noise** of a single-network contrast (about ±0.23, §398).
+- **Toward 8× the allocation itself matters a great deal:** the priors beat uniform cuts by 1 to 3 points.
 
 ### 5.10 Scratch training, measured speed and run-to-run noise
 
