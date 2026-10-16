@@ -9207,3 +9207,113 @@ Never:
 - A raw row in the literature table without its honest value beside it.
 
 Records: queue row LIT-B; next §393.
+
+## 393. (RAND-CH, call 3): the reproduction control — T6-fs with every v23 flag unset, on tree_v23, against POOL-T6FS's tree_v21 rows at params 0.45, s42 — DOES NOT REPRODUCE (TEST 5k −0.12 on DepGraph R56, −0.38 on r20-w8 C100); the cut is identical and the fine-tune diverges from its first epoch: run-to-run GPU noise, not the v23 code [H]
+
+Registered 16 Oct 04:35 (`8eb2fd4`; queue row RAND-CH, call 3). Read 06:25 (`scripts/_tmp_s16oct_gaps_read.sh`).
+
+| net (params 0.45, s42) | tree_v23: 5k / val / 10k | tree_v21 (POOL-T6FS): 5k / val / 10k | difference (5k) |
+|---|---|---|---|
+| DepGraph R56 | +0.04 / +0.42 / +0.23 | +0.16 / +0.48 / +0.32 | −0.12 |
+| r20-w8 C100 | −10.14 / −8.42 / −9.28 | −9.76 / −9.42 / −9.59 | −0.38 |
+
+Reading:
+1. **No RANK call yet.** By the registered rule (within 0.05 on TEST 5k) the control DOES NOT REPRODUCE. RAND-CH has no RANK call until the L1 arm is re-run on tree_v23 (queue row RAND-CH-L1).
+2. **The cut is identical [V].** Both trees give the same plan line, params 0.449 and 0.450, and the same post-cut accuracy (0.934 → 0.526 on DepGraph R56 at step 279).
+3. **The fine-tune diverges from its first epoch [V].** On DepGraph R56 the size point's epoch-1 loss reads 0.38010 against 0.37976. The unpruned origin's, from the same checkpoint, reads 0.24940 against 0.25606.
+4. **Nothing makes the GPU deterministic [V].** No call in `src/` or the runner sets `torch.use_deterministic_algorithms` or `cudnn.deterministic`; `SPECTRA_EVAL_DETERMINISTIC=1` only makes the walk take the policy's argmax. [H] So the 100-epoch fine-tune at lr 0.1 is not bit-reproducible, and two runs of one cell differ by run-to-run GPU noise. The two pairs here differ by 0.12 and 0.38 on TEST 5k (val −0.06 and +1.00, 10k −0.09 and +0.31).
+5. [H] **What this means for the calls.** A pooled call averages 27 cells, so run noise moves it by well under 0.1 against the ±0.3 bars. A single-net call over three seeds can move by about ±0.2, so single-net AT-PRIOR calls sit within that noise. RAND-CH-L1's paired cells will measure it.
+
+Never:
+- A RANK call before the L1 arm is re-run on tree_v23.
+- "tree_v23 changes results": the cut is identical, and the difference is run-to-run noise [H] until RAND-CH-L1's same-tree repeats say otherwise.
+- A single-net difference under about 0.2 read as a property of the method.
+
+## 394. (SCRATCH): would training T6-fs's architecture from scratch do as well as inheriting its weights? DepGraph R56 at params 0.47 and 0.38: Scratch-E (200 epochs) and Scratch-B (200 / FLOPs-ratio epochs) against the inherited weights with G2, seeds 42–44 — SCRATCH-SAME for Scratch-B at both points; for Scratch-E, SAME at 0.47 and INHERIT-HELPS at 0.38 (+0.39)
+
+Registered 16 Oct 04:35 (`8eb2fd4`; queue row SCRATCH). The smoke passed at 04:57. Read 06:25.
+- *Checks.* All 12 cells COMPLETED. Each scratch row has its seed's inherit architecture: params 0.469–0.470 and 0.379–0.380, and the same FLOPs per seed. Scratch-B trained 297–388 epochs. No masked edit or fallback.
+
+**At params 0.47** (DepGraph's 2.11× point; FLOPs 0.59–0.67 by seed). TEST 5k / val / 10k change against the origin checkpoint:
+
+| seed | inherit (G2, 100 epochs) | Scratch-E (200 epochs) | Scratch-B (epochs) |
+|---|---|---|---|
+| 42 | −0.02 / +0.84 / +0.41 | +0.08 / +0.14 / +0.11 | +0.74 / +0.76 / +0.75 (318) |
+| 43 | +0.04 / +0.46 / +0.25 | +0.36 / +0.54 / +0.45 | +0.16 / +0.78 / +0.47 (337) |
+| 44 | +0.70 / +0.72 / +0.71 | +0.12 / +0.44 / +0.28 | +0.52 / +0.80 / +0.66 (297) |
+
+- E = inherit − Scratch-E **+0.05** (−0.10 / −0.32 / +0.58); val +0.30, 10k +0.18. **SCRATCH-SAME.**
+- B = inherit − Scratch-B **−0.23** (−0.76 / −0.12 / +0.18); val −0.11, 10k −0.17. **SCRATCH-SAME.**
+
+**At params 0.38** (DepGraph's 2.57× point; FLOPs 0.52–0.59):
+
+| seed | inherit (G2, 100 epochs) | Scratch-E (200 epochs) | Scratch-B (epochs) |
+|---|---|---|---|
+| 42 | +0.24 / +0.54 / +0.39 | +0.06 / +0.08 / +0.07 | +0.06 / +0.72 / +0.39 (362) |
+| 43 | +0.24 / +0.60 / +0.42 | +0.04 / −0.04 / +0.00 | +0.44 / +0.40 / +0.42 (388) |
+| 44 | +0.48 / +0.48 / +0.48 | −0.30 / −0.24 / −0.27 | +0.56 / +0.98 / +0.77 (337) |
+
+- E **+0.39** (+0.18 / +0.20 / +0.78); val +0.61, 10k +0.50. **INHERIT-HELPS.**
+- B **−0.03** (+0.18 / −0.20 / −0.08); val −0.16, 10k −0.10. **SCRATCH-SAME.**
+
+Controls:
+- The unpruned DepGraph R56, trained from scratch for 200 epochs (Scratch-E's control), reads +0.66 / +0.78 / +0.70 on TEST 5k in the 0.47 jobs and +0.62 / +0.84 / +0.20 in the 0.38 jobs.
+- Inherit's control, the unpruned net fine-tuned by G2, reads +0.78 to +1.08.
+
+Honest values:
+- inherit −1.02 / −1.04 / −0.08 at 0.47 and −0.74 / −0.66 / −0.46 at 0.38;
+- Scratch-E −0.58 / −0.42 / −0.58 and −0.56 / −0.80 / −0.50;
+- Scratch-B (against Scratch-E's control at the same seed) +0.08 / −0.62 / −0.18 and −0.56 / −0.40 / +0.36.
+
+Reading:
+1. **Scratch-B matches the inherited weights at both points** (−0.23 and −0.03; SCRATCH-SAME). This is Liu et al.'s finding for structured pruning on CIFAR: given the same compute, the pruned architecture trained from scratch is as good as the pruned network fine-tuned.
+2. **Scratch-E** has 200 epochs, fewer than Scratch-B's 297–388. It is the same at 0.47 (+0.05) and below the inherited weights at 0.38 (+0.39, INHERIT-HELPS; val +0.61, 10k +0.50). The inherited weights help most where the budget is tighter and the scratch run shorter.
+3. **The checkpoint is not a strong baseline for this recipe.** Our recipe trains the unpruned network from scratch to +0.2 to +0.8 above DepGraph's checkpoint in 200 epochs, and fine-tunes it to +0.8 to +1.1 in 100. This is the large-learning-rate caveat (meeting page E) in another form.
+4. [H] With run-to-run noise of about ±0.2 on a three-seed mean (§393), INHERIT-HELPS at 0.38 is above the noise, but not by much.
+5. [H] **What it means for SPECTRA.** The agent's value lies in the architecture it chooses (the allocation), not in the weights the pruned network inherits. With Scratch-B's budget, the chosen architecture trains from scratch to the same accuracy. This fits the framing of an allocation policy, and Liu et al.'s view of pruning as architecture search.
+
+Never:
+- "Pruning is unnecessary" or "the weights do not matter" from one network and two points.
+- Scratch rows mixed with G2 rows in one Table 1 cell.
+- Scratch-E called "the original training": 200 is DepGraph's stated pretraining length, run on our recipe.
+
+## 395. (THRU): measured GPU speed of Table 1's architectures (RTX 4090, fp32, eager PyTorch, cudnn benchmark on; images per second at batch 256 and ms at batch 1, the median of 3 timed runs, each against the unpruned network in the same job; seed 42) — DepGraph R56 gains no speed from 37–61 % fewer FLOPs (0.93–1.07×); VGG-16 gains 1.32–1.42× at 53.5 % fewer FLOPs and 1.63–1.65× at 66 %; batch-1 latency is unchanged everywhere
+
+Registered 16 Oct 04:35 (`8eb2fd4`; queue row THRU). Read 06:25. All 17 cells COMPLETED; each arm's cut is re-run with its own line, and the 1-epoch fine-tunes are never quoted.
+
+| net | arm | point | params kept | FLOPs kept | speed-up at batch 256 | speed-up at batch 1 |
+|---|---|---|---|---|---|---|
+| DepGraph R56 | T4-F | FLOPs 0.39 | 0.448 | 0.389 | 0.98× | 0.97× |
+| DepGraph R56 | sens_F | FLOPs 0.39 | 0.446 | 0.389 | 0.99× | 0.98× |
+| DepGraph R56 | uniform_F | FLOPs 0.39 | 0.375 | 0.390 | 1.07× | 1.00× |
+| DepGraph R56 | T6-fs | params 0.38 | 0.379 | 0.552 | 0.99× | 0.97× |
+| DepGraph R56 | sens_cost | params 0.38 | 0.379 | 0.490 | 0.99× | 0.99× |
+| DepGraph R56 | uniform | params 0.38 | 0.379 | 0.420 | 1.06× | 0.97× |
+| DepGraph R56 | T4-F | FLOPs 0.48 | 0.535 | 0.479 | 0.98× | 0.94× |
+| DepGraph R56 | sens_F | FLOPs 0.48 | 0.529 | 0.480 | 0.99× | 1.03× |
+| DepGraph R56 | uniform_F | FLOPs 0.48 | 0.499 | 0.480 | 0.97× | 0.98× |
+| DepGraph R56 | T6-fs | params 0.47 | 0.469 | 0.628 | 0.93× | 0.99× |
+| DepGraph R56 | sens_cost | params 0.47 | 0.469 | 0.580 | 0.96× | 1.00× |
+| VGG-16 C10 | T4-F | FLOPs 0.465 | 0.120 | 0.465 | 1.32× | 1.01× |
+| VGG-16 C10 | sens_F | FLOPs 0.465 | 0.105 | 0.465 | 1.42× | 1.08× |
+| VGG-16 C10 | uniform_F | FLOPs 0.465 | 0.528 | 0.465 | 1.36× | 1.01× |
+| VGG-16 C10 | T4-F | FLOPs 0.34 | 0.060 | 0.340 | 1.63× | 1.06× |
+| VGG-16 C10 | sens_F | FLOPs 0.34 | 0.060 | 0.340 | 1.65× | 1.06× |
+| VGG-16 C10 | uniform_F | FLOPs 0.34 | 0.321 | 0.340 | 1.64× | 1.01× |
+
+Absolute values in the same jobs: the unpruned DepGraph R56 runs 42.8k–47.4k images/s at batch 256 and 5.1–5.5 ms at batch 1; the unpruned VGG-16 runs 67.3k–69.9k images/s and 1.69–1.76 ms.
+
+Reading:
+1. **On DepGraph's ResNet-56, removing 37–61 % of FLOPs gives no measurable speed at either batch size.** The agents and rules run at 0.93–0.99×, the uniform cuts at 1.06–1.07×. The origin's own throughput varies by ±5 % from job to job, so only same-job ratios are read.
+2. **On VGG-16, part of the FLOPs saving becomes speed at batch 256.** 2.15× fewer FLOPs gives 1.32–1.42×, and 2.94× fewer gives 1.63–1.65×. At batch 1 the gain is only 1.01–1.08×.
+3. [H] **Mechanism.** A CIFAR ResNet-56 at 32×32 on this GPU is bound by memory traffic and kernel launches, not by arithmetic. The rules and the agents keep the residual streams at full width, so the full-width batch-norm, ReLU and add passes still dominate. The uniform cuts thin the streams and gain 6–7 %. VGG-16 has no streams and large early convolutions. Batch 1 is launch-bound for all of them.
+4. **For the paper.** "FLOPs are not speed" is the field's caveat, and it holds strongly here for the small ResNets: Table 1's FLOPs ratios must carry this table beside them. The measurement is eager PyTorch; a fused or compiled runtime (TensorRT, or CUDA graphs at inference) could change the ResNet result, and that is not measured.
+5. [H] A latency- or memory-aware budget is the natural extension for GPU deployment (as HALP budgets latency). It is not part of SPECTRA's claims.
+
+Never:
+- "SPECTRA makes the networks faster" for the ResNets.
+- These speeds set against published speeds measured on another GPU or runtime.
+- Batch-1 latency quoted without the batch-256 throughput.
+- The 1-epoch fine-tunes' accuracy.
+
+Records: queue rows RAND-CH (call 3), SCRATCH, THRU; next §396.
