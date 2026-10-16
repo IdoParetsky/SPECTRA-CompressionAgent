@@ -9393,3 +9393,57 @@ Never:
 - A single flag-off cell's difference under about 0.4 read as a property of a method.
 
 Records: queue rows DET and RAND-CH-L1 (its two tree_v21 repeats); next §398.
+
+## 398. (RAND-CH, call 1, with RAND-CH-L1): does the frozen agent's choice of channels matter, or do its layer widths carry the result? T6-fs's own widths with L1 channels against the same widths with random channels, both on tree_v23, at params 0.45 and 0.25 on the nine pool nets, seeds 42–44 — RANK-SAME at both depths (+0.13, +0.23); plus the run-to-run noise over 54 pairs (SD 0.40–0.45 per cell difference, mean −0.05) and a replication of §390 / §387 (+0.36 / +0.11)
+
+Registered 16 Oct 04:35 (`8eb2fd4`; queue row RAND-CH). After the control failed (§393), RAND-CH-L1 was registered at 06:27 (`7fd67ae`) to re-run the L1 arm on tree_v23. Read 16:50 (`scripts/_tmp_s16oct_gaps_read.sh`).
+- *Checks.* All 54 random-cut cells, 54 L1 cells and the 2 tree_v21 repeats COMPLETED; no fallback or masked edit. Each random-cut cell logged "cut ranking: random (seed S)".
+- *Plan lines.* 52 of the 54 random-cut cells' plan lines equal their L1 twins'. Two differ slightly:
+  - thin r56-w4 at 0.45 s42: plan keeps ×0.425 against ×0.428;
+  - DenseNet-100 at 0.25 s43: median group keep 0.58 against 0.56.
+
+  Both L1 runs (tree_v21 and tree_v23) agree with each other there. The landed params agree (ratio 1.00) and the FLOPs within 1 %. [H] This is a near-boundary flip from GPU run-to-run noise in the plan's own forward passes. It is not the flag reaching the plan: the v23 tests show the probes and the plan identical with and without it.
+
+**Pooled** (TEST 5k, mean over seeds 42–44, paired by seed; "other eight" leaves out r20-w8 C100):
+
+| depth | RANK = T6-fs(L1) − T6-fs(random) [95 % bootstrap] | val | 10k | honest | positive | call | reported: random − sens_cost |
+|---|---|---|---|---|---|---|---|
+| 0.45 | **+0.13** [−0.13, +0.34] | +0.02 | +0.07 | +0.15 | 7 of 9 | **RANK-SAME** | +0.23 |
+| 0.25 | **+0.23** [−0.08, +0.59] | +0.24 | +0.24 | +0.20 | 6 of 9 | **RANK-SAME** | −0.12 |
+
+Per net, RANK at 0.45 / 0.25:
+- thin r56-w4: +0.35 / +0.86
+- chenyaofo ResNet-56: +0.17 / −0.17
+- thin r56-w8: +0.23 / +0.25
+- MobileNetV2 ×1.4: +0.46 / +0.99
+- DenseNet-100: −0.15 / +0.01
+- r20-w8 C100: +0.13 / +0.33
+- VGG-19 C100: −0.66 / −0.18
+- VGG-16: +0.13 / +0.22
+- DepGraph R56: +0.50 / −0.19
+
+The same contrast against the tree_v21 L1 rows, reported and not the call, reads +0.19 and +0.28.
+
+**Run-to-run noise** (RAND-CH-L1, reported): the same T6-fs L1 cells, tree_v23 against tree_v21, same seeds.
+
+| depth | pairs | mean v23 − v21 (TEST 5k) | SD | largest \|Δ\| | replication: T6-fs(v23) − sens_cost | tree_v21 value |
+|---|---|---|---|---|---|---|
+| 0.45 | 27 | −0.056 | 0.402 | 1.10 | +0.3630 | +0.4193 (§390) |
+| 0.25 | 27 | −0.048 | 0.447 | 0.96 | +0.1133 | +0.1615 (§387) |
+
+Same-tree repeats on tree_v21: DepGraph R56 s42 +0.46 against the original +0.16; r20-w8 C100 −9.38 against −9.76.
+
+Reading:
+1. **RANK-SAME at both depths.** After the 100-epoch recovery, whether the agent's cut keeps the largest-L1 channels or random ones changes TEST by +0.13 and +0.23 pooled, under the bar and with the range including zero. The agent's value lies in its layer widths, not in the channel criterion. This fits SCRATCH (§394: the architecture, not the inherited weights) and the large-learning-rate literature (Le & Hua; Liu et al.). L1 helps most on the thin ResNet-56 ×4 and MobileNetV2 ×1.4 (+0.86 and +0.99 at 0.25), and least on VGG-19 C100.
+2. **The agent's widths with random channels sit at the cost-aware rule** (+0.23 at 0.45, −0.12 at 0.25). The 0.45 beat (§390) thus rests on the widths plus a small help from L1.
+3. **Run-to-run noise, measured at scale.** Two runs of the same cell differ by an SD of 0.40–0.45 on TEST 5k, about 0.3 per run. There is no systematic tree effect (mean −0.05, and the same-tree repeats move by as much: +0.30, +0.38). For a three-seed single-net contrast that is a noise SD of about 0.23. A pooled contrast over nine nets moves by about 0.08 [H: from these SDs].
+4. **The §390 beat replicates in mean** (+0.36 on tree_v23, against +0.42), still above the +0.3 bar. This is a replication, not a new call. At 0.25, +0.11 against +0.16.
+5. **For the paper.** Single-net calls near the ±0.3 bars are within run noise, so pooled calls carry the claims. The final tables should use the deterministic fine-tune (§397), which removes the run noise but not the seed-to-seed variation.
+
+Never:
+- "The channel criterion does not matter" in general: RANK-SAME holds for T6-fs's widths at 0.45 and 0.25 after G2.
+- RANK across the two depths as one number.
+- "The §390 beat replicated" as a new call; quote it only as a reported replication (+0.36), beside the run noise.
+- A single-net, single-run difference under about 0.4 read as a method property.
+
+Records: queue rows RAND-CH and RAND-CH-L1; next §399.
