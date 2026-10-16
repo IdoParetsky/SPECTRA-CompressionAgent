@@ -9447,3 +9447,40 @@ Never:
 - A single-net, single-run difference under about 0.4 read as a method property.
 
 Records: queue rows RAND-CH and RAND-CH-L1; next §399.
+
+## 399. (CURVE-DG): the fifth and sixth operating points toward 8× on DepGraph R56 — T6-fs against floored sens_cost at params 0.18 and 0.125, T4-F against floored sens_F at FLOPs 0.25 and 0.125, uniform beside, seeds 42–44 — BELOW-PRIOR at params 0.18 (−0.35, TEST only), AT-PRIOR at params 0.125 (+0.01), BEATS-PRIOR at FLOPs 0.25 (+0.40, TEST only), AT-PRIOR at FLOPs 0.125 (−0.19); every single-net call sits within run noise (§398); the lever grows to +2 to +3 points toward 8×
+
+Registered 16 Oct 16:55 (`0d9c34e`; queue row CURVE-DG), eval-only on idle GPUs. The gate passed at 17:04: all four 8× smokes landed (0.125 / 0.125 / 0.124 / 0.125) from an origin of 0.934, with no fallback and no masked edit. Read 18:45 (`scripts/_tmp_s16oct_curve_read.sh`).
+- *Checks.* All 36 cells COMPLETED. The agents were trained to κ ≥ 0.25, so params 0.18 and 0.125 lie outside T6-fs's training range.
+
+Per point (TEST 5k change against the origin before recovery, mean over seeds 42–44; final TEST 5k accuracy in brackets):
+
+| point | agent | prior | uniform | agent − prior (s42 / 43 / 44) | val | 10k | honest | call | prior − uniform |
+|---|---|---|---|---|---|---|---|---|---|
+| params 0.18 (5.5×) | T6-fs −1.38 (91.98) | sens_cost −1.03 (92.33) | −3.15 (90.21) | **−0.35** (+0.26 / −0.24 / −1.08) | +0.37 | +0.01 | −0.47 | **BELOW-PRIOR** | +2.13 |
+| params 0.125 (8×) | T6-fs −1.91 (91.45) | sens_cost −1.91 (91.45) | −4.98 (88.38) | **+0.01** (+0.04 / −0.08 / +0.06) | −0.02 | −0.01 | −0.12 | **AT-PRIOR** | +3.07 |
+| FLOPs 0.25 (4×) | T4-F −0.21 (93.15) | sens_F −0.61 (92.75) | −1.69 (91.67) | **+0.40** (+0.74 / +0.42 / +0.04) | −0.23 | +0.09 | +0.48 | **BEATS-PRIOR** | +1.07 |
+| FLOPs 0.125 (8×) | T4-F −2.81 (90.55) | sens_F −2.62 (90.74) | −4.54 (88.82) | **−0.19** (+0.18 / −0.16 / −0.58) | +0.50 | +0.16 | −0.19 | **AT-PRIOR** | +1.92 |
+
+Captions: at equal params, T6-fs keeps 1.04–1.38× sens_cost's FLOPs at 0.18 and 0.94–1.42× at 0.125. At equal FLOPs, the rules keep 1.25–1.31× uniform_F's params at 0.25 and 0.79–0.89× at 0.125.
+
+The curve on DepGraph R56 (agent − prior, TEST 5k):
+- params: −0.13 at 0.47, −0.15 at 0.45, +0.27 at 0.38, +0.11 at 0.35, −0.01 at 0.25, −0.35 at 0.18, +0.01 at 0.125;
+- FLOPs: T4-F −0.31 at 0.48 (§365), −0.35 at 0.39 (§382), +0.40 at 0.25, −0.19 at 0.125.
+
+Reading:
+1. **Two calls fire, both on TEST alone, and both within run noise.**
+   - BELOW-PRIOR at params 0.18: −0.35, but val reads +0.37 and 10k +0.01, and the seeds run from +0.26 to −1.08.
+   - BEATS-PRIOR at FLOPs 0.25: +0.40, but val reads −0.23 and 10k +0.09.
+
+   A three-seed single-net contrast carries a run-noise SD of about 0.23 (§398), so neither says much about the method. They are recorded by the registered rule, with that scope.
+2. **At 8× the agents are level with the priors** at both budget types (+0.01 and −0.19). T6-fs and sens_cost end at the same 91.45 % at params 0.125, outside T6-fs's training range.
+3. **The lever grows steeply toward 8×.** The rules beat uniform by +2.13 and +3.07 at params 0.18 and 0.125, and by +1.07 and +1.92 at FLOPs 0.25 and 0.125, against at most a few tenths at the shallower points. Allocation matters most where compression is extreme. That is where a frozen agent at the prior is worth most against uniform cuts, and where the literature's gains of a point or more appear (§6).
+4. **For the trade-off figure (NEON Fig. 5 analog).** DepGraph R56 now has seven params points and four FLOPs points per arm, from 2× to 8×. The agent's curve tracks the prior's within ±0.35 at every point, while uniform falls away below 4×.
+
+Never:
+- "The agent beats the FLOPs rule at 4×" or "falls below the params rule at 5.5×" without "on one net, on TEST only, within run noise".
+- These single-net points mixed with the pooled nine-net depths.
+- "The agent extrapolates well": it is level with the prior at 8× on one net.
+
+Records: queue row CURVE-DG; next §400.
