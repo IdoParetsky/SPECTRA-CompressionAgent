@@ -33,7 +33,19 @@ group's weight leaves e^±zmax of its prior's; z is still what is sampled and sc
 groups' mean is past the bound, and the checkpoint carries ``residual_zmax``), INIT (v23, unset: a plan-agent checkpoint
 whose policy weights the run starts from, ``warm_start``; refused when it trained under other settings than this run's,
 ``plan_agent.ENSEMBLE_KEYS``; no optimizer state exists to load, and the σ schedule stays SIGMA / SIGMA_FLOOR /
-SIGMA_DECAY; recorded as ``init`` in the config line and in every checkpoint).
+SIGMA_DECAY; recorded as ``init`` in the config line and in every checkpoint), STATE (v25, default off: ``1`` writes
+``trainer_state.pt`` beside every ``policy_latest.pt``, atomically (a temp file ``os.replace``d over it): the policy and
+optimizer state dicts, the partial batch's accumulated gradient per parameter, the completed count, the trainer's own
+``rng`` and the global random / numpy / torch (and CUDA) RNG states, the checkpoint meta with the config, the states
+this run resumed from and a format version (``STATE_KEYS``); with it on, MAX_MINUTES stops only at a batch boundary,
+at most BATCH - 1 instances later, so a stopped job flushes no partial step and its policy_latest.pt is the chain's
+policy, and the closing state is written before the end-of-run partial step, so every state is the trajectory state
+after ``done`` instances), RESUME (v25, unset: the ``trainer_state.pt`` the run continues from; the origins are read and
+the policy built as before, then the state is put back and the loop runs it = done ... INSTANCES with the instance
+numbering, the saves and the DONE line of one uninterrupted run, each job logging to its own run folder; refused unless
+the state's settings are this run's, every checkpoint meta key and config field but ``RESUME_FREE`` = MAX_MINUTES and
+SAVE_EVERY, a differing standardizer path warning as INIT's does; the chain's final weights are bitwise the
+uninterrupted run's on CPU, and on CUDA as alike as two uninterrupted runs are).
 """
 
 import json
@@ -172,6 +184,123 @@ def warm_start(policy, blob, meta, path):
                       f"budget={blob.get('budget')!r} on {len(blob.get('nets') or [])} nets)")
 
 
+STATE_FORMAT = 1
+STATE_KEYS = ("format", "done", "policy", "optimizer", "grads", "rng", "meta", "chain", "saved")
+RESUME_FREE = ("max_minutes", "save_every")  # the config fields a chained job may change
+
+
+def state_enabled() -> bool:
+    """``SPECTRA_PLAN_STATE`` (v25; default off, as before): write ``trainer_state.pt`` beside every
+    ``policy_latest.pt``."""
+    return _env("STATE", "0").lower() in ("1", "true", "yes", "on")
+
+
+def resume_path() -> str:
+    """``SPECTRA_PLAN_RESUME`` (v25; empty = off, as before): the ``trainer_state.pt`` the run continues from."""
+    return _env("RESUME", "")
+
+
+def rng_states(rng):
+    """Every generator the loop or a reward may draw from: the trainer's own ``rng``, Python's ``random``, NumPy's,
+    torch's CPU generator and, when CUDA is available, every CUDA generator (None otherwise)."""
+    try:
+        import numpy as np
+        npy = np.random.get_state()
+    except ImportError:  # pragma: no cover - numpy is a dependency of the env
+        npy = None
+    return {"trainer": rng.getstate(), "python": random.getstate(), "numpy": npy, "torch": torch.get_rng_state(),
+            "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None}
+
+
+def set_rng_states(states, rng):
+    """Put ``rng_states``' generators back; the CUDA ones only onto the same number of devices (a WARNING otherwise)."""
+    rng.setstate(states["trainer"])
+    random.setstate(states["python"])
+    if states.get("numpy") is not None:
+        import numpy as np
+        np.random.set_state(states["numpy"])
+    torch.set_rng_state(states["torch"])
+    cuda, devices = states.get("cuda"), torch.cuda.device_count() if torch.cuda.is_available() else 0
+    if cuda is not None and devices and len(cuda) == devices:
+        torch.cuda.set_rng_state_all(cuda)
+    elif cuda is not None or devices:
+        utils.print_flush(f"[plan] WARNING: the state holds {0 if cuda is None else len(cuda)} CUDA RNG states and "
+                          f"this run has {devices} CUDA devices; the CUDA generators are not restored")
+
+
+def trainer_state(policy, optimizer, rng, done, meta, chain):
+    """The resumable state after ``done`` instances (``STATE_KEYS``): the policy and optimizer state dicts, the partial
+    batch's accumulated gradient per policy parameter (None at a batch boundary, and for a parameter the forward
+    never uses), ``rng_states``, the checkpoint meta (``config`` included), the states this run resumed from (oldest
+    first), the format and the wall-clock time."""
+    return {"format": STATE_FORMAT, "done": int(done), "policy": policy.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "grads": [None if p.grad is None else p.grad.detach() for p in policy.parameters()],
+            "rng": rng_states(rng), "meta": dict(meta), "chain": list(chain), "saved": time.time()}
+
+
+def write_state(path: str, state):
+    """``torch.save`` to a temp file, then ``os.replace`` it over ``path``: a job killed mid-write leaves the old
+    state."""
+    tmp = path + ".tmp"
+    torch.save(state, tmp)
+    os.replace(tmp, path)
+
+
+def read_state(path: str):
+    """The ``trainer_state.pt`` at ``path`` as saved (``plan_agent.read_blob``); refused (ValueError) unless this
+    trainer wrote it (``format`` = STATE_FORMAT)."""
+    blob = plan_agent.read_blob(path)
+    found = blob.get("format") if isinstance(blob, dict) else type(blob).__name__
+    if not isinstance(blob, dict) or found != STATE_FORMAT or "done" not in blob:
+        raise ValueError(f"SPECTRA_PLAN_RESUME={path}: not a trainer state of format {STATE_FORMAT} (found {found!r})")
+    return blob
+
+
+def check_resume(stored, meta, path):
+    """Refuse (ValueError) a state from a run under other settings than this one's: every checkpoint meta key but
+    ``recipe_line`` (put back by ``restore``) and ``standardizer`` (a WARNING, as ``warm_start``), and every config
+    field but ``RESUME_FREE``; every mismatch is named."""
+    bad = []
+    for key in sorted((set(stored) | set(meta)) - {"config", "recipe_line", "standardizer"}):
+        if stored.get(key) != meta.get(key):
+            bad.append(f"{key}={stored.get(key)!r} (here {meta.get(key)!r})")
+    old, new = stored.get("config") or {}, meta.get("config") or {}
+    for key in sorted((set(old) | set(new)) - set(RESUME_FREE)):
+        if old.get(key) != new.get(key):
+            bad.append(f"config.{key}={old.get(key)!r} (here {new.get(key)!r})")
+    if bad:
+        raise ValueError(f"SPECTRA_PLAN_RESUME={path}: the state's run had " + "; ".join(bad)
+                         + f"; only {', '.join(RESUME_FREE)} may differ between chained jobs")
+    trained, here = stored.get("standardizer") or "", meta.get("standardizer") or ""
+    if trained != here and os.path.abspath(trained) != os.path.abspath(here):
+        utils.print_flush(f"[plan] WARNING: SPECTRA_PLAN_RESUME trained under standardizer {trained}; this run reads "
+                          f"{here}")
+
+
+def restore(state, path, cfg, meta, policy, optimizer, rng) -> int:
+    """Continue from ``state`` (``read_state``): after ``check_resume``, the policy weights, the optimizer state,
+    the partial batch's gradients and every RNG state are put back in place (into the fresh run's own policy and
+    optimizer, so the optimizer keeps its tensors) and the stored ``recipe_line`` rejoins ``meta``. Returns the
+    completed count."""
+    stored = state["meta"]
+    check_resume(stored, meta, path)
+    if stored.get("recipe_line"):
+        meta["recipe_line"] = stored["recipe_line"]
+    policy.load_state_dict(state["policy"])
+    optimizer.load_state_dict(state["optimizer"])
+    params = list(policy.parameters())
+    if len(state["grads"]) != len(params):
+        raise ValueError(f"SPECTRA_PLAN_RESUME={path}: {len(state['grads'])} gradients for {len(params)} parameters")
+    for param, grad in zip(params, state["grads"]):
+        param.grad = None if grad is None else grad.to(device=param.device, dtype=param.dtype)
+    set_rng_states(state["rng"], rng)
+    done, into = int(state["done"]), int(state["done"]) % cfg.batch
+    utils.print_flush(f"[plan] resumed from {path} at {done} instances"
+                      + (f", {into} of {cfg.batch} into a batch" if into else ""))
+    return done
+
+
 def prior_of(inst, res, budget="params"):
     """``inst``'s prior weights under ``res`` = (mode, alpha) on ``budget`` (``NetInstance.prior``); None when off."""
     if res is None:
@@ -244,6 +373,8 @@ def run(env, shard):
     zmax = residual_zmax() if res else 0.0  # the trust region; 0 = every residual decode as before
     init = init_path()
     init_blob = plan_agent.read_blob(init) if init else None  # read now: a wrong path fails before the origins are read
+    keep, resume = state_enabled(), resume_path()
+    state = read_state(resume) if resume else None  # read now too: a wrong path or file fails before the origins
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     with_cost = res is not None and "sens_cost" in {plan_agent.prior_kind(mode, b) for b in budgets}
     scale = sigma0 / cfg.sigma if res is not None and cfg.sigma > 0 else 1.0
@@ -252,7 +383,8 @@ def run(env, shard):
                       + (f" residual={mode} alpha={alpha:g} sigma={sigma0:g}" if res else "")
                       + (f" zmax={zmax:g}" if zmax > 0 else "")
                       + (f" fs_lr={plan_agent.fs_lr():g}" if cfg.proxy.startswith("fs") else "")
-                      + (f" init={init}" if init else ""))
+                      + (f" init={init}" if init else "")
+                      + (" state=1" if keep else "") + (f" resume={resume}" if resume else ""))
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
@@ -319,9 +451,20 @@ def run(env, shard):
         plan_agent.save_policy(policy, os.path.join(folder, "policy_latest.pt"), **meta)
         return path
 
+    state_path = os.path.join(folder, "trainer_state.pt")
+    chain = (list(state.get("chain") or []) + [resume]) if state is not None else []
+    last_state = [None]  # the count trainer_state.pt was last written at
+
+    def save_state(count):
+        write_state(state_path, trainer_state(policy, optimizer, rng, count, meta, chain))
+        last_state[0] = count
+        into = count % cfg.batch
+        utils.print_flush(f"[plan] state {state_path} at {count} instances"
+                          + (f", {into} of {cfg.batch} into a batch" if into else ""))
+
     optimizer.zero_grad()
-    done = 0
-    for it in range(cfg.instances):
+    done = start = restore(state, resume, cfg, meta, policy, optimizer, rng) if state is not None else 0
+    for it in range(start, cfg.instances):
         t0 = time.perf_counter()
         inst = rng.choice(instances)
         kappa = rng.uniform(cfg.kappa_lo, cfg.kappa_hi)
@@ -379,9 +522,14 @@ def run(env, shard):
         done = it + 1
         if done % cfg.save_every == 0:
             save(f"it{done:05d}")
-        if cfg.max_minutes and (time.perf_counter() - started) / 60.0 >= cfg.max_minutes:
+            if keep:
+                save_state(done)
+        over = cfg.max_minutes and (time.perf_counter() - started) / 60.0 >= cfg.max_minutes
+        if over and not (keep and done % cfg.batch):  # with the state on, only at a batch boundary: no partial step
             utils.print_flush(f"[plan] MAX_MINUTES={cfg.max_minutes:g} reached after {done} instances")
             break
+    if keep and last_state[0] != done:  # the trajectory state before the closing partial step: a resume re-finishes it
+        save_state(done)
     if done % cfg.batch:
         torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
         optimizer.step()
