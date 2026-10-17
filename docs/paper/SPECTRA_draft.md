@@ -6,7 +6,7 @@ Ido Paretsky · advisor Dr. Gilad Katz · Ben-Gurion University
 Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].  
 **Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md).** Every number below cites its ledger section (§N). Do not paste a job summary, a train-log value or a smoke here.
 
-**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391, 05:50 with §392, 06:40 with §393–§395, 13:45 with §396, 14:40 with §397, 16:55 with §398 and 18:50 with §399, and 17 Oct 07:39 with §400.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
+**Status: DRAFT, rewritten 14 Oct 2026 to the plan-as-action agent (10:40); updated 14 Oct 14:39 with §381, 19:42 with §382 and 21:20 with §383, and 15 Oct 01:40 with §384, 02:08 with §385, 08:05 with §386, 10:45 with §387, 13:00 with §388, 15:10 with §389 and 17:20 with §390, and 16 Oct 04:15 with §391, 05:50 with §392, 06:40 with §393–§395, 13:45 with §396, 14:40 with §397, 16:55 with §398 and 18:50 with §399, and 17 Oct 07:39 with §400 and 09:47 with §401.** The method of record is the plan-as-action agent (§3). The walk-based agent of the 16 Sep draft is history (Appendix B), and the old text, with the 18 Aug snapshot and ops' one-line pins of 6–14 Oct, is kept word for word in [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md). Results are **PRELIM** until the final tables are locked. Submission deadline: 28 Feb (Ido, 13 Oct). Standing advisor orders: [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md).
 
 **Who edits this file.** Science (Claude Code) owns it under Ido's standing GO of 14 Oct (CLAUDE.md, "The paper draft") and updates it after each ledger section, one reviewable commit at a time. Ops does not edit it; ops' pins are folded into the body and into the claims guard below.
 
@@ -46,7 +46,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Does the agent's choice of channels matter? | Little, after the 100-epoch recovery: L1 channels beat random channels at the agent's own widths by +0.13 and +0.23 (RANK-SAME). The widths carry the result | §398 |
 | Do the inherited weights matter? | With Scratch-B's compute, the 32-step agent's architecture trains from scratch to the same accuracy as with its inherited weights (SCRATCH-SAME at both DepGraph points). With Scratch-E's 200 epochs, the inherited weights help at 38 % params (+0.39) | §394 |
 | Are fewer FLOPs faster? | Not on DepGraph's ResNet-56 on an RTX 4090: 37–61 % fewer FLOPs run at 0.93–1.07× at batch 256. VGG-16 gains 1.32–1.65×. Batch-1 latency is unchanged | §395 |
-| How reproducible is one cell? | Without deterministic algorithms, not exactly: three runs of one cell spread over 0.42 and 0.76 points on TEST. With `SPECTRA_EVAL_FT_DETERMINISTIC=1`, two runs agree to 4 decimals on both networks, at about 35–50 % more wall time | §393, §397 |
+| How reproducible is one cell? | Without deterministic algorithms, not exactly: three runs of one cell spread over 0.42 and 0.76 points on TEST. With `SPECTRA_EVAL_FT_DETERMINISTIC=1`, two runs agree exactly on five networks in four families (residual, MobileNetV2, DenseNet, VGG), at about 22–50 % more wall time | §393, §397, §401 |
 | Running | T6-fs at 60 % and 45 % (POOL-T6FS), overnight | queue |
 
 ---
@@ -844,12 +844,12 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **On VGG-16 the FLOPs saving becomes speed at batch 256,** though less than one for one: 2.15× fewer FLOPs gives 1.32–1.42×, and 2.94× fewer gives 1.63–1.65×.
 - Table 1's FLOPs ratios carry this table beside them. Compiled or fused runtimes are not measured.
 
-**Run-to-run noise** (§393, §397).
+**Run-to-run noise** (§393, §397, §401).
 
 - **The noise.** Without deterministic GPU algorithms, the 100-epoch fine-tune is not bit-reproducible. The runner also switched on cuDNN's benchmark mode, which picks algorithms by timing. Three runs of one identical cut spread over 0.42 points on DepGraph's ResNet-56 and 0.76 on ResNet-20 ×8 CIFAR-100, a tree_v21 repeat among them. So the noise is run-to-run, not a code change.
 - **Its effect on the calls.** A pooled call over 27 cells averages it down. A single-network call over three seeds carries a few tenths of it.
 - **Measured at scale** (§398): over 54 pairs of the same cell on two trees, the difference has a mean of −0.05 and an SD of 0.40–0.45. That is about 0.3 per run and about 0.23 for a three-seed single-network contrast. The replication of §390 reads +0.36, against +0.42.
-- **The fix.** With `SPECTRA_EVAL_FT_DETERMINISTIC=1`, two runs of the same cell agree to 4 decimals on every number on both networks (DET-EXACT). It costs about 35–50 % more wall time, and it is proposed for the final tables.
+- **The fix.** With `SPECTRA_EVAL_FT_DETERMINISTIC=1`, two runs of the same cell agree to 4 decimals on every number (DET-EXACT). That holds on DepGraph's ResNet-56 and ResNet-20 ×8 CIFAR-100 (§397), and on MobileNetV2 ×1.4, DenseNet-100 and VGG-19 CIFAR-100 (§401), so it covers every family in the pool. PyTorch named no operation without a deterministic implementation. It costs about 22–50 % more wall time, on the RTX 4090 with this software stack, and it is proposed for the final tables.
 
 ---
 
@@ -880,7 +880,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - The deep-budget failure is removed at 35 % and reduced, not removed, at 25 %, where one seed still collapses (§378, §381, §383). A three-seed ensemble does not remove it (§386). The 32-step reward shrinks it to −0.93, with one seed still at −4.70 (§387).
 - One recovery recipe. Allocation rankings may differ under much shorter recoveries.
 - Fewer FLOPs are not faster for the small ResNets on a GPU (§395). SPECTRA's budgets are FLOPs and parameters, not latency.
-- The rows so far are reproducible only up to run-to-run noise of a few tenths per cell (§393, §397). Pooled calls are robust to this, single-net calls less so. The deterministic fine-tune removes it (DET-EXACT, §397), and is proposed for the final tables.
+- The rows so far are reproducible only up to run-to-run noise of a few tenths per cell (§393, §397). Pooled calls are robust to this, single-net calls less so. The deterministic fine-tune removes it on every family in the pool (DET-EXACT, §397, §401), and is proposed for the final tables.
 
 ---
 
