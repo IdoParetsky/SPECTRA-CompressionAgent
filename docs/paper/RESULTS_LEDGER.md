@@ -9548,3 +9548,30 @@ Never:
 - The +0.26 at 0.45 quoted as beating the prior: by the registered rule it is AT-PRIOR-POOL.
 
 Records: queue row T8-fs; next §401.
+
+## 401. (DET-F): the deterministic fine-tune on the three other families — DET's cell (T6-fs, params 0.45, s42, G2) run twice with `SPECTRA_EVAL_FT_DETERMINISTIC=1` on MobileNetV2 ×1.4 C10, DenseNet-100 C10 and VGG-19 C100 (smokes **23077151–153**, cells **23077165–170**; `tree_v24`) — **DET-EXACT** on all three: every TEST 5k, val and 10k change of the size point and the origin agrees to 0.0000 points; PyTorch names no non-deterministic op; the flag costs +22–26 % wall time
+
+Registered 17 Oct 07:36 (`773b599`; queue row DET-F), eval-only under Ido's 16 Oct GO on the deterministic fine-tune. The gate passed at 07:53: all three smokes carry the ON line and land at 0.450, from origins 0.939 / 0.951 / 0.740. Read 09:45 (`scripts/_tmp_s17oct_detf_read.sh`).
+- *Checks.* All 9 jobs COMPLETED.
+- *Reader fix before the call.* On MobileNetV2 the 0.45 point is the walk's `val_best` step, so its row carries only the `val_best` label (param 0.450). That held in the flag-off POOL-T6FS run too. The first pass looked for `size_param0.45` only and printed DET-FAILS for a missing row. The reader now falls back to the `val_best` row within ±0.011 of the target, as T8-fs's reader does.
+
+Per net (TEST 5k / val / 10k change against the origin, size point; flag-on runs a and b; the flag-off run of the same cell beside):
+
+| net | flag on, a | flag on, b | largest \|a − b\| (size and origin) | origin control, a = b | flag off (POOL-T6FS, tree_v21) | minutes on / off |
+|---|---|---|---|---|---|---|
+| MobileNetV2 ×1.4 C10 | −0.06 / +0.00 / −0.03 | −0.06 / +0.00 / −0.03 | 0.0000 | +0.22 / +0.18 / +0.20 | +0.70 / +0.26 / +0.48 | 41.0 / 33.0 |
+| DenseNet-100 C10 | −0.98 / −0.12 / −0.55 | −0.98 / −0.12 / −0.55 | 0.0000 | −0.04 / +0.60 / +0.28 | −0.78 / −0.06 / −0.42 | 109.0 / 89.4 |
+| VGG-19 C100 | +0.78 / +0.82 / +0.80 | +0.78 / +0.82 / +0.80 | 0.0000 | +0.56 / +1.12 / +0.84 | +1.02 / +1.44 / +1.23 | 19.9 / 15.8 |
+
+Reading:
+1. **The flag reproduces exactly on every family the pool holds.** With §397 (DepGraph R56, r20-w8 C100), DET-EXACT now covers five networks in four families: residual, MobileNetV2 (depthwise convolutions), DenseNet (concatenation) and VGG. PyTorch's warn-only mode named no operation without a deterministic implementation in any of the six runs.
+2. **Cost.** +24 %, +22 % and +26 % wall time here, against +35 % and +50 % on the two residual nets (§397). The runs used different nodes, so these are approximate.
+3. **Flag-on against flag-off is not a contrast.** The deterministic algorithms differ numerically from the timed ones, and each column is one run. The three TEST gaps are −0.76, −0.20 and −0.24, against a run-to-run SD of 0.40–0.45 per cell difference (§398). MobileNetV2's is about 1.8 SD. All three are negative, which three single runs cannot separate from noise. [U] Whether the deterministic algorithms shift accuracy is not tested here, and does not matter for the tables, where every arm runs with the flag.
+4. **For the final tables.** Nothing on the method side now blocks running them with the flag: every number would reproduce from code, seed and GPU type. Whether to run them, and on which agent, is Ido's decision (§400).
+
+Never:
+- "Bit-reproducible on any hardware": this holds on the RTX 4090 with this software stack.
+- Flag-on rows mixed with flag-off rows in one contrast.
+- The flag-on − flag-off gaps quoted as an effect of the flag on accuracy.
+
+Records: queue row DET-F; next §402.
