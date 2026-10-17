@@ -459,6 +459,10 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **Stage B** (`cellsB`, 270 uniform cells) and the literature rows wait for Ido's OK. The cost was corrected to about 500 GPU-h in all; the 09:50 figure counted four budget points, not six.
   - **LEV-125**: 56 cells released 11:06; reader `_tmp_s17oct_lev125_read.sh`; the S2 rule is in the row.
   - **Review page for Ido tonight:** https://claude.ai/artifact/Y1TXH13mr6kn5QQkdsHvZE ("SPECTRA Since 15 October"), cross-checked by a literature subagent's digest (`scratchpad/digest_since_15oct.md`). That cross-check found §402's "1 of 12" (now 1 of 20, with a correction note) and several stale draft and meeting-page lines, all fixed (`f3f56a4`).
+- **17 Oct 20:40 (back after the laptop window; the mail and the cluster were read first).** The window was clean: no failure, no preemption. T4-F's trains COMPLETED and the waiter submitted their 36 cells at 14:01. 88 of 738 FINAL cells were done at 19:20; T6-fs's trains are due about 07:30 18 Oct.
+  - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
+  - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
+  - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
 
 ---
 
