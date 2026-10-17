@@ -9623,3 +9623,42 @@ Never:
 Records: queue row REC-W1; `docs/CATALOG_SCALE_PLAN.md` §3 (wave 1); next §403.
 
 *Corrected 17 Oct 11:50:* the SVHN / Fashion-MNIST count first read "1 of 12" and "eleven of twelve"; the table holds 20 such networks, so it is 1 of 20 (found by a cross-check of the sources).
+
+## 403. (LEV-125): where does allocation start to matter on SVHN and Fashion-MNIST? Floored, grid-rounded sens_cost and uniform, one cut, G2, seed 42, read on val, at params 0.125 on the 20 wave-1 SVHN / Fashion-MNIST networks, and at 0.25 and 0.125 on the four Fashion-MNIST networks named for split S2 (smokes **23085252–403**, 56 cells in `scratch_audit/s17oct_lev125_manifest.tsv`; `tree_v24`, flag off) — **REALIZABLE 28 of 28** cells; **LEVER 2 of 24 at 0.125** (MobileNetV2 ×0.75 Fashion-MNIST +0.56; MobileNetV2 ×0.5 Fashion-MNIST, an S2 network, +0.92 on val but −0.26 on TEST), and **0 of 4 S2 networks at 0.25**; by the registered rule **S2 (unseen dataset = Fashion-MNIST) carries no call at 0.25 or 0.125**
+
+Registered 17 Oct 10:53 (`2b74576`; queue row LEV-125), eval-only under Ido's 17 Oct GO on science's recommendations. A screen of base networks: TEST is printed beside val, never quoted. Read 17 Oct 19:25 (`scripts/_tmp_s17oct_lev125_read.sh`).
+- *Checks.*
+  - All 63 jobs COMPLETED.
+  - The gate (11:06) passed all 7 smokes at `size_param0.12`, landing 0.124–0.125, with origins within 1 point of their files.
+  - Every cell lands within ±0.011 of its target, with no fallback line and no masked edit.
+
+The four S2 networks (Fashion-MNIST; val change after G2, TEST in brackets; lever = sens_cost − uniform on val, TEST in brackets):
+
+| network | params 0.25: sens_cost; lever | params 0.125: sens_cost; lever |
+|---|---|---|
+| DenseNet-40 | −1.36 (−1.50); +0.20 (−0.08) | −1.62 (−1.82); +0.14 (+0.34) |
+| MobileNetV2 ×0.5 | −0.88 (−0.80); −0.10 (−0.02) | −1.06 (−1.54); **+0.92** (−0.26) |
+| thin r20-w16 | −1.10 (−1.06); −0.12 (+0.24) | −2.12 (−2.18); −0.22 (−0.38) |
+| VGG-11-BN | −0.66 (−0.34); +0.18 (+0.30) | −0.78 (−0.58); +0.13 (+0.14) |
+
+The 20 wave-1 networks at params 0.125:
+- Lever on val, SVHN (10): −0.57 to +0.37, mean −0.04.
+- Lever on val, Fashion-MNIST (10): −0.64 to +0.56, mean −0.01.
+- The only LEVER is MobileNetV2 ×0.75 Fashion-MNIST (+0.56; TEST +0.32).
+- sens_cost's val change: −2.12 (PreAct-ResNet-20 SVHN) to +2.20 (WRN-16-4 Fashion-MNIST, whose origin is a weak last epoch).
+- The even cut's val change: −1.64 to +2.50.
+- Beside REC-W1's 0.25 rows (§402), the lever on these 20 networks does not grow at 8×: their mean changes from −0.07 at 0.25 to −0.03 at 0.125.
+
+Reading:
+1. **On SVHN and Fashion-MNIST, even an 8× cut costs at most about 2 points under either rule** (the worst is −2.12 on val). No allocation, learned or designed, has room to matter there at the agent's budgets. That is unlike CIFAR-10 and CIFAR-100, where the lever reaches +0.5 to +2.3 at 4× (§402) and +2–3 at 8× (§399).
+2. **By the registered rule, S2 carries no call.** At 0.25, 0 of the 4 S2 networks are LEVER; at 0.125, 1 of 4. A frozen agent read on Fashion-MNIST could only show parity, which says nothing about transfer.
+3. **[D pending Ido] The unseen-dataset split should be CIFAR-100**, the catalog plan's second rotation (§2, "the excluded branch of D4"). The lever is there: the CIFAR-100 networks of wave 1 read +0.12 to +2.28 at 0.25 (§402), and the pool's r20-w8 C100 and VGG-19 C100 carry most of every pooled contrast. Today's agent of record, T6-fs, was trained without CIFAR-100. Its CIFAR-100 rows in the final tables are therefore already unseen-dataset rows, and they must stay labelled as such.
+4. **SVHN and Fashion-MNIST stay useful in training**, as dataset diversity whose reward hardly varies across plans. As held-out networks they belong to the coverage map, reported and never call-carrying.
+5. **One seed.** Each lever is a single pair of runs (difference SD about 0.4, §398). The dataset-level pattern, 20 networks averaging −0.07 and −0.03 at the two budgets, is the robust part.
+
+Never:
+- Any number here as a SPECTRA result.
+- An S2 call on Fashion-MNIST at 0.25 or 0.125.
+- "Allocation does not matter on SVHN / Fashion-MNIST" beyond params 0.125, these networks and one seed.
+
+Records: queue row LEV-125; `docs/CATALOG_SCALE_PLAN.md` §2; next §404.

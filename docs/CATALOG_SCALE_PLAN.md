@@ -50,7 +50,7 @@ Every test network is out of every training catalog. The 9-network pool and the 
 | Split | What is new to the agent | Proposed members (from §1) |
 |---|---|---|
 | S1 similar architectures | a size it has not seen, in a family and dataset it has | thin r20 / r56 at held-out widths (5, 9, 11, 13, 15); MobileNetV2 ×0.75; VGG-19 C10; the pool's r56-w4, r56-w8, MobileNetV2 ×1.4, DenseNet-100, VGG-16 C10, chenyaofo and DepGraph R56 |
-| S2 unseen dataset | the dataset | every Fashion-MNIST network (VGG-11, MobileNetV2 ×0.5, DenseNet-40, r20-w16), with Fashion-MNIST out of training. CIFAR-100 is the second rotation: the "excluded" branch of D4 |
+| S2 unseen dataset | the dataset | **CIFAR-100, with CIFAR-100 out of training** (proposed 17 Oct after §403, D pending Ido): the pool's r20-w8 / VGG-19 C100 and wave 1's WRN / PreAct-ResNet C100. Fashion-MNIST (VGG-11, MobileNetV2 ×0.5, DenseNet-40, r20-w16) cannot carry a call at params 0.25 or 0.125, since 0 and 1 of its 4 networks carry a lever (§403). It stays a reported coverage cell |
 | S3 unseen family | the family | one family out per fold, rotating DenseNet → MobileNetV2 → VGG (§4 of the transfer protocol) |
 | S4 unseen both | the family and the dataset | the S3 family's networks on the S2 dataset |
 | Anchors | literature cells | DepGraph R56 C10, DepGraph VGG-19 C100, ResNet-110 C10, VGG-16 C10, PruningBench ResNet-18 / VGG-19 C100, DFPC networks |
