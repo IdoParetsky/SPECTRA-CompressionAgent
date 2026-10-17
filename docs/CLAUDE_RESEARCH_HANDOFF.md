@@ -453,6 +453,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
     - the next catalog rung: scale instances with the catalog. It needs a train GO.
 - **17 Oct 10:12.** §402 REC-W1 read: REALIZABLE and RECOVERABLE 28 of 28, so wave 1 is cleared for a catalog. LEVER on 7 of 28 (six of eight CIFAR WRN / PreAct-ResNet networks, VGG-19-BN Fashion-MNIST); SVHN and Fashion-MNIST are lever-limited at params 0.25. Catalog plan gate 2 is now defined for the plan agent (`CATALOG_SCALE_PLAN.md` §6). Draft `6f19661`; Gilad page v42; brief v90.
   - **Nothing of ours runs.** Offered to Ido: the same screen at params 0.125 on the SVHN and Fashion-MNIST networks (about 15 GPU-h), to choose S2's read budget before any read. Not registered.
+- **17 Oct 11:55: Ido's GO (~10:40, "per your recommendation").** T6-fs and T4-F are the agents of record [D]; the final tables run with the flag.
+  - **FINAL** (`2b74576`): 4 trains (T6-fs and T4-F, s45 and s46; configurations identical to s42's apart from the seed) under `s17oct_final_trainguard.sh`. 432 Stage-A cells were released by the gate at 11:19, under `s17oct_autoresub_final.sh`.
+  - **When the trains COMPLETE** (watcher armed): run `bash s17oct_final_submit.sh cells45` (108 agent cells). Reader `_tmp_s17oct_final_read.sh` (deployed).
+  - **Stage B** (`cellsB`, 270 uniform cells) and the literature rows wait for Ido's OK. The cost was corrected to about 500 GPU-h in all; the 09:50 figure counted four budget points, not six.
+  - **LEV-125**: 56 cells released 11:06; reader `_tmp_s17oct_lev125_read.sh`; the S2 rule is in the row.
+  - **Review page for Ido tonight:** https://claude.ai/artifact/Y1TXH13mr6kn5QQkdsHvZE ("SPECTRA Since 15 October"), cross-checked by a literature subagent's digest (`scratchpad/digest_since_15oct.md`). That cross-check found §402's "1 of 12" (now 1 of 20, with a correction note) and several stale draft and meeting-page lines, all fixed (`f3f56a4`).
 
 ---
 
