@@ -9484,3 +9484,67 @@ Never:
 - "The agent extrapolates well": it is level with the prior at 8× on one net.
 
 Records: queue row CURVE-DG; next §400.
+
+## 400. (T8-fs): the two levers together — T6-fs's line (fs32 reward at lr 0.01, κ [0.25, 0.85]) trained on T1-C's 18-net catalog with CIFAR-100, read at params 0.6 (DepGraph R56 at 0.47), 0.45, 0.35 and 0.25 against floored, grid-rounded sens_cost, against T6-fs and (at 0.35 and 0.25) against T7-C, on the nine-net held-out pool (trains **23022470 / 531 / 594**, evals 108 of `scratch_audit/s16oct_t8_manifest.tsv`; `tree_v21`) — PRELIM; registered calls: P **−0.02 / +0.26 / +0.09** → **AT-PRIOR-POOL** at 0.6, 0.45 and 0.35, and **−0.41** → **BELOW-PRIOR-POOL** at 0.25; C **−0.07 / −0.16 / −0.14** → **SAME**, and **−0.57** → **CATALOG-HURTS** at 0.25; R **−0.19** → **SAME** at 0.35 and **−0.75** → **REWARD-HURTS** at 0.25. The levers do not add up. Every negative call is carried by the two CIFAR-100 networks, one seed of r20-w8 C100 above all
+
+Registered 16 Oct 02:58 (queue row T8-fs), under Ido's 15 Oct GO for the first big-catalog train and his 16 Oct "continue as planned". The gate passed the smokes, and the three trains were released. Read 17 Oct 07:23 (`scripts/_tmp_s16oct_t8_read.sh`).
+- *Checks.*
+  - Each train ran its 12,000 instances, in 1,278 / 1,295 / 1,272 min, under the 1,700-min cap, with no preemption.
+  - All 108 evals COMPLETED.
+  - The reader's six self-checks reproduce §387, §389 and §390 to four decimals: T6-fs − sens_cost +0.0504 / +0.4193 / +0.2356 / +0.1615, and T7-C − sens_cost +0.2778 / +0.3422.
+  - Every T8-fs plan on r20-w8 C100 lands within its grid-rounded target (predicted 0.590 / 0.445–0.447 / 0.340–0.342 / 0.240–0.245).
+
+Per depth (TEST 5k change, mean over the nine nets of the per-net seed means, seeds 42–44 paired by seed; 95 % bootstrap over nets in brackets):
+
+| depth | contrast | TEST 5k | val | 10k | honest | d > 0 | call | other eight | CIFAR-100 pair | CIFAR-10 seven |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0.6 | P = T8-fs − sens_cost | **−0.02** [−0.17, +0.15] | +0.20 | +0.09 | −0.03 | 5 of 9 | **AT-PRIOR-POOL** | −0.02 | +0.19 | −0.08 |
+| 0.6 | C = T8-fs − T6-fs | **−0.07** [−0.29, +0.13] | −0.04 | −0.05 | +0.04 | 4 of 9 | **SAME** | −0.03 | −0.23 | −0.02 |
+| 0.45 | P | **+0.26** [+0.03, +0.54] | +0.27 | +0.27 | +0.20 | 8 of 9 | **AT-PRIOR-POOL** | +0.21 | +0.40 | +0.22 |
+| 0.45 | C | **−0.16** [−0.66, +0.14] | −0.07 | −0.11 | −0.25 | 5 of 9 | **SAME** | +0.03 | −0.75 | +0.02 |
+| 0.35 | P | **+0.09** [−0.66, +0.59] | −0.06 | +0.02 | +0.13 | 7 of 9 | **AT-PRIOR-POOL** | +0.19 | −0.34 | +0.22 |
+| 0.35 | C | **−0.14** [−1.00, +0.47] | −0.27 | −0.21 | −0.18 | 4 of 9 | **SAME** | −0.00 | −0.67 | +0.01 |
+| 0.35 | R = T8-fs − T7-C | **−0.19** [−1.10, +0.25] | −0.17 | −0.18 | −0.19 | 4 of 9 | **SAME** | +0.08 | −1.20 | +0.10 |
+| 0.25 | P | **−0.41** [−2.27, +0.42] | −0.21 | −0.31 | −0.31 | 3 of 9 | **BELOW-PRIOR-POOL** | +0.10 | −2.26 | +0.12 |
+| 0.25 | C | **−0.57** [−2.62, +0.68] | −0.43 | −0.50 | −0.52 | 1 of 9 | **CATALOG-HURTS** | −0.19 | −2.14 | −0.12 |
+| 0.25 | R | **−0.75** [−2.93, +0.12] | −0.54 | −0.64 | −0.81 | 4 of 9 | **REWARD-HURTS** | −0.02 | −3.22 | −0.05 |
+
+"Other eight" leaves out r20-w8 C100. The CIFAR-100 pair is r20-w8 C100 and VGG-19 C100. Captions: at equal params, T8-fs keeps 0.95–1.49× sens_cost's FLOPs, and the reader flags every pair that differs by more than 10 %. Against T6-fs it keeps 0.76–1.41× and against T7-C 0.83–1.84×.
+
+r20-w8 C100, per seed (TEST 5k change against the origin, whose file name records 60.09 %):
+
+| depth | T8-fs s42 / 43 / 44 | T6-fs | sens_cost | T8-fs plan, median group keep s42 / 43 / 44 |
+|---|---|---|---|---|
+| 0.6 | −6.90 / −6.28 / −7.68 | −6.94 / −6.60 / −6.10 | −6.74 / −7.04 / −7.16 | 0.97 / 1.00 / 1.00 |
+| 0.45 | −13.58 / −10.32 / −11.24 | −9.76 / −10.46 / −10.04 | −12.36 / −11.52 / −13.22 | 0.88 / 1.00 / 0.94 |
+| 0.35 | **−22.10** / −12.14 / −14.44 | −14.10 / −16.56 / −14.26 | −15.52 / −15.34 / −15.68 | 0.84 / 0.95 / 0.88 |
+| 0.25 | **−37.24** / −17.96 / −23.46 | −18.60 / −26.22 / −23.06 | −22.00 / −21.52 / −21.58 | 0.69 / 0.83 / 0.75 |
+
+Every plan sends at least one of the 12 groups to the width floor (group keep 0.09).
+
+Reading:
+1. **The two levers do not add up.**
+   - On the fs32 line, the 18-net catalog is level with T6-fs's ten-net catalog at 0.6, 0.45 and 0.35, and below it at 0.25.
+   - On the 18-net catalog, the fs32 reward is level with T7-C's reward at 0.35 and below it at 0.25.
+   - So T8-fs is at best equal to either parent, and it does not keep T6-fs's BEATS-PRIOR-P-POOL at 0.45: +0.26 on 8 of 9 nets, against T6-fs's +0.42 on 6 of 9 (§390). Its bootstrap interval there excludes zero, but the registered bar is +0.3.
+2. **The losses sit on CIFAR-100.**
+   - On the CIFAR-10 seven every contrast at every depth lies within −0.12 to +0.22.
+   - At 0.25 the CIFAR-100 pair reads −2.26 (P), −2.14 (C) and −3.22 (R).
+   - C at 0.25 is negative on both CIFAR-100 nets (r20-w8 −3.59; VGG-19 −0.68, with two of its three seeds at −0.90 or below), and only slightly negative on most of the rest (8 of 9 below zero, the CIFAR-10 seven at −0.12).
+   - On T6-bn's line, adding the same CIFAR-100 networks helped exactly these two nets at 0.25 (CATALOG-HELPS +0.52, §389). The catalog's effect therefore depends on the reward line.
+3. **One frozen policy fails on one net.**
+   - T8-fs seed 42 on r20-w8 C100 loses 37.24 points at 0.25 and 22.10 at 0.35, against −17.96 to −26.22 at 0.25 and −12.14 to −16.56 at 0.35 for every other arm and seed. The per-seed contrast against sens_cost is −15.24 at 0.25 and −6.58 at 0.35, far outside run noise (SD about 0.4 per cell difference, §398).
+   - Its plans cut more broadly than seeds 43 and 44 (median group keep 0.69 against 0.83 and 0.75 at 0.25).
+   - [H] On a 72k-parameter CIFAR-100 net, spreading the cut over most groups starves every stage at once. A policy trained with more CIFAR-100 networks per instance budget did not learn to avoid it.
+   - This is the first frozen-agent plan on the pool that lands far below the prior. A guard that falls back to the prior when the agent's plan scores worse on validation would remove it. That is a design question, not a result.
+4. **Agent of record.** On this evidence T6-fs stays the params agent (+0.05 / +0.42 / +0.24 / +0.16 against sens_cost at 0.6 / 0.45 / 0.35 / 0.25, §387, §390), and T4-F stays the FLOPs agent. T8-fs is reported as the catalog ladder's first rung, and it is a negative rung. [D pending Ido.]
+5. **For the catalog ladder.** At a fixed 12,000 instances, going from 10 to 18 catalog networks cuts each network's share of training by about 0.56×. [H] A larger catalog may need the instance budget scaled with it. Any next rung should be registered with that confound named, not read as "breadth hurts".
+
+Never:
+- "Unseen dataset" for T8-fs's CIFAR-100 rows: CIFAR-100 networks are in its catalog.
+- "A bigger catalog hurts" as a general claim. This is one reward line at one instance budget, and the losses are carried by the two CIFAR-100 nets, the largest by one seed.
+- T8-fs mixed with T6-fs except in C, or with T7-C except in R.
+- One depth's call carried to another.
+- The +0.26 at 0.45 quoted as beating the prior: by the registered rule it is AT-PRIOR-POOL.
+
+Records: queue row T8-fs; next §401.
