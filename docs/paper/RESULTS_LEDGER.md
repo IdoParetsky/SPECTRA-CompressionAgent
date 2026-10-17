@@ -9575,3 +9575,49 @@ Never:
 - The flag-on − flag-off gaps quoted as an effect of the flag on accuracy.
 
 Records: queue row DET-F; next §402.
+
+## 402. (REC-W1): the 28 PRE-W1 base networks through the catalog plan's gates 2 and 3 — floored, grid-rounded sens_cost and uniform at params 0.25, one cut, G2, seed 42, read on val (smokes **23077201–205**, 56 cells in `scratch_audit/s17oct_recw1_manifest.tsv`; `tree_v24`, flag off) — **REALIZABLE 28 of 28**, **RECOVERABLE 28 of 28** (worst val change −9.04, PreAct-ResNet-20 C100), **LEVER 7 of 28**: allocation matters on the CIFAR residual networks (6 of 8) and almost nowhere on SVHN and Fashion-MNIST (1 of 12; five of six MobileNetV2 slightly below uniform)
+
+Registered 17 Oct 07:53 (`6108d67`; queue row REC-W1), eval-only under Ido's GO on the pretraining wave. A screen of base networks: no SPECTRA result, and TEST is printed beside val, never quoted. Read 10:06 (`scripts/_tmp_s17oct_recw1_read.sh`).
+- *Checks.*
+  - All 61 jobs COMPLETED, in about two hours of wall time.
+  - The gate released VGG's 12 cells at 08:06 and held three factories on its own pattern, which took the earlier `val_best` line. Science read the five smoke logs: every one lands at 0.249–0.250 at `size_param0.25`, with no fallback and no masked edit. The 44 held cells were released by hand at 08:10, and the pattern was fixed.
+  - Every origin is within 1 point of the file's accuracy (gate 6).
+  - Every cell lands within 0.001 of 0.25, with no fallback line and no masked edit.
+
+Per network (val change against the origin after G2, at params 0.25; TEST 5k in brackets; lever = sens_cost − uniform on val, TEST in brackets; FLOPs kept by sens_cost / uniform):
+
+| network | C10 | C100 | SVHN | Fashion-MNIST |
+|---|---|---|---|---|
+| WRN-16-4 | sens_cost +0.06 (−0.86); **lever +0.68** (+0.68); FLOPs 0.46 / 0.25 | −3.30 (−1.92); +0.12 (+1.36) | +0.18 (−0.29); +0.00 (−0.03) | +2.90 (+3.32); +0.04 (+0.16) [the origin is a weak last epoch, 91.49] |
+| WRN-28-2 | −1.10 (−0.66); **+0.98** (+1.04) | −5.94 (−5.04); **+2.28** (+2.88) | −0.22 (−0.21); +0.00 (+0.25) | −0.26 (+0.20); −0.20 (−0.06) |
+| PreAct-ResNet-20 | −1.18 (−1.34); **+1.16** (+0.92) | −9.04 (−8.98); −0.48 (−1.38) | −1.45 (−1.28); −0.69 (−0.48) | −0.78 (−1.02); +0.08 (−0.06) |
+| PreAct-ResNet-56 | −1.32 (−0.76); **+0.54** (+0.68) | −2.54 (−3.76); **+1.64** (+1.14) | −0.60 (−0.61); +0.02 (+0.26) | −1.18 (−0.92); −0.56 (+0.02) |
+| VGG-13-BN | — | — | −0.26 (−0.15); +0.15 (+0.16) | −0.88 (−0.78); +0.34 (+0.16) |
+| VGG-16-BN | — | — | −0.46 (−0.41); +0.01 (+0.11) | −0.76 (−0.32); −0.20 (+0.44) |
+| VGG-19-BN | — | — | −0.51 (−0.48); +0.02 (+0.28) | −0.36 (−0.48); **+0.96** (+0.28) |
+| MobileNetV2 ×0.75 | — | — | −0.67 (−0.47); −0.20 (−0.19) | −0.52 (−0.76); −0.24 (−0.06) |
+| MobileNetV2 ×1.0 | — | — | −0.62 (−0.75); −0.15 (−0.08) | −0.64 (−1.16); +0.16 (−0.74) |
+| MobileNetV2 ×1.4 | — | — | −0.61 (−0.61); −0.15 (−0.29) | −0.88 (−0.48); −0.80 (−0.10) |
+
+Each cell gives the sens_cost val change (TEST), then the lever on val (TEST). Bold marks LEVER (≥ +0.5 on val). The FLOPs kept at equal params differ widely: sens_cost keeps 0.14–0.75 of the FLOPs, uniform 0.24–0.30. The VGG networks keep 0.65–0.75 under sens_cost.
+
+Per family (val): WRN lever mean +0.49 (8 networks), PreAct +0.21 (8), VGG +0.21 (6), MobileNetV2 −0.23 (6). Per dataset: CIFAR-10 +0.84 (4), CIFAR-100 +0.89 (4), SVHN −0.10 (10), Fashion-MNIST −0.04 (10).
+
+Reading:
+1. **Gate 2: every wave-1 network may enter a catalog.** All 28 cut cleanly at the deep end of the training range, WRN and PreAct-ResNet included. Both are new to the channel-group code, and their pre-activation blocks raised no error, fallback or masked edit. All 28 recover within §148's τ. CIFAR-100 costs the most (−2.5 to −9.0 on val). On SVHN and Fashion-MNIST, a quarter of the parameters costs under 1.5 points under either rule.
+2. **Gate 3: the lever follows the dataset more than the family.**
+   - On the four CIFAR-10 residual networks the prior beats the even cut by +0.54 to +1.16, and on two of the four CIFAR-100 ones by +1.64 and +2.28.
+   - On SVHN and Fashion-MNIST the even cut is already near the ceiling. Eleven of twelve networks there are LEVER-LIMITED; the twelfth is VGG-19-BN Fashion-MNIST, at +0.96.
+   - On five of six MobileNetV2 networks the prior is slightly below uniform (−0.15 to −0.80; ×1.0 Fashion-MNIST reads +0.16), while keeping 1.0–1.8× uniform's FLOPs.
+3. **[H] For the catalog.** SVHN and Fashion-MNIST networks are recoverable but give little allocation signal at params 0.25: the reward hardly varies across plans there. As training networks they add dataset diversity, not allocation lessons; as held-out networks they cannot carry a call at this budget. Deeper budgets (0.125, where §399 found the lever growing to 2–3 points) may change that. The S2 split (unseen dataset, Fashion-MNIST) would need its read budget chosen with this in mind, before any read.
+4. **Noise.** Each lever is one seed, a single pair of runs with a difference SD of about 0.4 (§398). LEVER calls near the bar (PreAct-ResNet-56 C10 +0.54, WRN-16-4 C10 +0.68) could go either way on a repeat. The pattern by dataset is the robust part: 10 SVHN networks average −0.10, 10 Fashion-MNIST networks −0.04, and 8 CIFAR networks +0.86.
+5. **One weak base network.** WRN-16-4 Fashion-MNIST's saved last epoch (91.49) sat 3.4 below its best epoch, and G2 lifts it by about 3 points under either rule. It is recoverable, but its origin understates the network. A catalog may keep it; an S-split call should not rest on it.
+
+Never:
+- Any number here as a SPECTRA result, or the TEST column as anything but a screen.
+- "Allocation does not matter on SVHN or Fashion-MNIST" beyond params 0.25 and one seed.
+- A network's split membership or read budget chosen from this table's TEST column.
+- The MobileNetV2 levers read as "the prior hurts MobileNetV2" in general: one seed, at equal params, with 1.0–1.8× the FLOPs.
+
+Records: queue row REC-W1; `docs/CATALOG_SCALE_PLAN.md` §3 (wave 1); next §403.

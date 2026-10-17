@@ -72,7 +72,7 @@ Each network is trained with the catalog's standard CIFAR recipe, then put throu
 
 Cost [H]: about 1 GPU-hour per network on average. A 100-epoch G2 run takes 13–20 minutes on most CIFAR networks and up to 1.5 hours on DenseNet-100. That puts the full table at about 35–50 GPU-hours.
 
-**Wave 1 (built 17 Oct 01:06–04:04; queue row PRE-W1).** 28 networks, trained by `train_pretrained_checkpoint.py --select last` (the last epoch, never the best-on-test one), source tag `spectra-w1`, about 17 GPU-h in all. Every network is above its floor (CIFAR-10 ≥ 80, CIFAR-100 ≥ 50, SVHN ≥ 90, Fashion-MNIST ≥ 88). All 28 passed the load screen: SPECTRA's loader reproduces each saved accuracy within 0.01 points. They still need the §148 recoverability gate before any catalog use. Final top-1 (%):
+**Wave 1 (built 17 Oct 01:06–04:04; queue row PRE-W1).** 28 networks, trained by `train_pretrained_checkpoint.py --select last` (the last epoch, never the best-on-test one), source tag `spectra-w1`, about 17 GPU-h in all. Every network is above its floor (CIFAR-10 ≥ 80, CIFAR-100 ≥ 50, SVHN ≥ 90, Fashion-MNIST ≥ 88). All 28 passed the load screen: SPECTRA's loader reproduces each saved accuracy within 0.01 points. **Screened at params 0.25 (REC-W1, §402):** all 28 are realizable and recoverable, so all may enter a catalog. Seven carry a lever (sens_cost − uniform ≥ +0.5 on val): six of the eight CIFAR WRN / PreAct-ResNet networks, and VGG-19-BN on Fashion-MNIST. The other SVHN and Fashion-MNIST networks are lever-limited at that budget: allocation hardly moves them. Final top-1 (%):
 
 | Network | CIFAR-10 | CIFAR-100 | SVHN | Fashion-MNIST |
 |---|---|---|---|---|
@@ -105,7 +105,7 @@ The same splits are read at three catalog sizes: 10 (T1's), about 30, and about 
 ## 6. Gates before the first big train
 
 1. T7-C and LC-T6BN have read (Ido's condition).
-2. Every training network passes the §148 recoverability gate at the training budgets.
+2. Every training network passes the §148 recoverability gate at the training budgets. For the plan agent this is read at the deep end of κ: floored sens_cost at params 0.25, recovered with G2, must keep val within 10 points of the origin, and both it and uniform must land with no fallback or masked edit (REC-W1, §402).
 3. Every S-split network that carries a call passes a lever screen: sens − uniform ≥ +0.5 at the read budget. A network below it is reported as LEVER-LIMITED (§353).
 4. The standardizer is refitted on the new catalog and recorded.
 5. Disk space: the checkpoint folder is 65 GB, mostly ImageNet models. Probe the quota and free space before a wave (`.claude/rules/spectra-tooling.md`).
