@@ -92,7 +92,7 @@ The best-on-test epoch would have read 0.0 to 0.8 points higher (3.4 on WRN-16-4
 ## 4. The ladder
 
 The same splits are read at three catalog sizes: 10 (T1's), about 30, and about 80+. Sizes are counted after family balancing. Three choices fix the line:
-- **Instances.** LC-T6BN (reading 15 Oct) says whether 12,000 instances saturate. At least 1,000 instances per catalog network is the floor [H], with snapshots saved and the length chosen on validation networks, never on TEST.
+- **Instances.** LC-T6BN (§388) found that 12,000 instances are not the bottleneck on the ten-network catalog. T8-fs (§400) suggests that a larger catalog needs more instances: 12,000 over 18 networks fell below the ten-network agent at 25 %. At least 1,000 instances per catalog network is the floor [H], with snapshots saved and the length chosen on validation networks, never on TEST.
 - **Reward.** The rung train uses the reward of record. bn8 is the cheap first rung, about 1.6 s per instance; fs32 is the stronger one, about 7 s per instance (§387).
 - **Change per rung.** One change only: the catalog.
 
