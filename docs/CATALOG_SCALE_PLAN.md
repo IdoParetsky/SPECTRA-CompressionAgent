@@ -72,6 +72,23 @@ Each network is trained with the catalog's standard CIFAR recipe, then put throu
 
 Cost [H]: about 1 GPU-hour per network on average. A 100-epoch G2 run takes 13–20 minutes on most CIFAR networks and up to 1.5 hours on DenseNet-100. That puts the full table at about 35–50 GPU-hours.
 
+**Wave 1 (built 17 Oct 01:06–04:04; queue row PRE-W1).** 28 networks, trained by `train_pretrained_checkpoint.py --select last` (the last epoch, never the best-on-test one), source tag `spectra-w1`, about 17 GPU-h in all. Every network is above its floor (CIFAR-10 ≥ 80, CIFAR-100 ≥ 50, SVHN ≥ 90, Fashion-MNIST ≥ 88). All 28 passed the load screen: SPECTRA's loader reproduces each saved accuracy within 0.01 points. They still need the §148 recoverability gate before any catalog use. Final top-1 (%):
+
+| Network | CIFAR-10 | CIFAR-100 | SVHN | Fashion-MNIST |
+|---|---|---|---|---|
+| WRN-16-4 | 93.88 | 73.11 | 96.72 | 91.49 [unstable last epoch: best 94.93] |
+| WRN-28-2 | 93.41 | 71.20 | 97.10 | 94.68 |
+| PreAct-ResNet-20 | 91.20 | 67.52 | 96.62 | 94.65 |
+| PreAct-ResNet-56 | 93.23 | 69.49 | 96.91 | 94.96 |
+| VGG-13-BN | — | — | 96.49 | 95.27 |
+| VGG-16-BN | — | — | 96.65 | 94.86 |
+| VGG-19-BN | — | — | 96.66 | 94.96 |
+| MobileNetV2 ×0.75 | — | — | 96.65 | 94.97 |
+| MobileNetV2 ×1.0 | — | — | 96.83 | 95.09 |
+| MobileNetV2 ×1.4 | — | — | 96.90 | 95.06 |
+
+The best-on-test epoch would have read 0.0 to 0.8 points higher (3.4 on WRN-16-4 Fashion-MNIST). That is the selection bias the old default carried. **Wave 2 still to build:** VGG width variants, and ResNeXt-29, RegNet and GoogLeNet. They need new factories with tests.
+
 ## 4. The ladder
 
 The same splits are read at three catalog sizes: 10 (T1's), about 30, and about 80+. Sizes are counted after family balancing. Three choices fix the line:
