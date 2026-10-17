@@ -439,6 +439,18 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **Proposed to Ido, his call:** run the final 5-seed tables with the flag, every arm re-run.
   - **CURVE-DG** (registered 16:55, `0d9c34e`) is running on idle GPUs: DepGraph R56 at params 0.18 / 0.125 and FLOPs 0.25 / 0.125, with 36 cells behind a gate (login-01; watcher armed). A reader is still to write: dgr56 per point, agent − prior, with the existing curve points beside it.
   - **Still running:** the T8-fs trains, to about 04:30 17 Oct, then 108 evals with priority by submission order. Their reader `_tmp_s16oct_t8_read.sh` is ready.
+- **17 Oct 09:55 (after a context compaction; the mail and the cluster were read first).**
+  - **Reads:**
+    - §399 CURVE-DG and PRE-W1 (28 base networks, load screen 28 / 28) were done before the compaction.
+    - §400 T8-fs: the levers do not add up. P AT at 0.6 / 0.45 / 0.35 and BELOW at 0.25; C SAME ×3 and CATALOG-HURTS at 0.25; R SAME at 0.35 and REWARD-HURTS at 0.25. All of it is carried by the CIFAR-100 pair (seed 42 on r20-w8 C100). The recommendation to Ido: T6-fs stays the params agent of record. [D pending Ido]
+    - §401 DET-F: DET-EXACT on MobileNetV2, DenseNet and VGG. The flag covers every pool family.
+    - Draft `f86ce35`; Gilad page v41; brief v89.
+  - **Running:** REC-W1 (`6108d67`), the 28 PRE-W1 networks screened at params 0.25 (sens_cost and uniform, G2, s42, no origin control). The calls are REALIZABLE / RECOVERABLE (val ≥ −10) / LEVER (≥ +0.5 on val). The smokes cut every factory, WRN and PreAct included. The gate held three factories on its own pattern (it took the `val_best` line), so science released them by hand at 08:10. Watcher armed; reader `_tmp_s17oct_recw1_read.sh` (with the `val_best` fallback).
+  - **Lesson:** at a target that is also the walk's `val_best` step, the row carries only the `val_best` label. Readers and gates must look for the size label first, then fall back to `val_best` within ±0.011 (DET-F's first pass printed a false DET-FAILS).
+  - **Waiting on Ido:**
+    - the agent of record;
+    - the final tables: about 190 GPU-h for the headline calls, 335 with the even cut and the literature rows (one pool pass = 4.7 GPU-h with the flag);
+    - the next catalog rung: scale instances with the catalog. It needs a train GO.
 
 ---
 
