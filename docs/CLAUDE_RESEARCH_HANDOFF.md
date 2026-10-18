@@ -463,6 +463,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
+- **18 Oct 22:40.**
+  - **tree_v25 deployed** (`0d47a80`): `SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; 138 tests pass. The stage's one failure was a test bug (INIT leaked between calls).
+  - **RESUME-AUDIT:** u1 vs u2 differ by max 4.6e-3 (GPU training is not bit-reproducible). d1 vs e2 under the flag differ by 3.7e-3, within that spread. e1 stopped at 4, e2 resumed at 4 and ran to 40. c2 (flag off) decides the registered call; it was lifted with `scontrol top` at 22:35. Read with `s17oct_raudit_submit.sh compare`.
+  - **FINAL:** 450 of 540 stage-A cells COMPLETED at 22:30; stage B's 270 queue behind. 810 cells in all. Watcher `_tmp_s18oct_finalwatch.sh` follows the latest job per cell.
+  - A VPN outage of about 11:00–11:20 stopped only the laptop watchers.
+  - **Gilad's page v47** opens with M (method at a glance) and P (progress since 15 Oct). Recaps: Since-9-Oct v12, Since-15-Oct v6 with D1–D7. Ido is reading tonight and will steer next.
 
 ---
 
