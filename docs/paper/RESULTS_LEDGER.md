@@ -9662,3 +9662,30 @@ Never:
 - "Allocation does not matter on SVHN / Fashion-MNIST" beyond params 0.125, these networks and one seed.
 
 Records: queue row LEV-125; `docs/CATALOG_SCALE_PLAN.md` §2; next §404.
+
+## 404. (RESUME-AUDIT): does a stopped-and-resumed plan train on the GPU end where an uninterrupted one does? T6-fs's train line on tree_v25 with `SPECTRA_PLAN_STATE=1`, 40 instances, seed 42 (u1 **23221287**, u2 **23221300**, c1 → c2 **23221321 → 23221346**, d1 **23234727** (resubmit of the PREEMPTED 23221308), e1 → e2 **23221333 → 23221360**) — **RESUME-OK**: max |c2 − u1| = 4.517e-3 against the GPU's own run-to-run spread max |u2 − u1| = 4.620e-3; training on the GPU is not bit-reproducible, with or without the deterministic flag (d1 vs e2 4e-3); evaluation remains exact (§397, §401)
+
+Registered 17 Oct 20:13 (`0d47a80`; queue row RESUME-AUDIT) under Ido's standing GO for the recommended option, as the check before any chained train for D2. An infrastructure check, not a TEST result. Read 18 Oct 22:40 (`s17oct_raudit_submit.sh compare`).
+- *Checks.*
+  - All 7 arms COMPLETED. d1 was PREEMPTED after 12 min and resubmitted unchanged.
+  - Both chains stopped at the first batch boundary (4 instances) and resumed at 4. The resumed job's numbering ran it=5 … 40, and its DONE line reads 40.
+  - Every flag-on arm logs the ON line, and PyTorch named no operation without a deterministic implementation.
+
+| pair | bitwise | max \|weight difference\| |
+|---|---|---|
+| u1 vs u2 (two uninterrupted runs, flag off) | differ | 4.620e-3 |
+| c2 vs u1 (the chain against an uninterrupted run, flag off) | differ | **4.517e-3** |
+| c2 vs u2 | differ | 4.480e-3 |
+| d1 vs e2 (uninterrupted vs chain, deterministic flag on) | differ | 3.739e-3 |
+| d1 vs u1 (flag on vs flag off) | differ | 4.821e-3 |
+
+Reading:
+1. **A chain is as close to one job as two jobs are to each other.** The registered call: c2's distance from u1 (4.52e-3) sits under the bar of twice u1's distance from u2 (2 × 4.62e-3), and is in fact below that spread. The resume adds no error beyond the GPU's own nondeterminism.
+2. **Training on the GPU is not bit-reproducible, even with the deterministic flag.** The flag makes the evaluation's fine-tune exact (§397, §401). In the plan trainer something nondeterministic remains, for example scatter-style accumulation. [H] PyTorch's warn-only mode names no operation, so the source is unidentified. The final tables are unaffected: they use frozen policies, and their evaluation is exact.
+3. **For D2.** A 30,000-instance train can run as a chain of about two jobs. Its seeds differ by training noise anyway, so the chain changes nothing about what is measured. D2's registration may now rely on `SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, with each link stopped by MAX_MINUTES before the 30-hour wall.
+
+Never:
+- "SPECTRA's training is reproducible bit for bit": only the evaluation is.
+- The audit's 40-instance policies used for anything else.
+
+Records: queue row RESUME-AUDIT; tree_v25 (`0d47a80`); next §405.
