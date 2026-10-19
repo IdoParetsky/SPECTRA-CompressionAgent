@@ -29,6 +29,19 @@ z_g ~ N(0, σ²) per group, σ = ``SPECTRA_ALLOC_RANDBEST_SIGMA`` (1.0), from a 
 ``plan_proxies.PlanScorer``, on the batches ``SPECTRA_EVAL_PROXY_SEED`` draws). The best val (ties to the lower draw)
 is the plan the walk then follows exactly as it follows the agent's. The TEST half is never read, and the global RNG is
 put back after the search, so the walk and the final fine-tune draw as they do under ``agent``.
+``fallback`` (v27) plans twice on the origin, with the frozen agent exactly as ``agent`` does and with a hand rule,
+``SPECTRA_ALLOC_FALLBACK_PRIOR`` (``sens`` or ``sens_cost``, no default; "the prior") exactly as that rule's own row does. It
+scores both plans on the val half with ``SPECTRA_ALLOC_FALLBACK_PROXY`` (a comma-separated list of cut, bn<N>, fs<S> or
+ft<E>, no default; ``plan_proxies.PlanScorer`` on the batches ``SPECTRA_EVAL_PROXY_SEED`` draws) and follows the agent's plan
+unless the prior's scores higher on the FIRST proxy by more than ``SPECTRA_ALLOC_FALLBACK_MARGIN`` (val accuracy as a
+fraction, default 0.0; a tie goes to the agent). Every proxy is scored and reported, the first one decides. The contract is
+exactness: each plan is made from the same global RNG state and the same origin weights as its own row makes it (the
+origin's weights are checked after each plan and after the scoring), the RNG is then put back to the state the picked arm
+alone leaves, and the picked plan is returned unchanged (``info["kind"]`` stays the arm's own, one key ``fallback`` is
+added), so the walk and the final fine-tune run as under that arm alone and, under ``SPECTRA_EVAL_FT_DETERMINISTIC=1``, a
+fallback row equals the picked arm's row seed for seed. The TEST half is never read. Any effect ``plan_for_env`` has on
+the env itself stays even when the prior is picked, so the exactness against the prior's own row is a check registered on
+the GPU, not a guarantee of this code.
 ``SPECTRA_ALLOC_BUDGET=flops`` (default params) measures the plan's kept fraction, its target and the stall
 check in MACs (``utils.calc_flops``) instead of parameters, the T0-F variant.
 Each decision then plays the legal cut whose resulting width is closest to its group's
@@ -48,6 +61,7 @@ import random
 import statistics
 import time
 
+import numpy as np
 import torch
 
 import src.channel_groups as channel_groups
@@ -57,7 +71,8 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest")
+KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest", "fallback")
+FALLBACK_PRIORS = ("sens", "sens_cost")
 SAMPLE_AROUND = ("sens", "uniform")
 BUDGETS = ("params", "flops")
 
@@ -187,6 +202,43 @@ def randbest_draws(n, n_groups, sigma, seed):
     generator = torch.Generator().manual_seed(int(seed))
     return [(float(sigma) * torch.randn(int(n_groups), generator=generator, dtype=torch.float64)).tolist()
             for _ in range(int(n))]
+
+
+def fallback_prior() -> str:
+    """``SPECTRA_ALLOC_FALLBACK_PRIOR`` (no default): the hand rule ``fallback`` plans with beside the agent, one of
+    ``FALLBACK_PRIORS`` (``sens``, ``sens_cost``)."""
+    name = os.environ.get("SPECTRA_ALLOC_FALLBACK_PRIOR", "").strip().lower()
+    if name not in FALLBACK_PRIORS:
+        raise ValueError(f"SPECTRA_ALLOC_KIND=fallback needs SPECTRA_ALLOC_FALLBACK_PRIOR set to one of "
+                         f"{FALLBACK_PRIORS}, got {name!r}")
+    return name
+
+
+def fallback_proxies() -> list:
+    """``SPECTRA_ALLOC_FALLBACK_PROXY`` (no default): the proxies ``fallback`` scores both plans with, a comma-separated
+    list in order (blanks stripped, lower-cased, empty items dropped, no duplicates), each one of the plan trainer's
+    (``plan_agent.parse_proxy``: cut, bn<N>, fs<S>, ft<E>). The first decides the pick; every one is scored and reported."""
+    raw = os.environ.get("SPECTRA_ALLOC_FALLBACK_PROXY", "")
+    names = [n.strip().lower() for n in raw.split(",") if n.strip()]
+    if not names:
+        raise ValueError("SPECTRA_ALLOC_KIND=fallback needs SPECTRA_ALLOC_FALLBACK_PROXY=<cut | bn<N> | fs<S> | ft<E>"
+                         "[,...]>, the first one decides the pick")
+    from src import plan_agent
+    for name in names:
+        plan_agent.parse_proxy(name)
+    repeated = sorted({n for n in names if names.count(n) > 1})
+    if repeated:
+        raise ValueError(f"SPECTRA_ALLOC_FALLBACK_PROXY={raw!r}: duplicate proxies {repeated}")
+    return names
+
+
+def fallback_margin() -> float:
+    """``SPECTRA_ALLOC_FALLBACK_MARGIN`` (0.0): how far above the agent's val accuracy (a fraction, the scores
+    ``PlanScorer`` returns) the prior's plan must score for ``fallback`` to walk the prior's plan."""
+    margin = float(os.environ.get("SPECTRA_ALLOC_FALLBACK_MARGIN", "0.0"))
+    if not margin >= 0.0:
+        raise ValueError(f"SPECTRA_ALLOC_FALLBACK_MARGIN={margin}: need a margin of at least 0")
+    return margin
 
 
 def widths_table() -> dict:
@@ -716,6 +768,144 @@ def randbest_plan(env, target, budget="params"):
                     "held": 0, "randbest": summary, **({"min_width": int(min_width)} if min_width > 1 else {})}
 
 
+# ------------------------------------------------------------------ v27 fallback (SPECTRA_ALLOC_KIND=fallback)
+
+
+def fallback_pick(agent_score: float, prior_score: float, margin: float) -> str:
+    """``"prior"`` iff ``prior_score > agent_score + margin``, else ``"agent"``: a tie goes to the agent."""
+    return "prior" if float(prior_score) > float(agent_score) + float(margin) else "agent"
+
+
+def rng_snapshot() -> dict:
+    """The Python, NumPy, torch CPU and (when CUDA is available) all CUDA RNG states, for ``rng_restore``."""
+    state = {"py": random.getstate(), "np": np.random.get_state(), "torch": torch.get_rng_state()}
+    if torch.cuda.is_available():
+        state["cuda"] = torch.cuda.get_rng_state_all()
+    return state
+
+
+def rng_restore(state: dict) -> None:
+    """Put back the generators ``rng_snapshot`` read."""
+    torch.set_rng_state(state["torch"])
+    np.random.set_state(state["np"])
+    random.setstate(state["py"])
+    if "cuda" in state:
+        torch.cuda.set_rng_state_all(state["cuda"])
+
+
+def _state_dict_equal(model, snapshot) -> bool:
+    """True iff ``model.state_dict()`` has ``snapshot``'s keys and every tensor is ``torch.equal`` to its copy;
+    ``snapshot`` is ``{k: v.detach().clone() for k, v in model.state_dict().items()}``."""
+    now = model.state_dict()
+    if set(now) != set(snapshot):
+        return False
+    return all(torch.equal(v.detach(), snapshot[k]) for k, v in now.items())
+
+
+def _modes(model) -> dict:
+    """``{module name: training flag}`` of every module of ``model``, for ``_set_modes``."""
+    return {name: bool(module.training) for name, module in model.named_modules()}
+
+
+def _set_modes(model, modes) -> None:
+    """Put back the train / eval flags ``_modes`` read, module by module (``Module.train(mode)`` would recurse)."""
+    for name, module in model.named_modules():
+        if name in modes:
+            module.training = modes[name]
+
+
+def fallback_plan(env, target, flops, agent_kw, plan_kw):
+    """
+    ``(widths, info)`` of the plan ``_state`` walks under ``SPECTRA_ALLOC_KIND=fallback``: the frozen agent's plan
+    unless the hand rule ``fallback_prior`` plans better on the val half by more than ``fallback_margin`` on the first of
+    ``fallback_proxies``, in which case the rule's plan. ``target``, ``flops``, ``agent_kw`` and ``plan_kw`` are the
+    values ``_state`` computed for its other kinds.
+
+    The prior is planned by exactly the rule arm's calls (``group_sensitivity.calibration_batches`` and ``plan_targets``
+    with ``plan_kw``), then the RNG is put back to its starting state and the agent is planned by exactly the agent arm's
+    call (``plan_agent.plan_for_env`` with ``agent_kw``), each from the same starting RNG state and origin as its own row
+    makes it; the state after each plan is kept. Both plans are then scored by ``plan_proxies.PlanScorer`` (the agent
+    first) with every proxy, on the val half only, on the batches ``SPECTRA_EVAL_PROXY_SEED`` draws once per proxy and
+    shares between the two plans (common random numbers), inside ``plan_proxies.seeded``, which puts the RNG back to the
+    agent plan's state on exit. The scored widths are the decoders' own, before any grid rounding, as randbest scores
+    its draws. The first proxy decides (``fallback_pick``); the others are reported. The origin's weights are checked
+    after each plan and after the scoring (a RuntimeError names the step that changed them), and its modules' train /
+    eval flags are put back to the start before the agent plans, and to the state the picked arm's plan left after the
+    scoring. The RNG is then set to the
+    state the picked arm alone leaves, so the grid round, the walk and the final fine-tune draw exactly as under that
+    arm, and the picked arm's ``(widths, info)`` is returned unchanged except that a shallow copy of ``info`` gains one
+    key, ``fallback`` (pick, prior, proxies, margin, scores, minutes): ``info["kind"]`` stays the arm's own, so
+    ``grid_priority``, ``_grid_round_state`` and ``_state``'s plan line treat the plan as that arm's. Nothing is refused
+    about ``SPECTRA_PLAN_RESIDUAL``: the agent of record is a residual agent and runs as ``agent`` runs it. One line per
+    proxy, a decision line and an ``alloc_fallback`` record carry every score and both plans' widths. An effect
+    ``plan_for_env`` has on the env itself stays when the prior is picked. So does a DataLoader iterator that a plan
+    first creates: with persistent workers (``utils.DATALOADER_WORKERS`` > 0, every loader but the device-resident
+    ``GpuCropFlipLoader`` of CIFAR under GPU augmentation), the second plan reuses an iterator its own row would create, and
+    its RNG draws can differ. The equality with the picked arm's row is therefore a check run on the GPU before any read.
+    """
+    from src import plan_agent, plan_proxies
+    prior, proxies, margin = fallback_prior(), fallback_proxies(), fallback_margin()
+    net = os.path.basename(str(env.selected_net_path))
+    started = time.perf_counter()
+    model = env.current_model.to(env.conf.device)
+    m0 = {k: v.detach().clone() for k, v in model.state_dict().items()}
+    modes0 = _modes(model)
+    s0 = rng_snapshot()
+
+    def intact(step):
+        if not _state_dict_equal(model, m0):
+            raise RuntimeError(f"{net}: the {step} changed the origin's weights")
+
+    batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
+    widths_p, info_p = plan_targets(model, batches, env._input_shape(), prior, target, alpha(), min_keep(), **plan_kw)
+    s_p, modes_p = rng_snapshot(), _modes(model)
+    intact(f"{prior} plan")
+    _set_modes(model, modes0)
+    rng_restore(s0)
+    widths_a, info_a = plan_agent.plan_for_env(env, target, agent_path(), min_keep(), **agent_kw)
+    s_a, modes_a = rng_snapshot(), _modes(model)
+    intact("agent plan")
+    scores = {}
+    with plan_proxies.seeded(plan_proxies.proxy_seed()):
+        mwr = ModelWithRows(model)
+        plan = group_sensitivity.group_plan(mwr, env._dependency_groups(mwr))
+        scorer = plan_proxies.PlanScorer(model, plan, env.val_loader, env.conf.device, train_loader=env.train_loader,
+                                         input_shape=env._input_shape(),
+                                         create_handler=getattr(env, "create_learning_handler", None), name=net)
+        for proxy in proxies:
+            b = scorer.batches(proxy, plan_proxies.proxy_seed())
+            scores[proxy] = {"agent": float(scorer.score(widths_a, proxy, b)),
+                             "prior": float(scorer.score(widths_p, proxy, b))}
+            del b
+        del scorer
+    intact("proxy scoring")
+    pick = fallback_pick(scores[proxies[0]]["agent"], scores[proxies[0]]["prior"], margin)
+    _set_modes(model, modes_p if pick == "prior" else modes_a)
+    rng_restore(s_p if pick == "prior" else s_a)
+    minutes = (time.perf_counter() - started) / 60.0
+    for proxy in proxies:
+        a, p = scores[proxy]["agent"], scores[proxy]["prior"]
+        utils.print_flush(f"[alloc] fallback {net} {proxy}: agent {a:.4f} prior {prior} {p:.4f} "
+                          f"(prior − agent {p - a:+.4f})")
+    utils.print_flush(f"[alloc] fallback {net}: pick {pick} on {proxies[0]} (margin {margin:g}; {minutes:.1f} min)")
+    try:
+        import src.run_recorder as run_recorder
+        run_recorder.record(
+            "alloc_fallback", network=str(env.selected_net_path), prior=prior, proxies=list(proxies), margin=margin,
+            pick=pick, budget="flops" if flops else "params", target=float(target),
+            proxy_seed=plan_proxies.proxy_seed(), scores=scores,
+            agent_widths={str(r): int(w) for r, w in widths_a.items()},
+            prior_widths={str(r): int(w) for r, w in widths_p.items()}, minutes=round(minutes, 3),
+            **({"fs_lr": plan_agent.fs_lr()} if any(p.startswith("fs") for p in proxies) else {}))
+    except Exception:  # noqa: BLE001 - the record is a convenience
+        pass
+    widths, info = (widths_p, info_p) if pick == "prior" else (widths_a, info_a)
+    info = dict(info)
+    info["fallback"] = {"pick": pick, "prior": prior, "proxies": list(proxies), "margin": margin, "scores": scores,
+                        "minutes": minutes}
+    return widths, info
+
+
 def _state(env):
     """Per-network plan, measured on the origin the first time the network comes round; under
     ``SPECTRA_ALLOC_GRID_ROUND`` put on the walk's grid (``_grid_round_state``) and checked at every later call
@@ -747,6 +937,8 @@ def _state(env):
                 widths, info = plan_agent.plan_for_env(env, target, agent_path(), min_keep(), **agent_kw)
         elif kind() == "randbest":
             widths, info = randbest_plan(env, target, budget="flops" if flops else "params")
+        elif kind() == "fallback":
+            widths, info = fallback_plan(env, target, flops, agent_kw, plan_kw)
         else:
             batches = group_sensitivity.calibration_batches(
                 env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
