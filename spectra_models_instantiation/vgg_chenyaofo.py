@@ -4,11 +4,11 @@ from typing import Union, List, Dict, Any, cast
 
 
 class VGG(nn.Module):
-    def __init__(self, features: nn.Module, num_classes: int = 10):
+    def __init__(self, features: nn.Module, num_classes: int = 10, classifier_width: int = 512):
         super().__init__()
         self.features = features
         self.classifier = nn.Sequential(
-            nn.Linear(512, 512),
+            nn.Linear(classifier_width, 512),
             nn.ReLU(True),
             nn.Dropout(),
             nn.Linear(512, 512),
@@ -90,3 +90,38 @@ def vgg19_bn_linear(num_classes, large_input=False):
     model = VGG(make_layers(cfgs[19]), num_classes=num_classes)
     model.classifier = nn.Linear(512, num_classes)
     return model
+
+
+def scale_cfg(cfg: List[Union[str, int]], mult: float) -> List[Union[str, int]]:
+    """Scale every conv width of a VGG cfg list by ``mult`` (floor of 8); 'M' entries stay."""
+    return [v if v == 'M' else max(8, int(round(cast(int, v) * mult))) for v in cfg]
+
+
+def _vgg_bn_scaled(depth: int, mult: float, num_classes: int) -> VGG:
+    """Width-scaled VGG-BN: same cfg as ``cfgs[depth]``, classifier input = round(512 * mult)."""
+    return VGG(make_layers(scale_cfg(cfgs[depth], mult), batch_norm=True), num_classes=num_classes,
+               classifier_width=int(round(512 * mult)))
+
+
+def vgg11_bn_x050(num_classes, large_input):
+    return _vgg_bn_scaled(11, 0.5, num_classes)
+
+
+def vgg11_bn_x075(num_classes, large_input):
+    return _vgg_bn_scaled(11, 0.75, num_classes)
+
+
+def vgg13_bn_x050(num_classes, large_input):
+    return _vgg_bn_scaled(13, 0.5, num_classes)
+
+
+def vgg13_bn_x075(num_classes, large_input):
+    return _vgg_bn_scaled(13, 0.75, num_classes)
+
+
+def vgg16_bn_x050(num_classes, large_input):
+    return _vgg_bn_scaled(16, 0.5, num_classes)
+
+
+def vgg16_bn_x075(num_classes, large_input):
+    return _vgg_bn_scaled(16, 0.75, num_classes)
