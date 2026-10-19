@@ -865,6 +865,29 @@ def eval_final_ft_from() -> str:
     return os.environ.get("SPECTRA_EVAL_FINAL_FT_FROM", "").strip()
 
 
+def eval_save_final() -> str:
+    """
+    ``SPECTRA_EVAL_SAVE_FINAL=<dir>`` (TRAJ TEST; default off): after a pruned candidate's final fine-tune,
+    save the recovered model there as ``<net>__seed<S>__final.pt`` + ``.json`` (:func:`src.traj_models.final_stem`):
+    the ``state_dict``, the arch and a meta with the origin's path and totals, the landed ratios, the final-FT
+    epochs, the seed, the alloc kind and target, and the val / TEST accuracies as the eval logged them. Stage 1
+    of a two-stage plan (D10); a stage-2 eval reads it through ``SPECTRA_EVAL_ORIGIN_FROM``. The origin control
+    (``SPECTRA_EVAL_FINAL_FT_ORIGIN``) and scratch copies are never saved.
+    """
+    return os.environ.get("SPECTRA_EVAL_SAVE_FINAL", "").strip()
+
+
+def eval_origin_from() -> str:
+    """
+    ``SPECTRA_EVAL_ORIGIN_FROM=<stem>`` (default off): the eval's network is the recovered pruned model a stage-1
+    job saved under ``SPECTRA_EVAL_SAVE_FINAL`` (``<stem>.pt`` + ``<stem>.json``), rebuilt strictly into the
+    config's template before anything reads it (origin accuracy, sensitivities, tokens, totals, the walk, the
+    origin control). Every ratio the job prints is then relative to that model; the stage-1 meta carries the
+    original origin's totals. One network per job, and the meta's origin path must equal the config's.
+    """
+    return os.environ.get("SPECTRA_EVAL_ORIGIN_FROM", "").strip()
+
+
 def eval_proxy_fidelity() -> Tuple[float, ...]:
     """
     ``SPECTRA_EVAL_PROXY_FIDELITY=0.9,0.7`` (TRAJ TEST; default off): the first time the walk's kept

@@ -92,6 +92,40 @@ def candidate_stem(save_dir, net_name, label, step, suffix=""):
     return os.path.join(save_dir, f"{net_name}__{label}__step{int(step)}{suffix}")
 
 
+def final_stem(save_dir, net_name, seed):
+    """
+    ``<save_dir>/<net_name>__seed<seed>__final``: the recovered pruned model a stage-1 eval saves after its final
+    fine-tune (``SPECTRA_EVAL_SAVE_FINAL``). No ``__step``, so :func:`load_candidates` never lists it.
+    """
+    return os.path.join(save_dir, f"{net_name}__seed{int(seed)}__final")
+
+
+def load_doc(stem):
+    """The ``<stem>.json`` of a saved candidate, as written by :func:`save_candidate`."""
+    with open(stem + ".json", encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def saved_origin_network(doc):
+    """
+    The origin network path a candidate's meta names: ``origin.network`` of a ``final`` candidate, else the
+    ``network`` every TRAJ candidate carries; ``None`` when the file names neither.
+    """
+    origin = doc.get("origin")
+    if isinstance(origin, dict) and origin.get("network"):
+        return str(origin["network"])
+    return str(doc["network"]) if doc.get("network") else None
+
+
+def same_network_path(saved, config):
+    """``saved`` and ``config`` name one file: equal as written (normalised) or once made absolute."""
+    if not saved or not config:
+        return False
+    if os.path.normpath(str(saved)) == os.path.normpath(str(config)):
+        return True
+    return os.path.abspath(str(saved)) == os.path.abspath(str(config))
+
+
 def save_candidate(model, stem, point=None, meta=None):
     """
     Write ``<stem>.pt`` (``state_dict``) and ``<stem>.json`` (arch, point, recipe). Never raises: a save

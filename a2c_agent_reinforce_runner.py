@@ -100,10 +100,11 @@ _FINAL_FT_ENV_KEYS = ("SPECTRA_FT_OPTIM", "SPECTRA_FT_SGD_LR", "SPECTRA_FT_MOMEN
                       "SPECTRA_FT_LABEL_SMOOTH", "SPECTRA_FT_KD")
 
 
-def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=False):
+def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=False, final_stem=None):
     """
     Fine-tune a copy of one candidate with the fixed final recipe; print and record TEST/val.
     ``scratch=True`` re-initialises the copy first and trains it with the scratch budget and lr.
+    ``final_stem`` (``SPECTRA_EVAL_SAVE_FINAL``): where the recovered copy is saved afterwards, inherit init only.
     """
     from src import fortify as fortify_mod
     name = os.path.basename(net_path)
@@ -177,7 +178,194 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
                 "epochs": int(epochs), "lr": float(lr), "scratch": bool(scratch), "kd": bool(kd),
                 "schedule": schedule or "cos", "warmup": float(warmup) if schedule else 0.0,
                 "select": select or "train_loss", "test_final": test_acc, "val_final": val_acc}})
+    if final_stem and not scratch:
+        _save_final_model(env, net_path, label, point, model, epochs, test_acc, val_acc, final_stem)
     return test_acc
+
+
+def _run_seed(env):
+    """The run's seed: ``env.conf.seed`` (``--seed``, ``SPECTRA_SEED`` in the submit scripts), else ``SPECTRA_SEED``, else 0."""
+    seed = getattr(getattr(env, "conf", None), "seed", None)
+    if seed is None:
+        seed = os.environ.get("SPECTRA_SEED", "").strip() or 0
+    return int(seed)
+
+
+def _num(value, spec=".4g"):
+    """``value`` formatted, or ``n/a``: the two-stage lines print totals a stub env or a failed probe may lack."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "n/a"
+    return format(int(value) if spec == "d" else value, spec)
+
+
+def _probe_flops(model, input_shape):
+    """
+    MACs of ``model`` for one sample (``utils.calc_flops``), with the global RNG streams left where they were: the
+    input-shape read materialises a batch (a DataLoader base-seed draw), the probe itself feeds zeros. ``None``
+    when the probe fails: a size read must not cost the eval.
+    """
+    cpu_state = torch.get_rng_state()
+    cuda_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    try:
+        return float(utils.calc_flops(model, input_shape()))
+    except Exception as error:  # noqa: BLE001 - logged, never fatal
+        utils.print_flush(f"[eval] FLOPs probe failed ({type(error).__name__}: {error}); n/a")
+        return None
+    finally:
+        torch.set_rng_state(cpu_state)
+        if cuda_state is not None:
+            torch.cuda.set_rng_state_all(cuda_state)
+
+
+def _final_stems(save_dir, name, candidates, seed):
+    """
+    ``{label: stem}`` under ``SPECTRA_EVAL_SAVE_FINAL``: the first pruned candidate (loop order; never the origin
+    control) takes ``<name>__seed<S>__final``, a later candidate at another step ``…__final__<label>``, so a chain's
+    stage 2 always finds the first. A label at a step already listed gets none: ``_run_final_ft`` fine-tunes that
+    point once, under the earlier label.
+    """
+    os.makedirs(save_dir, exist_ok=True)
+    stems, steps = {}, set()
+    for label, cand in candidates.items():
+        step = int(cand["point"]["step"])
+        if label == "origin" or step in steps:
+            continue
+        base = traj_models.final_stem(save_dir, name, seed)
+        stems[label] = base if not steps else f"{base}__{label}"
+        steps.add(step)
+    return stems
+
+
+def _save_final_model(env, net_path, label, point, model, epochs, test_acc, val_acc, stem):
+    """
+    ``SPECTRA_EVAL_SAVE_FINAL``: ``<stem>.pt`` + ``<stem>.json`` of a pruned candidate right after its final
+    fine-tune (:func:`traj_models.save_candidate`), with the meta a stage-2 eval reads (:func:`_origin_from_saved`):
+    the origin's path, totals and logged accuracies; the final model's totals and the landed ratios the TRAJ
+    point carries; the val / TEST accuracies the fine-tune just computed (never recomputed); the final-FT
+    epochs; the seed; the alloc policy, kind, budget and target. One ``[eval] saved final model`` line. Never
+    raises: a failed save is one line, the eval goes on.
+    """
+    from src import fortify as fortify_mod
+    name = os.path.basename(net_path)
+    try:
+        seed = _run_seed(env)
+        input_shape = getattr(env, "_input_shape", None) or (lambda: utils.get_input_shape(env.train_loader))
+        final_params = int(utils.calc_num_parameters(model))
+        final_flops = _probe_flops(model, input_shape)
+        origin_params = getattr(env, "original_params", None)
+        origin_flops = getattr(env, "original_flops", None)
+        target = getattr(env, "target_keep", None)
+        size_match = fortify_mod.eval_size_match()
+        policy = fortify_mod.eval_policy_name()
+        meta = {
+            "network": net_path, "label": label, "candidate": "final",
+            "origin": {"network": net_path,
+                       "params": int(origin_params) if origin_params else None,
+                       "flops": float(origin_flops) if origin_flops else None,
+                       "test_acc": float(point["test_origin"]), "val_acc": float(point["val_origin"])},
+            "final": {"params": final_params, "flops": final_flops,
+                      "param_ratio": float(point["param"]), "flop_ratio": float(point["flop"]),
+                      "test_acc": float(test_acc), "val_acc": float(val_acc),
+                      "walk_test_acc": float(point["test_acc"]), "walk_val_acc": float(point["val_acc"]),
+                      "step": int(point["step"]), "epochs": int(epochs)},
+            "seed": seed, "spectra_seed": os.environ.get("SPECTRA_SEED"),
+            "alloc": {"policy": policy,
+                      "kind": ((os.environ.get("SPECTRA_ALLOC_KIND", "").strip().lower() or "sens")
+                               if policy == "alloc" else None),
+                      "budget": os.environ.get("SPECTRA_ALLOC_BUDGET", "").strip().lower() or "params",
+                      "target": float(target) if target is not None else None,
+                      "target_metric": fortify_mod.fixed_target_metric() if target is not None else None,
+                      "size_match": list(size_match) if size_match else None},
+        }
+        saved = traj_models.save_candidate(model, stem, point, meta)
+        if saved is None:
+            return None
+        utils.print_flush(
+            f"[eval] saved final model to {saved} | {label} {name} step={int(point['step'])} | "
+            f"params x{float(point['param']):.3f} ({final_params} of {_num(origin_params, 'd')}) | "
+            f"FLOPs x{float(point['flop']):.3f} ({_num(final_flops)} of {_num(origin_flops)}) | "
+            f"acc test {float(test_acc):.4f} val {float(val_acc):.4f} | "
+            f"origin test {float(point['test_origin']):.4f} val {float(point['val_origin']):.4f} | "
+            f"e{int(epochs)} seed {seed}")
+        return saved
+    except Exception as error:  # noqa: BLE001 - the save must not cost the eval
+        utils.print_flush(f"[eval] final model save failed for {label} {name}: "
+                          f"{type(error).__name__}: {error}; continuing")
+        return None
+
+
+def _origin_from_saved(input_dict):
+    """
+    ``SPECTRA_EVAL_ORIGIN_FROM=<stem>``: the config's network (the zoo template ``utils.parse_input_argument``
+    built) replaced by the recovered pruned model a stage-1 eval saved under ``SPECTRA_EVAL_SAVE_FINAL``, rebuilt
+    strictly into a copy of the template on the template's device (:func:`traj_models.load_candidate`). Runs
+    once, on the dict that becomes ``conf.input_dict``: the eval env's ``data_dict``, ``evaluate_model``'s shard,
+    ``reset``'s model, ``score_test_loader``'s origin and the origin control all read that one entry, so the
+    origin accuracy, the sensitivities, the tokens, the totals, the walk and the control see the stage-1 model as
+    the origin. One network per job; the meta's origin path must equal the config's; the rebuild must be strict.
+    Off (the default): ``input_dict`` is returned untouched.
+    """
+    from src import fortify as fortify_mod
+    stem = fortify_mod.eval_origin_from()
+    if not stem:
+        return input_dict
+    # The rebuild constructs fresh modules, whose init draws from the global RNG: put the streams back after it, so
+    # stage 2's RNG starts where a plain eval of the template's would.
+    cpu_state = torch.get_rng_state()
+    cuda_state = torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None
+    try:
+        return _rebuild_origin(input_dict, stem)
+    finally:
+        torch.set_rng_state(cpu_state)
+        if cuda_state is not None:
+            torch.cuda.set_rng_state_all(cuda_state)
+
+
+def _rebuild_origin(input_dict, stem):
+    """:func:`_origin_from_saved`'s body, under its RNG guard: checks, the strict rebuild, the size checks, one line."""
+    if not input_dict:
+        raise ValueError(f"SPECTRA_EVAL_ORIGIN_FROM={stem}: the run has no --input network to rebuild")
+    if len(input_dict) != 1:
+        raise ValueError(f"SPECTRA_EVAL_ORIGIN_FROM={stem}: one network per job; the config names "
+                         f"{len(input_dict)}: {sorted(input_dict)}")
+    if not os.path.isfile(stem + ".json") or not os.path.isfile(stem + ".pt"):
+        raise FileNotFoundError(f"SPECTRA_EVAL_ORIGIN_FROM={stem}: no {os.path.basename(stem)}.json + .pt there "
+                                f"(did stage 1 run with SPECTRA_EVAL_SAVE_FINAL and reach its final fine-tune?)")
+    doc = traj_models.load_doc(stem)
+    saved = traj_models.saved_origin_network(doc)
+    net_path, (template, loaders) = next(iter(input_dict.items()))
+    if not traj_models.same_network_path(saved, net_path):
+        raise ValueError(f"SPECTRA_EVAL_ORIGIN_FROM={stem}: saved from origin {saved!r}; "
+                         f"the config's network is {net_path!r}")
+    recipe = doc.get("recipe_env") or {}
+    split_keys = ("SPECTRA_VAL_FROM_TEST", "SPECTRA_SPLIT_SEED", "SPECTRA_VAL_TEST_FRACTION")
+    drift = {k: (recipe.get(k), os.environ.get(k)) for k in split_keys if recipe.get(k) != os.environ.get(k)}
+    if drift:
+        # The stage-1 TEST accuracies in the meta are on stage 1's split; a Δ against them needs the same one.
+        utils.print_flush(f"[eval] origin from {stem}: WARNING split flags differ from stage 1's "
+                          f"(stage 1 -> this job): {drift}")
+    try:
+        model, doc = traj_models.load_candidate(template, stem)
+    except Exception as error:
+        raise RuntimeError(f"SPECTRA_EVAL_ORIGIN_FROM={stem}: the saved arch does not rebuild strictly into "
+                           f"{os.path.basename(net_path)}: {type(error).__name__}: {error}") from error
+    model.to(next(template.parameters()).device)
+    params = int(utils.calc_num_parameters(model))
+    if doc.get("params") is not None and int(doc["params"]) != params:
+        raise RuntimeError(f"SPECTRA_EVAL_ORIGIN_FROM={stem}: rebuilt {params} parameters, the file says "
+                           f"{doc['params']}")
+    flops = _probe_flops(model, lambda: utils.get_input_shape(loaders[0])) if loaders else None
+    origin, final, alloc = doc.get("origin") or {}, doc.get("final") or {}, doc.get("alloc") or {}
+    utils.print_flush(
+        f"[eval] origin from {stem}: params {params} FLOPs {_num(flops)} (stage-1 meta: {doc.get('label')} "
+        f"{os.path.basename(saved)} seed {doc.get('seed')} e{final.get('epochs')} "
+        f"{alloc.get('policy')}/{alloc.get('kind')} {alloc.get('budget')} target {alloc.get('target')} | "
+        f"params x{_num(final.get('param_ratio'), '.3f')} of {_num(origin.get('params'), 'd')} | "
+        f"FLOPs x{_num(final.get('flop_ratio'), '.3f')} of {_num(origin.get('flops'))} | "
+        f"acc test {_num(final.get('test_acc'), '.4f')} val {_num(final.get('val_acc'), '.4f')} | "
+        f"origin test {_num(origin.get('test_acc'), '.4f')} val {_num(origin.get('val_acc'), '.4f')})")
+    input_dict[net_path] = (model, loaders)
+    return input_dict
 
 
 def _measure_candidates_throughput(env, net_path, candidates):
@@ -262,6 +450,8 @@ def _run_final_ft(env, net_path, picked, candidates, epochs):
         return
     scratch = fortify_mod.eval_final_ft_scratch()
     inits = {"": (False,), "both": (False, True), "only": (True,)}[scratch]
+    final_dir = fortify_mod.eval_save_final()
+    final_stems = _final_stems(final_dir, name, candidates, _run_seed(env)) if final_dir else {}
     done_steps = {}
     for label, cand in candidates.items():
         step = int(cand["point"]["step"])
@@ -272,7 +462,8 @@ def _run_final_ft(env, net_path, picked, candidates, epochs):
         for from_scratch in inits:
             tag = f"{label}+scratch" if from_scratch else label
             try:
-                _final_ft(env, net_path, tag, cand, epochs, save_dir=save_dir, scratch=from_scratch)
+                _final_ft(env, net_path, tag, cand, epochs, save_dir=save_dir, scratch=from_scratch,
+                          **({"final_stem": final_stems[label]} if label in final_stems else {}))
             except Exception as error:  # noqa: BLE001 - one candidate must not cost the others
                 logging_utils.exception(f"[eval] TRAJ final_ft {tag} {name} failed; continuing")
                 run_recorder.issue("final_ft_failed", f"{type(error).__name__}: {error}",
@@ -559,6 +750,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         f"{'+kd' if fortify_mod.eval_final_ft_kd() else ''}"
                         f"{'+scratch:' + fortify_mod.eval_final_ft_scratch() if fortify_mod.eval_final_ft_scratch() else ''}"
                         f"{' from=' + fortify_mod.eval_final_ft_from() if fortify_mod.eval_final_ft_from() else ''}"
+                        f"{' save_final=' + fortify_mod.eval_save_final() if fortify_mod.eval_save_final() else ''}"
+                        f"{' origin_from=' + fortify_mod.eval_origin_from() if fortify_mod.eval_origin_from() else ''}"
                         f"{' proxy=' + ','.join(f'{t:g}' for t in fortify_mod.eval_proxy_fidelity()) if fortify_mod.eval_proxy_fidelity() else ''}"
                         f" fixed_target={int(fortify_mod.fixed_target())} state_sens={int(fortify_mod.state_sens())}")
                     match = fortify_mod.eval_size_match()
@@ -883,7 +1076,8 @@ if __name__ == "__main__":
                   f'num-epochs_{args.num_epochs}{passes}_comp-rates_{args.compression_rates}_{n_splits}'
                   f'train_{args.train_split}_val_{args.val_split}_seed_{args.seed}_{dt_string}',
         dataloaders_dict=preloaded_dataloaders_dict,
-        input_dict=utils.parse_input_argument(args.input, preloaded_dataloaders_dict),
+        # SPECTRA_EVAL_ORIGIN_FROM (default off): the one entry every eval reader takes its origin from
+        input_dict=_origin_from_saved(utils.parse_input_argument(args.input, preloaded_dataloaders_dict)),
         database_dict=utils.parse_input_argument(args.database, preloaded_dataloaders_dict),
         actor_checkpoint_path=args.actor_checkpoint_path,
         critic_checkpoint_path=args.critic_checkpoint_path,
