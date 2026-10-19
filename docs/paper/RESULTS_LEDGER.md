@@ -9689,3 +9689,51 @@ Never:
 - The audit's 40-instance policies used for anything else.
 
 Records: queue row RESUME-AUDIT; tree_v25 (`0d47a80`); next §405.
+
+## 405. (FINAL, the FLOPs depths): the frozen FLOPs agent of record (T4-F) against floored sens_F at FLOPs 0.6 (DepGraph R56 0.48) and 0.45 on the nine pool nets, five seeds (42–46), every arm deterministic (`SPECTRA_EVAL_FT_DETERMINISTIC=1`, tree_v24), grid-rounded, G2 plus the origin control — **AT-PRIOR-F-POOL at both**: F = **−0.16** [−0.49, +0.07] at 0.6 (val −0.20, 10k −0.18, honest −0.22; 3 of 9 positive) and **−0.16** [−0.71, +0.17] at 0.45 (val −0.08, 10k −0.12, honest −0.13; 5 of 9); the deficit sits on r20-w8 C100 (−1.13, −1.94), and the CIFAR-10 seven are level (−0.03, +0.04). These are the paper's FLOPs calls, replacing §366 and §371
+
+Registered 17 Oct 10:53 (`2b74576`; queue row FINAL) under Ido's 17 Oct GO, with the reading rule fixed before any read: the five-seed, flag-on calls are the paper's whatever their direction. Read 19 Oct 07:12 (`scripts/_tmp_s17oct_final_read.sh`) on the two FLOPs depths, the first complete ones. The params depths wait for T6-fs's seed-45/46 cells.
+- *Checks.*
+  - 45 pairs at each depth, all COMPLETED, none flagged for fallback or masked edits.
+  - T4-F's seed-45/46 policies come from trains 23083691 / 697, of 12,000 instances each in 177 / 175 min, with configurations identical to the seed-42 train's.
+  - Two cells preempted overnight were resubmitted unchanged by the guard.
+  - At equal FLOPs, the params ratio is noted where a pair differs by more than 10 % (CAPTION in the reader).
+
+Per net (TEST 5k, T4-F − sens_F, mean over seeds 42–46, the per-seed values in brackets):
+
+| net | FLOPs 0.6 | FLOPs 0.45 |
+|---|---|---|
+| thin r56-w4 | −0.29 (+0.46 / −1.02 / −1.18 / +0.78 / −0.50) | +0.36 (+1.02 / +0.52 / −0.04 / +0.30 / +0.00) |
+| chenyaofo R56 | −0.12 | +0.08 |
+| r56-w8 | +0.08 | −0.09 |
+| MobileNetV2 ×1.4 | +0.11 | +0.18 |
+| DenseNet-100 | +0.00 | −0.19 |
+| r20-w8 C100 | **−1.13** (+0.72 / −0.94 / −1.68 / −0.32 / −3.42) | **−1.94** (−1.10 / −0.42 / −1.82 / −1.86 / −4.52) |
+| VGG-19 C100 | −0.15 | +0.22 |
+| VGG-16 | +0.13 | +0.01 |
+| DepGraph R56 (0.48 at the 0.6 depth) | −0.09 | −0.10 |
+
+Final TEST 5k accuracy, mean ± SD over five seeds (T4-F / sens_F), for the tables in the field's format:
+- **FLOPs 0.6:**
+  - thin 86.52 ± 0.56 / 86.82 ± 0.36; chenyaofo R56 93.71 ± 0.22 / 93.84 ± 0.27; r56-w8 92.38 ± 0.09 / 92.29 ± 0.22;
+  - MobileNetV2 ×1.4 94.00 ± 0.18 / 93.89 ± 0.24; DenseNet-100 95.20 ± 0.12 / 95.20 ± 0.04;
+  - r20-w8 C100 54.87 ± 1.38 / 56.00 ± 0.38; VGG-19 C100 74.16 ± 0.21 / 74.32 ± 0.59; VGG-16 94.10 ± 0.23 / 93.97 ± 0.12;
+  - DepGraph R56 at FLOPs 0.48: 93.63 ± 0.24 / 93.72 ± 0.21.
+- **FLOPs 0.45:**
+  - thin 84.16 ± 0.37 / 83.80 ± 0.24; chenyaofo R56 93.55 ± 0.20 / 93.47 ± 0.16; r56-w8 91.48 ± 0.25 / 91.57 ± 0.28;
+  - MobileNetV2 ×1.4 93.36 ± 0.36 / 93.18 ± 0.21; DenseNet-100 94.76 ± 0.19 / 94.95 ± 0.10;
+  - r20-w8 C100 51.22 ± 1.15 / 53.16 ± 0.51; VGG-19 C100 73.62 ± 0.16 / 73.41 ± 0.41; VGG-16 93.72 ± 0.26 / 93.71 ± 0.19;
+  - DepGraph R56 93.45 ± 0.18 / 93.55 ± 0.14.
+
+Reading:
+1. **The FLOPs calls replicate at five seeds, deterministically.** The agent is at the FLOPs rule at both depths, slightly below it, −0.16 at both, against −0.21 at both with three seeds (§366, §371). Both intervals include zero, val and 10k agree in sign, and every view lies within ±0.25 of zero.
+2. **One network carries the deficit.** On r20-w8 C100 the agent is below the rule on 4 of 5 seeds at 0.6 and on all 5 at 0.45 (−1.13, −1.94). Its five-seed SD is about 3× the rule's (1.38 against 0.38; 1.15 against 0.51). Without it, the other eight read −0.04 and +0.06. On the seven CIFAR-10 networks the agent is level: −0.03 and +0.04.
+3. **The SDs make single-network reading possible.** Per-network five-seed SDs are 0.04–0.59 for the rule and 0.09–0.56 for the agent, apart from r20-w8 C100. A single-network contrast now carries about 0.2–0.3, and the deterministic flag removes run noise from repeats.
+4. **For the paper.** The FLOPs row stays "at the rule" (AT-PRIOR-F-POOL), and the FLOPs-facing literature rows are the rule's. The agent's learned contribution is shown at equal parameters, which read when T6-fs's seed-45/46 cells complete. [H] The FLOPs agent's weak spot is the same network as the params agent's: a 72,000-parameter CIFAR-100 net whose groups are few and narrow.
+
+Never:
+- These rows mixed with §366 / §371's three-seed rows.
+- "The FLOPs agent beats the rule" on any net or depth from these rows: the calls are AT.
+- A depth read before its 45 pairs are complete.
+
+Records: queue row FINAL; next §406.
