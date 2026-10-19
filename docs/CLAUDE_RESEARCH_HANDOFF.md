@@ -470,7 +470,11 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
       - Under the DET flag a fallback row should equal the picked arm's FINAL row, seed for seed.
       - Stage P is 270 one-epoch pick cells, topped. Stage E is seed 42 in full.
       - EXACT and PICK-STABLE must pass before any row is taken from FINAL. Smokes 23415673–676; gate watcher `_tmp_s13oct_gatewatch.sh`.
-    - D10 two-stage, being built: `SPECTRA_EVAL_SAVE_FINAL` and `SPECTRA_EVAL_ORIGIN_FROM`, two chained evals with κ2 = κ / landed₁ and E1 + E2 = 100.
+    - D10 two-stage, **registered as TS (23:51, `47a326b`) and submitted at 23:53 on `tree_v28` (code `da6277d`; 12 tests pass after an RNG guard on the rebuild)**:
+      - The flags are `SPECTRA_EVAL_SAVE_FINAL` and `SPECTRA_EVAL_ORIGIN_FROM`.
+      - Plan to 0.5, 30 epochs; then κ2 = 0.25 / r1, 70 epochs. T6-fs and sens_cost, nine nets, five seeds, against FINAL's one-shot rows.
+      - The chain is `s20oct_ts_chain.sh`, which deploys, smokes, gates, then runs the waiter. Saved models go to `ts_saved/`.
+      - The first deploy refused because FB's run output sits in tree_v27's `models/Reinforce_Evaluation`. That folder is now excluded from the diff.
     - D9 smaller catalogs (CATALOG_SCALE_PLAN §4), registered after Ido's 15 Oct remarks. D8 accuracy-target mode, after D4 and D10.
     - Tiny-ImageNet as wave 3. ImageNet eval-only prep: the dataset's location and the quota.
   - **The VGG "failure" (§358)** is FAILS-CLEAN on VGG-16 C10, which has no lever (§363). VGG-19 C100 transferred (+0.65 vs uniform). No separate root-cause study.
