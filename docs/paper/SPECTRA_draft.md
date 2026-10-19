@@ -649,7 +649,7 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 - **At 35 % the pooled 95 % range lies above zero for the first time against the params prior.** It is still under the +0.3 BEATS bar, so the call is AT-PRIOR-POOL (§387).
 - **At 25 % the 32-step reward gives the better agent:** +0.16 against the rule, where the batch-norm reward reads −0.17 (a reported +0.34). On the other eight networks it is +0.30, against +0.11.
 - **The collapse on ResNet-20 ×8 CIFAR-100 shrinks again,** to −0.93 at 25 % (from −2.41 and −16.84). No seed writes the all-or-nothing plan. The batch-norm agent's collapsing seed reads +3.40, but another seed is still −4.70, with a plan that cuts some groups to the floor (§387).
-- [H] Of the two rewards trained in parallel, the one that ranks plans more like the final gives the better agent at the tightest budget, as the fidelity account (§5.7) predicts. At 45 % it is the first agent to beat the prior pooled (§390).
+- [H] Of the two rewards trained in parallel, the one that ranks plans more like the final gives the better agent at the tightest budget, as the fidelity account (§5.7) predicts. At 45 % it read a pooled beat at three seeds (§390), which did not hold at five (+0.29, §406).
 
 **CIFAR-100 networks in the training catalog** (T7-C: T6-bn's line on the 18-network catalog of §356, T1's ten plus eight CIFAR-100 networks; §389). CIFAR-100 is now a seen dataset, so the two CIFAR-100 pool networks are held-out instances of it:
 
