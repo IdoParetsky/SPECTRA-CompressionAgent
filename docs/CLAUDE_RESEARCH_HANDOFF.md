@@ -463,10 +463,13 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
-- **19 Oct 23:55. Ido's remarks on the 9 Oct page are answered** on a separate page (artifact `32YuJ6bzAmuyiYhpMbge8o`, 17 questions).
+- **19 Oct 23:25. Ido's remarks on the 9 Oct page are answered** on a separate page (artifact `32YuJ6bzAmuyiYhpMbge8o`, 17 questions).
   - **The abstract** (`8f9f698`) leads with the two reviewer answers: no per-target search, and it beats a per-network search with its own reward (§396); it learned from reward the cost structure the plain rule lacks (§370, §406). "Beat the rule once" is gone (§406).
   - **Sponsored (standing GO; register before any cell):**
-    - D4 fallback-to-prior, being built: `SPECTRA_ALLOC_KIND=fallback`, PRIOR / PROXY (comma list, first decides) / MARGIN. Under the DET flag a fallback row should equal the picked arm's FINAL row seed for seed, so the read is scoring plus a sample of full cells that check the equality.
+    - D4 fallback-to-prior, **registered as FB (23:36, `4246afc`) and submitted at 23:37 on `tree_v27` (`9debef1`)**: `SPECTRA_ALLOC_KIND=fallback`, PRIOR / PROXY (comma list, first decides) / MARGIN.
+      - Under the DET flag a fallback row should equal the picked arm's FINAL row, seed for seed.
+      - Stage P is 270 one-epoch pick cells, topped. Stage E is seed 42 in full.
+      - EXACT and PICK-STABLE must pass before any row is taken from FINAL. Smokes 23415673–676; gate watcher `_tmp_s13oct_gatewatch.sh`.
     - D10 two-stage, being built: `SPECTRA_EVAL_SAVE_FINAL` and `SPECTRA_EVAL_ORIGIN_FROM`, two chained evals with κ2 = κ / landed₁ and E1 + E2 = 100.
     - D9 smaller catalogs (CATALOG_SCALE_PLAN §4), registered after Ido's 15 Oct remarks. D8 accuracy-target mode, after D4 and D10.
     - Tiny-ImageNet as wave 3. ImageNet eval-only prep: the dataset's location and the quota.
