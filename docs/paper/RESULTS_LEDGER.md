@@ -9737,3 +9737,51 @@ Never:
 - A depth read before its 45 pairs are complete.
 
 Records: queue row FINAL; next §406.
+
+## 406. (FINAL, the params depths): the frozen params agent of record (T6-fs) against floored sens_cost at params 0.6 (DepGraph R56 0.47), 0.45, 0.35 and 0.25 on the nine pool nets, five seeds (42–46), every arm deterministic, grid-rounded, G2 plus the origin control, with the even cut beside — **AT-PRIOR-POOL at all four depths**: P = **+0.05** [−0.17, +0.30] / **+0.29** [−0.08, +0.77] / **+0.24** [+0.02, +0.53] / **−0.22** [−1.52, +0.41]. The three-seed BEATS-PRIOR-P-POOL at 0.45 (§390, +0.42) does not hold at five seeds, 0.01 under the bar. r20-w8 C100 carries both tails (+1.92 at 0.45, −3.86 at 0.25 with a seed-46 collapse); the other eight read −0.03 / +0.09 / +0.16 / +0.23. The prior beats the even cut by +0.45 / +0.39 / +0.81 / +0.96. These are the paper's params calls, replacing §387, §390 and their three-seed reads
+
+Registered 17 Oct 10:53 (`2b74576`; queue row FINAL) with the reading rule fixed before any read: the five-seed, flag-on calls are the paper's whatever their direction. Read 19 Oct 21:58 (`scripts/_tmp_s17oct_final_read.sh`); all 810 cells COMPLETED. The FLOPs depths read in §405.
+- *Checks.*
+  - 45 pairs at each depth, none flagged for fallback or masked edits.
+  - T6-fs's seed-45/46 policies come from trains 23083690 / 692: 12,000 instances each, 1,235 / 1,191 min, under the 1,700-min cap, with configurations identical to seed 42's.
+  - The guard resubmitted three preemptions.
+  - The FLOPs ratio of agent to prior is flagged where a pair differs by more than 10 % (CAPTION). At equal params T6-fs often keeps more FLOPs than the rule: up to 1.20–1.77× on r56c and r56w8 at 0.25.
+
+| depth | P = T6-fs − sens_cost [95 %] | val | 10k | honest | d > 0 | call | other eight | CIFAR-100 pair | CIFAR-10 seven | sens_cost − uniform (the lever) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| params 0.6 | **+0.05** [−0.17, +0.30] | +0.16 | +0.10 | −0.01 | 4 of 9 | **AT-PRIOR-POOL** | −0.03 | +0.11 | +0.03 | +0.45 [+0.02, +0.90] |
+| params 0.45 | **+0.29** [−0.08, +0.77] | +0.23 | +0.26 | +0.29 | 6 of 9 | **AT-PRIOR-POOL** | +0.09 | +0.99 | +0.09 | +0.39 [−0.34, +1.10] |
+| params 0.35 | **+0.24** [+0.02, +0.53] | +0.36 | +0.30 | +0.31 | 7 of 9 | **AT-PRIOR-POOL** | +0.16 | +0.42 | +0.18 | +0.81 [−0.05, +1.73] |
+| params 0.25 | **−0.22** [−1.52, +0.41] | −0.22 | −0.22 | −0.22 | 6 of 9 | **AT-PRIOR-POOL** | +0.23 | −1.75 | +0.21 | +0.96 [−0.03, +1.96] |
+
+Per net, TEST 5k T6-fs − sens_cost (five-seed mean):
+
+| net | 0.6 | 0.45 | 0.35 | 0.25 |
+|---|---|---|---|---|
+| thin r56-w4 | +0.24 | −0.35 | +0.18 | +0.23 |
+| chenyaofo R56 | −0.14 | +0.19 | +0.34 | +0.37 |
+| r56-w8 | −0.11 | **+0.73** (every seed positive) | +0.08 | +0.29 |
+| MobileNetV2 ×1.4 | −0.05 | +0.00 | +0.47 | **+0.74** (every seed positive) |
+| DenseNet-100 | +0.22 | −0.16 | +0.20 | +0.04 |
+| r20-w8 C100 | +0.71 | **+1.92** (every seed positive) | +0.87 | **−3.86** (+2.88 / −3.56 / −2.70 / −0.54 / −15.40) |
+| VGG-19 C100 | −0.49 (every seed negative) | +0.06 | −0.04 | +0.36 |
+| VGG-16 | +0.06 | +0.27 | +0.03 | −0.10 |
+| DepGraph R56 (0.47 at the 0.6 depth) | −0.01 | −0.04 | −0.02 | −0.07 |
+
+r20-w8 C100, final TEST 5k accuracy (mean ± SD over five seeds): at 0.45, T6-fs 50.41 ± 0.49 against sens_cost 48.49 ± 0.23; at 0.25, T6-fs 35.61 ± 6.83 against 39.47 ± 0.34.
+
+Reading:
+1. **The frozen agent is at the level of the best rule at every params budget, and it does not beat it.** By the pre-registered rule, §390's three-seed beat at 0.45 (+0.42) is replaced by +0.29, under the +0.3 bar, with its interval including zero. The paper reports parity at all four budgets.
+2. **It sits slightly above the rule from 60 % down to 35 %, and its edge is clearest at 35 %.** At 0.35 the 95 % interval lies above zero (+0.02 to +0.53), and val (+0.36), 10k (+0.30) and honest (+0.31) are all at or above +0.3. Only TEST 5k is under the bar (+0.24). That is a consistent small edge, not a registered beat.
+3. **One network decides both tails.** On r20-w8 C100, 72,000 parameters with groups that are few and narrow, the agent is +1.92 at 0.45 with every seed positive, and −3.86 at 0.25, where the new seed-46 policy collapses (−15.40). The collapse at 25 % recurs across agent lines: T5-deep, T6-bn, T8-fs and now one T6-fs seed (§380, §383, §400). Without this network, the other eight are at or slightly above the rule at every depth (−0.03 / +0.09 / +0.16 / +0.23).
+4. **The agent gains most where the rule's lever is large.** On the other eight, the agent's edge grows toward 25 % (+0.23), as does the prior's lever over the even cut (+0.96). MobileNetV2 ×1.4 (+0.74 at 0.25, every seed positive) and r56-w8 (+0.73 at 0.45) are the clearest single-network gains. At equal params the agent often keeps more FLOPs than the rule (CAPTION), so its params gains partly buy compute.
+5. **Seed noise is now measurable per network.** Five-seed SDs are 0.2–0.5 on most networks and arms. They run to 6.8 for T6-fs on r20-w8 C100 at 0.25, against the rule's 0.34. The agent is the less stable arm only on that one network.
+6. **For the paper.** The headline becomes: a frozen agent at the best rule's level on held-out networks under both budget types, slightly above it at moderate budgets (+0.24 to +0.29 at 45–35 %), beating a per-network search (§396), with allocation as the mechanism (§394, §398). The fallback-to-the-prior idea (D4) addresses exactly the collapse in reading 3. [D pending Ido: register D4 as a labelled variant row]
+
+Never:
+- "The agent beats the cost-aware rule" at any depth, including 45 %: the final calls are AT-PRIOR-POOL.
+- §390's +0.42 quoted as the result: it is superseded by this section's +0.29.
+- These rows mixed with the three-seed rows (§387, §390).
+- The 35 % edge called a beat: TEST 5k is under the bar.
+
+Records: queue row FINAL; next §407.
