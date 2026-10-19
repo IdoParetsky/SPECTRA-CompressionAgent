@@ -463,6 +463,12 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
+- **19 Oct 15:00.**
+  - **§404 RESUME-OK** (`26eceeb`) and **§405 FINAL FLOPs depths** (AT-PRIOR-F-POOL, −0.16 at both; `a7f5a52`). The params depths wait for T6-fs's 72 seed-45/46 cells (FINAL 707 of 810 at 14:31).
+  - **XFER-W1** (D7, `2d60d83`) and **LIT-C** (D1, `e73d0ae`) are registered and submitted behind gates (smokes lifted with `scontrol top`), with guards `s19oct_autoresub_{xfer,litc}.sh`. Readers: `_tmp_s19oct_xfer_read.sh`; the LIT-C reader is still to write (single-net BEATS / AT / BELOW with 4 of 5 seeds, the lever, mean ± SD per arm).
+  - **Wave-2 factories** (`0878d0d`): VGG-11/13/16-BN ×0.5 / ×0.75 and a CIFAR GoogLeNet; stage v26a ALL PASS. **Not deployed to the zoo:** the zoo's `vgg_chenyaofo.py` (blob 107c4a6) differs from the repo's (8c56a73). Deploy the width variants as a new zoo file, or merge them into the zoo's own version, only after FINAL, XFER-W1 and LIT-C stop loading VGG. `googlenet_cifar.py` is a new file and safe to copy.
+  - **D6 open for Ido:** general grouped convolutions (ResNeXt, RegNet) are not supported by `src/pruning.py` (depthwise only). That needs a design choice: cut whole groups, or shrink every group equally.
+  - The VPN dropped at about 04:30 and 12:30; only the laptop watchers stopped.
 - **18 Oct 22:40.**
   - **tree_v25 deployed** (`0d47a80`): `SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; 138 tests pass. The stage's one failure was a test bug (INIT leaked between calls).
   - **RESUME-AUDIT:** u1 vs u2 differ by max 4.6e-3 (GPU training is not bit-reproducible). d1 vs e2 under the flag differ by 3.7e-3, within that spread. e1 stopped at 4, e2 resumed at 4 and ran to 40. c2 (flag off) decides the registered call; it was lifted with `scontrol top` at 22:35. Read with `s17oct_raudit_submit.sh compare`.
