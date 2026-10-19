@@ -51,12 +51,12 @@ Every test network is out of every training catalog. The 9-network pool and the 
 |---|---|---|
 | S1 similar architectures | a size it has not seen, in a family and dataset it has | thin r20 / r56 at held-out widths (5, 9, 11, 13, 15); MobileNetV2 ×0.75; VGG-19 C10; the pool's r56-w4, r56-w8, MobileNetV2 ×1.4, DenseNet-100, VGG-16 C10, chenyaofo and DepGraph R56 |
 | S2 unseen dataset | the dataset | **CIFAR-100, with CIFAR-100 out of training** (proposed 17 Oct after §403, D pending Ido): the pool's r20-w8 / VGG-19 C100 and wave 1's WRN / PreAct-ResNet C100. Fashion-MNIST (VGG-11, MobileNetV2 ×0.5, DenseNet-40, r20-w16) cannot carry a call at params 0.25 or 0.125, since 0 and 1 of its 4 networks carry a lever (§403). It stays a reported coverage cell |
-| S3 unseen family | the family | one family out per fold, rotating DenseNet → MobileNetV2 → VGG (§4 of the transfer protocol) |
+| S3 unseen family | the family | one family out per fold, rotating DenseNet → MobileNetV2 → VGG (§4 of the transfer protocol). The VGG fold is read on VGG networks that pass gate 3, such as VGG-19 C100 and wave 2's VGG widths on CIFAR-100. Its earlier failure sat on VGG-16 C10, which has no lever (§358, §363) |
 | S4 unseen both | the family and the dataset | the S3 family's networks on the S2 dataset |
 | Anchors | literature cells | DepGraph R56 C10, DepGraph VGG-19 C100, ResNet-110 C10, VGG-16 C10, PruningBench ResNet-18 / VGG-19 C100, DFPC networks |
 
 The training catalog is every remaining recoverable network, sampled family first.
-- **The "product" agent** trains on all folds and is tested on new families (§3) and on the anchors.
+- **The "product" agent** trains on all folds and is tested on new families (§3) and on the anchors. Its catalog holds every family it will be used on (Ido, 19 Oct). A family missing from a catalog is a held-out fold, read as transfer, never a product claim.
 - **The paper** headlines the held-out splits and reports the product agent as the deployment result (meeting page §14).
 
 ## 3. Pretraining to balance the families (GO for later; register before submit)
@@ -95,6 +95,13 @@ The same splits are read at three catalog sizes: 10 (T1's), about 30, and about 
 - **Instances.** LC-T6BN (§388) found that 12,000 instances are not the bottleneck on the ten-network catalog. T8-fs (§400) suggests that a larger catalog needs more instances: 12,000 over 18 networks fell below the ten-network agent at 25 %. At least 1,000 instances per catalog network is the floor [H], with snapshots saved and the length chosen on validation networks, never on TEST.
 - **Reward.** The rung train uses the reward of record. bn8 is the cheap first rung, about 1.6 s per instance; fs32 is the stronger one, about 7 s per instance (§387).
 - **Change per rung.** One change only: the catalog.
+
+**The ladder downward (D9, sponsored 19 Oct after Ido's question; not yet registered).**
+- *The question.* Is it the method, not the amount of training data, that transfers?
+- *The design.* T6-fs's line at 6,000 instances on three smaller catalogs: 1 network; 3 networks, one per family (a ResNet, a VGG, a MobileNetV2); and 5 networks, adding DenseNet and a second ResNet.
+- *The read.* Each against the 10-network T6-fs at params 0.45 and 0.25, on the nine-network pool, three deterministic seeds. SCALE (§5) is the call.
+- *Evidence so far.* 3,000 instances read like 12,000 (§388). 18 networks were no better than 10 (§400). An agent that never saw a ResNet tied the cost-aware rule on DepGraph R56 (§363).
+- *Cost [H].* About 220 GPU-h.
 
 ## 5. Calls to register (per rung, per split; TEST 5k, paired by seed)
 
