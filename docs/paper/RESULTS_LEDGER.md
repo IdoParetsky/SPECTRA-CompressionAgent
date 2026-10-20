@@ -9785,3 +9785,49 @@ Never:
 - The 35 % edge called a beat: TEST 5k is under the bar.
 
 Records: queue row FINAL; next §407.
+
+## 407. (XFER-W1): the frozen params agent of record (T6-fs) on eight architectures and a dataset it never saw: WRN-16-4, WRN-28-2, PreAct-ResNet-20 and PreAct-ResNet-56, each on CIFAR-10 and CIFAR-100. T6-fs is read against floored, grid-rounded sens_cost at params 0.45 and 0.25, five seeds (42–46), on FINAL's line (deterministic, G2 plus the origin control); smokes **23387390–392**, cells **23387393–23388019**, `tree_v24`. Calls: **BELOW-PRIOR-P-XFER at 0.45** (P = **−0.32** [−0.88, +0.14], 2 of 8 positive) and **AT-PRIOR-P-XFER at 0.25** (**−0.26** [−0.78, +0.21]). One network, WRN-28-2 C100, carries most of it (−1.88, −1.57); the other seven read −0.10 and −0.07
+
+Registered 19 Oct 14:34 (queue row XFER-W1; D7) before submit. The eight networks were named before any agent read them. No catalog ever held them: T6-fs's catalog holds no WRN, no PreAct-ResNet and no CIFAR-100. Gate PASS 19 Oct 14:55. Read 20 Oct 12:20 (`scripts/_tmp_s19oct_xfer_read.sh`).
+- *Checks.* 160 of 160 COMPLETED by 10:13, with no preemption and no resubmit. No cell is flagged for a stall fallback or a masked edit.
+- *Equal-params FLOPs.* Every pair is CAPTION: the agent's FLOPs range from 0.55× to 1.80× the rule's at equal params. On WRN-28-2 C100 the agent keeps less compute than the rule (0.57–0.90× at 0.45, 0.55–0.74× at 0.25).
+
+| depth | P = T6-fs − sens_cost [95 %] | val | 10k | honest | d > 0 | call | CIFAR-10 four | CIFAR-100 four | WRN four | PreAct four | the other seven |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| params 0.45 | **−0.32** [−0.88, +0.14] | −0.40 | −0.36 | −0.25 | 2 of 8 | **BELOW-PRIOR-P-XFER** | −0.06 | −0.57 | −0.74 | +0.10 | −0.10 |
+| params 0.25 | **−0.26** [−0.78, +0.21] | +0.03 | −0.11 | −0.31 | 4 of 8 | **AT-PRIOR-P-XFER** | −0.11 | −0.40 | −0.37 | −0.14 | −0.07 |
+
+"The other seven" leaves out WRN-28-2 C100. It is reported, never a call.
+
+Per net, TEST 5k T6-fs − sens_cost (five-seed mean; seeds 42 / 43 / 44 / 45 / 46 where a tail matters):
+
+| net | 0.45 | 0.25 | final TEST accuracy at 0.45, agent / rule (mean ± SD) |
+|---|---|---|---|
+| WRN-16-4 C10 | −0.16 | −0.20 | 93.75 ± 0.18 / 93.90 ± 0.25 |
+| WRN-16-4 C100 | −0.79 (−0.50 / −0.02 / −1.06 / −1.14 / −1.22) | +0.24 | 73.16 ± 0.45 / 73.94 ± 0.17 |
+| WRN-28-2 C10 | −0.13 | +0.05 | 93.39 ± 0.12 / 93.52 ± 0.10 |
+| WRN-28-2 C100 | **−1.88** (every seed negative; val −2.16) | **−1.57** (val −1.15) | 68.42 ± 1.08 / 70.30 ± 0.40 |
+| PreAct-ResNet-20 C10 | −0.18 | −0.43 | 91.07 ± 0.34 / 91.26 ± 0.16 |
+| PreAct-ResNet-20 C100 | **+0.55** (every seed positive) | +0.40 | 64.48 ± 0.56 / 63.93 ± 0.69 |
+| PreAct-ResNet-56 C10 | +0.22 | +0.15 | 93.16 ± 0.20 / 92.94 ± 0.23 |
+| PreAct-ResNet-56 C100 | −0.18 | −0.67 | 69.25 ± 0.59 / 69.44 ± 0.85 |
+
+Reading:
+1. **By the registered rule, the frozen agent falls below the rule at 45 % on these new architectures, and is level with it at 25 %.** The 45 % call is carried by TEST, val and 10k together (−0.32 / −0.40 / −0.36), with only 2 of 8 networks positive. Both intervals include zero.
+2. **One network carries most of the deficit.** On WRN-28-2 C100 the agent is below the rule at every seed at both depths (−1.88 and −1.57). Without it the other seven read −0.10 and −0.07, level with the rule.
+   - [H] The FLOPs ratios point at a mechanism. On this network the agent's plans keep only 0.55–0.90× the rule's FLOPs at equal params. That is, it cuts compute-heavy layers that CIFAR-100 needs, and it does so more than the rule.
+   - The pool's r20-w8 C100 showed the opposite sign at 0.45 (+1.92, §406). The CIFAR-100 networks are where the agent's allocation departs most from the rule, in both directions.
+3. **On CIFAR-10 the transfer to new architectures holds at parity.** The four CIFAR-10 networks read −0.06 and −0.11. That is level with the rule, on two families the agent never saw, with per-network five-seed SDs of 0.1–0.4.
+4. **The CIFAR-100 four read −0.57 and −0.40, with signs mixed by network.** PreAct-ResNet-20 C100 is positive at every seed at 0.45 (+0.55). WRN-28-2 C100 is negative at every seed. An unseen dataset is where the frozen agent is least predictable, as the pool's CIFAR-100 pair showed (§405, §406).
+5. **For the paper.**
+   - The transfer claim is parity with the strongest rule on new architectures at CIFAR-10. On an unseen dataset it is mixed, with one clear failure.
+   - It is not "transfers as well as on the pool". On the pool the agent is at or slightly above the rule (§406); here it is at or slightly below.
+   - [D pending Ido] A fallback read on these eight networks (FB's design: XFER-W1's rows already exist for both arms, so it costs pick cells and an exactness sample) would show whether the val-picked fallback closes the WRN-28-2 C100 gap. Register it after FB's own calls read.
+
+Never:
+- "The agent transfers to unseen architectures and datasets" without "at parity on CIFAR-10, below the rule at 45 % on these eight networks (§407)".
+- The other-seven numbers quoted as the call.
+- These rows mixed with the pool's rows as one pool. They are a separate held-out set, with their own call.
+- "Unseen family": WRN and PreAct-ResNet are residual relatives of the catalog's ResNets. They are new architectures, not a new family.
+
+Records: queue row XFER-W1; next §408.
