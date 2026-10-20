@@ -463,6 +463,11 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
+- **20 Oct 21:20. Ledger §409 (FB) and FB-XFER registered.**
+  - FB: AT-PRIOR-POOL at all six depths. TAIL-REMOVED (+0.58). Level with the agent at 60–35 %, +0.48 at 25 %.
+  - The one-epoch judge's oracle agreement is near chance at 60–45 % and 31 of 43 at 25 %.
+  - FB-XFER (`08c8cd3`): the same design on XFER-W1's eight networks, with FBX-P and FBX-GAP calls. Smokes 23447299–300.
+  - TS: the waiter missed the val_best = size-point case. It is restarted with the landed-ratio stem (`s20oct_ts_stem.py`), and no cell ran on a wrong model.
 - **20 Oct 19:15. Ledger §408 (LIT-C).**
   - The literature points at five seeds: AT-PRIOR at nine, and BELOW-PRIOR at DepGraph R56 params 0.125 (−0.30, at the bar).
   - At equal FLOPs 4× and 8× the agent is at the rule (+0.14, −0.07). At equal params 5.5× and 8× it is −0.27 and −0.30.
