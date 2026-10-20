@@ -463,6 +463,11 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
+- **20 Oct 12:35. Ledger §407 (XFER-W1).**
+  - The frozen T6-fs on WRN-16-4, WRN-28-2, PreAct-ResNet-20 and PreAct-ResNet-56, each on C10 and C100: BELOW-PRIOR-P-XFER at 0.45 (−0.32, 2 of 8) and AT at 0.25 (−0.26).
+  - WRN-28-2 C100 carries most of it (−1.88, −1.57, every seed); there the agent keeps 0.55–0.90× the rule's FLOPs. The CIFAR-10 four are at the rule (−0.06, −0.11). PreAct-ResNet-20 C100 is +0.55, every seed.
+  - Draft, pages and queue updated. Next proposal: the FB design on these eight networks, registered after FB's calls read (thin's 24 cells).
+  - The VPN dropped about 10:00–12:19; nothing was lost.
 - **20 Oct 07:55. Overnight.**
   - **Ido's 15 Oct remarks are answered** on the answers page (§ "15 October remarks"). The decision list is re-ranked: D2, the bar rule, ImageNet, D5, D9, wave 2, presentation, D8, Tiny-ImageNet.
   - **The literature check of the seven practices** (17 papers, full text) is in `docs/paper/LIT_EVAL_PRACTICES_20OCT.md`. No paper does more than four of the six rare practices; SPECTRA does all six on CIFAR and lacks ImageNet.
