@@ -9831,3 +9831,53 @@ Never:
 - "Unseen family": WRN and PreAct-ResNet are residual relatives of the catalog's ResNets. They are new architectures, not a new family.
 
 Records: queue row XFER-W1; next §408.
+
+## 408. (LIT-C): Table 1's literature rows at five deterministic seeds. The agents of record against their priors, with the even cut beside, at ten literature points:
+- DepGraph R56 at its 2.57× points (params 0.38, FLOPs 0.39) and toward 8× (params 0.18 / 0.125, FLOPs 0.25 / 0.125);
+- VGG-16-BN C10 at HRank's and CHIP's FLOPs points (0.465, 0.34);
+- ResNet-110 C10 at FLOPs 0.48 and 0.40.
+
+Smokes **23387952–956**, cells **23387958–23388613**, `tree_v24`. **AT-PRIOR at nine points; BELOW-PRIOR at DepGraph R56 params 0.125** (−0.30, 4 of 5 seeds negative, exactly at the bar). Both three-seed single-net calls of §399 (BELOW at params 0.18, BEATS at FLOPs 0.25) read AT at five seeds. These rows replace §391, §392 and §399 in Table 1
+
+Registered 19 Oct 14:38 (queue row LIT-C; D1) before submit. Gate PASS 14:54. Read 20 Oct 19:05 (`scripts/_tmp_s19oct_litc_read.sh`).
+- *Checks.* 150 of 150 COMPLETED by 19:04, with no preemption and no resubmit. ResNet-110 runs through the fixed model file (`input_lit_c10_r110a.json`, origin 93.84).
+- *Calls.* Per point, TEST 5k, agent − prior paired by seed. BEATS-PRIOR if ≥ +0.3 with at least 4 of 5 seeds positive; BELOW-PRIOR if ≤ −0.3 with at least 4 of 5 negative; AT-PRIOR otherwise.
+
+| point | agent − prior: 5k (s42 / 43 / 44 / 45 / 46) | val | 10k | honest | call | agent / prior / even cut, final TEST (mean ± SD) | lever (prior − even) | three-seed read |
+|---|---|---|---|---|---|---|---|---|
+| DepGraph R56, params 0.38 (2.6×) | +0.08 (+0.46 / −0.36 / +0.04 / +0.42 / −0.16) | +0.06 | +0.07 | −0.04 | AT-PRIOR | 93.72 ± 0.16 / 93.64 ± 0.25 / 93.04 ± 0.17 | +0.60 | +0.27 (§391) |
+| DepGraph R56, FLOPs 0.39 (2.57×) | +0.15 (+0.06 / +0.38 / −0.46 / +0.58 / +0.18) | +0.11 | +0.13 | +0.21 | AT-PRIOR | 93.38 ± 0.23 / 93.24 ± 0.24 / 92.70 ± 0.21 | +0.53 | — |
+| VGG-16 C10, FLOPs 0.465 (HRank) | +0.04 (+0.50 / +0.18 / −0.20 / −0.08 / −0.18) | −0.07 | −0.01 | −0.12 | AT-PRIOR | 93.92 ± 0.17 / 93.88 ± 0.40 / 93.56 ± 0.19 | +0.32 | +0.21 (§391) |
+| VGG-16 C10, FLOPs 0.34 (CHIP) | −0.24 (−0.42 / −0.54 / +0.00 / −0.12 / −0.10) | −0.04 | −0.14 | −0.44 | AT-PRIOR | 93.23 ± 0.21 / 93.46 ± 0.23 / 93.42 ± 0.24 | +0.05 | −0.27 (§391) |
+| ResNet-110 C10, FLOPs 0.48 | −0.04 (−0.28 / −0.14 / −0.18 / −0.20 / +0.62) | +0.22 | +0.09 | +0.04 | AT-PRIOR | 93.91 ± 0.39 / 93.94 ± 0.24 / 93.93 ± 0.21 | +0.01 | −0.07 (§392) |
+| ResNet-110 C10, FLOPs 0.40 | +0.01 (+0.16 / +0.12 / +0.00 / +0.06 / −0.30) | −0.01 | +0.00 | −0.10 | AT-PRIOR | 93.80 ± 0.21 / 93.79 ± 0.18 / 93.65 ± 0.17 | +0.14 | −0.21 (§392) |
+| DepGraph R56, params 0.18 (5.5×) | −0.27 (−0.34 / −0.20 / −0.24 / −0.06 / −0.50) | +0.23 | −0.02 | −0.30 | AT-PRIOR | 92.01 ± 0.21 / 92.28 ± 0.28 / 90.18 ± 0.32 | +2.10 | −0.35, BELOW (§399) |
+| DepGraph R56, params 0.125 (8×) | **−0.30** (−0.26 / +0.04 / −0.22 / −0.32 / −0.76) | −0.38 | −0.34 | −0.47 | **BELOW-PRIOR** | 91.38 ± 0.33 / 91.68 ± 0.18 / 88.40 ± 0.44 | +3.29 | +0.01 (§399) |
+| DepGraph R56, FLOPs 0.25 (4×) | +0.14 (+0.18 / +0.14 / −0.06 / +0.12 / +0.30) | −0.02 | +0.06 | +0.19 | AT-PRIOR | 92.92 ± 0.15 / 92.78 ± 0.18 / 91.90 ± 0.32 | +0.88 | +0.40, BEATS (§399) |
+| DepGraph R56, FLOPs 0.125 (8×) | −0.07 (−0.74 / −0.12 / +0.00 / +0.24 / +0.26) | +0.32 | +0.12 | −0.26 | AT-PRIOR | 90.64 ± 0.38 / 90.72 ± 0.29 / 88.84 ± 0.39 | +1.87 | −0.19 (§399) |
+
+The agent is T6-fs at the params points and T4-F at the FLOPs points; the prior is floored sens_cost or floored sens_F. Origins: DepGraph R56 93.36, VGG-16 93.74, ResNet-110 93.84 (TEST 5k).
+- *FLOPs captions at equal params.* DepGraph R56 at 0.38: the agent keeps 0.563 of the FLOPs against the rule's 0.485 (ratio 1.11–1.23). At 0.18 and 0.125 the ratio runs 1.05–1.39 and 0.93–1.45.
+- *Params at equal FLOPs.* On VGG-16 both the agent and the rule keep 7–12 % of the parameters, against the even cut's 32–53 %.
+
+Reading:
+1. **At the field's standard operating points, the frozen agents are at their rules.** That holds at every literature cell: DepGraph's 2.57× points, VGG-16 at HRank's and CHIP's points, and ResNet-110 at both of its points, with five-seed SDs of 0.15–0.40.
+   - Where the rule barely beats the even cut, no allocator can show much: VGG-16 at CHIP's point (+0.05) and ResNet-110 at 0.48 (+0.01).
+2. **Toward 8× the rules beat the even cut by 1.9–3.3 points, and the agents track them.**
+   - At equal FLOPs the agent is level with the rule at 4× and 8× (+0.14, −0.07).
+   - At equal params it falls slightly below at 5.5× (−0.27) and at 8× (−0.30, BELOW-PRIOR by the registered rule, exactly at the bar, with val −0.38, 10k −0.34, honest −0.47).
+   - At 8× params the agent keeps more FLOPs than the rule (up to 1.45×) and still ends lower. So its params plan spends compute where the rule does better.
+3. **Both three-seed single-net calls go to AT at five seeds**, as their scope note in §399 anticipated ("on one net, on TEST only, within run noise"):
+   - FLOPs 0.25 from +0.40 to +0.14;
+   - params 0.18 from −0.35 to −0.27.
+
+   The params 0.125 point goes the other way, from +0.01 to −0.30. Three-seed single-net reads near the bar are not stable. The five-seed reads are the record.
+4. **For Table 1.** These are the paper's literature rows: five seeds, mean ± SD, exactly reproducible. The agent, the rule and the even cut sit side by side, with published numbers beside them under the different-recipe caption (§391, §392). The agent never beats the rule there, and it is below it at one 8× params point.
+
+Never:
+- "The agent beats the FLOPs rule at 4×": §399's +0.40 is superseded by +0.14.
+- These rows quoted as beats over published methods. The recipes and base checkpoints differ (§391), so a published number sits beside ours, never against it.
+- These five-seed rows mixed with the three-seed rows of §391, §392 and §399.
+- The 8× params BELOW dropped from Table 1.
+
+Records: queue row LIT-C; next §409.
