@@ -39,9 +39,9 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Which cheap reward is faithful? | One epoch of fine-tuning is valid at the threshold; the raw cut and batch-norm re-estimation are weak at 35 % params | §375, §379 |
 | Transfer across families | The no-ResNet fold holds; the no-VGG fold fails; families no catalog holds are lever-limited | §353, §359, §363 |
 | Transfer to new architectures (WRN, PreAct-ResNet) and an unseen dataset | **Five deterministic seeds:** at the cost-aware rule on the four CIFAR-10 networks (−0.06 at 45 %, −0.11 at 25 %). With CIFAR-100 also new, below it at 45 % (all eight: −0.32, BELOW-PRIOR-P-XFER; AT at 25 %, −0.26), carried by WRN-28-2 CIFAR-100 (−1.88, −1.57) | §407 |
-| Against the literature (DepGraph's ResNet-56; VGG-16; ResNet-110) | At DepGraph's 2.11× and 2.57× points the FLOPs rule lands above DepGraph's published change, and the frozen FLOPs agent at or below it. On VGG-16 and ResNet-110 at the field's standard FLOPs points the frozen FLOPs agent is at the rule, and the allocation matters little. The recipes and base checkpoints differ, and ours also lifts the unpruned network; never a beat | §362, §365, §382, §391, §392 |
-| How far does the agent go? | To 8× on DepGraph's ResNet-56: at the prior at 8× under both budgets, while the priors beat uniform by 2–3 points there. Two single-network calls fired on TEST only, within run noise | §399 |
-| Has a registered beat fired? | **Not in the final tables:** at five deterministic seeds every pooled call is AT-PRIOR, under both budgets (§405, §406). The three-seed record, superseded: twice against the params prior, and once on one network at equal FLOPs (DepGraph's ResNet-56 at FLOPs 0.25, +0.40 on TEST alone, val −0.23, 10k +0.09; within run noise; §399). Narrowly, on one network: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it). Pooled: the 32-step agent at 45 % params over the nine networks, +0.42 with val +0.34, 10k +0.38 and honest +0.46. One network carries part of it; the other eight average +0.19 | §382, §385, §390 |
+| Against the literature (DepGraph's ResNet-56; VGG-16; ResNet-110) | **Five deterministic seeds:** at the field's standard points both frozen agents are at their rules (−0.24 to +0.15), where the rule itself beats the even cut by only +0.01 to +0.60. The FLOPs rule lands above DepGraph's published change at its 2.11× and 2.57× points (three seeds). The recipes and base checkpoints differ, and ours also lifts the unpruned network; never a beat | §362, §382, §391, §392, §408 |
+| How far does the agent go? | To 8× on DepGraph's ResNet-56, five seeds: at the FLOPs rule at 4× and 8× (+0.14, −0.07); slightly below the params rule at 5.5× (−0.27, at) and at 8× (−0.30, BELOW-PRIOR at the bar). The rules beat the even cut by 1.9–3.3 points there | §399, §408 |
+| Has a registered beat fired? | **Not in the final tables:** at five deterministic seeds every pooled call is AT-PRIOR, under both budgets (§405, §406). The three-seed record, superseded: twice against the params prior, and once on one network at equal FLOPs (DepGraph's ResNet-56 at FLOPs 0.25, +0.40 on TEST alone; at five seeds +0.14, AT-PRIOR; §399, §408). Narrowly, on one network: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (val and 10k do not carry it). Pooled: the 32-step agent at 45 % params over the nine networks, +0.42 with val +0.34, 10k +0.38 and honest +0.46. One network carries part of it; the other eight average +0.19 | §382, §385, §390 |
 | Does training longer help? | Not on this catalog: T6-bn's edge on the other eight is flat on val from 3,000 to 12,000 instances, and the collapse on ResNet-20 ×8 CIFAR-100 appears only from 6,000 | §388 |
 | Do the two levers add up? | No. The 32-step agent's line on the 18-network catalog with CIFAR-100 is level with the 32-step agent at 60 %, 45 % and 35 %, and below it at 25 % (CATALOG-HURTS), carried by the two CIFAR-100 networks. On the seven CIFAR-10 networks every contrast lies within −0.12 to +0.22 | §400 |
 | Does a per-network search match the frozen agent? | No. A random best-of-100, scored by the agent's own cheap reward on each network, ends below the frozen agent at 45 % and 25 % params (+0.51 and +0.45 for the agent), and level with the cost-aware rule. At 25 % one CIFAR-100 network goes the other way | §396 |
@@ -541,9 +541,9 @@ Every pair is matched within 1 % of FLOPs.
 - At both depths the frozen FLOPs agent stays within the registered band of the FLOPs rule, but below it on most networks. On the five lever networks at 60 % every difference is negative, with a mean of −0.39 (§366). At 45 %, five lever networks only, the call is BELOW-PRIOR (−0.36, §369).
 - One network again weighs most: ResNet-20 ×8 CIFAR-100. Without it the other eight average −0.06 at 45 % (§371).
 - The FLOPs results are, in effect, the rule's (§371): the trust region keeps the agent near the rule by design.
-- At DepGraph's 2.57× point (FLOPs 0.39) on DepGraph's ResNet-56, the FLOPs agent is BELOW-PRIOR: −0.35 (val −0.31, 10k −0.33, honest −0.52; §382).
-- On VGG-16 C10 at HRank's and CHIP's FLOPs points (0.465 and 0.34), the FLOPs agent is AT-PRIOR: +0.21 (val −0.07, 10k +0.07, honest +0.15) and −0.27 (val −0.25, 10k −0.26, honest −0.49). The lever is limited there: +0.04 and +0.41 (§391).
-- On ResNet-110 C10 at FLOPs 0.48 and 0.40 (the ≈52 % and ≈60 % ↓ points), it is AT-PRIOR too: −0.07 (val −0.13, 10k −0.10, honest +0.11) and −0.21 (val +0.01, 10k −0.10, honest −0.35). The lever is limited again: +0.13 and +0.31 (§392). The frozen FLOPs agent has not beaten the FLOPs prior on any literature cell (§365, §382, §391, §392).
+- At DepGraph's 2.57× point (FLOPs 0.39) on DepGraph's ResNet-56, the FLOPs agent was BELOW-PRIOR at three seeds: −0.35 (val −0.31, 10k −0.33, honest −0.52; §382). At five deterministic seeds it is AT-PRIOR, +0.15 (§408).
+- On VGG-16 C10 at HRank's and CHIP's FLOPs points (0.465 and 0.34), the FLOPs agent is AT-PRIOR: +0.21 (val −0.07, 10k +0.07, honest +0.15) and −0.27 (val −0.25, 10k −0.26, honest −0.49). The lever is limited there: +0.04 and +0.41 (§391). At five seeds: +0.04 and −0.24, AT-PRIOR at both (§408).
+- On ResNet-110 C10 at FLOPs 0.48 and 0.40 (the ≈52 % and ≈60 % ↓ points), it is AT-PRIOR too: −0.07 (val −0.13, 10k −0.10, honest +0.11) and −0.21 (val +0.01, 10k −0.10, honest −0.35). The lever is limited again: +0.13 and +0.31 (§392). At five seeds: −0.04 and +0.01 (§408). The frozen FLOPs agent has not beaten the FLOPs prior on any literature cell (§365, §382, §391, §392, §408).
 - The lever grows with depth on the lever networks, from 60 % to 45 % FLOPs. The lever-less networks stay within ±0.35 of uniform at both depths, except MobileNetV2 ×1.4 at 45 %, where uniform beats the rule by 1.02 (§366, §368, §371).
 
 **Cost-awareness depends on the budget.** On ResNet-56 ×4 at FLOPs 0.6, the cost-aware rule is *worse* than plain sensitivity: −0.33 (val −0.35, 10k −0.34, honest −0.78; COST-HURTS, §355). With both rules floored the gap is −0.48 (§361). At equal parameters it is better on all three networks measured: +0.47, +0.39 and +0.44 (§355). This asymmetry is why each budget type has its own prior.
@@ -730,6 +730,26 @@ Under G2 the allocation lever survives on the thin ResNet: sensitivity − unifo
 
 DepGraph's own checkpoint is in the pool, so its published rows are the natural anchors. OCSPruner reports the same network at the FLOPs of DepGraph's 2.57× row. SPECTRA's arms run one cut and the G2 recovery; the published methods use their own recipes.
 
+**Table 1 — the literature points at five deterministic seeds (§408; PRELIM until locked).** Final TEST 5k accuracy, mean ± SD over seeds 42–46, for the agent of record, its prior and the even cut, all with one cut and the G2 recovery. The agent is T6-fs at the params points and T4-F at the FLOPs points. Published rows sit beside these in the sub-tables below, under the different-recipe caption; they are never compared one-to-one.
+
+| Point | Origin | Agent | Prior | Even cut | Agent − prior (val / 10k / honest) | Call | Prior − even cut |
+|---|---|---|---|---|---|---|---|
+| DepGraph R56, params 0.38 (2.6×) | 93.36 | 93.72 ± 0.16 | 93.64 ± 0.25 | 93.04 ± 0.17 | +0.08 (+0.06 / +0.07 / −0.04) | AT-PRIOR | +0.60 |
+| DepGraph R56, FLOPs 0.39 (2.57×) | 93.36 | 93.38 ± 0.23 | 93.24 ± 0.24 | 92.70 ± 0.21 | +0.15 (+0.11 / +0.13 / +0.21) | AT-PRIOR | +0.53 |
+| VGG-16 C10, FLOPs 0.465 (HRank's point) | 93.74 | 93.92 ± 0.17 | 93.88 ± 0.40 | 93.56 ± 0.19 | +0.04 (−0.07 / −0.01 / −0.12) | AT-PRIOR | +0.32 |
+| VGG-16 C10, FLOPs 0.34 (CHIP's point) | 93.74 | 93.23 ± 0.21 | 93.46 ± 0.23 | 93.42 ± 0.24 | −0.24 (−0.04 / −0.14 / −0.44) | AT-PRIOR | +0.05 |
+| ResNet-110 C10, FLOPs 0.48 | 93.84 | 93.91 ± 0.39 | 93.94 ± 0.24 | 93.93 ± 0.21 | −0.04 (+0.22 / +0.09 / +0.04) | AT-PRIOR | +0.01 |
+| ResNet-110 C10, FLOPs 0.40 | 93.84 | 93.80 ± 0.21 | 93.79 ± 0.18 | 93.65 ± 0.17 | +0.01 (−0.01 / +0.00 / −0.10) | AT-PRIOR | +0.14 |
+| DepGraph R56, params 0.18 (5.5×) | 93.36 | 92.01 ± 0.21 | 92.28 ± 0.28 | 90.18 ± 0.32 | −0.27 (+0.23 / −0.02 / −0.30) | AT-PRIOR | +2.10 |
+| DepGraph R56, params 0.125 (8×) | 93.36 | 91.38 ± 0.33 | 91.68 ± 0.18 | 88.40 ± 0.44 | −0.30 (−0.38 / −0.34 / −0.47) | **BELOW-PRIOR** | +3.29 |
+| DepGraph R56, FLOPs 0.25 (4×) | 93.36 | 92.92 ± 0.15 | 92.78 ± 0.18 | 91.90 ± 0.32 | +0.14 (−0.02 / +0.06 / +0.19) | AT-PRIOR | +0.88 |
+| DepGraph R56, FLOPs 0.125 (8×) | 93.36 | 90.64 ± 0.38 | 90.72 ± 0.29 | 88.84 ± 0.39 | −0.07 (+0.32 / +0.12 / −0.26) | AT-PRIOR | +1.87 |
+
+**Reading.**
+- **At the field's standard points, both frozen agents are at their rules,** and there the rule itself barely beats the even cut (+0.01 to +0.60).
+- **Toward 8× the rules beat the even cut by 1.9–3.3 points.** The FLOPs agent tracks its rule (+0.14, −0.07). The params agent falls slightly below it at 5.5× and 8× (−0.27; −0.30, BELOW-PRIOR at the bar), while keeping up to 1.45× the rule's FLOPs.
+- **Both three-seed single-network calls of §399 read AT at five seeds**: FLOPs 0.25 from +0.40 to +0.14, and params 0.18 from −0.35 to −0.27. The three-seed sub-tables below are kept for their published rows; for the SPECTRA arms, this table replaces them.
+
 **At DepGraph's 2.11× point (FLOPs 0.48 on our counter).**
 
 | Arm | FLOPs kept | Params kept | TEST | 10k | Recovery |
@@ -740,7 +760,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 | Frozen FLOPs agent (T4-F) | 0.48 | 0.96–1.01× the rule's | the rule's −0.31 | the rule's −0.32, i.e. about +0.24 [computed] | G2 (§365) |
 | Frozen catalog agent (T1), at DepGraph's *params* point | about 0.61 | 0.47 | +0.50 | +0.51 | G2 (§346); about 1.2–1.3× DepGraph's FLOPs on our counter |
 
-**At DepGraph's 2.57× point, which is also OCSPruner's (FLOPs 0.39), and at its params (0.38)** (§382, §385, §391; mean over seeds 42–44).
+**At DepGraph's 2.57× point, which is also OCSPruner's (FLOPs 0.39), and at its params (0.38)** (§382, §385, §391; mean over seeds 42–44; for the SPECTRA arms, superseded by Table 1's five-seed rows, §408).
 
 | Arm | FLOPs kept | Params kept | TEST (val) | 10k | Honest | Recovery |
 |---|---|---|---|---|---|---|
@@ -762,7 +782,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **The registered same-loop calls at this point** (§382): the FLOPs agent is BELOW-PRIOR, −0.35 (val −0.31, 10k −0.33, honest −0.52). At params 0.38 the batch-norm agent's call fired BEATS-PRIOR on the TEST half only: +0.35, with val +0.02, 10k +0.19 and honest +0.36 (§5.6). The deep-range batch-norm agent is AT-PRIOR there (+0.03; val +0.15, 10k +0.09; §385), so that beat does not carry over to it. The deep-range 32-step agent is AT-PRIOR there too: +0.27, positive on every seed and every view (val +0.35, 10k +0.31, honest +0.18), at 1.10–1.23× the rule's FLOPs (§391).
 - The walk era's DepGraph row (§157) is history (Appendix B).
 
-**VGG-16-BN on CIFAR-10 at HRank's 53.5 % ↓ and CHIP's 66.6 % ↓ FLOPs points** (§391; mean over seeds 42–44). This is chenyaofo's checkpoint, one of the nine held-out pool networks, with an origin of 93.74 % on TEST 5k. The published rows start from a base of 93.96 (the GAL / HRank / CHIP lineage) and are quoted on the full test set. PRELIM.
+**VGG-16-BN on CIFAR-10 at HRank's 53.5 % ↓ and CHIP's 66.6 % ↓ FLOPs points** (§391; mean over seeds 42–44; for the SPECTRA arms, superseded by Table 1, §408). This is chenyaofo's checkpoint, one of the nine held-out pool networks, with an origin of 93.74 % on TEST 5k. The published rows start from a base of 93.96 (the GAL / HRank / CHIP lineage) and are quoted on the full test set. PRELIM.
 
 | Arm | FLOPs kept | Params kept | TEST (val) | 10k | Honest | Recovery |
 |---|---|---|---|---|---|---|
@@ -782,7 +802,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **Beside the published rows (setup S1, never a beat).** The base checkpoint differs (93.74 % on TEST 5k against 93.96), and our 100-epoch recovery lifts the unpruned VGG-16 by about +0.56 on TEST 5k. At HRank's point the SPECTRA arms sit within ±0.2 of their origin on the full test set, with the rules removing 88–89 % of params. HRank published −0.53 with 83 % removed.
 - [H] VGG-16's deep 512-channel layers hold most of the params and few of the FLOPs, so a FLOPs budget removes about 90 % of the params almost for free.
 
-**ResNet-110 on CIFAR-10 at the ≈52 % and ≈60 % ↓ FLOPs points** (§392; mean over seeds 42–44). This is akamaster's checkpoint, loaded through the repaired loader (§391), with an origin of 93.84 % on TEST 5k. The published rows start from their own bases and are quoted on the full test set. PRELIM.
+**ResNet-110 on CIFAR-10 at the ≈52 % and ≈60 % ↓ FLOPs points** (§392; mean over seeds 42–44; for the SPECTRA arms, superseded by Table 1, §408). This is akamaster's checkpoint, loaded through the repaired loader (§391), with an origin of 93.84 % on TEST 5k. The published rows start from their own bases and are quoted on the full test set. PRELIM.
 
 | Arm | FLOPs kept | Params kept | TEST (val) | 10k | Honest | Recovery |
 |---|---|---|---|---|---|---|
@@ -803,7 +823,7 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **The registered calls** (§392): T4-F − sens_F is −0.07 at 0.48 and −0.21 at 0.40, AT-PRIOR at both. The lever is limited at both points: +0.13 and +0.31.
 - **Beside the published rows (setup S1, never a beat).** Every SPECTRA arm ends within 0.3 of its origin on TEST at both points. Our recovery lifts the unpruned ResNet-110 by about +0.4 to +0.7, so every honest value is negative.
 
-**Toward 8× on DepGraph's ResNet-56** (§399; the fifth and sixth operating points; single network, three seeds; PRELIM)
+**Toward 8× on DepGraph's ResNet-56** (§399; the fifth and sixth operating points; single network, three seeds; superseded by Table 1's five-seed rows, §408)
 
 | Point | agent − prior | val | 10k | honest | call | prior − uniform |
 |---|---|---|---|---|---|---|
@@ -918,7 +938,7 @@ It would not claim to beat the best rule, any focused method on its home cell, o
 **Next, in order (registered or planned).**
 1. **The params agent of record.** T6-bn is at the prior at all four depths read (§383, §384). T6-fs (32 SGD steps, the cheap reward closest to the one-epoch fine-tune) is at the prior at all four depths in the final tables (§406); its three-seed beat at 45 % (§390) did not hold. T8-fs, T6-fs's line on the 18-network catalog with CIFAR-100, is no better than T6-fs at any depth and below it at 25 % (§400). **Decided (Ido, 17 Oct): T6-fs, with T4-F at equal FLOPs.** The final tables are running: five seeds (42–46), every arm re-run with the deterministic fine-tune, the agent and its prior at params 0.6 / 0.45 / 0.35 / 0.25 and FLOPs 0.6 / 0.45 on the nine networks (queue row FINAL). Their five-seed calls replace the three-seed ones, whatever their direction. The remaining weak spot is ResNet-20 ×8 CIFAR-100 at 25 % (−0.93 for T6-fs against the rule). A seed ensemble does not remove it (§386). The one-epoch fine-tune reward (valid; built in v23, default off; about 1–1.4 min per training instance) stays the next reward lever.
 2. **The Pareto figure (NEON Fig. 5 analog).** TEST change against params kept and against FLOPs kept, per network, for the agent and every rule at each depth. The FLOPs panel headlines literature-facing rows; the params panel holds the agent's home budget.
-3. **Literature rows at matched FLOPs**, with a 10k companion column, the honest column and a different-recipe caption (§5.9). DepGraph's 2.11× and 2.57× points and OCSPruner's row are in (§362, §365, §382), VGG-16 at HRank's and CHIP's points (§391), and ResNet-110 at its two standard points (§392). Add others only where their protocol is stated.
+3. **Literature rows at matched FLOPs**, with a 10k companion column, the honest column and a different-recipe caption (§5.9). DepGraph's 2.11× and 2.57× points and OCSPruner's row are in (§362, §365, §382), VGG-16 at HRank's and CHIP's points (§391), and ResNet-110 at its two standard points (§392). All ten literature points now have five-seed, exactly reproducible rows (Table 1, §408). Add others only where their protocol is stated.
 4. **Coverage.** CIFAR-100 networks in the training catalog: neutral on T1's line (§356), CATALOG-HELPS at 25 % on the deep-range batch-norm line (§389), and CATALOG-HURTS at 25 % on the 32-step line (§400), each at a fixed 12,000 instances. The catalog scale-up with held-out splits follows (`docs/CATALOG_SCALE_PLAN.md`), with instances scaled to the catalog's size. Twenty-eight new base networks fill the empty family × dataset cells: WRN-16-4 / 28-2 and PreAct-ResNet-20 / 56 on four datasets, and VGG-BN and MobileNetV2 on SVHN and Fashion-MNIST. Each was saved at its last epoch, never the best-on-test one. All 28 cut cleanly and recover at params 0.25 (§402). Allocation matters on the CIFAR residual networks (lever +0.5 to +2.3 on six of eight) and hardly on SVHN and Fashion-MNIST at that budget (one of twenty), so a held-out dataset split needs its read budget chosen with that in mind. At 12.5 % it is no different (§403): an 8× cut costs at most about 2 points under either rule, and 0 of the 4 named Fashion-MNIST networks carry a lever at 25 % (1 of 4 at 12.5 %). By the registered rule, a Fashion-MNIST split carries no call. The unseen-dataset split moves to CIFAR-100 [D pending Ido], where the lever is large. T6-fs never saw CIFAR-100, so its CIFAR-100 rows are already unseen-dataset rows. Frozen ImageNet transfer for coverage.
 5. **Write-up.** Lock the tables, then the thesis chapters. The walk era (Appendix B) becomes a short negative-result section.
 
