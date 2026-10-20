@@ -463,6 +463,11 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
+- **20 Oct 19:15. Ledger §408 (LIT-C).**
+  - The literature points at five seeds: AT-PRIOR at nine, and BELOW-PRIOR at DepGraph R56 params 0.125 (−0.30, at the bar).
+  - At equal FLOPs 4× and 8× the agent is at the rule (+0.14, −0.07). At equal params 5.5× and 8× it is −0.27 and −0.30.
+  - §399's single-net calls read AT. The draft's Table 1 is rebuilt; the meeting page's E2 opens with the five-seed table.
+  - FB's thin cells were topped at 19:06. TS runs (its waiter submitted 6 stage-2 jobs by 19:05).
 - **20 Oct 12:35. Ledger §407 (XFER-W1).**
   - The frozen T6-fs on WRN-16-4, WRN-28-2, PreAct-ResNet-20 and PreAct-ResNet-56, each on C10 and C100: BELOW-PRIOR-P-XFER at 0.45 (−0.32, 2 of 8) and AT at 0.25 (−0.26).
   - WRN-28-2 C100 carries most of it (−1.88, −1.57, every seed); there the agent keeps 0.55–0.90× the rule's FLOPs. The CIFAR-10 four are at the rule (−0.06, −0.11). PreAct-ResNet-20 C100 is +0.55, every seed.
