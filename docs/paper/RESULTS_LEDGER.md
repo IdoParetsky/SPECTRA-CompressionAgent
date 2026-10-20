@@ -9881,3 +9881,65 @@ Never:
 - The 8× params BELOW dropped from Table 1.
 
 Records: queue row LIT-C; next §409.
+
+## 409. (FB, D4): a fallback to the prior, picked on val. Each cell plans with FINAL's agent of its seed and with FINAL's prior, scores both plans on the val half (ft1 decides, margin 0; fs32 and bn8 reported), and walks the agent's plan unless the prior's scores higher. FINAL's points, nets and seeds; `tree_v27` (`SPECTRA_ALLOC_KIND=fallback`). Smokes **23415673–676**, stage P **23415681–23416075** (270 one-epoch pick cells), stage E **23416076–23416151** (seed 42 in full) and **23422767–23423122** (thin r56-w4, seeds 43–46; the amendment). Calls:
+- **AT-PRIOR-POOL at all four params depths** (fallback − sens_cost **+0.05** / **+0.17** / **+0.20** [+0.02, +0.50] / **+0.26** [+0.05, +0.51]);
+- **TAIL-REMOVED** on r20-w8 C100 at 0.25 (+0.58 against the rule, where the agent read −3.86);
+- **AT-PRIOR-POOL at both FLOPs depths** (+0.04, +0.00).
+
+The fallback is level with the agent at 60–35 % and +0.48 above it at 25 %. A labelled variant row, never the agent's row
+
+Registered 19 Oct 23:36 (`4246afc`; queue row FB) before submit; amended 20 Oct 07:48 (`c9d9210`) before any call was read. Read 20 Oct 20:35 (`scripts/_tmp_s19oct_fb_read.sh`, amended).
+- *Checks.* All 270 + 78 cells COMPLETED.
+  - EXACT and PICK-STABLE PASS on the 48 stage-E cells of the eight nets other than thin. Each fallback row there equals the picked arm's FINAL row to the last digit, and each pick and its ft1 scores equal its stage-P cell's.
+  - 26 of the 48 are prior picks, so the equality is shown for both kinds of pick.
+  - Thin r56-w4 failed both checks. Its config is the pool's only two-network job, and ResNet-20 ×2 runs first, so thin's scores and recovery depend on the arm the job's first net ran. By the amendment, thin is read from its own full cells at every seed (30 cells) and is left out of the reported fs32 / bn8 tables.
+  - The stage-P preliminary output was seen at 03:00. The amendment followed from the failure's cause.
+
+| depth | fallback − prior [95 %] | val | 10k | honest | d > 0 | call | other eight | fallback − agent [95 %] | oracle agreement (reported) |
+|---|---|---|---|---|---|---|---|---|---|
+| params 0.6 | **+0.05** [−0.16, +0.31] | +0.12 | +0.08 | −0.02 | 3 of 9 | **AT-PRIOR-POOL** | −0.03 | +0.00 [−0.08, +0.09] | 16 of 45 |
+| params 0.45 | **+0.17** [−0.09, +0.53] | +0.19 | +0.18 | +0.13 | 6 of 9 | **AT-PRIOR-POOL** | +0.03 | −0.12 [−0.33, +0.06] | 23 of 45 |
+| params 0.35 | **+0.20** [+0.02, +0.50] | +0.22 | +0.21 | +0.28 | 7 of 9 | **AT-PRIOR-POOL** | +0.10 | −0.04 [−0.17, +0.10] | 26 of 45 |
+| params 0.25 | **+0.26** [+0.05, +0.51] | +0.21 | +0.24 | +0.29 | 7 of 9 | **AT-PRIOR-POOL** | +0.22 | **+0.48** [−0.07, +1.84] | 31 of 43 |
+| FLOPs 0.6 | **+0.04** [−0.07, +0.15] | −0.06 | −0.01 | −0.01 | 6 of 9 | **AT-PRIOR-POOL** | +0.05 | +0.20 [+0.00, +0.52] | 30 of 45 |
+| FLOPs 0.45 | **+0.00** [−0.11, +0.11] | −0.02 | −0.01 | −0.02 | 6 of 9 | **AT-PRIOR-POOL** | +0.03 | +0.17 [−0.13, +0.66] | 28 of 44 |
+
+"Oracle agreement" counts how often val's pick was the arm that ended better on TEST; it is reported, never used to pick. The fs32- and bn8-picked tables are reported only; every one reads level in the reader's output.
+
+Per net, TEST 5k fallback − prior (five-seed mean):
+
+| net | p0.6 | p0.45 | p0.35 | p0.25 | F0.6 | F0.45 |
+|---|---|---|---|---|---|---|
+| thin r56-w4 (own cells) | +0.42 | −0.35 | +0.14 | +0.11 | +0.19 | +0.01 |
+| chenyaofo R56 | −0.15 | +0.12 | +0.02 | +0.37 | −0.09 | +0.02 |
+| r56-w8 | −0.11 | +0.27 | +0.00 | +0.27 | +0.06 | +0.09 |
+| MobileNetV2 ×1.4 | −0.11 | +0.05 | +0.42 | +0.74 | +0.10 | +0.12 |
+| DenseNet-100 | +0.20 | +0.06 | +0.02 | +0.04 | +0.04 | −0.08 |
+| r20-w8 C100 | +0.71 | +1.31 | +1.03 | **+0.58** (+2.88 / +0.00 / +0.00 / +0.00 / +0.00) | −0.04 | −0.22 |
+| VGG-19 C100 | −0.35 | +0.21 | +0.00 | +0.29 | +0.07 | +0.14 |
+| VGG-16 | −0.08 | −0.02 | +0.06 | +0.00 | +0.08 | +0.03 |
+| DepGraph R56 | −0.10 | −0.10 | +0.12 | −0.04 | −0.04 | −0.07 |
+
+Reading:
+1. **The fallback removes the agent's one catastrophic tail and costs almost nothing elsewhere.**
+   - On r20-w8 C100 at 0.25, val picked the rule's plan on four of five seeds, the collapsing seed 46 among them, and kept the agent's +2.88 on seed 42. The net reads +0.58 against the rule, where the agent alone read −3.86 (§406).
+   - At 60–35 % the fallback is level with the agent (+0.00, −0.12, −0.04).
+2. **It is still at the rule, not above it.** At 0.35 and 0.25 its interval lies above zero (+0.02 to +0.50; +0.05 to +0.51), with 7 of 9 nets positive. TEST 5k is under the +0.3 bar at every depth, and val, 10k and honest agree within ±0.1. That is a consistent small edge at the deep budgets, not a registered beat.
+3. **At 25 % the fallback has no collapse on any network.** Its "other eight" (+0.22) matches the agent's (+0.23, §406), so it keeps the agent's gains while removing the tail.
+4. **The one-epoch judge is close to chance at 60–45 % and informative at 25 %** (16 and 23 of 45; then 26 of 45; then 31 of 43; and 28–30 of 44–45 at FLOPs).
+   - Where the two plans end within noise of each other, no cheap score can tell them apart.
+   - Where they differ a lot (the deep budgets, the hard network), ft1 picks the better plan about 70 % of the time.
+   - [H] For D5 this argues for a one-epoch reward concentrated on the deep budgets.
+5. **The equality contract held exactly** wherever one network runs per job (48 of 48). A two-network job breaks it, because the first net's arm changes the second net's run. That is a lesson for any later cell built on FINAL's rows: one network per job.
+6. **For the paper.**
+   - "A fallback to the rule, chosen on val, removes the frozen agent's one collapse at no cost elsewhere; it stays at the rule's level" (§409).
+   - It is a labelled product variant. It makes the method a portfolio, so it never replaces the agent row, and the agent's own rows stay the claim about what was learned.
+
+Never:
+- The fallback row presented as the agent.
+- "The fallback beats the rule": every call is AT-PRIOR-POOL.
+- Thin's own-cell rows mixed into a FINAL-row reconstruction.
+- The fs32 / bn8 tables, or the oracle agreement, quoted as calls.
+
+Records: queue row FB; next §410.
