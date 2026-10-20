@@ -463,6 +463,17 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
+- **20 Oct 07:55. Overnight.**
+  - **Ido's 15 Oct remarks are answered** on the answers page (§ "15 October remarks"). The decision list is re-ranked: D2, the bar rule, ImageNet, D5, D9, wave 2, presentation, D8, Tiny-ImageNet.
+  - **The literature check of the seven practices** (17 papers, full text) is in `docs/paper/LIT_EVAL_PRACTICES_20OCT.md`. No paper does more than four of the six rare practices; SPECTRA does all six on CIFAR and lacks ImageNet.
+  - **TS:**
+    - Gate 1 FAILED at 02:36. The chain chose the val_best model; it is fixed to choose by label, and the rule is added to the tooling rules.
+    - Gate 2 PASSED at 04:15. 96 cells are released, and the waiter submits each stage 2.
+  - **FB:**
+    - Stage P is complete.
+    - Stage E is EXACT and PICK-STABLE on 48 of 48 cells of the eight other nets. Thin fails both, because it is the only two-network job.
+    - The amendment, before any call: thin is read from its own full cells, with 24 cells for seeds 43–46. The reader is amended too.
+    - The preliminary stage-P read (03:00) was seen. Its oracle agreement is near chance at 60–35 % and 31 of 43 at 25 %, which bears on D5's design.
 - **19 Oct 23:25. Ido's remarks on the 9 Oct page are answered** on a separate page (artifact `32YuJ6bzAmuyiYhpMbge8o`, 17 questions).
   - **The abstract** (`8f9f698`) leads with the two reviewer answers: no per-target search, and it beats a per-network search with its own reward (§396); it learned from reward the cost structure the plain rule lacks (§370, §406). "Beat the rule once" is gone (§406).
   - **Sponsored (standing GO; register before any cell):**
