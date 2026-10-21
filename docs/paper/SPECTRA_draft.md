@@ -922,6 +922,20 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 - **On VGG-16 the FLOPs saving becomes speed at batch 256,** though less than one for one: 2.15× fewer FLOPs gives 1.32–1.42×, and 2.94× fewer gives 1.63–1.65×.
 - Table 1's FLOPs ratios carry this table beside them. Compiled or fused runtimes are not measured.
 
+**Time to a pruned, recovered network** (§322, §334; RTX 4090, the same GPU model for both; PRELIM). On DepGraph's ResNet-56 at its 2.11× point:
+
+| Pipeline | Wall-clock, start to recovered network | Accuracy |
+|---|---|---|
+| DepGraph's released pipeline, end to end | 85.1 min | its published change, +0.24 (10k) |
+| SPECTRA: one cut (2.1–3.1 min) plus the 100-epoch recovery (about 5 min) | **7.2–8.1 min** (5.9–6.9 min at 75 epochs) | beside DepGraph's: the rules +0.04 / +0.34 at 10k, DepGraph's own widths in our recovery +0.43 / +0.46 |
+
+- **About 11× less time to a pruned network, at accuracy beside DepGraph's.** The recipes and base checkpoints differ, so this is "beside", never "beats".
+- **Where it comes from:**
+  - about ×3.4 from the recovery implementation, which any method could adopt: CUDA graphs and GPU augmentation run the same 100 epochs in 5 min instead of 16–17 (§322);
+  - the rest from the method's structure: one cut and one recovery, with no sparse-training phase and no iterative prune-and-fine-tune.
+- **The pruned network is no faster than DepGraph's** at the same FLOPs. Measured speed depends on the architecture and the hardware (the table above). The saving is the time to produce the network.
+- **Per new network, the frozen agent adds only its decision:** one sensitivity measurement (about 1 s) and one forward pass. A per-network search or per-network reinforcement learning costs minutes to hours.
+
 **Run-to-run noise** (§393, §397, §401).
 
 - **The noise.** Without deterministic GPU algorithms, the 100-epoch fine-tune is not bit-reproducible. The runner also switched on cuDNN's benchmark mode, which picks algorithms by timing. Three runs of one identical cut spread over 0.42 points on DepGraph's ResNet-56 and 0.76 on ResNet-20 ×8 CIFAR-100, a tree_v21 repeat among them. So the noise is run-to-run, not a code change.
@@ -936,6 +950,20 @@ DepGraph's own checkpoint is in the pool, so its published rows are the natural 
 **Why a plan, not a walk.** NEON's walk carried over to CNNs gave the agent dozens of sequential decisions per episode, each followed by a fine-tune and scored by a per-step reward that barely separated the actions (§331). The policy that maximised that signal was "keep 90 % everywhere" (§248). Making the whole allocation one action changes three things. Credit assignment becomes exact: one plan, one reward, and K plans for the same network give a baseline that removes the network's difficulty from the gradient. The fine-tune leaves the training loop, so a train takes hours instead of days (§3.7). And the budget is met by construction, so a plan can never "win" by under-spending. The first plan agent learned on its training network (§341), and the catalog-trained agent learned on held-out ones (§346), where every walk agent through v10 had been a mild or uniform clone.
 
 **What the agent learned: cost-awareness, where cost matters [H].** In a CIFAR ResNet each stage halves the feature map and doubles the channels, so every 3×3 convolution costs about the same FLOPs ([3], §3.3 of that paper). The same fraction of the last stage holds about 16× the parameters of the first. At equal FLOPs, then, a plain sensitivity rule is already cost-aware, and a learned allocation has little to add. At equal parameters, cost-awareness is the whole game, and it is what the frozen agent learned from its reward alone. At equal parameters it performs at the level of the cost-aware rule (§370, §373). It gains most over the cost-blind rule on exactly the networks where plain sensitivity is at or below uniform (+0.52, +0.49 and +0.80 on ResNet-56, ResNet-20 ×8 CIFAR-100 and ResNet-56 ×8; §370). The FLOPs agent sits slightly below the FLOPs rule (§366, §371). The record agrees in the other direction too: at equal FLOPs the cost-aware rule is worse than plain sensitivity, and at equal parameters it is better (§355, §361). This is a hypothesis about mechanism; the per-group plans in §370–§374 are the evidence to test it, and a figure of kept fraction by stage is planned.
+
+**Why an agent and not a rule.** The agent and the hand-designed rules fill the same slot of the pipeline. Given a pretrained network and a budget, each decides how much of every channel group to keep. Everything else is identical: the channels kept (L1), the cut, the recovery and the measurement.
+
+| | The cost-aware rule | The frozen agent | Per-network search (AMC, MetaPruning, random best-of-N) |
+|---|---|---|---|
+| Per-network preparation | one sensitivity measurement (about 1 s) | the same measurement and one forward pass | hundreds of evaluated plans, or a reinforcement-learning run per network |
+| Design effort | human: the cost term, the power 0.5, the floors, and which form for which budget type, settled over two weeks of registered experiments (§355, §357, §372) | none per network; learned once (about 20 GPU-hours per seed) | a search space and a search budget per network |
+| Result (final tables, five seeds) | the prior | at the rule at every budget, slightly above it at 45–35 % (§406) | below the frozen agent: −0.51 at 45 % and −0.45 at 25 % against a best-of-100 that uses the agent's own reward (§396) |
+| Can it improve? | only by a new human design | yes: with a better reward or a better catalog | with more search per network |
+
+- **The agent's edge is that nobody had to design it, and it beats a search that uses its own reward.** From reward alone it rediscovered the cost structure that the plain sensitivity rule lacks (§370).
+- **It costs nothing per network,** unlike every search-based method, and it beats such a search scored with the agent's own reward (§396).
+- **It is a learned prior that can still improve.** A rule cannot learn from more networks or a better reward.
+- **It gives the rule no edge at deployment,** in compute or speed. It also has no edge over the literature at the standard operating points.
 
 **Allocation, not channels or weights.** Three controls point the same way. Random channels at the agent's own widths end level with L1 channels (§398). The agent's architecture trained from scratch with the same compute ends level with its inherited weights (§394). A per-network random search over allocations ends below the agent (§396). So what SPECTRA learns, and what matters after a long recovery, is how much of each layer to keep.
 
