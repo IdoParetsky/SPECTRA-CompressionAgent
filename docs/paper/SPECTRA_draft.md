@@ -257,7 +257,7 @@ The agent therefore sees what the rules see: each group's measured sensitivity a
 
 **Realizable plans at evaluation.** Every evaluation plan, the agent's and the rules', goes through four guards:
 1. It is decoded 0.02 below the target.
-2. It is held to a width floor of two channels, the narrowest width the cutting walk can produce.
+2. It is held to a width floor of two channels, the narrowest width the cutting walk can produce. The FLOPs agent was trained with this floor. The 32-step params agent was trained with a floor of one channel and is evaluated with it, a small train / evaluation difference in its decoder (§412).
 3. It is rounded to widths the walk can reach exactly, from a five-rate menu {1.0, 0.9, 0.8, 0.7, 0.6}, ties to the wider. Low-priority groups step down while the plan is above target, and high-priority groups step up while it is more than 0.01 below. The priority is the agent's score, or the rule's weight.
 4. A one-shot walk realizes it, with a fixed-target landing that narrows the last cut to stop at the target.
 
@@ -375,6 +375,7 @@ The rules differ from the agent only in where the plan comes from.
   - SGD with momentum 0.9 and weight decay 5·10⁻⁴;
   - learning rate 0.1, cosine-annealed to 0 over 100 epochs;
   - batch 256 with random crop and flip on the GPU, fp32, CUDA graphs;
+  - gradients clipped at norm 1.0 (§412);
   - no early stopping, and the **last epoch is kept**.
 
   Le & Hua [109] identify retraining at a large learning rate as the variable that decides post-pruning accuracy. G2 replaced §330's per-family recipes once it matched the plain recipe on VGG-19 CIFAR-100, the family where an earlier four-pair check had kept the plain recipe (SPEED-EQUIVALENT over 16 pairs, §343, §348). An earlier default restored the epoch with the lowest training loss. That was epoch 1 on most pruned networks, so those rows measured "cut + 1 epoch"; they are never mixed with keep-last rows (§235, §330).
@@ -385,9 +386,9 @@ The rules differ from the agent only in where the plan comes from.
   - **honest** = TEST accuracy after recovery − the origin's TEST accuracy after the *same* recovery: the raw change minus the origin's own change. A stronger fine-tune also lifts the unpruned network, and honest removes that lift.
 
   For a difference between two pruned arms (agent − rule), honest is the difference of the two arms' honest values. Each job runs its own origin control, and controls of one seed differ between jobs by up to 0.7 points (§352), so honest can differ from raw. Each result is quoted as TEST, with val, 10k and honest beside it.
-- **Seeds and pooling.** Three seeds, 42–44. An agent's evaluation seed is its training seed, and each rule runs at the same seed, so the contrasts are paired by seed. A network's value is the mean over seeds; a pool value is the mean over the nine networks. Uncertainty is a bootstrap over networks × seeds (4,000 resamples). The pooled interval is wide when one network dominates, and §5 always names that network.
+- **Seeds and pooling.** Five seeds, 42–46, in the final tables (three, 42–44, in the earlier reads). An agent's evaluation seed is its training seed, and each rule runs at the same seed, so the contrasts are paired by seed. Pairing means the same data halves, base checkpoint and seed. It does not mean the same fine-tune shuffle, because the arms draw the global random stream differently before recovery, so each pair carries the full run-to-run noise (§412). A network's value is the mean over seeds; a pool value is the mean over the nine networks. Uncertainty is a bootstrap over networks × seeds (4,000 resamples). The pooled interval is wide when one network dominates, and §5 always names that network.
 - **Realizable arms only.** A quoted arm keeps the width floor, logs no fallback cut and no masked edit, and lands within 0.01 of its target. Rows run before this rule (10 Oct) keep their calls with a scope note (§346, §352, §357).
-- **Size counting.** Parameters kept = all parameters of the rebuilt network, counted by shape, over the original's count, so masked zeros earn nothing. FLOPs kept = multiply-accumulates per 32 × 32 sample (convolutions, linear layers, normalisations and activations; pooling and additions are not counted), over the original's. When the two arms of a pair differ by more than 10 % in the other axis, the row says so.
+- **Size counting.** Parameters kept = all parameters of the rebuilt network, counted by shape, over the original's count, so masked zeros earn nothing. FLOPs kept = multiply-accumulates per 32 × 32 sample (convolutions, linear layers, normalisations and activations; pooling and additions are not counted), over the original's. Counters that take only convolutions and linear layers, as DepGraph, HRank and CHIP do, give a kept fraction about 0.2–2 % (relative) lower at the same cut, most on MobileNetV2 (§412). When the two arms of a pair differ by more than 10 % in the other axis, the row says so.
 
 ### 4.3 Networks
 
