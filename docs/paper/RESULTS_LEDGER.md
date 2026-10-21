@@ -9943,3 +9943,47 @@ Never:
 - The fs32 / bn8 tables, or the oracle agreement, quoted as calls.
 
 Records: queue row FB; next §410.
+
+## 410. (FB-XFER): the val-picked fallback (§409's design) on XFER-W1's eight new networks (§407), params 0.45 and 0.25, five seeds. T6-fs of the seed and floored sens_cost; ft1 decides; `tree_v27`. Smokes **23447299–300**, stage P **23447301–23447392** (80 pick cells), stage E **23447393–23447408** (seed 42 in full). Calls:
+- **AT-PRIOR-P-XFER at both depths** (fallback − sens_cost **+0.09** [−0.03, +0.26] and **+0.08** [−0.11, +0.34]);
+- **GAP-CLOSED** on WRN-28-2 C100 (+0.00 at both depths, where the agent read −1.88 and −1.57);
+- **ADDS against the agent at both depths** (+0.41 [+0.04, +0.93] and +0.34 [+0.01, +0.80], 6 of 8 positive).
+
+The fallback turns §407's BELOW-PRIOR-P-XFER at 0.45 into parity
+
+Registered 20 Oct 21:13 (`08c8cd3`; queue row FB-XFER) before submit, under Ido's standing GO, announced beforehand. Gate PASS 21:20. Read 21 Oct 09:26 (`scripts/_tmp_s20oct_fbx_read.sh`).
+- *Checks.* All 98 cells COMPLETED. EXACT and PICK-STABLE PASS on the 16 stage-E cells: every network runs alone in its job. 9 of the 16 are prior picks, so the equality is shown for both kinds of pick.
+
+| depth | fallback − prior [95 %] | val | 10k | honest | d > 0 | call | the other seven | fallback − agent [95 %] | positive | oracle agreement (reported) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| params 0.45 | **+0.09** [−0.03, +0.26] | +0.10 | +0.09 | +0.06 | 3 of 8 | **AT-PRIOR-P-XFER** | +0.10 | **+0.41** [+0.04, +0.93] | 6 of 8 | 28 of 38 |
+| params 0.25 | **+0.08** [−0.11, +0.34] | +0.27 | +0.17 | +0.07 | 3 of 8 | **AT-PRIOR-P-XFER** | +0.09 | **+0.34** [+0.01, +0.80] | 6 of 8 | 26 of 39 |
+
+Per net, TEST 5k fallback − prior (five-seed mean; a seed reads 0.00 where val picked the prior):
+
+| net | 0.45 | 0.25 | prior picks (0.45 / 0.25) |
+|---|---|---|---|
+| WRN-16-4 C10 | +0.00 | −0.08 | 4 / 4 |
+| WRN-16-4 C100 | −0.10 | +0.26 | 4 / 3 |
+| WRN-28-2 C10 | −0.07 | −0.06 | 4 / 3 |
+| WRN-28-2 C100 | **+0.00** (prior at every seed) | **+0.00** (prior at every seed) | 5 / 5 |
+| PreAct-ResNet-20 C10 | +0.00 | +0.00 | 5 / 5 |
+| PreAct-ResNet-20 C100 | +0.42 | +0.64 | 1 / 2 |
+| PreAct-ResNet-56 C10 | +0.19 | +0.12 | 3 / 1 |
+| PreAct-ResNet-56 C100 | +0.29 | −0.23 | 4 / 2 |
+
+Reading:
+1. **On networks it never saw, the fallback recovers parity with the rule.** The agent alone was below the rule at 45 % (−0.32, §407). With the fallback it reads +0.09 and +0.08, every view within ±0.3, and the fallback is above the agent alone by +0.41 and +0.34, with intervals above zero.
+2. **Val catches the agent's worst network every time.** On WRN-28-2 C100, ft1 preferred the rule's plan at all ten cells. Where the agent's plan was right, val kept it: PreAct-ResNet-20 C100, where the agent was above the rule at every seed, keeps the agent on 4 and 3 of 5 seeds (+0.42, +0.64).
+3. **The one-epoch judge is informative where the plans differ.** It picked the arm that ended better on TEST in 28 of 38 and 26 of 39 cells. On the pool at 60–45 % it did 16 and 23 of 45 (§409). Here the two plans differ by more, so its judgement carries more.
+4. **For the paper.**
+   - With the fallback, the frozen agent's transfer to new architectures and an unseen dataset is at the rule's level (§410), not below it (§407).
+   - The agent's own rows (§407) stay the record of what it learned. The fallback is the labelled product variant, as in §409.
+   - [H] A frozen agent plus a cheap val check is a safer deployment than either alone. It keeps the agent's gains where its plans are good (PreAct-ResNet-20 C100) and the rule's where they are not.
+
+Never:
+- The fallback row presented as the agent.
+- "The agent transfers at parity": the agent alone is §407's BELOW at 0.45.
+- These rows mixed with the pool's FB rows (§409) as one pool.
+
+Records: queue row FB-XFER; next §411.
