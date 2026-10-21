@@ -9987,3 +9987,54 @@ Never:
 - These rows mixed with the pool's FB rows (§409) as one pool.
 
 Records: queue row FB-XFER; next §411.
+
+## 411. (TS, D10): two-stage plans at params 0.25 on the nine pool nets, five seeds. Stage 1 plans to 0.5 and recovers 30 epochs (G2's recipe). Stage 2 starts from the recovered network, measures it again, plans to κ2 = 0.25 / r1 and recovers 70 epochs. Both arms, T6-fs and sens_cost, plan both stages; `tree_v28`. Stage-1 smokes **23416279–281**, stage-2 smokes **23420407–409** (gate 2), stage-1 cells **23416282–23416450**, stage-2 jobs in `s20oct_ts_manifest.tsv` (`ts2`). Calls:
+- **TS-A STAGING-SAME** (two-stage T6-fs − one-shot T6-fs **+0.30** [−0.26, +1.37], 5 of 9 positive, carried by r20-w8 C100; the other eight −0.06);
+- **TS-R STAGING-SAME** (sens_cost: **+0.12** [−0.13, +0.37], 7 of 9);
+- **TS-P AT-PRIOR-POOL** (two-stage agent − two-stage rule **−0.04**).
+
+Two stages do not help either arm at this split; at 8× on DepGraph R56 they cost the agent −0.30 (reported)
+
+Registered 19 Oct 23:51 (`47a326b`; queue row TS) before submit. Gate 1 FAILED 20 Oct 02:36 on the chain's choice of the val_best model; gate 2 PASSED 04:15. At 19:13 the waiter's label-only choice skipped two nets whose val_best was the size point; it was restarted at 19:24 with the choice by landed ratio. No cell ran on a wrong model. Read 21 Oct 09:28 (`scripts/_tmp_s21oct_ts_read.sh`).
+- *Checks.* 90 of 90 two-stage rows and 90 of 90 one-shot FINAL rows.
+  - Every two-stage row lands at r1 · r2 within 0.25 ± 0.011.
+  - Every stage 2's origin TEST equals stage 1's saved TEST within 0.002.
+- *Measurement.* Every change is against the original unpruned network, from stage 1's saved meta:
+  - TEST 5k = t2 − t0;
+  - val = v2 − v0;
+  - 10k = the mean of both halves;
+  - honest = the 5k change minus FINAL's 100-epoch origin-control change for the same net and seed.
+
+| contrast | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
+|---|---|---|---|---|---|---|---|
+| TS-A: two-stage T6-fs − one-shot T6-fs | **+0.30** [−0.26, +1.37] | +0.29 | +0.29 | +0.30 | 5 of 9 | **STAGING-SAME** | −0.06 |
+| TS-R: two-stage sens_cost − one-shot sens_cost | **+0.12** [−0.13, +0.37] | +0.22 | +0.17 | +0.12 | 7 of 9 | **STAGING-SAME** | +0.12 |
+| TS-P: two-stage T6-fs − two-stage sens_cost | **−0.04** [−0.80, +0.50] | −0.15 | −0.10 | −0.04 | 5 of 9 | **AT-PRIOR-POOL** | +0.05 |
+| reported: two-stage T6-fs − one-shot sens_cost | +0.07 [−0.76, +0.67] | +0.07 | +0.07 | +0.08 | 4 of 9 | — | +0.17 |
+
+Per net, TEST 5k (five-seed means):
+
+| net | TS-A (agent: two-stage − one-shot) | TS-R (rule: two-stage − one-shot) | TS-P (two-stage agent − rule) |
+|---|---|---|---|
+| thin r56-w4 | −0.38 | +0.14 | −0.28 |
+| chenyaofo R56 | −0.02 | +0.16 | +0.20 |
+| r56-w8 | +0.12 | +0.26 | +0.14 |
+| MobileNetV2 ×1.4 | +0.05 | **+0.65** | +0.14 |
+| DenseNet-100 | +0.24 | −0.09 | +0.37 (every seed positive) |
+| r20-w8 C100 | **+3.15** (+0.30 / +8.24 / −6.76 / +5.36 / +8.60) | +0.07 | −0.79 (+2.82 / +4.50 / −7.38 / +4.20 / −8.08) |
+| VGG-19 C100 | −0.39 (every seed negative) | +0.22 | −0.25 |
+| VGG-16 | +0.08 | +0.02 | −0.05 |
+| DepGraph R56 | −0.20 | −0.40 | +0.13 |
+
+Reading:
+1. **Two stages do not help the agent.** TS-A's +0.30 sits on r20-w8 C100 alone, where the two-stage agent swings from −6.76 to +8.60 by seed (final TEST 38.76 ± 6.57 against the one-shot 35.61 ± 6.83). The collapse risk moves between seeds; it does not go away. On the other eight the change is −0.06.
+2. **For the rule the effect is small and consistent, but under the bar.** +0.12 with 7 of 9 positive, and the largest on MobileNetV2 ×1.4 (+0.65). [H] Re-measuring sensitivities on a recovered half-size network helps a fixed rule a little. It does not help a policy trained on unpruned networks, whose stage-2 inputs are out of its training distribution.
+3. **At 8× on DepGraph R56 (reported, three seeds)** two stages cost the agent −0.30 (−0.30 / −0.20 / −0.40) and the rule −0.07. The literature's case for progressive pruning at extreme compression does not appear here at E1 = 30.
+4. **For the paper.** A negative result for the ablation section: "Re-planning after a short recovery (two stages, 30 + 70 epochs) does not improve the frozen agent at 25 % kept (§411)". The rule's small gain is reported beside it.
+
+Never:
+- "Two-stage pruning helps": every call is SAME or AT.
+- The r20-w8 C100 swing quoted as a gain.
+- These rows mixed with one-shot rows as one arm.
+
+Records: queue row TS; next §412.
