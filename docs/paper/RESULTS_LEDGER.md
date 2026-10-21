@@ -10038,3 +10038,38 @@ Never:
 - These rows mixed with one-shot rows as one arm.
 
 Records: queue row TS; next §412.
+
+## 412. (AUDIT): a read-only code audit of the live path behind §405–§411, at Ido's 20 Oct request — **no defect changes a reported number**. Two measurement risks are closed by checks; four method details go into the paper's text; two efficiency fixes are proposed for new lines only
+
+Audit by the hard-dev agent (Fable 5.1, max effort), 21 Oct. It read the code against the exact flags of the FINAL, FB and TS submit scripts and ran cluster checks: 814 FINAL logs, two train logs, a per-cell read of every FINAL record, and the FB and TS gates. The full report is in the session scratchpad (`code_audit_21oct.md`); its check scripts are in `/home/paretsky/scratch_audit/_audit_tmp/`. Science re-ran finding 2 on XFER-W1 and LIT-C (`scripts/_tmp_s21oct_vbcheck.py`).
+
+**Checked and correct** [V]:
+- *No test leakage into TEST 5k.* The plan trainer holds only val batches. `PlanScorer` reads only the val loader. The fallback picks on val. `val_best` is chosen on val. The size point is chosen by size alone.
+- *The split.* One permutation (seed 0) gives disjoint 5,000 / 5,000 val and TEST halves, identical across arms, seeds and trains.
+- *Equal treatment of arms.* Same k_min, floor, grid, passes, L1 ranking and recovery recipe.
+- *Size accounting.* `ParamModel` counts BN, bias, classifier and depthwise. Analytic size equals real size to 4 decimals on all catalog networks.
+- *Landing.* All 45 cells per arm land in [0.2446, 0.2500] at params 0.25 and in [0.4436, 0.4500] at FLOPs 0.45.
+- *Cuts.* Residual operands are merged, concatenation offsets handled and depthwise in/out tied. The masked and real cuts agree within 0.02 pp.
+- *RL.* The Gaussian log-prob over the sampled z, the advantage sign, the POMO baseline and the σ schedule are right. No gradient flows through the decoder. Resume restores everything.
+- *Determinism.* 0 of 814 FINAL logs warn of a non-deterministic op, and EXACT held 48 of 48 across jobs (§409).
+- *Readers.* Honest, 10k, pairing by seed and the two-level bootstrap are as registered. The cluster copy of `final_ft_readout.py` is identical to the repo's.
+
+Findings, by severity:
+
+| # | severity | finding | effect on the record | action |
+|---|---|---|---|---|
+| 1 | A (latent) | Two-stage (TS) stage-2 records store `test_origin`, `val_origin`, `param` and `flop` relative to the stage-1 model | **None.** The TS reader (`_tmp_s21oct_ts_read.sh`) takes the original origin's accuracies from stage 1's saved meta and multiplies the ratios by r1, so §411's numbers are against the original network. §411's honest column uses FINAL's one-cycle 100-epoch origin control, not TS's 30 + 70 two-cycle recipe | caption §411's honest column (added below) |
+| 2 | B | When the size point is also the running `val_best`, the runner fine-tunes it once under the `val_best` label. The readers recover it through a ±0.011 fallback, which would also accept a val-selected row one cut away | **None.** In FINAL, 53 of 810 cells were read this way, and all 53 were the size point itself (same step). XFER-W1 and LIT-C had 0 such cells | for new lines: fine-tune under the size label, and make the readers require step equality |
+| 3 | B | Thin r56-w4's config is the pool's only two-network job | already handled by §409's amendment | new lines use `input_c10_thin_r56w4.json` |
+| 4 | C | The `val_best` candidate is fine-tuned 100 epochs in every cell and never read when it differs from the size point | none; it costs about 25–30 % of eval GPU time | a default-off flag that skips it, for new lines only (it changes RNG use, so not for anything rebuilt from FINAL's rows) |
+| 5 | C | TEST and val are scored after every cut, and the group graph is re-traced 3–4 times per step | none; minutes per cell | cache it in a new tree |
+| 7 | D | Same-seed arms do not share the final fine-tune's shuffle stream: the arms consume the global RNG differently before it | none (no bias). "Paired by seed" means paired by split and checkpoint, so each pair carries full run noise | say so in the paper's method text |
+| 8 | D | "FLOPs" = conv / linear MACs plus one op per output element of BN and activation modules | ratios are self-consistent (`FlopModel` matches to 4 decimals). Against pure-MAC counters (DepGraph, HRank, CHIP), our kept fractions are about 0.2–2 % (relative) more generous | caption Table 1 |
+| 9 | D | T6-fs was trained with width floor 1 and is evaluated with floor `walk` (2); T4-F was trained with the floor | a small train / eval decoder mismatch for the params agent | note in the paper's §3 |
+| 10 | D | The final recipe also clips gradients at norm 1.0 | the recipe text is incomplete | add it to the recipe line |
+
+Not checked: the walk-era A2C actor's training; the feature semantics inside `BERTInputModeler`; recovery edits other than batch-norm recalibration; the ShuffleNet paths; CUDA-graph against eager equality (covered by an earlier test).
+
+§411 addendum: its honest column is the 5k change minus FINAL's 100-epoch one-cycle origin-control change. TS's own recipe is 30 + 70 epochs in two cycles, so honest there is a comparison against the one-shot control, not a same-recipe control.
+
+Records: the audit report and check scripts above; next §413.
