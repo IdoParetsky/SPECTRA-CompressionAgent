@@ -18,6 +18,7 @@ import src.distributed as ddp
 import src.logging_utils as logging_utils
 import src.run_recorder as run_recorder
 import src.traj_models as traj_models
+import src.eval_topk as eval_topk  # v29: top-5 beside the TRAJ lines under SPECTRA_EVAL_TOP5 (default off)
 from src.Configuration.StaticConf import StaticConf
 
 # Distributed is opt-in: a plain `python a2c_agent_reinforce_runner.py ...` on a single
@@ -38,7 +39,7 @@ logging.getLogger("torch.distributed.distributed_c10d").setLevel(logging.ERROR)
 def _traj_capture(env, step_index, rate, test_new, test_orig):
     val_new = float(getattr(env, "last_val_acc", env.original_acc))
     val_orig = float(env.original_acc)
-    return {
+    point = {
         "step": int(step_index),
         "rate": float(rate),
         "param": float(env.param_ratio()),
@@ -50,6 +51,7 @@ def _traj_capture(env, step_index, rate, test_new, test_orig):
         "test_origin": float(test_orig),
         "test_dacc_pp": (float(test_new) - float(test_orig)) * 100.0,
     }
+    return eval_topk.capture(env, point)  # unchanged unless SPECTRA_EVAL_TOP5=1
 
 
 def _print_traj_point(key, name, point):
@@ -61,6 +63,9 @@ def _print_traj_point(key, name, point):
         f"acc {point['test_origin']:.3f} -> {point['test_acc']:.3f} "
         f"({point['test_dacc_pp'] / 100.0:+.3f}) | params x{point['param']:.3f} | "
         f"FLOPs x{point['flop']:.3f} | val Δacc {point['val_dacc_pp']:+.2f} pp")
+    top5_line = eval_topk.line(key, name, point)  # None unless SPECTRA_EVAL_TOP5=1
+    if top5_line:
+        utils.print_flush(top5_line)
 
 
 def _print_traj_summary(net_path, picked):
@@ -151,6 +156,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     handler = env.create_learning_handler(model)
     test_acc = float(handler.evaluate_model(env.test_loader))
     val_acc = float(handler.evaluate_model(env.val_loader))
+    top5 = eval_topk.final(env, model, label, name, point)  # {} unless SPECTRA_EVAL_TOP5=1
     minutes = (time.perf_counter() - t0) / 60.0
     scratch_budget = bool(scratch and fortify_mod.eval_final_ft_scratch_budget())
     test_origin, val_origin = float(point["test_origin"]), float(point["val_origin"])
@@ -170,7 +176,7 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         epochs=int(epochs), lr=float(lr), batch=int(loader.batch_size), aug=aug, kd=bool(kd),
         scratch=bool(scratch), schedule=schedule or "cos", warmup=float(warmup) if schedule else 0.0,
         select=select or "train_loss", minutes=round(minutes, 2), **({"graph": True} if graph else {}),
-        **({"scratch_budget": "flops"} if scratch_budget else {}))
+        **({"scratch_budget": "flops"} if scratch_budget else {}), **top5)
     if save_dir:
         traj_models.save_candidate(
             model, traj_models.candidate_stem(save_dir, name, label, point["step"], f"__ft{epochs}"), point,

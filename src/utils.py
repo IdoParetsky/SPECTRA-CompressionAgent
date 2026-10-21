@@ -39,6 +39,10 @@ _FT_AUG_DATASETS = ("cifar-10", "cifar-100")
 # SPECTRA_FT_AUG_HOLDOUT=1 (default off): the G2 hold-out checkpoints' own train-time aug
 # (scripts/train_pretrained_checkpoint.py): RandomCrop(32, pad 4), plus the flip except on SVHN digits.
 _FT_AUG_HOLDOUT = {"svhn": "crop", "fashion-mnist": "crop+flip"}
+# v29 (21 Oct, wave 3): 64-px datasets whose SPECTRA_FT_AUG recipe is RandomCrop(64, pad 8) + flip, the 64-px
+# analogue of CIFAR's crop 32 pad 4 (scripts/train_pretrained_checkpoint.py pretrains them with the same recipe).
+_FT_AUG_64PX = ("tiny-imagenet",)
+TINY_IMAGENET_DIR = "tiny-imagenet-200"  # under SPECTRA_DATASETS, the standard Stanford layout
 # Native ImageNet / Places JPEGs are not a fixed H×W. Without Resize the
 # DataLoader collate crashes (job 20289097). CIFAR stays 32×32.
 _LARGE_SPATIAL = ("imagenet1k", "imagenet1kv2", "places365")
@@ -47,6 +51,7 @@ _LARGE_SPATIAL = ("imagenet1k", "imagenet1kv2", "places365")
 # (`OSError: image file is truncated`) with no TEST. PIL default is strict.
 from PIL import ImageFile as _ImageFile
 _ImageFile.LOAD_TRUNCATED_IMAGES = True
+from PIL import Image as _PILImage  # noqa: E402 - TinyImageNet decodes its JPEGs itself
 
 
 def env_flag(name: str, default: str = "0") -> bool:
@@ -85,6 +90,69 @@ def _split_held_out(test_data, share: float):
     perm = torch.randperm(len(test_data), generator=g).tolist()
     n_val = int(round(len(test_data) * share))
     return Subset(test_data, perm[:n_val]), Subset(test_data, perm[n_val:])
+
+
+def val_from_train_per_class() -> int:
+    """
+    ``SPECTRA_VAL_FROM_TRAIN=<n>`` (v29, default off = 0): hold ``n`` images per class out of the TRAIN split as
+    the val split (a fixed, class-balanced draw permuted by ``SPECTRA_SPLIT_SEED``), fine-tune on the rest and keep
+    the whole official test split as TEST. The ImageNet evaluation line: the official 50k val is TEST and is never
+    read for any choice (the reward / judge / selection side and the sensitivity batches read train-side data);
+    ``10`` per class gives a 10,000-image val. Refused together with ``SPECTRA_VAL_FROM_TEST`` (one val source).
+    """
+    raw = os.environ.get("SPECTRA_VAL_FROM_TRAIN", "").strip()
+    if not raw:
+        return 0
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ValueError(f"SPECTRA_VAL_FROM_TRAIN={raw!r}: expected a non-negative integer (images per class)") from None
+    if value < 0:
+        raise ValueError(f"SPECTRA_VAL_FROM_TRAIN={raw!r}: expected a non-negative integer (images per class)")
+    return value
+
+
+def _targets_of(dataset):
+    """Per-sample class indices of a torchvision-style dataset (``targets``, or SVHN's ``labels``)."""
+    for attr in ("targets", "labels"):
+        values = getattr(dataset, attr, None)
+        if values is not None:
+            return [int(v) for v in values]
+    raise ValueError(f"{type(dataset).__name__} exposes neither targets nor labels; cannot hold out per class")
+
+
+def _class_balanced_holdout(targets, per_class: int, seed: int):
+    """
+    ``(val_indices, train_indices)``, both ascending: the first ``per_class`` images of every class met along a
+    permutation of the split drawn from ``torch.Generator().manual_seed(seed)`` go to val, the rest stay in train.
+    Every class must have at least ``per_class`` images.
+    """
+    labels = [int(t) for t in targets]
+    g = torch.Generator().manual_seed(int(seed))
+    perm = torch.randperm(len(labels), generator=g).tolist()
+    want, taken, val = int(per_class), {}, []
+    for i in perm:
+        c = labels[i]
+        if taken.get(c, 0) < want:
+            taken[c] = taken.get(c, 0) + 1
+            val.append(i)
+    short = sorted(c for c in set(labels) if taken.get(c, 0) < want)
+    if short:
+        raise ValueError(f"SPECTRA_VAL_FROM_TRAIN={want}: {len(short)} classes have fewer than {want} train images "
+                         f"(first: {short[:5]})")
+    chosen = set(val)
+    return sorted(val), [i for i in range(len(labels)) if i not in chosen]
+
+
+def _with_transform(dataset, transform):
+    """A shallow copy of ``dataset`` with another ``transform`` (the file list is shared; ImageNet's takes minutes)."""
+    import copy as _copy
+    other = _copy.copy(dataset)
+    other.transform = transform
+    if getattr(other, "transforms", None) is not None:
+        from torchvision.datasets.vision import StandardTransform
+        other.transforms = StandardTransform(transform, getattr(other, "target_transform", None))
+    return other
 
 # Possible instantiation functions' parameters
 NUM_CLASSES = "num_classes"
@@ -302,8 +370,8 @@ class DatasetRegistry:
             key = f"{base}[{detail}]"
         else:
             key = base
-        # Train-time CIFAR aug must not share loaders with the unaugmented cache.
-        if env_flag("SPECTRA_FT_AUG") and canonical_dataset_name(name_or_path) in _FT_AUG_DATASETS:
+        # Train-time CIFAR aug must not share loaders with the unaugmented cache (v29: nor Tiny-ImageNet's).
+        if env_flag("SPECTRA_FT_AUG") and canonical_dataset_name(name_or_path) in _FT_AUG_DATASETS + _FT_AUG_64PX:
             key = f"{key}|aug=1"
         if env_flag("SPECTRA_FT_AUTOAUG") and canonical_dataset_name(name_or_path) in _FT_AUG_DATASETS:
             key = f"{key}|autoaug=1"
@@ -312,6 +380,8 @@ class DatasetRegistry:
             key = f"{key}|haug={holdout}"
         if gpu_ft_aug(canonical_dataset_name(name_or_path), options):
             key = f"{key}|gpuaug=1"
+        if val_from_train_per_class() > 0:  # v29: a train-side val never shares loaders with another val choice
+            key = f"{key}|valtrain={val_from_train_per_class()}"
         return key
 
     def _may_load(self, spec) -> bool:
@@ -945,6 +1015,97 @@ def init_conf_values(test_name, input_dict, compression_rates_dict, train_compre
     StaticConf(cv)
 
 
+class TinyImageNet(torch.utils.data.Dataset):
+    """
+    Tiny-ImageNet-200 (v29, wave 3): 200 classes, 64x64, 500 train and 50 labelled val images per class, in the
+    standard layout under ``<root>/tiny-imagenet-200``: ``wnids.txt``, ``train/<wnid>/images/*.JPEG``, and
+    ``val/images`` with ``val/val_annotations.txt``. ``split`` is ``train`` (100,000 images) or ``val`` (the 10,000
+    labelled images, SPECTRA's held-out test split; the unlabelled ``test/`` is never read).
+
+    Classes are indexed in sorted ``wnids.txt`` order. The sample order is deterministic on every file system
+    (train: by wnid, then by the image's numeric suffix; val: by the annotation index), so an index split taken
+    on one node is the same split on another. Images are decoded as RGB (a few are stored grayscale).
+    ``classes`` / ``targets`` / ``transform`` follow torchvision's CIFAR, so the registry, ``infer_num_classes``,
+    the hold-out split and the GPU crop+flip loader read it as they read CIFAR; ``data`` decodes the whole split
+    once, on first use, into a ``(N, 64, 64, 3)`` uint8 array (what ``GpuCropFlipLoader`` holds on the device).
+    """
+
+    SIZE = 64
+
+    def __init__(self, root, split="train", transform=None, target_transform=None):
+        if split not in ("train", "val"):
+            raise ValueError(f"TinyImageNet split {split!r}: expected train or val")
+        self.root = os.path.join(str(root), TINY_IMAGENET_DIR)
+        self.split, self.transform, self.target_transform = split, transform, target_transform
+        wnids_path = os.path.join(self.root, "wnids.txt")
+        if not os.path.isfile(wnids_path):
+            raise FileNotFoundError(f"Tiny-ImageNet not found: {wnids_path}")
+        with open(wnids_path, encoding="utf-8") as fh:
+            self.classes = sorted({line.strip() for line in fh if line.strip()})
+        self.class_to_idx = {wnid: i for i, wnid in enumerate(self.classes)}
+        self.samples = self._train_samples() if split == "train" else self._val_samples()
+        self.targets = [target for _path, target in self.samples]
+        self._data = None
+
+    @staticmethod
+    def _numeric_suffix(name: str):
+        stem = name.rsplit(".", 1)[0]
+        tail = stem.rsplit("_", 1)[-1]
+        return (0, int(tail)) if tail.isdigit() else (1, stem)
+
+    def _train_samples(self):
+        samples = []
+        for wnid in self.classes:
+            folder = os.path.join(self.root, "train", wnid, "images")
+            names = [n for n in os.listdir(folder) if n.lower().endswith((".jpeg", ".jpg", ".png"))]
+            for name in sorted(names, key=self._numeric_suffix):
+                samples.append((os.path.join(folder, name), self.class_to_idx[wnid]))
+        return samples
+
+    def _val_samples(self):
+        folder = os.path.join(self.root, "val", "images")
+        rows = []
+        with open(os.path.join(self.root, "val", "val_annotations.txt"), encoding="utf-8") as fh:
+            for line in fh:
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                name, wnid = parts[0], parts[1]
+                if wnid not in self.class_to_idx:
+                    raise ValueError(f"val annotation {name}: unknown wnid {wnid}")
+                rows.append((self._numeric_suffix(name), os.path.join(folder, name), self.class_to_idx[wnid]))
+        return [(path, target) for _key, path, target in sorted(rows)]
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, index):
+        path, target = self.samples[index]
+        img = _PILImage.open(path).convert("RGB")
+        if self.transform is not None:
+            img = self.transform(img)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
+        return img, target
+
+    @property
+    def data(self):
+        """``(N, 64, 64, 3)`` uint8 of the whole split, decoded once (the GPU loader's device-resident input)."""
+        if self._data is None:
+            import time as _time
+            started = _time.perf_counter()
+            arr = np.empty((len(self.samples), self.SIZE, self.SIZE, 3), dtype=np.uint8)
+            for i, (path, _target) in enumerate(self.samples):
+                img = _PILImage.open(path).convert("RGB")
+                if img.size != (self.SIZE, self.SIZE):
+                    img = img.resize((self.SIZE, self.SIZE))
+                arr[i] = np.asarray(img)
+            self._data = arr
+            print_flush(f"[tiny-imagenet] decoded the {self.split} split ({len(arr)} images) to uint8 in "
+                        f"{_time.perf_counter() - started:.1f}s")
+        return self._data
+
+
 # Channel statistics per dataset. Normalising every dataset with 0.5/0.5, as before, shifts
 # the activation distribution the agent reads and therefore the features it acts on.
 DATASET_STATS = {
@@ -957,6 +1118,8 @@ DATASET_STATS = {
     'stl10': ((0.4467, 0.4398, 0.4066), (0.2603, 0.2566, 0.2713)),
     'places365': ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     'imagenet1k': ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+    # v29: the Tiny-ImageNet-200 train-split statistics quoted across the Tiny literature (per-channel mean / std).
+    'tiny-imagenet': ((0.4802, 0.4481, 0.3975), (0.2770, 0.2691, 0.2821)),
 }
 DEFAULT_STATS = ((0.5,), (0.5,))
 
@@ -990,6 +1153,9 @@ DATASET_BUILDERS = {
     'imagenet1kv2': lambda transform: (
         datasets.ImageNet(root=SPECTRA_DATASETS, split='train', transform=transform),
         datasets.ImageFolder(root=f'{SPECTRA_DATASETS}/imagenetv2-matched-frequency', transform=transform)),
+    # v29: train = the 100k train images, "test" = the official labelled val (10k); nothing is downloaded.
+    'tiny-imagenet': lambda transform: (TinyImageNet(SPECTRA_DATASETS, 'train', transform),
+                                        TinyImageNet(SPECTRA_DATASETS, 'val', transform)),
 }
 
 DATASET_ALIASES = {
@@ -997,6 +1163,8 @@ DATASET_ALIASES = {
     'cifar100': 'cifar-100', 'cifar_100': 'cifar-100',
     'fashionmnist': 'fashion-mnist', 'fashion_mnist': 'fashion-mnist', 'fmnist': 'fashion-mnist',
     'stl-10': 'stl10', 'places-365': 'places365', 'places': 'places365',
+    'tinyimagenet': 'tiny-imagenet', 'tiny_imagenet': 'tiny-imagenet', 'tiny-imagenet-200': 'tiny-imagenet',
+    'tiny_imagenet_200': 'tiny-imagenet', 'tinyimagenet200': 'tiny-imagenet', 'tiny-imagenet200': 'tiny-imagenet',
     'imagenet': 'imagenet1k', 'imagenet-1k': 'imagenet1k', 'imagenet1k-v1': 'imagenet1k',
     'imagenet1kv1': 'imagenet1k', 'imagenet-1k-v1': 'imagenet1k', 'imagenet-1kv1': 'imagenet1k',
     'imagenet1k-v2': 'imagenet1kv2', 'imagenet-1k-v2': 'imagenet1kv2',
@@ -1088,6 +1256,13 @@ def build_transform(name_or_path: str, options: dict, train: bool = False):
             crop = image_size[0] if isinstance(image_size, (list, tuple)) else int(image_size)
         steps.append(transforms.RandomCrop(crop, padding=4))
         steps.append(transforms.RandomHorizontalFlip())
+    if train and env_flag("SPECTRA_FT_AUG") and canonical in _FT_AUG_64PX:
+        # v29: the 64-px analogue of CIFAR's recipe, and what scripts/train_pretrained_checkpoint.py trains with.
+        crop = TinyImageNet.SIZE
+        if image_size:
+            crop = image_size[0] if isinstance(image_size, (list, tuple)) else int(image_size)
+        steps.append(transforms.RandomCrop(crop, padding=8))
+        steps.append(transforms.RandomHorizontalFlip())
     if train and env_flag("SPECTRA_FT_AUTOAUG") and canonical in _FT_AUG_DATASETS:
         steps.append(transforms.AutoAugment(transforms.AutoAugmentPolicy.CIFAR10))
     holdout = holdout_ft_aug(canonical) if train else None
@@ -1110,9 +1285,10 @@ def build_transform(name_or_path: str, options: dict, train: bool = False):
 
 
 def gpu_ft_aug(canonical: str, options=None) -> bool:
-    """``SPECTRA_FT_AUG_GPU=1``: the CIFAR crop+flip train split lives on the GPU (default off)."""
+    """``SPECTRA_FT_AUG_GPU=1``: the CIFAR crop+flip train split lives on the GPU (default off); v29 also
+    Tiny-ImageNet's (RandomCrop(64, pad 8) + flip, 100k x 3 x 80 x 80 uint8, about 1.9 GB on the device)."""
     return (env_flag("SPECTRA_FT_AUG_GPU") and env_flag("SPECTRA_FT_AUG")
-            and not env_flag("SPECTRA_FT_AUTOAUG") and canonical in _FT_AUG_DATASETS and not options)
+            and not env_flag("SPECTRA_FT_AUTOAUG") and canonical in _FT_AUG_DATASETS + _FT_AUG_64PX and not options)
 
 
 def crop_flip_batch(padded, oy, ox, flip, size=32):
@@ -1133,17 +1309,20 @@ class GpuCropFlipLoader:
     distribution as the torchvision train transform (offsets uniform on 0..8, flip p 0.5,
     zero fill in pixel space). Batches leave as normalised float32 on the device, so a
     caller's ``.to(device)`` is a no-op. ``dataset`` is the wrapped (Subset of a) CIFAR
-    dataset for introspection only.
+    dataset for introspection only. ``pad`` (v29, default the class's 4) is the zero padding:
+    8 for Tiny-ImageNet's RandomCrop(64, pad 8); the crop size is the image's own.
     """
 
     pad = 4
 
-    def __init__(self, dataset, batch_size, mean, std, device=None):
+    def __init__(self, dataset, batch_size, mean, std, device=None, pad=None):
         self.dataset = dataset
         self.batch_size = int(batch_size)
         self.num_workers = 0
         self.mean, self.std = tuple(mean), tuple(std)
         self._device = device
+        if pad is not None:
+            self.pad = int(pad)
         self._x = self._y = None
         base, indices = dataset, None
         while isinstance(base, Subset):
@@ -1153,11 +1332,12 @@ class GpuCropFlipLoader:
         self._base, self._indices = base, indices
 
     def __len__(self):
-        n = len(self._indices) if self._indices is not None else len(self._base.data)
+        # len(base) == len(base.data) for CIFAR; reading len(base) spares Tiny-ImageNet a decode of its split
+        n = len(self._indices) if self._indices is not None else len(self._base)
         return (n + self.batch_size - 1) // self.batch_size
 
     def with_batch_size(self, batch_size):
-        other = GpuCropFlipLoader(self.dataset, batch_size, self.mean, self.std, self._device)
+        other = GpuCropFlipLoader(self.dataset, batch_size, self.mean, self.std, self._device, pad=self.pad)
         if self._x is not None:
             other._x, other._y, other._m, other._s = self._x, self._y, self._m, self._s
         return other
@@ -1219,9 +1399,15 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
         and canonical in _FT_AUG_DATASETS
     )
     held_out = val_from_test_fraction()
+    val_train = val_from_train_per_class()
+    if val_train > 0 and held_out > 0:
+        raise ValueError("SPECTRA_VAL_FROM_TRAIN and SPECTRA_VAL_FROM_TEST are both set: val comes from one split")
 
     if canonical in DATASET_BUILDERS:
-        if use_aug:
+        if val_train > 0:
+            # v29: a class-balanced val held out of TRAIN; the whole official test split stays TEST (ImageNet line).
+            train_data, val_data, test_data = _val_from_train_datasets(name_or_path, options, canonical, val_train)
+        elif use_aug:
             # Val/test must stay unaugmented: reward and reported Δacc cannot be stochastic.
             factory = datasets.CIFAR10 if canonical == "cifar-10" else datasets.CIFAR100
             train_tf = build_transform(name_or_path, options, train=True)
@@ -1245,6 +1431,26 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
                 bits.append("AutoAugment")
             print_flush(
                 f"FT aug on {canonical}: {'+'.join(bits) or 'none'} on train only "
+                f"(n_train={len(train_data)}, n_val={len(val_data)})")
+        elif canonical in _FT_AUG_64PX and env_flag("SPECTRA_FT_AUG"):
+            # v29 Tiny-ImageNet: RandomCrop(64, pad 8)+Flip on train only, the same split rule as the CIFAR branch.
+            train_tf = build_transform(name_or_path, options, train=True)
+            eval_tf = build_transform(name_or_path, options, train=False)
+            train_aug, _unused = DATASET_BUILDERS[canonical](train_tf)
+            train_eval, test_data = DATASET_BUILDERS[canonical](eval_tf)
+            if held_out > 0:
+                train_data = train_aug
+                val_data, test_data = _split_held_out(test_data, held_out)
+            else:
+                train_len = int(len(train_eval) * train_split / (train_split + val_split))
+                g = torch.Generator().manual_seed(int(os.environ.get("SPECTRA_SPLIT_SEED", "0")))
+                perm = torch.randperm(len(train_eval), generator=g).tolist()
+                train_data = Subset(train_aug, perm[:train_len])
+                val_data = Subset(train_eval, perm[train_len:])
+            if env_flag("SPECTRA_FT_AUTOAUG"):
+                print_flush(f"SPECTRA_FT_AUTOAUG ignored on {canonical}: no AutoAugment policy for 64-px Tiny-ImageNet")
+            print_flush(
+                f"FT aug on {canonical}: RandomCrop(64, pad 8)+Flip on train only "
                 f"(n_train={len(train_data)}, n_val={len(val_data)})")
         elif canonical in _LARGE_SPATIAL:
             train_tf = build_transform(name_or_path, options, train=True)
@@ -1319,15 +1525,53 @@ def load_cnn_dataset(spec, train_split: float, val_split: float):
         train_loader = GpuCropFlipLoader(train_data, batch_size, mean, std)
         print_flush(f"FT aug on {canonical}: RandomCrop+Flip on the GPU, train split device-resident "
                     f"(n_train={len(train_data)}, batch={batch_size})")
+    elif canonical in _FT_AUG_64PX and gpu_ft_aug(canonical, options):
+        # v29: the same device-resident crop+flip at 64 px with pad 8 (the split is decoded to uint8 on first use)
+        mean, std = DATASET_STATS.get(canonical, DEFAULT_STATS)
+        train_loader = GpuCropFlipLoader(train_data, batch_size, mean, std, pad=8)
+        print_flush(f"FT aug on {canonical}: RandomCrop(64, pad 8)+Flip on the GPU, train split device-resident "
+                    f"(n_train={len(train_data)}, batch={batch_size})")
     else:
         if env_flag("SPECTRA_FT_AUG_GPU") and canonical in _FT_AUG_DATASETS:
             print_flush(f"SPECTRA_FT_AUG_GPU ignored on {canonical}: needs SPECTRA_FT_AUG=1, no AutoAugment, "
                         f"no resize/to_rgb options")
+        elif env_flag("SPECTRA_FT_AUG_GPU") and canonical in _FT_AUG_64PX:
+            print_flush(f"SPECTRA_FT_AUG_GPU ignored on {canonical}: needs SPECTRA_FT_AUG=1, no AutoAugment, "
+                        f"no resize/to_rgb options")
+        elif env_flag("SPECTRA_FT_AUG_GPU") and canonical in _LARGE_SPATIAL:
+            # v29: variable-size JPEGs under RandomResizedCrop(224) have no fixed uint8 split to hold on the device
+            print_flush(f"SPECTRA_FT_AUG_GPU ignored on {canonical}: not a fixed-size uint8 dataset; the DataLoader "
+                        f"augments (RandomResizedCrop(224)+Flip) with {DATALOADER_WORKERS} workers")
         train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, **worker_kwargs)
     val_loader = DataLoader(val_data, batch_size=batch_size, shuffle=False, **worker_kwargs)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, **worker_kwargs)
 
     return train_loader, val_loader, test_loader
+
+
+def _val_from_train_datasets(name_or_path, options, canonical: str, per_class: int):
+    """
+    ``(train, val, test)`` datasets under ``SPECTRA_VAL_FROM_TRAIN`` (v29): train = the train split minus
+    ``per_class`` images of every class (its train-time transform: RandomResizedCrop(224)+Flip on ImageNet,
+    CIFAR / Tiny crop+flip under SPECTRA_FT_AUG), val = those held-out images with the eval transform, test = the
+    whole official test split. The draw is ``_class_balanced_holdout`` on ``SPECTRA_SPLIT_SEED``.
+    """
+    train_tf = build_transform(name_or_path, options, train=True)
+    eval_tf = build_transform(name_or_path, options, train=False)
+    if canonical in _LARGE_SPATIAL:
+        train_aug = _large_spatial_split(canonical, "train", train_tf)
+        test_data = _large_spatial_split(canonical, "val", eval_tf)
+    else:
+        train_aug = DATASET_BUILDERS[canonical](train_tf)[0]
+        test_data = DATASET_BUILDERS[canonical](eval_tf)[1]
+    train_eval = _with_transform(train_aug, eval_tf)  # the same files, read without augmentation
+    seed = int(os.environ.get("SPECTRA_SPLIT_SEED", "0"))
+    val_idx, train_idx = _class_balanced_holdout(_targets_of(train_eval), per_class, seed)
+    train_data, val_data = Subset(train_aug, train_idx), Subset(train_eval, val_idx)
+    print_flush(
+        f"Val from train on {canonical}: {per_class} per class held out of the train split -> n_train={len(train_data)}, "
+        f"n_val={len(val_data)}, n_test={len(test_data)} (the whole test split; split_seed={seed})")
+    return train_data, val_data, test_data
 
 
 def final_ft_train_loader(train_loader, batch_size=None):
@@ -1361,6 +1605,18 @@ def final_ft_train_loader(train_loader, batch_size=None):
             dataset.transform = transforms.Compose(
                 [transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(), *steps])
             aug = "crop+flip"
+    elif isinstance(dataset, TinyImageNet) and steps:
+        # v29: Tiny-ImageNet's recipe is the 64-px analogue (what its wave-3 checkpoints were trained with)
+        if any(isinstance(s, (transforms.RandomCrop, transforms.RandomHorizontalFlip)) for s in steps):
+            aug = "loader"
+        elif not any(isinstance(s, (transforms.Resize, transforms.CenterCrop)) for s in steps):
+            dataset = _copy.copy(dataset)
+            dataset.transform = transforms.Compose(
+                [transforms.RandomCrop(TinyImageNet.SIZE, padding=8), transforms.RandomHorizontalFlip(), *steps])
+            aug = "crop+flip"
+    elif isinstance(dataset, datasets.ImageFolder) and any(
+            isinstance(s, transforms.RandomResizedCrop) for s in steps):
+        aug = "loader"  # v29: ImageNet / Places train loaders already carry RandomResizedCrop(224)+Flip
     elif env_flag("SPECTRA_FT_AUG_HOLDOUT") and any(
             isinstance(s, (transforms.RandomCrop, transforms.RandomHorizontalFlip)) for s in steps):
         aug = "loader"  # the loader already carries the hold-out checkpoints' recipe
@@ -1601,6 +1857,7 @@ def _dataset_from_net_path(net_path):
     stem = os.path.basename(str(net_path or "")).lower()
     for token, name in (("cifar100", "cifar-100"), ("cifar-100", "cifar-100"),
                         ("cifar10", "cifar-10"), ("cifar-10", "cifar-10"),
+                        ("tinyimagenet", "tiny-imagenet"), ("tiny-imagenet", "tiny-imagenet"),
                         ("imagenet", "imagenet"), ("svhn", "svhn"),
                         ("fashion", "fashion-mnist"), ("mnist", "mnist")):
         if token in stem:
@@ -1815,6 +2072,44 @@ def calc_num_parameters(model, is_pruned=False):
 
     # Subtract pruned parameters
     return orig_params - pruned_params
+
+
+def topk_correct(logits, targets, ks=(1, 5)):
+    """
+    ``{k: correct}`` over one batch: a prediction is correct at ``k`` when the target is among the ``k`` largest
+    logits (ties broken as ``torch.topk`` breaks them). ``k`` above the class count reads all classes.
+    """
+    ks = tuple(int(k) for k in ks)
+    kmax = max(1, min(max(ks), int(logits.size(1))))
+    top = logits.topk(kmax, dim=1).indices
+    hit = top.eq(targets.view(-1, 1).to(top.device))
+    return {k: int(hit[:, :min(k, kmax)].any(dim=1).sum().item()) for k in ks}
+
+
+@torch.no_grad()
+def evaluate_topk(model, loader, device, ks=(1, 5)):
+    """
+    ``{k: accuracy}`` of ``model`` on ``loader`` (v29, the ImageNet line's top-1 and top-5): eval mode for the pass,
+    the model's mode restored; one-hot targets are argmaxed as ``ClassificationHandler.evaluate_model`` does.
+    """
+    model = ddp.unwrap(model)
+    was_training = model.training
+    model.eval()
+    correct = {int(k): 0 for k in ks}
+    total = 0
+    try:
+        for x, y in loader:
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
+            if y.dim() > 1 and y.shape[1] > 1:
+                y = torch.argmax(y, dim=1)
+            hits = topk_correct(model(x), y.long(), ks)
+            for k in correct:
+                correct[k] += hits[k]
+            total += int(y.numel())
+    finally:
+        model.train(was_training)
+    return {k: (correct[k] / total if total else 0.0) for k in correct}
 
 
 def get_input_shape(loader) -> tuple:
