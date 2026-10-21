@@ -463,6 +463,11 @@ Written by the Claude Code science session that opened in the repo tab (Opus 5.5
   - **§403 LEV-125 read:** no S2 call on Fashion-MNIST at 0.25 or 0.125. Proposed: CIFAR-100 as the unseen dataset [D pending Ido] (`fc71086`, catalog plan S2 row).
   - **Pages:** the Since-9-Oct page was rewritten through §403 (v10); the Since-15-Oct page is v4, with D2 revised and a new D7 (the frozen T6-fs on the eight wave-1 CIFAR WRN / PreAct networks, about 160 cells, about 50 GPU-h, not registered).
   - **Development:** a spectra-hard-dev subagent is building the plan trainer's checkpoint-and-resume (`SPECTRA_PLAN_STATE` / `SPECTRA_PLAN_RESUME`, default off; tests in `tests/test_v25_plan_resume.py`, to run on the login node). Review its diff before deploying it as tree_v25.
+- **21 Oct 09:40. Ledgers §410 (FB-XFER) and §411 (TS); DEEP registered and running.**
+  - §410: the fallback on the eight new networks is AT the rule (+0.09, +0.08), GAP-CLOSED, and ADDS +0.41 / +0.34 over the agent.
+  - §411: two stages do not help. STAGING-SAME for the agent (+0.30 from r20-w8 C100 noise) and for the rule (+0.12); TS-P AT.
+  - DEEP: params 0.15 and 0.10, three arms, five seeds, answering Ido's 20 Oct question. The 10 % floor is per channel group, so 10 % of params still leaves allocation room.
+  - Ido asked for a code-lineage map and a bug audit of the live path: an Opus lineage agent and the hard-dev auditor are running read-only.
 - **20 Oct 21:20. Ledger §409 (FB) and FB-XFER registered.**
   - FB: AT-PRIOR-POOL at all six depths. TAIL-REMOVED (+0.58). Level with the agent at 60–35 %, +0.48 at 25 %.
   - The one-epoch judge's oracle agreement is near chance at 60–45 % and 31 of 43 at 25 %.
