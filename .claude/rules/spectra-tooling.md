@@ -26,6 +26,13 @@
 - TS's first gate (20 Oct 02:36) chained stage 2 from `val_best` models at 0.88–0.997 kept.
 - A point is saved once, under its first label. On MobileNetV2 ×1.4 and VGG-16 the `val_best` file was the size point itself, so a label-only choice skipped it (19:13).
 
+**Holds and `top` have side effects (learned 21–23 Oct).** Both reorder our queue, but each leaves a trace that outlasts the fix:
+- A hold resets a job's age factor, because Slurm counts age from eligibility. DEEP's 239 cells, held 00:13–06:14 on 22 Oct, came back below every other cell of ours, and none started for two days.
+- Each `scontrol top` raises the nice of all our other pending jobs and leaves it there. Three calls took DEEP's nice from 10 to 17.
+- `top` works only within a narrow band of priorities. Jobs that tie on priority start in age order, so a short smoke can lose to a 10-hour train submitted earlier. ENC's first gate timed out at 22:37 with two smokes that never started.
+
+So, after a hold or a `top`, check `squeue -u paretsky -t PD -o "%Q %y %j"` across all our studies, not only the head of the queue, and restore the registered order with `scontrol update jobid=<ids> nice=<n>`. A user can set any nice of 0 or more. Give a gate a wait longer than the queue's real delay. When a gate times out only because its smokes never ran, re-run the same gate unchanged and record it in the queue row.
+
 **No log dumps in the main tab (Ido, 10 Oct).** Readers write their full output to a scratchpad file; the tab shows the call lines and compact tables only. Never paste a raw log, a whole reader output or a subagent transcript.
 
 **Delegation** (agent files in `.claude/agents/`; the table is in `CLAUDE.md`).
