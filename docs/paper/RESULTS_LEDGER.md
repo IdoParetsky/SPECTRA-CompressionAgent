@@ -10073,3 +10073,45 @@ Not checked: the walk-era A2C actor's training; the feature semantics inside `BE
 §411 addendum: its honest column is the 5k change minus FINAL's 100-epoch one-cycle origin-control change. TS's own recipe is 30 + 70 epochs in two cycles, so honest there is a comparison against the one-shot control, not a same-recipe control.
 
 Records: the audit report and check scripts above; next §413.
+
+## 413. (DEEP): the frozen params agent of record (T6-fs), floored sens_cost and the even cut at params 0.15 and 0.10, below the agent's training range (0.25–0.85), on the nine pool nets, five seeds (42–46), FINAL's eval line (`tree_v24`, deterministic, floored, grid-rounded, G2 plus the origin control) — **BELOW-PRIOR-POOL at both depths**
+- **P15 BELOW-PRIOR-POOL** (T6-fs − sens_cost **−0.86** [−2.65, +0.17], 3 of 9 positive; the other eight −0.12);
+- **P10 BELOW-PRIOR-POOL** (**−0.43** [−1.79, +0.70], 4 of 9; the other eight +0.09).
+
+One network carries the shortfall at both depths: on r20-w8 C100 the agent loses 4–11 points on four of five seeds. On the other eight the agent is at the rule (reported). The rule's allocation is worth +1.57 and +1.67 over the even cut (reported).
+
+Registered 21 Oct 09:32 (`ab05148`; queue row DEEP) before submit, at Ido's 20 Oct question on 15 % and 10 % budgets. Gate PASS 21 Oct 09:53; 270 cells. The cells were held 22 Oct 00:13–06:14 and reniced on 23 Oct 02:10 (queue row DEEP); no cell's configuration changed. Read 24 Oct 14:57 (`scripts/_tmp_s21oct_deep_read.sh`, written before any result).
+- *Checks.* 270 of 270 COMPLETED. Every net and arm has its five size-labelled rows. Every cell lands within ±0.011 of its target (per-arm mean params ×0.149–0.150 at 0.15 and ×0.097–0.100 at 0.10).
+- *Measurement.* As FINAL (§406): TEST 5k, val, 10k and honest (each job's own 100-epoch origin control), paired by seed. The pooled value is the mean over the nine nets of the per-net five-seed means; the interval is a 95 % bootstrap over nets.
+
+| contrast | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
+|---|---|---|---|---|---|---|---|
+| P15: T6-fs − sens_cost at params 0.15 | **−0.86** [−2.65, +0.17] | −1.01 | −0.93 | −0.93 | 3 of 9 | **BELOW-PRIOR-POOL** | −0.12 |
+| P10: T6-fs − sens_cost at params 0.10 | **−0.43** [−1.79, +0.70] | −0.41 | −0.42 | −0.42 | 4 of 9 | **BELOW-PRIOR-POOL** | +0.09 |
+| reported: the lever at 0.15, sens_cost − even cut | +1.57 [+0.22, +2.90] | +1.74 | +1.66 | +1.59 | 6 of 9 | — | +2.02 |
+| reported: the lever at 0.10, sens_cost − even cut | +1.67 [−0.11, +3.37] | +1.70 | +1.68 | +1.68 | 6 of 9 | — | +2.21 |
+
+Per net, TEST 5k (five-seed means; per-seed values where a seed decides the sign). The last column gives the rule's final TEST accuracy (± SD over seeds); the agent's FLOPs at equal params differ from the rule's by more than 10 % on seven of nine nets (FLOPs caption).
+
+| net | P15 (agent − rule) | P10 (agent − rule) | lever 0.15 | lever 0.10 | rule's final TEST % at 0.15 / 0.10 |
+|---|---|---|---|---|---|
+| thin r56-w4 | −0.94 (s46 −4.28) | **+2.14** (+3.02 / +3.72 / +5.04 / +1.34 / −2.40) | +3.84 | −1.03 | 73.54 ± 0.22 / 63.26 ± 2.09 |
+| chenyaofo R56 | −0.31 | −0.31 | +1.80 | +2.97 | 91.86 ± 0.20 / 90.53 ± 0.42 |
+| r56-w8 | −0.67 (s46 −3.36) | −1.70 (s46 −6.50) | +3.38 | +5.02 | 86.69 ± 0.21 / 84.17 ± 0.30 |
+| MobileNetV2 ×1.4 | **+0.63** (every seed positive) | **+0.62** (every seed positive) | −0.13 | +0.53 | 92.88 ± 0.33 / 92.20 ± 0.34 |
+| DenseNet-100 | +0.50 | +0.58 | −0.66 | −0.90 | 92.47 ± 0.18 / 91.21 ± 0.37 |
+| r20-w8 C100 | **−6.78** (+3.30 / −10.98 / −10.28 / −6.46 / −9.46) | **−4.58** (+3.12 / −8.28 / −3.76 / −5.34 / −8.62) | −2.04 | −2.68 | 30.89 ± 0.56 / 23.68 ± 0.54 |
+| VGG-19 C100 | +0.07 | +0.09 | +4.36 | +5.34 | 73.34 ± 0.23 / 72.61 ± 0.40 |
+| VGG-16 | −0.10 | −0.28 | +1.97 | +2.44 | 94.03 ± 0.14 / 93.84 ± 0.23 |
+| DepGraph R56 | −0.10 | −0.45 | +1.61 | +3.32 | 91.90 ± 0.35 / 90.90 ± 0.48 |
+
+Reading:
+1. **Below its training range the frozen agent falls below the rule** (P15 and P10 BELOW-PRIOR-POOL). The pooled loss sits on r20-w8 C100: the agent's final TEST accuracy there is 24.12 ± 5.65 at 0.15 against the rule's 30.89 ± 0.56, and 19.11 ± 4.89 against 23.68 ± 0.54 at 0.10. This is the all-or-nothing plan already recorded on this network inside the training range (§376, §377, §383); at deep budgets it costs more. The loss shows on val too (−7.14 / −5.26), so a validation choice could see it.
+2. **On the other eight the agent is at the rule** (−0.12 at 0.15, +0.09 at 0.10; reported, not called). Two more single-seed collapses appear (thin s46 at 0.15, r56-w8 s46 at 0.10). MobileNetV2 ×1.4 and DenseNet-100 favour the agent at both depths, and thin r56-w4 at 0.10.
+3. **The rule's allocation is worth more at deep budgets than above them** (+1.57 / +1.67 over the even cut; reported). The even cut is ahead of the rule on DenseNet-100 and r20-w8 C100 at both depths, and on thin r56-w4 at 0.10.
+4. **The literature anchor agrees.** DepGraph R56 reads −0.10 / −0.45 here, as at 0.18 / 0.125 in §408 (−0.27 / −0.30).
+5. [D] The registered follow-ups train down to 0.10: T9-fs (T6-fs's line on κ 0.10–0.85, Ido's GO 23 Oct) and D5 (T6-fs warm-started with the one-epoch reward on κ 0.10–0.50). [H] The validation fallback (§409) would remove most of the r20-w8 C100 loss at these depths, because the collapse shows on val; it is not measured here.
+
+Not claimed: "the agent fails beyond its range" in general. The call is BELOW at the pool level, the other eight are at the rule, and the cause is one network's plans.
+
+Records: `scripts/_tmp_s21oct_deep_read.sh` output (24 Oct 14:57); manifest `s21oct_deep_manifest.tsv`; next §414.
