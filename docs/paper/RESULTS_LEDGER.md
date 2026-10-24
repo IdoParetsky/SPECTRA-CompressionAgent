@@ -10081,7 +10081,7 @@ Records: the audit report and check scripts above; next §413.
 One network carries the shortfall at both depths: on r20-w8 C100 the agent loses 4–11 points on four of five seeds. On the other eight the agent is at the rule (reported). The rule's allocation is worth +1.57 and +1.67 over the even cut (reported).
 
 Registered 21 Oct 09:32 (`ab05148`; queue row DEEP) before submit, at Ido's 20 Oct question on 15 % and 10 % budgets. Gate PASS 21 Oct 09:53; 270 cells. The cells were held 22 Oct 00:13–06:14 and reniced on 23 Oct 02:10 (queue row DEEP); no cell's configuration changed. Read 24 Oct 14:57 (`scripts/_tmp_s21oct_deep_read.sh`, written before any result).
-- *Checks.* 270 of 270 COMPLETED. Every net and arm has its five size-labelled rows. Every cell lands within ±0.011 of its target (per-arm mean params ×0.149–0.150 at 0.15 and ×0.097–0.100 at 0.10).
+- *Checks.* 270 of 270 COMPLETED. Every net and arm has its five size-labelled rows. The per-arm mean params are ×0.149–0.150 at 0.15 and ×0.097–0.100 at 0.10, each within ±0.011 of its target (single cells were not checked one by one).
 - *Measurement.* As FINAL (§406): TEST 5k, val, 10k and honest (each job's own 100-epoch origin control), paired by seed. The pooled value is the mean over the nine nets of the per-net five-seed means; the interval is a 95 % bootstrap over nets.
 
 | contrast | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
@@ -10091,7 +10091,7 @@ Registered 21 Oct 09:32 (`ab05148`; queue row DEEP) before submit, at Ido's 20 O
 | reported: the lever at 0.15, sens_cost − even cut | +1.57 [+0.22, +2.90] | +1.74 | +1.66 | +1.59 | 6 of 9 | — | +2.02 |
 | reported: the lever at 0.10, sens_cost − even cut | +1.67 [−0.11, +3.37] | +1.70 | +1.68 | +1.68 | 6 of 9 | — | +2.21 |
 
-Per net, TEST 5k (five-seed means; per-seed values where a seed decides the sign). The last column gives the rule's final TEST accuracy (± SD over seeds); the agent's FLOPs at equal params differ from the rule's by more than 10 % on seven of nine nets (FLOPs caption).
+Per net, TEST 5k (five-seed means; per-seed values where a seed decides the sign). The last column gives the rule's final TEST accuracy (± SD over seeds); the agent's FLOPs at equal params differ from the rule's by more than 10 % on seven of nine nets at 0.15 and eight of nine at 0.10 (FLOPs caption).
 
 | net | P15 (agent − rule) | P10 (agent − rule) | lever 0.15 | lever 0.10 | rule's final TEST % at 0.15 / 0.10 |
 |---|---|---|---|---|---|
