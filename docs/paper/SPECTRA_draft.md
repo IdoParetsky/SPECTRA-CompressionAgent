@@ -26,15 +26,16 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 - Never "two-stage pruning helps": every two-stage call is SAME or AT (§411).
 - Never "the agent conditions on the budget type" (§360). Never "advantage normalization helps" (§364). Never "a training floor or a deeper training range fixes the collapse" (§376, §377). Never "the batch-norm reward removes the collapse at 25 %": one seed still collapses there (§383). Never "a seed ensemble fixes the collapse" or "is more robust": averaging the three seeds' scores leaves it (§386). Never "unseen dataset" for the CIFAR-100 rows of an agent trained with CIFAR-100 in its catalog (T7-C, §389; T8-fs, §400). Never "a bigger catalog hurts" in general: §400 is one reward line at one instance budget, carried by two CIFAR-100 networks.
 - Never a proxy's value, a train-log value, a smoke, a projection, `eval_train` or an in-walk number as a result. Never say a proxy is valid unless its registered fidelity call says VALID (§375, §379). Never the 1-epoch final as a result.
-- Never mix budgets or depths in one contrast. Never drop the network that carries a result (ResNet-20 ×8 on CIFAR-100 at 35 % and 25 % params, §374, §380).
+- Never mix budgets or depths in one contrast. Never drop the network that carries a result (ResNet-20 ×8 on CIFAR-100 at 35 % and 25 % params, §374, §380, and at 15 % and 10 %, §413).
+- Never "the agent fails beyond its training range" in general. §413's scope: BELOW-PRIOR-POOL at 15 % and 10 % params, decided by ResNet-20 ×8 CIFAR-100; the other eight are at the rule.
 - The walk-era DepGraph comparison (§157, "M4") keeps its caption; it is not re-quoted for the plan agent (Appendix B).
 
-**Where the evidence stands (updated 20 Oct 2026; PRELIM; TEST with val, 10k and honest beside it in §5).**
+**Where the evidence stands (updated 24 Oct 2026; PRELIM; TEST with val, 10k and honest beside it in §5).**
 
 | Question | Answer so far | § |
 |---|---|---|
 | Does the frozen agent learn? | Yes. It beats mild and uniform on held-out networks, and it reaches, without passing, the sensitivity rule | §341, §346, §363 |
-| Equal parameters, nine held-out networks | With the raw-cut reward: at the cost-aware rule at 60 % and 45 % kept, below it at 35 % and 25 %, decided by one network (ResNet-20 ×8 CIFAR-100). With the batch-norm reward on the deep training range: **one frozen agent at the rule at all four depths read**, 60 %, 45 %, 35 % and 25 %. **Final, five deterministic seeds (§406):** the 32-step agent is at the rule at all four depths: +0.05 / +0.29 / +0.24 / −0.22 at 60 / 45 / 35 / 25 % kept. It is slightly above the rule at 45–35 %, where at 35 % the interval lies above zero. ResNet-20 ×8 CIFAR-100 decides both tails (+1.92 at 45 %, −3.86 at 25 %); the other eight are at or slightly above the rule at every depth. The three-seed beat at 45 % (§390) did not hold | §370, §373, §374, §380, §383, §384, §387, §390, §406 |
+| Equal parameters, nine held-out networks | With the raw-cut reward: at the cost-aware rule at 60 % and 45 % kept, below it at 35 % and 25 %, decided by one network (ResNet-20 ×8 CIFAR-100). With the batch-norm reward on the deep training range: **one frozen agent at the rule at all four depths read**, 60 %, 45 %, 35 % and 25 %. **Final, five deterministic seeds (§406):** the 32-step agent is at the rule at all four depths: +0.05 / +0.29 / +0.24 / −0.22 at 60 / 45 / 35 / 25 % kept. It is slightly above the rule at 45–35 %, where at 35 % the interval lies above zero. ResNet-20 ×8 CIFAR-100 decides both tails (+1.92 at 45 %, −3.86 at 25 %); the other eight are at or slightly above the rule at every depth. The three-seed beat at 45 % (§390) did not hold. **Below the training range, five seeds (§413):** below the rule at 15 % and 10 % kept (−0.86, −0.43; BELOW-PRIOR-POOL), decided by ResNet-20 ×8 CIFAR-100 (−6.78, −4.58); the other eight are at the rule (−0.12, +0.09) | §370, §373, §374, §380, §383, §384, §387, §390, §406, §413 |
 | Equal FLOPs, nine held-out networks | **Final, five deterministic seeds:** at the FLOPs rule at 60 % and 45 % kept (−0.16 at both; AT-PRIOR-F-POOL). The deficit sits on ResNet-20 ×8 CIFAR-100; the seven CIFAR-10 networks are level (−0.03, +0.04). The three-seed rows read −0.21 | §366, §371, §405 |
 | Is there an allocation above the priors? | No headroom found at moderate budgets, for either budget type | §367, §368, §372 |
 | Does re-planning in two stages help? | No: at 25 % params the two-stage agent is level with the one-shot agent (+0.30, carried by one noisy network; other eight −0.06), and the two-stage rule gains a little (+0.12) | §411 |
@@ -584,6 +585,8 @@ Once §355 showed that, at equal parameters, cost-aware sensitivity beats plain 
 | 25 % | deep-range 32-step agent (T6-fs) | **+0.1615** [−0.46, +0.60] | +0.22 | +0.19 | +0.22 | 6 / 9 | AT-PRIOR-POOL (§387) | ResNet-20 ×8 CIFAR-100, −0.93 | +0.30 |
 | 60 % | deep-range 32-step agent (T6-fs) | **+0.0504** [−0.17, +0.28] | +0.24 | +0.14 | −0.08 | 4 / 9 | AT-PRIOR-POOL (§390) | — | +0.00 |
 | 45 % | deep-range 32-step agent (T6-fs) | **+0.4193** [+0.02, +1.00] | +0.34 | +0.38 | +0.46 | 6 / 9 | **BEATS-PRIOR-P-POOL** (§390, three seeds; **final, five seeds: +0.29, AT-PRIOR-POOL, §406**) | ResNet-20 ×8 CIFAR-100, +2.28 | +0.19 |
+| 15 % (below the training range) | deep-range 32-step agent (T6-fs), five seeds | **−0.86** [−2.65, +0.17] | −1.01 | −0.93 | −0.93 | 3 / 9 | BELOW-PRIOR-POOL (§413) | ResNet-20 ×8 CIFAR-100, −6.78 | −0.12 |
+| 10 % (below the training range) | deep-range 32-step agent (T6-fs), five seeds | **−0.43** [−1.79, +0.70] | −0.41 | −0.42 | −0.42 | 4 / 9 | BELOW-PRIOR-POOL (§413) | ResNet-20 ×8 CIFAR-100, −4.58 | +0.09 |
 
 **Table 5.2b — per network, TEST (val / 10k / honest).**
 
@@ -653,13 +656,14 @@ Every pair is matched within 1 % of FLOPs.
 
 **Cost-awareness depends on the budget.** On ResNet-56 ×4 at FLOPs 0.6, the cost-aware rule is *worse* than plain sensitivity: −0.33 (val −0.35, 10k −0.34, honest −0.78; COST-HURTS, §355). With both rules floored the gap is −0.48 (§361). At equal parameters it is better on all three networks measured: +0.47, +0.39 and +0.44 (§355). This asymmetry is why each budget type has its own prior.
 
-### 5.4 Trade-off curves — PRELIM (the figure is drawn when DEEP reads)
+### 5.4 Trade-off curves — PRELIM (DEEP has read, §413; the figure is still to draw)
 
 **Figure 5.4 (to draw).** TEST 5k accuracy after recovery against the kept fraction of parameters, one panel per network, with the frozen agent, the cost-aware rule and the even cut, and the published points of Table 1 beside them; a second panel set does the same in FLOPs. It is the view of NEON's Figure 5: one frozen policy covering the whole budget range, where Table 2 reads fixed points.
 
 The points that exist or run (no number is quoted here):
 - **Parameters 0.6 / 0.45 / 0.35 / 0.25** on the nine networks at five seeds (§406), and **FLOPs 0.6 / 0.45** (§405).
-- **Parameters 0.15 / 0.10** (DEEP, registered 21 Oct, not yet read). Below 0.25 the frozen agent extrapolates beyond its training range (0.25–0.85).
+- **Parameters 0.15 / 0.10** at five seeds (§413). Below 0.25 the frozen agent extrapolates beyond its training range (0.25–0.85), and there it is below the cost-aware rule (BELOW-PRIOR-POOL at both points, −0.86 and −0.43). ResNet-20 ×8 CIFAR-100 decides it; on the other eight the agent is at the rule. The rule's lever over the even cut grows to +1.57 and +1.67 points.
+- **FLOPs 0.25 / 0.15 / 0.10** (DEEP-F, registered 23 Oct, not yet read), below the FLOPs agent's training range (0.35–0.85).
 - **Agents trained down to 0.10** are read at the same points when they finish: the one-epoch reward warm-started from the agent of record (D5), and the agent of record's line on the deeper range 0.10–0.85 (T9-fs). They are candidates, not the agent of record.
 
 ### 5.5 The transfer matrix: families and datasets
@@ -898,6 +902,12 @@ Three single-change retrains of the catalog agent asked what removes the ResNet-
 - **The losses sit on CIFAR-100.** On the seven CIFAR-10 networks every contrast lies within −0.12 to +0.22. At 25 % the CIFAR-100 pair reads −2.26 against the rule, −2.14 against T6-fs and −3.22 against T7-C. On the batch-norm line the same networks in the catalog helped exactly this pair at 25 % (§389), so the catalog's effect depends on the reward.
 - **One frozen policy fails on one network.** Seed 42 on ResNet-20 ×8 CIFAR-100 loses 37.2 points at 25 % and 22.1 at 35 %, where every other arm and seed loses 18.0–26.2 and 12.1–16.6. That is −15.2 against the rule at 25 %, far outside run noise (§398). Its plans cut more broadly than the other seeds' (median group keep 0.69 against 0.83 and 0.75).
 - [H] At a fixed 12,000 instances, going from 10 to 18 catalog networks cuts each network's share of training to about 0.56×. The catalog ladder should scale instances with the catalog before it reads breadth (`docs/CATALOG_SCALE_PLAN.md` §4).
+
+**Below the training range (§413; five seeds; PRELIM).** At 15 % and 10 % params the frozen agent, trained on 25–85 %, is below the cost-aware rule (BELOW-PRIOR-POOL, −0.86 [−2.65, +0.17] and −0.43 [−1.79, +0.70]; val −1.01 / −0.41, 10k −0.93 / −0.42, honest −0.93 / −0.42).
+- **The loss sits on one network.** On ResNet-20 ×8 CIFAR-100 the agent loses 4–11 points to the rule on four of five seeds (−6.78 and −4.58). This is the all-or-nothing plan already recorded inside the training range (§376, §377, §383), and it costs more at deep budgets. It shows on val too.
+- **The other eight are at the rule** (−0.12, +0.09). MobileNetV2 ×1.4 and DenseNet-100 favour the agent at both points, and ResNet-56 ×4 at 10 % (+2.14).
+- **The rule's allocation matters more here** than inside the range: +1.57 and +1.67 over the even cut.
+- [D] The follow-ups train down to 10 %: T9-fs (the agent of record's line on 10–85 %) and D5 (warm-started, with the one-epoch reward on 10–50 %). [H] The validation fallback (§5.9b) would remove most of the ResNet-20 ×8 loss, since the collapse shows on val; it is not measured at these points.
 
 ### 5.9b A fallback to the rule, chosen on validation (§409)
 
