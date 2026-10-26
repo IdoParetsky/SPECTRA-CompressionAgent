@@ -10115,3 +10115,99 @@ Reading:
 Not claimed: "the agent fails beyond its range" in general. The call is BELOW at the pool level, the other eight are at the rule, and the cause is one network's plans.
 
 Records: `scripts/_tmp_s21oct_deep_read.sh` output (24 Oct 14:57); manifest `s21oct_deep_manifest.tsv`; next §414.
+
+## 414. (D5): the one-epoch reward, warm-started from the params agent of record (T6-fs) and trained on κ 0.10–0.50 for 3,000 instances (ft1w), against the same continued training with the 32-step reward (fs32w), seeds 42–44, FINAL's eval line — **P_D5 BEATS-PRIOR-POOL at 0.35, 0.25 and 0.15 (three seeds); FT1-HELPS at 0.25 and 0.15; REWARD-HELPS at 0.15 and 0.10**
+- **FT1** (ft1w − T6-fs): 0.45 +0.00 SAME; 0.35 +0.06 SAME; **0.25 +0.47 HELPS**; **0.15 +1.30 HELPS**; 0.10 +0.82 SAME (5 of 9 positive).
+- **REWARD** (ft1w − fs32w): 0.25 +0.10 SAME; **0.15 +0.45 HELPS**; **0.10 +0.41 HELPS**.
+- **P_D5** (ft1w − sens_cost): 0.45 +0.32 AT (5 of 9); **0.35 +0.35 BEATS**; **0.25 +0.59 BEATS** [+0.01, +1.49]; **0.15 +0.75 BEATS** [+0.07, +1.77]; 0.10 +0.81 AT (4 of 9).
+
+Only at 15 % do both FT1 and REWARD fire, so only there may the gain be credited to the one-epoch reward. At 25 % the gain comes from the continued training on the deep range. The pooled gains sit mostly on r20-w8 C100. These are three-seed calls.
+
+Registered 21 Oct 14:49 (`be0fc2c`; queue row D5) before submit, at Ido's 21 Oct GO. Gate PASS 21 Oct 23:18. Read 26 Oct 18:21 (`scripts/_tmp_s21oct_d5_read.sh`, written and dry-run before any result).
+- *Trains.* All six reached 3,000 instances. The ft1w trains ran as resumable segments, and the manager resumed every preemption from the newest saved state:
+  - s42 was preempted before its first save and restarted fresh, then ran 1,904 + 1,096.
+  - s43 was preempted twice and resumed at 1,100.
+  - s44 ran 1,988 + 1,012.
+  - An ft1 instance cost 48–54 s, an fs32 instance 6 s.
+- *Checks.* 216 of 216 evals COMPLETED; 4 preempted cells were resubmitted unchanged by the eval guard.
+- *Measurement.* As FINAL (§406): TEST 5k with val, 10k and honest, paired by seed. The comparators are FINAL's rows at 0.45 / 0.35 / 0.25 and DEEP's at 0.15 / 0.10 (§413), both at seeds 42–44, on the same deterministic line.
+
+| contrast | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
+|---|---|---|---|---|---|---|---|---|
+| FT1: ft1w − T6-fs | 0.45 | +0.00 [−0.19, +0.21] | +0.10 | +0.05 | −0.08 | 5 of 9 | FT1-SAME | −0.04 |
+| | 0.35 | +0.06 [−0.19, +0.43] | +0.01 | +0.03 | −0.01 | 5 of 9 | FT1-SAME | −0.04 |
+| | 0.25 | **+0.47** [−0.28, +1.83] | +0.54 | +0.51 | +0.46 | 6 of 9 | **FT1-HELPS** | −0.07 |
+| | 0.15 | **+1.30** [−0.01, +4.10] | +1.32 | +1.31 | +1.43 | 7 of 9 | **FT1-HELPS** | +0.22 |
+| | 0.10 | +0.82 [−0.15, +2.77] | +0.95 | +0.88 | +0.86 | 5 of 9 | FT1-SAME | +0.08 |
+| REWARD: ft1w − fs32w | 0.25 | +0.10 [−0.24, +0.50] | +0.18 | +0.14 | +0.06 | 4 of 9 | REWARD-SAME | −0.03 |
+| | 0.15 | **+0.45** [−0.14, +1.45] | +0.49 | +0.47 | +0.52 | 6 of 9 | **REWARD-HELPS** | +0.18 |
+| | 0.10 | **+0.41** [−0.29, +1.51] | +0.32 | +0.36 | +0.39 | 6 of 9 | **REWARD-HELPS** | +0.07 |
+| P_D5: ft1w − sens_cost | 0.45 | +0.32 [−0.12, +0.97] | +0.40 | +0.36 | +0.34 | 5 of 9 | AT-PRIOR-POOL | +0.04 |
+| | 0.35 | **+0.35** [−0.05, +0.99] | +0.36 | +0.35 | +0.42 | 7 of 9 | **BEATS-PRIOR-POOL** | +0.08 |
+| | 0.25 | **+0.59** [+0.01, +1.49] | +0.65 | +0.62 | +0.63 | 6 of 9 | **BEATS-PRIOR-POOL** | +0.20 |
+| | 0.15 | **+0.75** [+0.07, +1.77] | +0.58 | +0.67 | +0.79 | 6 of 9 | **BEATS-PRIOR-POOL** | +0.35 |
+| | 0.10 | +0.81 [−0.17, +2.07] | +0.97 | +0.89 | +0.80 | 4 of 9 | AT-PRIOR-POOL | +0.45 |
+| reported: T6-fs − sens_cost (seeds 42–44) | 0.45 / 0.35 / 0.25 / 0.15 / 0.10 | +0.32 / +0.29 / +0.11 / −0.55 / −0.01 | | | | 6 / 7 / 7 / 5 / 4 of 9 | — | |
+| reported: fs32w − T6-fs | 0.25 / 0.15 / 0.10 | +0.38 / +0.85 / +0.40 | | | | 5 / 6 / 7 of 9 | — | −0.05 / +0.04 / +0.00 |
+| reported: fs32w − sens_cost | 0.25 / 0.15 / 0.10 | +0.49 / +0.30 / +0.40 | | | | 6 / 5 / 6 of 9 | — | +0.22 / +0.17 / +0.37 |
+
+Per net (TEST 5k, three-seed means; per-seed values where they decide):
+- **r20-w8 C100 carries the deep gains.** FT1 there is:
+  - +4.83 at 0.25 (−0.22 / +8.08 / +6.64);
+  - **+9.97** at 0.15 (−0.60 / +13.06 / +17.46);
+  - +6.71 at 0.10 (−2.34 / +11.04 / +11.42).
+
+  REWARD on it is +1.09 / +2.66 / +3.12. On seeds 43 and 44 the warm-started agents avoid the collapse that T6-fs shows there (§413).
+- **Elsewhere.** FT1 on thin r56-w4 at 0.15 is +1.04, every seed positive; DenseNet-100 at 0.10 is +0.69, every seed positive. VGG-19 C100 is negative inside the old range: FT1 −0.41 / −0.43 / −0.38 at 0.45 / 0.35 / 0.25.
+
+Reading:
+1. **At 15 % the one-epoch reward helps** (FT1-HELPS and REWARD-HELPS). It adds +1.30 over the agent of record and +0.45 over the same continued training with the 32-step reward, and the agent beats the rule (+0.75, interval above zero). On the other eight the gain over T6-fs is +0.22, and the gain over the rule is +0.35.
+2. **At 25 % the gain is the continued training, not the reward.** FT1-HELPS (+0.47) but REWARD-SAME (+0.10); fs32w alone is +0.38 over T6-fs.
+3. **At 45 % and 35 % the warm start leaves the agent where it was** (FT1-SAME). P_D5's BEATS at 0.35 matches T6-fs's own +0.29 at these three seeds; FINAL's five-seed T6-fs at 0.35 is +0.24, AT (§406).
+4. **At 10 % the picture is mixed.** REWARD-HELPS (+0.41), but FT1 is SAME (5 of 9) and P_D5 is AT (4 of 9), with the other eight at +0.45.
+5. [D] As registered, a D5 agent that beats the rule is a new candidate, not the agent of record, until its transfer is read. These are three-seed calls: the three-seed BEATS at 45 % in §390 did not hold at five seeds (§406). [H] The next steps would be D5's seeds 45–46 (two more warm-started trains, about 46 h each, plus their evals) and its transfer on XFER-W1's eight networks. Neither is registered.
+
+Not claimed: "the one-epoch reward helps" anywhere but 15 %; "the agent beats the rule" in general or for the agent of record; any D5 row placed in FINAL's or DEEP's tables as T6-fs.
+
+Records: `scripts/_tmp_s21oct_d5_read.sh` output (26 Oct 18:21); manifest `s21oct_d5_manifest.tsv`, manager log `s21oct_d5_run.log`.
+
+## 415. (D9): smaller catalogs on T6-fs's line at 6,000 instances (d9a: 1 net; d9b: 3 nets, CIFAR-10; d9c: the same 3 families on three datasets; d9d: 5 nets, CIFAR-10), seeds 42–44, read at params 0.45 and 0.25 against the schedule-matched control ctl6k (ENC, the amendment of 21 Oct 14:36) — **one network is not enough; three to five match ten at 45 %; one dataset beats three at 25 %**
+- **SCALE_d9a CATALOG-HURTS at both depths** (d9a − ctl6k −0.66 [−1.31, −0.20], 0 of 9 positive; −1.15 [−2.98, +0.18]);
+- **SCALE_d9b, SCALE_d9c CATALOG-SAME at both depths**;
+- **SCALE_d9d CATALOG-SAME at 0.45, CATALOG-HELPS at 0.25** (+0.73, 7 of 9), but against a weak control at 0.25: ctl6k itself is BELOW the rule there;
+- **MIX: MIX-SAME at 0.45 (−0.10), MIX-HURTS at 0.25 (−1.05).**
+
+Registered 21 Oct 11:33 (`be197c8`; queue row D9), with Ido's added hypothesis. Amended 21 Oct 14:36 (`2dcbbb3`) before any D9 read: SCALE is read against ctl6k, not against T6-fs's 6,000-instance snapshot, because σ's schedule depends on the instance count. Gate PASS 21 Oct 12:02. Read 26 Oct 18:21 (`scripts/_tmp_s21oct_d9_read.sh`, amended before the read).
+- *Trains.* All twelve completed. d9c s44 was preempted once; d9d s42 was preempted twice and restarted from zero each time, since these trains have no resume. The guard resubmitted both unchanged.
+- *Checks.* 270 of 270 evals COMPLETED; 2 preempted cells were resubmitted. ENC's 54 ctl6k evals COMPLETED.
+
+| contrast | 0.45: TEST 5k [95 %], d > 0, call (other eight) | 0.25: TEST 5k [95 %], d > 0, call (other eight) |
+|---|---|---|
+| SCALE_d9a: 1 net − ctl6k | **−0.66** [−1.31, −0.20], 0 of 9, **CATALOG-HURTS** (−0.47) | **−1.15** [−2.98, +0.18], 1 of 9, **CATALOG-HURTS** (−0.80) |
+| SCALE_d9b: 3 nets C10 − ctl6k | +0.03 [−0.21, +0.37], 2 of 9, CATALOG-SAME (−0.10) | +1.33 [−0.16, +3.93], 4 of 9, CATALOG-SAME (+0.19) |
+| SCALE_d9c: 3 nets, 3 datasets − ctl6k | −0.07 [−0.28, +0.23], 1 of 9, CATALOG-SAME (−0.16) | +0.28 [−0.66, +2.00], 6 of 9, CATALOG-SAME (−0.13) |
+| SCALE_d9d: 5 nets C10 − ctl6k | +0.02 [−0.17, +0.26], 5 of 9, CATALOG-SAME (−0.06) | **+0.73** [−0.11, +2.07], 7 of 9, **CATALOG-HELPS** (+0.19) |
+| MIX: d9c − d9b | −0.10 [−0.30, +0.10], 3 of 9, MIX-SAME (−0.06) | **−1.05** [−2.96, +0.00], 4 of 9, **MIX-HURTS** (−0.32) |
+| P_d9a − sens_cost | −0.40, 3 of 9, BELOW-PRIOR-POOL | −1.96, 1 of 9, BELOW-PRIOR-POOL |
+| P_d9b − sens_cost | +0.29, 5 of 9, AT-PRIOR-POOL | +0.52 [−0.16, +1.55], 6 of 9, BEATS-PRIOR-POOL |
+| P_d9c − sens_cost | +0.20, 5 of 9, AT-PRIOR-POOL | −0.53, 3 of 9, BELOW-PRIOR-POOL |
+| P_d9d − sens_cost | +0.28, 8 of 9, AT-PRIOR-POOL | −0.07, 4 of 9, AT-PRIOR-POOL |
+| reported: ctl6k − sens_cost | +0.26 [+0.01, +0.57], 8 of 9, AT | **−0.81** [−2.50, +0.27], 5 of 9, BELOW (other eight −0.10) |
+| reported: the snapshot (T6-fs at 6,000) − sens_cost | +0.19, 7 of 9, AT | +0.32 [−0.02, +0.69], 6 of 9, BEATS |
+| reported: ctl6k − the snapshot (σ's schedule) | +0.07, 5 of 9 | **−1.13** [−2.91, −0.12], 2 of 9 (other eight −0.40) |
+| reported: each catalog − the snapshot | d9a −0.59, d9b +0.10, d9c +0.00, d9d +0.09 | d9a −2.28, d9b +0.20, d9c −0.85, d9d −0.40 |
+| reported: d9b − d9a (3 nets − 1) | +0.69, 8 of 9 | +2.48 [+0.28, +6.20], 9 of 9 |
+| reported: d9d − d9b (5 nets − 3) | −0.01, 5 of 9 | −0.60, 4 of 9 |
+
+MIX per net at 0.25: r20-w8 C100 −6.93 (−3.36 / −2.58 / −14.84); thin r56-w4 −1.71, every seed negative; DenseNet-100 −0.65; the other six −0.57 to +0.27.
+
+Reading:
+1. **One network is not enough.** d9a is below the rule at both depths, below the matched control and the snapshot, and below three networks on 8 and 9 of 9 nets (+0.69, +2.48).
+2. **Three to five CIFAR-10 networks match the ten-network catalog at 45 %.** SCALE is SAME against both controls there, and every catalog of three or more is at the rule.
+3. **At 25 % the reference is unstable.** The matched control is −0.81 against the rule and −1.13 against the snapshot, so a SCALE value there measures the control as much as the catalog. Against the rule, d9b is +0.52 (BEATS, three seeds), d9d −0.07 (AT) and d9c −0.53 (BELOW). [H] At deep budgets the σ schedule matters. The 6,000-instance train whose σ reaches its floor at 3,600 is worse there than the 12,000-instance run at its 6,000-instance snapshot, where σ ≥ 0.25. At 45 % they are equal.
+4. **Ido's hypothesis: one dataset is better.** A single dataset for the three networks beats one dataset per network at 25 % (MIX-HURTS, −1.05) and equals it at 45 %. As stated in advance, the SVHN and Fashion-MNIST networks leave little allocation room (§402, §403), so d9c tests diversity against informativeness. The loss sits on r20-w8 C100 and thin r56-w4, two CIFAR pool networks.
+5. [D] Within the scope of these SCALE calls: three CIFAR-10 networks suffice at 45 %, one network does not, and at 25 % no catalog of three or more is shown worse than ten.
+
+Not claimed: "the method, not the data" beyond this scope; the mixed-dataset result beyond these three datasets; any SCALE value at 0.25 without the control's own −0.81 beside it.
+
+Records: `scripts/_tmp_s21oct_d9_read.sh` output and `scripts/_tmp_s21oct_enc_read.sh` output for ctl6k (26 Oct 18:21); manifests `s21oct_d9_manifest.tsv` and `s21oct_enc_manifest.tsv`; next §416.
