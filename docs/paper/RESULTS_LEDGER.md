@@ -10220,7 +10220,7 @@ Records: `scripts/_tmp_s21oct_d9_read.sh` output and `scripts/_tmp_s21oct_enc_re
 The rule's lever over the even cut grows from 0.25 to 0.15 (+0.39, then +0.66) and reverses at 0.10 (**−0.56**, 2 of 8 positive).
 
 Registered 23 Oct 12:44 (`bfbad5b`; queue row DEEP-F) before submit, at Ido's 23 Oct GO, with the infeasibility rule fixed in advance. Gate PASS 25 Oct 10:56 on the three hardest FLOPs-0.10 landings. Read 27 Oct 09:25 (`scripts/_tmp_s23oct_deepf_read.sh`, written and dry-run before any result).
-- *Checks.* 243 of 243 COMPLETED; 14 preempted cells were resubmitted unchanged by the guard. Every feasible cell lands at FLOPs ×0.099–0.250 of its point (per-arm means ×0.149–0.150 at 0.15 and ×0.099–0.100 at 0.10).
+- *Checks.* 243 of 243 COMPLETED; 20 preempted cells were resubmitted unchanged by the guard. The per-arm mean FLOPs are ×0.249–0.250 at 0.25, ×0.149–0.150 at 0.15 and ×0.099–0.100 at 0.10, each within ±0.011 of its point. The reader also refuses any single cell outside that band, and none was refused outside thin r56-w4 at 0.10.
 - *The infeasible net.* On thin r56-w4 (0.054 M params, 8.49 MFLOPs), every group at its walk floor leaves FLOPs ×0.121. The log reads "every group at its target with FLOPs x0.121 above the target x0.100; strongest legal cut from here", and size_flop0.10 is NONE for all nine of its cells at 0.10.
 
 | contrast | FLOPs | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
