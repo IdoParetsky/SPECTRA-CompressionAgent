@@ -10211,3 +10211,48 @@ Reading:
 Not claimed: "the method, not the data" beyond this scope; the mixed-dataset result beyond these three datasets; any SCALE value at 0.25 without the control's own −0.81 beside it.
 
 Records: `scripts/_tmp_s21oct_d9_read.sh` output and `scripts/_tmp_s21oct_enc_read.sh` output for ctl6k (26 Oct 18:21); manifests `s21oct_d9_manifest.tsv` and `s21oct_enc_manifest.tsv`; next §416.
+
+## 416. (DEEP-F): the frozen FLOPs agent of record (T4-F), floored sens_F and the even cut uniform_F at FLOPs 0.25, 0.15 and 0.10, below T4-F's training range (0.35–0.85), on the nine pool nets, seeds 42–44, FINAL's FLOPs eval line (`tree_v24`, deterministic) — **AT-PRIOR-F-POOL at 0.25 and 0.15; BELOW-PRIOR-F-POOL at 0.10, by a hair and over eight nets**
+- **F25 AT-PRIOR-F-POOL** (T4-F − sens_F **−0.09** [−0.81, +0.41], 5 of 9 positive; the other eight +0.12);
+- **F15 AT-PRIOR-F-POOL** (**−0.23** [−0.96, +0.27], 4 of 9; the other eight −0.05);
+- **F10 BELOW-PRIOR-F-POOL** (**−0.3017** [−0.94, +0.22], 3 of 8; the other seven −0.12). The value is 0.0017 past the bar. Thin r56-w4 is infeasible at FLOPs 0.10, so the call runs over 8 nets, as registered.
+
+The rule's lever over the even cut grows from 0.25 to 0.15 (+0.39, then +0.66) and reverses at 0.10 (**−0.56**, 2 of 8 positive).
+
+Registered 23 Oct 12:44 (`bfbad5b`; queue row DEEP-F) before submit, at Ido's 23 Oct GO, with the infeasibility rule fixed in advance. Gate PASS 25 Oct 10:56 on the three hardest FLOPs-0.10 landings. Read 27 Oct 09:25 (`scripts/_tmp_s23oct_deepf_read.sh`, written and dry-run before any result).
+- *Checks.* 243 of 243 COMPLETED; 14 preempted cells were resubmitted unchanged by the guard. Every feasible cell lands at FLOPs ×0.099–0.250 of its point (per-arm means ×0.149–0.150 at 0.15 and ×0.099–0.100 at 0.10).
+- *The infeasible net.* On thin r56-w4 (0.054 M params, 8.49 MFLOPs), every group at its walk floor leaves FLOPs ×0.121. The log reads "every group at its target with FLOPs x0.121 above the target x0.100; strongest legal cut from here", and size_flop0.10 is NONE for all nine of its cells at 0.10.
+
+| contrast | FLOPs | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
+|---|---|---|---|---|---|---|---|---|
+| F: T4-F − sens_F | 0.25 | **−0.09** [−0.81, +0.41] | −0.01 | −0.05 | −0.13 | 5 of 9 | **AT-PRIOR-F-POOL** | +0.12 |
+| | 0.15 | **−0.23** [−0.96, +0.27] | −0.13 | −0.18 | −0.23 | 4 of 9 | **AT-PRIOR-F-POOL** | −0.05 |
+| | 0.10 (8 nets) | **−0.3017** [−0.94, +0.22] | −0.33 | −0.32 | −0.39 | 3 of 8 | **BELOW-PRIOR-F-POOL** | −0.12 (seven) |
+| reported: the lever, sens_F − uniform_F | 0.25 | +0.39 [−0.17, +0.94] | +0.46 | +0.43 | +0.44 | 6 of 9 | — | +0.34 |
+| | 0.15 | +0.66 [+0.04, +1.47] | +0.72 | +0.69 | +0.75 | 6 of 9 | — | +0.71 |
+| | 0.10 (8 nets) | **−0.56** [−1.33, +0.15] | −0.59 | −0.58 | −0.44 | 2 of 8 | — | −0.28 (seven) |
+
+Per net, TEST 5k (three-seed means). Thin r56-w4 is infeasible at 0.10.
+
+| net | F25 | F15 | F10 | lever 0.25 | lever 0.15 | lever 0.10 |
+|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.84 (+2.76 / −0.50 / +0.26) | +0.89 (every seed positive) | infeasible | −0.05 | +3.30 | infeasible |
+| chenyaofo R56 | +0.31 (every seed positive) | +0.15 | −0.46 | +0.53 | +1.01 | +0.56 |
+| r56-w8 | +0.08 | −1.04 (every seed negative) | +0.60 | +2.00 | +0.75 | **−1.96** (every seed negative) |
+| MobileNetV2 ×1.4 | −0.10 | −0.47 (every seed negative) | +0.50 (every seed positive) | −1.31 | −0.31 | −0.31 |
+| DenseNet-100 | +0.24 | −0.05 | −0.19 | +0.11 | −0.05 | −0.31 |
+| r20-w8 C100 | **−1.75** (+1.64 / −5.26 / −1.64) | **−1.67** (+0.62 / −5.70 / +0.06) | **−1.59** (−0.36 / −3.74 / −0.66) | +0.80 | +0.21 | **−2.49** (every seed negative) |
+| VGG-19 C100 | −0.41 | +0.17 | −0.62 | +0.63 | +0.06 | −0.17 |
+| VGG-16 | −0.09 | −0.24 | −0.86 | −0.15 | −0.28 | −0.43 |
+| DepGraph R56 | +0.09 | +0.17 | +0.21 | +0.99 | +1.23 | +0.62 |
+
+Reading:
+1. **Below its training range the frozen FLOPs agent stays at the FLOPs rule to 15 %** (AT at 0.25 and 0.15). At 10 % it falls just past the bar (−0.3017 over 8 nets). r20-w8 C100 again carries the largest loss at every point (−1.75 / −1.67 / −1.59), its seed 43 collapsing each time; on the other eight the agent is at the rule.
+2. **The params agent does worse below its range than the FLOPs agent does.** At params 0.15 / 0.10 it is BELOW, at −0.86 / −0.43 (§413). [H] T4-F is a residual with a trust region around the FLOPs rule (zmax 0.3), so it cannot stray far from it when it extrapolates.
+3. **At 10 % FLOPs the FLOPs rule is no better than the even cut: it is worse** (−0.56, 2 of 8), on every seed for r56-w8 (−1.96) and r20-w8 C100 (−2.49). At params 0.10 the cost-aware rule was +1.67 over the even cut (§413). [H] At this depth the walk floors bind on most groups, so the rule's concentrated cuts have nowhere to go but the few groups left above their floors.
+4. **Thin r56-w4 cannot reach 10 % FLOPs at all** under the walk floor (×0.121 at the floor). A FLOPs table at 10 % has to name that limit.
+5. DepGraph R56, the literature anchor, reads +0.09 / +0.17 / +0.21: at the rule at every point.
+
+Not claimed: "the FLOPs agent fails below its range"; at 10 % the BELOW call is by 0.0017 and over eight nets. The three-seed rows are not mixed with FINAL's five-seed FLOPs rows (§405).
+
+Records: `scripts/_tmp_s23oct_deepf_read.sh` output (27 Oct 09:25); manifest `s23oct_deepf_manifest.tsv`; next §417.
