@@ -507,3 +507,46 @@ Bars are given where the ledger or the handoff states them. [U] marks a bar that
 | **NOT-BEYOND-SENS** | T1 does not beat plain sens on the nets whose lever is at least +0.5 (POOL-P's call 2). | §370 |
 | **RAIL-FIXES / RAIL-SAFE / P35F** | RAIL-P35's calls: r20-w8 C100 ≥ +2.0 against §374's T1 (RAIL-FIXES); the other eight nets ≥ −0.2 (RAIL-SAFE); and P35F against sens_cost. After the amendment the first two are void and the third moved to T5-P. | handoff §0b 13 Oct 13:50 / 18:28 |
 | **LEARNS-MORE / SAME / LEARNS-LESS** | A T5 variant against T1, with bars ±0.3. §376 and §377 both read SAME. | handoff §0b 13 Oct 18:28; §376 |
+
+## 7. 17 to 29 Oct: the final tables, deep budgets, transfer, and the harder benchmarks (added 29 Oct)
+
+### 7.1 Studies and their calls
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **Agent of record** | The frozen agent the paper reports for a budget type: **T6-fs** for parameters, **T4-F** for FLOPs (Ido, 17 Oct). A candidate replaces it only through a promotion rule fixed in advance. | queue row FINAL |
+| **FINAL** | "The paper's final tables": both agents of record against their rules (sens_cost at params, floored sens_F at FLOPs) and the even cut on the nine pool networks, five seeds (42–46), every arm deterministic. Every pooled call is AT-PRIOR. | §405 (FLOPs), §406 (params) |
+| **XFER-W1** | "Transfer to wave 1": the frozen T6-fs on eight networks it never saw (WRN-16-4, WRN-28-2, PreAct-ResNet-20 and PreAct-ResNet-56, each on CIFAR-10 and CIFAR-100). | §407 |
+| **LIT-C** | Table 1's ten published operating points (DepGraph's ResNet-56, VGG-16 for HRank and CHIP, ResNet-110 at two FLOPs points) at five deterministic seeds. AT-PRIOR at nine, BELOW-PRIOR at DepGraph's 8× params point. | §408 |
+| **FB-XFER** | The val-picked fallback (FB, D4) on XFER-W1's eight networks: level with the rule, above the agent alone. | §410 |
+| **TS (D10)** | "Two stages": cut to 50 %, recover 30 epochs, then cut to 25 % and recover 70. No reliable gain. | §411 |
+| **AUDIT** | Ido's 20 Oct request: a read-only code audit of the live path. No defect changes a reported number. | §412 |
+| **DEEP / DEEP-F** | The agents of record, their rules and the even cut below the agents' training ranges: params 0.15 and 0.10 (DEEP, five seeds), FLOPs 0.25, 0.15 and 0.10 (DEEP-F, three seeds). The params agent falls BELOW its rule there; the FLOPs agent stays level to 15 %. | §413 / §416 |
+| **D5; ft1w / fs32w** | "Train further on deep budgets": T6-fs warm-started and trained 3,000 more instances on κ 0.10–0.50, with the one-epoch reward (**ft1w**) or with its own 32-step reward (**fs32w**). | §414 |
+| **D5X; P_D5 / FT1 / REWARD / P_D5X / FT1X; the promotion rule** | D5 at five seeds and on XFER-W1's eight networks. P_D5 = ft1w − the rule; FT1 = ft1w − T6-fs; REWARD = ft1w − fs32w; the X versions are the same on the new networks. The promotion rule (fixed at registration) did not fire: AT at every depth, BELOW on the new networks at 15 %, so T6-fs stays. | §417 |
+| **D9; d9a / d9b / d9c / d9d** | "Smaller catalogs": T6-fs's line at 6,000 instances on 1 network (d9a), 3 CIFAR-10 networks (d9b), the same 3 families on three datasets (d9c), and 5 networks (d9d). One is not enough; three to five match ten at 45 %. | §415 |
+| **T9-fs** | T6-fs's line trained on budgets down to 10 % (κ 0.10–0.85). Trained; its evaluations wait behind BENCH and HOLDOUT. | queue row T9-fs (23 Oct) |
+| **ENC** | "How light can the agent's model be": the agent's encoder made smaller and larger. Trained; its evaluations are queued. | queue row ENC (21 Oct) |
+| **D8 (accuracy-limit mode)** | "Give the accuracy you can lose, get the smallest network": registered 21 Oct; its searches are queued. | queue row D8 |
+| **PRE-W3** | Wave 3 of base networks: the first Tiny-ImageNet checkpoints at 64 px (ResNet-18 65.52 %, VGG-16-BN 62.24 %, MobileNetV2 58.86 %, last epoch kept). Base networks, never a SPECTRA result. | queue row PRE-W3 (21 Oct) |
+| **BENCH** | "Harder benchmarks": the FLOPs agent of record, its rule and the even cut at published operating points on CIFAR-100 (VGG-19 from DepGraph's checkpoint at FLOPs 0.112, DepGraph's 8.92×, and at 0.50; ResNet-56 from chenyaofo's checkpoint at 0.48) and Tiny-ImageNet (VGG-16-BN at 0.62 and 0.48, Jiang et al.'s points; ResNet-18 at 0.48 for coverage), five seeds, 90 cells. Published rows are quoted beside, captioned, never as "beats". | queue row BENCH (29 Oct) |
+| **EXACT cell** | One cell re-run on a new code tree and compared with the same cell's row on the tree of record, to 0.005 points. BENCH's EXACT checks tree_v29 against FINAL's tree_v24; PROBE's two check tree_v31. | queue rows BENCH, PROBE |
+| **HOLDOUT; hof / hop; XF / XF-PRIOR / XF-POOL / XP / XP-PRIOR** | "Held-out agents": the agents of record's training lines rerun on a ten-network catalog with no CIFAR-10, no plain ResNet and no VGG (CIFAR-100, SVHN and Fashion-MNIST; WRN, PreAct-ResNet-20, DenseNet-40, MobileNetV2). **hof** is the FLOPs agent (T4-F's line, five seeds), **hop** the params agent (T6-fs's line, three seeds). XF = hof − T4-F over the twelve literature points; XF-PRIOR = hof − sens_F; XF-POOL the same on the nine pool networks at FLOPs 0.45; XP = hop − T6-fs and XP-PRIOR = hop − sens_cost on the pool at params 0.45 and 0.25. | queue row HOLDOUT (29 Oct) |
+| **PROBE; sca / scv / sth / scq; PROBE-A / -C / -T / -Q** | "Is one 50 % measurement enough?": four variants of the cost-aware rule at params 0.25 and 0.15, nine pool networks, three seeds. **sca** (`sens_cost_at`) measures each group again at the depth it is planned to; **scv** (`sens_curve`) measures loss and saving at four keeps and allocates with one Lagrange multiplier (the knapsack form of SPDY and Chen et al. 2020); **sth** (`sens_thresh`) uses the same curves with one loss threshold (Li et al. 2017, as PaddleSlim and NNI run it); **scq** measures once at the budget's average keep √κ (`SPECTRA_ALLOC_SENS_KEEP`). Each call is the variant − sens_cost: BEATS-RULE, SAME or BELOW-RULE. | queue row PROBE (29 Oct) |
+| **Runtime study** | Timing each published method's own code (HRank, CHIP, FPGM, OCSPruner, RL-Pruner, GNN-RL, LeGR and its AMC port) end to end on one RTX 4090, phase by phase, beside SPECTRA's per-network cost. DepGraph's 85.1 min is the one measured so far. Environments in preparation; not yet registered. | Ido, 29 Oct |
+
+### 7.2 Procedures
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **Head-of-queue script (`s29oct_d5x_evfirst.sh`, `s29oct_first.sh`)** | A login-node script that keeps a registered study's pending jobs at a low nice and raises our other pending jobs by a fixed amount, saving each one's nice and restoring it when the study has started. It never holds, releases, tops or cancels. New jobs start with no age, so without it a study submitted today waits behind days-old evaluations. `s29oct_first.sh` reads its patterns from a file, one "nice regex" line per study. | queue rows D5X (29 Oct 10:19), BENCH |
+| **One pytest per process, one test per process** | The login node caps a user's CPU processes and ends one after about 6.5 minutes. Test files run one per process; a long file (the ImageNet line's) runs one test per process. | 10 Oct; 29 Oct |
+
+### 7.3 The code trees (continued)
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **tree_v28** | tree_v27 + the two-stage flags `SPECTRA_EVAL_SAVE_FINAL` / `SPECTRA_EVAL_ORIGIN_FROM` (code da6277d). It serves TS. | queue row TS |
+| **tree_v29** | tree_v28 + commit 64a4507's evaluation files: the Tiny-ImageNet loader (crop 64 with padding 8), top-5 under `SPECTRA_EVAL_TOP5`, the ImageNet evaluation line. It serves BENCH's Tiny-ImageNet cells and HOLDOUT's. | queue row BENCH |
+| **tree_v30** | Planned for PROBE (tree_v27 + the v30 kinds) and never built; tree_v31 replaced it. | 29 Oct |
+| **tree_v31** | tree_v27 + the v30 kinds (`sens_cost_at`, `sens_curve`, per-group probe keeps) and the v31 ones (`sens_thresh`, `SPECTRA_ALLOC_SENS_KEEP`). It serves PROBE. | queue row PROBE |
