@@ -48,6 +48,10 @@ the GPU, not a guarantee of this code.
 ``sens_curve`` (v30) measures each group's loss rise and saving at the keeps ``SPECTRA_ALLOC_CURVE_KEEPS``, makes the
 curve monotone, picks every group's keep by one multiplier λ that minimises loss − λ · saving, and lands the result
 with the same bisection as every rule.
+``sens_thresh`` (v31) measures the same curves and picks every group's keep by one global threshold τ on the loss rise
+(the smallest keep whose loss is at most τ: Li et al. 2017's per-layer sensitivity rule, as PaddleSlim and NNI's
+SensitivityPruner run it), with τ chosen so the estimated saving meets the target, and lands the result the same way.
+``SPECTRA_ALLOC_SENS_KEEP`` (unset) moves the keep at which ``sens`` and ``sens_cost`` measure every group (v31).
 ``SPECTRA_ALLOC_BUDGET=flops`` (default params) measures the plan's kept fraction, its target and the stall
 check in MACs (``utils.calc_flops``) instead of parameters, the T0-F variant.
 Each decision then plays the legal cut whose resulting width is closest to its group's
@@ -78,7 +82,7 @@ import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
 KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest", "fallback",
-         "sens_cost_at", "sens_curve")
+         "sens_cost_at", "sens_curve", "sens_thresh")
 FALLBACK_PRIORS = ("sens", "sens_cost")
 SAMPLE_AROUND = ("sens", "uniform")
 BUDGETS = ("params", "flops")
@@ -147,6 +151,24 @@ def probe_rounds() -> int:
     if n < 1:
         raise ValueError(f"SPECTRA_ALLOC_PROBE_ROUNDS={n}: need at least one round")
     return n
+
+
+def sens_keep():
+    """``SPECTRA_ALLOC_SENS_KEEP`` (unset): the scalar keep at which the rules ``sens`` and ``sens_cost`` measure every
+    group's loss rise (``group_sensitivity.SENS_KEEP``, 0.5, when unset); a float in (0, 1). v31: PROBE's scq arm (the
+    budget's average keep, e.g. sqrt(0.15) = 0.387 at params 0.15). It also moves the prior an agent's residual or a
+    fallback plans with, so set it on rule arms only. ``sens_cost_at``'s first plan (a ``sens_cost`` plan) also uses it;
+    its own re-probe keeps ``group_sensitivity.SENS_KEEP``. None when unset or blank."""
+    raw = os.environ.get("SPECTRA_ALLOC_SENS_KEEP", "").strip()
+    if not raw:
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError(f"SPECTRA_ALLOC_SENS_KEEP={raw!r}: expected a float in (0, 1)") from None
+    if not 0.0 < value < 1.0:
+        raise ValueError(f"SPECTRA_ALLOC_SENS_KEEP={raw!r}: expected a float in (0, 1)")
+    return value
 
 
 def sample_around() -> str:
@@ -443,6 +465,55 @@ def _curve_lambda(curve, floor, size0, target):
     return lam, kept(lam), {row: entry[0] for row, entry in picks.items()}
 
 
+def _curve_threshold(curve, floor, size0, target):
+    """
+    ``(tau, kept, picks)``: the threshold τ ≥ 0 at which every group's keep k_r(τ) = the smallest k on its grid (1.00
+    down to 0.01 in steps of 0.01 and its floor, from the floor up) whose loss on its monotone curve is at most τ gives
+    the estimated kept fraction 1 − Σ cost / size0 closest to ``target``; ``picks`` is ``{row: k_r(τ)}``. Unlike
+    ``_curve_lambda`` it ignores the saving when it chooses a group's depth.
+    """
+    grid = [round(1.0 - 0.01 * i, 2) for i in range(0, 100)]
+    table = {}
+    for row, points in curve.items():
+        ks = sorted({g for g in grid if g >= floor[row]} | {floor[row]}, reverse=True)
+        table[row] = [(k,) + _curve_at(points, k) for k in ks]
+
+    def pick(tau):
+        out = {}
+        for row, rows_k in table.items():
+            best = rows_k[0]
+            for entry in rows_k[1:]:
+                if entry[1] > tau + 1e-12:
+                    break
+                best = entry
+            out[row] = best
+        return out
+
+    def kept(tau):
+        return 1.0 - sum(entry[2] for entry in pick(tau).values()) / size0
+
+    if kept(0.0) <= target:
+        tau = 0.0
+    else:
+        hi = max(entry[1] for rows_k in table.values() for entry in rows_k)
+        if kept(hi) > target:
+            tau = hi
+        else:
+            lo, tau = 0.0, hi
+            gap = abs(kept(hi) - target)
+            for _ in range(60):
+                mid = 0.5 * (lo + hi)
+                f = kept(mid)
+                if abs(f - target) < gap:
+                    gap, tau = abs(f - target), mid
+                if f > target:
+                    lo = mid
+                else:
+                    hi = mid
+    picks = pick(tau)
+    return tau, kept(tau), {row: entry[0] for row, entry in picks.items()}
+
+
 def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_floor=0.1, iters=16, tol=0.003,
                  budget="params", min_width=1):
     """
@@ -465,7 +536,7 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
         return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
                         "keeps": keeps, "origin_widths": group_widths(model, rows),
                         "sens": {row: 1.0 for row in rows}, "held": 0, "unnamed": unnamed}
-    if kind_name in ("sens_cost_at", "sens_curve"):
+    if kind_name in ("sens_cost_at", "sens_curve", "sens_thresh"):
         floor = {row: keep_floor for row in rows}
         if int(min_width) > 1:
             for (group, row) in plan:
@@ -497,24 +568,33 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
                 saved[row][q] = raw_q[row][1] if budget == "flops" else raw_q[row][0]
         curve = {row: _monotone_curve([(1.0, 0.0, 0.0)] + [(q, loss[row][q], saved[row][q]) for q in qs])
                  for row in rows}
-        lam, est, picks = _curve_lambda(curve, floor, size0, target)
+        if kind_name == "sens_thresh":
+            knob, est_knob, est, picks = "tau", *_curve_threshold(curve, floor, size0, target)
+        else:
+            knob, est_knob, est, picks = "lambda", *_curve_lambda(curve, floor, size0, target)
         w = {row: max(picks[row], floor[row]) for row in rows}
         keeps, frac, widths = _land(model, plan, rows, w, floor, target, size, size0, input_shape, iters, tol)
         return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
                         "keeps": keeps, "origin_widths": group_widths(model, rows),
                         "sens": {row: loss[row][0.5] if 0.5 in loss[row] else loss[row][qs[0]] for row in rows},
                         "held": 0, "curve": {row: [[k, l, c] for (k, l, c) in curve[row]] for row in rows},
-                        "curve_keeps": list(qs), "lambda": float(lam), "est_kept": float(est),
+                        "curve_keeps": list(qs), knob: float(est_knob), "est_kept": float(est),
                         "cost_budget": budget, "weights": w}
     base_kind = sample_around() if kind_name == "sample" else kind_name
     cost = None
+    probe = sens_keep() if base_kind in ("sens", "sens_cost") else None  # v31: unset runs the calls exactly as before
     if base_kind == "sens_cost":
         raw = {}
-        sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, costs=raw)
+        if probe is None:
+            sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, costs=raw)
+        else:
+            sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, keep=probe, costs=raw)
         cost = {row: raw[row][1] if budget == "flops" else raw[row][0] for row in rows}
         w = weights(base_kind, sens, a, cost=cost)
     else:
-        if base_kind == "sens":
+        if base_kind == "sens" and probe is not None:
+            sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, keep=probe)
+        elif base_kind == "sens":
             sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape)
         else:
             sens = {row: 1.0 for row in rows}
@@ -554,6 +634,8 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
         info["cost_budget"] = budget
     if sample is not None:
         info["sample"] = sample
+    if probe is not None:
+        info["probe_keep"] = probe
     return widths, info
 
 
@@ -689,7 +771,7 @@ def grid_priority(info, rows):
                 z = {row: plan_agent.trust_score(z[row], zmax) for row in rows}
             return {row: math.log(max(1e-12, float(prior.get(row, 1.0)))) + z[row] for row in rows}
         return z
-    if kind_name == "sens_curve":  # v30: the decoder's weight is each group's pick on its curve
+    if kind_name in ("sens_curve", "sens_thresh"):  # v30/v31: the decoder's weight is each group's pick on its curve
         return {row: float(info["weights"][row]) for row in rows}
     if kind_name == "sens_cost_at":  # v30: the cost-aware weights of the last (deep) measurement
         kind_name = "sens_cost"

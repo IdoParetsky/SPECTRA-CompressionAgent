@@ -55,7 +55,8 @@ def _lands(info, target, floor=0.1, tol=0.04):
 
 
 def test_kinds_are_registered_last_and_selected_by_the_env_var(monkeypatch):
-    assert alloc_walk.KINDS[-2:] == NEW_KINDS and "sens_cost" in alloc_walk.KINDS
+    i = alloc_walk.KINDS.index("sens_cost_at")
+    assert alloc_walk.KINDS[i:i + 2] == NEW_KINDS and "sens_cost" in alloc_walk.KINDS
     for name in NEW_KINDS:
         monkeypatch.setenv("SPECTRA_ALLOC_KIND", name.upper())
         assert alloc_walk.kind() == name
