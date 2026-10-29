@@ -256,8 +256,9 @@ def test_env_helpers_refuse_what_they_cannot_read(monkeypatch):
 
 
 def test_kinds_end_with_fallback_the_old_ones_stand_and_the_default_is_sens(monkeypatch):
-    assert alloc_walk.KINDS == OLD_KINDS + ("fallback",)
-    assert alloc_walk.KINDS[-1] == "fallback"
+    # v30 appends its kinds after fallback; the old kinds and fallback keep their places
+    assert alloc_walk.KINDS[:len(OLD_KINDS) + 1] == OLD_KINDS + ("fallback",)
+    assert alloc_walk.KINDS[len(OLD_KINDS)] == "fallback"
     assert alloc_walk.kind() == "sens"
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "Fallback")
     assert alloc_walk.kind() == "fallback"

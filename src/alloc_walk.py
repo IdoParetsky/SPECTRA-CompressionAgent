@@ -42,6 +42,12 @@ added), so the walk and the final fine-tune run as under that arm alone and, und
 fallback row equals the picked arm's row seed for seed. The TEST half is never read. Any effect ``plan_for_env`` has on
 the env itself stays even when the prior is picked, so the exactness against the prior's own row is a check registered on
 the GPU, not a guarantee of this code.
+``sens_cost_at`` (v30) plans as ``sens_cost`` does, then measures every group again at the depth that plan cuts it
+(``min(planned keep, 0.5)``, so a group kept at half width or more is probed at half as before), repeats
+``SPECTRA_ALLOC_PROBE_ROUNDS`` times and bisects the cost-aware weights of the last measurement.
+``sens_curve`` (v30) measures each group's loss rise and saving at the keeps ``SPECTRA_ALLOC_CURVE_KEEPS``, makes the
+curve monotone, picks every group's keep by one multiplier λ that minimises loss − λ · saving, and lands the result
+with the same bisection as every rule.
 ``SPECTRA_ALLOC_BUDGET=flops`` (default params) measures the plan's kept fraction, its target and the stall
 check in MACs (``utils.calc_flops``) instead of parameters, the T0-F variant.
 Each decision then plays the legal cut whose resulting width is closest to its group's
@@ -71,7 +77,8 @@ import src.pruning as pruning
 import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
-KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest", "fallback")
+KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest", "fallback",
+         "sens_cost_at", "sens_curve")
 FALLBACK_PRIORS = ("sens", "sens_cost")
 SAMPLE_AROUND = ("sens", "uniform")
 BUDGETS = ("params", "flops")
@@ -119,6 +126,27 @@ def undershoot() -> float:
 def min_keep() -> float:
     """``SPECTRA_ALLOC_MIN_KEEP`` (0.1): no group's planned keep goes below this, A0's floor."""
     return min(1.0, max(0.01, float(os.environ.get("SPECTRA_ALLOC_MIN_KEEP", "0.1"))))
+
+
+def curve_keeps() -> tuple:
+    """``SPECTRA_ALLOC_CURVE_KEEPS`` (0.75,0.5,0.25,0.1): the keeps ``sens_curve`` probes every group at, each in
+    (0, 1); a tuple sorted descending without duplicates."""
+    raw = os.environ.get("SPECTRA_ALLOC_CURVE_KEEPS", "").strip() or "0.75,0.5,0.25,0.1"
+    try:
+        values = [float(item) for item in raw.split(",") if item.strip()]
+    except ValueError:
+        raise ValueError(f"SPECTRA_ALLOC_CURVE_KEEPS={raw!r}: expected comma-separated floats in (0, 1)") from None
+    if not values or not all(0.0 < v < 1.0 for v in values):
+        raise ValueError(f"SPECTRA_ALLOC_CURVE_KEEPS={raw!r}: expected comma-separated floats in (0, 1)")
+    return tuple(sorted(set(values), reverse=True))
+
+
+def probe_rounds() -> int:
+    """``SPECTRA_ALLOC_PROBE_ROUNDS`` (1): how many times ``sens_cost_at`` re-measures at the depth of its last plan."""
+    n = int(os.environ.get("SPECTRA_ALLOC_PROBE_ROUNDS", "1"))
+    if n < 1:
+        raise ValueError(f"SPECTRA_ALLOC_PROBE_ROUNDS={n}: need at least one round")
+    return n
 
 
 def sample_around() -> str:
@@ -319,6 +347,102 @@ def group_widths(model, rows):
     return out
 
 
+def _land(model, plan, rows, w, floor, target, size, size0, input_shape, iters, tol):
+    """
+    ``(keeps, frac, widths)``: the bisection loop of ``plan_targets`` (keeps clip(c · w, floor, 1), c bisected until
+    the one-shot cut keeps ``target`` of ``size0``, the closest c found), with no group held. Used by the v30 kinds
+    (``sens_cost_at``, ``sens_curve``) only; the other kinds run their own copy in ``plan_targets``.
+    """
+    lo, hi = 0.0, 1.0 / min(w.values())
+    best = None
+    for _ in range(iters):
+        c = 0.5 * (lo + hi)
+        keeps = {row: min(1.0, max(floor[row], c * w[row])) for row in rows}
+        cut = cut_to(model, plan, keeps, input_shape)
+        frac = size(cut) / size0
+        if best is None or abs(frac - target) < abs(best[1] - target):
+            best = (keeps, frac, group_widths(cut, rows))
+        del cut
+        if abs(frac - target) <= tol:
+            break
+        if frac > target:
+            hi = c
+        else:
+            lo = c
+    keeps, frac, widths = best
+    return keeps, frac, widths
+
+
+def _monotone_curve(points):
+    """``[(keep, loss, cost)]`` from keep 1 downward with loss and cost each replaced by the running maximum of its
+    positive part: a deeper cut never lowers the damage or the saving. ``points`` are ordered by keep, descending."""
+    out, loss, cost = [], 0.0, 0.0
+    for k, l, c in points:
+        loss, cost = max(loss, max(0.0, float(l))), max(cost, max(0.0, float(c)))
+        out.append((float(k), loss, cost))
+    return out
+
+
+def _curve_at(curve, k):
+    """``(loss, cost)`` of a monotone ``curve`` at keep ``k``: linear in k between its points, the first point's
+    values at or above its keep and the last point's below it."""
+    if k >= curve[0][0]:
+        return curve[0][1], curve[0][2]
+    for (k1, l1, c1), (k2, l2, c2) in zip(curve, curve[1:]):
+        if k >= k2:
+            t = (k1 - k) / (k1 - k2)
+            return l1 + t * (l2 - l1), c1 + t * (c2 - c1)
+    return curve[-1][1], curve[-1][2]
+
+
+def _curve_lambda(curve, floor, size0, target):
+    """
+    ``(lam, kept, picks)``: the multiplier λ ≥ 0 at which every group's keep k_r(λ) = argmin over its grid (1.00 down
+    to 0.01 in steps of 0.01 and its floor, from the floor up) of loss − λ · cost / size0 (ties to the larger k) gives
+    the estimated kept fraction 1 − Σ cost / size0 closest to ``target``; ``picks`` is ``{row: k_r(λ)}``.
+    """
+    grid = [round(1.0 - 0.01 * i, 2) for i in range(0, 100)]
+    table = {}
+    for row, points in curve.items():
+        ks = sorted({g for g in grid if g >= floor[row]} | {floor[row]}, reverse=True)
+        table[row] = [(k,) + _curve_at(points, k) for k in ks]
+
+    def pick(lam):
+        out = {}
+        for row, rows_k in table.items():
+            best = rows_k[0]
+            for entry in rows_k[1:]:
+                if entry[1] - lam * entry[2] / size0 < best[1] - lam * best[2] / size0:
+                    best = entry
+            out[row] = best
+        return out
+
+    def kept(lam):
+        return 1.0 - sum(entry[2] for entry in pick(lam).values()) / size0
+
+    if kept(0.0) <= target:
+        lam = 0.0
+    else:
+        hi = 1.0
+        for _ in range(60):
+            if kept(hi) <= target:
+                break
+            hi *= 2.0
+        lo, lam = 0.0, hi
+        gap = abs(kept(hi) - target)
+        for _ in range(40):
+            mid = 0.5 * (lo + hi)
+            f = kept(mid)
+            if abs(f - target) < gap:
+                gap, lam = abs(f - target), mid
+            if f > target:
+                lo = mid
+            else:
+                hi = mid
+    picks = pick(lam)
+    return lam, kept(lam), {row: entry[0] for row, entry in picks.items()}
+
+
 def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_floor=0.1, iters=16, tol=0.003,
                  budget="params", min_width=1):
     """
@@ -341,6 +465,47 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
         return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
                         "keeps": keeps, "origin_widths": group_widths(model, rows),
                         "sens": {row: 1.0 for row in rows}, "held": 0, "unnamed": unnamed}
+    if kind_name in ("sens_cost_at", "sens_curve"):
+        floor = {row: keep_floor for row in rows}
+        if int(min_width) > 1:
+            for (group, row) in plan:
+                floor[row] = max(keep_floor, min(1.0, int(min_width) / float(group.width)))
+        size0 = size(model)
+        if kind_name == "sens_cost_at":
+            _widths0, info0 = plan_targets(model, batches, input_shape, "sens_cost", target, a, keep_floor, iters, tol,
+                                           budget, min_width)
+            half, keeps = info0["sens"], info0["keeps"]
+            for _ in range(probe_rounds()):
+                probe = {row: min(float(keeps[row]), group_sensitivity.SENS_KEEP) for row in rows}
+                raw = {}
+                sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, keep=probe,
+                                                                  costs=raw)
+                cost = {row: raw[row][1] if budget == "flops" else raw[row][0] for row in rows}
+                w = weights("sens_cost", sens, a, cost=cost)
+                keeps, frac, widths = _land(model, plan, rows, w, floor, target, size, size0, input_shape, iters, tol)
+            return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
+                            "keeps": keeps, "origin_widths": group_widths(model, rows), "sens": sens, "held": 0,
+                            "cost": cost, "cost_budget": budget, "probe_keeps": probe, "sens_half": half,
+                            "keeps_half": info0["keeps"], "rounds": probe_rounds()}
+        qs = curve_keeps()
+        loss, saved = {row: {} for row in rows}, {row: {} for row in rows}
+        for q in qs:
+            raw_q = {}
+            s_q, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, keep=q, costs=raw_q)
+            for row in rows:
+                loss[row][q] = s_q[row]
+                saved[row][q] = raw_q[row][1] if budget == "flops" else raw_q[row][0]
+        curve = {row: _monotone_curve([(1.0, 0.0, 0.0)] + [(q, loss[row][q], saved[row][q]) for q in qs])
+                 for row in rows}
+        lam, est, picks = _curve_lambda(curve, floor, size0, target)
+        w = {row: max(picks[row], floor[row]) for row in rows}
+        keeps, frac, widths = _land(model, plan, rows, w, floor, target, size, size0, input_shape, iters, tol)
+        return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
+                        "keeps": keeps, "origin_widths": group_widths(model, rows),
+                        "sens": {row: loss[row][0.5] if 0.5 in loss[row] else loss[row][qs[0]] for row in rows},
+                        "held": 0, "curve": {row: [[k, l, c] for (k, l, c) in curve[row]] for row in rows},
+                        "curve_keeps": list(qs), "lambda": float(lam), "est_kept": float(est),
+                        "cost_budget": budget, "weights": w}
     base_kind = sample_around() if kind_name == "sample" else kind_name
     cost = None
     if base_kind == "sens_cost":
@@ -524,6 +689,10 @@ def grid_priority(info, rows):
                 z = {row: plan_agent.trust_score(z[row], zmax) for row in rows}
             return {row: math.log(max(1e-12, float(prior.get(row, 1.0)))) + z[row] for row in rows}
         return z
+    if kind_name == "sens_curve":  # v30: the decoder's weight is each group's pick on its curve
+        return {row: float(info["weights"][row]) for row in rows}
+    if kind_name == "sens_cost_at":  # v30: the cost-aware weights of the last (deep) measurement
+        kind_name = "sens_cost"
     sample = info.get("sample") if kind_name == "sample" else None
     base = sample["around"] if sample else kind_name
     if base not in ("sens", "sens_cost", "sample") and sample is None:

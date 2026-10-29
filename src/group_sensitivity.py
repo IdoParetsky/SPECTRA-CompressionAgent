@@ -225,6 +225,9 @@ def _probe_input(model, batch=2):
 def group_sensitivity(model, plan, batches, input_shape, keep=SENS_KEEP, costs=None):
     """``({row: loss rise}, base loss)``: each planned group cut alone to ``keep`` (L1 survivors).
 
+    ``keep`` is one fraction for every group, or (v30) a dict ``{row: keep}`` naming the fraction each planned row is
+    cut to (``sens_cost_at`` probes a group at the depth the plan cuts it).
+
     With a dict ``costs`` it is also filled with ``{row: (params saved, MACs saved)}`` measured on that same cut
     (``sens_cost``, v16); with ``None`` no cost is measured.
     """
@@ -236,7 +239,8 @@ def group_sensitivity(model, plan, batches, input_shape, keep=SENS_KEEP, costs=N
         f0 = utils.calc_flops(model, input_shape)
     out = {}
     for _group, row in plan:
-        cut = prune_current_model(ModelWithRows(copy.deepcopy(model)), keep, row, quiet=True, record=False,
+        row_keep = keep[row] if isinstance(keep, dict) else keep
+        cut = prune_current_model(ModelWithRows(copy.deepcopy(model)), row_keep, row, quiet=True, record=False,
                                   input_shape=input_shape, importance="l1")
         out[row] = calib_loss(cut.model, batches) - base
         if costs is not None:
