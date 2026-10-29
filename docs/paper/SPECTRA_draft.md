@@ -170,7 +170,7 @@ MetaPruning [80] learns a PruningNet for channel configs of a target family — 
 - ERK [107], which gives larger layers higher sparsity, and so keeps more FLOPs at equal parameters;
 - LAMP's layer-adaptive magnitude scores [24].
 
-Cost-aware allocators trade importance against what a cut saves: NetAdapt [116], constraint-aware importance [115], and HALP's latency knapsack [114]. SPECTRA's cost-aware sensitivity rule (§4.1) is the same idea in closed form.
+Cost-aware allocators trade importance against what a cut saves. Several divide the loss increase by the resource the same removal saves: per feature map [153], per channel [155, 115], and per layer, as a FLOPs utilization ratio that re-allocates channel counts [154]. Others subtract a cost penalty [10], solve a knapsack [114], or compare layers at an equal resource saving [116]. SPECTRA's cost-aware sensitivity rule (§4.1) uses the same ratio, with the parameters (or MACs) saved as the cost, and maps it to keep fractions in closed form. Dividing by the cost does not always help: at equal FLOPs, full normalisation by memory lost to raw scores on CIFAR-10 VGG-16 and ResNet-56 in [156], as the cost weighting did under our FLOPs budget (§355).
 
 How much allocation matters after a full recovery is contested:
 - At about 50 % FLOPs on CIFAR ResNets, sensible allocations end within 0.15–0.31 points of each other under one recovery [110, 111], about one seed's spread [11].
@@ -355,13 +355,13 @@ Every rule below shares the agent's loop:
 
 The rules differ from the agent only in where the plan comes from.
 
-**Sensitivity.** For each group g, s_g is the rise in cross-entropy over 4 training batches (batch 256) when that group alone is cut to half width by L1, with no fine-tune. This is the per-layer sensitivity analysis of Li et al. [18], measured per channel group. Small values are floored at 5 % of the median. The same s_g feeds the agent's sensitivity columns (§3.3).
+**Sensitivity.** For each group g, s_g is the rise in cross-entropy over 4 training batches (batch 256) when that group alone is cut to half width by L1, with no fine-tune. This is a one-point (50 % cut) version of the per-layer sensitivity analysis of Li et al. [18], who sweep each layer's pruned fraction and read the curves by hand, to skip sensitive layers and to set one rate per stage. We measure it per channel group. Small values are floored at 5 % of the median. The same s_g feeds the agent's sensitivity columns (§3.3).
 
 | Rule | Plan | Role |
 |---|---|---|
 | uniform (uniform_F) | the same keep fraction for every group, bisected to the parameter (FLOPs) budget | the allocation-free baseline |
 | sens (sens_F) | keep_g ∝ (s_g / median s)^α, α = 0.5, bisected on real cuts to the budget | sensitivity allocation [18] |
-| **sens_cost** | keep_g ∝ (v_g / median v)^α, where v_g = s_g / c_g and c_g is the parameters (MACs) saved by the half cut: sensitivity per unit of cost saved | **the prior at equal parameters** (§355) |
+| **sens_cost** | keep_g ∝ (v_g / median v)^α, where v_g = s_g / c_g and c_g is the parameters (MACs) saved by the half cut: sensitivity per unit of cost saved | **the prior at equal parameters** (§355); the loss-per-cost ratio of [153, 154, 155, 115], in closed form |
 | **floored sens_F** | sens under a FLOPs budget, with the width floor | **the prior at equal FLOPs** (§357) |
 | inner (inner_F) | uniform, with every residual stream held whole: cut only inside blocks | the "keep the skip streams" heuristic |
 | mild (mild_F) | not a plan but a walked heuristic: keep 90 % of each legal group, else the strongest legal cut; fine-tuned after each cut, then given the same final recovery | the heuristic every walk agent collapsed onto |
@@ -1190,7 +1190,7 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[96]** (A
 
 [9] Hassibi, B., Stork, D. G., & Wolff, G. J. (1993). Optimal brain surgeon and general network pruning. *IEEE ICNN*, 293–299.
 
-[10] Molchanov, P., Tyree, S., Karras, T., Aila, T., & Kautz, J. (2016). Pruning convolutional neural networks for resource efficient inference. arXiv:1611.06440.
+[10] Molchanov, P., Tyree, S., Karras, T., Aila, T., & Kautz, J. (2017). Pruning convolutional neural networks for resource efficient inference. *ICLR*. arXiv:1611.06440.
 
 [11] Liu, Z., Sun, M., Zhou, T., Huang, G., & Darrell, T. (2019). Rethinking the value of network pruning. *ICLR*. arXiv:1810.05270.
 
@@ -1475,3 +1475,11 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[96]** (A
 [151] Mnih, V., Badia, A. P., Mirza, M., Graves, A., Lillicrap, T., Harley, T., Silver, D., & Kavukcuoglu, K. (2016). Asynchronous methods for deep reinforcement learning. *ICML*, 1928–1937.
 
 [152] Schulman, J., Wolski, F., Dhariwal, P., Radford, A., & Klimov, O. (2017). Proximal policy optimization algorithms. arXiv:1707.06347.
+
+[153] Theis, L., Korshunova, I., Tejani, A., & Huszár, F. (2018). Faster gaze prediction with dense networks and Fisher pruning. arXiv:1801.05787.
+
+[154] Chen, Z., Niu, J., Xie, L., Liu, X., Wei, L., & Tian, Q. (2020). Network adjustment: Channel search guided by FLOPs utilization ratio. *CVPR*, 10655–10664. https://doi.org/10.1109/CVPR42600.2020.01067. arXiv:2004.02767.
+
+[155] Liu, L., Zhang, S., Kuang, Z., Zhou, A., Xue, J.-H., Wang, X., Chen, Y., Yang, W., Liao, Q., & Zhang, W. (2021). Group Fisher pruning for practical network compression. *ICML*, PMLR 139, 7021–7032.
+
+[156] Cheng, H., Zhang, M., & Shi, J. Q. (2023). Influence function based second-order channel pruning: Evaluating true loss changes for pruning is possible without retraining. arXiv:2308.06755.
