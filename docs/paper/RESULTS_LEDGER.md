@@ -10256,3 +10256,67 @@ Reading:
 Not claimed: "the FLOPs agent fails below its range"; at 10 % the BELOW call is by 0.0017 and over eight nets. The three-seed rows are not mixed with FINAL's five-seed FLOPs rows (§405).
 
 Records: `scripts/_tmp_s23oct_deepf_read.sh` output (27 Oct 09:25); manifest `s23oct_deepf_manifest.tsv`; next §417.
+
+## 417. (D5X): D5's one-epoch agent (ft1w) at five seeds, and on eight networks it never saw — **the promotion rule does not fire: T6-fs stays the params agent of record**. Five seeds turn §414's three BEATS calls into AT. ft1w is better than T6-fs only at 15 % and 10 % on the pool, and on the new networks it falls BELOW the rule and below T6-fs at 15 %
+- **P_D5** (ft1w − sens_cost, nine pool nets, five seeds): 0.45 +0.38 AT (5 of 9); 0.35 **+0.2991** AT (6 of 9; 0.0009 short of the bar); 0.25 +0.46 AT (5 of 9); 0.15 +0.66 AT (5 of 9); 0.10 +0.38 AT (4 of 9).
+- **FT1** (ft1w − T6-fs): 0.45 +0.09, 0.35 +0.06 and 0.25 +0.68 SAME; **0.15 +1.52 HELPS** (7 of 9); **0.10 +0.81 HELPS** (6 of 9).
+- **REWARD** (ft1w − fs32w): 0.25 −0.03 SAME; **0.15 +0.34 HELPS** (6 of 9); 0.10 −0.16 SAME.
+- **P_D5X** (ft1w − sens_cost, XFER-W1's eight networks, five seeds): 0.45 −0.01 AT; 0.25 +0.01 AT; **0.15 −0.42 BELOW** (3 of 8).
+- **FT1X** (ft1w − T6-fs on them): **0.45 +0.31 HELPS** (6 of 8); 0.25 +0.26 SAME; **0.15 −0.36 HURTS** (2 of 8).
+- **[D] Promotion** (fixed at registration: P_D5 BEATS at 0.25 or 0.15, BELOW at no depth, and FT1X HURTS at no depth): no BEATS remains and FT1X HURTS at 0.15. **T6-fs stays the params agent of record; ft1w is reported as a candidate.**
+
+Registered 27 Oct 12:59 (`50e1348`; queue row D5X) before submit, at Ido's 27 Oct GO. Gate PASS 27 Oct 13:30. Read 29 Oct 22:01 (`scripts/_tmp_s27oct_d5x_read.sh`, written and dry-run 27 Oct 13:06 before any result; its seeds 42–44 rows reproduce §414 exactly).
+- *Trains.* The ft1w trains of seeds 45 and 46 reached 3,000 instances in two segments each: the 1,700-min cap stopped them at 1,940 and 2,036, and each resumed from its own saved state. An ft1 instance cost 47–53 s. The fs32w trains reached 3,000 in one segment at 6 s per instance.
+- *Checks.* 144 of 144 pool and 200 of 200 transfer evals COMPLETED (each cell's current job); 5 + 5 preempted cells were resubmitted unchanged by the eval guard. The queue order was amended twice (28 Oct 19:16, 29 Oct 10:19) to put D5X's segments and evals first.
+- *Measurement.* As §414: TEST 5k with val, 10k and honest, paired by seed; the comparators are FINAL's rows at 0.45 / 0.35 / 0.25 (§406) and DEEP's at 0.15 / 0.10 (§413), at five seeds, on the same deterministic line. Transfer comparators: XFER-W1's T6-fs and sens_cost rows at 0.45 / 0.25 (§407), and D5X's own at 0.15.
+
+| contrast | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
+|---|---|---|---|---|---|---|---|---|
+| P_D5: ft1w − sens_cost | 0.45 | +0.38 [−0.04, +1.03] | +0.34 | +0.36 | +0.37 | 5 of 9 | AT-PRIOR-POOL | +0.09 |
+| | 0.35 | +0.2991 [−0.08, +0.84] | +0.34 | +0.32 | +0.33 | 6 of 9 | AT-PRIOR-POOL | +0.07 |
+| | 0.25 | +0.46 [−0.12, +1.33] | +0.53 | +0.49 | +0.45 | 5 of 9 | AT-PRIOR-POOL | +0.07 |
+| | 0.15 | +0.66 [+0.02, +1.67] | +0.53 | +0.59 | +0.70 | 5 of 9 | AT-PRIOR-POOL | +0.26 |
+| | 0.10 | +0.38 [−0.38, +1.43] | +0.38 | +0.38 | +0.45 | 4 of 9 | AT-PRIOR-POOL | +0.34 |
+| FT1: ft1w − T6-fs | 0.45 | +0.09 [−0.13, +0.35] | +0.11 | +0.10 | +0.08 | 5 of 9 | FT1-SAME | +0.01 |
+| | 0.35 | +0.06 [−0.21, +0.46] | −0.02 | +0.02 | +0.02 | 3 of 9 | FT1-SAME | −0.09 |
+| | 0.25 | +0.68 [−0.34, +2.68] | +0.74 | +0.71 | +0.67 | 3 of 9 | FT1-SAME | −0.16 |
+| | 0.15 | **+1.52** [+0.06, +4.19] | +1.54 | +1.53 | +1.63 | 7 of 9 | **FT1-HELPS** | +0.38 |
+| | 0.10 | **+0.81** [−0.19, +2.36] | +0.78 | +0.80 | +0.87 | 6 of 9 | **FT1-HELPS** | +0.25 |
+| REWARD: ft1w − fs32w | 0.25 | −0.03 [−0.36, +0.34] | +0.02 | −0.00 | −0.06 | 4 of 9 | REWARD-SAME | −0.13 |
+| | 0.15 | **+0.34** [−0.11, +1.19] | +0.39 | +0.36 | +0.42 | 6 of 9 | **REWARD-HELPS** | +0.10 |
+| | 0.10 | −0.16 [−0.79, +0.52] | −0.21 | −0.19 | −0.16 | 4 of 9 | REWARD-SAME | −0.20 |
+| reported: fs32w − T6-fs | 0.25 / 0.15 / 0.10 | +0.71 / +1.17 / +0.97 | | | | 5 / 5 / 8 of 9 | — | −0.03 / +0.28 / +0.45 |
+
+| transfer contrast (8 nets) | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | CIFAR-10 four | CIFAR-100 four |
+|---|---|---|---|---|---|---|---|---|---|
+| P_D5X: ft1w − sens_cost | 0.45 | −0.01 [−0.33, +0.26] | −0.08 | −0.05 | +0.11 | 5 of 8 | AT-PRIOR-P-XFER | +0.10 | −0.13 |
+| | 0.25 | +0.01 [−0.35, +0.40] | +0.24 | +0.12 | +0.01 | 4 of 8 | AT-PRIOR-P-XFER | −0.02 | +0.04 |
+| | 0.15 | **−0.42** [−1.29, +0.34] | −0.35 | −0.39 | −0.34 | 3 of 8 | **BELOW-PRIOR-P-XFER** | −0.10 | −0.75 |
+| FT1X: ft1w − T6-fs | 0.45 | **+0.31** [−0.14, +0.94] | +0.32 | +0.31 | +0.36 | 6 of 8 | **FT1X-HELPS** | +0.17 | +0.45 |
+| | 0.25 | +0.26 [−0.13, +0.72] | +0.22 | +0.24 | +0.32 | 5 of 8 | FT1X-SAME | +0.08 | +0.44 |
+| | 0.15 | **−0.36** [−1.40, +0.32] | −0.30 | −0.33 | −0.29 | 2 of 8 | **FT1X-HURTS** | +0.01 | −0.72 |
+| reported: T6-fs − sens_cost (new at 0.15, not called) | 0.15 | −0.07 [−0.57, +0.60] | −0.05 | −0.06 | −0.05 | 3 of 8 | — | −0.11 | −0.03 |
+
+P_D5 per net, TEST 5k (five-seed means):
+
+| net | 0.45 | 0.35 | 0.25 | 0.15 | 0.10 |
+|---|---|---|---|---|---|
+| thin r56-w4 | −0.05 | +0.20 | +0.08 | +1.10 | +2.90 |
+| chenyaofo R56 | +0.29 | +0.32 | +0.25 | −0.09 | −0.05 |
+| r56-w8 | +0.60 | −0.15 | −0.33 | −0.14 | −0.50 |
+| MobileNetV2 ×1.4 | +0.04 | +0.38 | +0.76 | +0.70 | +0.87 |
+| DenseNet-100 | +0.16 | −0.04 | +0.30 | +0.80 | +0.86 |
+| r20-w8 C100 | **+2.70** | **+2.16** | **+3.54** | **+3.84** | +0.72 |
+| VGG-19 C100 | −0.15 | −0.43 | −0.09 | +0.07 | −0.33 |
+| VGG-16 | −0.07 | +0.03 | −0.16 | −0.09 | −0.31 |
+| DepGraph R56 | −0.07 | +0.21 | −0.22 | −0.26 | −0.72 |
+
+Reading:
+1. **Five seeds take back §414's three BEATS calls.** The pooled means stay positive (+0.30 to +0.66), but r20-w8 C100 carries them (+2.16 to +3.84): the other eight read +0.07 to +0.34, and at no depth is the agent above the rule on more than 6 of 9 nets. Seeds 45–46 alone read below seeds 42–44 at every depth from 0.35 down (0.25: +0.27 against +0.59; 0.15: +0.52 against +0.75), as a three-seed winner's curse predicts.
+2. **Below T6-fs's old range the one-epoch agent is the better agent** (FT1 HELPS at 15 % and 10 %). Most of that is r20-w8 C100 at 15 % (+10.62), where T6-fs collapses (24.12 ± 5.65 against ft1w's 34.74 ± 2.99); the other eight read +0.38. Continued training on κ 0.10–0.50 does most of it with either reward (fs32w − T6-fs +1.17 at 15 %); the one-epoch reward adds +0.34 at 15 % only (at 10 % seeds 45–46 read −1.02 against fs32w).
+3. **On networks it never saw, the deep-range gain does not transfer.** At 15 % ft1w is BELOW the rule (−0.42) and below T6-fs (−0.36), mostly on the CIFAR-100 four (−0.75 against the rule). Seeds 45–46 carry it: seeds 42–44 alone read +0.12 there, and PreAct-ResNet-20 C100 seed 45 collapses (−11.92). At 45 % it is better than T6-fs (+0.31), which itself sat below the rule there (−0.32, §407), so ft1w lands at the rule (−0.01).
+4. [H] Training on the deep range fits the pool's deep cuts, partly by steering clear of r20-w8 C100's collapse, without learning a rule for deep cuts that carries to new networks. At deep budgets the rule stays the reference (§413, §416).
+
+Not claimed: "the one-epoch reward beats the rule"; "ft1w is the better agent" beyond the pool at 15 % and 10 %. The five-seed rows supersede §414's three-seed calls for D5, and §414 stays as written.
+
+Records: `scripts/_tmp_s27oct_d5x_read.sh` output (29 Oct 22:01, and at four decimals 22:08); manifest `s27oct_d5x_manifest.tsv`; next §418.
