@@ -59,7 +59,8 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | Do the inherited weights matter? | With Scratch-B's compute, the 32-step agent's architecture trains from scratch to the same accuracy as with its inherited weights (SCRATCH-SAME at both DepGraph points). With Scratch-E's 200 epochs, the inherited weights help at 38 % params (+0.39) | §394 |
 | Are fewer FLOPs faster? | Not on DepGraph's ResNet-56 on an RTX 4090: 37–61 % fewer FLOPs run at 0.93–1.07× at batch 256. VGG-16 gains 1.32–1.65×. Batch-1 latency is unchanged | §395 |
 | How reproducible is one cell? | Without deterministic algorithms, not exactly: three runs of one cell spread over 0.42 and 0.76 points on TEST. With `SPECTRA_EVAL_FT_DETERMINISTIC=1`, two runs agree exactly on five networks in four families (residual, MobileNetV2, DenseNet, VGG), at about 22–50 % more wall time | §393, §397, §401 |
-| Running | Two held-out agents trained with no CIFAR-10 and no benchmarked architecture, read on every benchmark point (HOLDOUT); eight published methods' own pipelines timed end to end on our GPU, beside SPECTRA's per-network time (RUNTIME); the accuracy-limit mode (D8); two more evaluation studies (T9-fs, ENC); then the probe-rate study (PROBE) | queue |
+| How long does one network take, against the published pipelines? | **7.7–8.5 min per network on one RTX 4090** (20.9–21.4 with a stock data loader), of which the decision is 3.3–3.7 min. Nine published pipelines, timed on the same GPU, take 44 min (FPGM) to 5.7 h (HRank on ResNet-56), and GNN-RL's search had not finished in 17 h. Like for like (stock loader), the fastest takes 2.1× SPECTRA's time. The one-time training pays back within 4.8 networks for the FLOPs agent and 33.7 for the params agent (7.5 and 52.9 with a stock loader) | §419 |
+| Running | Two held-out agents trained with no CIFAR-10 and no benchmarked architecture, read on every benchmark point (HOLDOUT); the accuracy-limit mode (D8); two more evaluation studies (T9-fs, ENC); then the probe-rate study (PROBE) | queue |
 
 ---
 
@@ -339,7 +340,7 @@ Training cost is the number of instances times K masked cuts and proxy reads, on
 
 The walk agent, by comparison, spent 11–25 min per training *episode* (two passes, a 12-epoch fine-tune after every cut) and trained for days (Appendix B).
 
-Evaluation is one cut and one 100-epoch recovery per network, budget and seed. With CUDA graphs and GPU-side augmentation, the recovery takes about 3 min on thin ResNet-56 ×4, against 15–17 min for the earlier recipe (§329). From job start to the end of recovery, one plan on DepGraph's ResNet-56 takes 7.2–8.1 min with 100 recovery epochs, against 85.1 min for DepGraph's own pipeline on the same GPU model (§334). Applying the frozen agent adds one forward pass and a bisection, which is negligible. The calibration the rules need, four batches per group, is shared with the agent's sensitivity columns.
+Evaluation is one cut and one 100-epoch recovery per network, budget and seed. With CUDA graphs and GPU-side augmentation, the recovery takes about 3 min on thin ResNet-56 ×4, against 15–17 min for the earlier recipe (§329). From job start to the end of recovery, one network takes 7.7–8.5 min on DepGraph's ResNet-56 with 100 recovery epochs (20.9–21.4 min with a stock data loader); the decision itself, the plan and the cut, is 3.3–3.7 min of that. Nine published pipelines take 44 min to 5.7 h on the same GPU model, and GNN-RL's search had not finished in 17 h (§419). The calibration the rules need, four batches per group, is shared with the agent's sensitivity columns.
 
 ---
 
@@ -818,19 +819,38 @@ The points that exist or run (no number is quoted here):
 - **On VGG-16 the FLOPs saving becomes speed at batch 256,** though less than one for one: 2.15× fewer FLOPs gives 1.32–1.42×, and 2.94× fewer gives 1.63–1.65×.
 - Table 1's FLOPs ratios carry this table beside them. Compiled or fused runtimes are not measured.
 
-**Time to a pruned, recovered network** (§322, §334; RTX 4090, the same GPU model for both; PRELIM). On DepGraph's ResNet-56 at its 2.11× point:
+**Time to a pruned, recovered network** (§419; one RTX 4090 and 6 CPUs per job, each method's official code and published recipe; PRELIM). Eight published methods' own pipelines were timed end to end on CIFAR-10 ResNet-56 (and VGG-16 where the method publishes it), with DepGraph's from §334, beside SPECTRA's per-network cost on DepGraph's ResNet-56:
 
-| Pipeline | Wall-clock, start to recovered network | Accuracy |
-|---|---|---|
-| DepGraph's released pipeline, end to end | 85.1 min | its published change, +0.24 (10k) |
-| SPECTRA: one cut (2.1–3.1 min) plus the 100-epoch recovery (about 5 min) | **7.2–8.1 min** (5.9–6.9 min at 75 epochs) | beside DepGraph's: the rules +0.04 / +0.34 at 10k, DepGraph's own widths in our recovery +0.43 / +0.46 |
+| Pipeline, network | Decision (before the final fine-tune) | Final fine-tune (epochs) | Whole pipeline | Mean GPU use |
+|---|---|---|---|---|
+| **SPECTRA, FLOPs agent (T4-F), FLOPs 0.39, ResNet-56, G2 recovery** | 3.3 min | 4.4–4.5 min (100) | **7.7–7.8 min** | |
+| **SPECTRA, params agent (T6-fs), params 0.38, ResNet-56, G2** | 3.7 | 4.8 (100) | **8.5** | |
+| SPECTRA, FLOPs agent, stock data loader | 3.4 | 17.6 (100) | 20.9 | |
+| SPECTRA, params agent, stock data loader | 3.6 | 17.8 (100) | 21.4 | |
+| FPGM, ResNet-56 | the whole run | soft pruning (200) | 44 | 30 % |
+| OCSPruner, VGG-16 (base trained from scratch) | 22 | 23 (to 300 in all) | 46 | 29 % |
+| HRank, VGG-16 | 62 | 5 (last of 12 stages, 30) | 66 | 31 % |
+| OCSPruner, ResNet-56 (base trained from scratch) | 28 | 43 (to 300 in all) | 71 | 34 % |
+| DepGraph, ResNet-56 (§334) | 65 | 20 (100) | 85 | |
+| CHIP, ResNet-56 | 20 | 81 (300) | 101 | 23 % |
+| AMC (LeGR's implementation), ResNet-56 | 85 | 24 (60) | 109 | 19 % |
+| CHIP, VGG-16 | 37 | 81 (300) | 118 | 11 % |
+| LeGR, ResNet-56 | 10 | 157 (400) | 167 | 20 % |
+| RL-Pruner, ResNet-56 | the whole run | distillation interleaved | 271 | 37 % |
+| HRank, ResNet-56 | 338 | 6 (last of 55 stages, 30) | 344 | 31 % |
+| GNN-RL, ResNet-56 | more than 1,020: its search, cut by its 17 h wall at 10,390 of 15,000 episodes (about 24.5 h in full, extrapolated) | 13.6 (100) | more than 1,034 | 9 % search, 42 % fine-tune |
 
-- **About 11× less time to a pruned network, at accuracy beside DepGraph's.** The recipes and base checkpoints differ, so this is "beside", never "beats".
-- **Where it comes from:**
-  - about ×3.4 from the recovery implementation, which any method could adopt: CUDA graphs and GPU augmentation run the same 100 epochs in 5 min instead of 16–17 (§322);
-  - the rest from the method's structure: one cut and one recovery, with no sparse-training phase and no iterative prune-and-fine-tune.
+Caption: minutes on one RTX 4090. Each published method runs its own data loader, and the pipelines are CPU-bound (mean GPU use 9–42 %). CHIP's channel-independence step runs on 4 CPU cores and is counted. OCSPruner's times include training its base from scratch. SPECTRA's cost assumes the trained base exists and counts the plan, the cut and the size point's 100-epoch recovery. GNN-RL's search beyond its wall is extrapolated from its measured rate, never a measured wall. Accuracies from these runs are not quoted: most recipes keep their best test epoch.
+
+- **Per network, SPECTRA's decision takes minutes; the published decisions take tens of minutes to hours.** The agent plans in under 21 s and cuts in 3.0–3.6 min. The searches it replaces take 10 min (LeGR's evolutionary search), 85 (AMC's DDPG), 271 (RL-Pruner) and more than 17 h (GNN-RL). The criterion methods spend 20–62 min before their last fine-tune, and HRank's 55 stages on ResNet-56 take 338.
+- **Like for like, the fastest published pipeline takes about twice SPECTRA's time.** G2 (CUDA graphs and GPU-side augmentation, 4.4–4.8 min for 100 epochs instead of 17.6–17.8) is a recovery implementation any method could adopt, so the stock-loader rows are the like-for-like ones: their epoch (10.5–10.7 s) sits among the published methods' (9–24 s). Against them FPGM takes 2.1× SPECTRA's time and DepGraph 4.0×; against the G2 rows, 5.2–5.7× and 10.0–11.0×.
+- **Fine-tune length is a recipe choice, not part of the method's decision.** CHIP fine-tunes for 300 epochs, LeGR for 400, AMC for 60, GNN-RL and SPECTRA for 100. Most of CHIP's and LeGR's time is their fine-tune; most of AMC's, RL-Pruner's and GNN-RL's is their search, and most of HRank's on ResNet-56 its 55 prune-and-retrain stages.
+- **GNN-RL's search finds its best early but runs its whole budget.** Its final best network (FLOPs 0.497) came 9.3 min into the search, between episodes 120 and 130, and the next 10,260 episodes did not improve it. The code has no stop rule. A stop at the best, which only hindsight gives, would cost about 23 min per network with its fine-tune, about SPECTRA's stock-loader time.
+- **The agent's one-time training pays back within a few networks for the FLOPs agent and within tens for the params agent.** The FLOPs agent trained in 2.9 GPU-h and is repaid after 0.5–4.8 networks with G2 (0.5–7.5 with a stock loader) against the complete published pipelines; the params agent trained in 20.0 GPU-h and is repaid after 3.6–33.7 (3.7–52.9). Against DepGraph alone: 2.3–2.7 and 15.7–18.9.
+- **When no trained base exists, OCSPruner's single cycle is the cheaper route on ResNet-56.** It trains and prunes in 71 min. Training a 300-epoch base at its dense rate takes about 74 min (an estimate), so "train a base, then SPECTRA" is about 82 min with G2 and 95 with a stock loader.
+- **At DepGraph's own point the accuracy stays beside DepGraph's** (§334): its published change is +0.24 (10k); the rules give +0.04 / +0.34 at 10k, and DepGraph's own widths in our recovery +0.43 / +0.46. The recipes and base checkpoints differ, so this is "beside", never "beats".
 - **The pruned network is no faster than DepGraph's** at the same FLOPs. Measured speed depends on the architecture and the hardware (the table above). The saving is the time to produce the network.
-- **Per new network, the frozen agent adds only its decision:** one sensitivity measurement (about 1 s) and one forward pass. A per-network search or per-network reinforcement learning costs minutes to hours.
+- Times reported on other GPUs (GNN-RL's "within half a GPU hour" on a V100, AMC's hour on a TITAN Xp, OCSPruner's Table 9) stay beside these, never set against them.
 
 **Run-to-run noise** (§393, §397, §401).
 
@@ -1048,7 +1068,7 @@ Under G2 the allocation lever survives on the thin ResNet: sensitivity − unifo
 |---|---|---|
 | A generic agent trained offline on many networks, then frozen | **kept**; it is the thesis claim | One frozen agent per budget type, applied with no per-target training or search (§405–§407) |
 | The sequential walk, one decision per step | **replaced** by a plan as the action: one whole-network decision per instance | The walk's per-step reward was half read noise and barely separated the actions, so every walk agent collapsed to a mild, near-even cut (§331). The plan agent learns (§341) |
-| A fine-tune after every step | **replaced** by one cut and one recovery | The same accuracy at a fraction of the cost: 7–8 min to a recovered network, against 85 for DepGraph's pipeline (§322, §334) |
+| A fine-tune after every step | **replaced** by one cut and one recovery | The same accuracy at a fraction of the cost: 7.7–8.5 min to a recovered network (20.9–21.4 with a stock loader), against 44 min to 5.7 h for the published pipelines on the same GPU, and more than 17 h for GNN-RL's (§419) |
 | Actor-critic training (A2C) | **replaced** by REINFORCE over 8 plans per instance, with their mean as the baseline (a contextual bandit) | A one-step decision needs no value function. The walk's actor and critic are still loaded, but never consulted (§412, code lineage) |
 | A reward that mixes accuracy and compression through a preference weight | **split**: the budget is an exact constraint, met by the decoder's bisection, and the reward is accuracy alone. Preference-awareness returns as the accuracy-limit mode (D8) | An exact budget removes the reward's trade-off weight and makes every comparison equal-size |
 | Layer replacement (NEON's dense-layer compression) | **replaced** by structural channel-group cuts with coupling: residual sums, concatenations, depthwise convolutions | Structured pruning must remove whole channels across coupled layers to shrink the computation (§3) |
@@ -1066,7 +1086,7 @@ So what transferred from NEON is the idea, a generic frozen policy, and its feat
 
 | | The cost-aware rule | The frozen agent | Per-network search (AMC, MetaPruning, random best-of-N) |
 |---|---|---|---|
-| Per-network preparation | one sensitivity measurement (about 1 s) | the same measurement and one forward pass | hundreds of evaluated plans, or a reinforcement-learning run per network |
+| Per-network preparation | one sensitivity measurement (about 1 s) | the same measurement and one forward pass (the plan took 8–21 s, §419) | hundreds of evaluated plans, or a reinforcement-learning run per network (AMC's search 85 min, GNN-RL's more than 17 h on our GPU, §419) |
 | Design effort | human: the cost term, the power 0.5, the floors, and which form for which budget type, settled over two weeks of registered experiments (§355, §357, §372) | none per network; learned once (about 20 GPU-hours per seed) | a search space and a search budget per network |
 | Result (final tables, five seeds) | the prior | at the rule at every budget, slightly above it at 45–35 % (§406) | below the frozen agent: −0.51 at 45 % and −0.45 at 25 % against a best-of-100 that uses the agent's own reward (§396) |
 | Can it improve? | only by a new human design | yes: with a better reward or a better catalog | with more search per network |
