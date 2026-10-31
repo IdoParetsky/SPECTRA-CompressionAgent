@@ -10320,3 +10320,83 @@ Reading:
 Not claimed: "the one-epoch reward beats the rule"; "ft1w is the better agent" beyond the pool at 15 % and 10 %. The five-seed rows supersede §414's three-seed calls for D5, and §414 stays as written.
 
 Records: `scripts/_tmp_s27oct_d5x_read.sh` output (29 Oct 22:01, and at four decimals 22:08); manifest `s27oct_d5x_manifest.tsv`; next §418.
+
+## 418. (BENCH): the frozen FLOPs agent of record (T4-F), floored sens_F and the even cut uniform_F at six published operating points on CIFAR-100 and Tiny-ImageNet (64 px), five seeds (42–46), FINAL's FLOPs eval line — **AT-PRIOR at four points, BEATS-PRIOR at VGG-16-BN Tiny-ImageNet FLOPs 0.48, BELOW-PRIOR at ResNet-18 Tiny-ImageNet 0.48**; on VGG-16-BN Tiny-ImageNet the even cut is better than both the rule and the agent
+- **VGG-19 C100, FLOPs 0.112** (DepGraph's 8.92×; below T4-F's training range 0.35–0.85, so an extrapolation): T4-F − sens_F **−0.82**, 2 of 5 seeds positive, **AT-PRIOR**.
+- **VGG-19 C100, 0.50** (2×): **−0.25**, 2 of 5, **AT-PRIOR**.
+- **ResNet-56 C100, 0.48** (about 52 % removed): **+0.08**, 2 of 5, **AT-PRIOR**.
+- **VGG-16-BN Tiny-ImageNet, 0.62**: **−0.51**, 2 of 5, **AT-PRIOR**.
+- **VGG-16-BN Tiny-ImageNet, 0.48**: **+1.26**, 4 of 5, **BEATS-PRIOR**; the even cut is 0.98 above T4-F here.
+- **ResNet-18 Tiny-ImageNet, 0.48** (coverage, no published row at 64 px): **−0.74**, negative on 4 of 5, **BELOW-PRIOR**.
+
+Registered 29 Oct 22:00 (`89000b7`; queue row BENCH) before submit, at Ido's 29 Oct GO. Gate PASS 29 Oct 22:39 on four smokes and EXACT. Read 31 Oct 09:41 (`scripts/_tmp_s29oct_bench_read.sh`, written and dry-run 29 Oct 21:55 before any result).
+- *What the agent never saw.* T4-F's catalog is ten networks on CIFAR-10 and SVHN (§4.3 of the draft), so every cell here is on a dataset it never trained on. VGG-19 C100 is a pool network, read before at FLOPs 0.60 and 0.45 (§405); chenyaofo's CIFAR-100 ResNet-56 and both Tiny-ImageNet networks are new to every agent read.
+- *Checks.* 90 of 90 cells COMPLETED, with the 4 smokes and EXACT; none was preempted. Every cell lands within ±0.011 of its point (none refused; per-arm means ×0.112, ×0.500, ×0.479–0.480, ×0.620, ×0.480, ×0.479–0.480). None of the 95 logs has a stall-fallback line or a masked edit. EXACT: `tree_v29` reproduces FINAL's `tree_v24` row (job 23090408) to 4 decimals on TEST, val and both origins.
+- *Measurement.* FINAL's FLOPs eval line (deterministic, floored, grid-rounded, one cut, G2 plus the origin control); the CIFAR-100 cells on `tree_v24`, the Tiny-ImageNet cells on `tree_v29`. TEST 5k is half of each test split; 10k is the full split (CIFAR-100: the test set; Tiny-ImageNet: the full labelled val), which is what the published rows report.
+
+| point | FLOPs | T4-F − sens_F, TEST 5k (seeds 42 / 43 / 44 / 45 / 46) | val | 10k | honest | d > 0 | call | lever: sens_F − uniform_F (d > 0) |
+|---|---|---|---|---|---|---|---|---|
+| VGG-19 C100 | 0.112 | **−0.82** (−0.68 / +0.48 / +0.12 / −1.14 / −2.86) | −0.25 | −0.53 | −0.78 | 2 of 5 | **AT-PRIOR** | +1.00 (5 of 5) |
+| VGG-19 C100 | 0.50 | **−0.25** (+0.26 / −0.18 / −1.18 / +0.28 / −0.44) | −0.24 | −0.25 | −0.08 | 2 of 5 | **AT-PRIOR** | +0.26 (3 of 5) |
+| ResNet-56 C100 | 0.48 | **+0.08** (−0.42 / −0.06 / +0.80 / −0.02 / +0.08) | −0.15 | −0.04 | +0.38 | 2 of 5 | **AT-PRIOR** | +1.26 (5 of 5) |
+| VGG-16-BN Tiny-ImageNet | 0.62 | **−0.51** (−0.14 / −0.70 / +0.10 / +0.02 / −1.84) | −0.06 | −0.29 | −0.37 | 2 of 5 | **AT-PRIOR** | **−0.83** (1 of 5) |
+| VGG-16-BN Tiny-ImageNet | 0.48 | **+1.26** (−1.54 / +1.88 / +2.26 / +2.00 / +1.72) | +0.32 | +0.79 | +1.39 | 4 of 5 | **BEATS-PRIOR** | **−2.25** (0 of 5) |
+| ResNet-18 Tiny-ImageNet | 0.48 | **−0.74** (−1.46 / +0.12 / −0.34 / −1.12 / −0.88) | −0.39 | −0.56 | −0.54 | 1 of 5 | **BELOW-PRIOR** | +0.77 (4 of 5) |
+
+Per arm, final TEST 5k accuracy (five seeds, mean ± SD) and its change from the origin, with val and 10k changes beside (Table 1's format):
+
+| point | origin (TEST 5k) | arm | TEST 5k | change | val | 10k | params kept |
+|---|---|---|---|---|---|---|---|
+| VGG-19 C100, FLOPs 0.112 | 73.96 | T4-F | 66.62 ± 1.45 | −7.34 | −7.18 | −7.26 | ×0.029 |
+| | | sens_F | 67.43 ± 0.77 | −6.53 | −6.92 | −6.73 | ×0.030 |
+| | | even | 66.44 ± 0.40 | −7.52 | −7.24 | −7.38 | ×0.100 |
+| VGG-19 C100, 0.50 | 73.96 | T4-F | 73.73 ± 0.40 | −0.23 | +0.56 | +0.16 | ×0.232 |
+| | | sens_F | 73.98 ± 0.54 | +0.02 | +0.80 | +0.41 | ×0.242 |
+| | | even | 73.73 ± 0.34 | −0.23 | −0.07 | −0.15 | ×0.490 |
+| ResNet-56 C100, 0.48 | 73.18 | T4-F | 71.86 ± 0.39 | −1.32 | −1.24 | −1.28 | ×0.741 |
+| | | sens_F | 71.78 ± 0.15 | −1.40 | −1.09 | −1.24 | ×0.738 |
+| | | even | 70.52 ± 0.26 | −2.66 | −2.08 | −2.37 | ×0.500 |
+| VGG-16-BN Tiny-ImageNet, 0.62 | 61.52 | T4-F | 60.33 ± 0.62 | −1.19 | −1.66 | −1.43 | ×0.329 |
+| | | sens_F | 60.84 ± 0.30 | −0.68 | −1.60 | −1.14 | ×0.382 |
+| | | even | 61.67 ± 0.43 | +0.15 | −1.02 | −0.43 | ×0.682 |
+| VGG-16-BN Tiny-ImageNet, 0.48 | 61.52 | T4-F | 60.00 ± 0.85 | −1.52 | −2.97 | −2.25 | ×0.247 |
+| | | sens_F | 58.74 ± 0.82 | −2.78 | −3.30 | −3.04 | ×0.240 |
+| | | even | 60.98 ± 0.40 | −0.54 | −1.53 | −1.03 | ×0.518 |
+| ResNet-18 Tiny-ImageNet, 0.48 | 65.44 | T4-F | 64.09 ± 0.40 | −1.35 | −1.12 | −1.24 | ×0.599 |
+| | | sens_F | 64.82 ± 0.32 | −0.62 | −0.73 | −0.67 | ×0.659 |
+| | | even | 64.05 ± 0.36 | −1.39 | −0.82 | −1.11 | ×0.500 |
+
+Published rows at the same points, beside and not same-loop. Each comes from its own base, recipe, epochs and pipeline, against the full test split (ours: one cut and a 100-epoch fine-tune). The change is from each paper's own base.
+
+| point | method | base → pruned (change) | FLOPs kept | note |
+|---|---|---|---|---|
+| VGG-19 C100, 0.112 | DepGraph (CVPR 2023) | 73.50 → 70.39 (−3.11) | 0.112 | the same base file as ours; sparse learning plus fine-tune |
+| | OCSPruner (2025) | 74.24 → 70.47 (−3.77); 73.58 → 69.98 (−3.60) | 0.112 | from scratch / from pretrained; 300 epochs |
+| | TPP (ICLR 2023) | 74.02 → 67.78 (−6.24) | 0.113 | 120-epoch fine-tune |
+| | GReg-2 (ICLR 2021) | 74.02 → 67.75 (−6.27) | 0.113 | 120-epoch fine-tune |
+| | EigenDamage (ICML 2019) | 73.34 → 65.18 (−8.16) | 0.114 | 150 epochs |
+| | SOSP-H (ICLR 2022) | 73.45 → 64.24 (−9.21), final epoch | 0.137 | FLOPs differ by more than 10 % |
+| VGG-19 C100, 0.50 | TPP | 74.02 → 73.19 (−0.83) | 0.508 | |
+| | GReg-1 | 74.02 → 73.08 (−0.94) | 0.521 | |
+| | SOSP-H | 73.45 → 72.94 (−0.51), final epoch | 0.484 | |
+| | L1 one-shot (in TPP) | 74.02 → 73.01 (−1.01) | 0.508 | TPP's baseline |
+| ResNet-56 C100, 0.48 | LFPC (CVPR 2020) | 71.41 → 70.83 (−0.58) | 0.484 | |
+| | TAS (NeurIPS 2019) | 73.18 → 72.25 (−0.93) | 0.487 | with distillation |
+| | FPGM, as run in TAS / LFPC | 71.41 → 69.66 (−1.75) | 0.474 | |
+| | SFP, as run in TAS / LFPC | 71.40 → 68.79 (−2.61) | 0.474 | |
+| | Jiang et al. (IJCAI 2022) | 72.86 → 72.86 (0.00) / 72.22 (−0.64) | 0.512 / 0.478 | a GCN agent; 30 epochs after each pruned layer |
+| VGG-16 Tiny-ImageNet, 0.62 / 0.48 | Jiang et al. | 60.08 → 59.04 (−1.04) / 58.53 (−1.55) | 0.621 / 0.479 | a different VGG-16 (4096-wide FC layers) on its own base: not a SOTA cell |
+
+Beside (§405, FINAL's five-seed VGG-19 C100 rows, the same line): at FLOPs 0.60 T4-F changes +0.20, sens_F +0.36 and the even cut −0.77; at 0.45 −0.34, −0.55 and −0.96. The published rows near those points: Network Slimming +0.22 at 0.629, EigenDamage −0.44 at 0.626 and −1.72 at 0.452, SOSP-H −0.51 at 0.484.
+
+Reading:
+1. **On CIFAR-100 and Tiny-ImageNet, datasets it never trained on, the frozen FLOPs agent lands at its rule**: AT at four of six points, BEATS at one, BELOW at one. That is the picture of the nine-network pool, where T4-F is AT at FLOPs 0.6 and 0.45 (§405).
+2. **At 2× on VGG-19 C100 every same-loop arm keeps its accuracy**: T4-F −0.23 on TEST 5k and +0.16 on 10k; the rule +0.02 and +0.41. The published rows at this point lose 0.51–1.01 from their own bases, under other pipelines.
+3. **At 8.9× on VGG-19 C100**, an extrapolation for T4-F, the three arms lose 6.5–7.5 points. That is near TPP and GReg-2 (−6.2 / −6.3, 120 epochs) and well short of DepGraph (−3.11) and OCSPruner (−3.6 / −3.8, 300 epochs). One cut and 100 epochs is not their pipeline. T4-F's spread is wide here (SD 1.45; seed 46 is 2.86 below the rule).
+4. **ResNet-56 C100 at 0.48 has a large lever** (the rule +1.26 over the even cut, every seed), and T4-F matches the rule (+0.08). Its change (−1.32) lies between FPGM and SFP as run in TAS and LFPC (−1.75 / −2.61) and LFPC, TAS with distillation, and Jiang et al. (−0.58 / −0.93 / −0.64).
+5. **On VGG-16-BN Tiny-ImageNet the even cut is better than the rule and the agent at both points**: the lever is −0.83 at 0.62 (negative on 4 of 5 seeds) and −2.25 at 0.48 (every seed). The agent's BEATS at 0.48 is a gain over a prior that misleads on this network: T4-F is still 0.98 below the even cut there, and 1.34 below it at 0.62. At equal FLOPs the even cut keeps about twice the parameters (×0.52–0.68 against ×0.24–0.38). [H] The FLOPs rule's sensitivities point it at layers a 200-class task needs. This is the first moderate budget at which the lever reverses; on the pool it reversed only at FLOPs 0.10 (§416).
+6. **ResNet-18 Tiny-ImageNet**: T4-F is below the rule (−0.74) and at the even cut (+0.04); the rule leads the even cut by +0.77.
+
+Not claimed: "SPECTRA beats <method>" from these rows; Tiny-ImageNet as a SOTA cell (Jiang et al.'s VGG-16 is a different variant on its own base); the ResNet-18 Tiny-ImageNet cell as a literature comparison; the 0.112 rows as a train-range result; "the agent transfers to VGG-19 CIFAR-100" (§363); "the agent beats the rule on Tiny-ImageNet" (one of three points, where the even cut is better than both). These five-seed rows are not mixed with DEEP-F's three-seed rows (§416).
+
+Records: `scripts/_tmp_s29oct_bench_read.sh` output (31 Oct 09:41); checks `scripts/_tmp_s31oct_bench_checks.sh` (31 Oct 09:42; the masked-edit count with the gate's pattern); manifest `s29oct_bench_manifest.tsv`; next §419.
