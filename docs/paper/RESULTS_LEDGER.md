@@ -10461,3 +10461,80 @@ Reading:
 Not claimed: "SPECTRA is N× faster" without the decision-cost / fine-tune split and the stock-loader row; any accuracy from these runs; a runtime from another GPU set against ours (OCSPruner's Table 9, GNN-RL's half GPU-hour on a V100, AMC's hour on a TITAN Xp are beside); GNN-RL's extrapolated 24.5 h as a measured wall, or a hindsight stop as its pipeline's time; these times as inference speed (§395 measures that).
 
 Records: `scripts/_tmp_s30oct_rt_read.py` output (31 Oct 23:58); GNN-RL `scripts/_tmp_s31oct_gnnrl_read.sh` (31 Oct 23:57) with the snapshots `s31oct_gnnrl_snap.sh` (every 20 min, 16:02–23:42); epoch checks `scripts/_tmp_s31oct_rt_epochs.sh` (31 Oct 12:06); DepGraph's split, OCSPruner's epochs and HRank's stages `scripts/_tmp_s31oct_rt_extra.sh`; manifest `s29oct_rt_manifest.tsv`; everything under `/home/paretsky/scratch_audit/runtime/`; next §420.
+
+## 420. (HOLDOUT): two held-out agents, each trained on its agent of record's line with only the catalog changed (10 networks on CIFAR-100, SVHN and Fashion-MNIST: no CIFAR-10, no plain ResNet, no VGG, no PreAct-ResNet-56), read at the 12 literature points, ResNet-18 Tiny-ImageNet and the nine pool nets — **the held-out FLOPs agent is SAME as T4-F at the 12 literature points (−0.04) and AT-PRIOR (−0.07); on the pool it is BETTER than T4-F (+0.43, carried by ResNet-20 ×8 CIFAR-100; the other eight +0.10) and AT-PRIOR; the held-out params agent is WORSE than T6-fs at params 0.45 and 0.25 (−0.51, −0.70), AT-PRIOR at 0.45 and BELOW-PRIOR at 0.25 (−0.59)**
+- **XF** (hof − T4-F, the 12 literature points, seeds 42–46, the mean of the per-point five-seed means): **−0.04** (95 % bootstrap over points [−0.28, +0.15]); val −0.13, 10k −0.09, honest −0.09; positive at 4 of 12 → **SAME**.
+- **XF-PRIOR** (hof − floored sens_F): **−0.07** ([−0.36, +0.18]); val −0.12, 10k −0.09, honest −0.08; 5 of 12 → **AT-PRIOR**.
+- **XF-POOL** (hof − T4-F, the nine pool nets at FLOPs 0.45, seeds 42–46): **+0.43** ([−0.01, +1.17]); val +0.30, 10k +0.36, honest +0.42; 8 of 9 → **BETTER**. ResNet-20 ×8 CIFAR-100 gives +3.08 (5 of 5 seeds), where T4-F sits 1.94 below sens_F; the other eight average +0.10.
+- **XF-POOL-PRIOR** (hof − sens_F): **+0.26** ([+0.04, +0.58]); val +0.21, 10k +0.24, honest +0.29; 8 of 9 → **AT-PRIOR**, 0.04 under the band. ResNet-20 ×8 CIFAR-100 +1.14; the other eight +0.15.
+- **XP** (hop − T6-fs, the nine pool nets, seeds 42–44): params 0.45 **−0.51** ([−1.29, −0.00]; val −0.67, 10k −0.59, honest −0.46; 2 of 9) → **WORSE**; params 0.25 **−0.70** ([−2.82, +1.26]; val −0.69, 10k −0.70, honest −0.74; 3 of 9) → **WORSE**.
+- **XP-PRIOR** (hop − floored sens_cost): params 0.45 **−0.19** ([−1.19, +0.68]; val −0.37, 10k −0.28, honest −0.03; 3 of 9) → **AT-PRIOR**; params 0.25 **−0.59** ([−2.57, +1.03]; val −0.58, 10k −0.59, honest −0.56; 4 of 9) → **BELOW-PRIOR**.
+- *Reported:* ResNet-18 Tiny-ImageNet FLOPs 0.48 (coverage): hof − T4-F **+0.96** (5 of 5 seeds; val +0.28, 10k +0.62, honest +1.04), hof − sens_F **+0.23** (val −0.12, 10k +0.06, honest +0.51). LIT-C's DepGraph ResNet-56 params points 0.38 / 0.18 / 0.125 (seeds 42–44): hop − T6-fs −0.35 / −0.25 / −1.23, mean **−0.61** (0 of 3; val −0.60, 10k −0.60, honest −0.66); hop − sens_cost −0.31 / −0.51 / −1.38, mean **−0.73** (0 of 3; val −0.43, 10k −0.58, honest −0.90).
+
+Registered 29 Oct 22:10 (queue row HOLDOUT) before submit, at Ido's 29 Oct GO ("compare a SPECTRA agent that was not trained on CIFAR-10 or any of the benchmarked architectures, to better assess the transferability's quality"). Gate FAIL 22:30, read by hand (the gate counted the legacy walk-actor snapshots as networks; hop's projected time sat above 90 % of its cap); amended before any train (the gate counts network files only; hop's cap 2,400 min under a 42-h wall; every training setting unchanged); gate PASS 22:33 on the same smokes, 8 trains submitted. Trains COMPLETED at the registered 12,000 instances: hof s42–46 30 Oct 03:37–08:36, hop s42–44 31 Oct 01:44–02:22. 173 evals submitted by the waiter (the last 31 Oct 02:29), all COMPLETED by 1 Nov 08:05. Read 1 Nov 08:06 (`scripts/_tmp_s29oct_ho_read.sh`, written and dry-run 29 Oct before any held-out eval result).
+- *What the held-out agents never saw.* The catalog (`configs_ho/database_holdout.json`): CIFAR-100 WRN-16-4, WRN-28-2, PreAct-ResNet-20, DenseNet-40, MobileNetV2 ×1; SVHN WRN-16-4, WRN-28-2, MobileNetV2 ×1; Fashion-MNIST PreAct-ResNet-20, MobileNetV2 ×0.75. No eval network is a catalog network. Every CIFAR-10 and Tiny-ImageNet cell is on a dataset the held-out agents never trained on; the CIFAR-100 cells (VGG-19, ResNet-56, ResNet-20 ×8) are on a training dataset with an architecture outside the catalog. T4-F's and T6-fs's catalogs are ten networks on CIFAR-10 and SVHN.
+- *Trains (compute, never a result).* hof s42–46 286.8–296.1 min each and hop s42–44 1,627.8–1,659.9 min, from the plan line's DONE line at 12,000 instances (T4-F's train job ran 2 h 55 min, T6-fs's 20 h 2 min; [H] the held-out catalog's networks are slower to cut and score).
+- *Checks.* 173 of 173 evals COMPLETED, one job per cell, none resubmitted. Every cell lands within ±0.011 of its point (none refused). All 173 logs have the deterministic line, the agent's plan line and the width floor (`SPECTRA_PLAN_MIN_WIDTH=walk`); none has a masked edit or an error line (`scripts/_tmp_s01nov_ho_checks.sh`, the gate's own patterns). Five have one stall-fallback line each, the five hof cells on the thin ResNet-56 ×4 at FLOPs 0.45: each is on the companion ResNet-20 ×2 that the same job also cuts, none on the quoted ResNet-56 ×4, which lands at ×0.449 without one.
+- *Measurement.* FINAL's eval line on each cell's tree (`tree_v24`; `tree_v29` for Tiny-ImageNet, as BENCH): deterministic, floored, grid-rounded, one cut, G2 plus the origin control. The comparators are T4-F and sens_F at the same cells and seeds (BENCH §418, LIT-C §408, FINAL §405), and T6-fs and sens_cost (FINAL §406, LIT-C §408) paired on seeds 42–44. The reader prints val, 10k and honest at the level of each call; the rows below are TEST 5k.
+
+| point | FLOPs kept | hof − T4-F (seeds 42 / 43 / 44 / 45 / 46) | hof − sens_F (seeds) | per-point band vs sens_F | hof | T4-F | sens_F |
+|---|---|---|---|---|---|---|---|
+| VGG-19 C100 | 0.112 | −0.34 (+1.10 / −2.26 / −0.58 / −1.50 / +1.56) | −1.15 (+0.42 / −1.78 / −0.46 / −2.64 / −1.30) | BELOW | 66.28 ± 0.81 | 66.62 ± 1.45 | 67.43 ± 0.77 |
+| VGG-19 C100 | 0.50 | +0.17 (+0.72 / +0.66 / −0.08 / −0.22 / −0.24) | −0.08 (+0.98 / +0.48 / −1.26 / +0.06 / −0.68) | AT | 73.90 ± 0.39 | 73.73 ± 0.40 | 73.98 ± 0.54 |
+| ResNet-56 C100 | 0.48 | −0.01 (+0.16 / +0.26 / −0.36 / +0.50 / −0.60) | +0.07 (−0.26 / +0.20 / +0.44 / +0.48 / −0.52) | AT | 71.85 ± 0.30 | 71.86 ± 0.39 | 71.78 ± 0.15 |
+| VGG-16-BN Tiny-ImageNet | 0.62 | −0.05 (+0.12 / +0.14 / −0.04 / −0.48 / +0.00) | −0.56 (−0.02 / −0.56 / +0.06 / −0.46 / −1.84) | BELOW | 60.28 ± 0.54 | 60.33 ± 0.62 | 60.84 ± 0.30 |
+| VGG-16-BN Tiny-ImageNet | 0.48 | −0.73 (+0.90 / +0.00 / −1.28 / −1.74 / −1.52) | +0.54 (−0.64 / +1.88 / +0.98 / +0.26 / +0.20) | BEATS | 59.27 ± 0.52 | 60.00 ± 0.85 | 58.74 ± 0.82 |
+| DepGraph ResNet-56 | 0.39 | +0.26 (+0.40 / +0.00 / +0.84 / −0.28 / +0.34) | +0.41 (+0.46 / +0.38 / +0.38 / +0.30 / +0.52) | BEATS | 93.64 ± 0.29 | 93.38 ± 0.23 | 93.24 ± 0.24 |
+| DepGraph ResNet-56 | 0.25 | −0.08 (−0.06 / −0.20 / +0.06 / +0.12 / −0.32) | +0.06 (+0.12 / −0.06 / +0.00 / +0.24 / −0.02) | AT | 92.84 ± 0.15 | 92.92 ± 0.15 | 92.78 ± 0.18 |
+| DepGraph ResNet-56 | 0.125 | +0.00 (+0.62 / +0.38 / +0.50 / −0.84 / −0.66) | −0.07 (−0.12 / +0.26 / +0.50 / −0.60 / −0.40) | AT | 90.64 ± 0.49 | 90.64 ± 0.38 | 90.72 ± 0.29 |
+| VGG-16-BN C10 | 0.465 | −0.09 (+0.08 / +0.02 / −0.08 / −0.36 / −0.10) | −0.04 (+0.58 / +0.20 / −0.28 / −0.44 / −0.28) | AT | 93.83 ± 0.16 | 93.92 ± 0.17 | 93.88 ± 0.40 |
+| VGG-16-BN C10 | 0.34 | +0.22 (+0.14 / +0.26 / +0.00 / +0.20 / +0.50) | −0.02 (−0.28 / −0.28 / +0.00 / +0.08 / +0.40) | AT | 93.45 ± 0.11 | 93.23 ± 0.21 | 93.46 ± 0.23 |
+| ResNet-110 C10 | 0.48 | +0.13 (+0.54 / +0.36 / −0.20 / +0.40 / −0.44) | +0.10 (+0.26 / +0.22 / −0.38 / +0.20 / +0.18) | AT | 94.04 ± 0.16 | 93.91 ± 0.39 | 93.94 ± 0.24 |
+| ResNet-110 C10 | 0.40 | −0.02 (+0.14 / −0.20 / −0.16 / −0.14 / +0.26) | −0.01 (+0.30 / −0.08 / −0.16 / −0.08 / −0.04) | AT | 93.78 ± 0.16 | 93.80 ± 0.21 | 93.79 ± 0.18 |
+| ResNet-18 Tiny-ImageNet (coverage) | 0.48 | +0.96 (+1.76 / +0.46 / +0.94 / +1.18 / +0.48) | +0.23 (+0.30 / +0.58 / +0.60 / +0.06 / −0.40) | AT | 65.05 ± 0.47 | 64.09 ± 0.40 | 64.82 ± 0.32 |
+
+By LIT-C's per-point bands, hof − T4-F is AT at all 12 literature points; at ResNet-18 Tiny-ImageNet (coverage) it is above (+0.96).
+
+| pool net, FLOPs 0.45 | hof − T4-F | hof − sens_F | hof | T4-F | sens_F |
+|---|---|---|---|---|---|
+| thin ResNet-56 ×4 C10 | +0.33 | +0.69 | 84.49 ± 0.45 | 84.16 ± 0.37 | 83.80 ± 0.24 |
+| ResNet-56 C10 (chenyaofo) | +0.05 | +0.13 | 93.60 ± 0.16 | 93.55 ± 0.20 | 93.47 ± 0.16 |
+| ResNet-56 ×8 C10 | +0.12 | +0.03 | 91.60 ± 0.33 | 91.48 ± 0.25 | 91.57 ± 0.28 |
+| MobileNetV2 ×1.4 C10 | −0.18 | +0.00 | 93.18 ± 0.21 | 93.36 ± 0.36 | 93.18 ± 0.21 |
+| DenseNet-100 C10 | +0.16 | −0.03 | 94.92 ± 0.08 | 94.76 ± 0.19 | 94.95 ± 0.10 |
+| ResNet-20 ×8 C100 | **+3.08** | **+1.14** | 54.30 ± 0.85 | 51.22 ± 1.15 | 53.16 ± 0.51 |
+| VGG-19 C100 | +0.06 | +0.27 | 73.68 ± 0.19 | 73.62 ± 0.16 | 73.41 ± 0.41 |
+| VGG-16 C10 | +0.02 | +0.03 | 93.74 ± 0.12 | 93.72 ± 0.26 | 93.71 ± 0.19 |
+| DepGraph ResNet-56 C10 | +0.21 | +0.11 | 93.66 ± 0.22 | 93.45 ± 0.18 | 93.55 ± 0.14 |
+
+| pool net | params | hop − T6-fs (seeds 42 / 43 / 44) | hop − sens_cost | hop | T6-fs | sens_cost | FLOPs kept, hop / T6-fs |
+|---|---|---|---|---|---|---|---|
+| thin ResNet-56 ×4 C10 | 0.45 | −2.89 (−2.44 / −0.36 / −5.88) | −3.19 | 82.15 ± 2.53 | 85.05 ± 0.45 | 85.35 ± 0.25 | 0.527 / 0.678 |
+| ResNet-56 C10 | 0.45 | +0.04 | +0.28 | 93.69 ± 0.38 | 93.65 ± 0.11 | 93.41 ± 0.19 | 0.561 / 0.566 |
+| ResNet-56 ×8 C10 | 0.45 | −1.19 (−0.42 / −1.82 / −1.32) | −0.67 | 90.37 ± 0.77 | 91.56 ± 0.11 | 91.05 ± 0.21 | 0.504 / 0.702 |
+| MobileNetV2 ×1.4 C10 | 0.45 | −0.03 | +0.07 | 93.98 ± 0.07 | 94.01 ± 0.14 | 93.91 ± 0.19 | 0.609 / 0.626 |
+| DenseNet-100 C10 | 0.45 | +0.00 | −0.10 | 94.57 ± 0.39 | 94.57 ± 0.42 | 94.67 ± 0.14 | 0.424 / 0.378 |
+| ResNet-20 ×8 C100 | 0.45 | +0.07 | +2.25 | 50.80 ± 0.96 | 50.73 ± 0.30 | 48.55 ± 0.29 | 0.486 / 0.685 |
+| VGG-19 C100 | 0.45 | −0.22 | −0.08 | 74.24 ± 0.39 | 74.46 ± 0.59 | 74.32 ± 0.31 | 0.631 / 0.655 |
+| VGG-16 C10 | 0.45 | −0.25 | −0.13 | 93.92 ± 0.28 | 94.17 ± 0.27 | 94.05 ± 0.33 | 0.655 / 0.769 |
+| DepGraph ResNet-56 C10 | 0.45 | −0.08 | −0.11 | 93.58 ± 0.24 | 93.66 ± 0.27 | 93.69 ± 0.25 | 0.561 / 0.613 |
+| thin ResNet-56 ×4 C10 | 0.25 | **−6.90** (−4.24 / −3.16 / −13.30) | −6.80 | 73.37 ± 4.73 | 80.27 ± 0.84 | 80.17 ± 0.77 | 0.369 / 0.432 |
+| ResNet-56 C10 | 0.25 | −0.31 | +0.05 | 92.35 ± 0.28 | 92.67 ± 0.39 | 92.30 ± 0.23 | 0.355 / 0.381 |
+| ResNet-56 ×8 C10 | 0.25 | −2.15 (−1.20 / −1.76 / −3.48) | −1.62 | 87.43 ± 0.82 | 89.58 ± 0.54 | 89.05 ± 0.24 | 0.352 / 0.454 |
+| MobileNetV2 ×1.4 C10 | 0.25 | +0.36 | +1.11 | 94.04 ± 0.40 | 93.68 ± 0.17 | 92.93 ± 0.43 | 0.441 / 0.469 |
+| DenseNet-100 C10 | 0.25 | +0.21 | +0.22 | 94.06 ± 0.07 | 93.85 ± 0.26 | 93.84 ± 0.22 | 0.236 / 0.236 |
+| ResNet-20 ×8 C100 | 0.25 | **+4.74** | +3.61 | 43.15 ± 0.40 | 38.41 ± 3.59 | 39.54 ± 0.36 | 0.305 / 0.522 |
+| VGG-19 C100 | 0.25 | −1.43 | −1.00 | 73.02 ± 0.43 | 74.45 ± 0.14 | 74.02 ± 0.54 | 0.447 / 0.530 |
+| VGG-16 C10 | 0.25 | −0.33 | −0.42 | 93.63 ± 0.19 | 93.96 ± 0.03 | 94.05 ± 0.08 | 0.505 / 0.673 |
+| DepGraph ResNet-56 C10 | 0.25 | −0.52 | −0.47 | 92.53 ± 0.58 | 93.05 ± 0.26 | 93.00 ± 0.09 | 0.362 / 0.425 |
+
+Reading:
+1. **Withholding CIFAR-10 and every benchmarked family does not change the FLOPs agent at the literature points.** Trained on CIFAR-100, SVHN and Fashion-MNIST networks only, with no plain ResNet and no VGG, the held-out FLOPs agent matches T4-F at all 12 published points (−0.04; every point AT by LIT-C's bands) and stays at the rule (−0.07). So T4-F's literature rows (§408, §418) do not rest on having trained on CIFAR-10 or on the benchmarked architectures. This is SAME, not a proof of transfer: both FLOPs agents learn a residual on the FLOPs rule capped at zmax 0.3, so their room to differ from the rule, and from each other, is bounded by construction.
+2. **On the pool the held-out FLOPs agent is BETTER than T4-F by the registered band, but one network carries it.** +0.43 with 8 of 9 positive; ResNet-20 ×8 CIFAR-100 gives +3.08 on all five seeds, where T4-F sits 1.94 below the rule; the other eight average +0.10, and the bootstrap's lower end is −0.01. Against the rule the held-out agent is AT-PRIOR (+0.26; the other eight +0.15). [H] CIFAR-100 is in the held-out catalog and not in T4-F's; VGG-19 CIFAR-100, the other CIFAR-100 pool net, moves only +0.06.
+3. **Where T4-F was BELOW-PRIOR, at ResNet-18 Tiny-ImageNet FLOPs 0.48 (§418, −0.74), the held-out agent is at the rule** (+0.23 against sens_F; +0.96 against T4-F, 5 of 5 seeds). One network, coverage only.
+4. **The held-out params agent does not transfer as well as T6-fs.** It is WORSE at both params budgets (−0.51, −0.70), AT-PRIOR at 0.45 and BELOW-PRIOR at 0.25 (−0.59), and below both comparators at all three of LIT-C's DepGraph ResNet-56 params points (−0.61 against T6-fs, −0.73 against the rule). The largest losses are on the two widened ResNet-56s (×4: −2.89 and −6.90, with one seed at −13.30; ×8: −1.19 and −2.15) and VGG-19 CIFAR-100 at 0.25 (−1.43); the largest gain is ResNet-20 ×8 CIFAR-100 at 0.25 (+4.74). At equal params it keeps fewer FLOPs than T6-fs on 16 of the 18 cells (on the widened ResNet-56s ×0.50–0.53 against ×0.68–0.70 at 0.45), a different allocation; it does so on ResNet-20 ×8 CIFAR-100 too, where it gains, so which part of the allocation costs the accuracy is not read here.
+5. **Stated in advance, and it applies: a weaker training signal cannot be told apart from weaker transfer.** SVHN and Fashion-MNIST leave little room for allocation (§402–§403), and mixing datasets cost the params line at 0.25 in D9 (§415). [H] The FLOPs line's trust region around its rule (zmax 0.3) leaves it less room to lose than the params line has, the contrast §416 draws below the training range; that would be why the FLOPs agent holds and the params agent does not. This study does not separate the causes.
+
+Not claimed: "transfer is proven" (reading 1's caveat stands beside every use); the pool BETTER as a general gain (one network carries it); "the held-out params agent fails because of its catalog's datasets" (a hypothesis); any held-out agent read on a network of its catalog (none is); these rows mixed with T4-F's or T6-fs's rows in one call; a point, seed or snapshot chosen after reading TEST (the policy is each train's `policy_latest.pt`, as registered).
+
+Records: `scripts/_tmp_s29oct_ho_read.sh` output (1 Nov 08:06); checks `scripts/_tmp_s01nov_ho_checks.sh` (1 Nov 08:08); manifest `s29oct_ho_manifest.tsv`; catalog `configs_ho/database_holdout.json`; chain `s29oct_ho_chain.sh`, gate file `s29oct_ho_gate.txt`; next §421.
