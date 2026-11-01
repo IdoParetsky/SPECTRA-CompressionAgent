@@ -10538,3 +10538,87 @@ Reading:
 Not claimed: "transfer is proven" (reading 1's caveat stands beside every use); the pool BETTER as a general gain (one network carries it); "the held-out params agent fails because of its catalog's datasets" (a hypothesis); any held-out agent read on a network of its catalog (none is); these rows mixed with T4-F's or T6-fs's rows in one call; a point, seed or snapshot chosen after reading TEST (the policy is each train's `policy_latest.pt`, as registered).
 
 Records: `scripts/_tmp_s29oct_ho_read.sh` output (1 Nov 08:06); checks `scripts/_tmp_s01nov_ho_checks.sh` (1 Nov 08:08); manifest `s29oct_ho_manifest.tsv`; catalog `configs_ho/database_holdout.json`; chain `s29oct_ho_chain.sh`, gate file `s29oct_ho_gate.txt`; next §421.
+
+## 421. (T9-fs): the params agent of record's line (T6-fs: the 32-step reward, its 10-net catalog, 12,000 instances, from scratch) trained on κ 0.10–0.85 instead of 0.25–0.85, seeds 42–44, read on FINAL's eval line (`tree_v24`, deterministic, floored, grid-rounded, G2 plus the origin control) at params 0.45 / 0.35 / 0.25 / 0.15 / 0.10 on the nine pool nets — **the deeper range does not help: RANGE-HURTS at 0.45, 0.35, 0.25 and 0.10, RANGE-SAME at 0.15 (one network carries it); AT-PRIOR-POOL at 0.45 and 0.35, BELOW-PRIOR-POOL at 0.25, 0.15 and 0.10**
+- **RANGE** (T9-fs − T6-fs): 0.45 **−0.33 HURTS**; 0.35 **−0.35 HURTS**; 0.25 **−0.55 HURTS**; 0.15 +0.07 SAME (ResNet-20 ×8 CIFAR-100 +4.77; the other eight −0.52); 0.10 **−0.50 HURTS**.
+- **P_T9** (T9-fs − sens_cost): 0.45 −0.01 AT; 0.35 −0.06 AT; 0.25 **−0.43 BELOW**; 0.15 **−0.49 BELOW**; 0.10 **−0.50 BELOW**.
+
+One seed carries most of the loss. Seed 44's pooled RANGE is −0.94 to −2.61 at every depth; seeds 42 and 43 read −0.28 to +0.71 (reported; the calls are on all three seeds, as registered).
+
+Registered 23 Oct 12:20 (`da9f076`; queue row T9-fs) before submit, at Ido's 23 Oct GO on training a deeper range ("You have my GO"). Stated in advance: below 0.25 T6-fs extrapolates while T9-fs trains there, so RANGE at 0.15 / 0.10 tests the training range itself; at a fixed 12,000 instances T9-fs draws about 82 % as many instances in 0.25–0.85 as T6-fs, so a small cost at 0.45 is possible. Gate PASS 26 Oct 07:17. Read 1 Nov 16:25 (`scripts/_tmp_s23oct_t9_read.sh`, written 27 Oct before any result).
+- *Trains.* Jobs **23608490–492**, one per seed. Each reached 12,000 instances in its first segment, 27 Oct 04:19 to 28 Oct 01:05–01:11 (20:44:44–20:49:46 elapsed, about 6 s per instance; 62.4 GPU-h in all, against 20.0 GPU-h for T6-fs's train, §419), with no time-limit stop, requeue or error. The queue row's 28 Oct stamp gave "about 18 h"; sacct gives 20.7–20.8 h. Each agent is its train's final policy, fixed at registration.
+- *Checks.* 135 of 135 evals COMPLETED (**23636916–23637154**), one job per cell, none resubmitted. The per-arm mean params land at ×0.449 / 0.349 / 0.249 / 0.149 / 0.099 (T9-fs and T6-fs) and ×0.449–0.100 (sens_cost). Per log (`scripts/_tmp_s01nov_t9_checks.sh`, 16:27): every log has the deterministic ON line and the agent's `[alloc]` line, with no masked edit and no error line. There are 6 stall-fallback lines, one per seed at 0.15 and at 0.10. All are on the companion ResNet-20 ×2 that the thin cell also cuts, none on a quoted network.
+- *Measurement.* As FINAL (§406) and D5 (§414): TEST 5k with val, 10k and honest (each job's own 100-epoch origin control), paired by seed. The pooled value is the mean over the nine nets of the per-net three-seed means; the interval is a 95 % bootstrap over nets. The comparators are FINAL's rows at 0.45 / 0.35 / 0.25 and DEEP's at 0.15 / 0.10 (§413), at seeds 42–44. Their own contrast, T6-fs − sens_cost, reads +0.32 / +0.29 / +0.11 / −0.55 / −0.01, which is §414's reported row exactly.
+- *FLOPs* (pool means over nets and seeds, kept fraction): T9-fs ×0.625 / 0.543 / 0.452 / 0.341 / 0.262, T6-fs ×0.630 / 0.546 / 0.458 / 0.345 / 0.259, sens_cost ×0.589 / 0.505 / 0.416 / 0.318 / 0.251. T9-fs and T6-fs differ by at most 2 %. Against the rule, T9-fs keeps 4–9 % more FLOPs; per-net pairs were not checked against the 10 % caption.
+
+| contrast | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
+|---|---|---|---|---|---|---|---|---|
+| RANGE: T9-fs − T6-fs | 0.45 | **−0.33** [−0.83, +0.08] | −0.33 | −0.33 | −0.30 | 3 of 9 | **RANGE-HURTS** | −0.26 |
+| | 0.35 | **−0.35** [−0.92, +0.07] | −0.38 | −0.36 | −0.46 | 5 of 9 | **RANGE-HURTS** | −0.28 |
+| | 0.25 | **−0.55** [−1.65, +0.13] | −0.33 | −0.44 | −0.57 | 4 of 9 | **RANGE-HURTS** | −0.68 |
+| | 0.15 | +0.07 [−1.55, +1.65] | +0.14 | +0.10 | +0.18 | 7 of 9 | RANGE-SAME | −0.52 |
+| | 0.10 | **−0.50** [−2.47, +0.98] | −0.36 | −0.43 | −0.39 | 4 of 9 | **RANGE-HURTS** | −0.94 |
+| P_T9: T9-fs − sens_cost | 0.45 | −0.01 [−0.58, +0.48] | −0.03 | −0.02 | +0.12 | 5 of 9 | AT-PRIOR-POOL | −0.17 |
+| | 0.35 | −0.06 [−0.69, +0.45] | −0.03 | −0.04 | −0.03 | 6 of 9 | AT-PRIOR-POOL | −0.16 |
+| | 0.25 | **−0.43** [−1.48, +0.29] | −0.22 | −0.33 | −0.39 | 3 of 9 | **BELOW-PRIOR-POOL** | −0.41 |
+| | 0.15 | **−0.49** [−1.94, +0.57] | −0.59 | −0.54 | −0.45 | 4 of 9 | **BELOW-PRIOR-POOL** | −0.39 |
+| | 0.10 | **−0.50** [−1.99, +0.80] | −0.34 | −0.42 | −0.45 | 3 of 9 | **BELOW-PRIOR-POOL** | −0.57 |
+| reported: T9-fs − fs32w (D5's warm-started 32-step line) | 0.25 | −0.92 [−2.11, −0.12] | −0.68 | −0.80 | −0.97 | 2 of 9 | — | −0.64 |
+| | 0.15 | −0.78 [−2.67, +0.63] | −0.68 | −0.73 | −0.72 | 3 of 9 | — | −0.56 |
+| | 0.10 | −0.90 [−3.06, +0.85] | −0.99 | −0.95 | −0.86 | 2 of 9 | — | −0.95 |
+| reported: T9-fs − ft1w (D5's one-epoch candidate) | 0.25 | −1.02 [−2.39, −0.09] | −0.87 | −0.94 | −1.03 | 3 of 9 | — | −0.61 |
+| | 0.15 | −1.24 [−3.12, +0.05] | −1.18 | −1.21 | −1.25 | 3 of 9 | — | −0.74 |
+| | 0.10 | −1.31 [−3.31, +0.06] | −1.31 | −1.31 | −1.25 | 1 of 9 | — | −1.02 |
+| reported: T6-fs − sens_cost (seeds 42–44) | 0.45 / 0.35 / 0.25 / 0.15 / 0.10 | +0.32 / +0.29 / +0.11 / −0.55 / −0.01 | | | | 6 / 7 / 7 / 5 / 4 of 9 | — | +0.09 / +0.12 / +0.27 / +0.13 / +0.37 |
+
+Per net, TEST 5k, three-seed means (per-seed values, 42 / 43 / 44, where one seed decides):
+
+| net | RANGE 0.45 | 0.35 | 0.25 | 0.15 | 0.10 | P_T9 0.45 | 0.35 | 0.25 | 0.15 | 0.10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | −1.22 (s44 −3.56) | −1.52 (s44 −4.02) | **−2.99** (+0.10 / +0.18 / −9.26) | **−2.92** (+1.12 / +1.58 / −11.46) | **−4.58** (+2.12 / +0.16 / −16.02) | −1.52 | −1.36 | −2.89 | −2.63 | −0.65 |
+| chenyaofo R56 | +0.17 | +0.32 | +0.16 | +0.03 | −0.21 | +0.41 | +0.40 | +0.53 | −0.29 | −0.75 |
+| r56-w8 | −0.95 (s44 −2.44) | −1.20 (s44 −2.32) | −1.79 (s42 −2.14, s44 −3.44) | −2.41 (s44 −5.02) | −2.66 (s44 −8.56) | −0.43 | −1.41 | −1.26 | −2.19 | −3.27 |
+| MobileNetV2 ×1.4 | +0.04 | +0.15 | +0.13 | +0.27 | +0.12 | +0.14 | +0.59 | +0.89 | +0.85 | +0.53 |
+| DenseNet-100 | +0.39 | −0.25 | −0.11 | +0.40 | +0.53 | +0.29 | +0.01 | −0.10 | +0.78 | +0.93 |
+| r20-w8 C100 | −0.91 | −0.93 | +0.55 | **+4.77** (+2.66 / +4.96 / +6.68) | **+3.03** (+3.36 / +4.54 / +1.20) | +1.27 | +0.74 | −0.58 | −1.22 | +0.06 |
+| VGG-19 C100 | −0.07 | +0.02 | −0.54 | +0.41 | −0.39 | +0.07 | +0.29 | −0.11 | +0.29 | −0.37 |
+| VGG-16 | −0.23 | +0.16 | +0.19 | +0.00 | +0.24 | −0.10 | +0.19 | +0.10 | −0.15 | −0.07 |
+| DepGraph R56 | −0.18 | +0.09 | −0.51 | +0.05 | −0.58 | −0.21 | −0.00 | −0.46 | +0.20 | −0.96 |
+
+Per seed (reported, not a call): pooled RANGE over the nine nets is
+- s42: −0.22 / −0.14 / −0.28 / +0.42 / +0.64;
+- s43: +0.25 / +0.03 / +0.08 / +0.71 / +0.47;
+- s44: −1.02 / −0.95 / −1.43 / −0.94 / −2.61.
+
+The plans on the three thin-width ResNets (`scripts/_tmp_s01nov_t9_plans.sh`, from the agent's `[alloc]` line; median group keep, smallest in brackets; extracted at 0.45, 0.25 and 0.10):
+
+| net | params | T9-fs s42 | T9-fs s43 | T9-fs s44 | T6-fs s44 |
+|---|---|---|---|---|---|
+| thin r56-w4 | 0.45 | 0.50 [0.12] | 0.75 [0.12] | 0.94 [0.50] | 0.91 [0.12] |
+| | 0.25 | 0.31 [0.12] | 0.50 [0.12] | 0.88 [0.25] | 0.50 [0.12] |
+| | 0.10 | 0.25 [0.12] | 0.31 [0.12] | 0.50 [0.12] | 0.25 [0.12] |
+| r56-w8 | 0.45 | 0.62 [0.09] | 0.88 [0.09] | 0.94 [0.53] | 0.89 [0.09] |
+| | 0.25 | 0.12 [0.09] | 0.62 [0.09] | 0.88 [0.34] | 0.53 [0.09] |
+| | 0.10 | 0.12 [0.09] | 0.28 [0.09] | 0.69 [0.16] | 0.20 [0.09] |
+| r20-w8 C100 | 0.45 | 0.69 [0.09] | 0.88 [0.09] | 0.86 [0.53] | 1.00 [0.09] |
+| | 0.25 | 0.41 [0.09] | 0.69 [0.09] | 0.73 [0.34] | 0.78 [0.09] |
+| | 0.10 | 0.19 [0.09] | 0.41 [0.09] | 0.47 [0.16] | 0.28 [0.09] |
+
+- **Seed 44 has the highest median keep** of T9-fs's three seeds in eight of these nine cells. At 0.45 and 0.25 its smallest group keeps 0.25–0.53, where seeds 42 and 43 and T6-fs's seed 44 reach the width floor (0.09–0.12). It meets the budget by cutting fewer groups.
+- **On the two ResNet-56s that shape goes with the loss** (seed 44 RANGE −2.32 to −16.02). On ResNet-20 ×8 C100 it does not: seed 44's RANGE there is +0.22 at 0.25, +6.68 at 0.15 and +1.20 at 0.10.
+- **Seed 42 on r56-w8 at 0.25** plans the other way (median 0.12, against 0.62 for T6-fs's seed 42) and reads −2.14.
+
+Reading:
+1. **Training down to 10 % does not make the agent better at 10 % or 15 %.** RANGE is HURTS at 0.10 (−0.50) and SAME at 0.15 (+0.07). The 0.15 value rests on ResNet-20 ×8 CIFAR-100, where T9-fs softens T6-fs's collapse (+4.77, every seed positive) but stays below the rule (−1.22); on the other eight T9-fs is −0.52 against T6-fs. The registered question, whether training on the range itself helps, gets a no at the pool level.
+2. **The cost inside the old range is larger than the small cost stated in advance.** RANGE-HURTS at 0.45, 0.35 and 0.25 (−0.33, −0.35, −0.55), with val, 10k and honest agreeing in sign and size. [H] One candidate cause is the instance share stated at registration (about 82 % of T6-fs's instances in 0.25–0.85). Another is seed 44's plans on the thin ResNets (reading 3). Neither is tested.
+3. **One seed of three carries most of the loss.** Seed 44's agent is −0.94 to −2.61 against T6-fs over the nine nets at every depth. The loss concentrates on thin r56-w4 and r56-w8, where its plans keep most groups nearly whole and cut fewer groups. The same plan shape on ResNet-20 ×8 C100 does not lose there. Seeds 42 and 43 read −0.28 to +0.71, and +0.42 to +0.71 at 0.15 and 0.10 (reported). [D] The calls stand on three seeds, as registered: no seed is dropped. [H] Training from scratch on the wider range is less stable across seeds than T6-fs's line. Settling that needs more seeds, which are new trains; it is not registered.
+4. **Against the rule, T9-fs is no better than T6-fs.** It is AT at 0.45 and 0.35 (−0.01, −0.06), where T6-fs at the same seeds reads +0.32 and +0.29. It is BELOW at 0.25, 0.15 and 0.10 (−0.43, −0.49, −0.50), against T6-fs's +0.11, −0.55 and −0.01. MobileNetV2 ×1.4 and DenseNet-100 favour T9-fs over the rule at 0.15 and 0.10 (+0.85 / +0.53, +0.78 / +0.93), as they favoured T6-fs (§413).
+5. **Of the two registered ways to train down to 10 %, continuing T6-fs's training (D5, §414) did better than starting again on the wider range.** T9-fs is below fs32w (−0.78 to −0.92) and ft1w (−1.02 to −1.31) at 0.25, 0.15 and 0.10 (reported). [D] T6-fs stays the params agent of record. T9-fs is not a candidate. ft1w remains the candidate of §417, where the promotion rule did not fire.
+
+Not claimed:
+- "training on a deeper range hurts" as a general rule (three seeds, and one seed carries most of the loss);
+- "the deeper range helps on seeds 42 and 43" (that would be a seed chosen after TEST);
+- "the deeper range helps ResNet-20 ×8 CIFAR-100" beyond the per-net value reported here;
+- any T9-fs row in FINAL's or DEEP's tables as T6-fs.
+
+Records: `scripts/_tmp_s23oct_t9_read.sh` output (1 Nov 16:25); checks `scripts/_tmp_s01nov_t9_checks.sh` (16:27) and plans `scripts/_tmp_s01nov_t9_plans.sh` (16:29); manifest `s23oct_t9_manifest.tsv`; manager log `s23oct_t9_run.log`; next §422.
