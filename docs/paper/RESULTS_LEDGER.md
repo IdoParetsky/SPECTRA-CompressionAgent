@@ -10622,3 +10622,76 @@ Not claimed:
 - any T9-fs row in FINAL's or DEEP's tables as T6-fs.
 
 Records: `scripts/_tmp_s23oct_t9_read.sh` output (1 Nov 16:25); checks `scripts/_tmp_s01nov_t9_checks.sh` (16:27) and plans `scripts/_tmp_s01nov_t9_plans.sh` (16:29); manifest `s23oct_t9_manifest.tsv`; manager log `s23oct_t9_run.log`; next §422.
+
+## 422. (ENC): four agents on T6-fs's training line at 6,000 instances that differ only in the policy's encoder or its inputs (ctl6k = the Transformer, as T6-fs; light = a per-token MLP; minimal = light with only the rule's inputs; heavy = a d512 6-layer Transformer), seeds 42–44, read on FINAL's eval line (`tree_v24`, deterministic, floored, grid-rounded, G2 plus the origin control) at params 0.45 and 0.25 on the nine pool nets — **LIGHTER-SAME at 0.45 and LIGHTER-HURTS at 0.25; FEWER-INPUTS-SAME at 0.45 and FEWER-INPUTS-HELP at 0.25; HEAVIER-SAME at both; against the rule, minimal BEATS-PRIOR-POOL at both depths, ctl6k and light AT at 0.45 and BELOW at 0.25, heavy AT at both; ResNet-20 ×8 CIFAR-100 carries most of every 0.25 contrast and of minimal's BEATS**
+- **LIGHT** (light − ctl6k): 0.45 +0.02 LIGHTER-SAME; 0.25 **−0.34 LIGHTER-HURTS** (ResNet-20 ×8 CIFAR-100 −4.97; the other eight +0.24).
+- **MIN** (minimal − light): 0.45 +0.09 FEWER-INPUTS-SAME; 0.25 **+1.84 FEWER-INPUTS-HELP** (ResNet-20 ×8 CIFAR-100 +15.45; the other eight +0.14).
+- **HEAVY** (heavy − ctl6k): 0.45 −0.19 HEAVIER-SAME (0 of 9 positive); 0.25 +0.57 HEAVIER-SAME.
+- **P_X** (each arm − sens_cost): minimal 0.45 **+0.38 BEATS** and 0.25 **+0.70 BEATS** (the other eight +0.10 and +0.28); ctl6k +0.26 AT / **−0.81 BELOW**; light +0.28 AT / **−1.14 BELOW**; heavy +0.08 AT / −0.23 AT.
+
+Registered 21 Oct 14:36 (queue row ENC) before submit, at Ido's 21 Oct ask ("a small per-group model might match the Transformer - I want this to be added to the experiments queue ... should we try and enrich the agent such that its model is far better and 'heavier'"). Stated in advance: the policy's learning rate stays at T6-fs's 3e-4 in every arm, so a heavy arm that does not help at this rate does not show that no heavier model can; SAME means the encoder's capacity is not what limits the agent at 6,000 instances on this catalog. Train gate PASS 22 Oct 00:43; eval gate PASS 22 Oct 14:59. Read 2 Nov 07:05 (`scripts/_tmp_s21oct_enc_read.sh`, written 21 Oct and dry-run before any result).
+- *Arms.* All four use T6-fs's line exactly (`tree_v21`: fs32 at proxy lr 0.01, policy lr 3e-4, κ 0.25–0.85, K 8, no advantage normalization, the v10 snapshot's standardizer and policy config, its 10-net catalog) and stop at 6,000 instances. ctl6k is the Transformer (d256, 3 layers; 2,391,045 parameters, the gate's blob line). light is `SPECTRA_PLAN_ENCODER=set`: each group's score depends on its own token only (547,841). minimal is light with `SPECTRA_PLAN_ZERO=base,fortify,slack`: besides the layer type and position, only the group's sensitivity, its cost shares, the budget and κ remain, so it learns its own function of the rule's inputs (547,841). heavy is `transformer_deep`, d512 and 6 layers (18,957,829). Each agent is its train's final policy, fixed at registration.
+- *Trains.* Jobs **23487659–672**, all COMPLETED by 28 Oct 21:56, 10.2–10.4 h each. Train cost is 101–104 min per 1,000 instances in every arm, though heavy has 35 times light's parameters (the trains' DONE lines; compute only, never a result).
+- *Checks.* 216 of 216 cells COMPLETED (latest jobs **23527358–23792937**; the last ended 2 Nov 06:55). 11 cells were preempted once each and resubmitted by the guard (227 jobs). Per log, latest job per cell (`scripts/_tmp_s02nov_enc_checks.sh`, 07:06): every log has the deterministic ON line and the agent's `[alloc]` line. There is no stall-fallback line, no masked edit and no error line. Every arm's mean params land at ×0.449 at 0.45 and ×0.249 at 0.25 (sens_cost ×0.250); the largest miss of any cell is 0.010 (ctl6k at 0.25).
+- *Measurement.* As FINAL (§406) and T9-fs (§421): TEST 5k with val, 10k and honest (each job's own 100-epoch origin control), paired by seed. The pooled value is the mean over the nine nets of the per-net three-seed means; the interval is a 95 % bootstrap over nets. Bands: ≥ +0.3 with at least 6 of 9 positive; ≤ −0.3; between. The comparators are FINAL's sens_cost and T6-fs rows at seeds 42–44, the same rows as §414 and §421.
+- *FLOPs* (pool means over nets and seeds, kept fraction). At 0.45: ctl6k ×0.646, light 0.629, minimal 0.607, heavy 0.632, T6-fs 0.630, sens_cost 0.589. At 0.25: ctl6k ×0.463, light 0.466, minimal 0.428, heavy 0.474, T6-fs 0.458, sens_cost 0.416. **FLOPs caption:** at 0.25, ctl6k, light and heavy keep 11–14 % more FLOPs than the rule, so P_ctl6k, P_light and P_heavy at 0.25 compare pairs that differ by more than 10 % in FLOPs. minimal keeps 3 % more than the rule at both depths. Per-net pairs were not checked against the 10 % caption.
+
+| contrast | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight |
+|---|---|---|---|---|---|---|---|---|
+| LIGHT: light − ctl6k | 0.45 | +0.02 [−0.20, +0.24] | +0.10 | +0.06 | +0.06 | 3 of 9 | LIGHTER-SAME | +0.04 |
+| | 0.25 | **−0.34** [−2.28, +0.76] | −0.31 | −0.32 | −0.38 | 6 of 9 | **LIGHTER-HURTS** | +0.24 |
+| MIN: minimal − light | 0.45 | +0.09 [−0.24, +0.57] | +0.11 | +0.10 | +0.20 | 5 of 9 | FEWER-INPUTS-SAME | −0.10 |
+| | 0.25 | **+1.84** [−0.05, +5.93] | +1.56 | +1.70 | +2.00 | 7 of 9 | **FEWER-INPUTS-HELP** | +0.14 |
+| HEAVY: heavy − ctl6k | 0.45 | −0.19 [−0.36, −0.05] | +0.10 | −0.05 | −0.03 | 0 of 9 | HEAVIER-SAME | −0.16 |
+| | 0.25 | +0.57 [−0.28, +1.99] | +0.42 | +0.50 | +0.59 | 5 of 9 | HEAVIER-SAME | +0.00 |
+| P_ctl6k: ctl6k − sens_cost | 0.45 | +0.26 [+0.01, +0.57] | +0.06 | +0.16 | +0.26 | 8 of 9 | AT-PRIOR-POOL | +0.16 |
+| | 0.25 | **−0.81** [−2.50, +0.27] | −0.73 | −0.77 | −0.79 | 5 of 9 | **BELOW-PRIOR-POOL** | −0.10 |
+| P_light: light − sens_cost | 0.45 | +0.28 [+0.04, +0.59] | +0.16 | +0.22 | +0.32 | 8 of 9 | AT-PRIOR-POOL | +0.20 |
+| | 0.25 | **−1.14** [−4.35, +0.34] | −1.05 | −1.09 | −1.17 | 5 of 9 | **BELOW-PRIOR-POOL** | +0.14 |
+| P_minimal: minimal − sens_cost | 0.45 | **+0.38** [−0.01, +0.99] | +0.27 | +0.32 | +0.52 | 8 of 9 | **BEATS-PRIOR-POOL** | +0.10 |
+| | 0.25 | **+0.70** [+0.07, +1.68] | +0.51 | +0.61 | +0.83 | 7 of 9 | **BEATS-PRIOR-POOL** | +0.28 |
+| P_heavy: heavy − sens_cost | 0.45 | +0.08 [−0.19, +0.35] | +0.16 | +0.12 | +0.23 | 5 of 9 | AT-PRIOR-POOL | −0.01 |
+| | 0.25 | −0.23 [−0.93, +0.32] | −0.31 | −0.27 | −0.21 | 4 of 9 | AT-PRIOR-POOL | −0.10 |
+| reported: minimal − ctl6k | 0.45 | +0.11 [−0.16, +0.51] | +0.21 | +0.16 | +0.26 | 4 of 9 | — | −0.05 |
+| | 0.25 | +1.50 [+0.05, +4.03] | +1.25 | +1.37 | +1.62 | 8 of 9 | — | +0.38 |
+| reported: ctl6k − T6-fs's 6,000-instance snapshot (the schedule's effect) | 0.45 | +0.07 [−0.10, +0.24] | −0.16 | −0.04 | +0.07 | 5 of 9 | — | +0.09 |
+| | 0.25 | −1.13 [−2.91, −0.12] | −1.24 | −1.18 | −1.12 | 2 of 9 | — | −0.40 |
+| reported: ctl6k − T6-fs at 12,000 | 0.45 | −0.06 [−0.37, +0.19] | −0.24 | −0.15 | −0.16 | 7 of 9 | — | +0.07 |
+| | 0.25 | −0.92 [−2.34, −0.07] | −0.84 | −0.88 | −0.97 | 2 of 9 | — | −0.37 |
+| derived: minimal − T6-fs at 12,000 (the sum of the two rows above; no interval) | 0.45 | +0.06 | −0.03 | +0.01 | +0.10 | 5 of 9 | — | +0.02 |
+| | 0.25 | +0.58 | +0.41 | +0.49 | +0.65 | 7 of 9 | — | +0.01 |
+
+Per net, TEST 5k, three-seed means (per-seed values, 42 / 43 / 44, where one seed decides):
+
+| net | LIGHT 0.45 | 0.25 | MIN 0.45 | 0.25 | HEAVY 0.45 | 0.25 | P_minimal 0.45 | 0.25 |
+|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.57 | +1.49 (s42 +3.90) | −0.47 | +0.63 | −0.23 | −0.17 (+3.44 / −1.62 / −2.34) | −0.21 | +0.50 |
+| chenyaofo R56 | −0.25 | +0.21 | +0.01 | +0.00 | −0.13 | +0.13 | +0.05 | +0.39 |
+| r56-w8 | +0.05 | +0.37 | +0.05 | −0.68 | −0.14 | −0.03 | +0.64 | −0.23 |
+| MobileNetV2 ×1.4 | −0.06 | −0.17 | −0.05 | +0.25 | −0.38 | +0.13 | +0.05 | +0.94 |
+| DenseNet-100 | −0.07 | +0.02 | +0.01 | +0.08 | −0.27 | −0.01 | +0.05 | +0.05 |
+| r20-w8 C100 | −0.19 | **−4.97** (+5.54 / −4.10 / −16.36) | +1.61 | **+15.45** (+5.78 / +17.48 / +23.08) | −0.38 | **+5.15** (+8.18 / +6.34 / +0.94) | **+2.55** | **+4.03** |
+| VGG-19 C100 | +0.20 | +0.08 | −0.45 | +0.23 | −0.05 | +0.03 | +0.05 | +0.43 |
+| VGG-16 | −0.05 | −0.15 | −0.07 | +0.33 | −0.07 | −0.19 | +0.01 | +0.34 |
+| DepGraph R56 | −0.04 | +0.10 | +0.23 | +0.25 | −0.03 | +0.10 | +0.19 | −0.19 |
+
+Per seed (reported, not a call): pooled P_minimal over the nine nets is +0.35 / +0.40 / +0.38 at 0.45 and +0.55 / +0.85 / +0.68 at 0.25 (seeds 42 / 43 / 44).
+
+On ResNet-20 ×8 CIFAR-100 at 0.25 every arm loses heavily: raw TEST 5k, three-seed means, ctl6k −27.88, light −32.85, minimal −17.41, heavy −22.73, T6-fs −22.57, sens_cost −21.44. The seed-44 plans there (`[alloc]` line; median group keep, smallest in brackets) are light 0.91 [0.09] (−40.82), ctl6k 0.75 [0.09] (−24.46), heavy 0.69 [0.09] (−23.52) and minimal 0.44 [0.12] (−17.74). Light meets the budget by cutting a few groups to the width floor and keeping the rest nearly whole; minimal spreads the cut.
+
+Reading:
+1. **At 0.45 a per-group model matches the Transformer; at 0.25 it does not, on one network.** LIGHT is SAME at 0.45 (+0.02) and HURTS at 0.25 (−0.34). The 0.25 loss rests on ResNet-20 ×8 CIFAR-100 (−4.97, seed 44 −16.36); on the other eight light is +0.24 against ctl6k (6 of 9 positive overall). Under the row's never-list, "the Transformer is unnecessary" needs LIGHTER-SAME or -HELPS at both depths, so it is not licensed.
+2. **Taking inputs away does not hurt, and at 0.25 it helps on one network.** MIN is SAME at 0.45 (+0.09) and HELP at 0.25 (+1.84). ResNet-20 ×8 CIFAR-100 carries it (+15.45, every seed positive), where minimal undoes light's collapse; the other eight read +0.14. [H] Without the base, fortify and slack inputs the per-group model spreads its cut instead of concentrating it, which suits a thin network at a deep budget. One plan line per arm was read; this is not tested.
+3. **A model with 8 times the Transformer's parameters does not help.** HEAVY is SAME at both depths. At 0.45 it is −0.19 with none of the nine nets positive (95 % [−0.36, −0.05]): a small, consistent cost inside the SAME band. At 0.25 it is +0.57, carried by ResNet-20 ×8 CIFAR-100 (+5.15); the other eight read 0.00. As stated in advance, this is at T6-fs's policy learning rate, so it does not show that no heavier model can help; it shows the encoder's capacity is not what limits the agent at 6,000 instances on this catalog. The encoder's size did not change the train's cost (101–104 min per 1,000 instances in every arm).
+4. **Only the minimal arm beats the rule at both depths, and one network carries most of it.** P_minimal is +0.38 at 0.45 (8 of 9 positive; the interval reaches −0.01) and +0.70 at 0.25 (7 of 9; [+0.07, +1.68]), with val, 10k and honest agreeing in sign. Each seed alone gives +0.35 to +0.85. ResNet-20 ×8 CIFAR-100 contributes +2.55 and +4.03; without it the pool reads +0.10 and +0.28, below the band. minimal keeps 3 % more FLOPs than the rule, so the gain is not bought with FLOPs. The Transformer control is AT and then BELOW the rule (+0.26, −0.81), as is light (+0.28, −1.14); at 0.25 both keep 11–14 % more FLOPs than the rule.
+5. **At 6,000 instances the Transformer control is weaker than the agent of record at 0.25.** ctl6k − T6-fs (12,000) is −0.06 at 0.45 and −0.92 at 0.25, and at 0.25 ctl6k is 1.13 points below T6-fs's own snapshot at 6,000 instances (2 of 9 positive; reported). The minimal arm, at half T6-fs's instances, is +0.06 against T6-fs at 0.45 and +0.58 at 0.25 (derived), and that +0.58 is ResNet-20 ×8 CIFAR-100's +5.16; the other eight read +0.01. [D] No arm is promoted. The row's never-list forbids an arm chosen after reading TEST, and the evidence against T6-fs rests on one network. T6-fs stays the params agent of record. [H] A per-group model of the rule's own inputs is as good an agent as the Transformer on this catalog. Testing that needs a new registered study (the minimal encoder on T6-fs's full 12,000-instance line, read on the held-out protocol of §420 and at the deeper budgets of §413, with the calls fixed in advance). Those are new trains; they are not registered.
+
+Not claimed:
+- "the Transformer is unnecessary" or "a per-group model suffices" (LIGHTER-HURTS at 0.25);
+- "a heavier model helps" (HEAVIER-SAME at both depths), or "no heavier model can help" (one learning rate);
+- the minimal arm as the rule (it learns its own function of the rule's inputs);
+- minimal as the agent of record, or as better than T6-fs (an arm chosen after reading TEST; the derived row is not a call and has no interval);
+- minimal's BEATS-PRIOR-POOL without ResNet-20 ×8 CIFAR-100, which carries most of it (the other eight +0.10 and +0.28);
+- P_ctl6k, P_light or P_heavy at 0.25 without the FLOPs caption.
+
+Records: `scripts/_tmp_s21oct_enc_read.sh` output (2 Nov 07:05); checks `scripts/_tmp_s02nov_enc_checks.sh` (07:06); manifest `s21oct_enc_manifest.tsv`; chains `s21oct_enc_chain.sh` / `s21oct_enc_chain2.sh` / `s22oct_enc_evgate2.sh`; guard `s21oct_autoresub_enc.sh`; next §423.
