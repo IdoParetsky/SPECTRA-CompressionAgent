@@ -10695,3 +10695,68 @@ Not claimed:
 - P_ctl6k, P_light or P_heavy at 0.25 without the FLOPs caption.
 
 Records: `scripts/_tmp_s21oct_enc_read.sh` output (2 Nov 07:05); checks `scripts/_tmp_s02nov_enc_checks.sh` (07:06); manifest `s21oct_enc_manifest.tsv`; chains `s21oct_enc_chain.sh` / `s21oct_enc_chain2.sh` / `s22oct_enc_evgate2.sh`; guard `s21oct_autoresub_enc.sh`; next §423.
+
+## 423. (D8): the accuracy-limit mode — given a val accuracy limit τ, the frozen params agent of record (T6-fs) and the rule (sens_cost) each bisect the params kept κ over [0.10, 0.90] with five 20-epoch probes, then run one 100-epoch final (FINAL's eval line, G2 plus the origin control) at the smallest feasible κ; nine pool nets × τ ∈ {−0.5, −1.0, −2.0} val points × seeds 42–44, 162 searches — **KAPPA-P is SAME at every τ (−0.014, −0.024, −0.014; every 95 % interval includes 0): at a given accuracy limit the agent reaches the same size as the rule**. The range's ends pin two or three of the nine nets per τ in both arms. On TEST 5k the finals at the chosen κ meet τ in 17 / 19 / 21 of 27 searches for the agent and 12 / 18 / 23 for the rule
+- **KAPPA-P** (κ_fs − κ_sc at the chosen κ, paired by seed, seed-mean per net, pooled over the nine nets): τ −0.5 −0.014 [−0.063, +0.032], 3 of 9 negative and 3 positive → **SAME**; τ −1.0 −0.024 [−0.068, +0.009], 4 and 2 → **SAME**; τ −2.0 −0.014 [−0.036, +0.008], 5 and 2 → **SAME**. Without ResNet-20 ×8 CIFAR-100: −0.016, −0.023, −0.008.
+- **The final at the chosen κ** (reported): TEST 5k change, agent −0.48 / −0.71 / −1.37, rule −0.57 / −0.75 / −1.36 (val, 10k and honest in the table). fs − sc +0.10 / +0.04 / −0.01, context only: the arms sit at different sizes.
+
+Registered 21 Oct 11:42 (queue row D8) before submit, at Ido's 21 Oct approval ("I like D8, approved under your recommended prioritization. I want continuity of NEON's preference-awareness into SPECTRA"). Eval-only, no new pruning code. Stated in advance: below κ 0.25 the agent extrapolates beyond its training range (read directly in §413), and a 20-epoch val change is a conservative stand-in for the final, so the chosen κ errs toward larger. Gate PASS 21 Oct 12:01. Reader registered 2 Nov 17:46 before any D8 result (`scripts/_tmp_s02nov_d8_read.sh`): tested offline on synthetic searches, then dry-run masked on the cluster at 2 Nov 19:52. Read 4 Nov 08:20 with the registered file (blob `4ef897f`).
+- *Search.* The orchestrator `s21oct_d8_submit.sh run` with the bisection brain `s21oct_d8_bisect.py` (login-02, at most 24 D8 jobs at once). Each search starts at κ 0.50 and halves its interval: a probe whose 20-epoch val change is ≥ τ sets hi = κ, otherwise lo = κ, and after five probes the chosen κ is hi. The reachable ends are therefore 0.125 (feasible at every probe) and 0.90 (feasible at none; entered at 0.90 as "limit not met at 0.90", as registered). A probe is FINAL's eval line (`tree_v24`, deterministic, floored, grid-rounded) with a 20-epoch recovery and no origin control.
+- *Checks.* 162 of 162 searches done, each with a final record. 162 finals and 810 probes COMPLETED; 4 jobs (3 probes, 1 final) were preempted and resubmitted unchanged (the guard fault of 2 Nov is in the queue row). The last final ended 4 Nov 08:11; 197 GPU-h in all (about 190 estimated). Every final and probe log has the deterministic ON line and the `[alloc]` line (the agent's, for fs). There is no stall-fallback line, no masked edit and no error-pattern line, and no final lands outside 0.011 of its κ.
+- *Determinism* [V]. Probes and finals are separate jobs per τ. 228 probe points (arm, net, seed, κ) ran under two or three τ, and every repeat returned the same 20-epoch val change. So did 25 final points, on TEST 5k, val, 10k and honest alike. Example: fs, thin r56-w4, seed 42, κ 0.500, jobs 23460679, 23629864 and 23799335.
+- *Measurement.* KAPPA-P as registered, with a 95 % bootstrap over nets and seeds (seed 0, 4,000 draws). Bands: SMALLER if ≤ −0.03 with at least 6 of 9 nets negative; LARGER if ≥ +0.03; SAME between. A pool ≤ −0.03 with fewer than 6 of 9 negative is SAME (stated 2 Nov, before the read). A call needs all three seeds of both arms on all nine nets, which every τ has. 0.03 is about one bisection step (0.025).
+- *FLOPs* (kept fraction at the chosen κ, pool means): fs 0.680 / 0.618 / 0.549, sc 0.667 / 0.613 / 0.521 (paired +0.013 / +0.005 / +0.028), so the pooled pairs are within 5 %. **FLOPs caption:** per net, the pairs differ by more than 10 % on MobileNetV2 ×1.4 at −0.5 and −1.0 (the agent keeps 12 % and 14 % fewer), on DenseNet-100 at −0.5 (+16 %), on chenyaofo R56 at −2.0 (+15 %), and on DepGraph R56 at every τ (+15 %, +21 %, +30 %).
+
+| τ (val points) | KAPPA-P [95 %] | nets d < 0 / > 0 | call | other eight | on landed params | without unmet pairs | FLOPs kept fs / sc |
+|---|---|---|---|---|---|---|---|
+| −0.5 | −0.014 [−0.063, +0.032] | 3 / 3 | **SAME** | −0.016 | −0.014 | −0.015 (8 pairs dropped) | 0.680 / 0.667 |
+| −1.0 | −0.024 [−0.068, +0.009] | 4 / 2 | **SAME** | −0.023 | −0.025 | −0.026 (6 dropped) | 0.618 / 0.613 |
+| −2.0 | −0.014 [−0.036, +0.008] | 5 / 2 | **SAME** | −0.008 | −0.013 | −0.014 (0 dropped) | 0.549 / 0.521 |
+
+The final at the chosen κ, pooled over the 27 searches per arm (reported):
+
+| τ | arm | TEST 5k | val | 10k | honest | meets τ on TEST 5k / val / honest (of 27) | limit not met at 0.90 | ends at 0.125 |
+|---|---|---|---|---|---|---|---|---|
+| −0.5 | T6-fs | −0.48 | −0.17 | −0.33 | −0.50 | 17 / 21 / 16 | 7 | 4 |
+| | sens_cost | −0.57 | −0.37 | −0.47 | −0.60 | 12 / 18 / 13 | 7 | 4 |
+| −1.0 | T6-fs | −0.71 | −0.51 | −0.61 | −0.70 | 19 / 22 / 19 | 3 | 7 |
+| | sens_cost | −0.75 | −0.54 | −0.64 | −0.77 | 18 / 22 / 18 | 6 | 5 |
+| −2.0 | T6-fs | −1.37 | −0.96 | −1.16 | −1.32 | 21 / 26 / 21 | 0 | 9 |
+| | sens_cost | −1.36 | −1.08 | −1.22 | −1.34 | 23 / 24 / 21 | 0 | 8 |
+
+fs − sc at the chosen κ (context only; the arms sit at different sizes): −0.5 +0.10 [−0.16, +0.32], val +0.20, 10k +0.15, honest +0.09; −1.0 +0.04 [−0.22, +0.26], +0.02, +0.03, +0.08; −2.0 −0.01 [−0.33, +0.27], +0.13, +0.06, +0.02.
+
+Per net, the chosen κ (three-seed mean, fs / sc) and d = fs − sc; "0.90 (not met)" means every seed of both arms missed the limit at every probe, and "0.125 (floor)" means every seed of both arms met it at every probe:
+
+| net | τ −0.5 | τ −1.0 | τ −2.0 |
+|---|---|---|---|
+| thin r56-w4 | 0.883 / 0.875 (+0.008) | 0.842 / 0.850 (−0.008) | 0.742 / 0.700 (+0.042) |
+| chenyaofo R56 | 0.792 / 0.850 (−0.058) | 0.558 / 0.608 (−0.050) | 0.300 / 0.325 (−0.025) |
+| r56-w8 | 0.90 (not met), 0 | 0.90 (not met), 0 | 0.733 / 0.792 (−0.058) |
+| MobileNetV2 ×1.4 | **0.175 / 0.333 (−0.158)** | **0.133 / 0.275 (−0.142)** | 0.125 / 0.158 (−0.033) |
+| DenseNet-100 | 0.650 / 0.558 (+0.092) | 0.400 / 0.392 (+0.008) | 0.217 / 0.225 (−0.008) |
+| r20-w8 C100 | 0.90 (not met), 0 | 0.867 / 0.900 (−0.033) | 0.783 / 0.842 (−0.058) |
+| VGG-19 C100 | 0.167 / 0.158 (+0.008) | 0.133 / 0.133 (0) | 0.125 (floor), 0 |
+| VGG-16 | 0.125 (floor), 0 | 0.125 (floor), 0 | 0.125 (floor), 0 |
+| DepGraph R56 | 0.267 / 0.283 (−0.017) | 0.242 / 0.233 (+0.008) | 0.175 / 0.158 (+0.017) |
+
+Fixed-budget view (reported, FINAL's 100-epoch rows at seeds 42–44, pooled raw change): at params 0.60, 0.45, 0.35 and 0.25, T6-fs reads TEST 5k −1.17, −1.92, −2.78 and −4.36 (val −0.83, −1.62, −2.44, −4.07), and sens_cost −1.29, −2.24, −3.06 and −4.47 (val −1.08, −1.92, −2.79, −4.18). Taking the smallest of those four budgets whose 100-epoch val meets τ, fs − sc is −0.053, −0.019 and −0.011 over 6 nets. This is a coarse grid: none of the four budgets meets τ on 10, 9 and 8 net-seeds for fs and on 11, 9 and 8 for sc.
+
+Reading:
+1. **At a given accuracy limit, the agent reaches the same size as the rule.** KAPPA-P is −0.014, −0.024 and −0.014 at τ −0.5, −1.0 and −2.0. Each is within one bisection step, and each interval includes 0. It is the same on landed params, and the same without the pairs that missed the limit. The pools sit inside the ±0.03 band, so the count rule stated on 2 Nov does not decide any call. This matches the fixed-budget reading, where T6-fs is level with sens_cost at every budget (§406). [D] SAME at all three τ. "The agent compresses more" is not licensed.
+2. **The range's ends pin two or three nets per τ in both arms, which bounds what the call can show.** VGG-16 sits at the 0.125 floor in every search of both arms; its finals there gain (TEST 5k +0.31 for fs, +0.32 for sc, per-net means). VGG-19 C100 sits at or near the floor. r56-w8 and r20-w8 C100 cannot meet −0.5 at 0.875 in 20 epochs in either arm, and r56-w8 cannot meet −1.0 either, so they enter at 0.90. These nets read d = 0 by construction: 3, 2 and 2 of the nine at τ −0.5, −1.0 and −2.0. On the remaining nets the sign is mixed (3 / 3, 4 / 2, 5 / 2). [H] A range reaching below 0.125 would let VGG-16 and VGG-19 separate the arms. That range lies outside T6-fs's training range (§413), and it would be a new study; none is registered.
+3. **One network favours the agent, as at the deep fixed budgets.** On MobileNetV2 ×1.4 the agent stops at 0.175 and 0.133 where the rule stops at 0.333 and 0.275 (τ −0.5, −1.0; smaller at every seed), at 12–14 % fewer FLOPs. Its finals there read −0.18 and −0.72 on TEST 5k, against the rule's −0.50 and −0.63. MobileNetV2 ×1.4 also favoured the agent at 15 % and 10 % kept (§413). DenseNet-100 at −0.5 goes the other way (+0.092). Each is one network: reported, not a call.
+4. **The mode meets its limit on TEST in most searches.** τ is set on val, through 20-epoch probes. At the chosen κ the 100-epoch finals meet τ on TEST 5k in 17, 19 and 21 of 27 searches for the agent, and in 12, 18 and 23 for the rule (on val: 21, 22, 26 and 18, 22, 24). At −0.5, 6 of the agent's 10 misses and 6 of the rule's 15 are on r56-w8 and r20-w8 C100, where the limit was not met even at 0.90 (counted from the per-search lines). The pooled TEST change at the chosen κ is −0.48 for the agent and −0.57 for the rule at −0.5, then −0.71 / −0.75 and −1.37 / −1.36. None of these is a call.
+5. **The 20-epoch probe is conservative, as stated in advance.** At the chosen κ the final's 100-epoch val is above the probe's 20-epoch val by +0.17 to +0.42 on average in both arms (a diagnostic, never a result). So each chosen κ errs larger than a 100-epoch probe would choose. [H] The offset is of similar size in both arms (fs / sc: +0.35 / +0.17, +0.22 / +0.30, +0.42 / +0.34), so it should not favour either arm in KAPPA-P; this is not tested.
+6. **The coarse fixed-budget view agrees.** On FINAL's four params budgets, the smallest budget meeting τ differs by −0.053, −0.019 and −0.011 (fs − sc, reported).
+7. [D] The accuracy-limit mode works with both the agent and the rule. It is the preference knob Ido asked for on 21 Oct, carried over from NEON: state the accuracy you can lose and get a size. Through this mode, as at fixed budgets, the frozen agent ends where the rule ends. The mode stays a product feature of SPECTRA; it is not evidence that the agent compresses more.
+
+Not claimed:
+- "the agent compresses more" or "less" at any τ (SAME at all three);
+- a τ chosen after reading TEST (all three are reported, as registered);
+- the 20-epoch probe's val change, or the final-minus-probe diagnostic, as a result;
+- MobileNetV2 ×1.4's or DenseNet-100's κ gap as a call (one network each);
+- fs − sc at the chosen κ as a call (the arms sit at different sizes);
+- a per-net FLOPs pair without the caption (MobileNetV2 ×1.4 at −0.5 and −1.0, DenseNet-100 at −0.5, chenyaofo R56 at −2.0 and DepGraph R56 at every τ differ by more than 10 %).
+
+Records: reader `scripts/_tmp_s02nov_d8_read.sh` output (4 Nov 08:20, `s04nov_d8_read.txt`); masked dry run `s02nov_d8_read_dry.txt` (2 Nov 19:52); manifest `s21oct_d8_manifest.tsv`; state `s21oct_d8_state.json`; orchestrator `s21oct_d8_submit.sh` with `s21oct_d8_bisect.py`; guards `s21oct_autoresub_d8.sh` (to 2 Nov 19:50) and `s02nov_autoresub_d8k.sh`; next §424.
