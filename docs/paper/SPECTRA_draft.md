@@ -37,6 +37,7 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 - Never "training on a deeper range helps" (§421: RANGE-HURTS at four of five depths, SAME at 15 % on one network). Never seeds 42 and 43 of T9-fs without seed 44. Never "a deeper range hurts" as a general rule: three seeds, and one carries most of the loss.
 - Never "the Transformer is unnecessary" or "a per-group model suffices" (§422: LIGHTER-HURTS at 25 %), and never "a heavier model helps" (HEAVIER-SAME at both depths). Never the minimal-input arm as the rule, as the agent of record or as better than T6-fs: it was not promoted, and choosing it now would be an arm chosen after TEST. Never its BEATS-PRIOR-POOL without ResNet-20 ×8 CIFAR-100 (the other eight +0.10 and +0.28).
 - Never "the agent compresses more" (or less) at an accuracy limit: KAPPA-P is SAME at all three limits (§423). Never MobileNetV2 ×1.4's smaller size as a call (one network), the 20-epoch probe's val change as a result, or the agent − rule accuracy at the chosen sizes as a call (the arms sit at different sizes).
+- Never "the rule needs multi-rate probes", and never "multi-rate probing hurts" beyond §424's four variants, nine networks and two depths: no variant beats the rule, three are below it, and the threshold variant is level only through ResNet-20 ×8 CIFAR-100. Never the curve allocations without their precedents (SPDY [170], Chen et al. [154], Li et al. [18], NNI [171], PaddleSlim [172]), and never as those methods' results: each is our implementation of the allocation form inside SPECTRA's pipeline.
 - The walk-era DepGraph comparison (§157, "M4") keeps its caption; it is not re-quoted for the plan agent (Appendix B).
 
 **Where the evidence stands (updated 4 Nov 2026; PRELIM; TEST with val, 10k and honest beside it in §5).**
@@ -69,7 +70,8 @@ Predecessor: Hirsch & Katz, *Information Sciences* 2022 (NEON) [1].
 | How long does one network take, against the published pipelines? | **7.7–8.5 min per network on one RTX 4090** (20.9–21.4 with a stock data loader), of which the decision is 3.3–3.7 min. Nine published pipelines, timed on the same GPU, take 44 min (FPGM) to 5.7 h (HRank on ResNet-56), and GNN-RL's search had not finished in 17 h. Like for like (stock loader), the fastest takes 2.1× SPECTRA's time. The one-time training pays back within 4.8 networks for the FLOPs agent and 33.7 for the params agent (7.5 and 52.9 with a stock loader) | §419 |
 | Trained with no CIFAR-10, no plain ResNet and no VGG | **The FLOPs agent: the same as the agent of record** at the 12 literature points (−0.04; val −0.13, 10k −0.09, honest −0.09) and at its rule (−0.07), five seeds; BETTER on the pool by one network (ResNet-20 ×8 CIFAR-100, +3.08; the other eight +0.10). **The params agent: worse than the agent of record** at 45 % and 25 % (−0.51, −0.70), at its rule at 45 % and below it at 25 % (−0.59), three seeds | §420 |
 | Given an accuracy limit instead of a budget, how small a network? | **The same size as the rule, three seeds.** Each arm bisects the params kept until a 20-epoch probe loses no more than the limit on val, then recovers fully there. At limits of −0.5, −1.0 and −2.0 val points the agent's chosen size minus the rule's is −0.014, −0.024 and −0.014 (SAME; every interval includes 0). The finals meet the limit on TEST 5k in 17, 19 and 21 of 27 searches for the agent and 12, 18 and 23 for the rule. MobileNetV2 ×1.4 is the one network where the agent stops clearly smaller (−0.16 and −0.14 at the first two limits) | §423 |
-| Running | The probe-rate study of the rule (PROBE): its last cells | queue |
+| Is one 50 % measurement per group enough for the rule? | **Yes, three seeds.** Four variants that measure each group at other cut rates were read at 25 % and 15 % params. None beats the cost-aware rule. Re-measuring each group at its planned depth (−0.56, −1.10), damage curves with one multiplier (−3.60, −2.93) and one probe at √κ (−0.54 at 15 %) are below it. The same curves with one global threshold are level (+0.23, +0.43), carried by ResNet-20 ×8 CIFAR-100 (the other eight −0.19, −0.26) | §424 |
+| Running | Nothing registered; the next studies wait for Ido's GO (§7) | queue |
 
 ---
 
@@ -369,7 +371,7 @@ Every rule below shares the agent's loop:
 
 The rules differ from the agent only in where the plan comes from.
 
-**Sensitivity.** For each group g, s_g is the rise in cross-entropy over 4 training batches (batch 256) when that group alone is cut to half width by L1, with no fine-tune. This is a one-point (50 % cut) version of the per-layer sensitivity analysis of Li et al. [18], who sweep each layer's pruned fraction and read the curves by hand, to skip sensitive layers and to set one rate per stage. We measure it per channel group. Small values are floored at 5 % of the median. The same s_g feeds the agent's sensitivity columns (§3.3).
+**Sensitivity.** For each group g, s_g is the rise in cross-entropy over 4 training batches (batch 256) when that group alone is cut to half width by L1, with no fine-tune. This is a one-point (50 % cut) version of the per-layer sensitivity analysis of Li et al. [18], who sweep each layer's pruned fraction and read the curves by hand, to skip sensitive layers and to set one rate per stage. We measure it per channel group. Measuring each group at more cut rates does not improve the rule (§5.9f). Small values are floored at 5 % of the median. The same s_g feeds the agent's sensitivity columns (§3.3).
 
 | Rule | Plan | Role |
 |---|---|---|
@@ -470,7 +472,7 @@ Proposal §4 (NEON on flattened images) is motivation, not a SPECTRA table. The 
 4. **The transfer matrix** (§5.5) reads it on held-out families and datasets.
 5. **The cost table** (§5.6) gives what a plan and its recovery cost.
 
-The analyses that follow explain those results: whether the agent learns (§5.7), whether any allocation lies above the priors (§5.8), the deep budgets, the reward, the fallback and the accuracy-limit mode (§5.9), which cheap rewards rank plans like the final fine-tune (§5.10), and the recovery recipe (§5.11).
+The analyses that follow explain those results: whether the agent learns (§5.7), whether any allocation lies above the priors (§5.8), the deep budgets, the reward, the fallback, the accuracy-limit mode and the rule's probe rate (§5.9), which cheap rewards rank plans like the final fine-tune (§5.10), and the recovery recipe (§5.11).
 
 **How to read the tables.** A row gives a difference in points of accuracy after recovery, agent − rule unless stated. It is the mean over seeds 42–44, paired by seed; the catalog agent's first reads (§346) use seeds 42–46. **TEST** is the 5k test half, and val, 10k and honest stand beside it (§4.2). For differences between two pruned arms, honest is the difference of the arms' honest values. Each job has its own origin control, so honest can differ from raw.
 
@@ -1114,6 +1116,34 @@ FLOPs kept at the chosen κ: agent 0.680, 0.618 and 0.549; rule 0.667, 0.613 and
 - **The mode mostly meets its limit on TEST.** τ is set on val through 20-epoch probes, and the 100-epoch finals recover more than the probes did, so the chosen sizes err on the large side. The finals meet τ on TEST in 17–23 of 27 searches. At −0.5 most misses are on the two networks that missed the limit even at 90 %.
 - [D] The accuracy-limit mode is SPECTRA's form of NEON's preference-awareness, and it works with the agent or with a rule. Through it, as at fixed budgets, the frozen agent ends where the rule ends.
 
+### 5.9f How many cut rates should the rule measure? (§424)
+
+The cost-aware rule measures each group once, at a 50 % cut (§4.1). At 25 % and 15 % params most groups are cut well past that point, so the slope it reads is an extrapolation. Four variants measure more, on FINAL's eval line, at the nine networks and seeds 42–44 (PRELIM):
+- **Re-measured at the planned depth (sca):** each group is measured again at the depth the rule's plan cuts it to.
+- **Damage curves with one multiplier (scv):** each group's loss and saving at keeps 0.75, 0.5, 0.25 and 0.1, made monotone and allocated by one Lagrange multiplier. This is the knapsack form of SPDY [170] and of Chen et al.'s FLOPs utilization ratio [154].
+- **The same curves with one threshold (sth):** one global loss threshold on the curves, Li et al.'s per-layer sensitivity rule [18] as NNI [171] and PaddleSlim [172] automate it.
+- **One probe at √κ (scq, 15 % only):** the single measurement taken at the budget's average keep instead of at 50 %.
+
+Each is our implementation of the allocation form, inside SPECTRA's pipeline (one cut, one 100-epoch recovery). The rule on the new code reproduces its rows of record to four decimals.
+
+| Variant − rule | Params | TEST [95 %] (val / 10k / honest) | Positive | Call | Other eight |
+|---|---|---|---|---|---|
+| re-measured at the planned depth | 25 % | −0.56 [−1.54, +0.14] (−0.31 / −0.43 / −0.46) | 4 / 9 | BELOW-RULE | −0.15 |
+| | 15 % | −1.10 [−2.48, −0.02] (−1.01 / −1.05 / −1.16) | 2 / 9 | BELOW-RULE | −0.78 |
+| damage curves, one multiplier | 25 % | −3.60 [−8.85, +0.16] (−3.49 / −3.55 / −3.49) | 4 / 9 | BELOW-RULE | −1.46 |
+| | 15 % | −2.93 [−6.53, −0.13] (−2.94 / −2.93 / −2.88) | 2 / 9 | BELOW-RULE | −1.54 |
+| the same curves, one threshold | 25 % | +0.23 [−0.43, +1.21] (+0.29 / +0.26 / +0.30) | 2 / 9 | SAME | −0.19 |
+| | 15 % | +0.43 [−0.63, +1.99] (+0.31 / +0.37 / +0.47) | 4 / 9 | SAME | −0.26 |
+| one probe at √κ | 15 % | −0.54 [−1.42, +0.14] (−0.57 / −0.56 / −0.47) | 4 / 9 | BELOW-RULE | −0.36 |
+
+FLOPs caption: every row's pairs differ by more than 10 % in FLOPs on at least one network (variant / rule from 0.48 to 1.59 per network); at equal params the threshold variant keeps as little as half the rule's FLOPs on some networks.
+
+- **One measurement per group, at a 50 % cut, is enough for the rule on this pool.** No variant beats it at either depth, and val, 10k and honest agree in sign with TEST in every row.
+- **Damage curves with one multiplier fail where allocation is fragile.** They lose 10–21 points on the thin ResNet-56 ×4 and on ResNet-20 ×8 CIFAR-100. On the latter, the plan cuts the smallest groups to the floor and keeps at least half the groups at one width. On the other eight they are still below the rule. SPDY reports a similar failure in unstructured pruning of BERT, where a programme over per-layer losses falls below uniform [170].
+- **One threshold on the same curves does far better than one multiplier** (+3.83 and +3.35, reported) and is level with the rule, through one network. It beats the even cut at both depths (+1.26, +2.03), as the rule does (+1.03, +1.61).
+- **MobileNetV2 ×1.4 gains under every variant** (+0.45 to +1.05). It is the same network where the agent stops smaller at an accuracy limit (§5.9e). One network: reported, not a call.
+- [D] The cost-aware rule stays the registered prior at equal parameters. No variant is a candidate.
+
 ### 5.10 Which cheap rewards rank plans like the final fine-tune?
 
 A proxy is useful as a reward only if it orders plans the way the 100-epoch recovery does. Each measurement takes a fixed set of real plans per network, scores them with the proxy on the validation half before recovery, and compares that ranking with the recovered one.
@@ -1187,6 +1217,8 @@ So what transferred from NEON is the idea, a generic frozen policy, and its feat
 **What the agent's model needs.** At half the agent of record's training, a Transformer 8 times larger does not help at either depth read. A per-group model with no attention between groups matches the Transformer at 45 % params but falls below it at 25 %, on one network (§422). Given only the rule's own inputs (each group's sensitivity, its cost shares and the budget), the same per-group model is the only arm above the cost-aware rule at both depths. Most of that is ResNet-20 ×8 CIFAR-100, where it spreads the cut that the other encoders concentrate. [H] What the agent learns beyond the rule is a better per-group function of the same measurements, more than context across layers. That is a hypothesis for a registered study, not a result: no arm was promoted after reading TEST.
 
 **Preference as a limit, not a weight.** NEON traded accuracy against size through a weight in its reward [1]. SPECTRA meets an exact budget instead, and recovers the preference by searching the budget: the user states how much validation accuracy they can lose, and five short probes find the smallest size that keeps it (§5.9e). The agent stays frozen; only κ is searched. At three limits the agent ends at the same size as the cost-aware rule (§423), as it does at fixed budgets (§406). So the mode is a product feature, not a new source of compression. Two properties of the protocol shape that reading. The bisection's range ends at 12.5 % and 90 % kept, which pins two or three networks per limit in both arms. And the 20-epoch probe under-reads the final recovery, so the chosen sizes err on the large side for both arms.
+
+**One probe per group is enough for the rule.** The rule's sensitivity is one 50 % cut per group, and at deep budgets most groups are cut past it. Measuring more does not help (§424). Re-measuring at each group's planned depth, or once at the budget's average keep, ranks the groups worse. Full damage curves allocated by one multiplier, the knapsack form of SPDY and of Chen et al. [154, 170], fail badly on the two fragile networks. The same curves with one threshold, Li et al.'s rule [18], are level with ours. The literature suggests a reason [H]: per-layer losses stop adding up at deep cuts, and in SPDY's unstructured pruning of BERT a programme over per-layer losses falls below uniform [170]. A single common probe compares every group on one scale; the curve methods trust the curves' sums.
 
 **Is there anything above the prior?** At 60 % and 45 % kept, searches over plan families around the priors found nothing above them by the bar, at either budget type (§367, §368, §372). The parameter prior leaves more room than the FLOPs prior, and that room sits on the two CIFAR-100 networks (§372). This is consistent with the literature: at about 50 % FLOPs on CIFAR ResNets, controlled comparisons find that sensible allocations end within 0.15–0.31 points of each other after a full fine-tune [110, 111], about one seed's spread [11]. Gains of a point or more are reported against uniform cuts, at tighter budgets, on CIFAR-100 or on compact networks. The first registered beat was narrow: the batch-norm agent on DepGraph's ResNet-56 at 38 % params, on the TEST half only (§382). The second is pooled: the 32-step agent beats the cost-aware rule at 45 % params over the nine networks, +0.42 with every view above +0.3 (§390). One network carries part of it, the CIFAR-100 ResNet where the rule itself is weak; the other eight average +0.19. SPECTRA's own room appears in the same place. At 25 % params the cost-aware rule beats uniform by +0.88 points over the nine networks (§380), and the FLOPs rule's lever grows from 60 % to 45 % FLOPs (§368). On eight of the nine networks the agent's mean edge over the rule rises with depth: +0.01, +0.10 and +0.18 from 60 % to 35 %, then +0.30 for the deeper-trained agent at 25 % (§370–§374, §380). These are diagnostics after the calls, not calls.
 
@@ -1654,3 +1686,9 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[96]** (A
 [168] chenyaofo. pytorch-cifar-models: pretrained CIFAR-10/100 models. GitHub repository, https://github.com/chenyaofo/pytorch-cifar-models (accessed 29 Oct 2026).
 
 [169] Le, Y., & Yang, X. (2015). Tiny ImageNet visual recognition challenge. CS 231N, Stanford University.
+
+[170] Frantar, E., & Alistarh, D. (2022). SPDY: Accurate pruning with speedup guarantees. *ICML*, PMLR 162.
+
+[171] Microsoft. Neural Network Intelligence (NNI), v1.9: SensitivityPruner. GitHub repository, https://github.com/microsoft/nni.
+
+[172] PaddlePaddle. PaddleSlim: sensitivity analysis and `get_ratios_by_loss`. GitHub repository, https://github.com/PaddlePaddle/PaddleSlim.
