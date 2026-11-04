@@ -10760,3 +10760,74 @@ Not claimed:
 - a per-net FLOPs pair without the caption (MobileNetV2 ×1.4 at −0.5 and −1.0, DenseNet-100 at −0.5, chenyaofo R56 at −2.0 and DepGraph R56 at every τ differ by more than 10 %).
 
 Records: reader `scripts/_tmp_s02nov_d8_read.sh` output (4 Nov 08:20, `s04nov_d8_read.txt`); masked dry run `s02nov_d8_read_dry.txt` (2 Nov 19:52); manifest `s21oct_d8_manifest.tsv`; state `s21oct_d8_state.json`; orchestrator `s21oct_d8_submit.sh` with `s21oct_d8_bisect.py`; guards `s21oct_autoresub_d8.sh` (to 2 Nov 19:50) and `s02nov_autoresub_d8k.sh`; next §424.
+
+## 424. (PROBE): four probe-rate variants of the cost-aware rule (sens_cost, which measures each group once, at a 50 % cut), on FINAL's eval line (`tree_v31`, deterministic, floored, grid-rounded, one cut, G2 plus the origin control), at params 0.25 and 0.15 on the nine pool nets, seeds 42–44 — **no variant beats the rule: re-measuring each group at its planned depth (sca) is BELOW-RULE at both depths, damage curves with one multiplier (scv) BELOW-RULE at both, one probe at √κ (scq) BELOW-RULE at 0.15, and the same curves with one global threshold (sth) SAME at both, carried by ResNet-20 ×8 CIFAR-100; one 50 % measurement per group is enough for the cost-aware rule on this pool**
+- **PROBE-A** (sca − sens_cost): 0.25 **−0.56 BELOW-RULE**; 0.15 **−1.10 BELOW-RULE**.
+- **PROBE-C** (scv − sens_cost): 0.25 **−3.60 BELOW-RULE**; 0.15 **−2.93 BELOW-RULE** (thin r56-w4 −11.91 / −10.19, ResNet-20 ×8 CIFAR-100 −20.75 / −13.99).
+- **PROBE-T** (sth − sens_cost): 0.25 +0.23 SAME; 0.15 +0.43 SAME (4 of 9 positive). ResNet-20 ×8 CIFAR-100 gives +3.57 and +5.91; the other eight −0.19 and −0.26.
+- **PROBE-Q** (scq − sens_cost, 0.15 only): **−0.54 BELOW-RULE**.
+
+Registered 29 Oct 22:45 (queue row PROBE) before submit, at Ido's 29 Oct question ("Is halving each channel group enough resolution? Should we experiment with different rates than 50% cuts only?") and his GO after the literature check, which also covered the two variants it recommended. Eval-only. Stated in advance: a BEATS-RULE variant becomes a candidate prior only; replacing the registered prior (floored sens_cost at equal params, GO-Q) needs a five-seed confirmation and Ido's decision. Reader `scripts/_tmp_s29oct_probe_read.sh`, written and dry-run 29 Oct 22:23 before any PROBE result. Gate PASS 1 Nov 15:54 (5 of 5 smokes, read by hand 15:58). Read 4 Nov 09:12 with the registered file (blob `adfc526`).
+- *Variants* (`tree_v31` = tree_v27 + `f1902a8` + `cf0c619`). **sca** = `sens_cost_at`: each group is measured again at the depth its sens_cost plan cuts it, min(planned keep, 0.5). **scv** = `sens_curve`: each group's loss rise and saving at keeps 0.75 / 0.5 / 0.25 / 0.1, made monotone, then one Lagrange multiplier on loss − λ · saving (the knapsack form of SPDY and of Chen et al. 2020). **sth** = `sens_thresh`: the same curves with one global loss threshold (Li et al. 2017's per-layer sensitivity rule, as PaddleSlim and NNI's SensitivityPruner run it). **scq** = sens_cost with its one measurement at the budget's average keep √κ (`SPECTRA_ALLOC_SENS_KEEP=0.387` at 0.15; at 0.25, √κ = 0.5 is sens_cost itself). Each is our implementation of that allocation form inside SPECTRA's pipeline (one cut, one 100-epoch recovery), not the published method.
+- *Checks.* 196 of 196 COMPLETED (5 smokes, 2 EXACT, 189 cells), with no preemption and no resubmit; 109 GPU-h (about 75 estimated). The cells ran from 1 Nov 15:55 to 4 Nov 09:09; about 12 started before D8's last jobs (queue row D8, 2 Nov 07:04). Per log, on the latest job of every cell (`scripts/_tmp_s04nov_probe_checks.sh`, 09:13): every log has the ON line and an `[alloc]` line naming its kind, and every scq log has `SPECTRA_ALLOC_SENS_KEEP=0.387`. No log has a masked edit or an error line. Every arm lands within 0.010 of its target (mean ×0.148–0.150 at 0.15, ×0.249 at 0.25). The 12 thin-set logs at 0.15 each carry one stall-fallback line, on ResNet-20 ×2 (the thin set's second network, which no reader quotes); thin r56-w4 has none. The reader's plan-line section takes the first `[alloc]` line of each log, so its "thin" lines are ResNet-20 ×2's (12 groups), not thin r56-w4's.
+- *EXACT* [V]. sens_cost on `tree_v31` against the rows of record at seed 42: ResNet-20 ×8 CIFAR-100 at params 0.25 reads −21.4000 (val −20.2400) on both trees, and DepGraph R56 at 0.15 −1.9800 (val −1.7000) on both. The variants therefore differ from the rule only in the allocation kind.
+- *Measurement.* As FINAL (§406) and DEEP (§413): TEST 5k with val, 10k and honest (each job's own 100-epoch origin control), paired by seed. The pooled value is the mean over the nine nets of the per-net three-seed means, and the interval is a 95 % bootstrap over nets. Bands: BEATS-RULE if ≥ +0.3 with at least 6 of 9 positive; BELOW-RULE if ≤ −0.3; SAME between. The comparators are FINAL's sens_cost, uniform and T6-fs rows at 0.25 and DEEP's at 0.15, seeds 42–44.
+- *FLOPs.* Per net, every call's pairs differ by more than 10 % in FLOPs on at least one net. **FLOPs caption:** the variant / rule FLOPs ratios per net are 0.96–1.59 (sca), 0.71–1.31 (scv) and 0.49–1.03 (sth) at 0.25, and 0.79–1.46 (sca), 0.59–1.11 (scv), 0.48–1.03 (sth) and 0.97–1.18 (scq) at 0.15. At equal params the threshold variant keeps as little as half the rule's FLOPs on some nets.
+
+| contrast | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | other eight | FLOPs ratio per net |
+|---|---|---|---|---|---|---|---|---|---|
+| PROBE-A: sca − sens_cost | 0.25 | **−0.56** [−1.54, +0.14] | −0.31 | −0.43 | −0.46 | 4 of 9 | **BELOW-RULE** | −0.15 | 0.96–1.59 |
+| | 0.15 | **−1.10** [−2.48, −0.02] | −1.01 | −1.05 | −1.16 | 2 of 9 | **BELOW-RULE** | −0.78 | 0.79–1.46 |
+| PROBE-C: scv − sens_cost | 0.25 | **−3.60** [−8.85, +0.16] | −3.49 | −3.55 | −3.49 | 4 of 9 | **BELOW-RULE** | −1.46 | 0.71–1.31 |
+| | 0.15 | **−2.93** [−6.53, −0.13] | −2.94 | −2.93 | −2.88 | 2 of 9 | **BELOW-RULE** | −1.54 | 0.59–1.11 |
+| PROBE-T: sth − sens_cost | 0.25 | +0.23 [−0.43, +1.21] | +0.29 | +0.26 | +0.30 | 2 of 9 | SAME | −0.19 | 0.49–1.03 |
+| | 0.15 | +0.43 [−0.63, +1.99] | +0.31 | +0.37 | +0.47 | 4 of 9 | SAME | −0.26 | 0.48–1.03 |
+| PROBE-Q: scq − sens_cost | 0.15 | **−0.54** [−1.42, +0.14] | −0.57 | −0.56 | −0.47 | 4 of 9 | **BELOW-RULE** | −0.36 | 0.97–1.18 |
+| reported: sth − scv (threshold against multiplier, same curves) | 0.25 | +3.83 [−0.27, +9.49] | +3.78 | +3.81 | +3.79 | 5 of 9 | — | +1.27 | 0.47–1.10 |
+| | 0.15 | +3.35 [−0.24, +8.30] | +3.25 | +3.30 | +3.34 | 4 of 9 | — | +1.29 | 0.50–1.00 |
+| reported: scv − sca | 0.25 | −3.05 [−7.30, +0.14] | −3.18 | −3.11 | −3.03 | 5 of 9 | — | −1.31 | 0.62–1.35 |
+| | 0.15 | −1.83 [−4.36, −0.01] | −1.93 | −1.88 | −1.71 | 3 of 9 | — | −0.77 | 0.53–1.08 |
+| reported: sth − even cut | 0.25 | +1.26 [+0.53, +2.05] | +1.32 | +1.29 | +1.25 | 9 of 9 | — | +1.12 | 0.80–1.86 |
+| | 0.15 | +2.03 [+0.88, +3.21] | +2.13 | +2.08 | +2.06 | 8 of 9 | — | +1.77 | 0.76–2.11 |
+| reported: sens_cost − even cut (comparators, seeds 42–44) | 0.25 | +1.03 [+0.03, +1.98] | +1.03 | +1.03 | +0.95 | 7 of 9 | — | +1.31 | 0.78–2.40 |
+| | 0.15 | +1.61 [+0.22, +2.87] | +1.82 | +1.72 | +1.59 | 6 of 9 | — | +2.02 | 0.83–3.64 |
+| reported: sth − T6-fs | 0.25 | +0.11 [−0.72, +1.51] | +0.18 | +0.15 | +0.13 | 2 of 9 | — | −0.46 | 0.40–1.16 |
+| | 0.15 | +0.98 [−0.66, +4.28] | +1.04 | +1.01 | +1.10 | 3 of 9 | — | −0.38 | 0.36–1.13 |
+| reported: T6-fs − sens_cost (comparators, seeds 42–44) | 0.25 | +0.11 [−0.50, +0.54] | +0.11 | +0.11 | +0.17 | 7 of 9 | — | +0.27 | 0.85–1.43 |
+| | 0.15 | −0.55 [−2.41, +0.35] | −0.73 | −0.64 | −0.63 | 5 of 9 | — | +0.13 | 0.70–1.50 |
+
+The reader also reports sca, scv and scq against the even cut and against T6-fs (`s04nov_probe_read.txt`); none of those is a call.
+
+Per net, TEST 5k, variant − sens_cost, three-seed means:
+
+| net | A 0.25 | C 0.25 | T 0.25 | A 0.15 | C 0.15 | T 0.15 | Q 0.15 |
+|---|---|---|---|---|---|---|---|
+| thin r56-w4 | −1.49 | **−11.91** | −0.49 | **−5.26** | **−10.19** | +1.07 | **−3.24** |
+| chenyaofo R56 | +0.01 | +0.21 | −0.28 | −0.56 | −0.36 | −1.17 | −0.20 |
+| r56-w8 | +0.39 | −0.61 | −0.55 | −0.31 | −1.21 | −0.98 | −0.27 |
+| MobileNetV2 ×1.4 | +0.77 | +1.05 | +0.96 | +0.71 | +0.74 | +0.59 | +0.45 |
+| DenseNet-100 | −0.46 | +0.07 | −0.09 | −0.27 | +0.45 | +0.11 | −0.31 |
+| r20-w8 C100 | **−3.85** | **−20.75** | **+3.57** | **−3.65** | **−13.99** | **+5.91** | **−2.05** |
+| VGG-19 C100 | −0.29 | −0.26 | −0.03 | −0.72 | −0.88 | −0.91 | +0.18 |
+| VGG-16 | +0.08 | −0.35 | −0.18 | −0.14 | −0.41 | −0.44 | +0.02 |
+| DepGraph R56 | −0.17 | +0.11 | −0.87 | +0.34 | −0.47 | −0.33 | +0.51 |
+
+Reading:
+1. **One measurement per group, at a 50 % cut, is enough for the cost-aware rule on this pool.** None of the four variants beats the rule at either depth. Three are below it: re-measuring at the planned depth (−0.56, −1.10), damage curves with one multiplier (−3.60, −2.93), and one probe at √κ (−0.54 at 0.15). The fourth, the same curves with one global threshold, is level (+0.23, +0.43). val, 10k and honest agree in sign with TEST in every call. This answers Ido's question of 29 Oct: halving each group is enough resolution for the rule. [D] sens_cost stays the registered prior at equal params (GO-Q); no variant fired BEATS-RULE, so none is a candidate.
+2. **Re-measuring at another depth costs, mostly on the two thin networks.** sca and scq lose most on thin r56-w4 (−1.49 to −5.26) and ResNet-20 ×8 CIFAR-100 (−2.05 to −3.85); on the other eight sca reads −0.15 and −0.78, and scq −0.36. [H] One probe at a common depth ranks every group on the same scale; probes at each group's own depth, or at a deeper common depth, rank them on scales that the cost-aware ratio was not tuned for. Not tested.
+3. **Damage curves with one multiplier fail on the two networks where allocation is fragile.** scv is −11.91 and −10.19 on thin r56-w4, and −20.75 and −13.99 on ResNet-20 ×8 CIFAR-100. On that network its seed-42 plans cut the smallest groups to the 0.10 floor and keep at least half of its 12 groups at one width (median = max = 0.79 at 0.25, 0.59 at 0.15), an all-or-nothing plan. On the other eight scv is still −1.46 and −1.54. [H] One multiplier on four-point monotone curves tends to pick corner solutions; a finer curve or a per-group step limit might not. Not tested.
+4. **On the same curves, one global threshold does far better than one multiplier, and is level with the rule.** sth − scv is +3.83 and +3.35 (reported). sth is SAME against sens_cost at both depths, but ResNet-20 ×8 CIFAR-100 carries it (+3.57, +5.91), and the other eight read −0.19 and −0.26. sth beats the even cut at both depths (+1.26 with 9 of 9 positive, +2.03 with 8 of 9), as the rule does (+1.03, +1.61). At equal params it keeps as little as half the rule's FLOPs on some nets.
+5. **MobileNetV2 ×1.4 gains under every variant at both depths** (+0.45 to +1.05). It is also the network where the agent stops smaller at a given accuracy limit (§423), and one of the two that favoured the agent over the rule below its training range (§413). [H] On MobileNetV2 ×1.4 the single 50 % probe misjudges some groups, and both the variants and the agent find the room. One network: reported, not a call.
+6. **The comparators are FINAL's and DEEP's rows at seeds 42–44** (§406, §413): T6-fs − sens_cost reads +0.11 at 0.25 and −0.55 at 0.15, and sens_cost − even cut +1.03 and +1.61.
+
+Not claimed:
+- "the rule needs multi-rate probes" (no variant beats it; the threshold variant is SAME);
+- "multi-rate probing hurts" beyond these four variants, these nine nets and these two depths;
+- a variant or depth chosen after reading TEST;
+- these three-seed rows mixed with five-seed rows in one call;
+- the curve allocations without their published precedents (SPDY, Chen et al. 2020, Li et al. 2017, PaddleSlim, NNI), or as those methods' results (each is our implementation of the allocation form, inside SPECTRA's pipeline);
+- sth's SAME without ResNet-20 ×8 CIFAR-100, which carries it (the other eight −0.19 and −0.26);
+- any call without the FLOPs caption (every call's pairs differ by more than 10 % in FLOPs on at least one net);
+- the reader's "thin" plan lines as thin r56-w4's (they are ResNet-20 ×2's).
+
+Records: reader `scripts/_tmp_s29oct_probe_read.sh` output (4 Nov 09:11, `s04nov_probe_read.txt`); checks `scripts/_tmp_s04nov_probe_checks.sh` (09:13); manifest `s29oct_probe_manifest.tsv`; chain `s29oct_probe_chain.sh`, deploy `s29oct_v31_deploy.sh`, submit `s29oct_probe_submit.sh`, guard `s29oct_autoresub_probe.sh`, gate file `s29oct_probe_gate.txt`; next §425.
