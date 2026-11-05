@@ -92,6 +92,37 @@ def handler_recipe():
         os.environ.update(saved)
 
 
+#: The env keys of the final recovery's recipe, in the order ``a2c_agent_reinforce_runner._FINAL_FT_ENV_KEYS`` has them
+#: (a copy, so this module never imports the runner; ``tests/test_v32_fallback_judge.py`` checks the two are equal).
+_FINAL_FT_ENV_KEYS = ("SPECTRA_FT_OPTIM", "SPECTRA_FT_SGD_LR", "SPECTRA_FT_MOMENTUM", "SPECTRA_FT_WD",
+                      "SPECTRA_FT_COSINE", "SPECTRA_FT_SCHEDULE", "SPECTRA_FT_MIXUP",
+                      "SPECTRA_FT_LABEL_SMOOTH", "SPECTRA_FT_KD")
+
+
+@contextlib.contextmanager
+def final_recipe():
+    """The final recovery's recipe (v32, the ``rc<E>`` judge), as the runner's ``_final_ft`` sets it for the body and puts
+    it back after: SGD at ``fortify.eval_final_ft_lr()``, momentum 0.9, weight decay 5e-4, the cosine schedule (the
+    ``warmcos`` one with ``fortify.eval_final_ft_warmup()`` epochs under ``eval_final_ft_schedule()``), no mixup, no label
+    smoothing and KD off (a judge has no teacher). Like the runner, it sets these keys over the environment and clears no
+    other ``SPECTRA_FT_*`` key."""
+    from src import fortify
+    lr, schedule, warmup = fortify.eval_final_ft_lr(), fortify.eval_final_ft_schedule(), fortify.eval_final_ft_warmup()
+    recipe = dict(zip(_FINAL_FT_ENV_KEYS, ("sgd", f"{lr:g}", "0.9", "5e-4", "1", schedule, "0", "0", "0")))
+    if schedule:
+        recipe["SPECTRA_FT_WARMUP_EPOCHS"] = f"{warmup:g}"
+    saved = {k: os.environ.get(k) for k in recipe}
+    try:
+        os.environ.update(recipe)
+        yield recipe
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
 def _score(env, model):
     handler = env.create_learning_handler(model)
     return float(handler.evaluate_model(env.val_loader)), float(handler.evaluate_model(env.test_loader))
@@ -181,6 +212,8 @@ class PlanScorer:
         self.train_loader, self.input_shape = train_loader, input_shape
         self.create_handler = create_handler if create_handler is not None else plan_agent.default_handler
         self.recipe_line = None  # the last ft<E> fine-tune's recipe, as NetInstance keeps it
+        self._cache = {}  # (kind, E, seed, widths, detail) -> a ft<E> / rc<E> draw's read (v32), per scorer
+        self._final = None  # the final loader of rc<E> (v32), built on first use
         self.widths0 = {int(row): int(group.width) for group, row in plan}
         self.cutter = plan_agent.MaskedCut(model)
         if self.cutter.rows != list(self.widths0):
@@ -191,11 +224,12 @@ class PlanScorer:
     def batches(self, proxy: str, seed: int):
         """What ``score`` needs for ``proxy`` under ``seed``, drawn once and shared by every plan scored on them, as
         ``NetInstance.batches``: the fixed ``(x, y)`` batches of ``fs<S>`` (``plan_agent.ft_batches``), the
-        recalibration batches of ``bn<N>`` (``plan_agent.recal_batches``), nothing for ``cut``, and for ``ft<E>`` the
-        seed itself (its fine-tune draws its epochs from the loader under it)."""
+        recalibration batches of ``bn<N>`` (``plan_agent.recal_batches``), nothing for ``cut``, and for ``ft<E>`` (and
+        v32's ``rc<E>``, with or without its ``x<k>`` suffix) the seed itself (its fine-tune draws its epochs from the
+        loader under it)."""
         from src import plan_agent
-        kind, n = plan_agent.parse_proxy(proxy)
-        if kind == "ft":
+        kind, n, _k = plan_agent.parse_proxy(proxy, judge=True)
+        if kind in ("ft", "rc"):
             return int(seed)
         if kind == "fs":
             return plan_agent.ft_batches(self.train_loader, n, seed, self.device)
@@ -203,41 +237,130 @@ class PlanScorer:
 
     def score(self, widths, proxy: str, batches) -> float:
         """Val accuracy (a fraction) of the net cut once to ``widths`` after ``proxy`` on ``batches``:
-        ``NetInstance.reward``'s read before its origin subtraction, by the same calls."""
+        ``NetInstance.reward``'s read before its origin subtraction, by the same calls. For ``ft<E>x<k>`` and
+        ``rc<E>x<k>`` (v32) the mean of the k draws."""
+        return self._scored(widths, proxy, batches, False)["acc"]
+
+    def score_detail(self, widths, proxy: str, batches) -> dict:
+        """``score``'s read with the detail ``SPECTRA_ALLOC_FALLBACK_DETAIL`` logs, from one forward pass per scored
+        model: ``{"acc", "loss", "bits", "n", "draws"}``, the val accuracy (the ``score``), the val mean cross-entropy,
+        the per-image correctness bits over the val half in loader order (``numpy.packbits``, base64), the number of
+        val images and each draw's accuracy (one for a single draw). For ``x<k>``: ``acc`` and ``loss`` are the means
+        of the k draws, ``bits`` is the first draw's (the draw ``ft<E>`` / ``rc<E>`` alone reads) and ``bits_draws``
+        holds every draw's."""
+        return self._scored(widths, proxy, batches, True)
+
+    def _read(self, model, detail: bool) -> dict:
+        """``{"acc"}`` of ``model`` on the val half (``plan_agent.accuracy``); with ``detail`` one pass that also reads
+        the mean cross-entropy and the packed per-image correctness bits."""
+        from src import plan_agent
+        if not detail:
+            return {"acc": float(plan_agent.accuracy(model, self.val))}
+        import base64
+        import numpy as np
+        was_training = model.training
+        model.eval()
+        correct, total, loss, bits = 0, 0, 0.0, []
+        with torch.no_grad():
+            for x, y in self.val:
+                logits = model(x)
+                hit = logits.argmax(dim=1) == y
+                correct += int(hit.sum())
+                total += int(y.numel())
+                loss += float(torch.nn.functional.cross_entropy(logits.float(), y, reduction="sum"))
+                bits.append(hit.cpu().numpy().astype(bool))
+        model.train(was_training)
+        flat = np.concatenate(bits) if bits else np.zeros(0, dtype=bool)
+        return {"acc": correct / max(1, total), "loss": loss / max(1, total), "n": int(total),
+                "bits": base64.b64encode(np.packbits(flat).tobytes()).decode("ascii")}
+
+    def _scored(self, widths, proxy: str, batches, detail: bool) -> dict:
         from src import plan_agent, recovery_edits
-        kind, n = plan_agent.parse_proxy(proxy)
-        if kind == "ft":
-            return self._finetune_score(widths, n, batches)
-        work = self.cutter.cut(plan_agent.rates_of(widths, self.widths0))
-        if kind == "bn":
-            recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
-        elif kind == "fs":
-            plan_agent.short_finetune(work, batches, plan_agent.fs_lr(), after_step=self.cutter.remask)
-        return float(plan_agent.accuracy(work, self.val))
+        kind, n, k = plan_agent.parse_proxy(proxy, judge=True)
+        if kind in ("ft", "rc"):
+            draws = [self._train_read(widths, kind, n, batches if j == 0 else self._seed_plus(kind, n, batches, j),
+                                      detail) for j in range(k)]
+        else:
+            work = self.cutter.cut(plan_agent.rates_of(widths, self.widths0))
+            if kind == "bn":
+                recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
+            elif kind == "fs":
+                plan_agent.short_finetune(work, batches, plan_agent.fs_lr(), after_step=self.cutter.remask)
+            draws = [self._read(work, detail)]
+        accs = [d["acc"] for d in draws]
+        out = {"acc": accs[0] if len(accs) == 1 else sum(accs) / len(accs)}
+        if detail:
+            losses = [d["loss"] for d in draws]
+            out.update(loss=losses[0] if len(losses) == 1 else sum(losses) / len(losses), bits=draws[0]["bits"],
+                       n=draws[0]["n"], draws=accs)
+            if len(draws) > 1:
+                out["bits_draws"] = [d["bits"] for d in draws]
+        return out
+
+    @staticmethod
+    def _seed_plus(kind, epochs, seed, j):
+        """The proxy seed of draw ``j`` of ``ft<E>x<k>`` / ``rc<E>x<k>``: ``seed + j``, ``seed`` being the one
+        ``batches`` returned (checked as a seed)."""
+        if isinstance(seed, bool) or not isinstance(seed, int):
+            raise ValueError(f"the {kind}{epochs} score takes the seed batches() returns for it, "
+                             f"not {type(seed).__name__}")
+        return seed + j
 
     def _finetune_score(self, widths, epochs: int, seed) -> float:
         """``NetInstance.finetune_reward``'s read: the real cut (``alloc_walk.cut_to``) fine-tuned ``epochs`` epochs by
         the handler's own recipe (``handler_recipe``) under ``seeded(seed)``, entered after the cut as there; the
         handler's lines are captured, the recipe kept in ``recipe_line``, and a fine-tune that did not run raises."""
+        return self._train_read(widths, "ft", epochs, seed, False)["acc"]
+
+    def _final_loader(self):
+        """``(loader, aug, train_model kwargs)`` of the final recovery (``rc<E>``), built once per scorer as the
+        runner's ``_final_ft`` builds them: ``utils.final_ft_train_loader`` at ``fortify.eval_final_ft_batch()``,
+        ``keep_last`` when ``eval_final_ft_select() == "last"``, ``cuda_graph`` under ``eval_final_ft_cuda_graph()``."""
+        if self._final is None:
+            from src import fortify
+            loader, aug = utils.final_ft_train_loader(self.train_loader, fortify.eval_final_ft_batch())
+            kw = {}
+            if fortify.eval_final_ft_select() == "last":
+                kw["keep_last"] = True
+            if fortify.eval_final_ft_cuda_graph():
+                kw["cuda_graph"] = True
+            self._final = (loader, aug, kw)
+        return self._final
+
+    def _train_read(self, widths, kind: str, epochs: int, seed, detail: bool) -> dict:
+        """One draw of ``ft<E>`` (``kind="ft"``: the handler's own recipe, ``NetInstance.finetune_reward``'s read) or
+        ``rc<E>`` (``kind="rc"``: the final recovery's recipe, ``final_recipe``, on the final loader, KD off, the
+        cosine over ``E`` epochs) on the real cut (``alloc_walk.cut_to``) to ``widths``, under ``seeded(seed)`` entered
+        after the cut; the handler's lines are captured, the recipe kept in ``recipe_line``, a fine-tune that did not
+        run raises, and the val half is read by ``_read``. Cached by ``(kind, E, seed, widths, detail)`` for the life
+        of the scorer, so a draw two proxies share (``ft1`` and ``ft1x3``'s first) is trained once."""
         from src import alloc_walk, plan_agent
         if isinstance(seed, bool) or not isinstance(seed, int):
-            raise ValueError(f"the ft{epochs} score takes the seed batches() returns for it, not {type(seed).__name__}")
+            raise ValueError(f"the {kind}{epochs} score takes the seed batches() returns for it, "
+                             f"not {type(seed).__name__}")
+        key = (kind, int(epochs), seed, tuple(sorted((int(r), int(w)) for r, w in widths.items())), bool(detail))
+        if key in self._cache:
+            return self._cache[key]
         epochs, lines = int(epochs), []
+        loader, aug, kw = self._final_loader() if kind == "rc" else (self.train_loader, None, {})
+        recipe_scope = handler_recipe() if kind == "ft" else final_recipe()
         with seeded(seed):
             real = alloc_walk.cut_to(self.model, self.plan, plan_agent.rates_of(widths, self.widths0), self.input_shape)
             real = real.to(self.device)
             for param in real.parameters():
                 param.requires_grad = True
-            with seeded(seed), handler_recipe(), plan_agent._captured(lines):
-                self.create_handler(real).train_model(self.train_loader, allow_reinit_retry=False, max_epochs=epochs,
-                                                      patience=epochs + 1, tag=f"plan ft{epochs} {self.name}")
-            acc = float(plan_agent.accuracy(real, self.val))
+            with seeded(seed), recipe_scope, plan_agent._captured(lines):
+                self.create_handler(real).train_model(loader, allow_reinit_retry=False, max_epochs=epochs,
+                                                      patience=epochs + 1, tag=f"plan {kind}{epochs} {self.name}", **kw)
+            got = self._read(real, detail)
         del real
         recipe = [line.split("Fine-tune recipe:", 1)[1].strip() for line in lines if "Fine-tune recipe:" in line]
         if not recipe or any("produced no loss" in line for line in lines):
-            raise RuntimeError(f"{self.name}: the ft{epochs} fine-tune did not run: " + " | ".join(lines[-3:]))
+            raise RuntimeError(f"{self.name}: the {kind}{epochs} fine-tune did not run: " + " | ".join(lines[-3:]))
         if any(" = nan" in line.lower() or " = inf" in line.lower() for line in lines if "loss" in line.lower()):
-            utils.print_flush(f"[alloc] WARNING: {self.name}: the ft{epochs} fine-tune's loss went NaN or inf for this "
-                              "plan; its score reads the diverged net")
-        self.recipe_line = recipe[-1].split(" trainable=", 1)[0]
-        return acc
+            utils.print_flush(f"[alloc] WARNING: {self.name}: the {kind}{epochs} fine-tune's loss went NaN or inf for "
+                              "this plan; its score reads the diverged net")
+        self.recipe_line = (recipe[-1].split(" trainable=", 1)[0]
+                            + (f" bs={loader.batch_size} aug={aug}" if kind == "rc" else ""))
+        self._cache[key] = got
+        return got

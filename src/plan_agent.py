@@ -619,15 +619,42 @@ def _captured(into):
         utils.print_flush = before
 
 
-def parse_proxy(name: str):
-    """``("cut", 0)``, ``("bn", N)``, ``("fs", S)`` or ``("ft", E)`` (v23: E ≥ 1 epochs of the handler's fine-tune)."""
+def _digits(text: str) -> bool:
+    return text.isascii() and text.isdigit()
+
+
+def parse_proxy(name: str, judge: bool = False):
+    """``("cut", 0)``, ``("bn", N)``, ``("fs", S)`` or ``("ft", E)`` (v23: E ≥ 1 epochs of the handler's fine-tune).
+
+    ``judge=True`` (v32, default off; the safety net's judge grammar, read by ``plan_proxies.PlanScorer`` and
+    ``alloc_walk.fallback_proxies``) returns a triple ``(kind, n, k)`` instead: the same names, plus ``rc<E>`` (kind
+    ``"rc"``, E ≥ 1 epochs of the final recovery recipe, cosine compressed to E epochs) and the repeat suffix ``x<k>``
+    (k ≥ 2, on ``ft<E>`` and ``rc<E>`` only: the mean of k draws), ``k`` being 1 without a suffix. The plan trainer's
+    grammar (``judge=False``, its two-tuple) is untouched: ``rc<E>`` and ``x<k>`` are refused there."""
     name = (name or "").strip().lower()
+    if not judge:
+        if name == "cut":
+            return "cut", 0
+        for kind in ("bn", "fs", "ft"):
+            if name.startswith(kind) and name[2:].isdigit() and int(name[2:]) > 0:
+                return kind, int(name[2:])
+        raise ValueError(f"plan reward proxy {name!r}: expected cut, bn<N>, fs<S> or ft<E>")
     if name == "cut":
-        return "cut", 0
-    for kind in ("bn", "fs", "ft"):
-        if name.startswith(kind) and name[2:].isdigit() and int(name[2:]) > 0:
-            return kind, int(name[2:])
-    raise ValueError(f"plan reward proxy {name!r}: expected cut, bn<N>, fs<S> or ft<E>")
+        return "cut", 0, 1
+    for kind in ("bn", "fs", "ft", "rc"):
+        if not name.startswith(kind):
+            continue
+        head, sep, tail = name[2:].partition("x")
+        if not (_digits(head) and int(head) > 0 and (not sep or _digits(tail))):
+            break
+        if not sep:
+            return kind, int(head), 1
+        if kind not in ("ft", "rc"):
+            raise ValueError(f"plan reward proxy {name!r}: the repeat suffix x<k> is allowed on ft<E> and rc<E> only")
+        if int(tail) < 2:
+            raise ValueError(f"plan reward proxy {name!r}: the repeat suffix needs k >= 2")
+        return kind, int(head), int(tail)
+    raise ValueError(f"plan reward proxy {name!r}: expected cut, bn<N>, fs<S>, ft<E>, rc<E>, ft<E>x<k> or rc<E>x<k>")
 
 
 def spans_of(layout):

@@ -254,20 +254,42 @@ def randbest_draws(n, n_groups, sigma, seed):
             for _ in range(int(n))]
 
 
-def fallback_prior() -> str:
-    """``SPECTRA_ALLOC_FALLBACK_PRIOR`` (no default): the hand rule ``fallback`` plans with beside the agent, one of
-    ``FALLBACK_PRIORS`` (``sens``, ``sens_cost``)."""
-    name = os.environ.get("SPECTRA_ALLOC_FALLBACK_PRIOR", "").strip().lower()
-    if name not in FALLBACK_PRIORS:
+def fallback_priors() -> list:
+    """``SPECTRA_ALLOC_FALLBACK_PRIOR`` (no default): the hand rules ``fallback`` plans with beside the agent, a
+    comma-separated list in order (blanks stripped, lower-cased, empty items dropped, no duplicates), each one of
+    ``FALLBACK_PRIORS`` (``sens``, ``sens_cost``) and, in a list of two or more (v32, FB-BENCH), ``uniform`` too. One
+    name is the v27 setting exactly (``uniform`` alone stays refused, as before)."""
+    raw = os.environ.get("SPECTRA_ALLOC_FALLBACK_PRIOR", "")
+    names = [n.strip().lower() for n in raw.split(",") if n.strip()]
+    allowed = FALLBACK_PRIORS + (("uniform",) if len(names) > 1 else ())
+    if not names or any(n not in allowed for n in names):
+        bad = next((n for n in names if n not in allowed), raw.strip().lower())
         raise ValueError(f"SPECTRA_ALLOC_KIND=fallback needs SPECTRA_ALLOC_FALLBACK_PRIOR set to one of "
-                         f"{FALLBACK_PRIORS}, got {name!r}")
-    return name
+                         f"{allowed}{' (a comma-separated list)' if len(names) > 1 else ''}, got {bad!r}")
+    repeated = sorted({n for n in names if names.count(n) > 1})
+    if repeated:
+        raise ValueError(f"SPECTRA_ALLOC_FALLBACK_PRIOR={raw!r}: duplicate priors {repeated}")
+    return names
+
+
+def fallback_prior() -> str:
+    """The first of ``fallback_priors``: the rule ``fallback`` plans with beside the agent when one is set, the two-way
+    pick's prior when several are."""
+    return fallback_priors()[0]
+
+
+def fallback_detail() -> bool:
+    """``SPECTRA_ALLOC_FALLBACK_DETAIL=1`` (default off): ``fallback`` also logs, for every proxy and arm, the val mean
+    cross-entropy, the per-image correctness bits and each draw's accuracy (``PlanScorer.score_detail``)."""
+    return utils.env_flag("SPECTRA_ALLOC_FALLBACK_DETAIL")
 
 
 def fallback_proxies() -> list:
     """``SPECTRA_ALLOC_FALLBACK_PROXY`` (no default): the proxies ``fallback`` scores both plans with, a comma-separated
     list in order (blanks stripped, lower-cased, empty items dropped, no duplicates), each one of the plan trainer's
-    (``plan_agent.parse_proxy``: cut, bn<N>, fs<S>, ft<E>). The first decides the pick; every one is scored and reported."""
+    (``plan_agent.parse_proxy``: cut, bn<N>, fs<S>, ft<E>; v32 adds the judge names ``rc<E>`` and the repeat suffix
+    ``ft<E>x<k>`` / ``rc<E>x<k>``, ``parse_proxy(name, judge=True)``). The first decides the pick; every one is scored
+    and reported."""
     raw = os.environ.get("SPECTRA_ALLOC_FALLBACK_PROXY", "")
     names = [n.strip().lower() for n in raw.split(",") if n.strip()]
     if not names:
@@ -275,7 +297,7 @@ def fallback_proxies() -> list:
                          "[,...]>, the first one decides the pick")
     from src import plan_agent
     for name in names:
-        plan_agent.parse_proxy(name)
+        plan_agent.parse_proxy(name, judge=True)
     repeated = sorted({n for n in names if names.count(n) > 1})
     if repeated:
         raise ValueError(f"SPECTRA_ALLOC_FALLBACK_PROXY={raw!r}: duplicate proxies {repeated}")
@@ -1027,6 +1049,17 @@ def fallback_pick(agent_score: float, prior_score: float, margin: float) -> str:
     return "prior" if float(prior_score) > float(agent_score) + float(margin) else "agent"
 
 
+def fallback_pick_multi(agent_score: float, prior_scores, margin: float) -> str:
+    """The name of the best-scoring prior of ``prior_scores`` (``[(name, score), ...]`` in the listed order; a tie
+    between priors goes to the first listed) iff its score is above ``agent_score + margin`` (as ``fallback_pick``), else
+    ``"agent"``: a tie with the agent's bar goes to the agent."""
+    best_name, best = None, None
+    for name, score in prior_scores:
+        if best is None or float(score) > best:
+            best_name, best = name, float(score)
+    return best_name if best is not None and best > float(agent_score) + float(margin) else "agent"
+
+
 def rng_snapshot() -> dict:
     """The Python, NumPy, torch CPU and (when CUDA is available) all CUDA RNG states, for ``rng_restore``."""
     state = {"py": random.getstate(), "np": np.random.get_state(), "torch": torch.get_rng_state()}
@@ -1093,9 +1126,22 @@ def fallback_plan(env, target, flops, agent_kw, plan_kw):
     first creates: with persistent workers (``utils.DATALOADER_WORKERS`` > 0, every loader but the device-resident
     ``GpuCropFlipLoader`` of CIFAR under GPU augmentation), the second plan reuses an iterator its own row would create, and
     its RNG draws can differ. The equality with the picked arm's row is therefore a check run on the GPU before any read.
+
+    v32 (default off; ``SPECTRA_ALLOC_FALLBACK_PRIOR`` a list, ``fallback_priors``): each prior in the listed order is
+    planned from the starting RNG state and origin (the first as above, the others after putting both back), each with
+    the calibration batches its own row draws; the agent is then planned from the starting state as above. Every proxy
+    scores the agent first and then the priors in the listed order, on the same batches, inside the same ``seeded``
+    block. ``fallback_pick_multi`` picks the best-scoring prior if it beats the agent by the margin on the first proxy
+    (``info["fallback"]["pick_name"]``; ``pick`` stays ``agent`` or ``prior``), and ``pick2`` is the two-way pick
+    (``fallback_pick``) of the agent against the first prior on the same scores. One extra line per further prior and
+    proxy, the decision line names both picks, and the record gains ``priors``, ``pick_name``, ``pick2`` and
+    ``prior_widths_all``; ``scores[proxy]`` gains ``priors`` ({name: score}). ``SPECTRA_ALLOC_FALLBACK_DETAIL=1`` also logs
+    every proxy's val loss, correctness bits and draws per arm (``PlanScorer.score_detail``; the record's ``details``
+    and one line per proxy and arm). With one prior and the detail off, every line, record key and the info are v27's.
     """
     from src import plan_agent, plan_proxies
-    prior, proxies, margin = fallback_prior(), fallback_proxies(), fallback_margin()
+    priors, proxies, margin = fallback_priors(), fallback_proxies(), fallback_margin()
+    prior, multi, detail = priors[0], len(priors) > 1, fallback_detail()
     net = os.path.basename(str(env.selected_net_path))
     started = time.perf_counter()
     model = env.current_model.to(env.conf.device)
@@ -1107,16 +1153,24 @@ def fallback_plan(env, target, flops, agent_kw, plan_kw):
         if not _state_dict_equal(model, m0):
             raise RuntimeError(f"{net}: the {step} changed the origin's weights")
 
-    batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
-    widths_p, info_p = plan_targets(model, batches, env._input_shape(), prior, target, alpha(), min_keep(), **plan_kw)
-    s_p, modes_p = rng_snapshot(), _modes(model)
-    intact(f"{prior} plan")
+    planned = {}  # prior name -> (widths, info, rng snapshot after its plan, modes after its plan)
+    for i, name in enumerate(priors):
+        if i:
+            _set_modes(model, modes0)
+            rng_restore(s0)
+        batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES,
+                                                        env.conf.device)
+        widths_p, info_p = plan_targets(model, batches, env._input_shape(), name, target, alpha(), min_keep(),
+                                        **plan_kw)
+        planned[name] = (widths_p, info_p, rng_snapshot(), _modes(model))
+        intact(f"{name} plan")
+    widths_p = planned[prior][0]
     _set_modes(model, modes0)
     rng_restore(s0)
     widths_a, info_a = plan_agent.plan_for_env(env, target, agent_path(), min_keep(), **agent_kw)
     s_a, modes_a = rng_snapshot(), _modes(model)
     intact("agent plan")
-    scores = {}
+    scores, details = {}, {}
     with plan_proxies.seeded(plan_proxies.proxy_seed()):
         mwr = ModelWithRows(model)
         plan = group_sensitivity.group_plan(mwr, env._dependency_groups(mwr))
@@ -1125,20 +1179,51 @@ def fallback_plan(env, target, flops, agent_kw, plan_kw):
                                          create_handler=getattr(env, "create_learning_handler", None), name=net)
         for proxy in proxies:
             b = scorer.batches(proxy, plan_proxies.proxy_seed())
-            scores[proxy] = {"agent": float(scorer.score(widths_a, proxy, b)),
-                             "prior": float(scorer.score(widths_p, proxy, b))}
+            reads = {}
+            for arm, arm_widths in (("agent", widths_a), *((name, planned[name][0]) for name in priors)):
+                if detail:
+                    reads[arm] = scorer.score_detail(arm_widths, proxy, b)
+                    reads[arm]["acc"] = float(reads[arm]["acc"])
+                else:
+                    reads[arm] = {"acc": float(scorer.score(arm_widths, proxy, b))}
+            scores[proxy] = {"agent": reads["agent"]["acc"], "prior": reads[prior]["acc"],
+                             **({"priors": {name: reads[name]["acc"] for name in priors}} if multi else {})}
+            if detail:
+                details[proxy] = {arm: dict(read) for arm, read in reads.items()}
             del b
         del scorer
     intact("proxy scoring")
-    pick = fallback_pick(scores[proxies[0]]["agent"], scores[proxies[0]]["prior"], margin)
-    _set_modes(model, modes_p if pick == "prior" else modes_a)
-    rng_restore(s_p if pick == "prior" else s_a)
+    first = scores[proxies[0]]
+    pick2 = fallback_pick(first["agent"], first["prior"], margin)
+    if multi:
+        pick_name = fallback_pick_multi(first["agent"], [(name, first["priors"][name]) for name in priors], margin)
+        pick = "agent" if pick_name == "agent" else "prior"
+    else:
+        pick = pick2
+        pick_name = prior if pick == "prior" else "agent"
+    if pick == "prior":
+        widths_pick, info_pick, s_pick, modes_pick = planned[pick_name]
+    else:
+        widths_pick, info_pick, s_pick, modes_pick = widths_a, info_a, s_a, modes_a
+    _set_modes(model, modes_pick)
+    rng_restore(s_pick)
     minutes = (time.perf_counter() - started) / 60.0
     for proxy in proxies:
         a, p = scores[proxy]["agent"], scores[proxy]["prior"]
         utils.print_flush(f"[alloc] fallback {net} {proxy}: agent {a:.4f} prior {prior} {p:.4f} "
                           f"(prior − agent {p - a:+.4f})")
-    utils.print_flush(f"[alloc] fallback {net}: pick {pick} on {proxies[0]} (margin {margin:g}; {minutes:.1f} min)")
+        for i, name in enumerate(priors[1:], start=2):
+            p = scores[proxy]["priors"][name]
+            utils.print_flush(f"[alloc] fallback {net} {proxy}: agent {a:.4f} prior{i} {name} {p:.4f} "
+                              f"(prior{i} − agent {p - a:+.4f})")
+    for proxy in (proxies if detail else ()):
+        for arm, read in details[proxy].items():
+            utils.print_flush(f"[alloc] fallback {net} {proxy} {arm}: acc {read['acc']:.4f} loss {read['loss']:.4f}")
+    if multi:
+        utils.print_flush(f"[alloc] fallback {net}: pick {pick_name} on {proxies[0]} (margin {margin:g}; "
+                          f"{minutes:.1f} min) | two-way pick {pick2} ({prior})")
+    else:
+        utils.print_flush(f"[alloc] fallback {net}: pick {pick} on {proxies[0]} (margin {margin:g}; {minutes:.1f} min)")
     try:
         import src.run_recorder as run_recorder
         run_recorder.record(
@@ -1147,14 +1232,18 @@ def fallback_plan(env, target, flops, agent_kw, plan_kw):
             proxy_seed=plan_proxies.proxy_seed(), scores=scores,
             agent_widths={str(r): int(w) for r, w in widths_a.items()},
             prior_widths={str(r): int(w) for r, w in widths_p.items()}, minutes=round(minutes, 3),
-            **({"fs_lr": plan_agent.fs_lr()} if any(p.startswith("fs") for p in proxies) else {}))
+            **({"fs_lr": plan_agent.fs_lr()} if any(p.startswith("fs") for p in proxies) else {}),
+            **({"priors": list(priors), "pick_name": pick_name, "pick2": pick2,
+                "prior_widths_all": {name: {str(r): int(w) for r, w in planned[name][0].items()} for name in priors}}
+               if multi else {}),
+            **({"details": details} if detail else {}))
     except Exception:  # noqa: BLE001 - the record is a convenience
         pass
-    widths, info = (widths_p, info_p) if pick == "prior" else (widths_a, info_a)
-    info = dict(info)
+    info = dict(info_pick)
     info["fallback"] = {"pick": pick, "prior": prior, "proxies": list(proxies), "margin": margin, "scores": scores,
-                        "minutes": minutes}
-    return widths, info
+                        "minutes": minutes,
+                        **({"priors": list(priors), "pick_name": pick_name, "pick2": pick2} if multi else {})}
+    return widths_pick, info
 
 
 def _state(env):
