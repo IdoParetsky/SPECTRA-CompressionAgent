@@ -10759,6 +10759,21 @@ Not claimed:
 - fs − sc at the chosen κ as a call (the arms sit at different sizes);
 - a per-net FLOPs pair without the caption (MobileNetV2 ×1.4 at −0.5 and −1.0, DenseNet-100 at −0.5, chenyaofo R56 at −2.0 and DepGraph R56 at every τ differ by more than 10 %).
 
+*Addendum 5 Nov (reported, not a call): the mode against one fixed budget for every network.* Computed 5 Nov 09:15 from the per-search lines and the fixed-budget block of the reader output above (FINAL's seed 42–44 rows on the same line; the reader prints TEST 5k and val for them). At about the same mean fraction kept, the accuracy-limit searches lose far less than one fixed budget for every network, because each network is sized to what it tolerates (VGG-16, VGG-19 C100 and MobileNetV2 ×1.4 go to 0.125–0.175; r56-w8 and r20-w8 C100 stay at 0.73–0.90):
+
+| | params kept (mean over the 27 searches) | FLOPs kept | TEST 5k | val | 10k | honest |
+|---|---|---|---|---|---|---|
+| T6-fs, τ −0.5 | 0.539 | 0.681 | −0.48 | −0.17 | −0.33 | −0.50 |
+| T6-fs, fixed 0.60 | 0.585 | 0.727 | −1.17 | −0.83 | | |
+| T6-fs, τ −1.0 | 0.466 | 0.618 | −0.71 | −0.51 | −0.61 | −0.70 |
+| T6-fs, fixed 0.45 | 0.449 | 0.630 | −1.92 | −1.62 | | |
+| T6-fs, τ −2.0 | 0.369 | 0.548 | −1.37 | −0.96 | −1.16 | −1.32 |
+| T6-fs, fixed 0.35 | 0.349 | 0.546 | −2.78 | −2.44 | | |
+| sens_cost, τ −1.0 | 0.490 | 0.613 | −0.75 | −0.54 | −0.64 | −0.77 |
+| sens_cost, fixed 0.45 | 0.449 | 0.589 | −2.24 | −1.92 | | |
+
+The gain belongs to the mode, not to the agent: the rule gains as much. The mode costs about twice the recovery epochs per network (five 20-epoch probes and the 100-epoch final). The mean fraction kept weights every network equally, as NEON's average compression does. The even cut and the FLOPs agent were not run in this mode, so it is not set beside the published FLOPs points. Never: this comparison as a registered call, or as "the agent compresses more".
+
 Records: reader `scripts/_tmp_s02nov_d8_read.sh` output (4 Nov 08:20, `s04nov_d8_read.txt`); masked dry run `s02nov_d8_read_dry.txt` (2 Nov 19:52); manifest `s21oct_d8_manifest.tsv`; state `s21oct_d8_state.json`; orchestrator `s21oct_d8_submit.sh` with `s21oct_d8_bisect.py`; guards `s21oct_autoresub_d8.sh` (to 2 Nov 19:50) and `s02nov_autoresub_d8k.sh`; next §424.
 
 ## 424. (PROBE): four probe-rate variants of the cost-aware rule (sens_cost, which measures each group once, at a 50 % cut), on FINAL's eval line (`tree_v31`, deterministic, floored, grid-rounded, one cut, G2 plus the origin control), at params 0.25 and 0.15 on the nine pool nets, seeds 42–44 — **no variant beats the rule: re-measuring each group at its planned depth (sca) is BELOW-RULE at both depths, damage curves with one multiplier (scv) BELOW-RULE at both, one probe at √κ (scq) BELOW-RULE at 0.15, and the same curves with one global threshold (sth) SAME at both, carried by ResNet-20 ×8 CIFAR-100; one 50 % measurement per group is enough for the cost-aware rule on this pool**
@@ -10831,3 +10846,36 @@ Not claimed:
 - the reader's "thin" plan lines as thin r56-w4's (they are ResNet-20 ×2's).
 
 Records: reader `scripts/_tmp_s29oct_probe_read.sh` output (4 Nov 09:11, `s04nov_probe_read.txt`); checks `scripts/_tmp_s04nov_probe_checks.sh` (09:13); manifest `s29oct_probe_manifest.tsv`; chain `s29oct_probe_chain.sh`, deploy `s29oct_v31_deploy.sh`, submit `s29oct_probe_submit.sh`, guard `s29oct_autoresub_probe.sh`, gate file `s29oct_probe_gate.txt`; next §425.
+
+## 425. (RT-VGG): SPECTRA's per-network cost on VGG-16-BN CIFAR-10, timed as §419's SPECTRA cells (T4-F at FLOPs 0.34, T6-fs at params 0.18; G2 twice, a stock loader once; seed 42), beside §419's HRank, CHIP and OCSPruner VGG-16 runs — **SPECTRA's decision takes 0.8–1.1 min and its whole prune-and-recover 3.8–4.0 min (G2) or 10.0–10.3 min (stock loader), against 45.6 min (OCSPruner), 66.3 (HRank) and 118.0 (CHIP); T4-F's one-time training pays back within 1.5–4.2 of these networks (1.6–4.9 with the stock loader), T6-fs's within 10.5–28.8 (11.1–33.6)**. A measurement, no call.
+
+Registered 5 Nov 09:07 (queue row RT-VGG, `d80f014`) before submit, at Ido's ask ("VGG-16, CIFAR-10: SPECTRA was not timed on this network - please enqueue a timed job to fill runtime's blank"). Deployed and submitted 09:08 (`c0c9fb9`; `s05nov_rtv_submit.sh`, blob `2c69da7` checked); all six COMPLETED 09:12–09:44. Read 09:44 with RUNTIME's reader (`s30oct_rt_read.py --spectra-log`, unchanged).
+- *Line.* RUNTIME's SPECTRA cells exactly (`tree_v24`, FINAL's line without the origin control and the deterministic flags, 6 CPUs, one RTX 4090 of ise-4090-01..17, `Requeue=0`), with only the network and the points changed: LIT-C's VGG-16-BN C10 base (`configs/input_c10_zoo_vgg16.json`, chenyaofo's vgg16_bn, origin 93.74 on TEST 5k, §408). T4-F at FLOPs 0.34 is the point of the timed HRank and CHIP VGG-16 runs (65.3 % and 66.6 % of FLOPs pruned); T6-fs at params 0.18 is about those runs' params kept.
+- *Checks.* Every cell lands on its point (FLOPs ×0.340 for T4-F, params ×0.180 for T6-fs). No log has a stall-fallback line or an error line. The G2 repeats agree within 0.4 % (3.834 / 3.838 min; 4.008 / 3.995 min).
+
+| Cell | Job | Node | Plan | Cut (walk steps) | Decision | Size-point recovery (epochs) | s/epoch | Per network | Params / FLOPs kept |
+|---|---|---|---|---|---|---|---|---|---|
+| T4-F, FLOPs 0.34, G2, r1 | 23917445 | ise-4090-03 | 7.3 s | 1:01 (71) | 1:08 | 2:42 (100) | 1.62 | **3:50** | ×0.060 / ×0.340 |
+| T4-F, FLOPs 0.34, G2, r2 | 23917446 | ise-4090-05 | 7.2 s | 1:01 (71) | 1:08 | 2:42 (100) | 1.62 | **3:50** | ×0.060 / ×0.340 |
+| T6-fs, params 0.18, G2, r1 | 23917447 | ise-4090-04 | 4.4 s | 0:43 (57) | 0:47 | 3:13 (100) | 1.93 | **4:01** | ×0.180 / ×0.628 |
+| T6-fs, params 0.18, G2, r2 | 23917448 | ise-4090-02 | 4.3 s | 0:42 (57) | 0:47 | 3:13 (100) | 1.93 | **4:00** | ×0.180 / ×0.628 |
+| T4-F, FLOPs 0.34, stock | 23917449 | ise-4090-03 | 8.5 s | 0:59 (69) | 1:08 | 9:08 (100) | 5.48 | **10:15** | ×0.061 / ×0.340 |
+| T6-fs, params 0.18, stock | 23917450 | ise-4090-05 | 5.4 s | 0:42 (57) | 0:48 | 9:10 (100) | 5.50 | **9:58** | ×0.180 / ×0.628 |
+
+| VGG-16 method (§419) | Whole pipeline | ÷ SPECTRA, stock loader / G2 | Decision | K* T4-F, G2 (stock) | K* T6-fs, G2 (stock) |
+|---|---|---|---|---|---|
+| OCSPruner (base trained from scratch, included) | 45:38 | 4.4–4.6× / 11.4–11.9× | 22:11 | 4.2 (4.9) | 28.8 (33.6) |
+| HRank | 1:06:20 | 6.5–6.7× / 16.5–17.3× | 1:01:44 | 2.8 (3.1) | 19.3 (21.3) |
+| CHIP | 1:58:02 | 11.5–11.8× / 29.4–30.8× | 37:20 | 1.5 (1.6) | 10.5 (11.1) |
+
+Caption, for every use of these rows: as §419's (one RTX 4090, 6 CPUs, each method's own loader; SPECTRA's per-network cost is plan + cut + the size point's 100-epoch recovery). The bases differ: HRank and CHIP start from HRank's `vgg_16_bn.pt`, OCSPruner trains its own, SPECTRA starts from chenyaofo's vgg16_bn. Each method prunes to its own point. K* = the agent's training GPU-h (T4-F 2.9, T6-fs 20.0) ÷ (the method's per-network GPU-h − SPECTRA's, the mean of the G2 repeats or the stock cell). Accuracies from these jobs are never quoted.
+
+Reading:
+1. **On VGG-16 SPECTRA's per-network cost is about half its ResNet-56 cost.** The cut walk takes 57–71 steps (0.7–1.0 min) against 208–272 (3.0–3.6 min, §419), and a G2 epoch takes 1.62–1.93 s against 2.64–2.90 s.
+2. **Like for like (the stock-loader rows), OCSPruner takes 4.4–4.6× SPECTRA's time on VGG-16, HRank 6.5–6.7× and CHIP 11.5–11.8×**; against the G2 rows, 11.4–11.9×, 16.5–17.3× and 29.4–30.8×. The decisions alone: 0.8–1.1 min against 22, 37 and 62.
+3. **At equal FLOPs the FLOPs agent keeps 6 % of VGG-16's params, and at 18 % of params the params agent keeps 63 % of its FLOPs**: two different networks, as §408 found for VGG-16 (7–12 % of params at the literature FLOPs points). The T4-F rows are the like-for-like ones for HRank's and CHIP's FLOPs points.
+4. **The payback holds on a second network**: within 1.5–4.2 VGG-16 networks for the FLOPs agent and 10.5–28.8 for the params agent, against these three pipelines.
+
+Not claimed: as §419 ("SPECTRA is N× faster" without the decision / fine-tune split and the stock-loader row; any accuracy from these jobs; a runtime from another GPU or node class set against these); these rows without the base caption.
+
+Records: queue row RT-VGG; `scripts/_tmp_s05nov_rtv_submit.sh` (deployed as `s05nov_rtv_submit.sh`); manifest `s05nov_rtv_manifest.tsv`; logs `tree_v24/runs/slurm_logs/spectra_23917445–450.out`; watcher `scripts/_tmp_s05nov_rtvwatch.sh`; next §426.
