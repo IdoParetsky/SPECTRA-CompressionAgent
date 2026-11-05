@@ -19,6 +19,7 @@ import src.logging_utils as logging_utils
 import src.run_recorder as run_recorder
 import src.traj_models as traj_models
 import src.eval_topk as eval_topk  # v29: top-5 beside the TRAJ lines under SPECTRA_EVAL_TOP5 (default off)
+import src.imagenet_fast as imagenet_fast  # v33: the ImageNet recovery path under SPECTRA_IMN_FT (default off)
 from src.Configuration.StaticConf import StaticConf
 
 # Distributed is opt-in: a plain `python a2c_agent_reinforce_runner.py ...` on a single
@@ -130,6 +131,8 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         for param in teacher.parameters():
             param.requires_grad = False
         env.kd_teacher = teacher
+    if imagenet_fast.enabled():  # v33: the ImageNet recovery path (SPECTRA_IMN_FT=1); off, everything below is as before
+        return _final_ft_imagenet(env, net_path, label, candidate, model, epochs, lr, save_dir, scratch, final_stem)
     loader, aug = utils.final_ft_train_loader(env.train_loader, fortify_mod.eval_final_ft_batch())
     schedule, warmup = fortify_mod.eval_final_ft_schedule(), fortify_mod.eval_final_ft_warmup()
     select = fortify_mod.eval_final_ft_select()
@@ -187,6 +190,89 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     if final_stem and not scratch:
         _save_final_model(env, net_path, label, point, model, epochs, test_acc, val_acc, final_stem)
     return test_acc
+
+
+def _final_ft_imagenet(env, net_path, label, candidate, model, epochs, lr, save_dir, scratch, final_stem):
+    """
+    v33 (``SPECTRA_IMN_FT=1``): one candidate's recovery through :func:`src.imagenet_fast.recover` - the registered
+    ImageNet recipe (step schedule, weight decay 1e-4, AMP, channels_last, the last epoch kept), a fast train loader,
+    epoch checkpoints with resume and timing lines - then the TEST / val reads and the stock ``[eval] TRAJ final_ft``
+    line and ``eval_traj_final_ft`` record, with the IMN recipe in place of the stock one. The decision (the cut
+    candidate and its point) is saved under the cell's directory first, so a preempted job's successor restores it.
+    """
+    from src import fortify as fortify_mod
+    name = os.path.basename(net_path)
+    point = candidate["point"]
+    if scratch:
+        raise ValueError("SPECTRA_IMN_FT does not support SPECTRA_EVAL_FINAL_FT_SCRATCH")
+    if fortify_mod.eval_final_ft_kd():
+        utils.print_flush("[imn] SPECTRA_EVAL_FINAL_FT_KD ignored: the ImageNet recovery path distils from nothing")
+    if fortify_mod.eval_final_ft_cuda_graph():
+        utils.print_flush("[imn] SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH ignored on the ImageNet recovery path")
+    timing = imagenet_fast.decision_timing(env)
+    utils.print_flush(imagenet_fast.timing_line(name, timing))
+    imagenet_fast.save_decision(net_path, label, candidate, timing)
+    batch = fortify_mod.eval_final_ft_batch()
+    t0 = time.perf_counter()
+    out = imagenet_fast.recover(env, model, label, point, epochs, lr, batch, name)
+    handler = env.create_learning_handler(model)
+    with imagenet_fast.timed(utils.print_flush, "TEST read", name, len(env.test_loader.dataset)):
+        test_acc = float(handler.evaluate_model(env.test_loader))
+    with imagenet_fast.timed(utils.print_flush, "val read", name, len(env.val_loader.dataset)):
+        val_acc = float(handler.evaluate_model(env.val_loader))
+    with imagenet_fast.timed(utils.print_flush, "top-5 reads", name,
+                             (len(env.test_loader.dataset) + len(env.val_loader.dataset)) if eval_topk.enabled() else 0):
+        top5 = eval_topk.final(env, model, label, name, point)  # {} unless SPECTRA_EVAL_TOP5=1
+    minutes = (time.perf_counter() - t0) / 60.0
+    test_origin, val_origin = float(point["test_origin"]), float(point["val_origin"])
+    schedule = "step" + (",".join(str(m) for m in out["recipe"]["milestones"]) or "none")
+    utils.print_flush(
+        f"[eval] TRAJ final_ft {label} {name} step={point['step']} | "
+        f"acc {test_origin:.3f} -> {test_acc:.3f} ({test_acc - test_origin:+.3f}) | "
+        f"params x{point['param']:.3f} | FLOPs x{point['flop']:.3f} | "
+        f"val Δacc {(val_acc - val_origin) * 100.0:+.2f} pp | walk acc {float(point['test_acc']):.3f} | "
+        f"{imagenet_fast.recipe_text(out)} | train {out['train_minutes']:.1f} min over {int(out['resumed']) + 1} job(s), "
+        f"{out['img_s']:.0f} img/s | {minutes:.1f} min")
+    run_recorder.record(
+        "eval_traj_final_ft", network=net_path, label=label, step=int(point["step"]),
+        param=float(point["param"]), flop=float(point["flop"]),
+        test_origin=test_origin, test_walk=float(point["test_acc"]), test_final=test_acc,
+        val_origin=val_origin, val_walk=float(point["val_acc"]), val_final=val_acc,
+        epochs=int(epochs), lr=float(lr), batch=int(batch), aug=f"imn:{out['data']}", kd=False,
+        scratch=False, schedule=schedule, warmup=0.0, select="last", minutes=round(minutes, 2),
+        imn=out["recipe"], imn_img_s=round(float(out["img_s"]), 1), imn_train_minutes=round(float(out["train_minutes"]), 2),
+        imn_resumed=int(out["resumed"]), imn_epochs=out["timing"], **top5)
+    if save_dir:
+        traj_models.save_candidate(
+            model, traj_models.candidate_stem(save_dir, name, label, point["step"], f"__ft{epochs}"), point,
+            {"network": net_path, "label": label, "final_ft": {
+                "epochs": int(epochs), "lr": float(lr), "scratch": False, "kd": False, "schedule": schedule,
+                "warmup": 0.0, "select": "last", "test_final": test_acc, "val_final": val_acc, "imn": out["recipe"]}})
+    if final_stem:
+        _save_final_model(env, net_path, label, point, model, epochs, test_acc, val_acc, final_stem)
+    return test_acc
+
+
+def _final_ft_origin_only(env, net_path, epochs):
+    """
+    ``SPECTRA_IMN_ORIGIN_ONLY=1`` (v33): the origin control as its own job - the unpruned network through the final
+    recovery with no walk and no decision; its ``TRAJ origin`` line carries the origin's TEST read and its
+    ``TRAJ final_ft origin`` line (step -1) the recovered accuracy, the honest reference of the IMN rows.
+    """
+    name = os.path.basename(net_path)
+    test_new, test_orig, _ = env.score_test_loader()
+    origin = _traj_capture(env, -1, 1.0, test_new, test_orig)
+    _print_traj_point("origin", name, origin)
+    utils.print_flush(f"[imn] origin control {name}: no walk; the unpruned network takes the {epochs}-epoch recovery")
+    if epochs <= 0:
+        utils.print_flush("[imn] SPECTRA_EVAL_FINAL_FT_EPOCHS is 0: nothing to recover")
+        return
+    candidate = {"point": dict(origin), "model": copy.deepcopy(env.data_dict[env.selected_net_path][0]).cpu(), "key": None}
+    try:
+        _final_ft(env, net_path, "origin", candidate, epochs)
+    except Exception as error:  # noqa: BLE001 - as _run_final_ft: logged and recorded
+        logging_utils.exception(f"[eval] TRAJ final_ft origin {name} failed")
+        run_recorder.issue("final_ft_failed", f"{type(error).__name__}: {error}", network=net_path, label="origin")
 
 
 def _run_seed(env):
@@ -712,6 +798,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
 
     for model_idx, (net_path, (net_model, net_loaders)) in enumerate(shard):
         utils.print_flush(f"Evaluating model {model_idx + 1}/{len(shard)}: {net_path}")
+        imagenet_fast.prestage(net_loaders)  # v33: stages the train pack during the decision; a no-op unless SPECTRA_IMN_FT=1
 
         # One failing network must not abort the whole evaluation sweep: the remaining
         # networks still produce results, and the failure is recorded for triage.
@@ -759,7 +846,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         f"{' save_final=' + fortify_mod.eval_save_final() if fortify_mod.eval_save_final() else ''}"
                         f"{' origin_from=' + fortify_mod.eval_origin_from() if fortify_mod.eval_origin_from() else ''}"
                         f"{' proxy=' + ','.join(f'{t:g}' for t in fortify_mod.eval_proxy_fidelity()) if fortify_mod.eval_proxy_fidelity() else ''}"
-                        f" fixed_target={int(fortify_mod.fixed_target())} state_sens={int(fortify_mod.state_sens())}")
+                        f" fixed_target={int(fortify_mod.fixed_target())} state_sens={int(fortify_mod.state_sens())}"
+                        f"{' imn=' + imagenet_fast.summary() if imagenet_fast.enabled() else ''}")
                     match = fortify_mod.eval_size_match()
                     if fortify_mod.fixed_target() and (match is None or match[0] != "param"):
                         utils.print_flush(
@@ -773,6 +861,14 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 if traj and mode == EVAL_TEST and fortify_mod.eval_final_ft_from():
                     _final_ft_from_saved(env, net_path, fortify_mod.eval_final_ft_from(),
                                          fortify_mod.eval_final_ft_epochs())
+                    continue
+                if traj and mode == EVAL_TEST and imagenet_fast.origin_only():  # v33: the origin control's own job
+                    _final_ft_origin_only(env, net_path, fortify_mod.eval_final_ft_epochs())
+                    continue
+                if traj and mode == EVAL_TEST and imagenet_fast.decision_saved(os.path.basename(net_path)):
+                    # v33: a preempted cell's successor: the saved decision replaces the walk, the recovery resumes
+                    utils.print_flush(imagenet_fast.restored_line(os.path.basename(net_path)))
+                    _final_ft_from_saved(env, net_path, imagenet_fast.decision_dir(), fortify_mod.eval_final_ft_epochs())
                     continue
                 size_match = fortify_mod.eval_size_match() if traj else None
                 rollback = traj and fortify_mod.eval_rollback() and eval_policy not in ("actor",)
