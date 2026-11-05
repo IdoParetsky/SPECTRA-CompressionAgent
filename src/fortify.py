@@ -669,6 +669,13 @@ def eval_final_ft_origin() -> bool:
     return _flag("SPECTRA_EVAL_FINAL_FT_ORIGIN")
 
 
+def eval_final_ft_size_only() -> bool:
+    """``SPECTRA_EVAL_FINAL_FT_SIZE_ONLY=1`` (v34, default off): the final fine-tune recovers only the
+    size-point candidates (labels from ``SPECTRA_EVAL_SIZE_POINTS``); ``val_best`` and every other walk
+    label are dropped with a line. ``origin`` under ``SPECTRA_EVAL_FINAL_FT_ORIGIN`` is still added."""
+    return _flag("SPECTRA_EVAL_FINAL_FT_SIZE_ONLY")
+
+
 def eval_save_traj_models() -> bool:
     """``SPECTRA_EVAL_SAVE_TRAJ_MODELS=1``: save the final-FT candidates (before and after the final
     fine-tune) under ``<run_dir>/traj_models/`` as ``state_dict`` + arch/recipe JSON
@@ -1693,6 +1700,14 @@ def eval_trajectory_enabled() -> bool:
     """
     raw = os.environ.get("SPECTRA_EVAL_TRAJECTORY", "0").strip().lower()
     return raw in ("1", "true", "yes", "on")
+
+
+def eval_lean_walk() -> bool:
+    """``SPECTRA_EVAL_LEAN_WALK=1`` (v34, default off): on the TEST walk, a cut step whose point reaches no
+    size target skips the TEST read and the top-5 capture (its point carries ``test_acc`` NaN); the origin
+    point and every point that first reaches a size target (``SPECTRA_EVAL_SIZE_MATCH`` /
+    ``SPECTRA_EVAL_SIZE_POINTS``) are read in full. No cut depends on these reads."""
+    return _flag("SPECTRA_EVAL_LEAN_WALK")
 
 
 def trajectory_release_floor(at_budget: bool, actor_idx: int, guarded_idx: int) -> bool:

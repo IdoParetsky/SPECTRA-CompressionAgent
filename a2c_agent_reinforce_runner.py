@@ -55,6 +55,46 @@ def _traj_capture(env, step_index, rate, test_new, test_orig):
     return eval_topk.capture(env, point)  # unchanged unless SPECTRA_EVAL_TOP5=1
 
 
+def _traj_cut_point(env, step_index, rate, last_test, size_targets, reached):
+    """
+    One real cut step's trajectory point. Stock: a full TEST read plus ``_traj_capture``. Under
+    ``SPECTRA_EVAL_LEAN_WALK`` (v34, default off) only a point that first reaches a size target
+    (``size_targets``: ``(kind, target)`` pairs; ``reached`` is updated in place) is read in full; any other
+    point skips the TEST read and the top-5 capture (``test_acc`` NaN, the origin's TEST accuracy carried).
+    Returns ``(point, last_test)``.
+    """
+    from src import fortify as fortify_mod
+    if fortify_mod.eval_lean_walk():
+        newly = {(k, t) for (k, t) in size_targets if (k, t) not in reached
+                 and float(env.param_ratio() if k == "param" else env.flops_ratio()) <= float(t) + 1e-12}
+        if not newly:
+            if last_test is not None:
+                test_orig = float(last_test[1])
+            elif getattr(env, "_origin_test_acc", None) is not None:
+                test_orig = float(env._origin_test_acc)
+            else:
+                test_orig = float("nan")
+            test_new = float("nan")
+            val_new = float(getattr(env, "last_val_acc", env.original_acc))
+            val_orig = float(env.original_acc)
+            point = {
+                "step": int(step_index),
+                "rate": float(rate),
+                "param": float(env.param_ratio()),
+                "flop": float(env.flops_ratio()),
+                "val_acc": val_new,
+                "val_origin": val_orig,
+                "val_dacc_pp": (val_new - val_orig) * 100.0,
+                "test_acc": test_new,
+                "test_origin": test_orig,
+                "test_dacc_pp": (test_new - test_orig) * 100.0,
+            }
+            return point, last_test
+        reached |= newly
+    test_new, test_orig, _ = env.score_test_loader()
+    return _traj_capture(env, step_index, rate, test_new, test_orig), (test_new, test_orig)
+
+
 def _print_traj_point(key, name, point):
     if not point:
         utils.print_flush(f"[eval] TRAJ {key} {name} NONE")
@@ -508,6 +548,17 @@ def _run_final_ft(env, net_path, picked, candidates, epochs):
     """``SPECTRA_EVAL_FINAL_FT_EPOCHS`` / ``SPECTRA_EVAL_SAVE_TRAJ_MODELS`` after one TRAJ walk."""
     from src import fortify as fortify_mod
     name = os.path.basename(net_path)
+    if fortify_mod.eval_final_ft_size_only():  # v34: recover only the size points (default off)
+        keep = {fortify_mod.size_point_label(k, t) for k, t in fortify_mod.eval_size_points()}
+        for label in list(candidates):
+            if label not in keep:
+                utils.print_flush(f"[eval] TRAJ final_ft {name}: SIZE_ONLY drops {label} "
+                                  f"(step {candidates[label]['point']['step']})")
+                candidates.pop(label)
+        if not candidates:
+            utils.print_flush(f"[eval] TRAJ final_ft {name}: SIZE_ONLY found no size-point candidate; "
+                              f"nothing recovered")
+            return
     best, held = picked.get("val_best"), candidates.get("val_best")
     if held is not None and (best is None or int(held["point"]["step"]) != int(best["step"])):
         utils.print_flush(
@@ -873,6 +924,13 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 size_match = fortify_mod.eval_size_match() if traj else None
                 rollback = traj and fortify_mod.eval_rollback() and eval_policy not in ("actor",)
                 size_points = fortify_mod.eval_size_points() if traj else ()
+                size_targets = tuple(dict.fromkeys(
+                    ([size_match] if size_match is not None else []) + list(size_points)))
+                size_reached = set()  # v34: SPECTRA_EVAL_LEAN_WALK reads a point in full when it first reaches one
+                if traj and mode == EVAL_TEST and fortify_mod.eval_lean_walk():
+                    utils.print_flush(
+                        f"[eval] lean walk ON: TEST/top-5 reads only at the origin and at the first point "
+                        f"reaching each of {list(size_targets)}")
                 final_ft_epochs = fortify_mod.eval_final_ft_epochs() if traj and mode == EVAL_TEST else 0
                 keep_models = traj and mode == EVAL_TEST and (
                     final_ft_epochs > 0 or fortify_mod.eval_save_traj_models())
@@ -886,6 +944,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 last_test = None
                 step_i = 0
                 proxy_targets = fortify_mod.eval_proxy_fidelity() if traj and mode == EVAL_TEST else ()
+                if traj and mode == EVAL_TEST and fortify_mod.eval_lean_walk() and proxy_targets:
+                    raise ValueError("SPECTRA_EVAL_LEAN_WALK does not support SPECTRA_EVAL_PROXY_FIDELITY")
                 proxy_done = set()
                 if traj and mode == EVAL_TEST:
                     test_new, test_orig, _ = env.score_test_loader()
@@ -997,11 +1057,9 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         snapshot = None
                     if traj and mode == EVAL_TEST:
                         if is_cut and not rolled_back:
-                            test_new, test_orig, _ = env.score_test_loader()
-                            last_test = (test_new, test_orig)
-                            traj_points.append(
-                                _traj_capture(env, step_i, compression_rate,
-                                              test_new, test_orig))
+                            point, last_test = _traj_cut_point(env, step_i, compression_rate, last_test,
+                                                               size_targets, size_reached)
+                            traj_points.append(point)
                             if keep_models:
                                 _keep_final_ft_candidates(env, traj_points[-1], candidates, size_points,
                                                           float(conf.allowed_acc_reduction))
