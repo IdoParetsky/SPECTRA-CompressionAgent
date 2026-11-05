@@ -33,6 +33,8 @@
 
 So, after a hold or a `top`, check `squeue -u paretsky -t PD -o "%Q %y %j"` across all our studies, not only the head of the queue, and restore the registered order with `scontrol update jobid=<ids> nice=<n>`. A user can set any nice of 0 or more. Give a gate a wait longer than the queue's real delay. When a gate times out only because its smokes never ran, re-run the same gate unchanged and record it in the queue row.
 
+**Priority arithmetic (learned 5 Nov).** Priority = fair-share (about 119 on 5 Nov) + age − nice, and age grows about 1.4 an hour (`PriorityWeightAge` 100 over `PriorityMaxAge` 3 days), counted from eligibility. A job waiting on a dependency has no age, so a nice-0 resume released at 16:00 still loses to nice-10 jobs eligible since 06:30 (121 against 119). Read the parts with `sprio -u paretsky -h -o "%i %Y %A %N"`, and re-nice the older study by more than its age lead (M12 10 -> 16 on 5 Nov) rather than use `top`. When the cap falls, keep long single-GPU runs in lanes (`afterany` chains) so that one GPU stays for the other studies.
+
 **No log dumps in the main tab (Ido, 10 Oct).** Readers write their full output to a scratchpad file; the tab shows the call lines and compact tables only. Never paste a raw log, a whole reader output or a subagent transcript.
 
 **Delegation** (agent files in `.claude/agents/`; the table is in `CLAUDE.md`).
