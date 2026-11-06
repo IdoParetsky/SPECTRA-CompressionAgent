@@ -10879,3 +10879,89 @@ Reading:
 Not claimed: as §419 ("SPECTRA is N× faster" without the decision / fine-tune split and the stock-loader row; any accuracy from these jobs; a runtime from another GPU or node class set against these); these rows without the base caption.
 
 Records: queue row RT-VGG; `scripts/_tmp_s05nov_rtv_submit.sh` (deployed as `s05nov_rtv_submit.sh`); manifest `s05nov_rtv_manifest.tsv`; logs `tree_v24/runs/slurm_logs/spectra_23917445–450.out`; watcher `scripts/_tmp_s05nov_rtvwatch.sh`; next §426.
+
+## 426. (M12): ENC's minimal agent (a per-group model of the rule's own inputs, 547,841 parameters) trained on T6-fs's line at T6-fs's full 12,000 instances, seeds 42–44, read at params 0.45 / 0.35 / 0.25 / 0.15 / 0.10 on the nine pool nets and 0.45 / 0.25 / 0.15 on the eight new networks — **against the params agent of record (T6-fs): SAME at 0.45, 0.35 and 0.10 on the pool, BETTER at 0.25 and 0.15 through ResNet-20 ×8 CIFAR-100 alone, and on the new networks SAME at 0.45 and 0.25 and WORSE at 0.15; against the rule: BEATS-PRIOR-POOL at 0.45, 0.25 and 0.15 on the pool (one network carries most of each, with more FLOPs kept), AT elsewhere and at every new-network point. The row's bar for "as good as the Transformer" (SAME or BETTER at every point) is not met, so T6-fs stays the params agent of record and nothing more runs**
+- **M-AGENT** (m12 − T6-fs, pool): 0.45 +0.06 SAME; 0.35 −0.01 SAME; 0.25 **+0.38 BETTER** (the other eight −0.01); 0.15 **+0.85 BETTER** (the other eight +0.04); 0.10 −0.07 SAME.
+- **M-AGENT-X** (new networks): 0.45 +0.31 SAME (the other seven −0.01); 0.25 −0.01 SAME; 0.15 **−0.40 WORSE** (2 of 8 positive; seed 44 −1.25, seeds 42 / 43 −0.02 / +0.07).
+- **M-PRIOR** (m12 − sens_cost, pool): 0.45 **+0.38 BEATS** (the other eight +0.17); 0.35 +0.28 AT; 0.25 **+0.50 BEATS** (+0.26); 0.15 **+0.30 BEATS** at both band edges (6 of 9; the other eight +0.16); 0.10 −0.07 AT. **M-PRIOR-X** (new networks): +0.13 / −0.20 / −0.17, AT at all three.
+
+Registered 4 Nov 09:25 (queue row M12) before submit: the confirmation that §422's reading 5 named, recommended to Ido in writing on 3 Nov (the review page) and 4 Nov, and run under his standing GO of 17 Oct with the GPUs otherwise idle. Stated in advance: SAME against T6-fs at every point is what §422's hypothesis predicts; it would show only that a per-group model of the rule's inputs is as good an agent as the Transformer on this catalog and these reads, and a promotion needs Ido's decision and a five-seed confirmation. The review page (item 3) said before the read: "If it holds, two more seeds (five in all) ... If it does not hold, the Transformer stays and nothing more runs." Train gate PASS 4 Nov 09:38; eval gate PASS 09:42. Read 6 Nov 03:06 (`scripts/_tmp_s04nov_m12_read.sh`, deployed as `s04nov_m12_read.sh`, blob `12b9f0d`, written and dry-run 4 Nov 09:30 before any M12 result).
+- *Agent.* ENC's minimal arm (`SPECTRA_PLAN_ENCODER=set` + `SPECTRA_PLAN_ZERO=base,fortify,slack`): each group's score depends on its own token only, and besides the layer type and position only the group's sensitivity, its cost shares, the budget and κ remain, so it learns its own function of the rule's inputs. T6-fs's line exactly (`tree_v25`, resumable: fs32 at proxy lr 0.01, policy lr 3e-4, κ 0.25–0.85, K 8, no advantage normalization, the v10 snapshot's standardizer and policy config, its 10-net catalog), from scratch to 12,000 instances. Each agent is its train's final policy, fixed at registration.
+- *Trains.* s42 **23870565** and s44 **23870568** COMPLETED from 0 to 12,000; s43 was preempted twice (23870567 after 3.7 h, 23877639 after 40 s) and finished as **23878781** from its saved state at 2,000. About 6 s of compute per instance (the trains' DONE lines; compute only, never a result).
+- *Checks.* 207 of 207 eval cells COMPLETED (jobs **23915158–23918325**; none preempted). Per log, latest job per cell: the deterministic ON line and the agent's `[alloc]` line on the quoted net, no stall-fallback line, no masked edit, no error line; every M12 landing within 0.011 of its target; no point missing.
+- *Measurement.* As §422: TEST 5k with val, 10k and honest (each job's own 100-epoch origin control), paired by seed with T6-fs and floored sens_cost at seeds 42–44 on the same deterministic lines (FINAL's rows at 0.45 / 0.35 / 0.25, §406; DEEP's at 0.15 / 0.10, §413; XFER-W1's at 0.45 / 0.25 on the new networks, §407, and D5X's at 0.15, §417). The pooled value is the mean over the nets of the per-net three-seed means; the interval is a 95 % bootstrap over nets. Bands: ≥ +0.3 with at least 6 of 9 (6 of 8) positive; ≤ −0.3; between. 0.15 and 0.10 lie below both agents' training range (κ 0.25–0.85).
+- *FLOPs* (kept fraction, means over nets and seeds). Pool, m12 / T6-fs / sens_cost: 0.45 ×0.639 / 0.630 / 0.589; 0.35 0.557 / 0.546 / 0.505; 0.25 0.457 / 0.458 / 0.416; 0.15 0.337 / 0.345 / 0.318; 0.10 0.259 / 0.259 / 0.251. New networks: 0.45 0.631 / 0.508 / 0.537; 0.25 0.420 / 0.316 / 0.346; 0.15 0.256 / 0.205 / 0.230. **FLOPs caption:** on the pool M-AGENT compares pairs within 10 % except three nets at 0.15 and three at 0.10; every M-PRIOR row has two to four nets beyond 10 % (m12 keeping more). On the new networks m12 keeps 24–33 % more FLOPs than T6-fs at equal params (6–8 of the 8 pairs beyond 10 %, WRN-28-2 CIFAR-100 ×1.75–2.18) and 11–21 % more than the rule (5–7 of 8).
+
+| contrast | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | without r20-w8 C100 / WRN-28-2 C100 |
+|---|---|---|---|---|---|---|---|---|
+| M-AGENT: m12 − T6-fs, pool | 0.45 | +0.06 [−0.15, +0.26] | +0.04 | +0.05 | +0.06 | 5 of 9 | SAME | +0.08 |
+| | 0.35 | −0.01 [−0.26, +0.28] | +0.07 | +0.03 | −0.07 | 4 of 9 | SAME | −0.05 |
+| | 0.25 | **+0.38** [−0.21, +1.47] | +0.40 | +0.39 | +0.35 | 6 of 9 | **BETTER** | −0.01 |
+| | 0.15 | **+0.85** [−0.12, +3.04] | +0.88 | +0.87 | +0.94 | 6 of 9 | **BETTER** | +0.04 |
+| | 0.10 | −0.07 [−1.81, +1.88] | −0.10 | −0.08 | −0.03 | 5 of 9 | SAME | −0.65 |
+| M-AGENT-X: m12 − T6-fs, new networks | 0.45 | +0.31 [−0.27, +1.11] | +0.23 | +0.27 | +0.30 | 5 of 8 | SAME | −0.01 |
+| | 0.25 | −0.01 [−0.73, +0.68] | −0.24 | −0.12 | +0.01 | 5 of 8 | SAME | −0.17 |
+| | 0.15 | **−0.40** [−1.17, +0.21] | −0.51 | −0.46 | −0.29 | 2 of 8 | **WORSE** | −0.37 |
+| M-PRIOR: m12 − sens_cost, pool | 0.45 | **+0.38** [+0.04, +0.88] | +0.34 | +0.36 | +0.48 | 8 of 9 | **BEATS-PRIOR-POOL** | +0.17 |
+| | 0.35 | +0.28 [−0.11, +0.87] | +0.42 | +0.35 | +0.37 | 5 of 9 | AT-PRIOR-POOL | +0.06 |
+| | 0.25 | **+0.50** [+0.04, +1.25] | +0.51 | +0.50 | +0.52 | 8 of 9 | **BEATS-PRIOR-POOL** | +0.26 |
+| | 0.15 | **+0.30** [−0.47, +1.30] | +0.15 | +0.22 | +0.31 | 6 of 9 | **BEATS-PRIOR-POOL** | +0.16 |
+| | 0.10 | −0.07 [−0.79, +0.86] | −0.07 | −0.07 | −0.08 | 4 of 9 | AT-PRIOR-POOL | −0.28 |
+| M-PRIOR-X: m12 − sens_cost, new networks | 0.45 | +0.13 [−0.28, +0.49] | −0.00 | +0.06 | +0.16 | 6 of 8 | AT-PRIOR-POOL | +0.07 |
+| | 0.25 | −0.20 [−0.75, +0.28] | −0.09 | −0.14 | −0.19 | 3 of 8 | AT-PRIOR-POOL | −0.12 |
+| | 0.15 | −0.17 [−0.91, +0.74] | −0.18 | −0.17 | −0.01 | 2 of 8 | AT-PRIOR-POOL | −0.03 |
+| reported: m12 − ENC's minimal at 6,000 instances (the training length), pool | 0.45 | −0.00 [−0.26, +0.23] | +0.06 | +0.03 | −0.04 | 5 of 9 | — | +0.06 |
+| | 0.25 | −0.20 [−0.76, +0.13] | −0.01 | −0.10 | −0.30 | 4 of 9 | — | −0.02 |
+| reported: T6-fs − sens_cost (the comparators' own contrast, these seeds), pool | 0.45 | +0.32 [−0.06, +0.87] | +0.30 | +0.31 | +0.43 | 6 of 9 | — | +0.09 |
+| | 0.35 | +0.29 [+0.00, +0.75] | +0.35 | +0.32 | +0.44 | 7 of 9 | — | +0.12 |
+| | 0.25 | +0.11 [−0.50, +0.54] | +0.11 | +0.11 | +0.17 | 7 of 9 | — | +0.27 |
+| | 0.15 | −0.55 [−2.41, +0.35] | −0.73 | −0.64 | −0.63 | 5 of 9 | — | +0.13 |
+| | 0.10 | −0.01 [−1.34, +1.24] | +0.02 | +0.01 | −0.06 | 4 of 9 | — | +0.37 |
+| reported: T6-fs − sens_cost, new networks | 0.45 | −0.18 [−0.90, +0.33] | −0.23 | −0.21 | −0.14 | 3 of 8 | — | +0.08 |
+| | 0.25 | −0.19 [−0.88, +0.42] | +0.15 | −0.02 | −0.19 | 4 of 8 | — | +0.04 |
+| | 0.15 | +0.23 [−0.47, +1.16] | +0.34 | +0.28 | +0.28 | 3 of 8 | — | +0.34 |
+
+Per net, TEST 5k, three-seed means (per-seed values, 42 / 43 / 44, where one seed decides). Pool:
+
+| net | M-AGENT 0.45 | 0.35 | 0.25 | 0.15 | 0.10 | M-PRIOR 0.45 | 0.25 | 0.15 |
+|---|---|---|---|---|---|---|---|---|
+| thin r56-w4 | +0.40 | −0.13 | +0.15 | −0.26 | **−5.37** (−2.90 / −4.52 / −8.70) | +0.10 | +0.25 | +0.03 |
+| chenyaofo R56 | +0.11 | +0.31 | +0.07 | +0.45 | +0.01 | +0.35 | +0.44 | +0.13 |
+| r56-w8 | −0.32 | −0.01 | −0.83 | −0.29 | +0.00 | +0.19 | −0.30 | −0.07 |
+| MobileNetV2 ×1.4 | −0.07 | +0.30 | +0.35 | +0.27 | +0.27 | +0.03 | +1.11 | +0.85 |
+| DenseNet-100 | +0.18 | −0.45 | +0.14 | −0.17 | −0.13 | +0.08 | +0.15 | +0.21 |
+| r20-w8 C100 | −0.13 | +0.37 | **+3.49** (+1.10 / +8.20 / +1.16) | **+7.37** (+2.46 / +16.58 / +3.08) | **+4.59** (+1.88 / +12.64 / −0.74) | **+2.05** | **+2.36** (+3.98 / +4.64 / −1.54) | +1.39 (+5.76 / +5.60 / −7.20) |
+| VGG-19 C100 | +0.37 | −0.63 | −0.03 | +0.11 | −0.49 | +0.51 | +0.40 | −0.01 |
+| VGG-16 | +0.07 | −0.04 | +0.13 | +0.10 | +0.31 | +0.19 | +0.03 | −0.05 |
+| DepGraph R56 | −0.09 | +0.23 | −0.03 | +0.09 | +0.21 | −0.13 | +0.02 | +0.23 |
+
+New networks:
+
+| net | M-AGENT-X 0.45 | 0.25 | 0.15 | M-PRIOR-X 0.45 | 0.25 | 0.15 |
+|---|---|---|---|---|---|---|
+| WRN-16-4 C10 | +0.09 | +0.23 | −0.37 | −0.02 | +0.12 | −0.25 |
+| WRN-16-4 C100 | −0.51 | **−1.82** (−0.76 / −3.46 / −1.24) | −1.06 | −1.04 | −1.47 | −1.73 |
+| WRN-28-2 C10 | +0.33 | −0.43 | +0.28 | +0.17 | −0.23 | −0.05 |
+| WRN-28-2 C100 | **+2.57** (+1.34 / +4.18 / +2.20) | +1.11 (−1.94 / +2.68 / +2.60) | −0.60 | +0.56 | −0.73 | −1.10 |
+| PreAct-R20 C10 | +0.44 | +0.39 | +0.37 | +0.25 | −0.25 | −0.28 |
+| PreAct-R20 C100 | −0.15 | −0.33 | −1.35 (+0.44 / +1.52 / −6.02) | +0.47 | +0.85 | +1.74 (+4.26 / +3.72 / −2.76) |
+| PreAct-R56 C10 | +0.20 | +0.35 | −0.18 | +0.50 | +0.43 | −0.23 |
+| PreAct-R56 C100 | −0.50 | +0.43 | −0.28 | +0.14 | −0.33 | +0.57 |
+
+Per seed (reported, not a call; pooled, seeds 42 / 43 / 44): M-AGENT pool +0.11 / +0.24 / −0.18 at 0.45, −0.03 / +0.18 / −0.17 at 0.35, +0.22 / +1.00 / −0.07 at 0.25, +0.37 / +1.81 / +0.38 at 0.15, −0.02 / +0.90 / −1.09 at 0.10; M-AGENT-X +0.24 / +0.40 / +0.28, −0.04 / +0.23 / −0.21, −0.02 / +0.07 / −1.25; M-PRIOR pool +0.49 / +0.34 / +0.29, +0.47 / +0.29 / +0.09, +0.47 / +0.96 / +0.06, +0.92 / +0.66 / −0.68, +0.46 / +0.05 / −0.72; M-PRIOR-X +0.19 / −0.12 / +0.32, −0.39 / −0.22 / +0.01, −0.04 / +0.40 / −0.87.
+
+Reading:
+1. **On the nine pool nets the minimal agent is level with the Transformer agent of record, except on one network.** M-AGENT is SAME at 0.45, 0.35 and 0.10 (+0.06, −0.01, −0.07) and BETTER at 0.25 and 0.15 (+0.38, +0.85). Both BETTER calls rest on ResNet-20 ×8 CIFAR-100 (+3.49 and +7.37, seed 43 +8.20 and +16.58), where every agent loses heavily at deep budgets and T6-fs collapses at 0.15 (§417, §422); without it the pool reads −0.01 and +0.04. The two agents keep nearly the same FLOPs on the pool (within 3 %). At 0.10 thin r56-w4 reads −5.37 (every seed negative), cancelled by ResNet-20 ×8 CIFAR-100's +4.59.
+2. **On the eight new networks the minimal agent is not as good at the deepest budget, though it keeps more FLOPs.** M-AGENT-X is SAME at 0.45 (+0.31; WRN-28-2 CIFAR-100 +2.57 carries it, the other seven −0.01) and at 0.25 (−0.01), and WORSE at 0.15 (−0.40, 2 of 8 positive, honest −0.29). The WORSE call rests mostly on seed 44 (−1.25; seeds 42 and 43 −0.02 and +0.07) and on PreAct-ResNet-20 CIFAR-100's seed 44 (−6.02). WRN-16-4 CIFAR-100 is negative at all three budgets against both comparators. At equal params m12 keeps 24–33 % more FLOPs than T6-fs on these networks, so its plans differ from the Transformer's where it has not trained, and the extra FLOPs do not buy accuracy.
+3. **Against the rule, the minimal agent beats it on the pool at three budgets, but one network carries most of each call, at more FLOPs, and on seeds where the agent of record also leads.** M-PRIOR is BEATS at 0.45 (+0.38, 8 of 9, [+0.04, +0.88]), 0.25 (+0.50, 8 of 9, [+0.04, +1.25]) and 0.15 (+0.30, 6 of 9, [−0.47, +1.30]; the 0.15 call sits on both band edges). Without ResNet-20 ×8 CIFAR-100 the pool reads +0.17, +0.26 and +0.16, below the band. m12 keeps 3–10 % more FLOPs than the rule (two to four nets beyond 10 %). On these three seeds T6-fs itself reads +0.32 above the rule at 0.45 (6 of 9; reported), and that three-seed lead was level at five seeds (§406), as §390's three-seed BEATS at 45 % was. On the new networks m12 is AT the rule at every budget (+0.13, −0.20, −0.17).
+4. **Twice the training did not change the minimal agent.** m12 − ENC's minimal at 6,000 instances is −0.00 at 0.45 and −0.20 at 0.25 (5 and 4 of 9 positive), so §422's minimal reading was not short of training.
+5. [D] **The registered bar is not met: T6-fs stays the params agent of record, and nothing more runs.** The row licenses "as good as the Transformer on this catalog and these reads" only if M-AGENT is SAME or BETTER at every point. It is WORSE at one point (new networks, 0.15), below both agents' training range, and its BETTER calls rest on one network. As the review page stated before the read (item 3), the Transformer stays and no five-seed confirmation is registered. [H] On this catalog the encoder's architecture is not what limits the agent: across §422 and this section a per-group model of the rule's inputs, a per-token MLP, the Transformer and an 8× heavier Transformer differ mainly on one or two networks at deep budgets, where single seeds decide. Not tested.
+
+Not claimed:
+- "the Transformer is unnecessary", "attention is useless", or "as good as the Transformer" (M-AGENT-X is WORSE at 0.15);
+- m12 as better than T6-fs (both BETTER calls rest on ResNet-20 ×8 CIFAR-100; without it −0.01 and +0.04), or as the agent of record (no five-seed confirmation; Ido's decision);
+- m12 called the rule (it learns its own function of the rule's inputs);
+- m12's BEATS-PRIOR-POOL without the ResNet-20 ×8 CIFAR-100 column, without the FLOPs caption, or mixed with five-seed rows;
+- the 0.15 / 0.10 rows as inside the training range.
+
+Records: queue row M12; reader output `s04nov_m12_read.sh` (6 Nov 03:06); manifest `s04nov_m12_manifest.tsv`; manager `s04nov_m12_run.log`; gates `s04nov_m12_gate.txt` / `s04nov_m12_evgate.txt`; guard `s04nov_autoresub_m12.sh`; watcher `scripts/_tmp_s04nov_m12watch.sh`; next §427.
