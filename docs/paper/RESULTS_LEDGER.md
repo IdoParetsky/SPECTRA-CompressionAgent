@@ -10965,3 +10965,49 @@ Not claimed:
 - the 0.15 / 0.10 rows as inside the training range.
 
 Records: queue row M12; reader output `s04nov_m12_read.sh` (6 Nov 03:06); manifest `s04nov_m12_manifest.tsv`; manager `s04nov_m12_run.log`; gates `s04nov_m12_gate.txt` / `s04nov_m12_evgate.txt`; guard `s04nov_autoresub_m12.sh`; watcher `scripts/_tmp_s04nov_m12watch.sh`; next §427.
+
+## 427. (IMN, 2.08×): the frozen FLOPs agent of record (T4-F), floored sens_F and the even cut uniform_F on ImageNet ResNet-50 (torchvision `IMAGENET1K_V1`, 76.13 / 92.86) at FLOPs 0.48, each recovered by the counterparts' 90-epoch flow, with the unpruned origin control under the same recovery; seed 42, one run each — **TEST top-1 75.2 / 75.3 / 75.4 (top-5 92.4 / 92.6 / 92.6); agent − rule −0.1 and agent − even cut −0.2, AT both; honest −1.7 / −1.6 / −1.5, because the origin control itself gains +0.8 under the same 90 epochs. No call (one network, one seed). A ResNet-50 decision takes 44–107 GPU-minutes on one RTX 4090** — PRELIM (the 1.79× point is running)
+
+| Arm (FLOPs kept 0.48) | TEST top-1 | top-5 | raw Δ (pp) | honest Δ (pp) | val Δ against the origin control (pp) | FLOPs landed | params kept | decision (GPU-min) | recovery (GPU-h; node, img/s) | jobs (stop / resume) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| origin control (unpruned) | 76.9 | 93.3 | +0.8 | 0 | 0 | 1.000 | 1.000 | — | 20.8 (cs-4090-07, 1,526) | 23930334 / 23930347 |
+| **T4-F (agent)** | **75.2** | 92.4 | −0.9 | **−1.7** | −2.25 | 0.480 | 0.555 | 107 | 19.3 (ise-4090-01, 1,643) | 23930348 / 23930349 |
+| sens_F (rule) | 75.3 | 92.6 | −0.8 | −1.6 | −2.42 | 0.480 | 0.604 | 90 | 18.9 (ise-4090-21, 1,685) | 23930350 / 23930351 |
+| uniform_F (even cut) | 75.4 | 92.6 | −0.7 | −1.5 | −2.11 | 0.480 | 0.508 | 44 | 25.6 (ise-4090-18, 1,238) | 23930352 / 23930353 |
+
+- **Agent − rule:** TEST −0.1 (AT within ±0.3), top-5 −0.2, val +0.17. **Agent − even cut:** TEST −0.2 (AT), top-5 −0.2, val −0.14. Rule − even cut: TEST −0.1, val −0.31.
+- **Resolution.** The eval line prints top-1 to three decimals (`acc 0.761 -> 0.752`), so TEST reads to 0.1 pp: each value ±0.05, each difference ±0.1. Both contrasts stay inside ±0.3 at their worst (agent − even cut reaches −0.3 at the band's edge). The origin's TEST read printed 0.761 against torchvision's 76.13, inside the registered 0.001.
+- **Val** is 10,000 images held out of ImageNet's train split, which the original network trained on, so each arm's own val change is inflated (−8.6 to −8.9, and the origin control's −6.48 after its 90 epochs without those images); the column above subtracts the origin control's. Nothing was chosen on val or on TEST: each arm has one registered point.
+
+Registered 5 Nov 12:04 (queue row IMN) before any code, script or submit, on Gilad's GO via Ido (5 Nov): eval-only, the agent never trained on ImageNet; one run per arm and point, seed 42; "No call (one network, one seed): agent − rule and agent − even cut per point are reported, labelled AT within ±0.3 and ABOVE / BELOW beyond it, and set beside the published rows". Stated in advance: "level with the rule is the expected outcome (§418, §420)", and "a gap beside the published rows can come from recovery length".
+- *Arms and line.* T4-F (FINAL's FLOPs policy of seed 42, trained on 32-px CIFAR-10 and SVHN networks at FLOPs 0.35–0.85), floored sens_F and uniform_F on BENCH's FLOPs eval line (floored, grid-rounded, one cut, the budget and the fixed target in FLOPs) with `tree_v29`'s ImageNet line (`SPECTRA_VAL_FROM_TRAIN=10`, `SPECTRA_EVAL_TOP5=1`), run on `tree_v34` (`SPECTRA_IMN_FT=1`, `SPECTRA_EVAL_LEAN_WALK=1`, `SPECTRA_EVAL_FINAL_FT_SIZE_ONLY=1`; code `197789b`, `e3bb88a`).
+- *Recovery,* the counterparts' flow as DepGraph's repository runs it: 90 epochs, SGD with momentum 0.9, lr 0.01 ÷10 at epochs 30 and 60, weight decay 1e-4, batch 256, RandomResizedCrop(224) and flip, eval Resize(256) and CenterCrop(224), mixed precision, no gradient clipping, the last epoch kept; train JPEGs staged to the node (`pack-tv`, 1,606 img/s in the probe).
+- *Gate.* The two first smokes ran out of time inside the decision (5 Nov), which re-read TEST after every cut; the lean walk reads TEST only at the origin and at the landing point (no cut depends on the skipped reads). Each run was then split into a stop job (decision, 1,000 recovery steps, checkpoint) and a held resume. Stop-job gate read 5 Nov 20:10: 3 of 4 passed every check; uniform_F passed every correctness check and fell short only on speed (1,219 against the 1,285 bar, on a shared node); resumes released 20:13.
+- *Checks* (reader `s05nov_imn_read.py`, 7 Nov 05:05, on `tree_v34/runs/slurm_logs`): every job COMPLETED, none preempted; per cell the ON line and the agent's or rule's alloc line, no stall-fallback, no masked edit, no error line; every landing at 0.480 (registered ±0.011); each resume logged `[ckpt] resumed at epoch 0 step 1000` against its own stop job's saved decision; 90 epochs each.
+
+**Beside the published rows (not same-loop; never a beat).** Each paper ran its own pipeline from its own base; DepGraph adds 30 sparse-learning epochs to 90 of fine-tuning, and CHIP fine-tunes for 180 (`docs/paper/EFFICIENCY_AND_TRANSFER.md`, the recipe table).
+
+| Published row (FLOPs kept) | TEST top-1 |
+|---|---|
+| CHIP (0.513) | 76.15 |
+| OCSPruner (0.517, from its own 76.29 base) | 75.95 |
+| DepGraph (0.48) | 75.83 |
+| **ours: T4-F / sens_F / uniform_F (0.480)** | **75.2 / 75.3 / 75.4** |
+| LeGR (0.47) | 75.3 |
+| FPGM (0.465) | 74.83 |
+| GNN-RL (0.47; a per-target trained DRL pruner) | 74.28 |
+
+1. **On ImageNet, far outside its training networks, the frozen agent lands level with its rule and with the even cut**, as stated in advance. Its plan differs from both (params kept 0.555, against 0.604 and 0.508) and reaches the same accuracy. [H] At 2× on ResNet-50, allocation matters little in this loop: the rule and the even cut are 0.1 apart on TEST.
+2. **The honest change is −1.5 to −1.7 for every arm.** Ninety more epochs at lr 0.01 raise the unpruned network by +0.8 (76.1 → 76.9), so the raw change (−0.7 to −0.9) understates what pruning costs. The published rows are changes from their own bases, without such a control.
+3. **Beside the literature, the three same-loop arms (75.2–75.4) sit with LeGR's row, 0.4–1.0 below DepGraph's, OCSPruner's and CHIP's, with FPGM's and GNN-RL's lower.** [H] The gap to the top rows is recovery (DepGraph's sparse-learning stage, CHIP's 180 epochs), not allocation, since the even cut lands with the agent. Not tested.
+4. **A decision costs 44–107 GPU-minutes**: the even cut needs no sensitivity probes (its 44 minutes are set-up, the origin's reads and staging the train JPEGs), and the agent adds 17 minutes to the rule's 90. There is no per-target search and no agent training; per-target learned searches on ImageNet are published at 25 (EagleEye) to 864 GPU-hours (NetAdapt, by EagleEye's estimate; `docs/paper/EFFICIENCY_AND_TRANSFER.md` §4.1–4.2), on other GPUs. Recovery dominates: 19–26 GPU-hours on one RTX 4090.
+
+Not claimed:
+- "SPECTRA beats <method>" or "loses to <method>" on ImageNet; each published row is its own pipeline;
+- a call, or a shortfall from the agent's −0.1 / −0.2 (one network, one seed, inside ±0.3, at 0.1-pp resolution);
+- two-decimal TEST values for our rows (the eval line prints three decimals of a fraction; a full-precision re-read of the saved final models would be registered first);
+- the training rates as a property of an arm (each ran on a different node; uniform_F's node ran below the gate's speed bar);
+- the decision times beside the published search times as a same-hardware comparison;
+- any value from a probe, smoke or stop job.
+
+Records: queue row IMN; reader `scripts/_tmp_s05nov_imn_read.py` (deployed as `s05nov_imn_read.py`; output `_imn_read_07nov_0505.txt`); manifest `s05nov_imn_manifest.tsv`; logs `tree_v34/runs/slurm_logs/spectra_23930334–353.out`; saved final models `imn_cells/run-{origin-0,t4f-48,sensF-48,uniF-48}/recovery__*.pt`; watcher `scripts/_tmp_s06nov_imn_runwatch.sh`; next §428.
