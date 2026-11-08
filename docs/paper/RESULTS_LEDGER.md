@@ -11011,3 +11011,47 @@ Not claimed:
 - any value from a probe, smoke or stop job.
 
 Records: queue row IMN; reader `scripts/_tmp_s05nov_imn_read.py` (deployed as `s05nov_imn_read.py`; output `_imn_read_07nov_0505.txt`); manifest `s05nov_imn_manifest.tsv`; logs `tree_v34/runs/slurm_logs/spectra_23930334–353.out`; saved final models `imn_cells/run-{origin-0,t4f-48,sensF-48,uniF-48}/recovery__*.pt`; watcher `scripts/_tmp_s06nov_imn_runwatch.sh`; next §428.
+
+## 428. (IMN, 1.79×): the frozen FLOPs agent of record (T4-F), floored sens_F and the even cut uniform_F on ImageNet ResNet-50 at FLOPs 0.56, with §427's recovery, line and origin control; seed 42, one run each — **TEST top-1 75.7 / 75.9 / 75.7 (top-5 92.6 / 92.7 / 92.7); agent − rule −0.2 and agent − even cut 0.0, AT both; honest −1.2 / −1.0 / −1.2. No call (one network, one seed). At both published points (§427, §428) the frozen agent, which never trained on ImageNet, lands level with its rule and the even cut; a decision here takes 44–83 GPU-minutes** — PRELIM (Table 1c stays PRELIM until a full-precision re-read of the seven saved models, which would be registered first)
+
+| Arm (FLOPs kept 0.56) | TEST top-1 | top-5 | raw Δ (pp) | honest Δ (pp) | val Δ against the origin control (pp) | FLOPs landed | params kept | decision (GPU-min) | recovery (GPU-h; node, img/s) | job |
+|---|---|---|---|---|---|---|---|---|---|---|
+| origin control (unpruned; §427) | 76.9 | 93.3 | +0.8 | 0 | 0 | 1.000 | 1.000 | — | 20.8 (cs-4090-07, 1,526) | 23930334 / 23930347 |
+| **T4-F (agent)** | **75.7** | 92.6 | −0.4 | **−1.2** | −1.95 | 0.560 | 0.655 | 83 | 20.3 (ise-4090-07, 1,564) | 23930354 |
+| sens_F (rule) | 75.9 | 92.7 | −0.2 | −1.0 | −1.60 | 0.560 | 0.728 | 78 | 19.3 (ise-4090-07, 1,648) | 23930355 |
+| uniform_F (even cut) | 75.7 | 92.7 | −0.4 | −1.2 | −1.61 | 0.560 | 0.555 | 44 | 27.6 (cs-4090-04, 1,150) | 23930356 |
+
+- **Agent − rule:** TEST −0.2 (AT within ±0.3), top-5 −0.1, val −0.35. **Agent − even cut:** TEST 0.0 (AT), top-5 −0.1, val −0.34. Rule − even cut: TEST +0.2, val +0.01.
+- **Resolution** as in §427: TEST reads to 0.1 pp, each difference ±0.1. Agent − rule reaches −0.3 at its worst, the band's edge; agent − even cut stays inside.
+- **Val** as in §427: each arm's own val change (−8.1 to −8.4) is inflated by images the original network trained on; the column subtracts the origin control's −6.48. Nothing was chosen on val or on TEST.
+
+Registered with §427 (queue row IMN, 5 Nov 12:04): the same arms, line, recovery, seed and statement ("level with the rule is the expected outcome"; "No call (one network, one seed)").
+- *Runs.* One job per arm (decision, then the 90-epoch recovery), started on dependencies after the 2.08× stop-job gate passed (§427), at nice 0.
+- *Checks* (reader `s05nov_imn_read.py`, 8 Nov 10:52, on `tree_v34/runs/slurm_logs`): every job COMPLETED, none preempted; per cell the ON line and the agent's or rule's alloc line, no stall-fallback, no masked edit, no error line; every landing at 0.560 (registered ±0.011); 90 epochs each; a `final_ft size_flop0.56` TEST line per arm (02:54, 21:16, 10:17).
+
+**Beside the published rows at about 1.79× (not same-loop; never a beat).** Each paper ran its own pipeline from its own base (`docs/paper/EFFICIENCY_AND_TRANSFER.md`, the recipe table).
+
+| Published row (FLOPs kept) | TEST top-1 |
+|---|---|
+| CHIP (0.552) | 76.30 |
+| OCSPruner (0.570) | 76.00 |
+| **ours: T4-F / sens_F / uniform_F (0.560)** | **75.7 / 75.9 / 75.7** |
+| LeGR (0.58) | 75.7 |
+| FPGM (0.578) | 75.59 |
+| HRank (0.562) | 74.98 |
+
+1. **At 1.79× too, the frozen agent lands level with its rule (−0.2) and the even cut (0.0).** Across the two points it sits 0.1–0.2 below the rule on TEST, while val has it +0.17 (0.48) and −0.35 (0.56): no sign holds beyond the resolution, and two one-seed pairs make no trend. [H] On ResNet-50 at 1.8–2.1×, allocation matters little in this loop: the rule and the even cut differ by 0.1–0.2 at both points.
+2. **At equal FLOPs, the agent's network keeps 10 % fewer parameters than the rule's** (0.655 against 0.728; 8 % at 0.48, 0.555 against 0.604), at level TEST; the even cut keeps fewer still (0.555). Reported beside the budget, not claimed: the budget here is FLOPs.
+3. **Honest is −1.0 to −1.2**, against −1.5 to −1.7 at 0.48: each arm loses 0.3–0.6 pp less at 1.79× than at 2.08×.
+4. **Beside the literature, the three arms (75.7–75.9) sit with LeGR's 75.7 (at 0.58) and above FPGM's and HRank's, 0.1–0.6 below OCSPruner's and CHIP's**, a narrower gap than at 0.48 (0.4–1.0). [H] As in §427, the gap is more likely recovery than allocation. Not tested.
+5. **A decision takes 44–83 GPU-minutes** (the agent adds 5 to the rule's 78); across both points 44–107, with no per-target search and no agent training. Recovery dominates: 19–28 GPU-hours on one RTX 4090.
+
+Not claimed:
+- "SPECTRA beats <method>" or "loses to <method>" on ImageNet;
+- a call, a shortfall or a trend from the agent's −0.1 / −0.2 against the rule (one network, one seed, two points, inside ±0.3 at 0.1-pp resolution);
+- the parameter gap as a win (the budget is FLOPs, and the even cut keeps fewer);
+- two-decimal TEST values for our rows;
+- the training rates as a property of an arm (each ran on its own node);
+- any value from a probe, smoke or stop job.
+
+Records: queue row IMN; reader output `_imn_read_08nov_1100.txt`; logs `tree_v34/runs/slurm_logs/spectra_23930354–356.out`; saved final models `imn_cells/run-{t4f-56,sensF-56,uniF-56}/recovery__size_flop0.56.pt` (with §427's four, seven in all); watcher `scripts/_tmp_s06nov_imn_runwatch.sh`; next §429.
