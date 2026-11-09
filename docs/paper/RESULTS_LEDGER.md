@@ -11055,3 +11055,110 @@ Not claimed:
 - any value from a probe, smoke or stop job.
 
 Records: queue row IMN; reader output `_imn_read_08nov_1100.txt`; logs `tree_v34/runs/slurm_logs/spectra_23930354–356.out`; saved final models `imn_cells/run-{t4f-56,sensF-56,uniF-56}/recovery__size_flop0.56.pt` (with §427's four, seven in all); watcher `scripts/_tmp_s06nov_imn_runwatch.sh`; next §429.
+
+## 429. (HOC): the held-out params agent retrained on its catalog's five CIFAR-100 networks only (no SVHN, no Fashion-MNIST; hop's line otherwise exactly), 12,000 instances, seeds 42–44, read at params 0.45 and 0.25 on the nine pool nets and at DepGraph's three ResNet-56 params points — **dropping SVHN and Fashion-MNIST, and with them half the catalog, made the held-out params agent worse, not better: C100-MIX DROP-HURTS at 0.45 and 0.25 (−0.41, −0.85), C100-AGENT WORSE at both (−0.91, −1.55, against §420's −0.51 / −0.70) and C100-PRIOR BELOW-PRIOR-POOL at both (−0.59, −1.44). By the registered map the reading is partial: nothing here supports "the training mix caused §420's gap", and because the mix and the catalog size moved together, it cannot say which of them cost the agent. The agents of record keep their catalog**
+- **C100-MIX** (hoc − hop): 0.45 **−0.41 DROP-HURTS** (3 of 9 positive; [−0.91, +0.09]); 0.25 **−0.85 DROP-HURTS** (1 of 9; [−1.66, −0.18]).
+- **C100-AGENT** (hoc − T6-fs): 0.45 **−0.91 WORSE** (2 of 9; [−1.87, −0.12]); 0.25 **−1.55 WORSE** (2 of 9; [−3.45, +0.38]).
+- **C100-PRIOR** (hoc − sens_cost): 0.45 **−0.59 BELOW-PRIOR-POOL** (4 of 9; [−1.74, +0.49]); 0.25 **−1.44 BELOW-PRIOR-POOL** (2 of 9; [−3.22, +0.17]).
+- The ResNet-20 ×8 CIFAR-100 column, required beside every call: C100-MIX +0.03 / −1.81, C100-AGENT +0.10 / +2.93, C100-PRIOR +2.28 / +1.80. Without it the pool reads −0.46 / −0.73, −1.04 / −2.11 and −0.95 / −1.84.
+
+Registered 5 Nov 09:04 (queue row HOC) before any script or submit, under Ido's GO of 5 Nov ("You have my GO for c100 nets only training after the encoder confirmation"). It is the follow-up recommended in writing on 3–5 Nov (review page, decision 2; §420 reading 5). Stated in advance:
+1. The catalog halves from ten networks to five, because no other ready CIFAR-100 base network sits outside the held-out families. So dataset mix and catalog size move together, and this study cannot separate them.
+2. The reading map. C100-MIX DROP-HELPS with C100-AGENT SAME would say §420's params gap came from the training mix, not from withholding CIFAR-10 and the benchmarked families. C100-MIX DROP-SAME with C100-AGENT WORSE would say it did not come from the mix. Anything else is partial.
+3. ResNet-20 ×8 CIFAR-100 and VGG-19 CIFAR-100 are on the training dataset with architectures outside the catalog, as for hop.
+
+Train gate PASS 6 Nov 03:12; eval gate PASS 03:56 (DepGraph R56 at params 0.25, origin 0.934, landed 0.249, no fallback, no masked edit). Read 9 Nov 06:43 with `scripts/_tmp_s05nov_hoc_read.sh`, written and dry-run on 5 Nov before any HOC result (hop's own rows as hoc read every C100-MIX contrast as exactly 0).
+- *Agent.* hop's line exactly, which is T6-fs's train line: fs32 at proxy lr 0.01, policy lr 3e-4, κ 0.25–0.85, K 8, no advantage normalization, the v10 snapshot's standardizer and policy config. One change: the catalog is hop's five CIFAR-100 networks (`configs_hoc/database_holdout_c100.json`: WRN-16-4, WRN-28-2, PreAct-ResNet-20, DenseNet-40, MobileNetV2 ×1), so it still holds no CIFAR-10, no plain ResNet, no VGG and no PreAct-ResNet-56. Trained from scratch to 12,000 instances on `tree_v25`. Each agent is its train's `policy_latest.pt`, fixed at registration.
+- *Trains.* s42 **23939360**, s43 **23939361** and s44 **23939362**, each COMPLETED from 0 to 12,000 in one segment (1,547 / 1,531 / 1,527 min, about 8 s per instance; hop's took 1,628–1,660 min on ten networks). Compute only, never a result.
+- *Checks.*
+  - 63 of 63 eval cells COMPLETED (jobs 23966717–24002052). The guard resubmitted 15 PREEMPTED jobs unchanged. Science resubmitted one cell that the system cancelled at its start (queue row HOC, 8 Nov).
+  - Per log, latest job per cell: the deterministic ON line and the agent's `[alloc]` line on the quoted net; no stall-fallback line, no masked edit and no error line.
+  - Every landing within 0.011 of its target (none refused); no point missing.
+- *Measurement.* As §420: TEST 5k with val, 10k and honest (each job's own 100-epoch origin control).
+  - Paired by net and seed with hop (HOLDOUT's rows, §420), and with T6-fs and floored sens_cost at seeds 42–44 on the same deterministic line (FINAL's rows at 0.45 / 0.25, §406; LIT-C's DepGraph R56 params rows, §408).
+  - The pooled value is the mean over the nine nets of the per-net three-seed means; the interval is a 95 % bootstrap over nets.
+  - Bands: ≥ +0.3 with at least 6 of 9 positive; ≤ −0.3; between.
+- *FLOPs* (kept fraction, means over nets and seeds). hoc / hop / T6-fs / sens_cost: 0.45 0.515 / 0.551 / 0.630 / 0.589; 0.25 0.345 / 0.375 / 0.458 / 0.416. **FLOPs caption:** at equal params hoc keeps fewer FLOPs than every comparator. Pairs beyond 10 %:
+  - C100-MIX: 4 nets at 0.45, 6 at 0.25.
+  - C100-AGENT: 4 and 6 (thin r56-w4 ×0.70–0.71, r56-w8 ×0.51–0.55, r20-w8 C100 ×0.48–0.60, DepGraph R56 ×0.56–0.70).
+  - C100-PRIOR: 5 and 6.
+  - At DepGraph R56's params points hoc keeps 0.357 / 0.180 / 0.118, against T6-fs's 0.556 / 0.340 / 0.257.
+
+| contrast | params | TEST 5k [95 %] | val | 10k | honest | d > 0 | call | without r20-w8 C100 |
+|---|---|---|---|---|---|---|---|---|
+| C100-MIX: hoc − hop | 0.45 | **−0.41** [−0.91, +0.09] | −0.32 | −0.36 | −0.49 | 3 of 9 | **DROP-HURTS** | −0.46 |
+| | 0.25 | **−0.85** [−1.66, −0.18] | −0.68 | −0.76 | −0.79 | 1 of 9 | **DROP-HURTS** | −0.73 |
+| C100-AGENT: hoc − T6-fs | 0.45 | **−0.91** [−1.87, −0.12] | −0.99 | −0.95 | −0.94 | 2 of 9 | **WORSE** | −1.04 |
+| | 0.25 | **−1.55** [−3.45, +0.38] | −1.37 | −1.46 | −1.52 | 2 of 9 | **WORSE** | −2.11 |
+| C100-PRIOR: hoc − sens_cost | 0.45 | **−0.59** [−1.74, +0.49] | −0.69 | −0.64 | −0.52 | 4 of 9 | **BELOW-PRIOR-POOL** | −0.95 |
+| | 0.25 | **−1.44** [−3.22, +0.17] | −1.26 | −1.35 | −1.35 | 2 of 9 | **BELOW-PRIOR-POOL** | −1.84 |
+| reported: hop − T6-fs (§420's contrast, these seeds) | 0.45 | −0.51 [−1.29, −0.00] | −0.67 | −0.59 | −0.46 | 2 of 9 | — | −0.58 |
+| | 0.25 | −0.70 [−2.82, +1.26] | −0.69 | −0.70 | −0.74 | 3 of 9 | — | −1.38 |
+| reported: T6-fs − sens_cost (the comparators' own contrast, these seeds) | 0.45 | +0.32 [−0.06, +0.87] | +0.30 | +0.31 | +0.43 | 6 of 9 | — | +0.09 |
+| | 0.25 | +0.11 [−0.50, +0.54] | +0.11 | +0.11 | +0.17 | 7 of 9 | — | +0.27 |
+
+DepGraph R56 params points (reported, one network, seeds 42–44; TEST 5k with val / 10k / honest):
+
+| point | hoc − hop | hoc − T6-fs | hoc − sens_cost | hoc − T6-fs per seed (42 / 43 / 44) | FLOPs kept, hoc / T6-fs |
+|---|---|---|---|---|---|
+| params 0.38 | −1.73 (−1.99 / −1.86 / −1.57) | −2.09 (−2.26 / −2.17 / −2.01) | −2.04 (−1.95 / −2.00 / −2.04) | −0.24 / −0.68 / −5.34 | 0.357 / 0.556 |
+| params 0.18 | −3.41 (−3.30 / −3.35 / −3.39) | −3.65 (−4.07 / −3.86 / −3.82) | −3.91 (−3.85 / −3.88 / −3.97) | +0.18 / −3.82 / −7.32 | 0.180 / 0.340 |
+| params 0.125 | −3.17 (−3.55 / −3.36 / −2.81) | −4.41 (−4.30 / −4.35 / −3.93) | −4.55 (−4.31 / −4.43 / −4.47) | −0.84 / −3.68 / −8.70 | 0.118 / 0.257 |
+
+Per net, TEST 5k, three-seed means (per-seed values, 42 / 43 / 44, where one seed decides):
+
+| net | C100-MIX 0.45 | 0.25 | C100-AGENT 0.45 | 0.25 | C100-PRIOR 0.45 | 0.25 |
+|---|---|---|---|---|---|---|
+| thin r56-w4 | −0.94 (−1.92 / −2.22 / +1.32) | −0.02 (−1.06 / −1.38 / +2.38) | **−3.83** | **−6.92** (−5.30 / −4.54 / −10.92) | **−4.13** | **−6.82** |
+| chenyaofo R56 | −0.09 | −0.09 | −0.05 | −0.41 | +0.19 | −0.04 |
+| r56-w8 | −0.77 | −1.44 | −1.95 | −3.59 | −1.44 | −3.06 |
+| MobileNetV2 ×1.4 | −0.18 | −0.38 | −0.21 | −0.02 | −0.11 | +0.73 |
+| DenseNet-100 | +0.25 | −0.49 | +0.25 | −0.28 | +0.15 | −0.27 |
+| r20-w8 C100 | +0.03 (+0.10 / +1.92 / −1.94) | −1.81 (−3.20 / +0.32 / −2.56) | +0.10 | **+2.93** (−2.08 / +7.80 / +3.06) | **+2.28** | +1.80 |
+| VGG-19 C100 | −1.06 | −1.17 | −1.28 | −2.59 | −1.14 | −2.17 |
+| VGG-16 | +0.17 | +0.35 | −0.08 | +0.03 | +0.05 | −0.07 |
+| DepGraph R56 | −1.09 (+0.00 / −0.32 / −2.94) | −2.58 (−0.08 / −1.68 / −5.98) | −1.17 | −3.10 (−0.34 / −2.76 / −6.20) | −1.20 | −3.05 |
+
+Per seed (reported, not a call; pooled, seeds 42 / 43 / 44):
+- C100-MIX: −0.37 / −0.07 / −0.78 at 0.45; −0.86 / −0.33 / −1.36 at 0.25.
+- C100-AGENT: −0.61 / −0.45 / −1.68; −1.41 / −0.49 / −2.76.
+- C100-PRIOR: −0.22 / −0.35 / −1.21; −1.16 / −0.53 / −2.62.
+
+Every pooled seed is negative in every call.
+
+Reading:
+1. **Dropping SVHN and Fashion-MNIST made the held-out params agent worse, not better.**
+   - C100-MIX is DROP-HURTS at both budgets: −0.41 at 0.45 (6 of 9 nets negative) and −0.85 at 0.25 (8 of 9 negative, [−1.66, −0.18]). Every pooled seed is negative, and val, 10k and honest agree.
+   - Against the agent of record the gap widens from §420's −0.51 / −0.70 to −0.91 / −1.55 (WORSE at both).
+   - Against the rule it is BELOW at both budgets (−0.59, −1.44); hop was AT the rule at 0.45.
+2. **By the registered map the reading is partial.**
+   - The row would have read "the gap came from the mix" only for DROP-HELPS with SAME, and "the gap did not come from the mix" for DROP-SAME with WORSE. DROP-HURTS with WORSE goes further than the second: the five SVHN and Fashion-MNIST networks the retrain lost were worth something to this agent.
+   - Because the catalog halved with the mix (stated in advance), this cannot say whether the loss came from fewer datasets or from fewer networks.
+   - What it does settle: §420's caveat, that a weaker training signal from SVHN and Fashion-MNIST explains the gap as well as weaker transfer does, loses its simplest form, because removing them did not close the gap.
+3. **The losses sit on the networks where the retrained agent cuts the most compute.**
+   - At equal params hoc keeps fewer FLOPs than every comparator: 0.515 against hop's 0.551 and T6-fs's 0.630 at 0.45, and 0.345 against 0.375 and 0.458 at 0.25. Keeping fewer FLOPs at equal params means taking more from the high-resolution layers.
+   - The gap against T6-fs is largest on the three ResNet-56 variants, where hoc keeps 29–49 % fewer FLOPs: thin r56-w4 −3.83 / −6.92, r56-w8 −1.95 / −3.59, DepGraph R56 −1.17 / −3.10.
+   - VGG-19 CIFAR-100, on the training dataset but outside the catalog's families, also loses (−1.28 / −2.59).
+   - The only positive column is ResNet-20 ×8 CIFAR-100 (+0.10 / +2.93 against T6-fs, +2.28 / +1.80 against the rule). There the comparators are themselves weak: the rule at 0.45 (T6-fs reads +2.18 above it on these seeds) and T6-fs at 0.25 (hop reads +4.74 above it; compare §426 reading 1). No call rests on it.
+4. **At DepGraph's ResNet-56 params points (reported, one network) the retrained agent is 1.7 to 4.6 points below every comparator.**
+   - It keeps 36–54 % fewer FLOPs than T6-fs.
+   - Seed 44 reads −5.34 / −7.32 / −8.70 against T6-fs and seed 43 −0.68 / −3.82 / −3.68, while seed 42 is within a point.
+   - So it sits lower against DepGraph's published rows than the agents of record do (§408).
+5. [H] **A one-dataset catalog may help only when that dataset is the evaluation's.** Not tested.
+   - D9 (§415: the 32-step line at 6,000 instances) found three to five CIFAR-10 networks level with ten at 45 %, and one dataset better than three at 25 %. Here five networks on one dataset are below ten on three at both depths.
+   - D9's single dataset was CIFAR-10, the dataset of seven of the nine pool nets. HOC's is CIFAR-100, the dataset of two of them.
+   - The lines and the training lengths also differ.
+6. [D] **The agents of record keep their catalog, and §420 stays the held-out record.**
+   - The CIFAR-100-only agent is not adopted, and nothing more runs under HOC.
+   - The held-out params gap stays open. It is not the mix in the sense the row asked, and this study cannot separate the mix from catalog size.
+   - [H] For the proposed transfer program (review page, item 1; not registered), this argues for a broad set of training networks in any held-out catalog, not a cleaner, smaller one.
+
+Not claimed:
+- "transfer is proven", or "the held-out params gap is transfer" (the map reads partial; the mix and the catalog size moved together);
+- "SVHN and Fashion-MNIST caused the gap" (C100-MIX is DROP-HURTS, not DROP-HELPS);
+- "SVHN and Fashion-MNIST help the agent", or "a larger catalog helps", on its own (the mix and the catalog size are not claimed apart);
+- the ResNet-20 ×8 CIFAR-100 column as a gain of the retrained agent (no call rests on it);
+- these three-seed rows mixed with five-seed rows in one call;
+- a point, seed or snapshot chosen after TEST (each train's `policy_latest.pt`, fixed at registration).
+
+Records: queue row HOC; reader `scripts/_tmp_s05nov_hoc_read.sh`, output `_hoc_read_09nov_0643.txt`; manifest `s05nov_hoc_manifest.tsv`; manager `s05nov_hoc_run.log`; gates `s05nov_hoc_gate.txt` / `s05nov_hoc_evgate.txt`; guard `s05nov_autoresub_hoc.sh` (log `_autoresub_05nov_hoc.log`); train logs `tree_v25/runs/slurm_logs/spectra_23939360–362.out`; watcher `scripts/_tmp_s13oct_watch2.sh`; next §430.
