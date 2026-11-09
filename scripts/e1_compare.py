@@ -13,8 +13,8 @@ Exit 0 and a last line ``E1-COMPARE: 0 differences`` when every compared item is
    paths are masked (``MASKS``); the fixed whitelist ``DROP_LINES`` (environment, host, timing tables, heartbeat,
    start / finish stamps, warnings and every ``[e1]`` line) is removed from both sides. What is left must be equal,
    line for line: every Step, ``Accuracy:`` / ``Average Loss:``, TRAJ, final-FT and fine-tune epoch line.
-2. RUN RECORDS (``--runA`` / ``--runB``). ``events/rank0.jsonl`` is read at full float precision; the records of kinds
-   ``RECORD_KINDS`` are compared in file order, kind by kind, with every timing field removed (``is_timing_key``).
+2. RUN RECORDS (``--runA`` / ``--runB``). ``events/rank0.jsonl`` is read at full float precision; the records of every
+   kind but ``RECORD_SKIP`` are compared in file order, kind by kind, with every timing field removed (``is_timing_key``).
    ``results/*.csv`` are compared cell by cell without the ``evaluation_time`` column.
 """
 
@@ -40,6 +40,14 @@ MASKS = [
     (re.compile(r"\bjob[0-9]+(_[0-9]{8}-[0-9]{6})?"), "job<ID>"),             # job ids and run ids
     (re.compile(r"\blocal_[0-9]{8}-[0-9]{6}"), "local_<STAMP>"),
     (re.compile(r"\bSLURM_JOB_ID=[0-9]+"), "SLURM_JOB_ID=<ID>"),
+    # The submit script's `date` line ("Fri 16 Oct 2026 14:01:21 IDT") and the run name's start stamp
+    # ("..._seed_42_16-10-2026 14-01-27"): the two clock values the first gate (9 Nov) found unmasked.
+    (re.compile(r"^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) [ 0-9A-Za-z]*[0-9]{2}:[0-9]{2}:[0-9]{2}[ 0-9A-Za-z]*$"), "<DATE>"),
+    (re.compile(r"_[0-9]{2}-[0-9]{2}-[0-9]{4} [0-9]{2}-[0-9]{2}-[0-9]{2}\b"), "_<STAMP>"),
+    # The summary's counts row (episodes | steps | evaluations | prune actions | issues | events): "events" counts
+    # every recorder event, one per stage timer included, and E1 skips timers by design (the state encoding). The
+    # other five counts stay compared, and every record kind but the stage timers is compared under [records].
+    (re.compile(r"^(\| [0-9]+ \| [0-9]+ \| [0-9]+ \| [0-9]+ \| [0-9]+ \| )[0-9]+ \|$"), r"\1<EVENTS> |"),
 ]
 
 TIMESTAMP = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3} \| ")
@@ -52,9 +60,10 @@ TIMESTAMP = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\
 # difference. Tested against the raw line AND against the line with its timestamp prefix stripped.
 DROP_LINES = [
     r"\[heartbeat\]",                                  # liveness ticks (time, memory)
-    r"^\s*\|",                                         # every markdown table row of the closing summary: the stage table
-                                                       #   (`| stage | n | total (min) |`), the overview (`| started |`,
-                                                       #   `| duration |`, `| host |`), `seconds / step`, evaluation rows
+    r"^\| (run id|host|slurm job|git commit|torch|gpus|started|duration) \|",   # the summary overview's environment
+                                                       #   and clock rows; its counts, mode, compression-rate and
+                                                       #   network rows (accuracy, params x, FLOPs x) stay compared
+    r"^\| `[^`]+` \|",                                 # the stage-timing table's rows (`| `step.evaluate` | n | min |`)
     r"^\s*\|?---",                                     # a table's separator row
     r"^# SPECTRA run summary",                         # the summary's title carries the run directory's name
     r"seconds / step",
@@ -78,8 +87,10 @@ DROP_RE = [re.compile(pattern) for pattern in DROP_LINES]
 
 # ------------------------------------------------------------------------------------------------ run records
 
-# Record kinds compared (the ``event`` field of ``events/rank0.jsonl``), in the order they are reported.
-RECORD_KINDS = ("alloc_plan", "step", "eval_traj_summary", "eval_traj_final_ft")
+# Record kinds compared (the ``event`` field of ``events/rank0.jsonl``): every kind either run wrote, in sorted
+# order, except RECORD_SKIP: the stage timers (one per timed call, and E1 skips timed calls by design) and the run's
+# start and end stamps (environment, flags, totals). E1's own code writes no records.
+RECORD_SKIP = ("stage", "run_start", "run_end")
 
 # A field is a timing field, dropped from every compared record (nested ones too), when its name equals one of
 # TIMING_EXACT or contains one of TIMING_PARTS. "ts" is an exact match: as a part it would also hit ``points``.
@@ -190,7 +201,7 @@ def first_field_difference(a, b, path=""):
 def read_records(run_dir):
     """``{kind: [record without timing fields]}`` from ``events/rank0.jsonl``, in file order."""
     path = os.path.join(run_dir, "events", "rank0.jsonl")
-    out = {kind: [] for kind in RECORD_KINDS}
+    out = {}
     with open(path, "r", encoding="utf-8") as handle:
         for number, line in enumerate(handle, 1):
             line = line.strip()
@@ -200,8 +211,9 @@ def read_records(run_dir):
                 record = json.loads(line)
             except ValueError:
                 raise ValueError(f"{path}:{number} is not valid JSON")
-            if record.get("event") in out:
-                out[record["event"]].append(strip_timing(record))
+            kind = record.get("event")
+            if kind not in RECORD_SKIP:
+                out.setdefault(str(kind), []).append(strip_timing(record))
     return out
 
 
@@ -212,8 +224,8 @@ def compare_records(run_a, run_b):
         records_a, records_b = read_records(run_a), read_records(run_b)
     except (OSError, ValueError) as error:
         return 1, [f"cannot read the run records: {error}"], []
-    for kind in RECORD_KINDS:
-        a_list, b_list = records_a[kind], records_b[kind]
+    for kind in sorted(set(records_a) | set(records_b)):
+        a_list, b_list = records_a.get(kind, []), records_b.get(kind, [])
         bad = abs(len(a_list) - len(b_list))
         if len(a_list) != len(b_list) and len(shown) < MAX_SHOWN:
             shown.append(f"{kind}: {len(a_list)} records in A, {len(b_list)} in B")
