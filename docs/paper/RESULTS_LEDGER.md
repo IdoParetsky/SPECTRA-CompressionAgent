@@ -11162,3 +11162,70 @@ Not claimed:
 - a point, seed or snapshot chosen after TEST (each train's `policy_latest.pt`, fixed at registration).
 
 Records: queue row HOC; reader `scripts/_tmp_s05nov_hoc_read.sh`, output `_hoc_read_09nov_0643.txt`; manifest `s05nov_hoc_manifest.tsv`; manager `s05nov_hoc_run.log`; gates `s05nov_hoc_gate.txt` / `s05nov_hoc_evgate.txt`; guard `s05nov_autoresub_hoc.sh` (log `_autoresub_05nov_hoc.log`); train logs `tree_v25/runs/slurm_logs/spectra_23939360–362.out`; watcher `scripts/_tmp_s13oct_watch2.sh`; next §430.
+
+## 430. (IMN-FP): §427–§428's eight ImageNet ResNet-50 networks re-read per image at full precision (evaluation only: no training, no arm, no point) — **all eight REPRODUCE their logged values, so Table 1c moves to two decimals. TEST top-1 for agent / rule / even cut: 75.24 / 75.33 / 75.42 at 2.08× (FLOPs 0.48) and 75.73 / 75.89 / 75.66 at 1.79× (0.56), against the unpruned control's 76.90 under the same 90 epochs. Honest: −1.66 / −1.57 / −1.48 and −1.17 / −1.01 / −1.24. Every same-loop difference's 95 % paired interval contains 0 on TEST and on val: agent − rule −0.08 [−0.34, +0.17] and −0.16 [−0.41, +0.09]; agent − even cut −0.18 [−0.44, +0.09] and +0.06 [−0.20, +0.32]. These intervals measure the TEST set's sampling only, not seed-to-seed variance, so there is no call (one network, one seed). PRELIM: Table 1c locks only on Ido's word**
+
+Registered 8 Nov 11:03 (queue row IMN-FP) before any code, script or submit, under Ido's standing GO for the recommended option (recommended in writing on 7 Nov, in §427's not-claimed list and the pinned table). Fixed in advance:
+- **The check, before any value is used:** each network's TEST top-1 within 0.0006 of its logged three-decimal value, and each recovered network's val change from the original within 0.02 pp of its logged two-decimal value. A network that fails is NOT-REPRODUCED, and none of its values replaces the ledger's.
+- **The report, with no call:** per point, agent − rule, agent − even cut and rule − even cut on TEST and on val, each with its paired counts, an exact two-sided McNemar p-value and a 95 % paired interval; honest = arm − control.
+
+Records of the run:
+- *Code.* `scripts/imn_fullprec_read.py` and `tests/test_imn_fullprec.py` (new, read only; `84595f8`). The 6 unit tests passed on the login node. Deployed to `tree_v34` as two new files, nothing else changed.
+- *Job.* **24001809**, one RTX 4090 (ise-4090-15), 9 Nov 06:45:58–07:05:47 (19 min 49 s), COMPLETED with exit 0. It had waited 19.5 h pending, and ran after an order-only re-nice (queue row IMN-FP).
+- *Read.*
+  - Each recovered network was rebuilt strictly from its epoch-90 checkpoint (the saved arch and weights; the epoch and the recipe checked at load).
+  - TEST = the official 50,000-image val. Val = the runs' 10,000 held-out train images (split seed 0; 1,270,681 train images).
+  - The runs' eval transform and numerics: mixed precision, channels_last weights, deterministic algorithms ON, batch 250.
+  - Per image: top-1 and top-5 correctness and the top-1 prediction.
+- *Check: ALL REPRODUCED.*
+  - TEST top-1, full precision against logged: original 0.76122 / 0.761, control 0.76900 / 0.769. At 0.48: 0.75244 / 0.752, 0.75328 / 0.753, 0.75420 / 0.754. At 0.56: 0.75726 / 0.757, 0.75886 / 0.759, 0.75662 / 0.757. The largest gap is 0.00038, under 0.0006.
+  - Val change from the original, against logged: control −6.49 / −6.48. At 0.48: −8.74 / −8.73, −8.91 / −8.90, −8.60 / −8.59. At 0.56: −8.44 / −8.43, −8.10 / −8.08, −8.10 / −8.09.
+  - Every re-read sits one or two val images (0.01–0.02 pp) below its log; the rule at 0.56 sits at the tolerance's edge (0.020). [H] The common offset is one image in the original's val read. Not tested.
+  - The original reads 76.12 / 92.86 under mixed precision, against torchvision's published 76.13 / 92.86.
+- *A coincidence, checked.* At 0.56 the rule and the even cut read the same val counts (top-1 7,956 and top-5 9,414 of 10,000). Their per-image results still differ on 844 images (top-1) and 318 (top-5), and their predictions on 1,356, so the two reads are distinct. Their logged val changes were already 0.01 apart (−8.08, −8.09).
+- *Val of the original.* torchvision trained the original on the whole train split, held-out images included, so its val (87.66) is on images it trained on. Val changes are read against the control, which never saw them.
+
+| FLOPs kept | arm | TEST top-1 | top-5 | honest Δ [95 %] | raw Δ (− original) [95 %] | val top-1 | val Δ vs control | params kept |
+|---|---|---|---|---|---|---|---|---|
+| 1.00 | original (torchvision `IMAGENET1K_V1`) | 76.12 | 92.86 | — | — | 87.66 | — | 1.000 |
+| 1.00 | unpruned control (90 epochs) | 76.90 | 93.32 | 0 | +0.78 [+0.52, +1.04] | 81.17 | 0 | 1.000 |
+| 0.48 | agent (T4-F) | 75.24 | 92.39 | −1.66 [−1.93, −1.38] | −0.88 [−1.15, −0.61] | 78.92 | −2.25 | 0.555 |
+| 0.48 | rule (floored sens_F) | 75.33 | 92.57 | −1.57 [−1.84, −1.31] | −0.79 [−1.06, −0.52] | 78.75 | −2.42 | 0.604 |
+| 0.48 | even cut (uniform_F) | 75.42 | 92.59 | −1.48 [−1.75, −1.21] | −0.70 [−0.97, −0.44] | 79.06 | −2.11 | 0.508 |
+| 0.56 | agent (T4-F) | 75.73 | 92.61 | −1.17 [−1.43, −0.91] | −0.40 [−0.66, −0.13] | 79.22 | −1.95 | 0.655 |
+| 0.56 | rule (floored sens_F) | 75.89 | 92.70 | −1.01 [−1.27, −0.76] | −0.24 [−0.50, +0.03] | 79.56 | −1.61 | 0.728 |
+| 0.56 | even cut (uniform_F) | 75.66 | 92.75 | −1.24 [−1.50, −0.97] | −0.46 [−0.72, −0.20] | 79.56 | −1.61 | 0.555 |
+
+Same-loop pairs (a − b, pp; "only a / only b" = the images only one of the two gets right; exact two-sided McNemar p; 95 % paired interval over the images, not over seeds):
+
+| FLOPs kept | pair | TEST Δ [95 %] | only a / only b | p | val Δ [95 %] | only a / only b | p |
+|---|---|---|---|---|---|---|---|
+| 0.48 | agent − rule | −0.08 [−0.34, +0.17] | 2,089 / 2,131 | 0.53 | +0.17 [−0.38, +0.72] | 398 / 381 | 0.57 |
+| 0.48 | agent − even cut | −0.18 [−0.44, +0.09] | 2,248 / 2,336 | 0.20 | −0.14 [−0.71, +0.43] | 419 / 433 | 0.66 |
+| 0.48 | rule − even cut | −0.09 [−0.35, +0.17] | 2,206 / 2,252 | 0.50 | −0.31 [−0.87, +0.25] | 399 / 430 | 0.30 |
+| 0.56 | agent − rule | −0.16 [−0.41, +0.09] | 1,976 / 2,056 | 0.21 | −0.34 [−0.88, +0.20] | 356 / 390 | 0.23 |
+| 0.56 | agent − even cut | +0.06 [−0.20, +0.32] | 2,210 / 2,178 | 0.64 | −0.34 [−0.91, +0.23] | 408 / 442 | 0.26 |
+| 0.56 | rule − even cut | +0.22 [−0.04, +0.49] | 2,288 / 2,176 | 0.097 | +0.00 [−0.57, +0.57] | 422 / 422 | 1.00 |
+
+Reading:
+1. **The one-decimal rows of §427–§428 stand.** Every network reproduces its logged value. At two decimals each arm sits where §427–§428 put it (75.2 / 75.3 / 75.4 and 75.7 / 75.9 / 75.7). The agent's contrasts read −0.08 and −0.18 at 2.08× (§427: −0.1, −0.2) and −0.16 and +0.06 at 1.79× (§428: −0.2, 0.0).
+2. **Each same-loop difference lies inside the spread of the TEST set's own sampling.**
+   - The agent's four contrasts run from −0.18 to +0.06 on TEST, and every 95 % paired interval (about ±0.26) contains 0.
+   - On val (10,000 images; intervals about ±0.55) every interval contains 0 too, and agent − rule at 2.08× changes sign between the two splits (−0.08 on TEST, +0.17 on val).
+   - The largest of the six pairs is the rule over the even cut at 1.79× (+0.22 [−0.04, +0.49] on TEST; +0.00 on val).
+   - This measures only which 50,000 images were drawn. A second recovery seed would add its own spread, which is unknown on ImageNet, so "no call (one network, one seed)" stands.
+3. **Pruning costs about a point and a half at 2.08× and about one point at 1.79×, by the honest measure.**
+   - Honest is −1.48 to −1.66 at 2.08× and −1.01 to −1.24 at 1.79×, and each honest interval (about ±0.27) excludes 0.
+   - The raw changes are smaller, because the control gains +0.78 [+0.52, +1.04] from the same 90 epochs. At 1.79× the rule's raw interval contains 0 (−0.24 [−0.50, +0.03]).
+4. **Beside the published rows** (their own pipelines and bases; never a beat), as Table 1c lists them.
+   - At 0.48 the three arms (75.24–75.42) sit with LeGR's 75.3. They are 0.41–0.59 below DepGraph's 75.83, 0.53–0.71 below OCSPruner's 75.95 and 0.73–0.91 below CHIP's 76.15, and above FPGM's 74.83 and GNN-RL's 74.28.
+   - At 0.56 (75.66–75.89) they sit with LeGR's 75.7. They are 0.11–0.34 below OCSPruner's 76.00 and 0.41–0.64 below CHIP's 76.30, and above FPGM's 75.59 and HRank's 74.98.
+5. [D] **Table 1c moves to two decimals with the intervals beside it, as registered.** It stays PRELIM and locks only on Ido's word. Nothing more runs under IMN-FP.
+
+Not claimed:
+- a call, "significant", "beats" or "loses to" from the paired test (the TEST set's sampling only; one network, one seed);
+- the paired interval as the seed-to-seed spread;
+- the rule's +0.22 over the even cut at 1.79× as a difference (its interval contains 0, and val reads +0.00);
+- any arm, point or quoted value chosen on TEST or val (the arms and points are §427–§428's, fixed in advance).
+
+Records: queue row IMN-FP; job 24001809, log `imn_fp/s08-imnfp-read_24001809.out`; output `imn_fp/out/summary.md` and `summary.json`, per-image `*__test.npz` / `*__val.npz`, `targets__test.npy` / `targets__val.npy`; code `scripts/imn_fullprec_read.py` and `tests/test_imn_fullprec.py` (`84595f8`); deploy and submit `scripts/_tmp_s08nov_imnfp_*`; watcher `scripts/_tmp_s06nov_imn_runwatch.sh`; next §431.
