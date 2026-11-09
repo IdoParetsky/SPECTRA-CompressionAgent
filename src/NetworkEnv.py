@@ -5,8 +5,10 @@ import logging
 import os
 import time
 import gc
+import weakref
 import torch
 from torch import nn
+from torch.utils.data import BatchSampler, DataLoader, SequentialSampler
 
 import src.channel_groups as channel_groups
 import src.distributed as ddp
@@ -50,6 +52,54 @@ def reward_compression_rate(prune_outcome, compression_rate, params_before, para
             and (new_acc - original_acc) * 100.0 >= -float(tau)):
         return 1.0
     return compression_rate
+
+
+def _memo_fingerprint(model):
+    """
+    ``SPECTRA_EVAL_IDENTITY_MEMO``: what identifies a model's current weights. ``(name, data_ptr, shape,
+    dtype, _version)`` of every ``state_dict(keep_vars=True)`` tensor, plus ``model.training``. An in-place
+    edit or a BN-stat update moves ``_version``; a move, a channels_last cast or a prune moves ``data_ptr``
+    or ``shape``. About 1 ms on a ResNet-56.
+    """
+    entries = []
+    for name, value in model.state_dict(keep_vars=True).items():
+        if torch.is_tensor(value):
+            entries.append((name, value.data_ptr(), tuple(value.shape), value.dtype, value._version))
+        else:
+            entries.append((name, type(value).__name__))
+    return tuple(entries), bool(model.training)
+
+
+def _memo_plain_sequential(loader) -> bool:
+    """True for a DataLoader that walks its dataset in order: a SequentialSampler under the default BatchSampler."""
+    return (isinstance(loader, DataLoader)
+            and type(loader.sampler) is SequentialSampler
+            and type(loader.batch_sampler) is BatchSampler
+            and loader.batch_sampler.sampler is loader.sampler)
+
+
+def _memo_loader_key(loader):
+    """The loader whose batches a read goes through: a ``HostCachedEvalLoader`` replays its inner loader's."""
+    return loader.inner if isinstance(loader, utils.HostCachedEvalLoader) else loader
+
+
+def _memo_loader_draws(loader):
+    """
+    ``None`` when a read of ``loader`` cannot be skipped without changing what it would do; else
+    ``(n, generator)``: the number of draws a new iterator over it makes from ``generator`` (``None`` = the
+    global CPU generator). torch 2.4.1's ``_BaseDataLoaderIter.__init__`` makes exactly one
+    (``torch.empty((), dtype=torch.int64).random_(generator=loader.generator)``) for every new iterator;
+    a persistent multi-worker loader reuses its iterator through ``_reset``, which draws nothing.
+    """
+    inner = _memo_loader_key(loader)
+    if not _memo_plain_sequential(inner):
+        return None
+    if inner.persistent_workers and inner.num_workers > 0:
+        # Only once its iterator exists: the first iter() builds it, and that one draws.
+        return (0, None) if getattr(inner, "_iterator", None) is not None else None
+    if inner is not loader:
+        return None  # a cached wrapper only ever holds a persistent multi-worker loader
+    return 1, inner.generator
 
 
 class NetworkEnv:
@@ -180,6 +230,58 @@ class NetworkEnv:
         self._sens_cache = {}
         self._target_rng = np.random.default_rng([int(self.conf.seed), ddp.get_rank(), 10])
         self._reset_episode_reward_stats()
+        # E1 (default-off flags, runner summary reads the counters): the identity-step val memo and the
+        # skipped next-state encoding. See _val_memo_store / _val_memo_read and skip_state_encoding.
+        self._val_memo = None
+        self._memo_hits = 0
+        self._memo_identity_steps = 0
+        self._state_skips = 0
+
+    def _val_memo_enabled(self) -> bool:
+        """``SPECTRA_EVAL_IDENTITY_MEMO`` in an eval walk (never in ``AGENT_TRAIN``)."""
+        return self.mode != AGENT_TRAIN and fortify.eval_identity_memo()
+
+    def _val_memo_store(self, handler) -> None:
+        """
+        Remember the val read ``handler`` just made, with what identifies the model it read (weakref and
+        fingerprint, taken after the read because ``evaluate_model`` may move the weights to channels_last),
+        the loader object and the AMP / channels_last env state. Not stored for a loader whose read cannot
+        be skipped exactly (``_memo_loader_draws``).
+        """
+        if not self._val_memo_enabled():
+            return
+        self._val_memo = None
+        last = getattr(handler, "last_eval", None)
+        if last is None or _memo_loader_draws(self.val_loader) is None:
+            return
+        model = handler.model
+        self._val_memo = {
+            "ref": weakref.ref(model), "fingerprint": _memo_fingerprint(model),
+            "loader": _memo_loader_key(self.val_loader),
+            "env": (utils.env_flag("SPECTRA_AMP"), utils.env_flag("SPECTRA_CHANNELS_LAST")),
+            "result": (last[0], last[1])}
+
+    def _val_memo_read(self, model):
+        """
+        ``(accuracy, avg_loss)`` of ``model``'s last val read when nothing it depends on has changed, else
+        ``None``. On a hit, burns the draws a real read's new iterator would make, so the RNG stream is as
+        if the read had happened.
+        """
+        memo = getattr(self, "_val_memo", None)
+        if memo is None or memo["ref"]() is not model:
+            return None
+        if memo["loader"] is not _memo_loader_key(self.val_loader):
+            return None
+        if memo["env"] != (utils.env_flag("SPECTRA_AMP"), utils.env_flag("SPECTRA_CHANNELS_LAST")):
+            return None
+        if memo["fingerprint"] != _memo_fingerprint(model):
+            return None
+        draws = _memo_loader_draws(self.val_loader)
+        if draws is None:
+            return None
+        for _ in range(draws[0]):
+            torch.empty((), dtype=torch.int64).random_(generator=draws[1])
+        return memo["result"]
 
     def _reset_episode_reward_stats(self):
         self.episode_rho_sum = 0.0
@@ -330,6 +432,8 @@ class NetworkEnv:
         self.last_step_outcome = {"mode": "identity"}
         self.last_step_layer_idx = None
         self._reset_episode_reward_stats()
+        self._val_memo = None
+        self._memo_hits = self._memo_identity_steps = self._state_skips = 0
 
         # If a specific network is requested, use it directly (evaluation / cross-validation).
         # Previously all three arguments had to be supplied for this branch to be taken, so a
@@ -401,6 +505,7 @@ class NetworkEnv:
         learning_handler_original_model = self.create_learning_handler(self.current_model)
         with logging_utils.stage("reset.baseline_accuracy"):
             self.original_acc = learning_handler_original_model.evaluate_model(self.val_loader)
+        self._val_memo_store(learning_handler_original_model)
         self.last_val_acc = float(self.original_acc)
         self._target_prev_acc = float(self.original_acc)
         self._origin_test_acc = None
@@ -659,6 +764,7 @@ class NetworkEnv:
         self.current_model = snapshot["model"]
         self.last_val_acc = float(snapshot["val_acc"])
         self._ratio_cache = {}
+        self._val_memo = None
         locked = getattr(self, "_rollback_locked_layers", None)
         if locked is None:
             locked = self._rollback_locked_layers = set()
@@ -940,7 +1046,20 @@ class NetworkEnv:
         # Evaluate the compressed model
         learning_handler_new_model.model.eval()
         with logging_utils.stage("step.evaluate", level=logging.DEBUG):
-            new_acc = learning_handler_new_model.evaluate_model(self.val_loader)
+            memo_read = None
+            if compression_rate == 1 and self._val_memo_enabled():
+                # E1 (SPECTRA_EVAL_IDENTITY_MEMO): an identity step leaves the model as the last val read
+                # saw it, so reuse that read; the two lines are those evaluate_model prints.
+                self._memo_identity_steps = getattr(self, "_memo_identity_steps", 0) + 1
+                memo_read = self._val_memo_read(learning_handler_new_model.model)
+            if memo_read is not None:
+                new_acc, memo_loss = memo_read
+                utils.print_flush(f"Accuracy: {new_acc:.3f}")
+                utils.print_flush(f"Average Loss: {memo_loss:.3f}")
+                self._memo_hits = getattr(self, "_memo_hits", 0) + 1
+            else:
+                new_acc = learning_handler_new_model.evaluate_model(self.val_loader)
+                self._val_memo_store(learning_handler_new_model)
         self.last_val_acc = float(new_acc)
 
         # Realized size before reward: CNN group edits ≠ nominal (1-rate).
@@ -1040,22 +1159,28 @@ class NetworkEnv:
         # just changed (activation refresh); encode_idx is the layer about to be pruned
         # when SPECTRA_STATE_ALIGN=next.
         with logging_utils.stage("step.feature_extraction", level=logging.DEBUG):
-            kept = utils.calc_num_parameters(self.current_model) / max(self.original_params, 1e-9)
-            total_steps = max(1, num_rows * int(self.conf.passes))
-            extras = [fortify.accuracy_slack(delta_pp, tau),
-                      min(1.0, num_actions / total_steps)]
-            # NEON "feature-maps update" (P8, SPECTRA_REFRESH_ALL_FEATURES): after a non-identity
-            # step every layer's activation moments are re-extracted — the edit changed the
-            # input of every downstream layer, not only the edited row's span.
-            refresh = None if (fortify.refresh_all_features() and compression_rate != 1) else update_indices
-            target_extras = (fortify.target_channels(target_kept if target_metric == "flop" else kept, self.target_keep)
-                             if self.target_keep is not None else None)
-            fm = self.feature_extractor.encode_to_bert_input(
-                model_with_rows, encode_idx, refresh,
-                dependency_groups=self._dependency_groups(model_with_rows),
-                param_ratio=min(1.0, max(0.0, kept)), extras=extras,
-                episode_cuts=self.episode_group_cuts(),
-                target_extras=target_extras, layer_sens=self._layer_sens)
+            if getattr(self, "skip_state_encoding", False):
+                # E1 (SPECTRA_EVAL_SKIP_STATE): the runner sets this only for a non-actor EVAL_TEST walk
+                # whose policy never reads the state (and whose importance draws no RNG in the encoding).
+                self._state_skips = getattr(self, "_state_skips", 0) + 1
+                fm = None
+            else:
+                kept = utils.calc_num_parameters(self.current_model) / max(self.original_params, 1e-9)
+                total_steps = max(1, num_rows * int(self.conf.passes))
+                extras = [fortify.accuracy_slack(delta_pp, tau),
+                          min(1.0, num_actions / total_steps)]
+                # NEON "feature-maps update" (P8, SPECTRA_REFRESH_ALL_FEATURES): after a non-identity
+                # step every layer's activation moments are re-extracted — the edit changed the
+                # input of every downstream layer, not only the edited row's span.
+                refresh = None if (fortify.refresh_all_features() and compression_rate != 1) else update_indices
+                target_extras = (fortify.target_channels(target_kept if target_metric == "flop" else kept, self.target_keep)
+                                 if self.target_keep is not None else None)
+                fm = self.feature_extractor.encode_to_bert_input(
+                    model_with_rows, encode_idx, refresh,
+                    dependency_groups=self._dependency_groups(model_with_rows),
+                    param_ratio=min(1.0, max(0.0, kept)), extras=extras,
+                    episode_cuts=self.episode_group_cuts(),
+                    target_extras=target_extras, layer_sens=self._layer_sens)
 
         step_timer.__exit__(None, None, None)
         # One record per transition: enough to reconstruct the trajectory, the policy's

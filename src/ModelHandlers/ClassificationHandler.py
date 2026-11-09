@@ -176,8 +176,10 @@ class ClassificationHandler(BasicHandler):
                 n_batches += 1
 
         accuracy = (correct / total) if total else 0.0
+        avg_loss = (total_loss / n_batches) if n_batches else 0.0
         utils.print_flush(f"Accuracy: {accuracy:.3f}")
-        utils.print_flush(f"Average Loss: {(total_loss / n_batches) if n_batches else 0.0:.3f}")
+        utils.print_flush(f"Average Loss: {avg_loss:.3f}")
+        self.last_eval = (accuracy, avg_loss)  # E1 identity memo reads this; nothing else does
         return accuracy
 
     def train_model(self, train_loader, allow_reinit_retry=True, max_epochs=None, patience=None,

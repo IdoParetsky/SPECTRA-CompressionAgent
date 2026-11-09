@@ -1710,6 +1710,43 @@ def eval_lean_walk() -> bool:
     return _flag("SPECTRA_EVAL_LEAN_WALK")
 
 
+def eval_identity_memo() -> bool:
+    """``SPECTRA_EVAL_IDENTITY_MEMO=1`` (E1, default off): in an eval walk (not ``AGENT_TRAIN``), an identity
+    step (rate 1) reuses the last val read of the same, unchanged model and prints the same two lines instead
+    of reading val again. It applies only while a weakref and a fingerprint of every state_dict tensor
+    (data_ptr, shape, dtype, version) and ``.training`` show the same model, with the same loader and the same
+    AMP / channels_last. Cleared at reset and rollback. For a non-persistent loader it burns the one seed draw
+    a new iterator would have made, so the RNG stream is unchanged. Output identical by construction."""
+    return _flag("SPECTRA_EVAL_IDENTITY_MEMO")
+
+
+def eval_skip_state() -> bool:
+    """``SPECTRA_EVAL_SKIP_STATE=1`` (E1, default off): in a non-actor ``EVAL_TEST`` walk, ``NetworkEnv.step``
+    skips the per-step next-state encoding (the plan policy never reads it). The runner turns it off whenever
+    the filter importance is random, whose generator the encoding advances."""
+    return _flag("SPECTRA_EVAL_SKIP_STATE")
+
+
+def eval_cache_reads() -> bool:
+    """``SPECTRA_EVAL_CACHE_READS=1`` (E1, default off): in an ``EVAL_TEST`` walk the runner wraps the val and
+    test loaders in ``utils.HostCachedEvalLoader``, which replays the same batches from host memory after the
+    first complete pass. Refused (with a logged reason) for a non-persistent loader or one above
+    ``SPECTRA_EVAL_CACHE_READS_MB``. The original loaders are restored before the final fine-tune."""
+    return _flag("SPECTRA_EVAL_CACHE_READS")
+
+
+def eval_cache_reads_mb() -> int:
+    """``SPECTRA_EVAL_CACHE_READS_MB`` (E1, default 1024): the byte cap, in MB, per split for the cached reads."""
+    return max(0, _env_int_or("SPECTRA_EVAL_CACHE_READS_MB", 1024))
+
+
+def eval_e1_diag() -> bool:
+    """``SPECTRA_EVAL_E1_DIAG=1`` (E1, default off, read-only): log ``[e1] diag`` lines with the sha256 of each
+    final-FT candidate's state_dict and of the CPU / CUDA RNG states before the recovery, and of the recovered
+    state_dict after it. Hashing alters no state and draws no RNG."""
+    return _flag("SPECTRA_EVAL_E1_DIAG")
+
+
 def trajectory_release_floor(at_budget: bool, actor_idx: int, guarded_idx: int) -> bool:
     """True when trajectory Phase A should record the hold and enter Phase B."""
     if at_budget:

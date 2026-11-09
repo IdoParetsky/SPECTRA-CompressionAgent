@@ -1,5 +1,6 @@
 import contextlib
 import copy
+import hashlib
 import os
 import sys
 import numpy as np
@@ -146,6 +147,82 @@ _FINAL_FT_ENV_KEYS = ("SPECTRA_FT_OPTIM", "SPECTRA_FT_SGD_LR", "SPECTRA_FT_MOMEN
                       "SPECTRA_FT_LABEL_SMOOTH", "SPECTRA_FT_KD")
 
 
+def _e1_flags_on(fortify_mod):
+    """True when any E1 flag (``SPECTRA_EVAL_IDENTITY_MEMO`` / ``_SKIP_STATE`` / ``_CACHE_READS`` / ``_E1_DIAG``) is set."""
+    return bool(fortify_mod.eval_identity_memo() or fortify_mod.eval_skip_state()
+                or fortify_mod.eval_cache_reads() or fortify_mod.eval_e1_diag())
+
+
+def _e1_skip_state(fortify_mod, mode, eval_policy):
+    """
+    ``SPECTRA_EVAL_SKIP_STATE`` (E1): whether ``NetworkEnv.step`` may skip encoding the next state. Only the actor reads
+    it, so a non-actor ``EVAL_TEST`` walk may; not under random filter importance, whose process-wide generator the
+    encoding's action costs advance.
+    """
+    import src.pruning as pruning_mod
+    return bool(fortify_mod.eval_skip_state() and mode == EVAL_TEST and eval_policy != "actor"
+                and pruning_mod.filter_importance_mode() != "random")
+
+
+def _e1_state_hash(model):
+    """
+    ``SPECTRA_EVAL_E1_DIAG``: sha256 over a state_dict's key names, shapes, dtypes and tensor bytes, in key order.
+    Each tensor is read on the CPU through a contiguous detached view; the model itself is not altered and no
+    RNG is drawn.
+    """
+    digest = hashlib.sha256()
+    for key, value in model.state_dict().items():
+        digest.update(str(key).encode())
+        if torch.is_tensor(value):
+            digest.update(str(tuple(value.shape)).encode())
+            digest.update(str(value.dtype).encode())
+            flat = value.detach().cpu().contiguous().reshape(-1)
+            if flat.numel():
+                digest.update(flat.view(torch.uint8).numpy().tobytes())
+        else:
+            digest.update(repr(value).encode())
+    return digest.hexdigest()
+
+
+def _e1_rng_hashes():
+    """``(cpu, cuda)`` sha256 of ``torch.get_rng_state()`` and ``torch.cuda.get_rng_state_all()`` (``"none"`` without CUDA)."""
+    cpu = hashlib.sha256(torch.get_rng_state().numpy().tobytes()).hexdigest()
+    if not torch.cuda.is_available():
+        return cpu, "none"
+    digest = hashlib.sha256()
+    for state in torch.cuda.get_rng_state_all():
+        digest.update(state.numpy().tobytes())
+    return cpu, digest.hexdigest()
+
+
+def _e1_wrap_eval_loaders(env, fortify_mod):
+    """
+    ``SPECTRA_EVAL_CACHE_READS`` (E1): replace ``env.val_loader`` / ``env.test_loader`` by
+    ``utils.HostCachedEvalLoader`` wrappers where ``utils.wrap_eval_loader_cached`` allows, log one ``[e1] cache`` line
+    and return the originals for :func:`_e1_restore_eval_loaders`.
+    """
+    held = {"val": env.val_loader, "test": env.test_loader}
+    cap = fortify_mod.eval_cache_reads_mb()
+    env.val_loader, val_reason = utils.wrap_eval_loader_cached(env.val_loader, cap)
+    env.test_loader, test_reason = utils.wrap_eval_loader_cached(env.test_loader, cap)
+    utils.print_flush(f"[e1] cache val={'on' if val_reason is None else 'refused: ' + val_reason} "
+                      f"test={'on' if test_reason is None else 'refused: ' + test_reason}")
+    return held
+
+
+def _e1_restore_eval_loaders(env, held):
+    """Put the original val / test loaders back (checked with ``is``). ``held`` is the dict of the wrap, or ``None``."""
+    if not held:
+        return
+    for key in ("val", "test"):
+        current = getattr(env, f"{key}_loader")
+        inner = current.inner if isinstance(current, utils.HostCachedEvalLoader) else current
+        assert inner is held[key], f"E1 cache: env.{key}_loader is not the loader that was wrapped"
+        setattr(env, f"{key}_loader", held[key])
+        assert getattr(env, f"{key}_loader") is held[key]
+    held.clear()  # restored: a second call (the finally) is a no-op
+
+
 def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=False, final_stem=None):
     """
     Fine-tune a copy of one candidate with the fixed final recipe; print and record TEST/val.
@@ -196,6 +273,8 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+    if fortify_mod.eval_e1_diag():  # E1: read-only, the recovered state_dict
+        utils.print_flush(f"[e1] diag post {label} sd={_e1_state_hash(model)}")
     handler = env.create_learning_handler(model)
     test_acc = float(handler.evaluate_model(env.test_loader))
     val_acc = float(handler.evaluate_model(env.val_loader))
@@ -605,6 +684,10 @@ def _run_final_ft(env, net_path, picked, candidates, epochs):
         for from_scratch in inits:
             tag = f"{label}+scratch" if from_scratch else label
             try:
+                if fortify_mod.eval_e1_diag():  # E1: read-only, before the recovery touches anything
+                    cpu_rng, cuda_rng = _e1_rng_hashes()
+                    utils.print_flush(f"[e1] diag pre {tag} sd={_e1_state_hash(cand['model'])} "
+                                      f"cpu_rng={cpu_rng} cuda_rng={cuda_rng}")
                 _final_ft(env, net_path, tag, cand, epochs, save_dir=save_dir, scratch=from_scratch,
                           **({"final_stem": final_stems[label]} if label in final_stems else {}))
             except Exception as error:  # noqa: BLE001 - one candidate must not cost the others
@@ -853,6 +936,7 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
 
         # One failing network must not abort the whole evaluation sweep: the remaining
         # networks still produce results, and the failure is recorded for triage.
+        e1_held = None  # SPECTRA_EVAL_CACHE_READS: the original val / test loaders while wrapped
         try:
             with logging_utils.context(net=os.path.basename(net_path), phase=mode):
                 # Reset environment with test model instead of selecting from train_dict
@@ -864,6 +948,10 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 from src import fortify as fortify_mod
                 eval_policy = fortify_mod.eval_policy_name()
                 traj = fortify_mod.eval_trajectory_enabled()
+                # E1 (SPECTRA_EVAL_SKIP_STATE, default off): the plan policy never reads the next state, so step()
+                # skips encoding it; not for the actor, and not under random importance, whose generator the
+                # encoding advances.
+                env.skip_state_encoding = _e1_skip_state(fortify_mod, mode, eval_policy)
                 if model_idx == 0:
                     utils.print_flush(
                         f"[eval] policy={eval_policy} det={int(fortify_mod.eval_deterministic())} "
@@ -947,6 +1035,8 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                 if traj and mode == EVAL_TEST and fortify_mod.eval_lean_walk() and proxy_targets:
                     raise ValueError("SPECTRA_EVAL_LEAN_WALK does not support SPECTRA_EVAL_PROXY_FIDELITY")
                 proxy_done = set()
+                if mode == EVAL_TEST and fortify_mod.eval_cache_reads():
+                    e1_held = _e1_wrap_eval_loaders(env, fortify_mod)  # restored before the final fine-tune
                 if traj and mode == EVAL_TEST:
                     test_new, test_orig, _ = env.score_test_loader()
                     last_test = (test_new, test_orig)
@@ -1079,6 +1169,13 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                             done = True
                     step_i += 1
                     state = next_state
+                if _e1_flags_on(fortify_mod):
+                    utils.print_flush(
+                        f"[e1] flags memo={int(fortify_mod.eval_identity_memo())} "
+                        f"skip_state={int(fortify_mod.eval_skip_state())} "
+                        f"cache={int(fortify_mod.eval_cache_reads())} diag={int(fortify_mod.eval_e1_diag())}; "
+                        f"memo hits {getattr(env, '_memo_hits', 0)} of {getattr(env, '_memo_identity_steps', 0)} "
+                        f"identity steps; state encodings skipped {getattr(env, '_state_skips', 0)}")
                 if traj and mode == EVAL_TEST:
                     picked = fortify_mod.select_trajectory_points(
                         traj_points,
@@ -1100,12 +1197,18 @@ def evaluate_model(mode, agent, train_dict=None, test_dict=None, fold_idx="N/A")
                         size_points=sized or None,
                         points=traj_points)
                     if keep_models:
+                        _e1_restore_eval_loaders(env, e1_held)  # the recovery and its reads use the original loaders
                         _run_final_ft(env, net_path, picked, candidates, final_ft_epochs)
                         candidates.clear()
         except Exception as error:
             logging_utils.exception(f"Evaluation of {net_path} failed; continuing with the rest")
             run_recorder.issue("eval_network_failed", f"{type(error).__name__}: {error}",
                                network=net_path, eval_mode=mode)
+        finally:
+            try:
+                _e1_restore_eval_loaders(env, e1_held)
+            except AssertionError:
+                logging_utils.exception("E1 cache: restoring the original loaders failed")
 
 
 def main():

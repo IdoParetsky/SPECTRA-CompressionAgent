@@ -1378,6 +1378,84 @@ class GpuCropFlipLoader:
             yield (x - self._m) / self._s, self._y[idx]
 
 
+class HostCachedEvalLoader:
+    """
+    ``SPECTRA_EVAL_CACHE_READS=1`` (E1): replay an evaluation loader's batches from host memory.
+
+    The first *complete* pass iterates the wrapped DataLoader and keeps the ``(x, y)`` batches exactly as
+    it yielded them (no clone, no transform, same order and partition); every later pass replays them, so
+    a read costs the model only. A partial pass (an iterator that is dropped before it is exhausted, such
+    as ``get_input_shape``'s ``next(iter(...))``) goes through to the wrapped loader and fills nothing.
+    The cache is committed only when the wrapped iterator raises ``StopIteration``. ``len``, ``batch_size``,
+    ``dataset`` and every other attribute are delegated to the wrapped loader. Use only for deterministic
+    evaluation loaders (``shuffle=False``, no random transform); build it with ``wrap_eval_loader_cached``.
+    """
+
+    def __init__(self, inner):
+        self.inner = inner
+        self._batches = None
+
+    def __len__(self):
+        return len(self.inner)
+
+    def __getattr__(self, name):
+        # Only called for names not found normally; the guard keeps copy / pickle from recursing.
+        if name in ("inner", "_batches"):
+            raise AttributeError(name)
+        return getattr(self.inner, name)
+
+    def __iter__(self):
+        if self._batches is not None:
+            return iter(self._batches)
+        return self._first_pass()
+
+    def _first_pass(self):
+        seen = []
+        for batch in self.inner:
+            seen.append(batch)
+            yield batch
+        # Reached only when the wrapped iterator was exhausted: an abandoned pass never gets here.
+        if self._batches is None:
+            self._batches = seen
+
+
+def _tensor_bytes(item) -> int:
+    """Bytes of the tensors in one dataset item (tensors, and tuples / lists / dicts of them); numbers count 8."""
+    if torch.is_tensor(item):
+        return int(item.numel()) * int(item.element_size())
+    if isinstance(item, dict):
+        return sum(_tensor_bytes(v) for v in item.values())
+    if isinstance(item, (list, tuple)):
+        return sum(_tensor_bytes(v) for v in item)
+    if isinstance(item, (int, float, bool, np.generic)):
+        return 8
+    return 0
+
+
+def wrap_eval_loader_cached(loader, cap_mb):
+    """
+    ``(loader_or_wrapper, reason)`` for ``SPECTRA_EVAL_CACHE_READS``. ``reason`` is ``None`` when ``loader``
+    is wrapped in a ``HostCachedEvalLoader``; otherwise ``loader`` is returned unchanged with the reason it
+    was refused: not a DataLoader, not a persistent multi-worker one (its draws would change), or a dataset
+    whose estimated bytes (the first item's tensor bytes x ``len(dataset)``) exceed ``cap_mb``.
+    """
+    if not isinstance(loader, DataLoader):
+        return loader, "not a DataLoader"
+    if not (loader.persistent_workers and loader.num_workers > 0):
+        return loader, "not a persistent multi-worker loader"
+    try:
+        size = len(loader.dataset)
+        # A fork keeps a dataset transform that draws from the global generator from moving the stream.
+        with torch.random.fork_rng(devices=[]):
+            per_item = _tensor_bytes(loader.dataset[0])
+    except Exception as error:
+        return loader, f"size not estimable ({type(error).__name__})"
+    estimate = per_item * size
+    if estimate > int(cap_mb) * 1024 * 1024:
+        return loader, f"about {estimate / 1024 / 1024:.0f} MB over the {int(cap_mb)} MB cap"
+    return HostCachedEvalLoader(loader), None
+
+
 def load_cnn_dataset(spec, train_split: float, val_split: float):
     """
     Loads a standard or custom dataset, splitting it into train, validation, and test sets.
