@@ -11229,3 +11229,124 @@ Not claimed:
 - any arm, point or quoted value chosen on TEST or val (the arms and points are §427–§428's, fixed in advance).
 
 Records: queue row IMN-FP; job 24001809, log `imn_fp/s08-imnfp-read_24001809.out`; output `imn_fp/out/summary.md` and `summary.json`, per-image `*__test.npz` / `*__val.npz`, `targets__test.npy` / `targets__val.npy`; code `scripts/imn_fullprec_read.py` and `tests/test_imn_fullprec.py` (`84595f8`); deploy and submit `scripts/_tmp_s08nov_imnfp_*`; watcher `scripts/_tmp_s06nov_imn_runwatch.sh`; next §431.
+
+## 431. (FB-BENCH): the val-picked safety net (§409's design: ft1 decides on the val half, margin 0) at BENCH's six harder points (§418), two-way (the frozen FLOPs agent T4-F against floored sens_F, FB2) and three-way (with the even cut uniform_F as a third candidate, FB3), seeds 42–46 — **every outcome stated in advance holds. ResNet-18 Tiny-ImageNet's BELOW-PRIOR becomes AT (FB2 − rule −0.47, from §418's −0.74). On VGG-16-BN Tiny-ImageNet the three-way pick takes the even cut in all ten cells, so NET3-EVEN is AT-EVEN at both points (0.00) and NET3-RULE is BEATS-PRIOR at both (+0.83 at FLOPs 0.62, +2.25 at 0.48), with the two-way BEATS-PRIOR at 0.48 kept (+1.26). At VGG-19 C100 FLOPs 0.112 no pick recovers the loss, and the three-way pick reads BELOW-PRIOR (−0.62, negative on 4 of 5 seeds). Pooled over the 30 cells: FB2 − rule −0.05 [−0.44, +0.34], FB3 − rule +0.35 [−0.05, +0.78], FB3 − agent +0.51 [+0.21, +0.80]. Neither FB2 nor FB3 is the agent's row; the three-way BEATS-PRIOR is the even cut's row, found by validation**
+
+Registered 5 Nov 12:04 (queue row FB-BENCH; amended 12:07, 12:33 and 12:50, each before any cell ran), recommended in writing on 5 Nov and settled at the 5 Nov meeting: Gilad holds that the junctures where the agent is no better than the rule matter and must be explained, so the safety net is kept. Eval-only, no agent train. Fixed in advance:
+- **Calls** (TEST 5k, paired by seed, per point; BENCH's bands, §418: at least +0.3 with at least 4 of 5 seeds positive, or at most −0.3 with at least 4 of 5 negative): NET2-RULE FB2 − sens_F and NET3-RULE FB3 − sens_F (BEATS / AT / BELOW-PRIOR); NET3-EVEN FB3 − uniform_F at the two VGG-16-BN Tiny-ImageNet points (ABOVE / AT / BELOW-EVEN).
+- **Stated in advance:** ResNet-18 Tiny-ImageNet's BELOW-PRIOR expected to become AT; on VGG-16-BN Tiny-ImageNet FB3 expected AT-EVEN at both points with the 0.48 BEATS-PRIOR kept; at VGG-19 C100 0.112 all three arms lose alike, so no pick recovers that loss (recovery, not allocation).
+
+Records of the run:
+- *Code.* `tree_v32` (built 5 Nov 12:32; `SPECTRA_ALLOC_FALLBACK_PRIOR` takes a list, default off), FINAL's FLOPs eval line exactly; priors `sens,uniform` (the kinds that reproduce BENCH's sens_F and uniform_F rows). Each cell also logs JUDGE's proxies (ft1x3, rc2, rc5, with val cross-entropy); ft1 still decides.
+- *Gate.* CPU tests on the login node (one pytest per file), then 2 smokes (23939341–342: ResNet-18 Tiny-ImageNet 0.48 and VGG-19 C100 0.112, three-way): every start-check line present, FLOPs landed 0.479 / 0.112, origins 0.654 / 0.740; GATE PASS 6 Nov 03:46.
+- *Jobs.* Stage P: 30 one-epoch pick cells, newest jobs 23939751–24019610 (6 preempted and resubmitted unchanged by the guard), run 8 Nov 11:25 – 9 Nov 14:40, 6.1 GPU-h. Stage E: seed 42 in full at the six points, 23939785–790, 8 Nov 22:42 – 9 Nov 03:41, 8.6 GPU-h. All 36 COMPLETED.
+- *Read* 9 Nov 14:43 (`s05nov_fbb_read.sh`, blob `83ed2cf`, dry-run 5 Nov before any result). BENCH's finals read 90 of 90; record-vs-log disagreements 0; no cell refused for landing.
+- *Stage E: 6 of 6 EXACT.* At each point the walked three-way pick's TEST 5k and val equal the picked arm's BENCH row to the last digit (|diff| 0.0000 / 0.0000), and each equals the stage-P pick of the same cell. So every FB2 / FB3 row below reuses BENCH's final rows of the picked arm, as registered.
+
+| point | FLOPs | two-way picks (agent / rule) | FB2 − sens_F, TEST 5k (seeds 42 / 43 / 44 / 45 / 46) | val / 10k / honest | NET2-RULE | three-way picks (agent / rule / even) | FB3 − sens_F, TEST 5k (seeds) | val / 10k / honest | NET3-RULE | NET3-EVEN | §418 agent − rule (call) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| VGG-19 C100 | 0.112 | 4 / 1 | −0.68 (+0.00 / +0.48 / +0.12 / −1.14 / −2.86) | −0.12 / −0.40 / −0.74 | AT-PRIOR | 2 / 0 / 3 | **−0.62** (−0.22 / +0.48 / −1.50 / −1.14 / −0.72) | −0.03 / −0.32 / −0.56 | **BELOW-PRIOR** | — | −0.82 (AT) |
+| VGG-19 C100 | 0.50 | 2 / 3 | +0.02 (+0.00 / −0.18 / +0.00 / +0.28 / +0.00) | −0.25 / −0.12 / −0.02 | AT-PRIOR | 2 / 3 / 0 | +0.02 (the same picks) | −0.25 / −0.12 / −0.02 | AT-PRIOR | — | −0.25 (AT) |
+| ResNet-56 C100 | 0.48 | 4 / 1 | +0.09 (−0.42 / +0.00 / +0.80 / −0.02 / +0.08) | −0.04 / +0.02 / +0.19 | AT-PRIOR | 4 / 1 / 0 | +0.09 (the same picks) | −0.04 / +0.02 / +0.19 | AT-PRIOR | — | +0.08 (AT) |
+| VGG-16-BN Tiny-ImageNet | 0.62 | 5 / 0 | −0.51 (−0.14 / −0.70 / +0.10 / +0.02 / −1.84) | −0.06 / −0.29 / −0.37 | AT-PRIOR | 0 / 0 / 5 | **+0.83** (+0.94 / +0.44 / +1.86 / +0.92 / −0.02) | +0.58 / +0.71 / +0.87 | **BEATS-PRIOR** | AT-EVEN (0.00) | −0.51 (AT) |
+| VGG-16-BN Tiny-ImageNet | 0.48 | 5 / 0 | **+1.26** (−1.54 / +1.88 / +2.26 / +2.00 / +1.72) | +0.32 / +0.79 / +1.39 | **BEATS-PRIOR** | 0 / 0 / 5 | **+2.25** (+0.40 / +2.68 / +3.12 / +1.96 / +3.08) | +1.76 / +2.01 / +2.28 | **BEATS-PRIOR** | AT-EVEN (0.00) | +1.26 (BEATS) |
+| ResNet-18 Tiny-ImageNet | 0.48 | 3 / 2 | −0.47 (+0.00 / +0.00 / −0.34 / −1.12 / −0.88) | −0.26 / −0.37 / −0.28 | **AT-PRIOR** | 3 / 2 / 0 | −0.47 (the same picks) | −0.26 / −0.37 / −0.28 | AT-PRIOR | — | −0.74 (BELOW) |
+
+Against the agent alone (TEST 5k, mean over seeds), FB2 − T4-F: +0.14 / +0.27 / +0.01 / 0.00 / 0.00 / +0.27; FB3 − T4-F: +0.20 / +0.27 / +0.01 / +1.34 / +0.98 / +0.27 (point order as in the table). At VGG-19 C100 0.112, FB3 − T4-F per seed is +0.46 / 0.00 / −1.62 / 0.00 / +2.14.
+
+Pooled over the 30 cells (BENCH's six points × 5 seeds; 95 % bootstrap over cells; reported, not a call):
+
+| contrast | TEST 5k [95 %] | positive / negative | val / 10k / honest |
+|---|---|---|---|
+| FB2 − sens_F | −0.05 [−0.44, +0.34] | 11 / 12 | −0.07 / −0.06 / +0.03 |
+| FB3 − sens_F | +0.35 [−0.05, +0.78] | 13 / 11 | +0.29 / +0.32 / +0.41 |
+| FB2 − T4-F | +0.11 [+0.00, +0.26] | 5 / 2 | |
+| FB3 − T4-F | +0.51 [+0.21, +0.80] | 15 / 4 | |
+| FB3 − uniform_F (VGG-16-BN Tiny-ImageNet only, n = 10) | 0.00 [0.00, 0.00] | 0 / 0 | |
+
+Agreement of the pick with the TEST-best candidate (a diagnostic only, never a choice; ties of the best excluded): FB2 16 of 30 (per point 3, 3, 3, 2, 4, 1 of 5), FB3 16 of 30 (1, 3, 3, 4, 4, 1).
+
+Reading:
+1. **The safety net turns the agent's one BELOW at the harder points into AT**, as stated in advance. On ResNet-18 Tiny-ImageNet it picks the rule on seeds 42 and 43, catching the agent's worst seed (−1.46 → 0.00) at a cost of 0.12 on seed 43, and keeps the agent on seeds 44–46 (−0.34, −1.12, −0.88). So it halves the loss (−0.74 → −0.47) without closing it: the one-epoch judge found the TEST-best plan on 1 of 5 seeds there.
+2. **Given the even cut as a third candidate, validation finds it wherever it is best.** On VGG-16-BN Tiny-ImageNet, where the even cut is above the rule and the agent at both points (§418), the three-way pick chose it in all ten cells. FB3 therefore equals the even cut exactly (AT-EVEN, 0.00), is above the rule (BEATS-PRIOR, +0.83 and +2.25) and above the agent (+1.34, +0.98). These rows are the even cut's: the BEATS-PRIOR is §418's lever (rule − even cut −0.83, −2.25) recovered by a pick made on val, not an allocation the agent learned.
+3. **Where the even cut is worst, the three-way pick can still take it.** At VGG-19 C100 FLOPs 0.112 (below the agent's training range; even cut −7.52, rule −6.53 from the origin, §418) it chose the even cut on seeds 42, 44 and 46, and FB3 reads BELOW-PRIOR (−0.62, 4 of 5 negative). The two-way pick stays AT-PRIOR there (−0.68; it kept the agent's −2.86 at seed 46). FB3 is still +0.20 above the agent alone (seed 46 +2.14, seed 44 −1.62). As stated in advance, every arm loses about 7 points at 8.9×, so this point is decided by recovery, not by the pick.
+4. **Elsewhere the safety net is at the rule**: VGG-19 C100 0.50 (+0.02) and ResNet-56 C100 0.48 (+0.09), where the agent alone was already AT. Pooled, the two-way net is level with the rule (−0.05 [−0.44, +0.34]) and slightly above the agent alone (+0.11 [+0.00, +0.26]); the three-way net is +0.35 [−0.05, +0.78] against the rule and +0.51 [+0.21, +0.80] against the agent, most of it the even cut on VGG-16-BN Tiny-ImageNet.
+5. **The one-epoch judge picks the TEST-best candidate in 16 of 30 cells** for both picks, as in §409 where the plans are close. JUDGE (§432) asks whether a better val judge does better.
+6. [D] Neither FB2 nor FB3 is the agent's row; both are labelled product variants (§409). The draft adds this block to §5.9b and a line to §5.1b. Whether the three-way net (with the even cut) replaces the two-way one is Ido's decision; it would answer Gilad's question at these junctures with the even cut as well as the rule. Nothing more runs under FB-BENCH.
+
+Not claimed:
+- FB2 or FB3 as the agent's row;
+- "the safety net beats the even cut" or "beats <method>";
+- the three-way BEATS-PRIOR on VGG-16-BN Tiny-ImageNet as an allocation of the agent or of the net (it is the even cut's row, picked in all ten cells);
+- the pooled means or intervals as calls;
+- agreement with the TEST-best candidate as a choice;
+- a pick, point or seed chosen on TEST (none was), or these rows mixed with other seeds.
+
+Records: queue row FB-BENCH; manifest `s05nov_fbb_manifest.tsv`; gate `s05nov_fbb_gate.txt`; logs `tree_v32/runs/slurm_logs/spectra_<job>.out`; reader `s05nov_fbb_read.sh` (`scripts/_tmp_s05nov_fbb_read.sh`, blob `83ed2cf`), output `s05nov_fbb_read_09nov.out`; chain `s05nov_fbj_chain.sh`; order scripts `scripts/_tmp_s06nov_fbj_renice.sh`, `scripts/_tmp_s07nov_fbj_renice.sh`; next §432.
+
+## 432. (JUDGE): a better val judge for the safety net, chosen among 28 registered candidates on FB's 270 design cells by val regret only, and tested once on 110 evaluation cells (the eight new networks' 80 and FB-BENCH's 30) — **JUDGE-REGRET SAME and JUDGE-NET SAME. The selected judge, S(ft1 → rc5, 0.5) (the one-epoch score, and the final recipe's schedule compressed to 5 epochs where the two plans' one-epoch scores lie within 0.5 points; 1.96 epochs per plan), had 5 % less val regret than ft1 on the design set (0.160 against 0.168 pp). On the evaluation set its mean TEST regret is 0.187 pp against ft1's 0.179 (difference +0.008 [−0.013, +0.035]); the two judges pick differently in 8 of 110 cells, and the safety net with it reads −0.01 [−0.04, +0.01] against the one with ft1 (val +0.00, 10k −0.00, honest −0.01). Each evaluation set alone is SAME on both calls. ft1 stays in the safety net; a replacement is Ido's decision, and nothing supports one**
+
+Registered 5 Nov 12:07 (queue row JUDGE; amended 12:33 before any data), on Ido's GO of 5 Nov ("You have my GO to experiment and come up with a better pipeline and implement it"), after §409 found the one-epoch judge near chance where the two plans are close. Eval-only, no agent train. Fixed in advance:
+- **Candidates (28):** the six proxies ft1, fs32, bn8, ft1x3 (three ft1 draws averaged), rc2 and rc5 (the final fine-tune's own recipe, its cosine schedule compressed to 2 and 5 epochs), each by val accuracy and by val cross-entropy (12); and 16 sequential judges S(a → b, m), judge a's accuracy and judge b's where the two plans' a-scores differ by less than m points, for (a, b) in (bn8, rc5), (ft1, rc5), (rc2, rc5), (ft1, ft1x3) and m in 0.1, 0.25, 0.5, 1.0.
+- **Selection, on the design set's val only:** the lowest mean val regret (the val-better arm's final val minus the picked arm's) at a cost of at most 10 epochs per plan, and within 0.02 pp of it the cheaper. A leave-one-network-out logistic combination replaces it only if 25 % lower. Written once, before any evaluation cell is read.
+- **Calls** (TEST 5k, paired over the 110 evaluation cells): JUDGE-REGRET LOWER if the selected judge's mean TEST regret is at most 70 % of ft1's with the 95 % paired interval excluding 0, HIGHER if at least 130 % with it excluding 0, SAME otherwise; JUDGE-NET BETTER if the safety net with the selected judge minus the one with ft1 is at least +0.1 with its interval above 0, WORSE if at most −0.1 with it below 0, SAME otherwise.
+- **Stated in advance:** where the two finals differ by less than about 0.2, no judge can be reliably right and a wrong pick costs little; a better judge lifts the safety net only where the agent and the rule differ, so JUDGE-REGRET LOWER with JUDGE-NET SAME was a plausible outcome.
+
+Records of the run:
+- *Code.* `tree_v32` (the `rc<E>` and `<proxy>x<k>` proxy names and the per-image detail, default off); every cell runs the proxies `ft1,fs32,bn8,ft1x3,rc2,rc5`, ft1 first, so the walked pick and ft1's scores are FB's.
+- *Gate.* CPU tests (one pytest per file), then 2 smokes (23939343–344: ResNet-20 ×8 CIFAR-100 at params 0.25 from the design set, WRN-28-2 CIFAR-100 at 0.25 from the evaluation set): all six proxies on both plans, landings 0.249 / 0.250, origins 0.610 / 0.713, ft1 equal to the logged FB / FB-XFER scores; GATE PASS 6 Nov 03:52.
+- *Jobs.* Design: 270 cells, newest jobs 23939791–24032798 (8 preempted and resubmitted unchanged by the guard), 8 Nov 23:58 – 9 Nov 14:38, 41.4 GPU-h (registered estimate about 21). Evaluation: 80 cells, 23940102–24036767 (1 preempted and resubmitted), 9 Nov 12:34 – 14:35, 6.7 GPU-h. FB-BENCH's 30 stage-P cells (§431) are the other 30. All COMPLETED.
+- *Selection* 9 Nov 14:42:38 – 14:43:25 (`s05nov_judge_design.py`, blob `7c404c9`): 270 of 270 design cells complete; the parser drops every TEST key before storage (5,016 dropped, none stored; asserted); record-vs-log disagreements 0. Written once (O_EXCL) to `s05nov_judge_selected.json` at 14:43:25.
+- *Evaluation read* 9 Nov 14:43:56 (`s05nov_judge_read.sh`, blob `7003f97`), 31 s after the selection was written: 110 of 110 cells (V 80, P 30); record-vs-log disagreements 0; ft1's recomputed two-way pick equals the logged pick in 110 of 110.
+- *Determinism.* On the evaluation cells, ft1's scores equal FB-XFER's logged ones in 80 of 80. On the design set in 240 of 270: all 30 differences are thin ResNet-56 ×4, whose pick cell runs in a two-network job and depends on the first network's arm (FB's amendment, 20 Oct); 7 of its 30 picks differ from FB's. Every other network matches exactly (`scripts/_tmp_s09nov_judge_detchk.py`).
+
+The 28 candidates on the design set (val; regret in pp of final val; ties go to the agent; agreement with the val-better arm of the 264 cells without a tie, and of the 138 where the finals differ by at least 0.3):
+
+| judge | cost (epochs per plan) | val regret | agree (all) | agree (gap ≥ 0.3) |
+|---|---|---|---|---|
+| always the agent | — | 0.236 | 158 / 264 | 80 / 138 |
+| always the rule | — | 0.275 | 106 / 264 | 58 / 138 |
+| rc5 by loss (lowest) | 5 | 0.143 | 147 / 264 | 89 / 138 |
+| S(ft1 → rc5, 1) | 3.07 | 0.155 | 147 / 264 | 78 / 138 |
+| **S(ft1 → rc5, 0.5) (selected: the cheapest within 0.02 pp of the lowest)** | 1.96 | 0.160 | 143 / 264 | 76 / 138 |
+| S(ft1 → rc5, 0.25) | 1.52 | 0.165 | 144 / 264 | 76 / 138 |
+| ft1x3 by accuracy | 3 | 0.166 | 140 / 264 | 75 / 138 |
+| fs32 by accuracy | 0 | 0.167 | 145 / 264 | 85 / 138 |
+| **ft1 by accuracy (FB's judge)** | 1 | 0.168 | 140 / 264 | 75 / 138 |
+| rc5 by accuracy | 5 | 0.176 | 137 / 264 | 75 / 138 |
+| ft1 by loss | 1 | 0.186 | 139 / 264 | 71 / 138 |
+| rc2 by accuracy | 2 | 0.204 | 138 / 264 | 69 / 138 |
+| bn8 by accuracy | 0 | 0.229 | 129 / 264 | 74 / 138 |
+| bn8 by loss | 0 | 0.269 | 136 / 264 | 75 / 138 |
+
+The other 16 (13 sequential judges, and ft1x3, rc2 and fs32 by loss) lie between 0.170 and 0.230. The logistic combinations (leave one network out) read 0.227 with all six proxies (11 epochs, over the cap; reported only) and 0.245 with five (10 epochs): higher than the best simple judge, so neither replaces it. Without thin (a sensitivity, not a selection), fs32 by accuracy would be selected (0.152, cost 0). Per network, ft1 / selected: ResNet-20 ×8 CIFAR-100 0.097 / 0.123, DepGraph ResNet-56 0.211 / 0.207, DenseNet-100 0.163 / 0.141, MobileNetV2 ×1.4 0.086 / 0.099, ResNet-56 (chenyaofo) 0.168 / 0.184, ResNet-56 ×8 0.129 / 0.137, thin ResNet-56 ×4 0.282 / 0.247, VGG-16 0.121 / 0.121, VGG-19 CIFAR-100 0.255 / 0.179.
+
+The evaluation set (TEST 5k; regret = the TEST-better arm's final change minus the picked arm's, pp; 95 % paired bootstrap over cells):
+
+| set | n | TEST regret, selected / ft1 (ratio) | difference [95 %] | JUDGE-REGRET | safety net, selected − ft1 [95 %] (val / 10k / honest) | JUDGE-NET | cells picked differently |
+|---|---|---|---|---|---|---|---|
+| **all evaluation cells (the call)** | 110 | 0.187 / 0.179 (1.04) | +0.008 [−0.013, +0.035] | **SAME** | −0.01 [−0.04, +0.01] (+0.00 / −0.00 / −0.01) | **SAME** | 8 |
+| the eight new networks alone | 80 | 0.119 / 0.102 (1.17) | +0.017 [−0.008, +0.055] | SAME | −0.02 [−0.05, +0.01] (+0.00 / −0.01 / −0.03) | SAME | 5 |
+| BENCH's six points alone (two-way) | 30 | 0.367 / 0.385 (0.95) | −0.018 [−0.049, +0.004] | SAME | +0.02 [−0.00, +0.05] (+0.00 / +0.01 / +0.06) | SAME | 3 |
+
+Reported beside (no call):
+- Agreement with the TEST-better arm (ties excluded): selected 68 of 107, ft1 70 of 107; where the finals differ by at least 0.3: 47 of 67 each. On the eight new networks 51 / 54 of 77 (36 / 37 of 48); on BENCH's points 17 / 16 of 30 (11 / 10 of 19).
+- Regret by the finals' gap (TEST 5k, selected / ft1): under 0.3 (43 cells) 0.050 / 0.049; 0.3–1 (38) 0.194 / 0.204; at least 1 (29) 0.381 / 0.339.
+- BENCH's three-way picks (ft1 deciding) are §431's; the selected judge picks the rule's plan on 1, 2, 0, 0, 0 and 3 of 5 seeds at BENCH's six points (ft1: 1, 3, 1, 0, 0, 2).
+- Minutes: scoring all six proxies on both plans (22 epochs per cell on the val half) took a median 0.8–4.3 min per network on eight of the nine pool networks, 12.4 on DenseNet-100, and 0.8–2.5 on the eight new networks; on BENCH's three-plan cells (33 epochs) 1.8 (VGG-19 CIFAR-100) to 19.5 (ResNet-18 Tiny-ImageNet). The time is not logged per proxy; ft1 is 1 and the selected judge 1.96 of the 11 epochs per plan.
+
+Reading:
+1. **No candidate chosen on val beats the one-epoch judge out of sample.** Both calls are SAME, on all 110 cells and on each evaluation set alone. The two judges pick differently in only 8 of 110 cells, so the safety net hardly moves (−0.01).
+2. **The design set already showed little room.** The best of the 28 was 15 % below ft1's val regret (rc5 by loss, 5 epochs), the selected one 5 %, and the registered bar is 30 %. Averaging three ft1 draws did not help (0.166 against 0.168), so the noise of one short fine-tune is not what limits the judge. The final's own recipe at 2 or 5 epochs did not help by accuracy either (0.204, 0.176).
+3. [H] **The limit is how weakly any short score predicts a 100-epoch recovery between close plans**, together with the finals' own seed noise. Where the two finals differ by less than 0.3 (43 of 110 cells) both judges lose about 0.05 pp per cell, so a wrong pick costs little, as stated in advance. Where they differ by at least 0.3, both judges find the TEST-better plan in 47 of 67 cells, and most of the regret comes from misses among the 29 cells that differ by a point or more (0.34–0.38 pp per cell). Not tested.
+4. **The safety net's value is catching large losses, not choosing between close plans**: §409 (TAIL-REMOVED), §410 (the transfer gap closed) and §431 (ResNet-18 Tiny-ImageNet BELOW → AT). Its residual cost, about 0.18 pp of mean regret, is the price of choosing between plans whose finals are close.
+5. [D] ft1 stays in the safety net. The registered rule leaves a replacement to Ido after the read; with both calls SAME and twice the cost, science recommends keeping ft1. Nothing more runs under JUDGE.
+
+Not claimed:
+- a judge "better" or "worse" than ft1 (both calls SAME);
+- rc5 by loss, or any design-set regret, as a result (val, design set only; the registered rule selected the cheaper judge);
+- agreement or regret as a call other than the two registered;
+- the thin-free sensitivity or a logistic combination as a selection;
+- any judge, margin or combination chosen on TEST or on the evaluation set (none was: the selection was written once at 14:43:25, before the evaluation reader ran at 14:43:56).
+
+Records: queue row JUDGE; manifest `s05nov_judge_manifest.tsv` (stages D, V) and `s05nov_fbb_manifest.tsv` (stage P); gate `s05nov_judge_gate.txt`; logs `tree_v32/runs/slurm_logs/spectra_<job>.out`; selection `s05nov_judge_selected.json` and its run `s05nov_judge_design_run.out`; evaluation read `s05nov_judge_read_09nov.out`; determinism diagnostic `s09nov_judge_detchk.out` (`scripts/_tmp_s09nov_judge_detchk.py`); minutes `s09nov_judge_minutes.out` (`scripts/_tmp_s09nov_judge_minutes.sh`); readers `scripts/_tmp_s05nov_judge_design.py` (`7c404c9`) and `scripts/_tmp_s05nov_judge_read.sh` (`7003f97`); next §433.
