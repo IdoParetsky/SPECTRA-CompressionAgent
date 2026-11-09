@@ -48,6 +48,11 @@ MASKS = [
     # every recorder event, one per stage timer included, and E1 skips timers by design (the state encoding). The
     # other five counts stay compared, and every record kind but the stage timers is compared under [records].
     (re.compile(r"^(\| [0-9]+ \| [0-9]+ \| [0-9]+ \| [0-9]+ \| [0-9]+ \| )[0-9]+ \|$"), r"\1<EVENTS> |"),
+    # A trailing ", 0.5 s" (the final fine-tune's "CUDA graph captured: batch 256, 0.5 s"; the smoke gate, 9 Nov 18:07).
+    (re.compile(r", [0-9.]+ ?s$"), ", <T> s"),
+    # The tree's version in any path ("scratch_audit/tree_v35/configs/..."): a flag-off run on the new tree is compared
+    # with its tree_v24 pair (TREE-REPRO). Run directories are masked whole above.
+    (re.compile(r"\btree_v[0-9]+\b"), "tree_<V>"),
 ]
 
 TIMESTAMP = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3} \| ")
@@ -76,6 +81,8 @@ DROP_LINES = [
     r"CUDA_VISIBLE_DEVICES",
     r"SPECTRA_JOB_NAME",
     r"SPECTRA_\* env:",                                # the environment dump line (differs by the E1 flags themselves)
+    r"^SPECTRA_EVAL_(IDENTITY_MEMO|SKIP_STATE|CACHE_READS|E1_DIAG)=",   # the banner's lines for E1's own four flags
+                                                       #   (every other SPECTRA_ line of the banner stays compared)
     r"\| Environment: ",                               # run id, host, pid, cwd, start time, git commit
     r"\| GPUs: ",
     r"SPECTRA run [^ ]+ -> ",                          # the start stamp (run id and directory)
