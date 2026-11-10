@@ -11350,3 +11350,69 @@ Not claimed:
 - any judge, margin or combination chosen on TEST or on the evaluation set (none was: the selection was written once at 14:43:25, before the evaluation reader ran at 14:43:56).
 
 Records: queue row JUDGE; manifest `s05nov_judge_manifest.tsv` (stages D, V) and `s05nov_fbb_manifest.tsv` (stage P); gate `s05nov_judge_gate.txt`; logs `tree_v32/runs/slurm_logs/spectra_<job>.out`; selection `s05nov_judge_selected.json` and its run `s05nov_judge_design_run.out`; evaluation read `s05nov_judge_read_09nov.out`; determinism diagnostic `s09nov_judge_detchk.out` (`scripts/_tmp_s09nov_judge_detchk.py`); minutes `s09nov_judge_minutes.out` (`scripts/_tmp_s09nov_judge_minutes.sh`); readers `scripts/_tmp_s05nov_judge_design.py` (`7c404c9`) and `scripts/_tmp_s05nov_judge_read.sh` (`7003f97`); next §433.
+
+## 433. (E1, E1-LOC): a faster cut walk with the same output — three default-off flags (reuse the last val read on an identity step, skip the next-state encoding the plan policy never reads, replay the walk's val and test batches from host memory) — **E1-EXACT NOT-EXACT by the registered rule, on 2 of 7 same-tree pairs and on one kind of line only: the final fine-tune's `CUDA graph: … <x> GB reserved` line, where only the allocator's reserved-memory figure `<x>` differs (by 0.01–0.09 GB). Everything computed is identical on all 7: 0 differences over 10 record kinds, 0 CSV cells, and equal sha256 of every candidate and recovered state_dict and of the CPU and CUDA RNG states; the memo served 778 of 778 identity steps. E1-LOC: on VGG-19 the figure moves between two identical flag-off runs (2.21 → 2.25 and 2.62 → 2.57 GB), more than E1 moved it there (0.01); on VGG-16 the flag-off repeat reproduces all three figures and each flag alone moves them. By the letter neither repeat reads REPEAT-STABLE or REPEAT-MOVES, because each also differs in one banner line, the job's own dependency setting. Records, CSVs and DIAG are equal on all 8. E1 stays rejected under the rule as registered; whether a reserved-memory figure counts as an output difference is Ido's word, and E1-TIME waits on it**
+
+Registered 9 Nov 15:20 (queue row E1), before any code, script or submit, under Ido's 5 Nov GO for efficiency studies that do not change results; amended 18:17, before any cell ran; E1-LOC registered 21:38, before its submit. Eval-only, no training, no new arm, no new point. Fixed in advance:
+- **Flags (tree_v35 = tree_v34 + `7c6b0b9`, all default off):** `SPECTRA_EVAL_IDENTITY_MEMO` (an identity step reuses the last val read while a fingerprint of every state_dict tensor, `.training`, the loader and the AMP / channels-last settings show the same model), `SPECTRA_EVAL_SKIP_STATE` (no next-state encoding in non-actor test walks; off whenever filter importance is random), `SPECTRA_EVAL_CACHE_READS` (the walk's val and test batches replayed from host memory after one full pass; the original loaders restored before the final fine-tune); and the read-only `SPECTRA_EVAL_E1_DIAG` (the hashes above).
+- **Call E1-EXACT** (all three flags on, the deterministic FINAL line, the same GPU class as the reference): EXACT if the comparator (`scripts/e1_compare.py`, blob `30f5dcb`) finds 0 differing log lines and 0 differing records on every pair, else NOT-EXACT, "and E1 is rejected as a whole until a flag-off run on the new tree and single-flag runs localise the difference".
+- **Pairs (amended before any cell ran):** tree_v35 carries ten trees of default-off code since tree_v24, so each of the five reference lines also runs with the flags off on tree_v35, and E1-EXACT is read on the seven same-tree off / on pairs. Each flag-off run against its tree_v24 pair is reported beside it as **TREE-REPRO**, with no bearing on E1's call.
+- **E1-LOC** (the localisation step the rule prescribes): on the two NOT-EXACT lines, a repeat of the flag-off run and each flag alone, read with the same comparator against the first flag-off run. REPEAT-STABLE if the repeat reads 0, REPEAT-MOVES if it differs only in the reserved figure; LOC names each flag whose run moves the figure. It decides nothing by itself.
+- **Stated in advance:** EXACT. For E1-LOC: records, CSVs and DIAG equal on all 8; the figure follows the allocator's history, so `memo` or `cache` moves it [H].
+
+Records of the run:
+- *Gate.* CPU tests 88 passed in 6 files, one pytest per process. Comparator gate (blob `30f5dcb`, the third pass; the first two found clock stamps and E1's own banner lines, fixed before any cell ran, the failed verdict kept as `s09nov_e1_gate_fail1.txt`): the three tree_v24 deterministic pairs read 0, a known-different pair 97, a copy with four planted differences exactly 4, and the two smokes 0. Smokes 24042859 (flags on) / 24042860 (off), ResNet-56 T4-F FLOPs 0.39 s42, 2 epochs: both COMPLETED, FLOPs ×0.389, memo hits 143 of 143. GATE PASS 9 Nov 18:19:47.
+- *E1 jobs.* Flag-on refs 24042881 (DepGraph ResNet-56), 24042883 (ResNet-20 ×8 CIFAR-100), 24042884 (MobileNetV2 ×1.4), 24042885 (DenseNet-100), 24042886 (VGG-19 CIFAR-100); flag-off refs 24043517 / 518 / 525 / 526 / 527; pairs 24042890 / 892 (ResNet-56 T4-F FLOPs 0.39, off / on) and 24042894 / 895 (VGG-16-BN CIFAR-10 T4-F FLOPs 0.34). The refs run T6-fs params 0.45 s42 G2, the pairs §419's and §425's lines, all deterministic, RTX 4090; all fourteen COMPLETED 9 Nov.
+- *E1-LOC jobs.* 8 cells, nice 5, RTX 4090, not held, 9 Nov 23:36 – 10 Nov 03:08: the repeats 24048973 (VGG-16) and 24053930 (VGG-19), memo 24053931 / 24054310, skip 24054308 / 24054309, cache 24048979 / 24048980. The cluster preempted 9 jobs on 5 cells (Requeue=0); each was submitted again unchanged, 2 by hand and 7 by a login-node guard registered before it ran (`s10nov_e1loc_guard.sh`, at most three resubmits per cell; VGG-19's memo cell needed three). All 8 COMPLETED.
+- *Reads.* E1-EXACT and TREE-REPRO 9 Nov 21:43 (`s09nov_e1_readexact.sh`, blob `e7b3152`); E1-LOC 10 Nov 03:09, run by the guard once all eight were COMPLETED (`s09nov_e1loc_read.sh`, blob `23f5a36`).
+
+E1-EXACT, the seven same-tree pairs (flags off / on, tree_v35; lines = differing log lines after the registered masks; records over 10 kinds; DIAG = the hash lines):
+
+| network (line) | jobs off / on | walk steps | lines | records | CSV cells | DIAG | memo hits (identity steps) | the differing lines |
+|---|---|---|---|---|---|---|---|---|
+| DepGraph ResNet-56 (T6-fs params 0.45) | 24043517 / 24042881 | 280 | 0 | 0 | 0 | equal (6) | 227 / 227 | — |
+| ResNet-20 ×8 CIFAR-100 (T6-fs params 0.45) | 24043518 / 24042883 | 41 | 0 | 0 | 0 | equal (6) | 27 / 27 | — |
+| MobileNetV2 ×1.4 (T6-fs params 0.45) | 24043525 / 24042884 | 156 | 0 | 0 | 0 | equal (4) | 132 / 132 | — |
+| DenseNet-100 (T6-fs params 0.45) | 24043526 / 24042885 | 365 | 0 | 0 | 0 | equal (6) | 189 / 189 | — |
+| **VGG-19 CIFAR-100 (T6-fs params 0.45)** | 24043527 / 24042886 | 46 | **2** | 0 | 0 | equal (6) | 33 / 33 | GB reserved: val_best 2.32 / 2.31, origin 2.62 / 2.63 |
+| DepGraph ResNet-56 (T4-F FLOPs 0.39) | 24042890 / 24042892 | 208 | 0 | 0 | 0 | equal (6) | 143 / 143 | — |
+| **VGG-16-BN CIFAR-10 (T4-F FLOPs 0.34)** | 24042894 / 24042895 | 71 | **3** | 0 | 0 | equal (6) | 27 / 27 | GB reserved: val_best 2.25 / 2.22, size_flop0.34 1.77 / 1.76, origin 2.33 / 2.42 |
+
+State encodings were skipped on every walk step of every flag-on run (280, 41, 156, 365, 46, 208, 71).
+
+TREE-REPRO (beside, no bearing on E1's call): each tree_v35 flag-off ref against both of its tree_v24 runs, and the flag-on ref against the first, reads 0 records and 0 CSV cells on all five networks. The 4–6 differing log lines are the submission's own settings (`SPECTRA_DEPENDENCY`, the newer banner's `SPECTRA_GPU_GRES` and `SPECTRA_WALL`) and the reserved-memory suffix that the trees after tree_v24 add to the CUDA-graph line.
+
+E1-LOC (each run against the first flag-off run of its line; reserved figures in GB at the three final fine-tunes, val_best / size point / origin; a figure that differs from the first flag-off run is in bold):
+
+| line | run | job (node) | reserved, GB | differing lines (reserved figures among them) | records / CSV / DIAG |
+|---|---|---|---|---|---|
+| VGG-16-BN CIFAR-10, T4-F FLOPs 0.34 | first flag-off run (E1's pair) | 24042894 (cs-4090-08) | 2.25 / 1.77 / 2.33 | — | — |
+| | all three flags (E1's pair) | 24042895 (ise-4090-01) | **2.22** / **1.76** / **2.42** | 3 (3) | 0 / 0 / equal |
+| | **repeat, flags off** | 24048973 (ise-4090-07) | 2.25 / 1.77 / 2.33 | 1 (0) | 0 / 0 / equal |
+| | memo alone | 24053931 (ise-4090-20) | **2.22** / **1.76** / **2.34** | 4 (3) | 0 / 0 / equal |
+| | skip alone | 24054308 (ise-4090-08) | **2.22** / **1.76** / 2.33 | 3 (2) | 0 / 0 / equal |
+| | cache alone | 24048979 (ise-4090-05) | **2.22** / **1.76** / **2.42** | 4 (3) | 0 / 0 / equal |
+| VGG-19 CIFAR-100, T6-fs params 0.45 | first flag-off run (E1's ref) | 24043527 (ise-4090-01) | 2.32 / 2.21 / 2.62 | — | — |
+| | all three flags (E1's ref) | 24042886 (ise-4090-16) | **2.31** / 2.21 / **2.63** | 2 (2) | 0 / 0 / equal |
+| | **repeat, flags off** | 24053930 (ise-4090-19) | 2.32 / **2.25** / **2.57** | 3 (2) | 0 / 0 / equal |
+| | memo alone | 24054310 (ise-4090-16) | **2.25** / 2.21 / **2.65** | 3 (2) | 0 / 0 / equal |
+| | skip alone | 24054309 (ise-4090-14) | **2.31** / **2.29** / 2.62 | 3 (2) | 0 / 0 / equal |
+| | cache alone | 24048980 (ise-4090-06) | 2.32 / 2.21 / **2.65** | 2 (1) | 0 / 0 / equal |
+
+The one differing line in every E1-LOC run that is not a reserved figure is the banner's `SPECTRA_DEPENDENCY=afterany:24042859:24042860`: the first runs waited on E1's smokes, and the E1-LOC cells were registered not held and submitted without a dependency. The memo served 27 of 27 and 33 of 33 identity steps in its runs; skip-state skipped 71 and 46 encodings in its runs; the repeats ran with every flag off.
+
+Reading:
+1. **Everything E1 computes is bit-identical.** On all seven pairs the records (10 kinds), the CSVs and the hashes of every candidate model, every recovered model and both RNG states are equal. The memo served every identity step it could (778 of 778), and every skipped state encoding was skipped without effect.
+2. **The registered rule still reads NOT-EXACT.** It counts every log line, and on two VGG lines the final fine-tune's reserved-memory figure differs by 0.01–0.09 GB. That figure is the size of the CUDA caching allocator's pool, printed for information; nothing reads it back.
+3. **The figure is not reproducible between identical runs.** On VGG-19 the flag-off repeat moves two of its three figures by 0.04–0.05 GB, more than all three flags together moved them (0.01), so there the figure is run-to-run variation and no flag can be named. On VGG-16 the repeat reproduces all three figures, and each flag alone moves them by 0.01–0.09 GB (LOC: memo, skip and cache each; the cache alone gives the all-on run's three figures). By the letter of E1-LOC neither repeat reads 0 lines (each also carries the job's own dependency line), so neither REPEAT-STABLE nor REPEAT-MOVES is claimed as registered. [H] The pool after a fine-tune depends on the order and size of every earlier allocation, so anything that changes them moves it: a flag that skips evaluation passes, state encodings or loader work, or the run's own timing. Not tested further.
+4. [D] E1 stays rejected under the rule as registered; the comparator is not changed after seeing the data. Science recommends reading the reserved figure, like the job's own banner settings, as not an output: on that reading all seven pairs are identical. That is Ido's word. If he gives it, E1-TIME (registered, no call) runs as written; if not, E1's flags stay off the record.
+
+Not claimed:
+- E1 as EXACT (the registered rule reads NOT-EXACT);
+- REPEAT-STABLE or REPEAT-MOVES as registered calls (by the letter neither holds);
+- any accuracy from an E1 or E1-LOC cell (they reproduce existing rows);
+- any time or speed-up (E1-TIME has not run; the design note's minutes and these cells' wall times are not measurements);
+- E1's flags on any quoted row;
+- TREE-REPRO as bearing on E1's call.
+
+Records: queue rows E1 and E1-LOC; manifest `s09nov_e1_manifest.tsv` (the preempted E1-LOC rows kept as `loc_pre`); gate `s09nov_e1_gate.txt` (first verdict `s09nov_e1_gate_fail1.txt`); logs `tree_v35/runs/slurm_logs/spectra_<job>.out`; tree `tree_v35` (`PROVENANCE_v35_log.txt`); comparator `scripts/e1_compare.py` (`30f5dcb`); submit `s09nov_e1_submit.sh` (`scripts/_tmp_s09nov_e1_submit.sh`, blob `cfbf2c5`, with the `locresub` mode); guard `s10nov_e1loc_guard.sh` (`scripts/_tmp_s10nov_e1loc_guard.sh`, log `s10nov_e1loc_guard.log`); readers `scripts/_tmp_s09nov_e1_readexact.sh` (output `e1/_read_exact.txt`, `e1/_rx_*.txt`) and `scripts/_tmp_s09nov_e1loc_read.sh` (output `e1/_read_loc.txt`, `e1/_rl_*.txt`); watchers `scripts/_tmp_s09nov_e1_watch.sh`, `scripts/_tmp_s10nov_e1loc_watch.sh`, `scripts/_tmp_s10nov_e1loc_watch2.sh`; next §434.
