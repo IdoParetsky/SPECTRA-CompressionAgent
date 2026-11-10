@@ -11416,3 +11416,66 @@ Not claimed:
 - TREE-REPRO as bearing on E1's call.
 
 Records: queue rows E1 and E1-LOC; manifest `s09nov_e1_manifest.tsv` (the preempted E1-LOC rows kept as `loc_pre`); gate `s09nov_e1_gate.txt` (first verdict `s09nov_e1_gate_fail1.txt`); logs `tree_v35/runs/slurm_logs/spectra_<job>.out`; tree `tree_v35` (`PROVENANCE_v35_log.txt`); comparator `scripts/e1_compare.py` (`30f5dcb`); submit `s09nov_e1_submit.sh` (`scripts/_tmp_s09nov_e1_submit.sh`, blob `cfbf2c5`, with the `locresub` mode); guard `s10nov_e1loc_guard.sh` (`scripts/_tmp_s10nov_e1loc_guard.sh`, log `s10nov_e1loc_guard.log`); readers `scripts/_tmp_s09nov_e1_readexact.sh` (output `e1/_read_exact.txt`, `e1/_rx_*.txt`) and `scripts/_tmp_s09nov_e1loc_read.sh` (output `e1/_read_loc.txt`, `e1/_rl_*.txt`); watchers `scripts/_tmp_s09nov_e1_watch.sh`, `scripts/_tmp_s10nov_e1loc_watch.sh`, `scripts/_tmp_s10nov_e1loc_watch2.sh`; next §434.
+
+## 434. (ROOM: step T0 of the proposed transfer program; queue row T0, not §341's first plan agent): is there room above the rule? On every network × budget cell where the rule ran on FINAL's eval line, the plan generator with the best mean val on two seeds is scored on the third seed's TEST against the rule (leave one seed out; existing rows only, no GPU) — **CIFAR-100 at equal params: SOME-ROOM, +0.54 [−0.12, +1.38] over 24 cells on 6 networks (val +0.60, 10k +0.57, honest +0.63), but the room sits on two networks: ResNet-20 ×8 (+2.05 over its six budgets) and PreAct-ResNet-20 (+0.70). On the other four (VGG-19, PreAct-ResNet-56, WRN-16-4, WRN-28-2) the best plan picked on val does no better than the rule (−0.23 to +0.03 per network; −0.09 over their 15 cells). CIFAR-100 at equal FLOPs: LITTLE-ROOM, +0.06. Tiny-ImageNet: ROOM, +1.06, on two networks (the even cut on VGG-16-BN, +1.39). CIFAR-10: LITTLE-ROOM at both budget types (+0.10, +0.12), with MobileNetV2 ×1.4 the exception (+0.43, +0.55). A transfer proof can show learning only where room exists, so its held-out networks must include networks of this kind. Reported, never a call on any agent**
+
+Registered 10 Nov 10:53 (queue row T0), before its reader ran; amended 10:58 after the dry pass and before any value was computed (D5's seeds 42–44 added). No GPU, no new cell. The first step of the transfer program recommended on the review page (item 1, option B: "T0 runs first: if the rule already sits at the per-network best on CIFAR-100, the rest is moot"), taken under the 17 Oct standing GO while the GPUs were idle. Fixed in advance:
+- **Data:** every network × budget cell where the rule ran on FINAL's eval line, with every plan generator that ran on the same cell on that line, from FINAL, DEEP, DEEP-F, XFER-W1, BENCH, LIT-C, PROBE, D5X, D5, T9-fs, ENC, M12, D9, HOLDOUT, HOC and T8-fs (the first study wins when a generator appears twice). A run enters only if its log shows the deterministic G2 line (100 epochs, keep-last, the width floor), no stall-fallback line, and a landing within 0.011 of its target.
+- **T0-LOSO, the reading:** for each held-out seed, the generator with the highest mean final val change over the other seeds is picked (val only; ties go to the rule). The gap is its TEST 5k change on the held-out seed minus the rule's, averaged over seeds. Picking and scoring use different training runs, so a lucky run cannot inflate it. **T0-INS** (picked by mean val over all seeds and scored on the same runs) is an upper bound only.
+- **Candidate sets:** T0-3 = the agent of record, the rule and the even cut (the program's T0 as written), on the seeds all three share; **T0-ALL** = every generator with seeds 42–44.
+- **Bands, on T0-ALL LOSO, TEST 5k, pooled per dataset group and budget type** (the mean over cells, 95 % bootstrap resampling networks): ROOM ≥ +0.30 with the lower bound above 0; LITTLE-ROOM < +0.15; SOME-ROOM between.
+- **Stated in advance [H]:** SOME-ROOM or ROOM on CIFAR-100, LITTLE-ROOM on CIFAR-10.
+
+Records of the run: reader `s10nov_t0_read.py` (blob `49e7de0`), run on login-01 at 11:00. Dry pass 1 (10:55) showed D5's one-epoch agents with two seeds only, because D5X's pool rows hold seeds 45–46; D5's own manifest was added (amendment 10:58), and dry pass 2 changed nothing else. Of 3,711 runs read: 108 dropped as not on the deterministic line (all T8-fs, which ran before FINAL's line); 141 for a stall-fallback line (each a whole arm on one network and budget, all its seeds); 65 not completed (superseded by resubmits); 2 without a run dir. 132 cells hold the rule: 37 on CIFAR-100, 3 on Tiny-ImageNet, 92 on CIFAR-10. Generators per cell: 3–21 on the pool's two CIFAR-100 networks, 4 on the new architectures, 3–4 at the FLOPs points.
+
+The pooled reading (gap = the val-picked generator minus the rule, points; TEST 5k with val / 10k / honest; LOSO unless marked):
+
+| group, budget type | set | cells (networks) | TEST 5k [95 %] | val / 10k / honest | INS (upper bound) | picks not the rule | band |
+|---|---|---|---|---|---|---|---|
+| **CIFAR-100, params** | **T0-ALL** | 24 (6) | **+0.54 [−0.12, +1.38]** | +0.60 / +0.57 / +0.63 | +1.07 | 58 of 72 | **SOME-ROOM** |
+| CIFAR-100, params | T0-3 | 24 (6) | +0.46 [−0.08, +1.10] | +0.49 / +0.47 / +0.45 | +0.47 | 75 of 120 | reported |
+| **CIFAR-100, FLOPs** | **T0-ALL** | 13 (3) | **+0.06 [−0.20, +0.47]** | +0.03 / +0.04 / +0.02 | +0.32 | 22 of 39 | **LITTLE-ROOM** |
+| CIFAR-100, FLOPs | T0-3 | 13 (3) | −0.09 [−0.25, +0.13] | −0.05 / −0.07 / −0.20 | +0.19 | 17 of 53 | reported |
+| **Tiny-ImageNet, FLOPs** | **T0-ALL** | 3 (2) | **+1.06 [+0.39, +1.39]** | +0.58 / +0.82 / +1.10 | +1.21 | 8 of 9 | **ROOM** (two networks; the interval is coarse) |
+| Tiny-ImageNet, FLOPs | T0-3 | 3 (2) | +0.97 [−0.18, +1.54] | +0.75 / +0.86 / +1.05 | +1.03 | 11 of 15 | reported |
+| **CIFAR-10, params** | **T0-ALL** | 55 (11) | **+0.10 [+0.01, +0.21]** | +0.14 / +0.12 / +0.11 | +0.17 | 140 of 165 | **LITTLE-ROOM** |
+| CIFAR-10, params | T0-3 | 55 (11) | +0.09 [+0.01, +0.19] | +0.12 / +0.10 / +0.09 | +0.09 | 147 of 275 | reported |
+| **CIFAR-10, FLOPs** | **T0-ALL** | 37 (8) | **+0.12 [+0.03, +0.27]** | +0.11 / +0.12 / +0.11 | +0.19 | 74 of 111 | **LITTLE-ROOM** |
+| CIFAR-10, FLOPs | T0-3 | 37 (8) | +0.13 [+0.02, +0.29] | +0.08 / +0.11 / +0.12 | +0.18 | 94 of 151 | reported |
+
+Per network (T0-ALL, LOSO, the mean over the network's cells; reported, no call):
+
+| network | budgets (kept) | TEST 5k | val / 10k / honest | INS |
+|---|---|---|---|---|
+| **ResNet-20 ×8, CIFAR-100**, params | 0.60, 0.45, 0.35, 0.25, 0.15, 0.10 | **+2.05** | +1.90 / +1.97 / +2.21 | +3.33 |
+| ResNet-20 ×8, CIFAR-100, FLOPs | 0.60, 0.45, 0.25, 0.15, 0.10 | +0.47 | +0.30 / +0.38 / +0.39 | +0.84 |
+| **PreAct-ResNet-20, CIFAR-100**, params | 0.45, 0.25, 0.15 | **+0.70** | +0.95 / +0.83 / +0.89 | +1.56 |
+| VGG-19, CIFAR-100, params | 0.60 to 0.10 (six) | +0.03 | +0.03 / +0.03 / +0.07 | −0.10 |
+| VGG-19, CIFAR-100, FLOPs | 0.60 to 0.10 (seven) | −0.20 | −0.12 / −0.16 / −0.23 | −0.00 |
+| PreAct-ResNet-56, CIFAR-100, params | 0.45, 0.25, 0.15 | −0.11 | +0.31 / +0.10 / −0.25 | +0.39 |
+| WRN-16-4, CIFAR-100, params | 0.45, 0.25, 0.15 | −0.23 | −0.04 / −0.13 / −0.08 | −0.06 |
+| WRN-28-2, CIFAR-100, params | 0.45, 0.25, 0.15 | −0.18 | −0.26 / −0.22 / −0.12 | +0.19 |
+| ResNet-56 (chenyaofo), CIFAR-100, FLOPs | 0.48 | −0.14 | −0.29 / −0.22 / −0.13 | +0.00 |
+| **VGG-16-BN, Tiny-ImageNet**, FLOPs | 0.62, 0.48 | **+1.39** | +0.90 / +1.15 / +1.45 | +1.57 |
+| ResNet-18, Tiny-ImageNet, FLOPs | 0.48 | +0.39 | −0.06 / +0.17 / +0.42 | +0.49 |
+| **MobileNetV2 ×1.4, CIFAR-10**, params / FLOPs | six / five | **+0.43 / +0.55** | +0.37 / +0.40 / +0.51; +0.57 / +0.56 / +0.67 | +0.54 / +0.53 |
+| DenseNet-100, CIFAR-10, params | six | +0.28 | +0.39 / +0.33 / +0.22 | +0.30 |
+| the other CIFAR-10 networks | — | −0.08 to +0.21 (params, nine networks); −0.04 to +0.16 (FLOPs, seven) | — | — |
+
+What the picks were, where the room is: on ResNet-20 ×8 CIFAR-100 a different generator wins at each budget: the held-out FLOPs agent at FLOPs 0.45 (+1.70); the even cut at FLOPs 0.10 (+2.49); D9's three-network agent and the one-epoch agent at params 0.45 (+2.31); the one-epoch agent, M12 and ENC's minimal model at 0.35 and 0.25 (+1.72, +1.48); and the threshold rule variant at 0.15 (+5.91), where the rule loses about six points to its own variant. At params 0.10 the pick loses (−0.32). On PreAct-ResNet-20 CIFAR-100 the one-epoch agent, the agent of record and M12 are picked (+0.42, +0.48, +1.21). On VGG-16-BN Tiny-ImageNet the even cut is picked (§418, §431).
+
+Reading:
+1. **Room above the rule is network-specific.** On CIFAR-100 at equal params the pooled gap is +0.54, but two networks carry it. ResNet-20 ×8 (+2.05) is where plans differ by points, and where the agents' largest gains and losses against the rule both fall (§406, §417, §420, §424). PreAct-ResNet-20 (+0.70) is the other. On the other four CIFAR-100 networks, which have 4 to 21 generators each, the best plan picked on val does not beat the rule. On CIFAR-10 the room is a tenth of a point, except on MobileNetV2 ×1.4 (+0.43, +0.55) and DenseNet-100 (+0.28).
+2. **Half the apparent room is luck.** Scoring the pick on the same runs it was picked on (T0-INS) doubles the CIFAR-100 figure, +1.07 against +0.54. On ResNet-20 ×8 at params 0.10 the in-sample pick reads +3.73 and the held-out-seed score −0.32. Any "best of several plans" figure scored on its own runs overstates room.
+3. **For the transfer program (option B):** an agent can show learning only where a better plan exists. The proof's first condition (an agent trained on the target families beats the rule on held-out members) needs held-out networks with room, and most of our CIFAR-100 networks have none. [H] Room appears on narrow or thin residual networks at 100 classes, on the 200-class Tiny-ImageNet VGG, and on depthwise MobileNetV2. That suggests where to look, but it is not tested. A design that picks its held-out networks by room must do so on val, on seeds the proof does not use, and must say so in advance.
+4. **It is a lower bound.** The candidates are the plans we happened to run: 17–21 generators on the pool's two CIFAR-100 networks, 4 on the new architectures, 3–4 at the FLOPs points. So "no room" is stronger evidence on VGG-19 than on the WRNs. A better plan generator could find room that none of these did.
+5. **Consistent with every agent result so far.** The agents of record sit at the rule on pooled tables (§405, §406), and their largest departures are on ResNet-20 ×8 CIFAR-100 (§406, §420). Where the rule is near the best known plan, "at the rule" is the best any agent could show.
+
+Not claimed:
+- a call on any agent (T0 is reported only; no agent is "better" or "worse" from it);
+- T0-INS as the reading;
+- an in-catalog agent's plan as transfer (a pick only shows that a better plan exists);
+- room on a network that this table does not cover, or the [H] in reading 3 as a finding;
+- a generator, cell or seed chosen on TEST (picks use val on other seeds only).
+
+Records: queue row T0 (registered `6d95737`, amended `9078000`); reader `scripts/_tmp_s10nov_t0_read.py` (blob `49e7de0`, deployed as `s10nov_t0_read.py`); dry passes `t0/_t0_dry.txt`, `t0/_t0_dry2.txt`; output `t0/_t0_read.txt`, per-cell results `t0/_t0_res.json`, sources `t0/_t0_src.json` (all under `scratch_audit/`); per-network means from `_t0_res.json` (the scratchpad's `t0_pernet.py`, means only); next §435.
