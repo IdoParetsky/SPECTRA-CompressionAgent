@@ -11479,3 +11479,31 @@ Not claimed:
 - a generator, cell or seed chosen on TEST (picks use val on other seeds only).
 
 Records: queue row T0 (registered `6d95737`, amended `9078000`); reader `scripts/_tmp_s10nov_t0_read.py` (blob `49e7de0`, deployed as `s10nov_t0_read.py`); dry passes `t0/_t0_dry.txt`, `t0/_t0_dry2.txt`; output `t0/_t0_read.txt`, per-cell results `t0/_t0_res.json`, sources `t0/_t0_src.json` (all under `scratch_audit/`); per-network means from `_t0_res.json` (the scratchpad's `t0_pernet.py`, means only); next §435.
+
+## 435. (E1-TIME: queue row E1, the E1-TIME amendment of 12 Nov): how much time do E1's three flags save, measured on the same code with them on and off? §419's six ResNet-56 cells and §425's six VGG-16-BN cells (T4-F at FLOPs 0.39 / 0.34, T6-fs at params 0.38 / 0.18; G2 twice, the stock loader once; seed 42) on tree_v35, each with the flags on and off — **HELD: no time below is quoted before Ido's word on the reserved-memory figure (§433). The flags make the cut walk 3.3–4.4× faster on every cell (ResNet-56: about 3.0–3.6 min to 0.8–0.9 min; VGG-16-BN: 0.7–1.0 min to 0.2–0.3 min), with the walk's step count equal in every pair. The recovery is unchanged (within the node-to-node spread). Per network, decision plus recovery falls by 6–32 % (G2: ×1.16–1.47; stock loader: ×1.07–1.18). With the flags off the same tree reproduces §419 / §425's rows within about 0.2 min. A measurement, no call**
+
+Registered 12 Nov 08:04 (queue row E1, the E1-TIME amendment), before any E1-TIME cell, under Ido's standing GO for the recommended option (17 Oct) and his ask of 12 Nov to keep the cluster productive while his laptop was offline. Ido has not ruled on the reserved-memory figure; science recommends that it is not an output (it moves as much between two identical runs with the flags off, §433). Submitted 08:05: 24116804–24116827, nice 0, RTX 4090 (ise-4090-05..17), Requeue=0. A login-node guard watched for preemptions (none occurred); all 24 COMPLETED by 09:41.
+
+- **Parser:** RUNTIME's `spectra_log` (§419) unchanged, imported by `s12nov_e1time_read.py` (blob of `scripts/_tmp_s12nov_e1time_read.py`); output `scratch_audit/e1/_read_e1time.txt`. Decision = plan + cut walk; per network = decision + the size point's 100-epoch recovery (RUNTIME's definition); the val_best fine-tune is not counted.
+- **Pairs:** flags on against flags off on the same tree, net, budget and recovery; G2 is the median of its two repeats. Ratios are off / on.
+
+| Network, budget, recovery | Cut walk: on / off (ratio) | Decision: on / off | Recovery: on / off | Per network: on / off (ratio) |
+|---|---|---|---|---|
+| ResNet-56, FLOPs 0.39, G2 | 0:51 / 3:00 (×3.53) | 1:11 / 3:19 | 4:30 / 4:34 | 5:41 / 7:53 (×1.39) |
+| ResNet-56, FLOPs 0.39, stock | 0:53 / 3:03 (×3.46) | 1:13 / 3:24 | 18:04 / 18:12 | 19:18 / 21:36 (×1.12) |
+| ResNet-56, params 0.38, G2 | 0:49 / 3:34 (×4.40) | 0:57 / 3:41 | 4:57 / 4:58 | 5:54 / 8:40 (×1.47) |
+| ResNet-56, params 0.38, stock | 0:50 / 3:28 (×4.20) | 0:58 / 3:37 | 17:18 / 17:54 | 18:16 / 21:31 (×1.18) |
+| VGG-16-BN, FLOPs 0.34, G2 | 0:18 / 1:00 (×3.27) | 0:26 / 1:08 | 2:44 / 2:42 | 3:10 / 3:49 (×1.21) |
+| VGG-16-BN, FLOPs 0.34, stock | 0:18 / 1:00 (×3.32) | 0:26 / 1:08 | 9:15 / 9:13 | 9:41 / 10:21 (×1.07) |
+| VGG-16-BN, params 0.18, G2 | 0:11 / 0:43 (×3.86) | 0:15 / 0:48 | 3:14 / 3:15 | 3:29 / 4:03 (×1.16) |
+| VGG-16-BN, params 0.18, stock | 0:11 / 0:43 (×3.93) | 0:16 / 0:49 | 9:03 / 9:17 | 9:19 / 10:06 (×1.08) |
+
+(minutes:seconds; one RTX 4090; seed 42)
+
+- **The same walk:** the step count is equal between the arms in every pair (ResNet-56: 208 FLOPs, 272 params under G2, 259 under the stock loader; VGG-16-BN: 71 / 69 FLOPs, 57 params), as §433's bit-identical records imply.
+- **Recovery is untouched:** the flags act only on the walk; recovery differs by −36 to +2 s per pair, single runs on different nodes.
+- **The flags-off arm reproduces the older rows:** ResNet-56 decision 3:19–3:41 here against §419's 3.3–3.7 min; per network 7:53–8:40 (G2) and 21:31–21:36 (stock) against 7.7–8.5 and 20.9–21.4. VGG-16-BN: decision 0:48–1:08 against §425's 0.8–1.1; per network 3:49–4:03 and 10:06–10:21 against 3.8–4.0 and 10.0–10.3.
+- **Where the saving lands:** it is a decision-cost saving (2.2–2.8 min per ResNet-56, 0.5–0.7 min per VGG-16-BN). Against the published pipelines of §419 / §425 (44 min to 5.7 h) it changes SPECTRA's per-network cost by minutes, not its order; the break-even counts (K*) would fall slightly and are not recomputed here.
+- **Never:** an E1-TIME time quoted before Ido's word on the figure; "N× faster" without the decision / fine-tune split and the stock-loader row; E1's flags on a quoted accuracy row; an accuracy from any E1-TIME cell.
+
+Records of the run: manifest `s10nov_e1time_manifest.tsv`, guard state `s12nov_e1time_guard.state` (ALL-DONE 09:41:43, no resubmit), logs `tree_v35/runs/slurm_logs/spectra_<job>.out`, read `e1/_read_e1time.txt` (all under `scratch_audit/`); next §436.
