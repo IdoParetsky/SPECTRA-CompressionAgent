@@ -11507,3 +11507,88 @@ Registered 12 Nov 08:04 (queue row E1, the E1-TIME amendment), before any E1-TIM
 - **Never:** an E1-TIME time quoted before Ido's word on the figure; "N× faster" without the decision / fine-tune split and the stock-loader row; E1's flags on a quoted accuracy row; an accuracy from any E1-TIME cell.
 
 Records of the run: manifest `s10nov_e1time_manifest.tsv`, guard state `s12nov_e1time_guard.state` (ALL-DONE 09:41:43, no resubmit), logs `tree_v35/runs/slurm_logs/spectra_<job>.out`, read `e1/_read_e1time.txt` (all under `scratch_audit/`); next §436.
+
+## 436. (ROOM-S: queue row ROOM-S, the screen that option B starts with): where is there room above the FLOPs rule on CIFAR-100, among 30 networks, by four plans that use no agent? (evaluation only, no training; seeds 47–48; each pick on val from the other seed) — **ROOM on 20 of 30 networks, SOME-ROOM on 1, LITTLE-ROOM on 9. Over the 30 networks the val-picked plan beats the rule by +0.97 val (TEST 5k +0.86, 10k +0.92; honest = raw). The room follows the family: VGG-BN (+2.91 val / +2.42 TEST 5k), DenseNet-40 (+3.09 / +3.66), thin ResNet-20 (+1.19 / +1.65), MobileNetV2 (+1.16 / +0.92) and ShuffleNetV2 (+1.05 / +0.79); little on the deeper chenyaofo ResNets, PreAct-ResNet, Wide-ResNet and two of three RepVGGs. Equal FLOPs is not equal params: on VGG-BN and DenseNet-40 the better plans keep 1.5–4.4× the rule's params, and on 10 networks the room holds at about the rule's params. The [H] stated in advance is half wrong: VGG-BN has the most room, not little**
+
+Registered 12 Nov 14:22 (queue row ROOM-S, `7be6cd4`) before any of its scripts ran, under Ido's standing GO for the recommended option (17 Oct), while the GPUs were idle and Gilad's choice among options A / B / C (review page, item 1) was pending. Evaluation only: no agent is trained or read. Why: T0 (§434) found room above the rule on two of six CIFAR-100 networks at equal params and little at equal FLOPs, and a transfer proof can show learning only where a better plan exists. Option B starts with a screen that picks its held-out networks where room exists, on validation and on seeds the proof never uses; the screen uses no agent, so the choice cannot favour any agent. Fixed in advance (queue row ROOM-S):
+- **Networks:** 30 CIFAR-100 checkpoints already on the cluster: chenyaofo's 19 (ResNet-20 / 32 / 44 / 56, VGG-11 / 13 / 16 / 19-BN, MobileNetV2 ×0.5 / 0.75 / 1 / 1.4, ShuffleNetV2 ×0.5 / 1 / 1.5 / 2, RepVGG-A0 / A1 / A2), thin ResNet-20 and thin ResNet-56 at widths 4, 8 and 12, PreAct-ResNet-20 / 56, WRN-16-4, WRN-28-2 and DenseNet-40.
+- **Line:** FINAL's FLOPs eval line (deterministic G2, 100 epochs, keep-last, the width floor, grid-rounded, one cut, the fixed target in FLOPs) on tree_v35 with E1's flags off; FLOPs kept 0.45 and 0.20; seeds 47 and 48, used by no earlier study.
+- **Plans (four, no agent):** the rule (floored sens_F, the prior at equal FLOPs, §357), the even cut (uniform_F), the cost-aware rule with FLOPs costs (sens_cost) and the threshold rule with FLOPs costs (sens_thresh, Li et al. 2017). Every plan of a network and seed shares its origin, so the honest gap equals the raw gap. 30 × 2 × 4 × 2 = 480 cells.
+- **Smoke gate, per network:** one 2-epoch smoke at FLOPs 0.20 (seed 47) had to complete with its size line, an origin accuracy within 0.025 of the checkpoint's own, a landing within 0.011, determinism on, an [alloc] line, no stall fallback and no error line. A failing network would get no cells.
+- **RS-LOSO, the reading:** per network × budget, for each seed the plan with the higher val change on the *other* seed is picked (ties go to the rule); the gap is its val change on this seed minus the rule's, averaged over the two seeds; per network, the mean over its two budgets. Bands on that val gap: ROOM ≥ +0.30; LITTLE-ROOM < +0.15; SOME-ROOM between. TEST 5k and 10k gaps are printed beside and never used to pick; RS-INS (picked and scored on the same seeds) is an upper bound, reported only.
+- **Stated in advance [H]:** room concentrates on thin or low-accuracy networks (thin ResNet-20 at widths 4 and 8, MobileNetV2 ×0.5, ShuffleNetV2 ×0.5) and is little on VGG-BN and the wider ResNets.
+
+Records of the run: smokes submitted 12 Nov (`2737bc7`); the driver resubmitted four preempted smokes unchanged (ShuffleNetV2 ×0.5, MobileNetV2 ×0.5, ShuffleNetV2 ×1 twice). **Gate 15:17: 30 of 30 PASS**, origin accuracies 0.0 to 1.2 points above each checkpoint's own figure and landings ×0.197–0.200. The 480 cells (24124902–24125604) were submitted at 15:30; the driver resubmitted eight preempted cells once each, unchanged (DenseNet-40 ×2, MobileNetV2 ×0.5, ResNet-56, thin ResNet-56 ×8, thin ResNet-20 ×4 ×3); no cell failed. All 480 were COMPLETED by 13 Nov 18:50, and the reader ran at 18:50:08. **Read 478 of 480.** The registered row check dropped two: the even cut on ShuffleNetV2 ×1 at FLOPs 0.45 landed at ×0.433 on both seeds, so that cell is read over three plans. No network was dropped.
+
+Per family (the mean over its networks; gap = the val-picked plan minus the rule, points):
+
+| family | networks | **gap, val** | gap TEST 5k / 10k | ROOM networks | params kept at FLOPs 0.20: rule / even / cost-aware / threshold (family mean) |
+|---|---|---|---|---|---|
+| thin ResNet-20 | 3 | **+1.19** | +1.65 / +1.42 | all three | 0.18 / 0.21 / 0.20 / 0.18 |
+| thin ResNet-56 | 3 | **+0.56** | +0.35 / +0.45 | ×4, ×8 (×12 SOME) | 0.20 / 0.22 / 0.19 / 0.17 |
+| ResNet (chenyaofo) | 4 | **+0.20** | +0.03 / +0.12 | ResNet-20 | 0.27 / 0.19 / 0.31 / 0.27 |
+| PreAct-ResNet | 2 | **−0.14** | +0.07 / −0.03 | — | 0.26 / 0.20 / 0.28 / 0.28 |
+| Wide-ResNet | 2 | **−0.28** | −0.39 / −0.34 | — | 0.26 / 0.19 / 0.25 / 0.28 |
+| VGG-BN | 4 | **+2.91** | +2.42 / +2.67 | all four | 0.06 / 0.20 / 0.06 / 0.09 |
+| ShuffleNetV2 | 4 | **+1.05** | +0.79 / +0.92 | all four | 0.23 / 0.21 / 0.20 / 0.21 |
+| MobileNetV2 | 4 | **+1.16** | +0.92 / +1.04 | all four | 0.17 / 0.22 / 0.15 / 0.17 |
+| DenseNet | 1 | **+3.09** | +3.66 / +3.37 | DenseNet-40 | 0.25 / 0.23 / 0.46 / 0.24 |
+| RepVGG | 3 | **+0.08** | +0.04 / +0.06 | A1 | 0.20 / 0.21 / 0.16 / 0.20 |
+| **all 30** | 30 | **+0.97** [+0.56, +1.39] | +0.86 [+0.46, +1.30] / +0.92 | 20 | — |
+
+The bracketed intervals (95 %, resampling networks) and the params columns were computed after the read and are descriptive; the bands are the registered reading.
+
+Per network (RS-LOSO; "rule" = floored sens_F, "even" = the even cut, "cost" = the cost-aware rule, "thr" = the threshold rule; a pair such as "thr,cost" means the two seeds picked different plans; the last column is the picked plan's params kept over the rule's, at equal FLOPs):
+
+| network | rule's own val change (0.45; 0.20) | gap val (0.45; 0.20) | **gap val, mean** | gap TEST 5k / 10k | INS val | band | picks (0.45; 0.20) | picked / rule params (0.45; 0.20) |
+|---|---|---|---|---|---|---|---|---|
+| thin ResNet-20 ×4 | −8.79; −26.54 | +2.13; +3.32 | **+2.73** | +3.51 / +3.12 | +2.73 | ROOM | thr; even | 1.12; 1.34 |
+| thin ResNet-20 ×8 | −6.82; −19.86 | +0.37; +0.33 | **+0.35** | +0.82 / +0.59 | +0.48 | ROOM | thr; thr,cost | 1.06; 1.04/1.16 |
+| thin ResNet-20 ×12 | −8.66; −18.81 | +0.69; +0.30 | **+0.50** | +0.62 / +0.56 | +0.50 | ROOM | even; even | 1.09; 1.02 |
+| thin ResNet-56 ×4 | −8.21; −25.50 | +0.64; +1.08 | **+0.86** | +0.89 / +0.88 | +0.86 | ROOM | thr; thr | 1.06; 1.05 |
+| thin ResNet-56 ×8 | −8.13; −16.08 | +1.05; +0.00 | **+0.53** | +0.23 / +0.38 | +0.53 | ROOM | thr; rule | 1.08; — |
+| thin ResNet-56 ×12 | −7.63; −15.21 | +0.58; +0.00 | **+0.29** | −0.08 / +0.11 | +0.29 | some | thr; rule | 1.11; — |
+| ResNet-20 | −3.13; −11.85 | +0.45; +1.43 | **+0.94** | +0.25 / +0.60 | +0.94 | ROOM | cost; cost | 1.03; 1.13 |
+| ResNet-32 | −1.19; −7.06 | −0.23; +0.39 | **+0.08** | +0.30 / +0.19 | +0.33 | little | cost,rule; cost,thr | 0.99; 1.01/1.09 |
+| ResNet-44 | −1.78; −5.80 | −0.24; +0.00 | **−0.12** | +0.13 / +0.00 | +0.00 | little | rule,cost; rule | 1.00; — |
+| ResNet-56 | −1.27; −5.33 | −0.03; −0.14 | **−0.08** | −0.55 / −0.31 | +0.42 | little | rule,cost; thr,cost | 1.00; 0.99/1.10 |
+| PreAct-ResNet-20 | −1.79; −7.73 | −0.37; +0.34 | **−0.02** | +0.08 / +0.03 | +0.17 | little | rule,thr; thr | 0.91; 1.07 |
+| PreAct-ResNet-56 | +0.79; −2.83 | −0.30; −0.21 | **−0.26** | +0.07 / −0.09 | +0.04 | little | rule,cost; thr,rule | 1.00; 1.04 |
+| WRN-28-2 | −1.53; −5.86 | +0.58; −0.46 | **+0.06** | −0.26 / −0.10 | +0.29 | little | cost; thr,rule | 0.99; 1.11 |
+| WRN-16-4 | −0.32; −3.38 | −0.27; −0.97 | **−0.62** | −0.53 / −0.57 | +0.14 | little | rule,even; thr,rule | 0.74; 1.02 |
+| VGG-11-BN | −1.88; −5.77 | +1.26; +2.22 | **+1.74** | +1.29 / +1.51 | +1.84 | ROOM | thr; even,thr | 1.87; 1.51/2.47 |
+| VGG-13-BN | −2.80; −9.44 | +0.62; +4.50 | **+2.56** | +1.74 / +2.15 | +2.74 | ROOM | even,thr; even | 1.99/3.18; 3.60 |
+| VGG-16-BN | −2.57; −11.03 | +1.35; +5.95 | **+3.65** | +3.14 / +3.40 | +3.65 | ROOM | even; even | 4.44; 3.67 |
+| VGG-19-BN | −4.40; −7.10 | +4.34; +3.07 | **+3.70** | +3.53 / +3.62 | +3.70 | ROOM | thr; even | 1.74; 3.03 |
+| ShuffleNetV2 ×0.5 | −3.20; −10.98 | +0.97; +3.09 | **+2.03** | +1.41 / +1.72 | +2.29 | ROOM | even,cost; cost | 0.79/1.06; 0.88 |
+| ShuffleNetV2 ×1 | −1.95; −4.65 | +0.74; +0.00 | **+0.37** | +0.31 / +0.34 | +0.37 | ROOM | thr; rule | 0.83; — |
+| ShuffleNetV2 ×1.5 | −2.20; −4.30 | +1.13; −0.33 | **+0.40** | +0.39 / +0.39 | +0.71 | ROOM | cost,thr; rule,thr | 0.99/1.02; 1.00 |
+| ShuffleNetV2 ×2 | −2.45; −4.53 | +1.84; +0.99 | **+1.41** | +1.05 / +1.24 | +1.57 | ROOM | even; cost,thr | 0.78; 0.89/0.90 |
+| MobileNetV2 ×0.5 | −1.67; −5.44 | +0.87; +0.05 | **+0.46** | +0.73 / +0.60 | +0.81 | ROOM | thr; cost,thr | 1.01; 0.88/1.11 |
+| MobileNetV2 ×0.75 | −2.94; −5.22 | +2.00; +1.76 | **+1.88** | +1.03 / +1.46 | +1.88 | ROOM | thr; thr | 0.92; 0.99 |
+| MobileNetV2 ×1 | −1.46; −4.17 | +0.93; +1.53 | **+1.23** | +0.43 / +0.83 | +1.30 | ROOM | thr,even; thr | 1.13/1.22; 1.09 |
+| MobileNetV2 ×1.4 | −2.01; −3.63 | +1.17; +0.95 | **+1.06** | +1.48 / +1.27 | +1.06 | ROOM | thr; thr | 1.17; 0.94 |
+| DenseNet-40 | −3.59; −9.42 | +1.65; +4.52 | **+3.09** | +3.66 / +3.37 | +3.09 | ROOM | cost; cost | 1.46; 1.86 |
+| RepVGG-A0 | −1.35; −4.61 | +0.45; −0.38 | **+0.03** | +0.02 / +0.03 | +0.34 | little | even; rule,even | 1.20; 1.14 |
+| RepVGG-A1 | −0.84; −3.89 | −0.27; +0.90 | **+0.32** | +0.16 / +0.24 | +0.45 | ROOM | rule,thr; cost | 1.00; 0.84 |
+| RepVGG-A2 | −0.47; −2.68 | −0.35; +0.14 | **−0.10** | −0.06 / −0.08 | +0.34 | little | rule,cost; even,cost | 0.89; 0.83/0.95 |
+
+Reading:
+1. **Room above the FLOPs rule is broad on CIFAR-100 once the screen looks past the pool's three networks.** 20 of 30 networks are ROOM on val, and all 20 also gain on TEST 5k and 10k; across networks the val and TEST 5k gaps correlate at 0.93. Where T0 (§434) used the same checkpoints, the two agree: thin ResNet-20 ×8 (T0 +0.30 val at FLOPs, here +0.35) and ResNet-56 (T0 −0.29, here −0.08). T0's VGG-19 is DepGraph's checkpoint (`vgg19_cifar100_dep_graph_73.5`, its own loader) and showed no room (−0.12 val over seven FLOPs points); chenyaofo's VGG-19-BN (73.87 %) has +3.70 here. Room belongs to a checkpoint, not to an architecture's name; why these two differ is not tested [U].
+2. **Little of it is luck.** The in-sample pick (RS-INS) reads +1.13 against RS-LOSO's +0.97, where T0's in-sample figure was double its held-out one (§434). With four plans the pick is stable: the two seeds pick the same plan in 36 of 60 cells, and both pick the rule in only 4.
+3. **No single agent-free plan wins.** Of the 120 seed-picks, the threshold rule takes 47, the cost-aware rule 27, the even cut 25 and the rule 21. The winner follows the family: the even cut or the threshold rule on VGG-BN, the cost-aware rule on DenseNet-40 and ResNet-20, the threshold rule on thin ResNet-56 and MobileNetV2, the threshold rule or the even cut on thin ResNet-20, and a mix on ShuffleNetV2. No fixed rule follows this. [H] A plan that reads the network could, and that is the room in which an agent can show learning.
+4. **Equal FLOPs is not equal params** (descriptive, computed after the read). On VGG-BN the rule keeps 0.05–0.13 of the params at FLOPs 0.20–0.45 against the even cut's 0.19–0.51: most of a VGG's params sit in its late layers, so the rule is cutting those hardest. The plans picked there keep 1.5–4.4× the rule's params; DenseNet-40's cost-aware plan keeps 1.46–1.86×, and thin ResNet-20 ×4's picks 1.12–1.34×. On ten networks every room cell's pick keeps at most 1.10× the rule's params: thin ResNet-20 ×12, thin ResNet-56 ×4 and ×8, the four ShuffleNetV2, MobileNetV2 ×0.5 and ×0.75, and RepVGG-A1. Four are mixed, with one cell at 1.13–1.22× (thin ResNet-20 ×8, ResNet-20, MobileNetV2 ×1 and ×1.4). On the FLOPs headline axis the VGG-BN room is real, but any row drawn from it must caption params beside FLOPs (the 10 % rule).
+5. **The [H] stated in advance is half right.** As stated, there is room on thin ResNet-20 ×4 (+2.73) and ShuffleNetV2 ×0.5 (+2.03), and little on the deeper and wider ResNets (ResNet-32 / 44 / 56, PreAct, WRN). Not as stated: thin ResNet-20 ×8 has room but only +0.35, MobileNetV2 ×0.5 has the least room in its family (+0.46), and VGG-BN, stated as little, has the most (+2.91).
+6. **For option B (the transfer program's T1).** The 20 ROOM networks are the candidates for T1's held-out set, chosen at T1's registration, which needs Ido's GO because T1 trains. Suggested there [D pending Ido]: prefer held-out networks whose room holds at about equal params (the ten in reading 4), and report params beside any VGG-BN or DenseNet-40 row. Three ROOM families have four networks each (VGG-BN, ShuffleNetV2, MobileNetV2), so a whole family can be held out, which a family-transfer claim needs. Seeds 47–48 never enter a proof row.
+7. **For the prior at equal FLOPs.** The prior stays as fixed (floored sens_F, §357), and ROOM-S does not change it. But on CIFAR-100, one of three agent-free plans picked on val beats it on 20 of 30 networks, so there "at the prior" is not "at the best agent-free plan". Suggested [D pending Ido]: report the val-picked best of these four plans beside every CIFAR-100 FLOPs agent row, as the bar an agent must reach before it shows more than picking a rule.
+
+Not claimed:
+- a call on any agent (no agent ran);
+- "the rule is beaten" beyond these four plans, these 30 networks and these two FLOPs points;
+- a network chosen, or a band read, on TEST (picks and bands use val only);
+- seeds 47–48 in any proof row;
+- room on VGG-BN or DenseNet-40 at equal params;
+- the [H] in reading 3 (that a network-reading agent can use this room) as a finding;
+- a reason why DepGraph's VGG-19 and chenyaofo's VGG-19-BN differ.
+
+Records: queue row ROOM-S (registered `7be6cd4`, smokes `2737bc7`, gate and cells `b24ff6c`); scripts `scripts/_tmp_s12nov_rs_submit.sh` (blob `26584bb`, deployed as `s12nov_rs_submit.sh`), `_tmp_s12nov_rs_driver.sh` (`cd26efa`), `_tmp_s12nov_rs_read.py` (`ba409f3`) and the descriptive params add-on `_tmp_s13nov_rs_params.py` (`efe1eb7`, run after the read); manifest `s12nov_rs_manifest.tsv`, gate `s12nov_rs_gate.txt`, driver state and log `s12nov_rs_driver.state` / `.log`, configs `rs_configs/`, outputs `rs/_read_rs.txt` and `rs/_rs_params.txt` (all under `scratch_audit/`); the intervals, params ratios and per-network table were built from those two outputs by the scratchpad's `rs_stats.py`, `rs_pp.py` and `rs_tab.py` (means and ratios only); next §437.
