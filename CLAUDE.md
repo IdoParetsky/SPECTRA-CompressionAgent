@@ -43,5 +43,5 @@ Science owns `docs/paper/SPECTRA_draft.md` under a standing GO.
 - Stage or commit files you did not change. Commit only your own files or hunks, then push.
 - Commit `runs/`, `scripts/_tmp_*`, `NAPv2-main.zip`, Ido's personal documents (handoff §9.1) or any secret.
 - Submit a cell before it is registered in `docs/SITTING_GPU_QUEUE.md`.
-- Start a new train without Ido's GO, or cancel one without his explicit ask.
+- Start a new train without Ido's GO, or cancel one without his explicit ask. Exception (Ido, 15 Nov): a train that science judges first priority needs no separate GO; register it first and tell him about every major run.
 - Quote anything but TEST as a result (5k, with val, 10k and honest beside it), or pick a point on test.
