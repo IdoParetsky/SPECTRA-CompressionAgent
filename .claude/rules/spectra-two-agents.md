@@ -1,4 +1,6 @@
-# Two agents, one tree
+# One agent, one tree (since 15 Nov 2026; this file was "Two agents, one tree")
+
+**Ido, 15 Nov: Claude Code is the sole SPECTRA agent.** It owns everything below that names ops: the cluster's polling, submits of registered cells, preemption handling, the briefs (the review page and pushes), the OPS DELTA and `docs/NEXT_DEV_PHASE.md` §0. The Cursor ops agent is retired; the mail file is retired after its STOP stamp. Ops' unstaged edits stay in the tree until Ido decides, so the git never-list below still holds. The rest of this file is the two-agent history, kept for reference.
 
 **You (Claude Code) = science.** Opus 5.5 MAX or Fable 5.1 MAX for design, analysis, literature, non-trivial development. Sonnet for a specified implementation and for monitoring. `/model opus` (or `opusplan` if the weekly bar is tight).
 

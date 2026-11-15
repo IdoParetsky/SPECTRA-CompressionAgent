@@ -1,15 +1,16 @@
 # CLAUDE.md: SPECTRA-CompressionAgent
 
-Two agents share this working tree:
-- **Claude Code is the science agent.** It does design, development, analysis and literature. Opus 5.5 MAX does the science, Fable 5.1 MAX the hardest bounded development, and Sonnet specified implementation (table below).
-- **The Cursor ops agent (Grok 4.6 High Effort) is separate.** It polls the BGU cluster, briefs Ido and keeps GPUs busy with pre-authorised cells. It follows `.cursor/rules/*.mdc` and `docs/OPS_HANDOFF_RUNBOOK.md` §10. If you are that agent, this file adds nothing to your instructions.
+**Claude Code is the sole SPECTRA agent (Ido, 15 Nov 2026).** It does design, development, analysis, literature, cluster operations (polling, submits of registered cells, preemption handling) and Ido's briefs (the review page and pushes). Opus 5.5 MAX does the science, Fable 5.1 MAX the hardest bounded development, and Sonnet specified implementation (table below).
+- **The Cursor ops agent (Grok) was retired on 15 Nov.** Nothing it ran is left: no cron and no cluster process. Its pre-authorised actions (`docs/OPS_HANDOFF_RUNBOOK.md` §10.3) concern finished September jobs. The runbook's never-lists still bind.
+- **Ops' unstaged edits stay in the tree until Ido decides** (`docs/PROMPT_FABLE_V6.md`, `docs/NEXT_DEV_PHASE.md`, `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`, lines of `docs/SITTING_GPU_QUEUE.md`, `docs/paper/GILAD_NEWS_30SEP.md`, `docs/paper/GILAD_OCT8_TRACKER.md`, `.gitignore`, `.vscode/settings.json`).
+- **`docs/AGENT_MAIL.md` is retired** (its last stamp tells ops to stop). The record is the queue row, the ledger, the draft and the skeleton; Ido is briefed by the review page and by pushes.
 
 ## Standing instructions for every sitting (Ido, 9 Oct 2026)
 `/spectra-start` and `/spectra-thesis-mission` are standing instructions, not optional commands. Run both at the start of every sitting, and again after a pause or a context compaction, whether or not Ido types them:
 
-1. **`/spectra-start`**: invoke the `spectra-start` skill. If it is not available (a session started outside this folder does not load `.claude/`), read `.claude/skills/spectra-start/SKILL.md` and follow its checklist by hand. It reads, in order: the top stamps of `docs/AGENT_MAIL.md`; `docs/CLAUDE_RESEARCH_HANDOFF.md` §0, §9, §11.3, §12; the top OPS DELTA; the newest queue rows; the ledger headings; and the live cluster (`squeue`, `sacct`) before any document's list of jobs.
+1. **`/spectra-start`**: invoke the `spectra-start` skill. If it is not available (a session started outside this folder does not load `.claude/`), read `.claude/skills/spectra-start/SKILL.md` and follow its checklist by hand. It reads, in order: `docs/CLAUDE_RESEARCH_HANDOFF.md` §0 (the current-state block); the newest queue rows; `docs/paper/PAPER_SKELETON.md`; the ledger headings; and the live cluster (`squeue`, `sacct`, the managers' state files) before any document's list of jobs. The mail file and the OPS DELTA are history since 15 Nov.
 2. **`/spectra-thesis-mission`**: invoke the `spectra-thesis-mission` skill, or read `.claude/skills/spectra-thesis-mission/SKILL.md` in full. It covers identity, NEON lineage, Gilad's frame and the state of mind.
-3. **Rules.** The native stance is in `.claude/rules/` (loaded automatically). Cursor's `.cursor/rules/*.mdc` are **not** loaded here; read them only if a rule is in doubt. Where they disagree, `docs/OPS_HANDOFF_RUNBOOK.md` §10 wins. Do not ingest the ledger in full.
+3. **Rules.** The native stance is in `.claude/rules/` (loaded automatically). Cursor's `.cursor/rules/*.mdc` are ops' and history since 15 Nov. The never-lists of `docs/OPS_HANDOFF_RUNBOOK.md` §10 still bind. Do not ingest the ledger in full.
 
 Open this folder (`C:\SPECTRA-CompressionAgent`) as the workspace before starting Claude Code, so that this file, `.claude/rules/` and both skills load.
 
@@ -25,6 +26,7 @@ Open this folder (`C:\SPECTRA-CompressionAgent`) as the workspace before startin
 - Type `/effort max` at the start of every sitting. It lasts one session, and saved settings stop at xhigh (`.claude/settings.json` keeps xhigh as the floor). Do not set `CLAUDE_CODE_EFFORT_LEVEL`: it would force max on the Sonnet subagents too.
 - Fable has its own weekly limit on Max, so treat it as a reserve. Run `/usage` at the start and at checkpoints; if Opus runs tight, use `opusplan` or pause.
 - Waiting is event-driven: never poll in the main tab. No log dumps in the main tab: full outputs go to files, and the tab shows calls and compact tables.
+- Since 15 Nov the session is reached from Ido's phone by Remote Control; keep the VPN watcher armed (`scripts/_tmp_s15nov_vpn_watch2.sh`) and push him when the link drops or something needs him.
 
 ## The paper draft (Ido, 14 Oct 2026)
 Science owns `docs/paper/SPECTRA_draft.md` under a standing GO.
@@ -35,7 +37,7 @@ Science owns `docs/paper/SPECTRA_draft.md` under a standing GO.
   - numbers only by ledger reference (§N), TEST 5k with val, 10k and honest beside it;
   - every table marked PRELIM until it is locked;
   - no train-log values.
-- Ops does not edit the draft. Its earlier one-line pins were folded into the body on 14 Oct.
+- Ops' earlier one-line pins were folded into the body on 14 Oct. Keep `docs/paper/PAPER_SKELETON.md` (the outline and table map) current with the draft.
 
 ## Never
 - Train, or install CPU PyTorch, on this laptop. GPU work runs only on BGU Slurm (`ssh bgu-slurm`). Run remote scripts with `powershell -NoProfile -File scripts/rexec.ps1 -File <script.sh>`.

@@ -16,6 +16,28 @@ All results are **PRELIM** unless the ledger says LOCKED. Ledger section numbers
 
 ---
 
+## 0c. Current state, 15 Nov 2026 (read this first; supersedes §0, §0a, §0b and §9 where they differ)
+
+**Who.** [D] Claude Code is the sole SPECTRA agent (Ido, 15 Nov): science, cluster operations and briefs. The Cursor ops agent is retired (STOP stamp in `docs/AGENT_MAIL.md`, which is retired too). Ops' unstaged edits stay in the tree until Ido decides, so the git never-list holds. Ido reads the review page https://claude.ai/artifact/CSV9YpsPXrhoGNTCikhPuz on his phone and answers by Remote Control; push him when something needs him, and when the BGU VPN link drops (the watcher `scripts/_tmp_s15nov_vpn_watch2.sh`, re-armed after any restart). He is on reserve duty for about two weeks from 18 Nov.
+
+**The method of record.** [R] The plan-as-action agents: T4-F (the FLOPs agent: a residual on the floored FLOPs sensitivity rule, trust region 0.3) and T6-fs (the params agent: the 32-step reward). One prior per budget: floored sens_F at equal FLOPs (§357), sens_cost at equal params (§355). The final recovery is G2, deterministic (§397–§401). The faster cut walk (E1) is accepted (§438) and on in evaluations registered from 15 Nov, never in training.
+
+**What the evidence says (TEST 5k leads; see the ledger for every number).** [R]
+- Both agents are level with their rules at five seeds on the pool and at the literature points (§405, §406, §408); one BELOW-PRIOR cell, params 0.125 (§408).
+- Harder benchmarks on CIFAR-100 and Tiny-ImageNet: 1 win, 4 level, 1 loss (§418). The safety net makes the loss level, and the one-epoch judge stays (§431, §432).
+- ImageNet ResNet-50, never trained on: level with the rule and the even cut at 2.08x and 1.79x; reproduced at full precision (§427, §428, §430).
+- Transfer: the held-out FLOPs agent is unchanged at the literature points; the held-out params agent is weaker, and its CIFAR-100-only retrain is worse (§420, §429).
+- Cost: minutes per network against hours for eight published pipelines (§419, §425); the faster walk adds 6-32 % (§435).
+- Room above the rule (where an agent could show learning): little on CIFAR-10 (§434). On 30 CIFAR-100 networks, room on 20 at equal FLOPs (§436) and on 9 at equal params, mostly the thin ResNets (§437). Pooled over those screens, the threshold rule sits above the FLOPs prior (+0.59 val); the params prior holds (queue row T1, RULES-ALL).
+
+**Running (15 Nov).** [R] The transfer program's T1 and T2 (queue rows T1, T2). Both agents' lines with only the catalog (45 networks; the FLOPs line 39, without ShuffleNetV2) and the instance count (24,000) changed, seeds 42-44; read on 13 held-out CIFAR-100 networks against every agent-free rule. T2 leaves families out (FLOPs folds now; params folds after a T1 params GAIN). The chain `s15nov_tp_chain.sh` and the manager `s15nov_tp_submit.sh run` run on login-01; state in `scratch_audit/s15nov_tp_manager.state`, `s15nov_tp_run.log`, `s15nov_tp_gate.txt`, `s15nov_tp_evgate.txt`; the reader `s15nov_tp_read.py`. Expected: the FLOPs call in about 2-3 days, the params call in about 4.
+
+**Ido's decisions of 15 Nov.** [D] P1 = C (the transfer program for both agents); P2 = GO (T1, with T2 in parallel); P3 = the exact Wilcoxon call with a +0.2 minimum effect, adopted for T1 / T2 (to be revisited with him once preliminary results exist, before any call is read); P4 = the GPU-memory figure is not an output (§438). A standing GO for trains science judges first priority: register first, tell him (CLAUDE.md).
+
+**Open.** [U] P5-P12 and the prior study (the review page's train read, part 2); the ops handover (commit ops' unstaged edits or not); the Wilcoxon policy before T1's first call.
+
+**Where things live.** The queue `docs/SITTING_GPU_QUEUE.md` (registrations and stamps), the ledger `docs/paper/RESULTS_LEDGER.md` (grep the headings; latest §438), the draft `docs/paper/SPECTRA_draft.md`, the outline and table map `docs/paper/PAPER_SKELETON.md`, the glossary `docs/GLOSSARY_CHRONOLOGICAL.md`, and the memory index.
+
 ## 0a. Update after the first Claude Code session (9 Oct ~18:50–21:15; supersedes §0, §7.3, §9 and §13 where they differ)
 
 Written by the Claude Code science session (Opus 5.5, max effort). The records of record are unchanged: the ledger, the queue file, and the runbook (`### 10.0l`). This block lists what changed and where it is recorded.

@@ -5,7 +5,7 @@ description: Boot a SPECTRA science sitting. Standing instruction (Ido, 9 Oct 20
 
 # /spectra-start — SPECTRA science boot
 
-You are the SPECTRA science agent in Claude Code. Ops is a different Cursor Grok chat. Do not skip this checklist. It is a standing instruction for every sitting, together with the `spectra-thesis-mission` skill.
+You are the SPECTRA agent in Claude Code, the sole one since 15 Nov 2026 (the Cursor ops chat is retired). Do not skip this checklist. It is a standing instruction for every sitting, together with the `spectra-thesis-mission` skill.
 
 ## 0. Model, effort, usage (Ido types these; documented in code.claude.com/docs/en/model-config, checked 9 Oct)
 
@@ -30,9 +30,9 @@ If HEAD is behind origin, `git pull --ff-only` only when the index is clean of *
 
 ## 2. Read, in this order (do not ingest the whole ledger)
 
-1. `docs/AGENT_MAIL.md` — top stamp only.
+1. `docs/CLAUDE_RESEARCH_HANDOFF.md` §0, the current-state block (the mail file `docs/AGENT_MAIL.md` is retired since 15 Nov).
 2. `docs/CLAUDE_RESEARCH_HANDOFF.md` — §0, §9, §11.3, §12. Rest as needed.
-3. Top **OPS DELTA** in `docs/PROMPT_FABLE_V6.md`.
+3. `docs/paper/PAPER_SKELETON.md` (the outline, table map and open decisions) and the managers' state files on the cluster (`scratch_audit/*_manager.state`, `*_driver.state`). The OPS DELTA is history since 15 Nov.
 4. The newest queue rows (the registry table near the top of `docs/SITTING_GPU_QUEUE.md`) and the newest dated cell section before `## O38`.
 5. Invoke the `spectra-thesis-mission` skill (identity, NEON, Gilad frame), or read its `SKILL.md` in full. It is a standing instruction too.
 6. Grep ledger headings `§330`–latest; do not read `docs/paper/RESULTS_LEDGER.md` in full.
