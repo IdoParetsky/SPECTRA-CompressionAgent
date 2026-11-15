@@ -1,122 +1,145 @@
-# SPECTRA paper skeleton (NEON chapter + figure map)
+# SPECTRA paper skeleton: outline, table and figure map
 
-Working title (already on the draft): **SPECTRA: Multi-Objective Structured Pruning of Convolutional Neural Networks Using Deep Reinforcement Learning**
+Rewritten 15 Nov 2026 against the draft as of ledger §438; updated for §439 the same day. It replaces the 7 Oct skeleton, which was written for the walk-agent era. Working title, as on the draft: **SPECTRA: Multi-Objective Structured Pruning of Convolutional Neural Networks Using Deep Reinforcement Learning**. Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md), the prose in [SPECTRA_draft.md](SPECTRA_draft.md), and registrations in [SITTING_GPU_QUEUE.md](../SITTING_GPU_QUEUE.md). See §6 for how to use this file.
 
-Write against this file tonight. Numbers live in [RESULTS_LEDGER.md](RESULTS_LEDGER.md). Prose already exists in [SPECTRA_draft.md](SPECTRA_draft.md) in NEON’s section order. Do not invent TESTs. Train freeze **night of 17 Sep**; paper **30 Sep**.
+## 1. The claim
 
-**Claim that justifies the paper (Gilad 18 Aug):** one frozen generic DRL agent, no per-target agent pre-training or adaptation. Competitive-enough while transferring. Do **not** claim to beat focused SOTA on their home architecture × dataset.
+SPECTRA extends NEON (Hirsch & Katz, *Information Sciences* 2022) to structured CNN pruning. NEON is a generic deep-RL pruner for dense networks, and its future work named CNNs. SPECTRA's contribution is a **frozen generic agent**, one per budget type (parameters or FLOPs). Each agent is trained offline on a catalog of CNNs and then applied to networks, families and datasets it has never seen, with no per-target training, search or adaptation. The agent reads a pretrained CNN as per-layer tokens and proposes the whole channel allocation in one step: the plan is the action, and the agent learns as a contextual bandit. Every plan, the agent's and the rules', is cut once and recovered with the same fixed fine-tune. In Gilad's frame the claim is **competitive enough while transferring**:
+- level with the best same-loop hand rule fixed in advance;
+- beside published methods at their own operating points;
+- at minutes per network, where published pipelines take tens of minutes to hours (§419).
 
-**Two artifacts, both required:** coverage matrix (family × dataset transfer) **and** NEON-style Pareto (TEST Δacc vs params/FLOPs kept vs same-loop heuristics + quoted literature stars). Pareto does not replace coverage.
+It does not claim to beat a focused method on its home architecture and dataset. Whether the agent does better than the rule where better plans exist is the question of the transfer program, running since 15 Nov (queue rows T1, T2):
+- **T1** retrains both agents on a 45-network catalog and reads them on 13 held-out CIFAR-100 networks that have room above the rule;
+- **T2** repeats T1 with whole families left out of the catalog.
 
-Predecessor: Hirsch & Katz, *Multi-Objective Pruning of Dense Neural Networks Using Deep Reinforcement Learning*, Information Sciences 2022. NEON’s last sentence of future work is “expansion of [the] approach to convolutional” nets — SPECTRA is that expansion.
+## 2. Outline in NEON's order
 
----
+Status: **written** (the prose exists, with numbers by §), **PRELIM** (the tables exist but are not locked), **waits on T1–T2**, **to write**.
 
-## NEON → SPECTRA chapters
-
-NEON’s remainder paragraph (p. 3): §2 related work → §3 proposed approach and training → §4 evaluation (algorithms, setup) → results → discussion → conclusions. SPECTRA keeps that order; the draft already does.
-
-| NEON | SPECTRA draft | Write tonight? | Blocked on |
-|---|---|---|---|
-| Graphical abstract + 3 highlights | Graphical abstract: train once → freeze → prune unseen CNN. Highlights: (1) preference-aware structured CNN prune; (2) one offline agent, many families; (3) transfers without extra agent training | yes — three bullets | do not say “the policy” until `20945568` |
-| Abstract | Abstract | claim sentence + coverage one-liner; leave a `[POLICY TBD]` slot | Chain A argmax `20945568` |
-| **1. Introduction** | §1 | yes — three NEON shortcomings, then CNN-native answer | — |
-| **2. Related work** | §2 (RL, pruning, NAS) | yes — Table analog of NEON Table 1 | Scholar re-scan before 15 Sep |
-| **3. Proposed approach** | §3 Overview / State / Action / Reward / Architecture / Training / Complexity | method LOCKED; equations still TBD | Chain B only for reward *ablation* |
-| **4. Evaluation** | §4 Compared methods + Setup | protocol LOCKED; figure captions now | FPGM/BN ranking A/B for extra series |
-| Results (NEON §4.3–5) | §5.1–5.9 | fill from ledger; mark sampled DRL as sampled | `20945568` fork |
-| Discussion | §6 | yes — honest limitations | same fork |
-| **7. Conclusions + future work** | §7 | one paragraph now; NEON’s CNN future-work is the claim, not a new promise | freeze |
-
-NEON’s three intro shortcomings (keep this as SPECTRA’s §1 spine):
-
-1. Users cannot set a compression / accuracy preference without hunting hyperparameters.
-2. Heuristics are generic but not adaptive; DRL pruners (AMC) train the agent on the **one** target net.
-3. *(SPECTRA adds the CNN gap NEON named as future work.)* Dense-net feature maps and layer-only fine-tune do not transfer to Conv2d groups.
-
----
-
-## Figures (copy NEON’s set, then add two SPECTRA-only panels)
-
-NEON has nine figures. SPECTRA should feel like the same paper with CNN guts.
-
-| SPECTRA | NEON | What to draw | Source / first panel | Status |
-|---|---|---|---|---|
-| **F1** | Fig. 1 schematic | Observation = whole CNN + current group → encoder → policy keep-rate `{1.0,0.9,0.8}` → **structural rebuild** (not mask) → **full-net** FT → τ reward → next group | Draft §3.1. Caption: grouping is DepGraph-class bookkeeping, not the novelty | Draw now |
-| **F2** | Fig. 2 feature maps | One token per layer: type, width, depth, filter-L1 moments, action cost, coupling id. Not NEON’s per-neuron skew/kurtosis. BERT-input note is the ancestor; default encoder is the small trainable Transformer, not frozen BERT | Draft §3.2 | Draw now |
-| **F3** | Fig. 3 architecture | A2C + `NetworkEnv` + `torch.fx` groups (residual add, DenseNet concat, depthwise). Actor small vs frozen BERT ablation | Draft §3.5 | Draw now |
-| **F4** | Fig. 4 dataset zoo | Skip NEON’s “sklearn vs NN on 28 tabular sets.” SPECTRA substitute: **origin-accuracy table** of the CNN zoo (C10/C100/MNIST/SVHN/ImageNet probe) so origin acc is visible before Δacc | Ledger catalogs | Optional one-column table, not a figure |
-| **F5** | **Fig. 5 Pareto** | **Headline visual.** TEST Δacc vs kept params **and** vs kept FLOPs. Optional second X = ×-times smaller (`1/kept`) to match NEON. Series: DRL operating points, greedy / mild / random / look-ahead, **prefer as a heuristic**, quoted literature stars with FT-mismatch caption | Skinny r56-w4 · C10 first. Then VGG-19 C10, MobileNet C10, unlike RepVGG. Gilad also asked VGG · C100 | Draw now from ledger §2 / §5; paper figure = 2–4 panels, not the ops canvas |
-| **F6** | Fig. 6–7 boxplots | Compression-ratio and Δacc **distributions** across the coverage cells (not 28 tabular sets). One box per method | LOCKED C10 similar/unlike/thin + C9 | Sketch now; lock after freeze |
-| **F7** | Fig. 8–9 train curves | Optional appendix: A2C loss / reward. Not a paper claim | train jobs | Skip unless a reviewer asks |
-| **F8** | *(SPECTRA extra)* | **Coverage matrix:** family × dataset, frozen agent, won / hard / gap | C10 similar, C10 unlike, C10 thin, C100, MNIST, SVHN-w8, ImageNet probe | Draw now from claims C1–C12 |
-| **F9** | *(SPECTRA extra)* | **Operating-point walk** on one net: default miss, FLOP-floor inside τ, prefer inside τ at more FLOPs kept. Not “fixes” of each other | r56-w4: 0.704/0.550 vs ~0.91/0.70 vs 0.704/0.872 | Draw now |
-| **F10** | *(optional)* | Sampled vs argmax on thin r20 / r56 | r20 holds; r56 argmax **−25.2 @ 0.667/0.465** vs sampled **−25.4 @ 0.667/0.482** vs locked **−15.9 @ 0.704/0.550** | **Draw** — policy is the cliff |
-
-Caption rules: X is fraction **kept** (or 1/kept as a second axis). Y is `eval_test` FINAL only. Prefer series is a **heuristic**, one run not three-seed DRL. Skip masked ShuffleNet keep. Skip wrap job-means. Skip r32. Do not claim home-court DepGraph wins.
-**F5 at freeze (Ido 6 Oct):** live numbers from ledger **§2.4** (protocol P). Literature stars use a **10k companion** column or labelled cross-fit, plus a different-FT caption — do **not** switch the live 5k P recipe. Do not plot v10 probes or Stage-4 as a WIN (census 0.8). Ops plot restamped 6 Oct: `spectra-pareto-6oct.canvas.tsx`.
-
----
-
-## Tables (NEON analogs)
-
-| SPECTRA | NEON | Contents |
+| Section | One-line claim or content | Status |
 |---|---|---|
-| **T1** related-work criteria | Table 1 | Global POV, preference-aware (τ), generic (no per-net agent train), structured (real shapes), same-loop vs quote-only, **how filters are chosen: how many (allocation) · which (selection)**, per `FILTER_SELECTION_NAP_DESIGN.md` §2 |
-| **T2** compared methods | §4 algorithms | DRL / greedy / mild / random / look-ahead / prefer-heuristic; ranking L1 default, FPGM/BN as A/B. Each row states its allocation · selection (SPECTRA: frozen agent per coupled group · L1 group vote) |
-| **T3** coverage summary | Table 3 “NEON X” | One row per family × dataset: Δacc, params kept, FLOPs kept, inside τ? Mark DRL rows **sampled** until argmax |
-| **T4** skinny ResNet callout | — | Three operating points on r56-w4 (F9 in table form) |
-| **T5** C100 recoverability vs C9 | — | No-agent VGG recipe vs frozen-agent C9 split (VGG/ShuffleNet in, residuals/RepVGG out) |
+| Graphical abstract, highlights | Train once on a catalog, freeze, plan an unseen CNN in one step, cut once, recover once. Highlights: no per-target search; level with the best rule on held-out networks; minutes per network | to write; waits on T1–T2 |
+| Abstract | NEON's question for structured CNNs; the plan agent; the same-loop protocol; level with the prior at five seeds; the reward-fidelity account and the fallback; the transfer map; the cost | written (19 Oct), stale; rewrite after T1–T2 |
+| 1. Introduction | Allocation is solved one network at a time; NEON's frozen agent for dense networks; the walk design collapsed on CNNs; a plan as the action; the contributions | written; contributions to refresh |
+| 2. Related work | RL; pruning (dense to CNN, structured, global vs local, DepGraph and SPA as mechanism-level generality, 2025–26 methods still per-model, allocation priors, policy transfer); NAS. No surveyed 2023–2026 paper offers policy-level generality for CNNs | written |
+| 3. Approach | Channel groups and the cut (the same bookkeeping as DepGraph, no novelty claimed); per-layer tokens with each group's sensitivity and cost; Transformer scores and a budget decoder with floors and grid rounding; an accuracy reward after a cheap proxy; REINFORCE over 8 plans with a shared baseline; the FLOPs agent as a bounded residual on the FLOPs rule; the accuracy-limit mode; cost | written (method of record since 14 Oct); add T1–T2's lines |
+| 4. Evaluation | Same-loop rules; one prior per budget, fixed in advance; one fixed 100-epoch recovery; disjoint val and TEST halves; TEST 5k with val, 10k and honest; paired seeds (five in the final tables, three in T1–T2); realizable arms only; networks; registered calls | written; add T1–T2's catalog, held-out set and call |
+| 5. Results | Five views (Tables 1, 1b, 1c; Table 2; trade-off curves; transfer matrix; cost table), then the analyses (map in §3) | PRELIM; final Table 2 to build; T1–T2 subsection waits |
+| 6. Discussion | What carried over from NEON and what did not; why a plan; what the agent learned (cost-awareness); agent vs rule vs search; allocation, not channels or weights; reward fidelity at depth; the safety net; transfer; recovery; limitations | written, stale in places; rewrite after T1–T2 |
+| 7. Conclusions, future work | One frozen agent per budget, level with the best rule while transferring, at a fraction of the cost; negative cells stated | written, next steps stale; rewrite after T1–T2 |
+| Appendix A | Protocol archaeology (August) | written |
+| Appendix B | From the walk agent to the plan agent; milestones | written; milestones end on 19 Oct |
+| References | [1]–[78] from the proposal, [79]–[96] from the August survey, [97] onward from the October scans | written; grows |
 
-NEON named configurations **NEON 0 / 1 / 5 / 50** (allowed drop). SPECTRA analog is **operating points**, not τ-sweeps we did not run as a grid: default, FLOP-floor 0.70, prefer-heuristic, (optional) τ=5 thin eval. Do not invent a NEON-50 arm.
+## 3. Table and figure map
 
----
+Every result table, the new ones included, is PRELIM until it is locked. TEST 5k leads, with val, 10k and honest beside it. FLOPs is the headline axis for rows that face the literature; an agent row is headlined on the budget it trained on.
 
-## Section-by-section: what to write vs what to wait
+**Result tables (draft §5)**
 
-### Abstract
-One paragraph: NEON’s offline preference-aware agent, extended to structured CNNs; train once on a 10-net C10/SVHN/Fashion mix; freeze; transfer. Competitive with same-loop heuristics on easy nets; skinny-deep ResNet-56 is the documented failure at ~70% params (sampled) and the **argmax cliff** at 67% params (−25.2). FLOP-floor / prefer are milder operating points (prefer = heuristic). C100 transfers where the cut is recoverable (VGG/ShuffleNet), not as a blanket dataset win. Quote sampled LOCKED rows as samples; quote `det=1` rows as the policy.
+| Table (draft label) | What it shows | Ledger § | Status |
+|---|---|---|---|
+| Table 1 (§5.1) | The agents of record against their prior and the even cut at ten published CIFAR-10 points (DepGraph's ResNet-56, VGG-16, ResNet-110); published rows beside them under a different-recipe caption | §408; earlier §362, §382, §391, §392, §399 | PRELIM |
+| Table 1b (§5.1b) | The same at six published points on CIFAR-100 and Tiny-ImageNet, for a FLOPs agent that trained on neither | §418; safety net §431 | PRELIM |
+| Table 1c (§5.1c) | ImageNet ResNet-50 at two published points: frozen transfer, one seed, no call | §427, §428, §430 | PRELIM |
+| Table 2, final (§5.2–§5.3) | Each agent of record against its prior at fixed budgets on the nine held-out networks, five seeds, pooled and per network, with intervals; the even cut and the per-network search beside; below the training range | §405, §406; §413, §416; §396 | **to build**: Tables 5.2a, 5.2b and 5.3 hold mostly the three-seed development reads (§366–§390) |
+| Tables 5.5, 5.5b, 5.5c (§5.5) | Transfer: family folds; new architectures and an unseen dataset; agents trained with no CIFAR-10, no plain ResNet and no VGG | §353–§363; §407, §410; §420, §429 | PRELIM |
+| Cost table (§5.6) | Time to a pruned, recovered network against the published pipelines, timed on the same GPU, with the split between decision and fine-tune and the stock-loader rows; VGG-16; the faster cut walk | §419, §425, §433, §435, §438 | PRELIM |
+| Controls (§5.6) | Scratch training; a per-network random search; random vs L1 channels; measured speed; run-to-run noise | §394, §396, §398, §395, §393, §397, §401 | PRELIM |
+| The agent learns (§5.7) | Against mild and the even cut on held-out networks | §341, §346, §347, §363 | PRELIM |
+| Room screens (§5.8) | No headroom at moderate budgets; room across every plan run; four agent-free plans on 30 CIFAR-100 networks at equal FLOPs and at equal params, never pooled together | §367, §368, §372; §434; §436; §437; §439 (correction, rule ranking) | PRELIM, no call |
+| Deep budgets and the reward (§5.9) | Single-change retrains; recovery-aware rewards; CIFAR-100 in the catalog; both levers together; below the training range; the one-epoch reward; a deeper range from scratch | §376–§390, §400, §413, §414, §417, §421 | PRELIM |
+| Tables 5.9b, 5.9b-2 | The fallback to the rule chosen on validation (pool, new architectures, harder points), and the search for its judge | §409, §410, §431, §432 | PRELIM |
+| §5.9c–§5.9f | Two-stage plans; the agent's model; the accuracy-limit mode; how many cut rates the rule measures | §411; §422, §426; §423; §424 | PRELIM |
+| §5.10, §5.11 | Which cheap rewards rank plans like the final fine-tune; the recovery recipe | §340, §349, §351, §375, §379; §329–§348 | PRELIM |
+| T1 call table (new) | Per agent at budget 0.45, on the held-out networks with room on its own axis (9 at equal FLOPs, 6 at equal params; ShuffleNetV2 reported only, §439): T1 agent − prior, a bootstrap interval over networks, the exact Wilcoxon call. Budget 0.20 is reported, with no call | queue row T1; § to come | waits on T1 |
+| T1 reported table (new) | All 13 held-out networks (a no-harm check). The T1 agent against the even cut, the agent of record (the catalog's effect), the room screen's pick and every agent-free rule | queue row T1; § to come | waits on T1 |
+| T2 table (new) | Per fold and pooled over the folds: the gain without the family, and non-inferiority to the T1 agent. ShuffleNetV2's FLOPs rows are reported only | queue row T2; § to come | waits on T2 |
 
-### §1 Introduction
-NEON worked on dense nets. Flattened images were a negative control in the proposal. SPECTRA is the CNN-native answer (group rebuild, realized size, CNN state). Claim = genericity without per-net agent training. Point to F1, F5, F8.
+**Figures**
 
-### §2 Related work
-Keep draft structure: RL, pruning (dense→CNN, structured, global vs local), DepGraph/SPA as grouping (not our novelty), 2025–26 still per-model, NAS. AMC is the DRL neighbor (per-net agent). Scholar re-scan before 15 Sep. Quote DepGraph/SPA/OCS/SACP — do not reimplement.
+| Figure | What it shows | Source | Status |
+|---|---|---|---|
+| Method schematic (NEON Fig. 1) | Tokens, scores, budget decoder, floors and grid, one cut, one recovery | draft §3.1 | to draw |
+| Training loop (NEON Fig. 3) | One network and budget per instance, 8 sampled plans, a shared baseline, REINFORCE | draft §3.6 | to draw |
+| Pareto panels (NEON Fig. 5; draft Figure 5.4) | TEST 5k change against params kept and against FLOPs kept, one panel per network: the agent, the prior, the even cut, and literature stars with a 10k companion and a different-recipe caption. The FLOPs panel headlines the literature rows; the params panel is the params agent's home budget | §405, §406, §408, §413, §416, §418 | to draw; the points exist |
+| Coverage map (SPECTRA only) | Family × dataset: holds, level, below, lever-limited or not read, for the agents of record and the held-out folds. Gilad (18 Aug): the Pareto never replaces it | §353–§363, §407, §410, §418, §420, §427–§430; T2 | to draw; refresh after T1–T2 |
 
-### §3 Approach
-Method LOCKED. Write F1–F3. Equations for NEON trichotomy + realized reduction. Mention Fortify, 0.70 eval floor, no layer-only FT. **Provenance footnote:** TEST rows in this draft were produced with `sample()` and live encoder dropout unless tagged `SPECTRA_EVAL_DETERMINISTIC`. Prefer-Δparams/ΔFLOPs bypasses the actor. **BERT-input note:** kept per-layer tokens + coupling + target marker; dropped frozen-BERT default, dual local/global copy, and per-filter tokens (draft §3.2). `SPECTRA_SKIP_EVAL_TRAIN` skips the duplicated `eval_train` walk on new skip-train jobs.
+**Method and protocol tables (they exist):**
+- the related-work feature table (§2.2.3; the draft also labels it Table 1);
+- the state columns (§3.3), the proxies (§3.5) and the agent lines (§3.6; add T1–T2);
+- the compared methods and the priors (§4.1), the held-out pool (§4.3) and the registered calls (§4.4; add T1–T2's call);
+- NEON's building blocks, and agent vs rule vs search (§6).
 
-### §4 Evaluation
-T2 already in the draft. Protocol: τ=10, TEST, kept ratios, three seeds where the actor actually ran. FPGM/BN-scale: same-loop ranking A/Bs queued, not a new agent.
+## 4. What the paper can claim today
 
-### §5 Results (ledger-backed; don’t paste job means)
-- **5.1 Similar C10** — LOCKED transfer; r56-w10 miss at default; FLOP-floor / prefer operating points. Prefer = heuristic.
-- **5.2 Unlike C10** — LOCKED. Quote structural ShuffleNet; skip masked 0.724.
-- **5.3 Thin ResNets** — r20 ties greedy; r56-w4 10-net DRL **−15.9 / −16.2 / −17.2** miss at 0.704/0.550; look-ahead −24.9; FLOP-floor three-seed inside τ; prefer heuristic 0.704/0.872. **Sampled resample `20945567`:** r56 **−25.4 @ 0.667/0.482** — evidence of sampling, not a replacement for −15.9.
-- **5.4 C100 recoverability** — VGG recipe yes; residuals tiny cuts. Empty band (42/42 over-budget); spoof: not class-count.
-- **5.5 24-net** — does not save r56-w4.
-- **5.6 Claim C9** — frozen 10-net → C100 mixed (VGG/ShuffleNet inside; residuals/RepVGG miss under Adam-40).
-- **5.7–5.8** MNIST gain; SVHN-w8 inside τ.
-- **5.9 ImageNet** — frozen probe, truncated JPEG, not SOTA, no ImageNet DRL.
+Each line holds only with the scope its sections state.
+1. **The agent learns.** The plan agent beats the mild heuristic (keep about 90 % everywhere) and the even cut on held-out networks. Every walk agent had collapsed into a mild clone (§331, §341, §346, §363).
+2. **Frozen, it is level with the best rule.** Both agents of record sit at their budget's prior at every budget read inside their training ranges, on nine held-out networks at five seeds (§405, §406). They do so at the field's CIFAR-10 points too, with one BELOW cell at the deepest params point (§408).
+3. **On data it never saw.** The FLOPs agent lands level with its rule at most CIFAR-100 and Tiny-ImageNet points (§418). On ImageNet ResNet-50 it is level with its rule and the even cut (one seed, no call; §427, §428, §430). Published rows stand beside ours under a different-recipe caption, never as a contest.
+4. **No per-target search, and better than one.** The agent ends above a per-network random search scored with its own reward, at two params budgets, while keeping more FLOPs than the search; the claim holds only with that call's scope (§396).
+5. **Efficiency, a settled highlight (Ido, after talking with Gilad, 5 Nov).** Minutes per network against tens of minutes to hours for the published pipelines timed on the same GPU, quoted only with the split between decision and fine-tune and with the stock-loader rows (§419, §425). The faster cut walk changes no computed output (§433, §438).
+6. **The allocation is what matters.** Random channels at the agent's widths end level with its L1 channels (§398), and its architectures trained from scratch with the same compute end level with their inherited weights (§394).
+7. **One failure, explained and removed.** At deep budgets one network exposes a reward that misranks plans (§375, §379). Rewards closer to recovery shrink the failure (§383, §387), and a fallback to the rule chosen on validation removes it at no cost elsewhere (§409, §410, §431).
+8. **A transfer map with its negative cells.**
+   - One family fold holds and one fails (§363).
+   - New architectures are at the rule on CIFAR-10, and below it at one budget when the dataset is new too (§407); with the fallback they are at parity (§410).
+   - The held-out FLOPs agent holds, though its design keeps it near its rule; the held-out params agent is weaker (§420, §429).
+9. **Preference as a limit.** Given an accuracy limit, the agent stops at the same size as the rule (§423).
+10. **Where an agent could gain.** Room above the rule is network-specific. There is little on CIFAR-10. On CIFAR-100 it depends on the network and the axis, and at equal params it is mostly on the thin ResNets (§434, §436, §437). These screens fixed T1's held-out set.
 
-### §6 Discussion
-Schedule vs ranking; grouping is DepGraph’s layer; C100 is recoverability **plus** an empty reward band (prefer solve via `structural_band`, not only a limitation caption); sampled vs argmax (policy is the cliff); prefer is a heuristic lever; 10-net is the scientific product; competitive-enough while transferring.
+**Claims guard (short form; the full guard heads the draft).**
+- Never "beats" a rule, DepGraph or the state of the art unless a registered BEATS call fired, and then only with its scope (§382, §396). No pooled beat of a prior holds at five seeds (§405, §406); §390's three-seed beat did not hold.
+- Never "headroom" at moderate budgets (§367, §368, §372). Room is per network (§434, §436, §437). The two screens are never pooled, and "the rule is beaten" never reaches beyond their four agent-free plans, 30 networks and two points.
+- Never "transfers to unseen families" in general (§363) and never "transfer is proven" (§420). Never claim transfer to new architectures and datasets without §407's scope.
+- Never "N× faster" without the split between decision and fine-tune and the stock-loader row. Never set a runtime from another GPU against ours (§419).
+- Never a call from ImageNet (one seed, §427–§430). Never treat Tiny-ImageNet as a SOTA cell, and never say "beats the rule on Tiny-ImageNet": that call fired at one point of three, where the even cut beats both (§418).
+- Never quote a proxy, a train-log value, a smoke, a projection or `eval_train` as a result. Never choose a network or point on TEST, and never put the screens' seeds 47–48 in a proof row. Never mix budgets, depths, or three- and five-seed rows in one contrast. Always name the network that carries a pooled result.
+- From T1–T2's registration: no call at budget 0.20; no claim beyond T1's networks and points; never a fold's agent read on a family it trained on.
+- [H] At equal FLOPs, "level with the best rule" needs the all-rules rows, because the threshold rule screens above the FLOPs prior (queue row T1).
 
-### §7 Conclusions
-One frozen agent; coverage + Pareto; competitive-enough while transferring; skinny ResNet and C100 residuals as documented gaps. **10-net is the thesis catalog;** a large shelf-product catalog is future work with a fresh hold-out. Future work Gilad can approve is listed in draft §7 (empty-band solve, shelf catalog, argmax retake after a non-degenerate reward, τ/floor knobs, broader frozen ImageNet). Future work is **not** encoder/BERT/AMP/skinny-in-train (already failed on r56-w4) and **not** ImageNet DRL.
+**Two headlines, set by T1's call.** Under P3 (Ido, 15 Nov), the call is GAIN if the mean over held-out networks is at least +0.2 points and an exact two-sided Wilcoxon test gives p < 0.05. LOSS mirrors it, and anything else is LEVEL.
+- **GAIN:** "Trained once on a broad catalog and frozen, the agent finds better allocations than the hand rule fixed in advance, on held-out networks where better plans exist, with no per-target search and at minutes per network." If T2 holds, add "including families it never trained on." Stated in advance [H]: the params agent gains, carried by the thin ResNets; the FLOPs agent reads level, held near its rule by its trust region.
+- **LEVEL:** "One frozen agent, trained once, is level with the best hand rule wherever it was read, held-out networks with room included, with no per-network search or design, at a fraction of the published pipelines' cost." Efficiency then leads.
+- A LOSS is reported as a negative cell, never as a headline. [H] The fallback chosen on validation is then the form to deploy.
 
----
+## 5. Decisions, open items, next steps
 
-## Decisions that change what the paper *says*
+**Decided by Ido on 15 Nov.**
+- P1 = C: the transfer program for both agents.
+- P2 = GO: T1, with T2 in parallel. A standing GO also covers the trains science judges first priority: register first, then tell Ido.
+- P3: the exact Wilcoxon call with a +0.2 minimum effect, for T1–T2.
+- P4: the GPU-memory figure is not an output, so the faster cut walk (E1) is accepted (§438).
 
-1. **`20945568` COMPLETED — path 3.** r20 **−4.4 @ 0.600/0.741** (holds). r56 **−25.2 @ 0.667/0.465** (cliff, not locked −15.9 @ 0.704/0.550). Identity fork is dead. Replace DRL cells that move; wait similar **20945570** before mass-rerun. Chain B **20945574** is next science.
-2. **Prefer** — already closed: heuristic, relabel, keep on F5.
-3. **Chain B reward** — Arm A thin eval **20945576 COMPLETED identity** (§63). Frozen Path 3 unchanged. Band arm **20945744 CANCELLED** 10 Sep 04:15 (5-step; invalid). C100 residual DRL **left** (empty band). Overnight C10 full-net retrains (not TEST): prefer **21168773**, neon cubes **21168838**, prefer-floor **21168840**, F1 **21168844**. Empty C100 band is already writeable.
-4. **FPGM/BN** — Pareto ranking A/Bs; do not retrain the 10-net actor unless they beat L1 *and* argmax is a real policy. Closed: keep L1.
-5. **Shelf catalog** — not a missing §5 table. 10-net stays the paper agent. 100–150 band-screened nets with a new hold-out is draft §7 future work.
+Claude Code is now the sole SPECTRA agent; the separate ops agent is retired.
 
----
+**Open.**
+- P5–P12: Ido's word on the second part of the review page's train read.
+- PRIOR-2 (planned, not registered): a separate prior study that sets the prior for studies registered after T1. The threshold rule challenges the FLOPs prior; the params prior holds. T1–T2's calls stay on the registered priors.
+- P3, to revisit with Ido once preliminary results exist and before any call is read.
+- The retired ops agent's unstaged edits: Ido decides whether they are committed.
 
-## What not to put in tonight’s skeleton
+**Next, in order.**
+1. T1's FLOPs call reads first, then its params call. Each gets a ledger section, then the draft's T1 subsection, then this map's status.
+2. T2's FLOPs folds run now; its params folds start only if T1's params call reads GAIN.
+3. The all-rules ranking of the room screens is ledgered with TEST beside val (§439); a prior study for later studies waits on Ido.
+4. Build the final Table 2 from §405 and §406, with §413 and §416 below the training range.
+5. Draw the Pareto panels and the coverage map; refresh the map after T1–T2.
+6. Rewrite the abstract, §1's contributions, §6 and §7 to T1's outcome, under one of the two headlines.
+7. Before T1's rows enter, rename the old catalog agent "T1" (§3.6 and Tables 1, 5.2a and 5.5), and renumber one of the two tables labelled "Table 1".
+8. After the proof, the final agent trains on everything. ResNeXt and RegNet, never pretrained for T1, are its never-seen test (queue row T1; not yet registered).
+9. Lock the tables, then write the thesis chapters; the walk era stays a short negative-result appendix.
 
-Encoder / BERT / AMP / skinny-in-train as “future work we will try.” ImageNet DRL. Home-court DepGraph wins. C100 DRL train returns. `eval_train`. Wrap means. Akamaster r32. Prefer as three-seed DRL. `20884673` train-catalog PASS1 as paper TEST.
+## 6. How to use this file
+
+- This file is the map, not the record. Numbers live only in the ledger (§N), the prose only in the draft, and registrations, calls and never-lists only in the queue. Where this file and the draft differ, the draft wins; where the draft and the ledger differ, the ledger wins.
+- Quote nothing from here. Quote the ledger section it names: TEST 5k first, with val, 10k and honest beside it.
+- After each ledger section, update the ledger, then the draft, then this file's status column. Claude Code keeps all three.
+- No due date is written here: Gilad granted a full-semester extension (18 Sep).
+- Names:
+  - **T4-F** is the FLOPs agent of record, a bounded residual on the FLOPs rule. **T6-fs** is the params agent of record, trained with a reward read after 32 fine-tune steps.
+  - The **priors** are the floored FLOPs sensitivity rule (§357) and the cost-aware sensitivity rule (§355).
+  - The **even cut** keeps the same fraction of every group. The **threshold rule** is Li et al.'s single global threshold.
+  - **Room** means an agent-free plan, picked on validation, that beats the rule.
+  - **P1–P12** are Ido's decision items on the review page.

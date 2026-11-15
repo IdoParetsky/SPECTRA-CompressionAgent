@@ -11688,3 +11688,35 @@ Consequences, recorded in queue row E1:
 - E1's three flags are on in evaluation cells registered from 15 Nov (T1, T2). They stay off in training. Rows already in the ledger were run with the flags off and are not re-run.
 
 Records: queue row E1 (Ido's word stamped `9d08148`); §433, §435; next §439.
+
+## 439. (Correction of §436 and §437; the rule ranking): both room screens read ShuffleNetV2 rows that logged a masked edit — **the realizable-arms rule (no masked edit; §346, §352, §357) was missing from both registered readers. Re-read with it, §436's bands stand (ROOM on 20 of 30; all 30: TEST 5k +0.81 [+0.41, +1.25], val +0.93, 10k +0.87, honest = raw; was +0.86 / +0.97 / +0.92), and §437 has ROOM on 8 of 30 (ShuffleNetV2 x2 falls to SOME-ROOM; all 30: TEST 5k +0.81, val +0.76, 10k +0.79). Room on both axes: 6 networks. Pooled over each screen's cells, the threshold rule sits above the FLOPs prior (TEST 5k +0.56, val +0.60; above it on val in 36 of 57 cells) and modestly above the params prior (TEST 5k +0.24, val +0.21; 26 of 60)**
+
+What happened. 17 rows of §436 and 15 of §437, all on ShuffleNetV2, log `[prune_fallback_masked] structural prune broke dummy forward; masked instead`: the edit keeps the layer's shape, so the row is not a realizable cut. They are mostly the even cut (both screens), plus the threshold rule at FLOPs 0.20 (x0.5, x1, x1.5), the rule at FLOPs 0.20 on x0.5, and plain sens at params 0.20 on x0.5 (one seed). ShuffleNetV2's stage streams cannot always be cut structurally (§353; the draft's §5.5 note). Both readers checked the line, the landing and the stall fallback, but not masked edits. This section applies the standing rule and changes nothing else. The corrected readers `scripts/_tmp_s15nov_rs_read2.py` (blob `906458e`) and `_tmp_s15nov_rp_read2.py` (`f1f7aa2`) are the registered readers plus the masked-edit drop, each plan's TEST 5k gap beside its val gap, and the pooled ranking below. Outputs: `rs/_read_rs2.txt`, `rp/_read_rp2.txt`.
+
+Changed networks (RS-LOSO; the rest are unchanged):
+
+| network | screen | gap, val | gap, TEST 5k | band |
+|---|---|---|---|---|
+| ShuffleNetV2 x0.5 | §436, equal FLOPs | +2.03 → +0.97 | +1.41 → −0.04 | ROOM → ROOM |
+| ShuffleNetV2 x1.5 | §436, equal FLOPs | +0.40 → +0.37 | +0.39 → +0.27 | ROOM → ROOM |
+| ShuffleNetV2 x2 | §436, equal FLOPs | +1.41 → +1.23 | +1.05 → +0.99 | ROOM → ROOM |
+| ShuffleNetV2 x2 | §437, equal params | +0.47 → +0.23 | +0.63 → +0.29 | ROOM → SOME-ROOM |
+
+ShuffleNetV2 family, corrected: at equal FLOPs val +0.73 (TEST 5k +0.38, 10k +0.56), all four ROOM; at equal params val +0.15 (TEST 5k +0.22, 10k +0.19), ROOM on x1.5 only.
+
+Rule ranking (corrected; reported): each agent-free plan minus the prior, the mean over the network x budget cells where both were read, val (TEST 5k):
+
+| screen (prior) | threshold rule | cost-aware rule / plain sens | even cut |
+|---|---|---|---|
+| equal FLOPs, §436 (floored sens_F) | +0.60 (+0.56); above on val in 36 of 57 | cost-aware −0.06 (−0.08); 29 of 59 | −0.67 (−0.80); 22 of 54 |
+| equal params, §437 (sens_cost) | +0.21 (+0.24); 26 of 60 | plain sens +0.08 (+0.08); 19 of 59 | −0.78 (−0.72); 16 of 53 |
+
+Reading:
+1. §436's bands stand. §437 now has ROOM on 8 networks, and the networks with room on both axes are 6: thin ResNet-20 x4 / x8 / x12, thin ResNet-56 x4 / x8 and ShuffleNetV2 x1.5.
+2. On ShuffleNetV2 at equal FLOPs, part of the room came from masked even cuts; what remains is real but smaller.
+3. The FLOPs prior is challenged on CIFAR-100: the threshold rule (Li et al. 2017's single global threshold) beats it pooled, on val and on TEST. The params prior holds against the variants; the threshold rule's small edge there sits mostly on the thin ResNets. The priors stay fixed for registered studies. Every T1 agent row has every rule beside it (queue row T1, RULES-ALL), and a separate prior study would decide the prior for later studies [D pending].
+4. For T1 (queue row T1, amended before any T1 read): ShuffleNetV2 leaves the params call set, which is now 6 networks; its rows are reported only, and T1's reader drops masked rows.
+
+Not claimed: a reason for ShuffleNetV2's masked edits beyond the stage-stream note; "the threshold rule is the better prior" beyond these screens (CIFAR-100, 30 networks, two points each; CIFAR-10 not screened); a call on any rule.
+
+Records: §436, §437; queue rows ROOM-S, ROOM-P (correction stamps) and T1 (amendment); corrected readers and outputs above; the corrected all-30 intervals were computed from them by an inline script (means and a network bootstrap only); next §440.

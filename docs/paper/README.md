@@ -7,7 +7,7 @@ matrix) are for live ops; they go stale and they are not in git.
 | File | Role |
 |---|---|
 | [RESULTS_LEDGER.md](RESULTS_LEDGER.md) | Canonical numbers. Quote **TEST** only. Update this first when a job finishes. |
-| [PAPER_SKELETON.md](PAPER_SKELETON.md) | First write-against outline: NEON chapter map, figure/table analogs (Fig. 1–9 → SPECTRA F1–F10), what to write tonight vs wait for argmax `20945568`. |
+| [PAPER_SKELETON.md](PAPER_SKELETON.md) | The paper's outline, table and figure map, claims and open decisions; kept current with the draft (rewritten 15 Nov 2026). |
 | [SPECTRA_draft.md](SPECTRA_draft.md) | Paper in **NEON’s section order**, rewritten on 14 Oct 2026 to the plan-as-action agent. Science owns it under Ido's standing GO (CLAUDE.md, "The paper draft"). Prose + tables that cite the ledger by §N. Bibliography **[1]–[78]** = thesis proposal; **[79]–[92]** = Aug 2026 literature survey; **[93]–[96]** = 18 Aug Scholar pass; **[97]–[152]** = October 2026 scans. Do not invent numbers. |
 | [SPECTRA_draft_archive_walk_era.md](SPECTRA_draft_archive_walk_era.md) | The draft as it stood before the 14 Oct rewrite, word for word: the walk-era method and results, the 18 Aug snapshot, and ops' pins of 6–14 Oct. History only. |
 | [GILAD_DIRECTIVES_18AUG.md](GILAD_DIRECTIVES_18AUG.md) | Advisor minutes 18 Aug 2026. Comparison posture, NEON-style Pareto (does **not** replace coverage), heuristics, ImageNet = frozen transfer, NAP2 pending. Act in this light until the next meeting. |
