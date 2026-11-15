@@ -11678,3 +11678,13 @@ Not claimed:
 - room at equal params on VGG-BN, DenseNet-40 or MobileNetV2.
 
 Records: queue row ROOM-P (registered `3cfdb17`, gate and cells `459347a`); scripts `scripts/_tmp_s14nov_rp_submit.sh` (blob `79d037d`, deployed as `s14nov_rp_submit.sh`), `_tmp_s14nov_rp_driver.sh` (`30d753a`), `_tmp_s14nov_rp_read.py` (`0f13b33`); manifest `s14nov_rp_manifest.tsv`, gate `s14nov_rp_gate.txt`, driver state and log `s14nov_rp_driver.state` / `.log`, output `rp/_read_rp.txt` (all under `scratch_audit/`); the intervals, pick counts, cross-axis correlation and per-network table were built from `rp/_read_rp.txt` and §436's `rs/_read_rs.txt` by the scratchpad's `rp_tab.py` and an inline summary (means, counts and correlations only); next §438.
+
+## 438. (E1 decision: Ido's word on the reserved-memory figure, 15 Nov; queue row E1) — **The figure is not an output. E1 is EXACT on every computed output and accepted. §435's times are released**
+
+§433 left one question to Ido: does the final fine-tune's `CUDA graph: ... GB reserved` log figure count as an output for E1-EXACT? It moved by 0.01–0.09 GB with E1's flags on, and by as much between two identical flag-off runs on VGG-19 (E1-LOC). Ido's rule (15 Nov, P4): count it if the counterpart papers report it. They report accuracy, params and FLOPs, and at most a wall-clock time or a latency; none reports the GPU allocator's reserved memory. So the figure is not an output, and by §433's comparison (records of ten kinds, CSVs and the hash of every candidate and recovered model equal on all seven pairs) E1 is EXACT and accepted.
+
+Consequences, recorded in queue row E1:
+- §435's measurement may be quoted, always with the decision / fine-tune split and the stock-loader row (RUNTIME's never-list): the cut walk runs 3.3–4.4× faster with equal step counts, the recovery is unchanged, and per network decision plus recovery falls by 6–32 % (G2 ×1.16–1.47; stock loader ×1.07–1.18).
+- E1's three flags are on in evaluation cells registered from 15 Nov (T1, T2). They stay off in training. Rows already in the ledger were run with the flags off and are not re-run.
+
+Records: queue row E1 (Ido's word stamped `9d08148`); §433, §435; next §439.
