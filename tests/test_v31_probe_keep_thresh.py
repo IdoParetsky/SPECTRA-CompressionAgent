@@ -84,8 +84,8 @@ def test_sens_keep_is_none_when_unset_or_blank_and_parses_a_float_in_the_open_un
 
 
 def test_sens_thresh_is_the_last_kind_and_every_earlier_kind_keeps_its_index(monkeypatch):
-    assert alloc_walk.KINDS[-3:] == ("sens_cost_at", "sens_curve", "sens_thresh")
-    assert alloc_walk.KINDS[:len(V30_KINDS)] == V30_KINDS and len(alloc_walk.KINDS) == len(V30_KINDS) + 1
+    # 16 Nov: global_mag and lamp follow sens_thresh; every kind up to sens_thresh keeps its index
+    assert alloc_walk.KINDS[:len(V30_KINDS) + 1] == V30_KINDS + ("sens_thresh",)
     monkeypatch.setenv("SPECTRA_ALLOC_KIND", "SENS_THRESH")
     assert alloc_walk.kind() == "sens_thresh" and "sens_thresh" not in alloc_walk.SAMPLE_AROUND
 

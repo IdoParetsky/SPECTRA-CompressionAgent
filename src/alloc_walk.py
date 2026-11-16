@@ -52,6 +52,19 @@ with the same bisection as every rule.
 (the smallest keep whose loss is at most τ: Li et al. 2017's per-layer sensitivity rule, as PaddleSlim and NNI's
 SensitivityPruner run it), with τ chosen so the estimated saving meets the target, and lands the result the same way.
 ``SPECTRA_ALLOC_SENS_KEEP`` (unset) moves the keep at which ``sens`` and ``sens_cost`` measure every group (v31).
+``global_mag`` is the global magnitude ranking (one importance threshold for every layer, the field's usual default;
+Torch-Pruning's ``global_pruning=True``) as an allocation, with no data and no probe. A channel's magnitude is the score
+the plan's own L1 cut ranks it by (``pruning.group_importance``: the L1 norm of its filter in each layer that produces
+the group's channels, over that layer's largest, summed over those layers; the BN scales and the consumers' input
+slices are not read, because the cut does not rank by them), divided by the mean over its group (Torch-Pruning's
+``normalizer="mean"``). One threshold τ serves all groups: a group keeps its channels that score above τ, at the
+smallest keep on ``sens_thresh``'s grid that removes no channel above τ. τ is chosen so that the budget's cost model
+(``plan_agent.ParamModel`` / ``FlopModel``) keeps the target at those widths, and the result is landed with the same
+bisection as every rule.
+``lamp`` is LAMP (Lee et al., ICLR 2021) in its structured form, per channel of a coupled group as Torch-Pruning's
+``LAMPImportance`` applies it: the same magnitudes squared and rescaled within each group (sorted ascending,
+score_u = w_u / Σ_{v ≥ u} w_v, their eq. 1), then one global threshold exactly as ``global_mag``. Neither score changes
+when all of a group's filters are rescaled.
 ``SPECTRA_ALLOC_BUDGET=flops`` (default params) measures the plan's kept fraction, its target and the stall
 check in MACs (``utils.calc_flops``) instead of parameters, the T0-F variant.
 Each decision then plays the legal cut whose resulting width is closest to its group's
@@ -82,7 +95,8 @@ import src.utils as utils
 from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 
 KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest", "fallback",
-         "sens_cost_at", "sens_curve", "sens_thresh")
+         "sens_cost_at", "sens_curve", "sens_thresh", "global_mag", "lamp")
+MAGNITUDE_KINDS = ("global_mag", "lamp")
 FALLBACK_PRIORS = ("sens", "sens_cost")
 SAMPLE_AROUND = ("sens", "uniform")
 BUDGETS = ("params", "flops")
@@ -536,6 +550,117 @@ def _curve_threshold(curve, floor, size0, target):
     return tau, kept(tau), {row: entry[0] for row, entry in picks.items()}
 
 
+# ------------------------------------------------------------------ magnitude kinds (global_mag, lamp)
+
+
+def _group_magnitudes(group):
+    """One magnitude per channel of a coupled ``group``, or None: ``pruning.group_importance(group, "l1")``, the score
+    whose largest ``cut_to`` keeps. Each layer that produces the group's channels (a producer or a depthwise
+    convolution) votes with its filters' L1 norms over its own largest, and the votes are summed; the BN scales and the
+    consumers' input slices do not vote. None when the cut has no group score either (a layer that owns only part of
+    the group): it then masks the row's own layer and saves nothing."""
+    importance = pruning.group_importance(group, "l1")
+    return None if importance is None else [float(v) for v in importance.detach().cpu().tolist()]
+
+
+def _lamp_scores(w):
+    """The LAMP scores (Lee et al., ICLR 2021, eq. 1) of non-negative ``w``, in ``w``'s order: with ``w`` sorted
+    ascending, score_u = w_u / Σ_{v ≥ u} w_v. The largest scores 1, a rescaled ``w`` scores the same, and a zero scores
+    0. Equal values rank in the order given, the earlier as the larger."""
+    scores, tail = [0.0] * len(w), 0.0
+    for i in sorted(range(len(w)), key=lambda j: float(w[j]), reverse=True):
+        tail += float(w[i])
+        scores[i] = float(w[i]) / tail if tail > 0.0 else 0.0
+    return scores
+
+
+def _channel_scores(kind_name, magnitudes):
+    """One group's score per channel under a magnitude kind, in the channels' order: ``global_mag`` divides the
+    magnitudes by their mean (Torch-Pruning's ``normalizer="mean"``), ``lamp`` takes ``_lamp_scores`` of their squares.
+    Either way a larger magnitude never scores lower, a zero scores 0, and multiplying every magnitude by one factor
+    changes nothing."""
+    m = [max(0.0, float(v)) for v in magnitudes]
+    if kind_name == "lamp":
+        return _lamp_scores([v * v for v in m])
+    mean = sum(m) / len(m) if m else 0.0
+    return [v / mean if mean > 0.0 else 0.0 for v in m]
+
+
+def _threshold_keeps(floor):
+    """The keeps at which ``_curve_threshold`` reads the curve of a group with keep floor ``floor``, descending: its
+    grid (1.00 down to 0.01 in steps of 0.01) from the floor up, and the floor."""
+    grid = [round(1.0 - 0.01 * i, 2) for i in range(0, 100)]
+    return sorted({g for g in grid if g >= floor} | {floor}, reverse=True)
+
+
+def _threshold_steps(scores, keeps):
+    """``[(keep, width, loss)]`` of one group at each of ``keeps`` (descending from 1): the width ``cut_to`` leaves at
+    that keep (every channel at keep 1, else ``pruning.target_width`` of the channels that score above 0, as the cut
+    counts the filters that are not all zero) and the largest score among the channels it removes, 0 when it removes
+    none. A cut removes only channels that score at most τ exactly when its loss is at most τ, and the loss never
+    falls as the keep does."""
+    ranked = sorted((float(s) for s in scores), reverse=True)
+    alive = sum(1 for s in ranked if s > 0.0)
+    steps, loss = [], 0.0
+    for k in keeps:
+        width = len(ranked) if k >= 1.0 - 1e-9 else pruning.target_width(alive, k)
+        loss = max(loss, ranked[width] if width < len(ranked) else 0.0)
+        steps.append((k, width, loss))
+    return steps
+
+
+def _threshold_costs(steps, cost_of, total0):
+    """``{row: [saved]}``: the budget each of a group's ``steps`` (``{row: _threshold_steps}``) saves, shared out so
+    that at every threshold τ the savings of the steps ``_curve_threshold`` picks add up to what the cost model saves
+    at all the picked widths together, ``total0 − cost_of({row: width})`` (``plan_agent.ParamModel.cost`` /
+    ``FlopModel.cost``). A threshold picks every step whose loss is at most τ, so the steps of all groups are walked
+    once in order of loss (ties: plan order, then depth) and each is given what it adds to the saving of those before
+    it. Savings measured one group at a time would count a layer between two cut groups twice: τ would stop too early
+    and the landing would scale every keep down."""
+    rows = list(steps)
+    widths = {row: steps[row][0][1] for row in rows}
+    saved = {row: [0.0] * len(steps[row]) for row in rows}
+    order = sorted((steps[row][i][2], n, i) for n, row in enumerate(rows) for i in range(1, len(steps[row])))
+    total = 0.0
+    for _loss, n, i in order:
+        row = rows[n]
+        saved[row][i] = saved[row][i - 1]
+        if steps[row][i][1] != widths[row]:
+            widths[row] = steps[row][i][1]
+            now = max(total, float(total0 - cost_of(widths)))
+            saved[row][i] += now - total
+            total = now
+    return saved
+
+
+def _magnitude_curves(plan, kind_name, floor, cost_of, total0):
+    """``(curve, half)`` of the magnitude kinds (``global_mag``, ``lamp``), read off the weights alone. ``curve[row]``
+    is the group's monotone curve for ``_curve_threshold``: at each keep that function reads (``_threshold_keeps``) the
+    loss is the largest score the cut to that keep removes (``_threshold_steps`` of the group's ``_channel_scores``)
+    and the cost is that step's share of the saving (``_threshold_costs``); it is flat between those keeps, with the
+    deeper keep's values, so ``_curve_at`` returns each step's own numbers and interpolates nothing. ``half[row]`` is
+    the largest score a cut to half width removes. A group without magnitudes (``_group_magnitudes``) gets no curve
+    and 0 in ``half``."""
+    steps, half = {}, {}
+    for group, row in plan:
+        magnitudes = _group_magnitudes(group)
+        half[row] = 0.0
+        if magnitudes is None:
+            continue
+        scores = _channel_scores(kind_name, magnitudes)
+        steps[row] = _threshold_steps(scores, _threshold_keeps(floor[row]))
+        half[row] = _threshold_steps(scores, [1.0, 0.5])[1][2]
+    saved = _threshold_costs(steps, cost_of, total0)
+    curve = {}
+    for row, row_steps in steps.items():
+        points = [(row_steps[0][0], 0.0, 0.0)]
+        for i in range(1, len(row_steps)):
+            keep, _width, loss = row_steps[i]
+            points += [(row_steps[i - 1][0], loss, saved[row][i]), (keep, loss, saved[row][i])]
+        curve[row] = points
+    return curve, half
+
+
 def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_floor=0.1, iters=16, tol=0.003,
                  budget="params", min_width=1):
     """
@@ -544,7 +669,11 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
     bisected until the one-shot cut keeps ``target`` of the parameters, or of the MACs under
     ``budget="flops"`` (widths are integers, so the closest c found). ``widths`` copies its table
     instead and ignores ``target``. ``min_width`` above 1 (``fortify.plan_min_width``) lifts every
-    group's keep floor to ``min_width`` / its origin width, the walk's legal floor.
+    group's keep floor to ``min_width`` / its origin width, the walk's legal floor. The magnitude kinds
+    (``global_mag``, ``lamp``) read no ``batches`` and run no probe: ``_magnitude_curves`` and
+    ``_curve_threshold`` pick the keeps, ``_land`` lands them, and ``info`` carries ``tau``, ``est_kept``
+    (the cost model's kept fraction at the picked widths), ``weights`` (the picks) and, as ``sens``, the
+    largest score a half cut of each group removes.
     """
     size = (lambda m: utils.calc_flops(m, input_shape)) if budget == "flops" else utils.calc_num_parameters
     plan = group_sensitivity.group_plan(ModelWithRows(model))
@@ -558,6 +687,26 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
         return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
                         "keeps": keeps, "origin_widths": group_widths(model, rows),
                         "sens": {row: 1.0 for row in rows}, "held": 0, "unnamed": unnamed}
+    if kind_name in MAGNITUDE_KINDS:
+        from src import plan_agent
+        floor = {row: keep_floor for row in rows}
+        if int(min_width) > 1:
+            for (group, row) in plan:
+                floor[row] = max(keep_floor, min(1.0, int(min_width) / float(group.width)))
+        size0 = size(model)
+        cost = (plan_agent.FlopModel(model, plan, input_shape) if budget == "flops"
+                else plan_agent.ParamModel(model, plan))
+        curve, half = _magnitude_curves(plan, kind_name, floor, cost.cost, cost.total0)
+        tau, est, picks = _curve_threshold(curve, floor, cost.total0, target) if curve else (0.0, 1.0, {})
+        w = {row: max(picks.get(row, 1.0), floor[row]) for row in rows}
+        keeps, frac, widths = _land(model, plan, rows, w, floor, target, size, size0, input_shape, iters, tol)
+        utils.print_flush(
+            f"[alloc] {kind_name}: one threshold tau={tau:.6g} on the channel scores of {len(curve)} of {len(rows)} "
+            f"groups; cost model x{est:.3f} of the {'FLOPs' if budget == 'flops' else 'params'} at the picked widths "
+            f"(target x{float(target):.3f}), landed x{frac:.3f}")
+        return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
+                        "keeps": keeps, "origin_widths": group_widths(model, rows), "sens": half, "held": 0,
+                        "tau": float(tau), "est_kept": float(est), "cost_budget": budget, "weights": w}
     if kind_name in ("sens_cost_at", "sens_curve", "sens_thresh"):
         floor = {row: keep_floor for row in rows}
         if int(min_width) > 1:
@@ -794,6 +943,8 @@ def grid_priority(info, rows):
             return {row: math.log(max(1e-12, float(prior.get(row, 1.0)))) + z[row] for row in rows}
         return z
     if kind_name in ("sens_curve", "sens_thresh"):  # v30/v31: the decoder's weight is each group's pick on its curve
+        return {row: float(info["weights"][row]) for row in rows}
+    if kind_name in MAGNITUDE_KINDS:  # as sens_thresh: the decoder's weight is each group's pick at the threshold
         return {row: float(info["weights"][row]) for row in rows}
     if kind_name == "sens_cost_at":  # v30: the cost-aware weights of the last (deep) measurement
         kind_name = "sens_cost"
