@@ -69,7 +69,7 @@ Every result table, the new ones included, is PRELIM until it is locked. TEST 5k
 **Method and protocol tables (they exist):**
 - the related-work feature table (§2.2.3; the draft also labels it Table 1);
 - the state columns (§3.3), the proxies (§3.5) and the agent lines (§3.6; add T1–T2);
-- the compared methods and the priors (§4.1), the held-out pool (§4.3) and the registered calls (§4.4; add T1–T2's call);
+- the compared methods and the priors (§4.1), the comparators and what "best rule" means (§4.1b, 17 Nov), the held-out pool (§4.3) and the registered calls (§4.4; add T1–T2's call, with W2's reported labels);
 - NEON's building blocks, and agent vs rule vs search (§6).
 
 ## 4. What the paper can claim today
