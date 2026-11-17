@@ -18,7 +18,9 @@
     "**/*.jsonl": true,
     "**/slurm_logs/**": true,
     "**/agent-transcripts/**": true,
-    "**/terminals/**": true
+    "**/terminals/**": true,
+    "**/.claude/worktrees/**": true,
+    "**/canvases/node_modules/**": true
   },
   "search.exclude": {
     "**/runs/**": true,

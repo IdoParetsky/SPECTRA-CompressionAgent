@@ -1,25 +1,27 @@
 # SPECTRA — weekly meeting with Gilad, 1 Oct 2026
 
-**From:** Ido Paretsky. Prepared 30 Sep; **restamped 1 Oct 00:20**; sitting prompt **01:00** (`docs/PROMPT_FABLE_G2_SITTING.md`). Ops will restamp this file again at **08:15** with twins / L2 / any sitting TESTs.
+**From:** Ido Paretsky. Prepared 30 Sep; **restamped 1 Oct 08:15** after the overnight G2 sitting (`docs/PROMPT_FABLE_G2_SITTING.md`). Ledger through **§175**.
 **This note replaces the 29 Sep status note.** Several of its bad-news items are now obsolete (§0).
-**Overnight (1 Oct).** DepGraph ResNet-56 with crop+flip: 10k **−0.46 at 2.11×** vs their +0.24 (**M4**, 0.70 pp behind; never "beats"). Scratch-B on that architecture: 10k **−0.16 at 2.11×**. KD / AutoAugment did not beat the crop+flip walk. C-G+ with crop+flip **KILL** (−20.8 pp). Zoo twins + 100-ep FT **CROSS-OFF**. VGG-16 at HRank/OCS FLOPs: 10k **−0.25 / −2.02**, params not matched. QOS **8**, G2 sitting filled. Agent: 28 episodes, one freeze from before learning; first real test ~2–3 Oct.
+**Overnight (1 Oct).** DepGraph ResNet-56 with crop+flip: 10k **−0.46 at 2.11×** vs their +0.24 (**M4**, 0.70 pp behind; never "beats"). Scratch-B on that architecture: 10k **−0.16 at 2.11×**. C-G and C-G+ both **closed** (C-G+ crop+flip **KILL**, −20.8 pp). Zoo long FT **CROSS-OFF**. VGG-16 at HRank/OCS FLOPs: 10k **−0.25 / −2.02**, params not matched. Hold-out nets **8/8**. Walk FT A/Bs (Adam 1e-4, SGD, cosine, group-first) **CROSS-OFF** as the train recipe. Greedy **CROSS-OFF** as bar 2; random ≈ mild on skinny ResNet-20, harsher on skinny ResNet-56. Agent: **PPO-9**, freeze still pre-learning; cubic-gain and NEON-raw trains at PPO-2. QOS **8**, **3 R**.
 
-### Tonight one-liners (read at 08:45; 08:15 will add anything that lands after 01:00)
+### Tonight one-liners (read at 08:45)
 
 - Clean val was a measurement leak: unpruned val read 1.000 while test is 0.94 / 0.94 / 0.74; one flaw explained agent≡mild, C100 0/8, and several empty-band rows.
 - Crop+flip in the per-step recovery is now the walk and the train recipe (twins 3/3); ResNet-56 C10 **−0.06 at 66 % kept**.
 - CIFAR-100: **8 of 8** admitted with the same Adam 1e-3 12/4 + crop+flip; 16-net catalog emitted; ImageNet stays a frozen hold-out.
 - DepGraph’s ResNet-56, crop+flip walk, 10k: **−0.46 at 2.11×** vs their +0.24 (0.70 pp; **M4**). At 2.57× we are still 1.74 pp behind. Never “beats.”
-- The 100-epoch final fine-tune is protocol alignment: it adds honest +4–5 pp after a *weak* walk, and **nothing** once crop+flip is in the walk.
+- The 100-epoch final fine-tune is protocol alignment: it adds honest +4–5 pp after a *weak* walk, and **nothing** once crop+flip is in the walk. Zoo twins with that finish (§164): walk matches crop+flip; long FT adds nothing.
 - Scratch-B (train the pruned architecture from scratch, Liu 2019): fails on the tiny diagnostic nets; on DepGraph ResNet-56 10k **−0.16 at 2.11×**.
 - Distillation and AutoAugment in that long fine-tune do not beat the crop+flip walk.
-- NEON layer replacement under clean val, with NEON’s own stop: **12–54 pp worse**; we propose to close C-G. C-G+ with crop+flip on the thin pair: **KILL** at 01:45, **−20.8 pp** vs mild on ResNet-20 (0 of 5 paired cuts better). Close C-G+ too.
-- 70 of 152 crop+flip cuts on DepGraph ResNet-56 **raise** validation accuracy, so NEON’s “accuracy went up” reward arm is reachable for the first time. The live agent still does **not** extra-reward those cuts (cube then cube-root). A replay plus one-change cubic / raw-NEON trains start tonight; they will not finish by this meeting.
-- First agent under the corrected protocol: 28 episodes, PPO-7, still only a pre-learning freeze (ep0011). First honest freeze test ~2–3 Oct. No agent result yet.
-- Zoo ResNet-56 / VGG-16 with the 100-epoch finish (**21809595** §164): walk matches the crop+flip twins; long FT **adds nothing** (VGG-16 origin itself gains +0.88).
-- VGG-16 walked to HRank / OCS **FLOPs** (**21814029** §165): 10k **−0.25 at 46 % FLOPs** (we keep 44 % params; HRank keeps 17 %) and **−2.02 at 21 % FLOPs** (OCS −0.44 at 14 % params). Never “beats.”
-- Cluster cap is **8** GPUs (was 4 last week, never a measured 7). G2 sitting filled the idle slots (hold-out checkpoints + FT/heuristic A/Bs). C-G+ already killed.
-- Walk fine-tune A/Bs vs Adam 1e-3 12/4: Adam **1e-4** destroys skinny ResNet-20 (−5.3 / −14.5 pp) even though skinny ResNet-56 at 80 % kept is **+3.1**; SGD **0.01** misses ResNet-56 by 0.7–2.2 pp. Train recipe stays Adam 1e-3. On the two tightest CIFAR-100 nets, 1e-4 is kinder than 1e-3 — not enough to retune the live train.
+- VGG-16 walked to HRank / OCS **FLOPs** (§165): 10k **−0.25 at 46 % FLOPs** (we keep 44 % params; HRank keeps 17 %) and **−2.02 at 21 % FLOPs** (OCS −0.44 at 14 % params). Never “beats.”
+- NEON layer replacement: C-G under clean val, NEON’s own stop, **12–54 pp worse** (§156). C-G+ with crop+flip: **KILL** 01:45, **−20.8 pp** vs mild on skinny ResNet-20, 0 of 5 paired cuts better (§163). Close both.
+- 70 of 152 crop+flip cuts on DepGraph ResNet-56 **raise** validation accuracy, so NEON’s gain arm is reachable. The live agent still does **not** extra-reward those cuts (cube then cube-root). Replay (O38) plus one-change cubic-gain and NEON-raw trains started; they will not finish by this meeting.
+- First agent under the corrected protocol: **PPO-9** (critic ev **0.774**), still only a pre-learning freeze (ep0011). First honest freeze test after update 20 (~2–3 Oct). No agent result yet.
+- Walk fine-tune vs Adam 1e-3 12/4: Adam **1e-4** destroys skinny ResNet-20 (−5.3 / −14.5) even though skinny ResNet-56 at 80 % kept is **+3.1** (§166). SGD **0.01** misses ResNet-56 by 0.7–2.2 pp and is harsher on the tight CIFAR-100 pair (§167, §170). Cosine and group-first help skinny ResNet-56 and fail skinny ResNet-20 at 60 % kept (§171–§172). Train recipe stays Adam 1e-3 plateau 12/4.
+- Bar 2: greedy overshoots size and is worse at unmatched keep (§173). Random 3-seed mean ≈ mild on skinny ResNet-20 (**−1.0 / −4.3 / −5.5** vs **−1.2 / −4.9 / −5.3**, §174) and **harsher** on skinny ResNet-56 (**−5.1 / −7.2 / −6.5** vs mild **−2.6 / none / −4.5**, §175). Keep the 90 % rule.
+- Fashion-MNIST and SVHN hold-out nets: **8/8** (94.8–97.0 %). 16-net catalog smoke passed (2 episodes). Multi-dataset train still waits on the first honest freeze test (G5). Legacy trains memorized val **24/24**; the live agent under P memorizes **0/10** (§169).
+- Cluster cap is **8** GPUs (was 4 last week, never a measured 7). Live now: the corrected-protocol agent + cubic-gain + NEON-raw. Five slots idle on purpose.
+
 **Your two standing topics** are §2 (the benchmarking methodology and roadmap) and §3 ("throw away the pruned layer and train a new one": NEON's layer replacement, carried to CNNs).
 **Record:** every number is in `docs/paper/RESULTS_LEDGER.md`; the § in each row points there. All rows are preliminary.
 
@@ -93,8 +95,8 @@ No agent. Each before → after pair is the same architecture; only the protocol
 
 | 29 Sep loss | Today |
 |---|---|
-| Layer replacement does not carry from dense nets to residual CNNs | **Confirmed and closed.** It ran under clean validation with NEON's own stopping rule and was 12–54 points worse at the same steps (§3). |
-| No learned policy beats the same-loop heuristics yet | **Still true, but every one of those agents was trained on memorized validation.** The first agent under the corrected protocol is training; its first test is ~2–3 Oct (§4). The reward-shape comparisons are re-run only if that train calls for it. |
+| Layer replacement does not carry from dense nets to residual CNNs | **Confirmed and closed.** C-G under clean validation with NEON's own stopping rule was 12–54 points worse (§156). C-G+ with crop+flip was killed at −20.8 pp vs the heuristic on skinny ResNet-20 (§163). |
+| No learned policy beats the same-loop heuristics yet | **Still true, but every one of those agents was trained on memorized validation.** The first agent under the corrected protocol is at PPO-9; its first test is ~2–3 Oct (§4). Cubic-gain and NEON-raw A/Bs are already running on that same line. |
 | One fine-tune recipe does not yet recover CIFAR-100 (at most 4 of 8 under five recipes, and that one broke the CIFAR-10 control) | **Obsolete:** 8 of 8 with the standard recipe (§5.1). |
 | VGG-19 CIFAR-100 selects the unpruned network | **Obsolete:** −2.5 at 66 % kept; −1.62 (10k) at 68 % with the final fine-tune. |
 | Informed reset variants and optimizer schedules failed their rules | **Still true, and moot.** The least-squares refit, the principal-component rebuild and batch-norm re-estimation (§3), and AdamW with warm-up and cosine, RAdam and a 40-epoch budget at two learning rates (§129–§133), all failed. Clean validation and crop+flip did what none of them did, with the original optimizer. |
@@ -110,8 +112,8 @@ Two further lessons this week:
 
 | Question in the 29 Sep note | Answer this week |
 |---|---|
-| 1. Retry layer replacement under NEON's training-loss stopping rule before closing it? | Done, under clean validation: 12–54 points worse (§156). We propose to close it (§3). |
-| 2. The linear in-budget reward vs NEON's cubic, when no cut had ever raised accuracy? | The "no increase" came from the recovery recipe, not the reward. With crop+flip the best cuts come within 0.1–0.3 points of the unpruned network, and 2 of 46 on VGG-19 C100 are slightly above it on validation (+0.28 at most; none on test) (§152, §155). The cubic's bonus branch is now at the edge of reach, but not yet worth a train. |
+| 1. Retry layer replacement under NEON's training-loss stopping rule before closing it? | Done. Clean val: 12–54 points worse (§156). Crop+flip C-G+: KILL −20.8 pp (§163). Closed (§3). |
+| 2. The linear in-budget reward vs NEON's cubic, when no cut had ever raised accuracy? | The "no increase" came from the recovery recipe, not the reward. With crop+flip, 70 of 152 cuts on DepGraph ResNet-56 raise validation (M6). A zero-GPU replay (O38) plus two one-change trains started overnight: cubic-gain (C1) and NEON-raw (C2), same catalog as the live agent. They are at policy update 2; no freeze yet. |
 | 3. Does the benchmarking plan hold? | Yes, with this week's protocol changes and one correction: the "OCSPruner, 42 % of parameters" figure in our 21 and 27 Sep notes was its ResNet-56 point (§2). |
 | 4. One fine-tune recipe for every network? | Yes. The same recipe admits 8 of 8 CIFAR-100 networks (§148), so CIFAR-100 joins the training pool. |
 
@@ -283,8 +285,8 @@ The dates are estimates at the measured pace, not deadlines.
 | CIFAR-100 in the catalog (G0) | 8 of 8 admitted; catalog emitted and tested | **Done 30 Sep** | The multi-dataset train |
 | A competitive-enough C10 literature row (M4) | DepGraph's ResNet-56, crop+flip walk + final fine-tune, within 1 point of DepGraph at 2.11× or 2.57× (10k) | **Fired 1 Oct 00:15:** 10k **−0.46** at 2.11× vs +0.24 (0.70 pp). 2.57× still 1.74 pp behind | A row for you; never "beats" |
 | A better final recipe (M5) | Distillation or AutoAugment ≥ +0.5 over the plain final fine-tune, with a healthy unpruned control | **Not adopted:** KD +0.62 only at the easy 0.60 size; AutoAugment origin +1.24. Neither beats the crop+flip walk | Keep the crop+flip walk as bar 3 on this cell |
-| The cubic reward's bonus becomes reachable (M6) | A crop+flip walk on a full-width network has cuts with validation above the unpruned network | **Fired on N3:** 70/152 cuts val Δ > 0 on DepGraph R56 (max +0.86); 53 TEST Δ > 0 | Design the cubic-reward train (not a launch) |
-| The next code version (G2) | The first agent test is submitted, or the no-agent queue drains | **Open 1 Oct 00:15:** ladder drained; 5 of 8 GPU slots idle | Build + smoke; new hold-out networks |
+| The cubic reward's bonus becomes reachable (M6) | A crop+flip walk on a full-width network has cuts with validation above the unpruned network | **Fired on N3:** 70/152 cuts val Δ > 0 on DepGraph R56 (max +0.86); 53 TEST Δ > 0 | Cubic-gain (C1 **21938807**) and NEON-raw (C2 **21938810**) trains running; first freeze TEST after update 20 |
+| The next code version (G2) | The first agent test is submitted, or the no-agent queue drains | **Sat 1 Oct 01:00–08:15:** smoke passed; hold-outs 8/8; FT/heuristic A/Bs TESTed; C1/C2 running | Do not launch N8 (still needs G5) |
 | The multi-dataset launch (G5) | The agent leaves the heuristic, the smoke is clean, catalog design A agreed, a free GPU | Proposed (§4.3) | ~8-day train, then the hold-out tests |
 | The run stops (M7) | ≥ 250 episodes and 150 without a better probe, or the resume's time limit | ~7–12 Oct | Final snapshot tests, coverage set, the multi-dataset decision |
 
@@ -311,6 +313,7 @@ SPECTRA's recovery does the opposite: it keeps the surviving filters and fine-tu
 | Redraw the pruned layer only | memorized | same as C-G | §108 |
 | C-PCA: a new layer built from the principal directions of the old activations | memorized | 1.1–2.6 points worse, at equal or shallower size | §127 |
 | **C-G, NEON-literal** (training-loss stop, patience 10, up to 100 epochs) | **clean** | **12 to 54 points worse on validation** at the same steps; better on 0–4 % of cuts; stopped early by its pre-registered kill rule | §156 |
+| **C-G+, crop+flip** (same NEON-literal C-G, then a 0.1× whole-network polish) | **clean + aug** | **KILL** 01:45: skinny ResNet-20, 5 paired cuts, mean **−20.8 pp** vs keep-the-survivors, 0 of 5 better; ResNet-56 never started | §163 |
 | *Keeps the survivors:* A + least-squares refit of every reader of the cut channels (He, Zhang & Sun 2017) | memorized | kinder on 1 of 3 networks (−6.2 vs −6.6), worse on 2; kept as an off switch | §126 |
 | *Keeps the survivors:* A + batch-norm re-estimation alone | memorized | no gain | §128 |
 
@@ -324,7 +327,7 @@ At the last step read, the ResNet-56 was at −40.4 against −3.2 for keep-the-
 
 **Does this week's progress change the verdict?**
 - **Clean validation: tested directly; it does not.** The memorized validation was the one confound able to hide a C-G win, because it charged every cut the memorization gap. Under clean validation the NEON-literal C-G lost by more, not less.
-- **Crop+flip: not run with C-G, and it cannot close the gap.** It helps whichever recipe it is added to. But its gains for keep-the-survivors are 2–6 points, against a 12–54-point deficit. C-G's failure is not overfitting: a frozen network receives a random group whose channels no longer mean what the downstream layers expect.
+- **Crop+flip: tested on C-G+; it does not close the gap.** C-G+ with crop+flip on the diagnostic pair was killed at 01:45: mean −20.8 pp vs keep-the-survivors on skinny ResNet-20, 0 of 5 paired cuts better (§163). Crop+flip's 2–6 point lift for keep-the-survivors cannot cover a 12–54-point C-G deficit. C-G's failure is not overfitting: a frozen network receives a random group whose channels no longer mean what the downstream layers expect.
 - **The final fine-tune: it does not apply.** It acts after the walk, and under C-G the walk leaves the budget within the first few cuts, so there is no compressed architecture to finish. The fair network-level form of "fresh weights" is a separate, published experiment. It retrains the whole pruned architecture from scratch with a full budget (Liu et al., ICLR 2019, "scratch-B"). That control is queued at the architectures the heuristic found, on the diagnostic networks and on DepGraph's ResNet-56.
 
 **Why a dense network tolerates replacement and a CNN does not (our hypothesis).**
@@ -333,10 +336,10 @@ At the last step read, the ResNet-56 was at −40.4 against −3.2 for keep-the-
 - *Not only skip connections.* VGG-16 has no residual connections and still loses 11.6 points.
 
 **Recommendation: do not pursue C-G / C-G+ further as the per-step recovery.**
-- Five constructions on four networks under both validation protocols, and replacement never helped. More GPU time has little expected value.
+- Five constructions on four networks under both validation protocols, plus C-G+ with crop+flip, and replacement never helped. More GPU time has little expected value.
 - Keep it in the thesis as a documented negative result of the NEON lineage: the table above plus the mechanism paragraph.
-- Carry the "fresh weights" idea at the network level, through the scratch-B controls.
-- If you want the table closed under the new protocol, there is one optional completeness cell: C-G+ with crop+flip on the three benchmark networks. It needs under one GPU-day, and the same kill rule stops it early if it loses as badly.
+- Carry the "fresh weights" idea at the network level, through the scratch-B controls (§158–§159).
+- The optional completeness cell (C-G+ with crop+flip) is done and closed (§163).
 
 **Questions for you:**
 1. Did NEON measure neuron removal with the survivors kept, on dense networks, before choosing replacement? If so, by how much did it lose? That decides whether the dense-versus-CNN contrast is a finding of the thesis or an assumption.
@@ -359,9 +362,10 @@ At the last step read, the ResNet-56 was at −40.4 against −3.2 for keep-the-
   - the 12-epoch training fine-tune.
 
   It started on 30 Sep at 03:14. One train with both changes is the decisive single experiment: if it cannot leave the heuristic, a weaker recipe will not.
-- **Where it is (1 Oct, 00:15).**
-  - 25 episodes and 6 policy updates, with no errors. Critic ev 0.041 → 0.191 → 0.234 at updates 4–6. The episode-24 probe (0.268) is still below the episode-11 freeze (0.282).
+- **Where it is (1 Oct, 08:15).**
+  - Policy update **9**, critic ev **0.774**, batch_score 0.528, no errors. The probe best is still the episode-11 freeze (0.282). Health check (M2) is the next update.
   - A snapshot is frozen whenever the score on two probe networks improves. The only one so far is from episode 11, before any real learning. By rule it is not tested.
+  - Two one-change reward trains started overnight on the same line (catalog, crop+flip, area score): cubic-gain **21938807** and NEON-raw **21938810**, both at update 2 (critic ev still ≤ 0; expected this early; not cancelled).
 - **When.** The first snapshot frozen after policy update 20 (~2 Oct evening) is tested; if none freezes, a fallback test runs at episode 120 (~3 Oct). A test walk takes about 5 hours. Freeze tests are pre-authorized, at most one a day.
 - **The pre-registered test.** The frozen snapshot walks the two diagnostic networks under the same protocol as the heuristic. It passes when all three hold:
   - no size point is more than 0.5 points worse at equal size;
@@ -490,14 +494,14 @@ N3 landed (§157): crop+flip walk 10k **−0.46 at 2.11×** (M4). The 100-ep fin
 |---|---|---|---|
 | 1 | DepGraph's ResNet-56 with the crop+flip walk + final fine-tune | **Done §157; M4 at 2.11×** | Literature ResNet-56 rows use the crop+flip walk; long FT is caption-only on this cell |
 | 2 | Zoo ResNet-56 and VGG-16 with the crop+flip walk + final fine-tune; the VGG-16 walk to HRank's and OCSPruner's sizes | **Done §164–§165** | Long FT CROSS-OFF; VGG-16 at HRank/OCS FLOPs keeps far more params than they do |
-| 3 | Agent health check at update 10; first frozen-agent test after update 20 | ~1 Oct 11:00; ~2 Oct night, result ~3 Oct | Whether the agent leaves the heuristic (§4.1) |
+| 3 | Agent health check at update 10; first frozen-agent test after update 20 | M2 at the next PPO (~1 Oct midday); freeze TEST ~2 Oct night | Whether the agent leaves the heuristic (§4.1) |
 | 4 | Scratch-B controls (Liu et al. 2019): the walk's architectures retrained from scratch (200 epochs of SGD), beside the inherited weights | **Done §158–§159** | Thin pair fails; DepGraph R56 scratch 10k −0.16 at 2.11× |
 | 5 | Distillation (Hinton et al. 2015) and AutoAugment (Cubuk et al., CVPR 2019) inside the final fine-tune, on DepGraph's ResNet-56 | **Done §160–§161; not M5** | Keep the crop+flip walk |
 | 6 | A 3-pass walk that never cuts the residual streams | **Done §162; split** | Helps skinny ResNet-20; does not deepen skinny ResNet-56 vs crop+flip |
-| 7 | The next code version and its smoke test; the new SVHN and Fashion-MNIST hold-out networks | **G2 open now** (idle GPUs) | Readiness for the multi-dataset train |
+| 7 | The next code version and its smoke test; the new SVHN and Fashion-MNIST hold-out networks | **Done 1 Oct:** smoke 16 nets / 2 ep; hold-outs 8/8 | G2 sitting complete; N8 still waits on G5 |
 | 8 | Import the literature hold-out networks: ResNet-164 on CIFAR-10 and CIFAR-100 and DenseNet-40 on CIFAR-10 (Network Slimming's), PruningBench's ResNet-18/50 CIFAR-100 bases, AMC's Plain-20 | Not started; with item 7 | Published points on transfer networks too |
-| 9 | **Proposed, not queued:** walk DepGraph's VGG-19 C100 to its 8.92× size (~11 passes) with the final fine-tune; run the other same-loop heuristics (L1-magnitude walk; greedy, random, look-ahead) on the three cells under the new protocol | Your view (§8) | A complete bar-3 row on the third cell; a complete bar-2 comparison set |
-| 10 | Zero-GPU readouts: replay the finished walks through the linear, cubic and NEON-exact rewards; a census of how much each training network memorized its training set | With item 7 | Where each reward would stop; how widespread the memorization is |
+| 9 | Walk DepGraph's VGG-19 C100 to its 8.92× size (~11 passes) with the final fine-tune; run the other same-loop heuristics (L1-magnitude walk; greedy, random, look-ahead) on the three cells under the new protocol | Greedy and random **done on the diagnostic pair** (§173–§175); look-ahead and the three benchmark cells still open | A complete bar-2 on the diagnostic pair; bar-3 VGG-19 size still yours (§8) |
+| 10 | Zero-GPU readouts: replay the finished walks through the linear, cubic and NEON-exact rewards; a census of how much each training network memorized its training set | **Done:** O38 replay in the sitting queue; census §169 (legacy 24/24 memorized; live agent 0/10) | Cubic-gain and NEON-raw trains are the GPU follow-up |
 | 11 | Write the layer-replacement negative result into the thesis (table + mechanism) | After your answer on §3 | Closes the question |
 | 12 | Launch the multi-dataset train | On the condition in §4.3, if you agree | The transfer result (~8 days of one GPU) |
 
@@ -509,10 +513,10 @@ N3 landed (§157): crop+flip walk 10k **−0.46 at 2.11×** (M4). The 100-ep fin
    - *The alternative:* retrain each catalog network on 45k images, so that a never-seen 5k slice of the training split can serve as validation. That is ~1–3 GPU-hours per network, about 16 networks.
    - *The catch:* DepGraph's benchmark checkpoints cannot be retrained without changing the benchmark, so the benchmark rows would keep the test-half protocol either way.
 4. **Which recovery for the literature rows?** The pre-registered protocol is the plain final fine-tune after an un-augmented walk. The crop+flip walk plus the final fine-tune is at least as good: 0.8 points better at 68 % kept on VGG-19 C100, and equal at 60 %. Should the literature rows always use the best recovery we have, stated as such?
-5. **The same-loop heuristics.** Under the new protocol only the 90 % rule has run. For bar 2, do you want the full set from your 18 Aug list (L1-magnitude, greedy, random, look-ahead) on the three cells, a few GPU-days, or the 90 % rule and the L1 walk only?
+5. **The same-loop heuristics.** Under the new protocol the 90 % rule, greedy, and a 3-seed random walk have run on the two diagnostic networks. Greedy overshoots size (§173). Random ≈ the 90 % rule on skinny ResNet-20 and is harsher on skinny ResNet-56 (§174–§175). Look-ahead is still the floor guard (equals greedy). Do you want greedy/random/look-ahead on the three benchmark cells as well, or is the diagnostic pair enough for bar 2?
 6. **The agent's first bar.** Is "at or above the heuristic at equal size on the two diagnostic networks, and not a copy of it" the right first bar before the benchmark networks and hold-outs? Or would you rather see a benchmark network first?
 7. **The multi-dataset train.** Do you agree with design A and its three additions (§4.3), rather than NEON's leave-one-dataset-out rotation? May it launch on the pre-registered condition without another meeting?
-8. **The reward.** The best cuts now come within a few tenths of a point of the unpruned network. Is an A/B of NEON's cubic reward against the linear one worth running once the agent passes, or should it wait for the multi-dataset agent?
+8. **The reward.** Gain-arm cuts exist (M6). Two one-change trains are already running against the live recipe: cubic-gain (extra-reward accuracy increases) and NEON-raw (NEON's original cube, no cube-root). First freeze tests after update 20. Is that the A/B you wanted, or should a third shape wait for the multi-dataset agent?
 
 ## 9. Discussion
 
@@ -526,4 +530,4 @@ N3 landed (§157): crop+flip walk 10k **−0.46 at 2.11×** (M4). The 100-ep fin
    - *Later recovery tweaks:* weight averaging (SWA or EMA), mixup or label smoothing, per-stage rates, batch 64.
    - *A training fine-tune closer to the test one.* At 12 epochs it is ~1 point harsher than the 40-epoch test fine-tune, so the agent trains in a harsher world than it is tested in.
    - *A cheap ImageNet diagnostic:* re-run one ImageNet test with the class count spoofed to 100. If the cuts move, the policy uses the class count as its dataset cue.
-   - *Fine-tune schedule variants* (group-first training, cosine at 12 epochs, SGD with crop+flip): not queued, revisited only if the crop+flip train learns badly. LAMB, a 0.95 keep rate and rollback are crossed off.
+   - *Fine-tune schedule variants* (group-first, cosine at 12 epochs, SGD, Adam 1e-4): **TESTed overnight under crop+flip and all CROSS-OFF as the train recipe** (§166–§172). LAMB, a 0.95 keep rate and rollback stay crossed off.

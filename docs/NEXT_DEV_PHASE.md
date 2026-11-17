@@ -8,19 +8,1346 @@ Canonical live jobs / never-list: `docs/OPS_HANDOFF_RUNBOOK.md` §10.0g. Queue /
 
 ---
 
-## 0. Cluster now (7 Oct 07:00 IDT)
+## 0. Cluster now (7 Nov 02:22 IST — lean, 129945 occ 3; SSH holds; ack science 00:49 / 6 Nov 03:18 §426 / 5 Nov 20:13 IMN resumes / 5 Nov 15:24 cap 5 / 4 Nov 09:27 §424 / 4 Nov 08:29 §423)
+
+**Paper calls (five-seed, flag-on):** **§405** T4-F **AT-PRIOR-F-POOL** at both FLOPs depths (−0.16 / −0.16). **§406** T6-fs **AT-PRIOR-POOL** at all four params depths (+0.05 / +0.29 / +0.24 / −0.22). The three-seed beat at 45 % (**§390** +0.42) **does not hold** — never quote it; never “the agent beats the cost-aware rule.” **§407** XFER-W1 **BELOW-PRIOR-P-XFER** at 0.45 / **AT-PRIOR-P-XFER** at 0.25. **§408** LIT-C **AT-PRIOR** at nine points, **BELOW-PRIOR** at DepGraph R56 params 0.125; never quote §399’s +0.40 as a beat. **§409** FB **AT-PRIOR-POOL / TAIL-REMOVED** (labelled variant, never the agent). **§410** FB-XFER **AT / GAP-CLOSED / ADDS**. **§411** TS **STAGING-SAME**. **§412** AUDIT: no defect changes a reported number. **§413** DEEP **BELOW-PRIOR-POOL** at params 0.15 (−0.86) and 0.10 (−0.43), carried by r20-w8 C100; other eight at the rule. Never “the agent fails beyond its range.” **§414** D5 three-seed candidate (not the agent of record). **§415** D9 SCALE / MIX. **§416** DEEP-F AT-PRIOR-F-POOL at 0.25 / 0.15; BELOW-PRIOR-F-POOL at 0.10 over 8 nets. Never “the FLOPs agent fails below its range.” **§417** D5X: promotion does not fire; T6-fs stays; five seeds turn §414 BEATS into AT. **§418** written (BENCH closed) — cite by number only, never values. **§419** written (RUNTIME closed) — cite by number only, never values; never quote an accuracy from `s30-rt-*`; never the extrapolated 24.5 h. **§420** HOLDOUT closed — quote SAME / AT-PRIOR / WORSE / BELOW-PRIOR by name only. **§421** T9-fs closed — quote RANGE-HURTS / RANGE-SAME / AT / BELOW-PRIOR-POOL by name only; T6-fs stays. **§422** ENC closed — quote LIGHTER-SAME / LIGHTER-HURTS, FEWER-INPUTS-SAME / FEWER-INPUTS-HELP, HEAVIER-SAME, BEATS / AT / BELOW-PRIOR-POOL by name only; no arm is promoted; T6-fs stays. **§423** D8 closed — KAPPA-P SAME at all three tau; quote the call name only, never numbers. **§424** PROBE closed — PROBE-A / PROBE-C BELOW-RULE, PROBE-T SAME, PROBE-Q BELOW-RULE; quote call names only. **§425** RT-VGG closed — cite by number only, never values or an accuracy. **§426** M12 closed — bar not met; T6-fs stays; no five-seed run; quote SAME / BETTER / WORSE / BEATS / AT by name only. QOS **5 R / 388 PD** (**cap 5 — full**). Mix: HOC **3 trains R** (s42–44, none TEST) + IMN **2 R / 2 PD** (sensF-56 R; uniF-48 resume R; t4f-56 PD QOS; uniF-56 PD Dependency — never quote a stop job or an accuracy). FB-BENCH **0 R / 36 PD**. JUDGE **0 R / 350 PD**. M12 drained · **§426**. D8 closed · **§423**. PROBE closed · **§424**. ENC closed · **§422**. T9-fs closed · **§421**. HOLDOUT closed · **§420**. BENCH closed · **§418**. RUNTIME closed · **§419**. GNN-RL **23692374 TIMEOUT** 23:53 as amended — do not resub. IMN smokes **23923759 / 23923761 TIMEOUT** and resumes **23923760 / 23923762 CANCELLED** by science — do not resub. M12 s43 PREEMPTED **23870567 / 23877639** superseded — do not resub. Live **0 F.** **22688072 COMPLETED**. Do not auto-TEST ep0272. Cap is **5**. 5 R is full — do not fill. Do not re-nice, top, hold, release, resubmit or cancel IMN / HOC / FB-BENCH / JUDGE. Do not stop, restart, or edit `s06nov_fbj_renice.sh` / `s07nov_fbj_renice.sh` / HOC chain / FBJ chain / cap logger. Old FBJ re-nicer stopped by science 00:51 (replaced by `s07nov_fbj_renice.sh`) — do not touch. Never touch QOS `giladkz`. Never overlay `tree_v20`–`tree_v28` / v29 / v31 / v32 / v33 / v34. Do not edit the draft. Never quote IMN / HOC / FB-BENCH / JUDGE as TEST. Cite **§418 / §419 / §425** by number only. Quote **§420 / §421 / §422 / §423 / §424 / §426** calls by name only. Next 3h **03:44 7 Nov**. Next canvas **09:30 7 Nov**. SSH holds. Last poll **02:22**. Sleeper **129945** live. Compact waiter 25528 still waiting. Do not reopen `4648147f` / `b9896999` after compact. If delayed **914673** / **914672** / **931310** / **918266** / **918263** completion arrives, ignore it.
 
 | Job | Role | State | Note |
 |---|---|---|---|
-| **21767188** | Stage-4 resume | R, Episode **224/250** | `best_score=0.2888`. No new freeze. |
-| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
-| **22341736 / 37** | v10 freeze TEST ep0127 κ 0.8 / 0.6 | R ~1.3 h | start-check green. Never quote in-walk. |
-| **22340523** | alloc-sens DepGraph p0.47 | R ~3.6 h | pairs §233 |
-| **22342029 / 30** | wave 10 transplant DG R56 / VGG-19 | PD | `tree_v10j`; sitting |
-| **22340636 / 37** | alloc κ 0.35 | R | r20 origin FT done; still R |
+| **22688072** | Stage-4 resume r2 | **COMPLETED** 10:05, exit 0, 2-13:54 | last **DONE ep 424**. Stopped after 425 (`reward_not_improving`, 152/150, rewinds=1). Freeze **ep0272** `best_score=0.3028`. **Do not auto-TEST ep0272.** |
+| **21767188** | Stage-4 resume r1 | **CANCELLED** 19:46 | cluster low-GPU after quota stall. Do not auto-TEST ep0272. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| T4-F | trust region `zmax=0.3` | trains C; 9 evals C | **§365 BELOW-PRIOR** / **BOUND-HELPS**. No rotation. |
+| POOL-F | nine-net held-out gate | **9/9 re-runs C / 0 F** | **§366 AT-PRIOR-POOL** (D −0.21). No rotation. |
+| HEAD-F | no-agent rule variants of sens_F | screen **35/35 C**; confirm **15/15 C / 0 F** | **§367 NO-HEADROOM**. Ops may not sbatch. |
+| HEAD-F2 | HEAD-F at FLOPs 0.45 | confirm **15 C** (resubs C) | **§368 NO-HEADROOM**. 0 F. Ops may not sbatch. |
+| T4F-45 | frozen T4-F at FLOPs 0.45 | **§369 BELOW-PRIOR** (D45 −0.36) | 15/15 read. `22711181` **TIMEOUT** (already counted). |
+| POOL-P | nine-net equal-params pool | **§370 AT-PRIOR-POOL** (P −0.01) / **NOT-BEYOND-SENS** | resubs C. 0 F. |
+| POOL-F45 | nine-net FLOPs 0.45 pool | **§371 AT-PRIOR-POOL** (D45P −0.21) | resub `22721440` C. 0 F. |
+| HEAD-P | alternatives to sens_cost at equal params | **§372 NO-HEADROOM-P** (H_P +0.22) | confirm **15/15 C**. 0 F. |
+| POOL-P45 | T1 vs sens_cost at params 0.45 | **§373 AT-PRIOR-POOL** (P45 +0.18) | 108/108 C. 0 F. |
+| POOL-P35 | T1 vs sens_cost at params 0.35 | **§374 BELOW-PRIOR-POOL** (P35 −0.42) | leftover `22725553` TIMEOUT; science resub **`22745280` C** (lever only, not TEST). 0 F. |
+| RAIL-P35 | decode keep floor 0.25 at params 0.35 | T1 cancelled on purpose; science: 27 C | not TEST. Do not quote as TEST. |
+| T5-P | T1 retrain bn8 or keep-floor 0.25 | T5-floor **§376 BELOW-PRIOR-POOL / SAME**; T5-bn **§378 AT-PRIOR-POOL / LEARNS-MORE** | never “T5-bn beats sens_cost”; LEARNS-MORE carried by one net, 3 of 9. |
+| T5-DEEP | T1 retrain κ [0.25, 0.85] | **§377 BELOW-PRIOR-POOL / SAME** | drained. Do not mix with P25. |
+| D-PROXY-4 | five proxies at params 0.35 | **§375 ft1 P35-VALID at the threshold**; others WEAK | never quote a proxy or 1-epoch final. |
+| D-PROXY-5 | step-limited FT proxies, two lr | **§379 nothing selected** | never “fs32 is valid”. Never a proxy as a result. |
+| P25 | T5-deep / sens_cost / uniform at params 0.25 | **§380 BELOW-PRIOR-POOL** (P25 **−1.60**) | r20-w8 C100 **−16.84**. Never mix 0.25 with other depths. |
+| POOL-BN | frozen T5-bn at params 0.6 and 0.45 | **§381 AT-PRIOR-POOL / SAME** | never mix 0.6 with 0.45. Never “T5-bn beats sens_cost”. |
+| T6-COST | fs32 cost probe | gate FAIL as designed (6.97 s / inst) | not TEST. No train. |
+| T6 | T6-bn and T6-fs, κ [0.25, 0.85], `tree_v21` | **§383** T6-bn **AT-PRIOR-POOL / REWARD-HELPS**; **§387** T6-fs **AT-PRIOR-POOL / REWARD-HELPS** | never “T6-fs beats sens_cost”. Never “the collapse is removed”. Never T6-fs − T6-bn as a call. Never mix 0.35 with 0.25. |
+| POOL-T6BN | frozen T6-bn at params 0.6 and 0.45 | **§384 AT-PRIOR-POOL / SAME** | never mix 0.6 with 0.45. Never “T6-bn beats sens_cost”. Never the four-depth curve as one call. |
+| LIT-39 | DepGraph R56 at 2.57× / OCS FLOPs point | **§382 BELOW-PRIOR −0.35 / BEATS-PRIOR on TEST 5k only +0.35** | never “T5-bn beats sens_cost”. Never “beats DepGraph”. |
+| LIT-39b | T6-bn at DepGraph R56 params 0.38 | **§385 AT-PRIOR +0.03** (one net) | never “T6-bn beats DepGraph”. Never T5-bn’s §382 call as an agent property. |
+| T7-C | T6-bn catalog + CIFAR-100 | **§389 AT-PRIOR-POOL / CATALOG-HELPS at 0.25** | never “T7-C beats sens_cost”. Never “unseen dataset”. Never mix with T6-bn except C. Never mix with T6-fs. |
+| LC-T6BN | T6-bn snapshots 3k/6k/9k at params 0.25 | **§388** instance count is not the bottleneck | never a snapshot picked on TEST. Never “more instances hurt”. Never quote 3k as agent of record. |
+| ENS-T6BN | T6-bn three-seed mean at params 0.25 | **§386 AT-PRIOR-POOL / SAME** | never “the ensemble fixes the collapse”. Never quote ENS as T6-bn. |
+| POOL-T6FS | frozen T6-fs at params 0.6 and 0.45 | **§390 superseded by §406** | three-seed beat at 0.45 does not hold at five seeds. Never quote +0.42. |
+| T8-fs | T6-fs line + CIFAR-100 catalog | drained → **§400** | AT-PRIOR-POOL at 0.6 / 0.45 / 0.35; BELOW-PRIOR-POOL at 0.25. Never quote +0.26 as a beat. Never “unseen dataset”. Never mix with T6-fs except C, or T7-C except R. |
+| LIT-B | R110 / VGG-16 FLOPs points + T6-fs at params 0.38 | **§391 / §392 AT-PRIOR**; 39/39 | VGG-16 and R110 **LEVER-LIMITED**. Never “beats” HRank / CHIP. Frozen FLOPs agent has not beaten the FLOPs prior on any literature cell. Void r110 before 03:26 never quoted. |
+| GAPS | RAND-CH / RAND-BEST / SCRATCH / THRU / RAND-CH-L1 | **§396 / §398 / §393–§395** | drained. Never “the agent beats Li et al.” Never “the channel criterion does not matter.” Never “pruning is unnecessary”. Never “SPECTRA makes the ResNets faster”. |
+| FINAL | five-seed flag-on tables | drained → **§405 / §406** | **AT-PRIOR-F-POOL** both; **AT-PRIOR-POOL** all four params. Never mix with three-seed rows. Never overlay `tree_v24`. |
+| RESUME-AUDIT | tree_v25 plan resume | drained → **§404 RESUME-OK** | GPU train is not bit-reproducible. Evaluation stays exact. Never overlay `tree_v25`. |
+| XFER-W1 | eight new nets, params 0.45 / 0.25 | drained → **§407** | BELOW at 0.45, AT at 0.25. Never “transfers” without that scope. |
+| LIT-C | Table 1 five-seed literature rows | drained → **§408** | AT-PRIOR at nine; BELOW at dgr56 params 0.125. Never quote §399 +0.40 as a beat. |
+| FB | val-picked fallback (D4) | drained → **§409** | AT-PRIOR-POOL / TAIL-REMOVED. Never present as the agent. Never overlay `tree_v27`. |
+| FB-XFER | fallback on XFER-W1 nets | drained → **§410** | AT / GAP-CLOSED / ADDS. Never “the agent transfers at parity.” |
+| TS | two-stage plans at params 0.25 | drained → **§411** | STAGING-SAME. Never “two-stage pruning helps.” Never overlay `tree_v28`. |
+| DEEP | params 0.15 / 0.10, nine pool | **270 C · §413** | **BELOW-PRIOR-POOL** at 0.15 (−0.86) and 0.10 (−0.43), carried by r20-w8 C100; other eight at the rule. Never “the agent fails beyond its range.” |
+| DEEP-F | FLOPs 0.25 / 0.15 / 0.10 | drained → **§416** | AT-PRIOR-F-POOL at 0.25 / 0.15; BELOW-PRIOR-F-POOL at 0.10 over 8 nets. Never “the FLOPs agent fails below its range.” Do not resub DEEP-F preempts. |
+| T9-fs | κ 0.10–0.85, 12k inst | trains C; **0 R / 101 PD** | not TEST. Science **01:45**. Do not sbatch, top, or re-nice. Do not touch `s23oct_t9_*`. Never quote. Never overlay `tree_v25`. |
+| D9 | four small catalogs, 6k inst | drained → **§415** | one net is not enough; 3–5 match 10 at 0.45; MIX-HURTS at 0.25. Never “the method, not the data” without SCALE. Do not resub **23508607**. Never overlay `tree_v21`. |
+| D8 | accuracy-limit bisection | **0 R / 24 PD** | not TEST. Never quote a 20-epoch probe. Do not start a second orchestrator. Never “the agent compresses more” without KAPPA-P. |
+| ENC | encoder scale vs ctl6k | **0 R / 162 PD**; 12 trains C (science **22:15**); **23527746 PREEMPTED** 14:54 | not TEST. Never overlay `_stage_dev29`. Do not re-nice/top/hold. Do not release by hand. Do not touch `s22oct_enc_evgate2.sh` / `s24oct_enc_yield.sh` / `s27oct_enc_yield2.sh`. COMPLETED ≠ a smoke passed. Never quote. |
+| D5 | one-epoch reward, warm-start T6-fs | drained → **§414** | three-seed candidate. Five-seed call is **§417**. Never “SPECTRA beats the rule.” Do not resub D5 segs. |
+| D5X | D5 seeds 45–46 + XFER transfer | drained → **§417** | promotion does not fire; T6-fs stays the params agent of record; five seeds turn §414's three BEATS into AT; ft1w is a candidate. Never “the one-epoch reward beats the rule.” Do not resub **23650829** / **23650930** / **23668003/004/007/008** / **23668839** / **23668861–864** / **23668968**. |
+| BENCH | published FLOPs points, C100 + Tiny-ImageNet | **4 evals R** | not TEST. Science **22:50**. Do not sbatch, top, re-nice, or release. Do not edit `s29oct_first_patterns.txt`. Never overlay `tree_v29`. COMPLETED ≠ a smoke passed. Never quote. |
+| HOLDOUT | held-out catalog trains + evals | 8 trains C; **173 evals PD** | not TEST. Science **02:45**. Never quote before the ledger section. Do not touch `s31oct_first_relaunch.sh` / `s29oct_first.sh`. Never cancel `s29-hotrain-*`. |
+| PROBE | held-out-style probe, tree_v31 | held behind gate | not TEST. Science **22:50**. Do not release JobHeldUser. Do not sbatch/top/re-nice. Never overlay `tree_v31`. Never quote. |
+| RUNTIME | HRank / CHIP / SPECTRA timing | **3 full R**; 11 full submitted (science **06:15**) | not TEST. Never quote an accuracy from `s30-rt-*`. Do not re-nice, top, hold, release, or cancel. Do not resub **23688629/630/639/642**. |
+| PRE-W3 | Tiny-ImageNet base nets | **0 R / 0 PD** (smoke+3 nets C) | not TEST. Never overlay v29 / `pretrain_w3`. COMPLETED ≠ a smoke passed. |
+| T3-F | residual on sens, `NORM_ADV=1`, FLOPs | **14/14 COMPLETED** | **§364 BELOW-PRIOR** / BALANCE-NEUTRAL |
+| HYG | grid-rounded equal-params re-read | **48/48 COMPLETED** | **§363** LEVER-LIMITED / FAILS-CLEAN / HOLD |
+
+**§395** no R56 speed-up. **§394** Scratch-B SAME; Scratch-E INHERIT-HELPS at 0.38. Never “pruning is unnecessary”. Never “SPECTRA makes the ResNets faster”. **§393** DOES NOT REPRODUCE; no RANK until RAND-CH-L1. **§392 LIT-B ResNet-110 AT-PRIOR**; lever **LEVER-LIMITED**. Never “beats” HRank / CHIP. Frozen FLOPs agent has not beaten the FLOPs prior on any literature cell. **§391 LIT-B AT-PRIOR** (VGG-16 + T6-fs at params 0.38); VGG-16 **LEVER-LIMITED**. **§406 supersedes §390:** AT-PRIOR-POOL at all four params depths; never quote +0.42. **§405 AT-PRIOR-F-POOL.** **§389 AT-PRIOR-POOL / CATALOG-HELPS at 0.25.** **§388 instance count is not the bottleneck.** **§387 AT-PRIOR-POOL / REWARD-HELPS.** **§386 AT-PRIOR-POOL / SAME.** **§385 AT-PRIOR** (one net). **§384 AT-PRIOR-POOL / SAME.** **§383 AT-PRIOR-POOL / REWARD-HELPS.** **§382 BELOW-PRIOR / BEATS-PRIOR on TEST 5k only.** **§381 AT-PRIOR-POOL / SAME.** **§380 BELOW-PRIOR-POOL.** Never quote the §390 beat. **sens_F stays the FLOPs prior; sens_cost the params prior.** Do not sbatch. Do not overlay `tree_v20` / `tree_v21` / `tree_v22` / `tree_v23`. Do not auto-TEST ep0272. Never “beats” at 0.6, 0.35 or 0.25. Never the four-depth curve as one call. Never T6-fs − T6-bn as a call. Never “T7-C beats sens_cost”. Never “unseen dataset”. Never a snapshot picked on TEST. Never “more instances hurt”. Never “the collapse is removed”. Never mix 0.35 with 0.25. Never mix 0.6 with 0.45. Never “T6-bn beats DepGraph”. Never quote ENS as T6-bn. Never “the ensemble fixes the collapse”.
+
+Live QOS **7 R / 667 PD** (**cap 7 — full**; **191 JobHeldUser — do not release**; poll 07:51 IST 31 Oct). Science wrote **§405–§417**. HOLDOUT / BENCH / PROBE / RUNTIME / T9-fs / D8 / ENC running or queued; ops may not quote. `tree_v24`–`tree_v28` / v29 / v31 deployed, default-off — never overlay. **M1-v10 FLAT.** Next canvas **09:30 31 Oct**. Next 3h **10:51 31 Oct**. Sleeper re-armed **02:29 IST 31 Oct** WITH notify. Ignore **918244** / **918243** completion. Ignore **918243** / **918242** / **918241** / **918240** / **918239** / **82145** completion. Ack science 12:55/12:40: do not release/top/re-nice DEEP-F or T9-fs. Ack science 02:15: do not re-nice/top/hold. Ops adds **no more draft pins**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never quote §390’s +0.42. Never “beats” the rule at any depth. Never “unseen families”. Never “T1 transfers to VGG-19 C100”. Never “LOFO-V family transfer”. Never “normalization helps”. Never “matches sens_F”. Never “T1 beats sens_cost”. Never “T5-bn beats sens_cost”. Never “T7-C beats sens_cost”. Never “beats DepGraph”. Never “T6 works”. Never “the agent beats the cost-aware rule at depth”. Never “fs32 is valid”. Never “TM learns FLOPs”. Never “HEADROOM”. Never mix 0.6 with 0.45. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 11 Oct 08:32 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **344/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **68/150**, rewinds **2**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| **22584746 / 751 / 755** | T4-F trains s42–s44 | R (~31 min) | trust region `zmax=0.3`; `tree_v20`; **§365** ~12:00 |
+| POOL-F | nine-net held-out gate pool | 7 R / rest PD | **22588332–22588640**; **§366** with T4-F |
+| T3-F | residual on sens, `NORM_ADV=1`, FLOPs | **14/14 COMPLETED** | **§364 BELOW-PRIOR** / BALANCE-NEUTRAL |
+| HYG | grid-rounded equal-params re-read | **48/48 COMPLETED** | **§363** LEVER-LIMITED / FAILS-CLEAN / HOLD |
+
+**§364 T3-F BELOW-PRIOR.** No rotation. **sens_F stays the FLOPs prior.** Do not sbatch. Do not overlay `tree_v20`.
+
+QOS **11 R / 107 PD** (cap **full**; 80 QOS, 27 Dependency). T4-F **2 C / 3 R / 9 PD**, 0 FAILED. POOL-F 7 R, 0 FAILED. Ledger next **§365** then **§366**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **09:32**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “T1 transfers to VGG-19 C100”. Never “LOFO-V family transfer”. Never “normalization helps”. Never “matches sens_F”. Never “TM learns FLOPs”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 11 Oct 08:02 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **344/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **68/150**, rewinds **2**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| **22584746 / 751 / 755** | T4-F trains s42–s44 | R (~1 min) | trust region `zmax=0.3`; `tree_v20`; **§365** ~12:00 |
+| T3-F | residual on sens, `NORM_ADV=1`, FLOPs | **14/14 COMPLETED** | **§364 BELOW-PRIOR** / BALANCE-NEUTRAL |
+| HYG | grid-rounded equal-params re-read | **48/48 COMPLETED** | **§363** LEVER-LIMITED / FAILS-CLEAN / HOLD |
+| T2-F | residual on sens, FLOPs | 9/9 COMPLETED | **§361 BELOW-PRIOR** |
+| T2-F-W | grid-rounded wide FLOPs | 30/30 COMPLETED | **§362 reported** |
+
+**§364 T3-F BELOW-PRIOR** (−1.54 vs floored sens_F on r56-w4). BALANCE-NEUTRAL (+0.44). No rotation. **sens_F stays the FLOPs prior.** Do not sbatch. Do not overlay `tree_v20`.
+
+QOS **4 R / 9 PD** (**7 idle**, do not fill; 9 Dependency). T4-F **2 C / 3 R / 9 PD**, 0 FAILED. T3-F **14 C**. HYG **48 C**. Ledger next **§365**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **09:32**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “T1 transfers to VGG-19 C100”. Never “LOFO-V family transfer”. Never “normalization helps”. Never “matches sens_F”. Never “TM learns FLOPs”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 13:57 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **320/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| **22446352 / 392 / 433** | TM trains s42 / s43 / s44 | R (~36 / 29 / 22 min) | mixed-budget; poll only; science reads §360 ~17:30 |
+| TM evals | afterok on trains | 15 PD Dependency | do not invent fill |
+| HF-FM | night | 18/18 COMPLETED | **§359 LEVER-LIMITED, no call** |
+
+**Ido 14:00 GO-Q / WAIT GO-D.** FLOPs-first SOTA axis: `docs/PROMPT_SCIENCE_FLOPS_FIRST.md`. Equal-params prior **sens_cost**; equal-FLOPs prior **sens_F**. Do not sbatch residual-on-sens_cost before TM §360.
+
+QOS **4 R / 15 PD** (**7 idle**, science owns; do not fill). Night 148: **148 COMPLETED**, 0 FAILED. TM **8 C / 3 R / 15 PD**, 0 FAILED. **§359 HF-FM LEVER-LIMITED**. **§357 T0-F2 LEARNS**. **§358 LOFO-V FAMILY-TRANSFER**. **§356 T1-C POOL-NEUTRAL**. Ledger next **§360**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:57**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “beats sens”. Never “the agent beats sens under FLOPs”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 13:27 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **320/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| **22446352 / 392** | TM trains s42 / s43 | R | mixed-budget; poll only; science reads §359 |
+| **22446390 / 391 / 431** | TM floored oneshots | R | VGG-19 C100 FLOPs 0.6 |
+| HF-FM | s44 | 5 R | last night cell; poll only |
+
+QOS **11 R / 19 PD** (15 Dependency / 4 QOS). Night 148: **143 COMPLETED / 5 R**, 0 FAILED. T0-F2/W **20 COMPLETED**. TM **2 C / 5 R / 19 PD**, 0 FAILED. **§357 T0-F2 LEARNS**. **§358 LOFO-V FAMILY-TRANSFER**. **§356 T1-C POOL-NEUTRAL**. **§354 LOFO-R FAMILY-TRANSFER**. **§355 COST-HURTS**. Ledger next **§359**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:57**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “beats sens”. Never “the agent beats sens under FLOPs”. Pin T1-C nothing stronger than “neutral overall, helps on the added dataset”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 12:58 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **320/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| **22437996 / 002 / 009** | T0-F2 evals s42–44 | R | poll only; science reads §357 |
+| LOFO-V agents | s43–44 | 3 R | night cell; poll only |
+| HF-FM | s43–44 | 4 R | nice 200; poll only |
+
+QOS **11 R / 4 PD**. Night 148: **137 COMPLETED / 7 R / 4 PD**, 0 FAILED. **§356 T1-C POOL-NEUTRAL**. **§354 LOFO-R FAMILY-TRANSFER**. **§355 COST-HURTS**. **§352 HF-V TRANSFERS**. Ledger next **§357**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:57**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “transfers as well as T1”. Pin T1-C nothing stronger than “neutral overall, helps on the added dataset”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 12:27 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **320/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| **22437996 / 002 / 009** | T0-F2 evals s42–44 | PD QOS | trains 3/3 COMPLETED; poll only |
+| LOFO-V agents | s42–43 evals | 8 R | night cell; poll only |
+| **22436378 / 379** | T1-C agent s44 | R | night cell; poll only |
+
+QOS **11 R / 20 PD**. Night 148: **121 COMPLETED / 10 R / 17 PD**, 0 FAILED. T0-F2/W 17 C / 3 PD, 0 FAILED. **§354 LOFO-R FAMILY-TRANSFER**. **§355 COST-HURTS**. **§352 HF-V TRANSFERS**. Ledger next **§356**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:57**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “transfers as well as T1”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 11:57 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **320/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST |
+| **22438001 / 008** | T0-F2 trains s43/s44 | R ~40–50 m | `tree_v17`; poll only |
+| T1-C agents | s42–43 evals | 8 R | night cell; poll only |
+| T0-F2/W | remainder | 15 C / 3 PD | 0 FAILED |
+
+QOS **11 R / 38 PD**. Night 148: **105 COMPLETED / 8 R / 35 PD**, 0 FAILED. **§354 LOFO-R FAMILY-TRANSFER** (not as well as T1). **§355 COST-HURTS**. **§352 HF-V TRANSFERS**. Ledger next **§356**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:57**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “transfers as well as T1”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 11:28 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **318/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116 / 117** | v10 | both COMPLETED | stop by rule; do not auto-TEST; M1-v10 FLAT stands |
+| T0-F2 / T0-F-W | trains + floors | **8 R / 9 C / 3 PD** | `tree_v17`; poll only; 0 FAILED |
+| **22436351 / 352** | T1-C agent s42 | R | night cell; poll only |
+| **22437002–015** | sens_cost | **13/13 COMPLETED** | **§355 COST-HURTS** |
+
+QOS **11 R / 51 PD**. Night 148: **98 COMPLETED / 2 R / 48 PD**, 0 FAILED. **§354 LOFO-R FAMILY-TRANSFER** (not as well as T1). **§355 COST-HURTS** at equal FLOPs; at equal params sens_cost is strongest. **§352 HF-V TRANSFERS**. **§353 HF-N no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. Ledger next **§356**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **11:55**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Never “transfers as well as T1”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 10:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **318/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | **COMPLETED** 10:26 | stop after 280 ep, `reward_not_improving`, since_improvement 152/150, rewinds=3. Freeze still ep0127. Do not auto-TEST. |
+| **22156117** | v10 resume | **COMPLETED** 42s | resumed ep 280, stop already true. Do not auto-TEST. |
+| LOFO-R agents | s43 rva0/rva1 | 2 R | night cell; poll only |
+| **22437004–013** | sens_cost | 8 R / 4 C / 1 PD | `tree_v16`; poll only. 0 FAILED. |
+| T0-F2/W | trains + floors | 18 PD | none R; poll only |
+
+QOS **11 R / 69 PD**. Night 148: **96 COMPLETED / 2 R / 50 PD**, 0 FAILED. **§352 HF-V TRANSFERS**. **§353 HF-N no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. Ledger next **§354**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **11:55**. Keep **21767188**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. COMPLETED ≠ a smoke passed. Do not start a replacement v10 from ops.
+
+## 0b. Cluster at 10 Oct 10:26 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **318/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R, **stopping** | 280 ep, `reward_not_improving`, since_improvement **152/150**, rewinds=3. Freeze still **ep0127**. Do not auto-TEST. Do not scancel. |
+| 22156117 | v10 resume | PD `Dependency` | waits on 22156116 teardown |
+| **22436382/93/22436402** | LOFO-V trains s42–44 | R ~3h00 | night cell; poll only |
+| LOFO-R agents | s43–44 evals | 6 R | night cell; poll only |
+| **22436350/62/72** | T1-C trains | 3/3 COMPLETED | science reads evals |
+| T0-F2/W | trains + floors | 18 PD | none R; poll only |
+
+QOS **11 R / 85 PD**. Night 148: **85 COMPLETED / 9 R / 54 PD**, 0 FAILED. **§352 HF-V TRANSFERS**. **§353 HF-N no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. Ledger next **§354**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **11:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 09:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **317/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **44/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **148/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436350/62/72** | T1-C trains s42–44 | R ~2h40 | night cell; poll only |
+| **22436382/93/22436402** | LOFO-V trains s42–44 | R ~2h30 | night cell; poll only |
+| **22436259–261** | LOFO-R agent s42 | 3 R | sn15 / rva0 / rva1; poll only |
+| **22440996** | T0-F2 re-smoke | COMPLETED | 18 cells released; 0 HeldUser; none R yet |
+
+QOS **11 R / 93 PD**. Night 148: **77 COMPLETED / 9 R / 62 PD**, 0 FAILED. T0-F2 2 C / 18 PD (QOS/Dependency). **§352 HF-V TRANSFERS**. **§353 HF-N no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. Ledger next **§354**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **11:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. COMPLETED ≠ a smoke passed.
+
+## 0b. Cluster at 10 Oct 09:26 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **315/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **40/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **148/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436350/62/72** | T1-C trains s42–44 | R ~2h10 | night cell; poll only |
+| **22436382/93/22436402** | LOFO-V trains s42–44 | R ~2h00 | night cell; poll only |
+| **22436252/257** | LOFO-R agent s42 | R | thin + dgr56; poll only |
+| **22436420** | HF-FM t1 fmrva0 s43 | R | night cell; poll only |
+| **22437993/994** | T0-F2 smokes | COMPLETED | remaining 18 **JobHeldUser** — do not unhold |
+
+QOS **11 R / 97 PD** (43 Dependency / 36 QOS / 18 HeldUser). Night 148: **73 COMPLETED / 9 R / 66 PD**, 0 FAILED. **§352 HF-V TRANSFERS** (seen family). **§353 HF-N LEVER-LIMITED, no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§346 T1 LEARNS**. Ledger next **§354**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **11:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not unhold T0-F2. Do not sbatch mixed-budget.
+
+## 0b. Cluster at 10 Oct 08:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **314/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **40/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **144/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436350/62/72** | T1-C trains s42–44 | R ~1h40 | night cell; poll only |
+| **22436382/93/22436402** | LOFO-V trains s42–44 | R ~1h30 | night cell; poll only |
+| **22436417–419** | HF-FM s43 fmsn1 | 3 R | night cell; poll only |
+| **22437993** | T0-F2 smoke-train | COMPLETED | 19 PD remain |
+| **22436999** | sens_cost smoke | COMPLETED | 12 cells PD |
+
+QOS **11 R / 101 PD**. Night 148: **70 COMPLETED / 9 R / 69 PD**, 0 FAILED. **§352 HF-V TRANSFERS** (seen family). **§353 HF-N LEVER-LIMITED, no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§346 T1 LEARNS**. Ledger next **§354**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **11:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Do not overlay live trees (`tree_v16` / `tree_v17` live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget.
+
+## 0b. Cluster at 10 Oct 08:26 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **314/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **40/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **144/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436350/62/72** | T1-C trains s42–44 | R ~1h10 | night cell; poll only |
+| **22436382/93/22436402** | LOFO-V trains s42–44 | R ~1h00 | night cell; poll only |
+| **22436412–416** | HF-FM s42 fmrva0 | 3 R | night cell; poll only |
+| **22437993** | T0-F2 smoke-train | COMPLETED | 19 PD remain |
+| **22436999** | sens_cost smoke | COMPLETED | 12 cells PD |
+
+QOS **11 R / 104 PD**. Night 148: **67 COMPLETED / 9 R / 72 PD**, 0 FAILED. **§352 HF-V TRANSFERS** (seen family). **§353 HF-N LEVER-LIMITED, no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§346 T1 LEARNS**. Ledger next **§354**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Do not overlay live trees (`tree_v16` / `tree_v17` live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget.
+
+## 0b. Cluster at 10 Oct 07:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **313/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **40/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **144/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436350/62/72** | T1-C trains s42–44 | R ~40 m | night cell; poll only |
+| **22436382/93/22436402** | LOFO-V trains s42–44 | R ~30 m | night cell; poll only |
+| **22436409–411** | HF-FM s42 | 3 R | night cell; poll only |
+| **22436251/62/72** | LOFO-R trains | 3/3 COMPLETED | science reads |
+| **22436999** | sens_cost smoke | COMPLETED | 12 cells PD |
+| **22437993** | T0-F2 smoke-train | COMPLETED | 19 PD remain |
+
+QOS **11 R / 107 PD**. Night 148: **64 COMPLETED / 9 R / 75 PD**, 0 FAILED. **§352 HF-V TRANSFERS** (seen family). **§353 HF-N LEVER-LIMITED, no call**. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§346 T1 LEARNS**. Ledger next **§354**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Never “unseen families”. Do not overlay live trees (`tree_v16` / `tree_v17` live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget.
+
+## 0b. Cluster at 10 Oct 07:26 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **313/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **40/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **144/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436262/72** | LOFO-R trains s43–44 | R ~3h20 | night cell; poll only. s42 train left R. |
+| **22436350/62/72** | T1-C trains s42–44 | R | night cell; poll only |
+| **22436382/93** | LOFO-V trains s42–43 | R | night cell; poll only |
+| **22436999** | sens_cost smoke | R | `tree_v16`; 12 cells still PD |
+| **22437993–014** | T0-F2 / T0-F-W | 20 PD | `tree_v17`; poll only |
+
+QOS **11 R / 112 PD** (92 Dependency / 20 QOS). Night 148: **61 COMPLETED / 8 R / 79 PD**, 0 FAILED. T0-F2/W 0 FAILED. Mixed-budget held. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§348 VG2 SPEED-EQUIVALENT**. **§346 T1 LEARNS**. Ledger next **§352**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees (`tree_v16` / `tree_v17` live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. Do not quote a D-PROXY-F number as an agent TEST.
+
+## 0b. Cluster at 10 Oct 06:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **312/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **36/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **140/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436251/62/72** | LOFO-R trains s42–44 | R ~2h50 | night cell; poll only |
+| HF-N/V s44 | night evals | 6 R | poll only |
+| **22436524–537** | D-PROXY-F | 12/12 COMPLETED | **§351 FLOPS-VALID** |
+| **22436999**, **22437002–015** | sens_cost | 13 PD | `tree_v16`; poll only |
+| **22437993–014** | T0-F2 / T0-F-W | 20 PD | `tree_v17`; poll only. Mixed-budget held until T0-F2 reads. |
+
+QOS **11 R / 122 PD** (92 Dependency / 30 QOS). Night 148: **51 COMPLETED / 9 R / 88 PD**, 0 FAILED. T0-F2/W 0 FAILED. Mixed-budget held. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§348 VG2 SPEED-EQUIVALENT**. **§346 T1 LEARNS**. Ledger next **§352**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees (`tree_v16` / `tree_v17` live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. Do not quote a D-PROXY-F number as an agent TEST.
+
+## 0b. Cluster at 10 Oct 06:26 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **312/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **36/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **140/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436251/62/72** | LOFO-R trains s42–44 | R ~2h20 | night cell; poll only |
+| HF-N/V | night evals | 6 R | poll only |
+| **22436524–537** | D-PROXY-F | 12/12 COMPLETED | **§351 FLOPS-VALID** |
+| **22436999**, **22437002–015** | sens_cost | smoke + 12 PD | `tree_v16`; poll only |
+| **22437993–014** | T0-F2 / T0-F-W | 20 PD | `tree_v17`; poll only. Mixed-budget held until T0-F2 reads. |
+
+QOS **11 R / 133 PD** (92 Dependency / 41 QOS). Night 148: **40 COMPLETED / 9 R / 99 PD**, 0 FAILED. T0-F2/W 0 FAILED. Mixed-budget held. **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§348 VG2 SPEED-EQUIVALENT**. **§346 T1 LEARNS**. Ledger next **§352**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees (`tree_v16` / `tree_v17` live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. Do not quote a D-PROXY-F number as an agent TEST.
+
+## 0b. Cluster at 10 Oct 05:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **310/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **36/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **140/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436251/62/72** | LOFO-R trains s42–44 | R ~1h50 | night cell; poll only |
+| HF-N s43 | night evals | 6 R | poll only |
+| **22436524–537** | D-PROXY-F | 12/12 COMPLETED | **§351 FLOPS-VALID** |
+| **22436999**, **22437002–015** | sens_cost | smoke + 12 PD | `tree_v16`; poll only |
+
+QOS **11 R / 122 PD** (73 Dependency / 49 QOS). Night 148: **31 COMPLETED / 9 R / 108 PD**, 0 FAILED. Mixed-budget held (trainer/eval gap). **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§348 VG2 SPEED-EQUIVALENT**. **§346 T1 LEARNS**. Ledger next **§352**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:55**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees (`tree_v16` now live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. Do not quote a D-PROXY-F number as an agent TEST.
+
+## 0b. Cluster at 10 Oct 05:26 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **310/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **36/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **140/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436251/62/72** | LOFO-R trains s42–44 | R | night cell; poll only |
+| HF-N s42–43 | night evals | 6 R | poll only |
+| **22436524–537** | D-PROXY-F | 12/12 COMPLETED | **§351 FLOPS-VALID** |
+| **22436999**, **22437002–015** | sens_cost | smoke + 12 PD | `tree_v16`; poll only |
+
+QOS **11 R / 132 PD** (73 Dependency / 59 QOS). Night 148: **21 COMPLETED / 9 R / 118 PD**, 0 FAILED. Mixed-budget held (trainer/eval gap). **§351 FLOPS-VALID**. **§350 T0-F FAILS-CONTROL** stands. **§348 VG2 SPEED-EQUIVALENT**. **§346 T1 LEARNS**. Ledger next **§352**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:53**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees (`tree_v16` now live). Do not auto-TEST Stage-4 ep0272. Do not sbatch mixed-budget. Do not quote a D-PROXY-F number as an agent TEST.
+
+## 0b. Cluster at 10 Oct 04:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **309/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **36/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **140/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436251/62/72** | LOFO-R trains s42–44 | R | night cell; poll only |
+| **22436281–292** | HF-N s42 evals | 5 R | night cell; poll only |
+| **22436524–537** | D-PROXY-F thin FLOPs 0.6 | **12/12 COMPLETED** | science reads; do not quote |
+
+QOS **10 R / 127 PD** — **1 idle** (science owns; do not invent). Night 148: **14 COMPLETED / 8 R / 126 PD**, 0 FAILED. D-PROXY-F 0 FAILED. Mixed-budget absent. **§348 VG2 SPEED-EQUIVALENT**. **§349 CEILING-BOUND**. **§350 T0-F FAILS-CONTROL**. **§346 T1 LEARNS**. Ledger next **§351**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:53**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not submit, cancel, or read night TESTs.
+
+## 0b. Cluster at 10 Oct 04:27 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **308/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **32/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **140/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+| **22436251/62/72** | LOFO-R trains s42–44 | R | night cell; poll only |
+| **22436524–531** | D-PROXY-F thin FLOPs 0.6 | 6 R / 6 PD | nice 19; poll only |
+
+QOS **11 R / 139 PD** (78 QOS / 61 Dependency). Night smokes **7/7 COMPLETED**. Night 148: **13 COMPLETED / 3 R / 132 PD**, 0 FAILED. D-PROXY-F 12 jobs, 0 FAILED. Mixed-budget absent. **§348 VG2 SPEED-EQUIVALENT**. **§349 CEILING-BOUND**. **§350 T0-F FAILS-CONTROL**. **§346 T1 LEARNS**. Ledger next **§351**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:53**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272. Do not submit, cancel, or read night TESTs.
+
+## 0b. Cluster at 10 Oct 03:56 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **308/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **32/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **140/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+
+QOS **2 R / 1 PD**. **9 idle** — science owns fill; do not invent. **§348 VG2 SPEED-EQUIVALENT** (G2 is the recipe). **§349 D-PROXY-2 CEILING-BOUND** (reward stands). **§350 T0-F FAILS-CONTROL** (no FLOPs for T1). **§346 T1 LEARNS** (seen family). Ledger next **§351**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:53**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 10 Oct 02:53 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **308/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **32/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3, since_improvement **132/150**. Never quote probe. |
+| 22156117 | v10 resume | PD `Dependency` | — |
+
+QOS **2 R / 1 PD**. **9 idle** — science owns overnight reads; do not invent. **§346 T1 LEARNS** (seen family; not BEATS-PRIOR; FLOPs caption). **§347 K8** reported. VG2 24, D-PROXY-2 73, T0-F 21 all COMPLETED, 0 FAILED — ops did not read TESTs. Ledger next **§348**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:53**. Keep 22156116 / 22156117 / 21767188. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay live trees on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 9 Oct 17:09 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **296/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3. Never quote probe. |
 | 22156117 | v10 resume | PD `afterok` | — |
 
-QOS **11 R / 12 PD**. Ledger next **§236**. Next canvas **09:30**. Next 3h **08:28**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. 1-cycle **VOID** (§235).
+QOS **2 R / 1 PD**. **9 idle** — sitting owns; do not invent. Sitting closed **§341–§345**: T0 **LEARNS +2.35** vs mild, not BEATS-PRIOR; NR G2 thin **SURVIVES +1.02**; VG **VGG stays plain**; D-IMIT (a) SUFFICIENT; N04 MBV2 **WEAK +0.31**. Do not sbatch T1. Ledger next **§346**. **M1-v10 FLAT.** Next canvas **23:00**. Next 3h **19:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay `tree_v10l` / `tree_v11` / `tree_v12` / `tree_v13` on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 9 Oct 16:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **295/250** | freeze **ep0272** `best_score=0.3028`, since_improvement **20/150**. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**, rewinds=3. Never quote probe. |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **2 R / 1 PD**. **9 idle** — sitting owns; do not invent. Morning cells **all COMPLETED**: D-IMIT r2 **22416540** (a) **SUFFICIENT** 0.872, (a) **BEATS** (b), (e) **TIES** (e0); T0 evals **22416578/80/82** ~10:11–10:15; T0-bn evals **22416584/86/88** ~12:28–12:33; NR 32/32; VG 4/4. Sitting owns T0 / NR / VG / N04 ledger. **Do not quote T0 logs.** Do not sbatch T1. Ledger next **§341**. Last GPU TEST **§338**; last diagnostic **§340**. **M1-v10 FLAT.** Next canvas **23:00**. Next 3h **19:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not start N8. Never “beats”. Do not overlay `tree_v10l` / `tree_v11` / `tree_v12` / `tree_v13` on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 9 Oct 09:11 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **284/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| 22156117 | v10 resume | PD `afterok` | — |
+| **22416577 / 79 / 81** | T0 plan-train s42/43/44 | R ~8 min | `PLAN_PROXY=cut`. Never quote train logs. |
+| **22416583 / 85 / 87** | T0-bn plan-train | R ~8 min | `PLAN_PROXY=bn32`. Reported; Ido decides. |
+| **22416540** | D-IMIT probe r2 | R ~17 min | sitting owns the call. |
+| NR / VG | G2 re-finals | 2 R + rest PD | Ido adopted G2 08:36. |
+
+QOS **11 R / 33 PD**. Sitting filled idle (T0 GO 08:45). **§340** D-PROXY reward = **cut**. Ido adopted **G2**. Ledger next **§341**. Last GPU TEST **§338**; last diagnostic **§340**. **§337** thin five-seed **SURVIVES +1.18**. **M1-v10 FLAT.** Do not quote T0 logs / probe / smoke. Do not sbatch T1. Next canvas **16:00**. Next 3h **11:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not overlay `tree_v10l` / `tree_v11` / `tree_v12` / `tree_v13` on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 9 Oct 08:41 IDT (stale)
+
+QOS **2 R / 1 PD**. **9 idle** — sitting then filled. N04 / D-PROXY COMPLETED. D-IMIT **22411735 FAILED**. Ledger was next **§340**.
+
+## 0b. Cluster at 9 Oct 08:11 IDT (poll failed)
+
+SSH to `slurm.bgu.ac.il:22` timed out twice (since 03:11). Did not invent. Afterok children survive. Last live table is 02:40 below. Ledger next **§340**. Next canvas **09:30**. Next 3h **08:40**.
+
+## 0b. Cluster at 9 Oct 02:40 IDT (last live poll)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **278/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22409855–63** | N04 MBV2 walks | R ~1.4–1.9 h | sitting; N01–N03 COMPLETED sitting owns |
+| **22409864–66 / 867–79** | N04 rest + N04P | PD QOS / afterok | sitting |
+| **22410259** | D-PROXY smoke | R 2 min | sitting `tree_v11`; never quote |
+| **22411296–11479** | D-PROXY walks + ceiling | PD afterok | sitting |
+| **22411734 / 735** | D-IMIT dump / probe | PD QOS / afterok | sitting `tree_v12`; never quote dump |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 117 PD**. Ledger next **§340**. Last GPU TEST **§338 EFFECTIVE-LR**. **§339** D-CENSUS (zero GPU): V6 = mild, no re-walk. **§337** thin five-seed **SURVIVES +1.18**. **§330 stands** until Ido calls. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` / `tree_v11` / `tree_v12` on trains. Do not auto-TEST Stage-4 ep0272. Do not quote D-PROXY smoke.
+
+## 0b. Cluster at 9 Oct 02:10 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **277/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22409855–63** | N04 MBV2 walks s44–s46 | R ~1.1–1.3 h | sitting; N01–N03 COMPLETED sitting owns |
+| **22409864–66 / 867–79** | N04 rest + N04P | PD QOS / afterok | sitting |
+| **22410259** | D-PROXY smoke | PD QOS | sitting `tree_v11`; never quote |
+| **22411296–11479** | D-PROXY walks + ceiling | PD afterok | sitting |
+| **22411734 / 735** | D-IMIT dump / probe | PD QOS / afterok | sitting `tree_v12`; never quote dump |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 118 PD**. Ledger next **§340**. Last GPU TEST **§338 EFFECTIVE-LR**. **§339** D-CENSUS (zero GPU): V6 = mild, no re-walk. **§337** thin five-seed **SURVIVES +1.18**. **§330 stands** until Ido calls. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` / `tree_v11` / `tree_v12` on trains. Do not auto-TEST Stage-4 ep0272. Do not quote D-PROXY smoke.
+
+## 0b. Cluster at 9 Oct 01:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **276/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22409855–63** | N04 MBV2 walks s44–s46 | R | sitting; N01–N03 COMPLETED sitting owns |
+| **22409864–66 / 867–79** | N04 rest + N04P | PD QOS / afterok | sitting |
+| **22410259** | D-PROXY smoke | PD QOS | sitting `tree_v11`; never quote |
+| **22411296–11479** | D-PROXY walks + ceiling | PD afterok | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 116 PD**. Ledger next **§340**. Last GPU TEST **§338 EFFECTIVE-LR**. **§339** D-CENSUS (zero GPU): V6 = mild, no re-walk. **§337** thin five-seed **SURVIVES +1.18**. **§330 stands** until Ido calls. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` / `tree_v11` on trains. Do not auto-TEST Stage-4 ep0272. Do not quote D-PROXY smoke.
+
+## 0b. Cluster at 9 Oct 01:10 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **274/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22409855–63** | N04 MBV2 walks s44–s46 | R | sitting; N01–N03 COMPLETED sitting owns |
+| **22409864–66 / 867–79** | N04 rest + N04P | PD QOS / afterok | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 16 PD**. Ledger next **§339**. Last TEST **§338 EFFECTIVE-LR**. **§337** thin five-seed **SURVIVES +1.18**. **§330 stands** until Ido calls. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 9 Oct 00:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **274/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22409814–22** | N03-a graph lr 0.05 | R | sitting; N02P COMPLETED sitting owns |
+| **22409823** | N03-b graph lr 0.01 batch 256 thin-sens s42 | R | sitting |
+| **22409824–30 / 855–79** | N03-b rest + N04 / N04P | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 32 PD**. Ledger next **§336**. Last TEST **§335 G2 ADOPT**. Sitting registered **N03 / N04** (~00:40). **§334** K=1 **75 epochs**. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 9 Oct 00:10 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **274/250** | freeze **ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404795–99** | N02P thin mild | R | sitting; N01P COMPLETED sitting owns |
+| **22404800 / 801 / 804 / 805** | N02P MBV2 inner/mild | R | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 1 PD**. Ledger next **§336**. Last TEST **§335 G2 ADOPT**. **§334** K=1 **75 epochs**. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 8 Oct 23:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **273/250** | **froze ep0272** `best_score=0.3028`. Do not auto-TEST. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404792–99 / 800** | N02P thin inner/mild + MBV2 inner s42 | R | sitting; N01P COMPLETED sitting owns |
+| **22404801 / 804 / 805** | N02P MBV2 rest | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 4 PD**. Ledger next **§336**. Last TEST **§335 G2 ADOPT**. **§334** K=1 **75 epochs**. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains. Do not auto-TEST Stage-4 ep0272.
+
+## 0b. Cluster at 8 Oct 23:10 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **272/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404780 / 83 / 84 / 86 / 87** | N02P thin sens/uniform | R ~30–39 min | sitting; N01P COMPLETED sitting owns |
+| **22404788 / 91 / 92 / 93** | N02P thin inner | R ~17–22 min | sitting |
+| **22404794–805** | N02P mild / MBV2 | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 11 PD**. Ledger next **§336**. Last TEST **§335 G2 ADOPT**. **§334** K=1 **75 epochs**. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **23:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 22:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **272/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404715 / 16 / 19 / 20** | N01P thin lr-0.01 | R ~40–49 min | sitting; MBV2 721/724 COMPLETED |
+| **22404779 / 80 / 83 / 84 / 86** | N02P thin | R ~7–37 min | sitting |
+| **22404787–805** | N02P rest | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 16 PD**. Ledger next **§336**. Last TEST **§335 G2 ADOPT**. **§334** K=1 **75 epochs**. **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **23:00**. Next 3h **23:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 22:10 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **272/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404715–24** | N01P lr-0.01 keep-last | R ~8–19 min | sitting; Q7 narrow recipe |
+| **22404779** | N02P thin sens s44 | R ~7 min | sitting |
+| **22404780–805** | N02P rest | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 20 PD**. Ledger next **§336**. Last TEST **§335 G2 ADOPT**. **§334** K=1 **75 epochs** (**5.9–6.9 min** vs 85). **§332** plan-as-action after probe — ops does not sbatch. **M1-v10 FLAT.** Next canvas **23:00**. Next 3h **23:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 21:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **272/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404222 / 23** | G2-F transplant b256 | R ~15 min | sitting |
+| **22404227** | G2-E thin one-shot b256 | R ~8 min | sitting |
+| **22404228–231** | G2-M MBV2 b256 | R ~2 min | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **9 R / 1 PD**. Ledger next **§332**. Last GPU TEST **§329**. Wave 31 COMPLETED — sitting owns (E-M / GB200 / GB75 / GE-M not ledgered). **§330 Q7. §331 SNR.** Sitting **G ADOPT** ResNets+MBV2. **M1-v10 FLAT.** 2 idle sitting owns. Next canvas **23:00**. Next 3h **23:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 21:10 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **272/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404143–147** | GB200 thin / transplant s43 | R ~25 min | sitting; 138/142 COMPLETED |
+| **22404148–150** | GB75 one-shot R56 | R ~10–12 min | sitting |
+| **22404172** | GE-M MBV2 uniform s42 | R ~10 min | sitting; **171** COMPLETED |
+| **22404218–231** | G2-F / G2-E / G2-M b256 | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 23 PD**. Ledger next **§332**. Last GPU TEST **§329**. **§330 Q7 answered. §331 v10 SNR diagnostic (not TEST).** Sitting **G ADOPT** ResNets+MBV2; VGG plain; K=1 **100 epochs**. **M1-v10 FLAT.** Next canvas **23:00**. Next 3h **23:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 20:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **271/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404134–137** | E-M one-shot MBV2 | R ~28 min | sitting |
+| **22404138–142** | GB200 one-shot R56 graphs | R ~28 min | sitting; 200-ep budget |
+| **22404143–147 / 144–147** | GB200 thin / transplant | PD QOS | sitting |
+| **22404148–157** | GB75 | PD QOS | sitting |
+| **22404171–174** | GE-M MBV2 graphs | PD afterok E-M | sitting |
+| **22404218–231** | G2-F / G2-E / G2-M b256 | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 34 PD**. Ledger next **§330**. Last TEST **§329**. Sitting **G ADOPT** ResNets+MBV2; VGG plain; K=1 **100 epochs**. **M1-v10 FLAT.** Next canvas **23:00**. Next 3h **23:40**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 20:10 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **270/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22404001–04** | G-M MBV2 graphs | R ~10–11 min | sitting owns |
+| **22404006 / 10 / 12** | G2-H thin graphs×b256 | R ~8 min | sitting owns; **005** not in queue |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **9 R / 1 PD**. Ledger next **§325**. Last TEST **§324**. Wave 29 COMPLETED — sitting owns (GE/GB/C2E not ledgered). Sitting **G ADOPT**. **C2 R56-ONLY**. **M1-v10 FLAT.** 2 idle sitting owns. Next canvas **23:00**. Next 3h **20:38**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 19:40 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **270/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22403233–236** | GE thin one-shot graphs | R ~5 min | sitting; G ADOPT hold-out |
+| **22403237–241** | GB50 one-shot R56 graphs | R ~5 min | sitting; 50-ep budget |
+| **22403243–247** | GB50 thin graphs | PD QOS | sitting |
+| **22403248–251** | C2E VGG one-shot | PD QOS | sitting; C2 on VGG |
+| **22403252–261** | GB25 | PD QOS | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 20 PD**. Ledger next **§325**. Last TEST **§324**. Sitting **G ADOPT** (launch-bound; not trains). **C2 R56-ONLY**. **M1-v10 FLAT.** Next canvas **23:00**. Next 3h **20:38**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not overlay `tree_v10l` on trains.
+
+## 0b. Cluster at 8 Oct 19:09 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **268/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22401649 / 781–791** | C2-H thin/VGG | COMPLETED | sitting owns; not ledgered |
+| **22401673–676** | G-H thin graphs | COMPLETED | sitting owns; not ledgered |
+| **22401667–672** | G-F one-shot graphs | COMPLETED | sitting owns; not ledgered |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **2 R / 1 PD**. Ledger next **§322**. **M1-v10 FLAT.** Last TEST **§321**. Next canvas **23:00**. Next 3h **20:38**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not adopt G/C2 from ops. Sitting owns idle.
+
+---
+
+## 0b. Cluster at 8 Oct 14:08 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **262/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22396423–30** | FT stack C / C2 | **COMPLETED §311** | C NO-GAIN; C2 SPEED-EQUIV ×1.93 not adopted |
+| **22395413 / 15** | mild κ 0.6 s44 / s46 | COMPLETED | sitting owns; **22395414** s45 R ~5.5 h |
+| **22395427–29** | inner cosine s44–46 | R | sitting wave 26 |
+| **22398750 / 51 / 53** | C3 / C4 | R | sitting; C2 follow-ups |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 30 PD**. Ledger next **§312**. **M1-v10 FLAT.** Sitting **§311**. Next canvas **16:00**. Next 3h **14:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent. Do not adopt C2 from ops.
+
+---
+
+## 0b. Cluster at 8 Oct 13:38 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **260/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22396366–418 / 368 / 421 / 422** | one-shot wave 28 | **COMPLETED §309 / §310** | skip-full EQUIVALENT ~20 min |
+| **22395413–15** | mild κ 0.6 s44–46 | R ~5.0 h | sitting wave 26 |
+| **22395427–29** | inner cosine s44–46 | R | sitting owns inner walks |
+| **22395795 / 96** | VGG s44 mild / sens cosine | R | sitting; 794 COMPLETED sitting owns |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 34 PD**. Ledger next **§311**. **M1-v10 FLAT.** Sitting **§309 / §310**. Next canvas **16:00**. Next 3h **14:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 12:38 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **260/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394698–706** | DG R56 three-seed | **COMPLETED §308** | EQP +0.11 ABSORBED · EQF +0.44 WEAK |
+| **22395413–15** | mild κ 0.6 s44–46 | R ~4.0 h | sitting wave 26 |
+| **22396417 / 18 / 21** | oneshot s43 | R | sitting; 667/668/422 COMPLETED sitting owns |
+| **22396423 / 24** | eng cosine | R | sitting wave 8 |
+| **22395794** | VGG uniform κ 0.814 s44 | R | sitting wave 27 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 24 PD**. Ledger next **§309**. **M1-v10 FLAT.** Sitting **§308**. Next canvas **16:00**. Next 3h **14:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 11:38 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **260/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394258–65** | thin κ 0.6 five-seed | **COMPLETED §307** | about +1 pp |
+| **22394703** | DG R56 s44 cosine | R ~26 min | sitting owns three-seed; 698 COMPLETED |
+| **22395413–17 / 21** | mild / inner κ 0.6 s44–46 | R | sitting wave 26 |
+| **22395792 / 93** | VGG s44 uniform | COMPLETED | sitting owns; 791 COMPLETED |
+| **22396367 / 68** | oneshot sens / transplant | R | sitting wave 8; 366 COMPLETED |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 31 PD**. Ledger next **§308**. **M1-v10 FLAT.** Sitting **§307**. Next canvas **16:00**. Next 3h **14:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 08:07 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **254/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394258–61** | thin κ 0.6 seeds 45/46 walks | COMPLETED ~07:38–08:00 | sitting owns; cosine **22394262–65** R |
+| **22394698 / 99 / 701 / 702** | DG R56 seed 44 | R ~1.7 h | sitting wave 25 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 5 PD**. Ledger next **§307**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **08:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 07:37 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **254/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394259** | thin κ 0.6 uniform s45 | COMPLETED 07:31 | sitting owns; cosine **22394263** R |
+| **22394258 / 60 / 61** | thin κ 0.6 remaining | R ~3.2 h | sitting wave 24 |
+| **22394698 / 99 / 701 / 702** | DG R56 seed 44 | R ~1.2 h | sitting wave 25 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 8 PD**. Ledger next **§307**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **08:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 07:07 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **253/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394077–85** | DG R56 equal-FLOPs | **COMPLETED §306** | **WEAK +0.43** |
+| **22394258–61** | thin κ 0.6 seeds 45/46 | R ~2.7 h | sitting wave 24; five-seed ~08:30 |
+| **22394698 / 99 / 701 / 702** | DG R56 seed 44 | R ~45 min | sitting wave 25 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 9 PD**. Ledger next **§307**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **08:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 06:37 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **252/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394077–85** | DG R56 equal-FLOPs | **COMPLETED §306** | **WEAK +0.43**; mirror of VGG (edge on FLOPs axis) |
+| **22394258–61** | thin κ 0.6 seeds 45/46 | R ~2.2 h | sitting wave 24; five-seed ~08:30 |
+| **22394698 / 99 / 701 / 702** | DG R56 seed 44 | R ~14 min | sitting wave 25 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 9 PD**. Ledger next **§307**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 06:07 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **252/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394083–85** | DG R56 cosine 3/4 | COMPLETED ~06:02–06:04 | sitting owns; **22394082** R ~34 min |
+| **22394258–61** | thin κ 0.6 seeds 45/46 | R ~1.7 h | sitting wave 24 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **7 R / 5 PD**. Ledger next **§306**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **08:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 05:37 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **251/250** | `best_score=0.2888`. Past min; no new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394057–64** | VGG equal-FLOPs | **COMPLETED §305** | **FLOPS-ONLY +0.11** |
+| **22394077 / 79–81** | DG R56 equal-FLOPs walks | COMPLETED ~05:28–05:33 | sitting owns; cosine **22394082–85** R |
+| **22394258–61** | thin κ 0.6 seeds 45/46 | R ~1.2 h | sitting wave 24; five-seed ~08:30 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 5 PD**. Ledger next **§306**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **08:37**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 05:07 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **250/250** | `best_score=0.2888`. Last episode. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394057–64** | VGG equal-FLOPs | **COMPLETED §305** | **FLOPS-ONLY +0.11** |
+| **22394077 / 79–81** | DG R56 equal-FLOPs walks | R ~2 h | sitting wave 23 |
+| **22394258–61** | thin κ 0.6 seeds 45/46 | R ~40 min | sitting wave 24 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 9 PD**. Ledger next **§306**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **05:36**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 04:36 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **250/250** | `best_score=0.2888`. Last episode. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394057–64** | VGG equal-FLOPs | **COMPLETED §305** | **FLOPS-ONLY +0.11**; equal-params +1.74 was FLOPs |
+| **22394077 / 79–81** | DG R56 equal-FLOPs walks | R ~1.5 h | sitting wave 23 |
+| **22394258–61** | thin κ 0.6 seeds 45/46 | R | sitting wave 24; five-seed ~09:00 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 9 PD**. Ledger next **§306**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:36**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 04:07 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **249/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394057–60** | VGG uniform equal-FLOPs walks | COMPLETED ~03:52–03:57 | sitting owns; cosine **22394061–64** R |
+| **22394077 / 79–81** | DG R56 uniform FLOPs-matched | R ~1 h | sitting wave 23 |
+| cosine DG afterok | 22394082–85 | PD Dependency | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 5 PD**. Ledger next **§305**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **05:36**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 03:36 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **248/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394057–60** | VGG uniform equal-FLOPs | R ~45 min | sitting wave 22 |
+| **22394077 / 79–81** | DG R56 uniform FLOPs-matched | R ~33 min | sitting wave 23 |
+| cosine afterok | VGG / DG R56 | PD Dependency | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 9 PD**. Ledger next **§305**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **05:36**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 03:06 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **248/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22394057–60** | VGG uniform equal-FLOPs walks | R | sitting wave 22 |
+| **22394077 / 79–81** | DG R56 uniform FLOPs-matched | R | sitting wave 22 |
+| cosine afterok | VGG / DG R56 | PD Dependency | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **10 R / 9 PD**. Ledger next **§305**. **M1-v10 FLAT.** No new TEST. Next canvas **09:30**. Next 3h **05:36**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 02:36 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **248/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22376493 / 95 / 98 / 99** | MBV2 cosine pair | **COMPLETED §301** | two-seed **NONE +0.09**; recipe costs the family |
+| **22374697 / 98** | cosine κ 0.35 | **COMPLETED §302** | two-seed **WEAK +1.47** |
+| **22376496 / 500 / 497 / 501** | MBV2 inner/mild cosine | **COMPLETED §303** | skip-full **worst**; val keeps lr 0.01; **wave 21 done** |
+| **22375997 / 22376009** | cosine κ 0.6 s44 | **COMPLETED §304** | three-seed cosine **+1.13 SURVIVES** |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **2 R / 1 PD** (9 idle; sitting queue drained). Ledger next **§305**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **05:36**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 02:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **248/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22376011 / 22375996** | VGG cosine mild | **COMPLETED §298** | bar_cos **+0.72 / +0.92** at 1.27× FLOPs |
+| **22376025 / 26** | DG R56 cosine | **COMPLETED §299** | two-seed **ABSORBED 0.00**; level with DepGraph |
+| **22376027** | DG transplant cosine s43 | **COMPLETED §300** | lift over N3 **+0.73**; uniform gets there too |
+| **22376493 / 96 / 98** | MBV2 cosine | COMPLETED | sitting notes: cosine **hurts** MBV2 ×0.5 origin |
+| **22376495** | MBV2 cosine uni s42 | COMPLETED 02:04 | sitting owns |
+| remaining cosine | thin κ 0.35/0.6 + MBV2 | R | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **9 R / 1 PD** (2 idle; sitting queue drained of PD fill). Ledger next **§301**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:34**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”. Do not invent.
+
+---
+
+## 0b. Cluster at 8 Oct 01:34 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **248/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22375992 / 93** | thin κ 0.6 s44 | **COMPLETED §292** | three-seed **+0.88**; wave 8 SURVIVES stands |
+| **22376491** | MBV2 inner s43 | **COMPLETED §293** | skip-full **not** the MBV2 lever |
+| **22376019 / 13 / 10 / 14** | VGG cosine pair | **COMPLETED §294** | cosine **SENS-MATTERS +1.74** at 1.36× FLOPs |
+| **22376024** | cosine inner κ 0.35 | **COMPLETED §295** | STRUCTURAL at all three keeps |
+| **22376487 / 92** | MBV2 mild | **COMPLETED §296** | sens − mild **+0.53**; walk +0.16 |
+| **22385251** | cosine uni κ 0.8 s42 | **COMPLETED §297** | cosine κ 0.8 two-seed **+0.74 / +1.20** |
+| cosine re-reads | MBV2 / VGG mild / DG sens / transplant | R | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 6 PD**. Ledger next **§298**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:34**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”.
+
+---
+
+## 0b. Cluster at 8 Oct 01:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **247/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22376490** | MBV2 uniform s43 | **COMPLETED §291** | two-seed **WEAK +0.67**; walk +0.14; epoch-1 artefact |
+| **22376010 / 22374698 / 22375993** | VGG cos-sens s43 / cos uni κ 0.35 s43 / uni κ 0.6 s44 | COMPLETED | sitting owns |
+| **22376487 / 91 / 92** | MBV2 remaining | R | wave 21 |
+| **22376024 / 26 / 14 / 22385251** | cos inner κ 0.35 / DG uni s43 / VGG uni s43 / cos uni κ 0.8 | R | — |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **9 R / 17 PD** (2 slots just freed; sitting fills). Ledger next **§292**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:34**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”.
+
+---
+
+## 0b. Cluster at 8 Oct 00:34 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **246/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22376021 / 23** | cosine inner κ 0.8 | **COMPLETED §290** | two-seed **STRUCTURAL −0.08**; both keeps under cosine |
+| **22376019** | VGG cosine-sens | COMPLETED 00:18 | sitting owns |
+| **22376487 / 90–92** | MBV2 remaining | R | wave 21 |
+| **22375993** | uniform κ 0.6 s44 | R | wave 20 |
+| **22376024 / 26 / 10** | cosine inner κ 0.35 / DG uni s43 / VGG sens s43 | R | just started |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 20 PD**. Ledger next **§291**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:34**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”.
+
+---
+
+## 0b. Cluster at 8 Oct 00:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **244/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22374249** | VGG transplant cosine | **COMPLETED §289** | 10k **−2.72 MATCH**; level with DG |
+| **22376022** | cosine inner κ 0.6 s43 | **COMPLETED §288** | two-seed **STRUCTURAL −0.28** |
+| **22342668** | VGG transplant last-ep | **COMPLETED §286** | 10k −5.85; gap was the FT |
+| **22376484–86** | MBV2 s42 trio | **COMPLETED §287** | **NONE +0.10**; light cut |
+| **22375992** | sens κ 0.6 s44 | COMPLETED | sitting owns |
+| **22376487 / 90–92** | MBV2 remaining | R | wave 21 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 23 PD**. Ledger next **§290**. **M1-v10 FLAT.** Next canvas **09:30**. Next 3h **02:34**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8. Never “beats”.
+
+---
+
+## 0b. Cluster at 7 Oct 23:34 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **244/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22376020** | cosine inner κ 0.6 s42 | **COMPLETED §285** | STRUCTURAL −0.24 (one seed) |
+| **22376488** | MBV2 sens s43 | COMPLETED | sitting owns |
+| **22376022** | cosine inner κ 0.6 s43 | R ~0.5 h | §285 pair |
+| **22342668** | VGG transplant last-ep | R ~0.2 h | wave 11 |
+| **22376485 / 87 / 90–92** | MBV2 remaining | R | wave 21 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 28 PD**. Ledger next **§286**. Next canvas **09:30**. Next 3h **02:34**.
+
+---
+
+## 0b. Cluster at 7 Oct 23:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **244/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22376484 / 86** | MBV2 sens / inner s42 | COMPLETED | sitting owns |
+| **22376020** | cosine inner κ 0.6 | R ~0.4 h | wave 20 |
+| **22376485 / 87 / 88 / 90–92** | MBV2 remaining | R | wave 21 |
+| **22375992 / 93** | κ 0.6 s44 | R | wave 20 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 30 PD**. Ledger next **§285**. Next canvas **09:30**. Next 3h **23:33**.
+
+---
+
+## 0b. Cluster at 7 Oct 22:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **242/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22344456 / 57** | κ 0.35 s43 | **COMPLETED §282** | two-seed **WEAK +1.64** |
+| **22375994 / 95** | VGG mild | **COMPLETED §283** | sens − mild **+1.09** |
+| **22374250** | DG transplant s43 | **COMPLETED §284** | two-seed **PARTIAL +0.35** |
+| **22376484–88 / 90 / 92** | MBV2 κ 0.6 | R | wave 21 |
+| **22375992 / 93** | κ 0.6 s44 | R | wave 20 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 32 PD**. Ledger next **§285**. Next canvas **23:00**. Next 3h **23:33**.
+
+---
+
+## 0b. Cluster at 7 Oct 21:34 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **242/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22374703 / 04 / 88** | cosine κ 0.8 s43 | **COMPLETED §281** | lever **+0.78 / +1.17**; thin r56 cost |
+| **22375994** | VGG mild s42 | COMPLETED | sitting owns |
+| **22344456** | sens κ 0.35 s43 | R ~4.8 h | wave 14 |
+| **22374250** | transplant s43 | R ~3.3 h | wave 18 |
+| **22375995** | VGG mild s43 | R ~2.1 h | wave 20 |
+| **22376484–88** | MBV2 κ 0.6 | R | wave 21 |
+| **22375992** | sens κ 0.6 s44 | R ~0.5 h | wave 20 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 35 PD**. Ledger next **§282**. Next canvas **23:00**. Next 3h **23:33**.
+
+---
+
+## 0b. Cluster at 7 Oct 21:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **241/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22344275 / 76** | DG R56 s43 | **COMPLETED §280** | **SURVIVES +0.78** at 5k; 10k **+0.48** |
+| **22375982–86** | VGG-19 κ 0.6 | **COMPLETED §279** | **SENS-MATTERS +2.77**; 1.36× FLOPs |
+| **22374703 / 88** | cosine κ 0.8 s43 | COMPLETED | sitting owns |
+| **22344456** | sens κ 0.35 s43 | R ~4.3 h | wave 14 |
+| **22374250** | transplant s43 | R ~2.8 h | wave 18 |
+| **22376484–87** | MBV2 κ 0.6 s42 | R | wave 21 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 37 PD**. Ledger next **§281**. Next canvas **23:00**. Next 3h **23:33**.
+
+---
+
+## 0b. Cluster at 7 Oct 20:34 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **240/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22375982–86** | VGG-19 κ 0.6 | **COMPLETED §279** | **SENS-MATTERS +2.77**; 1.36× FLOPs |
+| **22344457** | uniform κ 0.35 s43 | COMPLETED | sitting owns |
+| **22374700** | cosine κ 0.8 sens | COMPLETED | sitting owns |
+| **22344456** | sens κ 0.35 s43 | R ~3.8 h | wave 14 |
+| **22344275** | DG R56 s43 | R ~4.3 h | wave 13 |
+| **22374250** | transplant s43 | R ~2.3 h | wave 18 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 40 PD**. Ledger next **§280**. Next canvas **23:00**. Next 3h **23:33**.
+
+---
+
+## 0b. Cluster at 7 Oct 19:34 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **238/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22341871** | inner κ 0.35 | **COMPLETED §276** | **STRUCTURAL +0.12**; all three keeps |
+| **22374696** | cosine mild κ 0.35 | **COMPLETED §277** | bar_cos **+3.42** |
+| **22344276 / 22375982** | DG uni s43 / VGG sens | COMPLETED | sitting owns |
+| **22344456 / 57** | κ 0.35 s43 | R ~2.8 h | wave 14 |
+| **22344275** | DG R56 s43 | R ~3.3 h | wave 13 |
+| **22374250** | transplant s43 | R ~1.3 h | wave 18 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 45 PD**. Ledger next **§278**. **M1-v10 FLAT = learning failure.** Next canvas **23:00**. Next 3h **20:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 19:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **238/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22374230 / 48** | DG alloc cosine | **COMPLETED §275** | lever **ABSORBED −0.12**; 10k +0.26 / +0.27 |
+| **22341871** | inner κ 0.35 | R ~4.5 h | wave 9 remainder |
+| **22344456 / 57** | κ 0.35 s43 | R ~2.3 h | wave 14 |
+| **22344275 / 76** | DG R56 s43 | R ~2.7 h | wave 13 |
+| **22375982 / 83** | VGG-19 alloc κ 0.6 | R | wave 20 |
+| **22374250** | transplant s43 | R ~46 min | wave 18 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 49 PD**. Ledger next **§276**. **M1-v10 FLAT = learning failure.** Next canvas **23:00**. Next 3h **20:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 18:34 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **238/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22372634 / 35** | 12/4 κ 0.8 | **COMPLETED §274** | **VISIBLE +1.58**; FLAT stands |
+| **22374689 / 90** | cosine κ 0.35 s42 | **COMPLETED §273** | lever **+1.72 WEAK** |
+| **22341871** | inner κ 0.35 | R ~4.0 h | wave 9 remainder |
+| **22344456 / 57** | κ 0.35 s43 | R ~1.8 h | wave 14 |
+| **22344275 / 76** | DG R56 s43 | R ~2.2 h | wave 13 |
+| **22374230 / 48 / 50** | wave 18 cosine / s43 | R | sitting |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 51 PD**. Ledger next **§275**. **M1-v10 FLAT = learning failure.** Next canvas **23:00**. Next 3h **20:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 17:33 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **236/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22341865–70** | inner κ 0.6 / 0.8 | **COMPLETED §271 STRUCTURAL** | +0.18 / +0.06 vs sens |
+| **22374680–88** | cosine κ 0.6 | **COMPLETED §268 SURVIVES** | two-seed **+1.44** |
+| **22342667** | keep-last transplant R56 | **COMPLETED §272** | 10k **+0.25**; Δsel +0.39 |
+| **22341871** | inner κ 0.35 | R ~3.0 h | wave 9 remainder |
+| **22344456 / 57** | κ 0.35 s43 | R ~47 min | wave 14 |
+| **22344275 / 76** | DG R56 s43 | R ~1.1 h | wave 13 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 55 PD**. Ledger next **§273**. **M1-v10 FLAT = learning failure.** Next canvas **23:00**. Next 3h **20:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 17:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **236/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22374680–88** | cosine κ 0.6 | **COMPLETED §268 / §269** | two-seed lever **+1.44 SURVIVES**; bar **+2.40** |
+| **22341866** | inner κ 0.8 s42 | **COMPLETED §270** | +0.30 STRUCTURAL line; waits s43 |
+| **22342030** | transplant VGG-19 | **COMPLETED §267** | −7.43 epoch 1; do not quote |
+| **22341870 / 71** | inner κ 0.8 s43 / κ 0.35 | R | wave 9 remainder |
+| **22342667** | last-epoch transplant R56 | R ~18 min | wave 11 |
+| **22344275 / 76** | DG R56 s43 | R | wave 13 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 57 PD**. Ledger next **§271**. **M1-v10 FLAT = learning failure.** Next canvas **23:00**. Next 3h **17:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 16:33 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **236/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22374680 / 81 / 85** | cosine κ 0.6 s42 | **COMPLETED §264 / §266** | lever **+1.48** SURVIVES side; bar **+2.92** |
+| **22341865 / 67** | inner κ 0.6 | **COMPLETED §263 / §265** | two-seed **+0.18 STRUCTURAL**; waits κ 0.8 |
+| **22341866 / 70 / 71** | inner κ 0.8 / 0.35 | R | wave 9 remainder |
+| **22374686 / 87 / 88** | cosine κ 0.6 s43 | R | wave 19 two-seed |
+| **22344275 / 76** | DG R56 s43 | R | wave 13 |
+| **22342030** | transplant DG VGG-19 | R ~1.7 h | wave 10 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 62 PD**. Ledger next **§267**. **M1-v10 FLAT = learning failure.** Next canvas **23:00**. Next 3h **17:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 16:03 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **236/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22374229** | cosine transplant R56 | **COMPLETED §262** | **ALLOCATION +0.87** |
+| **22341865** | inner κ 0.6 s42 | **COMPLETED §263** | −2.40; STRUCTURAL provisional |
+| **22341867 / 66 / 70 / 71** | inner remaining | R | wave 9 two-seed / κ 0.8 / 0.35 |
+| **22374681 / 85 / 86 / 87** | cosine κ 0.6 | R (80 Done) | wave 19; sitting owns 80 |
+| **22342030** | transplant DG VGG-19 | R ~1.2 h | wave 10 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 65 PD**. Ledger next **§264**. **M1-v10 FLAT = learning failure.** Next canvas **23:00**. Next 3h **17:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 15:33 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **234/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22342666** | last-epoch DG sens | **COMPLETED §261** | lever **level** +0.05 at 10k |
+| **22371892 / 33** | 12/4 mild finals | **COMPLETED §259** | post-FT lever **+2.29**; VISIBLE stands |
+| **22341865 / 67** | inner κ 0.6 | R | wave 9 |
+| **22374680 / 81** | cosine-0.1 κ 0.6 | R | wave 19 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 68 PD**. Ledger next **§262**. **M1-v10 FLAT = learning failure.** Next canvas **16:00**. Next 3h **17:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 15:03 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **234/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22371882 / 32 vs 92 / 33** | 12/4 lever κ 0.6 | **§259 VISIBLE +4.05** | mild finals still R; never quote in-walk as TEST |
+| **22340796** | mild κ 0.35 | **COMPLETED §260** | r56 **−10.34**; sens bar +4.34 |
+| **22342666** | last-epoch DG sens | COMPLETED 15:03 | sitting owns |
+| **22341865 / 67** | inner κ 0.6 | R | wave 9 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 70 PD**. Ledger next **§261**. **M1-v10 FLAT = learning failure.** Next canvas **16:00**. Next 3h **17:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 14:33 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **233/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22342665** | last-epoch DG uniform | **COMPLETED §257** | +0.35 at 10k |
+| **22344788** | N4 last-epoch s43 | **COMPLETED §258** | holds on two seeds |
+| **22371882 / 22372632** | wave 16 12/4 sens | **COMPLETED** | sitting owns; not quoted |
+| **22340796** | mild κ 0.35 | R ~8.4 h | bar for §243 |
+| **22341865 / 67** | inner κ 0.6 | R | wave 9 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 72 PD**. Ledger next **§259**. Waves 18–21 PD (sitting). **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **17:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 14:03 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **233/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22341283 / 84 / 79** | κ 0.8 s43 trio | **COMPLETED §255 SURVIVES** | two-seed lever **+1.13** |
+| **22342769** | cosine-0.1 last twins | **COMPLETED §256 level** | 10k \|d\| ≤ 0.31 |
+| **22340796** | mild κ 0.35 | R ~8 h | bar for §243 |
+| **22341865 / 67** | inner κ 0.6 s42/s43 | R | wave 9 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 60 PD**. Ledger next **§257**. Waves 18–20 PD (sitting). **M1-v10 FLAT.** Next 3h **14:33**. Next canvas **16:00**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 13:03 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **232/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22341282** | uniform κ 0.6 s43 | **COMPLETED §254 SURVIVES** | two-seed lever **+1.09** |
+| **22342663 / 64** | 1-cycle-last N3 / τ-off | **COMPLETED §253 FAIL** | honest −0.68 / −0.18 at 2.11× |
+| **22342768** | cosine-0.1 last N4 | **COMPLETED §251 MET** | +1.66 / +1.41; **§252 VAL-AGREES** |
+| **22340796** | mild κ 0.35 | R ~7 h | bar for §243 |
+| **22341865** | inner κ 0.6 | R | wave 9 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 18 PD**. Ledger next **§255**. Waves 16 **R**. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 12:33 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **230/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22342029** | wave 10 transplant DG R56 | **COMPLETED §249 PARTIAL** | 10k lift **+0.25**; halves disagree |
+| **22342662** | wave 11 twins last-epoch | **COMPLETED §250** | R56 +0.36 / +0.40 at 10k |
+| **22340796** | mild κ 0.35 | R ~6.4 h | bar for §243 |
+| **22341282** | uniform κ 0.6 s43 | R | lever waits on this |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 22 PD**. Ledger next **§251**. Sitting waves 16–17 (walk FT 12/4) PD. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 12:04 IDT (stale)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **230/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. First TESTs in. Never quote probe. |
+| **22341737** | v10 freeze TEST ep0127 κ 0.6 | **COMPLETED 10:51 §248** | **M1-v10 FLAT** −5.28 vs mild −5.1 |
+| **22342029** | wave 10 transplant DG R56 | R ~3.4 h | still walking |
+| **22340796** | mild κ 0.35 | R | bar for §243 |
+| **22341282** | uniform κ 0.6 s43 | R | pairs **§242**; mild s43 **278 Done** |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 18 PD**. Ledger next **§249**. Sitting **§247** mild s43. **M1-v10 FLAT.** Next canvas **16:00**. Next 3h **14:33**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. Do not start N8.
+
+---
+
+## 0b. Cluster at 7 Oct 10:33 IDT (stale; SSH down)
+
+| Job | Role | State | Note |
+|---|---|---|---|
+| **21767188** | Stage-4 resume | R, Episode **228/250** | `best_score=0.2888`. No new freeze. |
+| **22156116** | v10 fixed-target | R | Freeze **ep0127**. Never quote probe. |
+| **22341737** | v10 freeze TEST ep0127 κ 0.6 | R ~4.8 h | r56 final FT Epoch 90/100. Never quote in-walk. |
+| **22342029** | wave 10 transplant DG R56 | R ~2.0 h | walk Epoch 30/40 |
+| **22340796** | mild κ 0.35 | R | bar for §243 |
+| **22341278 / 82** | mild / uniform κ 0.6 s43 | R | pairs **§242** |
+| **22343160 / 65** | cosine-0.1 s43 N3 / τ-off | R | wave 12 |
+| 22156117 | v10 resume | PD `afterok` | — |
+
+QOS **11 R / 21 PD**. Ledger next **§246**. Sitting closed **§243 WEAK +1.90**, **§244** (§240 stands), **§245** (bar-3 stays §149). Next canvas **16:00**. Next 3h **11:28**. Never TEST ep0015/ep0031/ep0095/ep0111. Do not sbatch Budget resume. M1-v10 waits on 37.
 
 ---
 
@@ -301,4 +1628,27 @@ Ido asked ops to answer, pin the sitting docs, and fire-ready an Opus 5.5 prompt
 - 7 Oct 06:30 | **22340524 COMPLETED §233** | uniform DepGraph p0.47 **−0.74 @ 0.465 / 0.472**; lever waits on **22340523** | sitting already closed §231/§232; v10 TESTs still R; ledger next §234
 - 7 Oct ~06:50 | Sitting: §234 + wave 10 | DepGraph's own R56 cut keeps stage 1–2 residual streams near full; N3 mild is a uniform 2/3. Transplant **22342029 / 30** PD on `tree_v10j` | ALLOCATION ≥ +0.5 / NOT-ALLOCATION ≤ +0.2 (10k, size credit 0.15)
 - 7 Oct 07:00 | **22341280 COMPLETED §235** | 1-cycle numeric +0.84 vs §220; **VOID** (kept epoch 1, origin too). Caption stays lr 0.01. Wave 11 `select=last` registered | do not put 1-cycle in the caption; ledger next §236
+- 7 Oct 08:00 | **22340523 COMPLETED §236** | DepGraph sens **WEAK +0.40** (−0.34 vs uniform −0.74); residual full; FLOPs 0.398 vs 0.472 | wave 11 **22342659** R; v10 TESTs still R; ledger next §237
+- 7 Oct 08:30 | 3h + **22341736 COMPLETED §237** | first v10 freeze TEST κ 0.8: r56 **−2.88 vs mild −2.1 = −0.78**; residual 3/7/14; census 0.9 only | M1-v10 waits on **22341737**; never quote probe; ledger next §238; next 3h 11:28
+- 7 Oct 09:00 | **§238 / §239** | uniform κ 0.35 **−7.90 @ 0.349**; N3 select=last Δsel 10k **+0.15 / +0.43** at 2.11× / 2.57× | call waits on 22342660; do not REQUOTE M4; ledger next §240
+- 7 Oct 09:30 | canvas; sitting **§240 NEUTRAL / §241 FLAT** | M4 stays, disclosed; sens2 α 1.0 **−2.80** identical to α 0.5; 660 origin still R | never quote 37 in-walk; ledger next §242; next canvas 16:00
+- 7 Oct 10:00 | **§242** + 660 COMPLETED | sens s43 r56 **−2.08**; spread 0.72 pp; beyond-heur **≥ −1.94**; §240 NEUTRAL stands | never quote 37 in-walk; ledger next §243; next canvas 16:00
+- 7 Oct 10:33 | **§243 / §244 / §245** | κ 0.35 **WEAK +1.90**; N3 s43 spread 0.14 / 0.05; N4 last-epoch reported; bar-3 stays §149 | never quote 37 in-walk; do not REQUOTE M4; ledger next §246
+- 7 Oct 11:03 | SSH timeout ×2 | last live 10:33; sitting **§246** on disk, ops unconfirmed; 37 unknown | do not invent; never quote 37; next 3h 11:28
+- 7 Oct 11:33 | 3h briefing; VPN still down | Check Point expired ~11:00; last live 10:33; sitting **§237–§246** on disk | do not invent; never quote 37; next 3h 14:33; canvas 16:00
+- 7 Oct 12:04 | VPN back; **§248 M1-v10 FLAT** | r56 **−5.28 vs mild −5.1 = −0.18**; residual 2/5/13; census 0.9 only | sitting §247 is mild s43; do not start N8; never quote probe; ledger next §249
+- 7 Oct 12:33 | sitting **§249 PARTIAL** / **§250** twins | transplant 10k lift +0.25; R56 last-epoch +0.36 / +0.40 | waves 16–17 PD; ledger next §251; do not scancel sitting
+- 7 Oct 13:03 | sitting **§251–§254** | κ 0.6 **SURVIVES +1.09**; 1-cycle-last **FAILS**; cosine-0.1 **MET** | Q7 Gilad; ledger next §255; do not scancel sitting
+- 7 Oct 14:03 | sitting **§255 SURVIVES +1.13** / **§256** twins level | κ 0.8 two-seed; cosine-0.1 depth-dependent | ledger next §257; PD 60 sitting overnight; do not scancel sitting
+- 7 Oct 14:33 | 3h; sitting **§257 / §258** | N4 last-epoch two-seed holds; last-epoch DG uniform +0.35 | wave 16 COMPLETED sitting owns; ledger next §259; next 3h 17:33
+- 7 Oct 15:03 | sitting **§259 VISIBLE +4.05** / **§260** | v10 FLAT = learning failure; mild κ 0.35 −10.34 | do not lengthen walk FT; ledger next §261; do not start N8
+- 7 Oct 15:33 | sitting **§261** last-epoch DG lever **level** | +0.05 at 10k; 16% FLOPs save stays; §259 post-FT +2.29 | ledger next §262; do not start N8
+- 7 Oct 16:03 | 16:00 canvas; sitting **§262 ALLOCATION / §263** | cosine transplant lift **+0.87**; inner s42 −0.40 STRUCTURAL provisional | ledger next §264; do not start N8; next canvas 23:00
+- 7 Oct 16:33 | sitting **§264–§266** | cosine lever s42 **+1.48**; inner κ 0.6 two-seed **STRUCTURAL +0.18**; bar_cos **+2.92** | waits on κ 0.8 / s43; ledger next §267; do not start N8
+- 7 Oct 17:04 | sitting **§267–§270** | cosine lever two-seed **SURVIVES +1.44**; inner κ 0.8 s42 **+0.30**; VGG transplant epoch 1 | do not quote −7.43; ledger next §271; waits 22341870
+- 7 Oct 17:33 | 3h; sitting **§271 STRUCTURAL / §272** | inner vs sens both keeps; keep-last transplant +0.25 | inner is PFEC, not SPECTRA; do not start N8; next 3h 20:33
+- 7 Oct 18:34 | sitting **§273 / §274** | cosine κ 0.35 **WEAK +1.72**; 12/4 κ 0.8 **VISIBLE +1.58** | reward sees lever at both keeps; do not lengthen walk FT; ledger next §275
+- 7 Oct 19:04 | sitting **§275 ABSORBED** | DG cosine lever **−0.12**; both arms 10k +0.26 / +0.27 | §262 mechanism line revised; never beats; ledger next §276
+- 7 Oct 19:34 | sitting **§276 / §277** | inner κ 0.35 **STRUCTURAL +0.12**; bar_cos **+3.42** | wave 9 STRUCTURAL at all three keeps; ledger next §278
+- 7 Oct 20:34 | 3h; sitting **§278 / §279** | VGG **SENS-MATTERS +2.77** at equal params, 1.36× FLOPs | walk + 1 epoch; equal-FLOPs is next sitting; next 3h 23:33
 

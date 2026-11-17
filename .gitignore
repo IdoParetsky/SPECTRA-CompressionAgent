@@ -140,6 +140,11 @@ runs/slurm_logs/*.out
 # Per-run artefacts: logs, JSONL events, TensorBoard scalars, result CSVs and the
 # fitted feature standardiser. Reports (summary.md) are pulled to the laptop on demand
 # rather than committed.
+# Claude Code personal overlay (model prefs; not the shared infusion)
+CLAUDE.local.md
+# Thin ops↔science ping bus; neither agent commits the other's stamps
+docs/AGENT_MAIL.md
+
 runs/job*/
 runs/local_*/
 runs/standardizer.pt
