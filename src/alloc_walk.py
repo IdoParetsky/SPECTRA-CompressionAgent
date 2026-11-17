@@ -550,6 +550,48 @@ def _curve_threshold(curve, floor, size0, target):
     return tau, kept(tau), {row: entry[0] for row, entry in picks.items()}
 
 
+def curve_probes(model, plan, batches, input_shape):
+    """
+    ``(qs, loss, raw)``: the measurement behind ``sens_curve`` and ``sens_thresh``, as ``plan_targets`` takes it. Every
+    planned group is cut alone to each keep of ``curve_keeps()`` (``qs``, descending); ``loss[row][q]`` is its
+    calibration-loss rise and ``raw[row][q]`` the ``(params saved, MACs saved)`` of that same cut
+    (``group_sensitivity.group_sensitivity`` with ``costs``). The plan agent's menu reads it once per network
+    (``plan_agent.menu_rules``), so its ``sens_thresh`` rule is this code's.
+    """
+    rows = [row for _group, row in plan]
+    qs = curve_keeps()
+    loss, raw = {row: {} for row in rows}, {row: {} for row in rows}
+    for q in qs:
+        raw_q = {}
+        s_q, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, keep=q, costs=raw_q)
+        for row in rows:
+            loss[row][q] = s_q[row]
+            raw[row][q] = raw_q[row]
+    return qs, loss, raw
+
+
+def probe_curves(rows, qs, loss, raw, budget="params"):
+    """``{row: monotone curve}`` of ``curve_probes``' measurement (``_monotone_curve``, from keep 1 downward), the
+    saving priced in ``budget``: the params saved, or the MACs saved under ``flops``."""
+    which = 1 if budget == "flops" else 0
+    return {row: _monotone_curve([(1.0, 0.0, 0.0)] + [(q, loss[row][q], raw[row][q][which]) for q in qs])
+            for row in rows}
+
+
+def curve_weights(kind_name, curve, floor, size0, target, rows=None):
+    """
+    ``(knob, value, est, w)``: the weights ``sens_thresh`` (one threshold τ, ``_curve_threshold``; knob ``tau``) or
+    ``sens_curve`` (one multiplier λ, ``_curve_lambda``; knob ``lambda``) hands the landing bisection at ``target``:
+    each group's pick on its curve, at least its floor. ``value`` is the knob's and ``est`` the kept fraction the
+    curves' savings predict at the picks. The weights depend on ``target``; the curves do not.
+    """
+    if kind_name == "sens_thresh":
+        knob, (value, est, picks) = "tau", _curve_threshold(curve, floor, size0, target)
+    else:
+        knob, (value, est, picks) = "lambda", _curve_lambda(curve, floor, size0, target)
+    return knob, value, est, {row: max(picks[row], floor[row]) for row in (curve if rows is None else rows)}
+
+
 # ------------------------------------------------------------------ magnitude kinds (global_mag, lamp)
 
 
@@ -729,21 +771,9 @@ def plan_targets(model, batches, input_shape, kind_name, target, a=0.5, keep_flo
                             "keeps": keeps, "origin_widths": group_widths(model, rows), "sens": sens, "held": 0,
                             "cost": cost, "cost_budget": budget, "probe_keeps": probe, "sens_half": half,
                             "keeps_half": info0["keeps"], "rounds": probe_rounds()}
-        qs = curve_keeps()
-        loss, saved = {row: {} for row in rows}, {row: {} for row in rows}
-        for q in qs:
-            raw_q = {}
-            s_q, _base = group_sensitivity.group_sensitivity(model, plan, batches, input_shape, keep=q, costs=raw_q)
-            for row in rows:
-                loss[row][q] = s_q[row]
-                saved[row][q] = raw_q[row][1] if budget == "flops" else raw_q[row][0]
-        curve = {row: _monotone_curve([(1.0, 0.0, 0.0)] + [(q, loss[row][q], saved[row][q]) for q in qs])
-                 for row in rows}
-        if kind_name == "sens_thresh":
-            knob, est_knob, est, picks = "tau", *_curve_threshold(curve, floor, size0, target)
-        else:
-            knob, est_knob, est, picks = "lambda", *_curve_lambda(curve, floor, size0, target)
-        w = {row: max(picks[row], floor[row]) for row in rows}
+        qs, loss, raw = curve_probes(model, plan, batches, input_shape)
+        curve = probe_curves(rows, qs, loss, raw, budget)
+        knob, est_knob, est, w = curve_weights(kind_name, curve, floor, size0, target, rows)
         keeps, frac, widths = _land(model, plan, rows, w, floor, target, size, size0, input_shape, iters, tol)
         return widths, {"kind": kind_name, "alpha": float(a), "target": float(target), "kept": float(frac),
                         "keeps": keeps, "origin_widths": group_widths(model, rows),

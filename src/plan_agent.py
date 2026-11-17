@@ -15,6 +15,13 @@ one pass into the widths of a single cut that keeps a fraction κ of the paramet
   (``prior_kind`` picks the rule per budget under ``auto``), so the zero-init agent's mean plan is the rule's
   plan exactly and it learns only a change to it. ``SPECTRA_PLAN_RESIDUAL_ZMAX`` > 0 (v20) is a trust region on
   that change: exp(z_g) becomes exp(zmax · tanh(z_g / zmax)) (``trust_score``), within e^±zmax of the rule's weight.
+* ``menu_decode`` (v36, ``SPECTRA_PLAN_MENU``, default off): the residual on a per-network blend of several no-agent
+  rules. Each rule k of the menu (``MENU_KINDS``; the first is the anchor, the residual's own prior) gives weights w_k
+  on the net (``menu_rules``: the weights the alloc walk's row of that kind hands its landing), normalised by their
+  geometric mean; log w_g = Σ_k π_k log ŵ_k,g + the residual's score, with π = softmax(u) (``menu_shares``) and u the
+  K logits of the policy's network-level head (``PlanPolicy.menu_logits``, on the mean token output and the rules'
+  plan costs, ``menu_features``). A pure share (π = e_k) is that rule's own ``scale_decode`` plan exactly, and the
+  zero-init head's mean plan is the anchor's (shares under ``MENU_SHARE_FLOOR`` are dropped at the mean).
 * ``MaskedCut``: ``cut_to``'s L1 cut written as zeros on a working copy, for the reward; ``remask`` zeroes
   the same entries again, so the ``fs<S>`` proxy (``short_finetune``) trains a copy that stays the cut.
 * ``NetInstance.finetune_reward`` (v23, ``SPECTRA_PLAN_PROXY=ft<E>``, default off): the eval-side ``ft<E>`` proxy
@@ -42,6 +49,10 @@ TOKEN_KINDS = ("layer", "group")
 PROXIES = ("cut", "bn", "fs", "ft")
 BUDGETS = ("params", "flops")
 PRIOR_KINDS = ("sens", "sens_cost")
+MENU_KINDS = ("sens", "uniform", "sens_cost", "sens_thresh")  # v36: the rules a menu may list (see menu_rules)
+MENU_INIT = 6.0  # SPECTRA_PLAN_MENU_INIT: the anchor's logit at the zero-init menu head (the other rules start at 0)
+MENU_SIGMA = 0.5  # SPECTRA_PLAN_MENU_SIGMA: the std of the menu logits the trainer samples
+MENU_SHARE_FLOOR = 0.005  # the mean plan drops a rule under this share (at the default init: every rule but the anchor)
 Z_CLIP = 30.0  # |z| beyond this is clipped in residual_decode: exp stays finite, the plan is already saturated
 FS_MOMENTUM = 0.9  # the fs<S> proxy's short fine-tune: SGD momentum and weight decay, shared by the trainer and
 FS_WD = 5e-4  # the eval-side proxy (plan_proxies); the lr is fs_lr()
@@ -373,6 +384,179 @@ def residual_decode(z, prior, pm, kappa: float, k_min: float = 0.1, held=(), ite
     return widths, info
 
 
+# ------------------------------------------------------------------ v36 menu (SPECTRA_PLAN_MENU, default off)
+# The agent chooses and blends several no-agent rules per network, then corrects the blend with the residual's scores.
+# ``MENU_KINDS`` are the alloc kinds whose plan is a weight per group landed by the scale family clip(c · w, floor, 1),
+# which ``scale_decode`` decodes: uniform, sens and sens_cost (``alloc_walk.weights``) and sens_thresh, whose landing
+# (``alloc_walk._land``) takes each group's pick at the threshold as its weight. Not rules of a menu: ``inner`` (it
+# holds groups, which no weight says), ``widths`` (a table, never landed), ``sens_cost_at`` (it measures again at every
+# target), the sampled and agent kinds; ``sens_curve``, ``global_mag`` and ``lamp`` land as sens_thresh does and are
+# left out only because nothing asks for them yet.
+
+
+def check_menu_kinds(kinds, where="the menu"):
+    """``kinds`` as a tuple, or a ValueError: a menu lists at least two rules of ``MENU_KINDS``, none twice (the anchor
+    alone would be the residual agent itself)."""
+    kinds = tuple(str(kind) for kind in kinds)
+    bad = [kind for kind in kinds if kind not in MENU_KINDS]
+    if bad:
+        raise ValueError(f"{where}: {bad[0]!r} is not a menu rule; expected rules of {MENU_KINDS}")
+    if len(set(kinds)) != len(kinds):
+        raise ValueError(f"{where}: a rule is listed twice")
+    if len(kinds) < 2:
+        raise ValueError(f"{where}: a menu needs at least two rules, the anchor first")
+    return kinds
+
+
+def menu_kinds(default=None):
+    """``SPECTRA_PLAN_MENU`` (v36; unset or empty = off, ``default``): the rules the menu agent blends, a comma list of
+    ``MENU_KINDS`` with the anchor first, e.g. ``sens,uniform,sens_cost,sens_thresh``."""
+    raw = os.environ.get("SPECTRA_PLAN_MENU", "").strip().lower()
+    if not raw:
+        return default
+    return check_menu_kinds([part.strip() for part in raw.split(",") if part.strip()], f"SPECTRA_PLAN_MENU={raw!r}")
+
+
+def _menu_number(name, default, positive=False):
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return float(default)
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError(f"{name}={raw!r}: expected a number") from None
+    if not -float("inf") < value < float("inf") or (positive and value <= 0.0):  # refuses nan too
+        raise ValueError(f"{name}={raw!r}: expected a finite number" + (" above 0" if positive else ""))
+    return value
+
+
+def menu_init() -> float:
+    """``SPECTRA_PLAN_MENU_INIT`` (6.0): B, the anchor's logit in the zero-init menu head's bias (B, 0, …, 0)."""
+    return _menu_number("SPECTRA_PLAN_MENU_INIT", MENU_INIT)
+
+
+def menu_sigma() -> float:
+    """``SPECTRA_PLAN_MENU_SIGMA`` (0.5): σ_u, the std of the menu logits the trainer samples (u = ψ + σ_u · ε). It is
+    constant over a run: the scores' σ schedule does not apply to it."""
+    return _menu_number("SPECTRA_PLAN_MENU_SIGMA", MENU_SIGMA, positive=True)
+
+
+def check_menu_anchor(kinds, mode, budget, where="the menu"):
+    """Refuse (ValueError) a menu whose anchor, its first rule, is not the rule the residual already starts from on a
+    ``budget`` instance (``prior_kind`` of the ``SPECTRA_PLAN_RESIDUAL`` mode ``mode``), or a menu without the
+    residual: the menu blends rules under the residual's scores, and at the anchor alone it is the residual agent."""
+    if mode is None or mode == "off":
+        raise ValueError(f"{where}: the menu needs the residual (SPECTRA_PLAN_RESIDUAL is off); its anchor "
+                         f"{kinds[0]!r} is the residual's prior")
+    prior = prior_kind(mode, budget)
+    if prior != kinds[0]:
+        raise ValueError(f"{where}: the menu's anchor (its first rule) is {kinds[0]!r}, but the residual's prior on a "
+                         f"{budget} instance is {prior!r} (SPECTRA_PLAN_RESIDUAL={mode}); list {prior!r} first")
+
+
+def menu_shares(u, floor: float = 0.0):
+    """π = softmax(``u``): the menu's shares, one per rule, as floats. ``floor`` > 0 is for the mean plan only (the
+    eval's and the trainer's, u = ψ; ``MENU_SHARE_FLOOR``): a rule holding less than ``floor`` is dropped and the rest
+    renormalised. The default init, ψ = (6, 0, …, 0), leaves 0.25 % on every other rule, so the zero-init agent's mean
+    plan is the anchor's plan exactly; without the floor that 0.7 % of a menu of four changed widths in 31 of 40 (net,
+    budget, target) cells on the tests' five nets, in up to eleven groups by a channel or two. (A one-hot only once the
+    anchor holds 1 − 1e-6 would never fire at B = 6, where it holds 0.9926; a temperature sharp enough to reach it
+    would put every sampled plan on the anchor too.) The init is exact for B above 5.3 (``plan_trainer.run`` warns
+    below). A sampled plan takes the plain softmax."""
+    values = [float(v) for v in u]
+    top = max(values)
+    e = [math.exp(v - top) for v in values]
+    total = sum(e)
+    pi = [v / total for v in e]
+    if floor > 0 and any(p < floor for p in pi):  # nothing under the floor: the softmax as it is
+        kept = [p if p >= floor else 0.0 for p in pi]
+        total = sum(kept)
+        if total > 0:
+            pi = [p / total for p in kept]
+    return pi
+
+
+def menu_mix(pi, rules, rows):
+    """``{row: weight}``: the blend of ``rules`` (``[{row: weight}]``, ``menu_rules``) at shares ``pi``, the weights the
+    residual's scores then multiply: exp(Σ_k π_k log ŵ_k,g), with ŵ_k = w_k over its geometric mean over ``rows`` (a
+    rule's scale does not reach the blend, and the decoder's c absorbs the blend's). A pure share (π = e_k) returns rule
+    k's weights as given, so its plan is ``scale_decode``'s for that rule bit for bit: c absorbs a scale only up to
+    rounding ties, and on the tests' nets the normalised weights of one rule alone changed widths in 7 of 40 cells
+    (weights floored to one value put equal-width groups on a rounding boundary together)."""
+    pi = [float(p) for p in pi]
+    if len(pi) != len(rules):
+        raise ValueError(f"menu_mix: {len(pi)} shares for {len(rules)} rules")
+    live = [k for k, p in enumerate(pi) if p != 0.0]
+    if len(live) == 1 and pi[live[0]] == 1.0:
+        return {row: float(rules[live[0]][row]) for row in rows}
+    logs = []
+    for k in live:
+        raw = {row: math.log(max(1e-9, float(rules[k][row]))) for row in rows}
+        mean = sum(raw.values()) / len(raw)
+        logs.append((pi[k], {row: raw[row] - mean for row in rows}))
+    return {row: math.exp(sum(p * log_w[row] for p, log_w in logs)) for row in rows}
+
+
+def menu_decode(z, pi, rules, pm, kappa: float, k_min: float = 0.1, held=(), iters: int = 48, min_width: int = 1,
+                zmax: float = 0.0):
+    """``(widths, info)`` of the menu agent's action: shares ``pi`` over ``rules`` and scores ``z`` (one per
+    ``pm.rows``). log w_g = Σ_k π_k log ŵ_k,g + z_g (zmax · tanh(z_g / zmax) under the trust region), w_g = exp(·),
+    decoded by ``scale_decode``. It is ``residual_decode`` on the blend ``menu_mix`` as its prior, so the Z_CLIP guard,
+    the floors, the polish and ``min_width`` are the residual's own; at π = e_anchor it is the residual agent's decode
+    bit for bit, and at π = e_k, z = 0 it is ``scale_decode`` of rule k. ``info`` adds ``pi`` and ``base`` (the
+    blend, what the scores multiply)."""
+    base = menu_mix(pi, rules, pm.rows)
+    widths, info = residual_decode(z, base, pm, kappa, k_min, held=held, iters=iters, min_width=min_width, zmax=zmax)
+    info["pi"], info["base"] = [float(p) for p in pi], base
+    return widths, info
+
+
+def menu_rules(kinds, pm, kappa: float, sens, costs=None, curves=None, budget: str = "params", a: float = 0.5,
+               k_min: float = 0.1, min_width: int = 1, name: str = "the network"):
+    """``[{row: weight}]``, one per rule of ``kinds`` over ``pm.rows``: the weights the alloc walk's own row of that
+    kind (``SPECTRA_ALLOC_KIND``) hands its landing bisection on this network at the kept-cost target ``kappa``, priced
+    in ``budget``. ``uniform``, ``sens`` and ``sens_cost`` are ``alloc_walk.weights`` (the last two through
+    ``prior_weights``, from the loss rises ``sens`` and the ``costs`` of the same half cuts) and do not depend on
+    ``kappa``. ``sens_thresh`` is ``alloc_walk.curve_weights`` on ``curves`` (``{"qs", "loss", "raw"}``, one
+    ``alloc_walk.curve_probes`` measurement per network): each group's pick at the one threshold whose estimated saving
+    meets ``kappa``, at least the group's keep floor (``k_min``, lifted to ``min_width`` over its width as
+    ``plan_targets`` lifts it), with ``pm.total0`` as the size; a few dozen milliseconds per target. A RuntimeError
+    names the measurement a rule lacks."""
+    from src import alloc_walk
+    rows, out = list(pm.rows), []
+    for kind in check_menu_kinds(kinds):
+        if kind == "uniform":
+            out.append(alloc_walk.weights("uniform", {row: 1.0 for row in rows}, a))
+        elif kind == "sens_thresh":
+            if curves is None:
+                raise RuntimeError(f"{name}: the menu rule sens_thresh needs the origin's damage curves "
+                                   "(alloc_walk.curve_probes; NetInstance.from_env with_curves=True)")
+            floor = {row: float(k_min) for row in rows}
+            if int(min_width) > 1:
+                for row in rows:
+                    floor[row] = max(float(k_min), min(1.0, int(min_width) / float(pm.widths0[row])))
+            curve = alloc_walk.probe_curves(rows, curves["qs"], curves["loss"], curves["raw"], budget)
+            out.append(alloc_walk.curve_weights("sens_thresh", curve, floor, pm.total0, kappa, rows)[3])
+        else:
+            if sens is None or (kind == "sens_cost" and costs is None):
+                raise RuntimeError(f"{name}: the menu rule {kind} needs the sensitivities"
+                                   + (" and costs" if kind == "sens_cost" else "") + " of the origin")
+            out.append(prior_weights(kind, rows, sens, costs, budget, a))
+    return out
+
+
+def menu_features(rules, pm, target: float, k_min: float = 0.1, min_width: int = 1, kappa=None):
+    """``(x_net, plans)``: the menu head's network-level inputs and each rule's own plan at ``target``
+    (``scale_decode`` with the agent's floors, ``[(widths, info)]`` in the rules' order). x_net is
+    log(params kept by rule k's plan / params kept by the anchor's plan) for each rule after the anchor, then κ
+    (``kappa``, the target the state carries; ``target`` when None, as in the trainer): what each rule's plan costs in
+    parameters at an equal budget, known before any fine-tune. On a params budget the ratios sit near 0."""
+    plans = [scale_decode(w, pm, target, k_min, min_width=min_width) for w in rules]
+    params = [float(pm.params(widths)) for widths, _info in plans]
+    x_net = [math.log(p / params[0]) for p in params[1:]] + [float(target if kappa is None else kappa)]
+    return x_net, plans
+
+
 def _complement(kept, total):
     mask = torch.ones(int(total), dtype=torch.bool)
     mask[kept.detach().cpu().long()] = False
@@ -476,9 +660,16 @@ def _no_dropout(module: nn.Module):
 
 
 class PlanPolicy(nn.Module):
-    """State encoder + per-token linear head → one centred score per planned group (all 0 at init)."""
+    """State encoder + per-token linear head → one centred score per planned group (all 0 at init).
 
-    def __init__(self, feature_dim: int, encoder: str = "transformer"):
+    ``menu`` = K > 0 (v36, ``SPECTRA_PLAN_MENU``; 0 = no menu, the module as before) adds ``menu_head``, a Linear map
+    from the mean token output and the K network-level inputs of ``menu_features`` to the menu's K logits. Its
+    weights start at zero and its bias at (``menu_init``, 0, …, 0), so the agent starts on the anchor whatever the
+    encoder reads. Its constructor's random draw is put back, so the encoder and the score head get the weights, and
+    the global RNG the state, of a policy without a menu.
+    """
+
+    def __init__(self, feature_dim: int, encoder: str = "transformer", menu: int = 0, menu_init: float = MENU_INIT):
         super().__init__()
         from src.Model.StateEncoder import build_state_encoder
         self.feature_dim, self.encoder_kind = int(feature_dim), encoder
@@ -488,6 +679,15 @@ class PlanPolicy(nn.Module):
         self.head = nn.Linear(self.encoder.output_dim, 1)
         nn.init.zeros_(self.head.weight)
         nn.init.zeros_(self.head.bias)
+        self.menu = int(menu)
+        if self.menu:
+            rng = torch.get_rng_state()
+            self.menu_head = nn.Linear(self.encoder.output_dim + self.menu, self.menu)
+            torch.set_rng_state(rng)
+            with torch.no_grad():
+                self.menu_head.weight.zero_()
+                self.menu_head.bias.zero_()
+                self.menu_head.bias[0] = float(menu_init)
 
     def forward(self, state, token_mask, token_k, n_groups):
         scores = self.head(self.encoder(state)).squeeze(-1)[token_mask]
@@ -496,6 +696,16 @@ class PlanPolicy(nn.Module):
             0, token_k, torch.ones_like(scores))
         mu = sums / count.clamp(min=1.0)
         return mu - mu.mean()
+
+    def menu_logits(self, state, x_net):
+        """ψ, the menu's K logits (v36): ``menu_head`` on [the mean of the encoder's outputs over all of the net's
+        tokens ; ``x_net``] (``menu_features``: K − 1 plan-cost ratios and κ). A second pass through the encoder,
+        beside ``forward``'s, which stays as it was; the gradient reaches the encoder through both."""
+        encoded = self.encoder(state)
+        x_net = torch.as_tensor(x_net, dtype=encoded.dtype, device=encoded.device)
+        if x_net.numel() != self.menu:
+            raise ValueError(f"menu_logits: {x_net.numel()} network-level inputs for a menu of {self.menu} rules")
+        return self.menu_head(torch.cat([encoded.mean(dim=0), x_net]))
 
 
 def sample_scores(mu, sigma: float, k: int, generator=None):
@@ -508,7 +718,18 @@ def log_prob(z, mu, sigma: float):
     return (-(z - mu.unsqueeze(0)) ** 2 / (2.0 * float(sigma) ** 2)).sum(dim=-1)
 
 
+def menu_log_prob(z, mu, sigma: float, u, psi, sigma_u: float):
+    """log π(action) of the menu agent (v36), one per sampled plan: its action is the scores and the menu logits, drawn
+    independently, so this is ``log_prob`` of each row of ``z`` around ``mu`` plus the Gaussian log-density of the same
+    row of ``u`` around ``psi`` at std ``sigma_u`` (constants dropped). As with the trust region, the softmax and the
+    decode are a fixed map from the action to a plan, so no Jacobian term is owed."""
+    return log_prob(z, mu, sigma) + log_prob(u, psi, sigma_u)
+
+
 def save_policy(policy: PlanPolicy, path: str, **meta):
+    if len(meta.get("menu") or ()) != int(getattr(policy, "menu", 0)):  # v36; 0 against 0 without a menu
+        raise ValueError(f"save_policy: the policy has a menu head for {getattr(policy, 'menu', 0)} rules, the "
+                         f"checkpoint meta lists menu={meta.get('menu')!r}")
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     torch.save({"state_dict": policy.state_dict(), "feature_dim": policy.feature_dim,
                 "encoder": policy.encoder_kind, **meta}, path)
@@ -519,8 +740,29 @@ def read_blob(path: str):
     return torch.load(path, map_location="cpu", weights_only=False)
 
 
+def check_menu(blob, where="the plan-agent checkpoint"):
+    """The menu contract of a checkpoint against this job's ``SPECTRA_PLAN_MENU`` (v36): the checkpoint's rules as a
+    tuple, or None when neither has a menu (every checkpoint and job before v36). Refused (ValueError): a menu policy
+    without the flag, a menu policy under another menu (other rules, or another order: the head's outputs follow it),
+    and a policy without a menu under the flag."""
+    saved = tuple(blob.get("menu") or ()) or None
+    flag = menu_kinds()
+    if saved is None and flag is None:
+        return None
+    if saved is None:
+        raise ValueError(f"{where} has no menu, but SPECTRA_PLAN_MENU={','.join(flag)} is set; unset it for this agent")
+    if flag is None:
+        raise ValueError(f"{where} is a menu policy; set SPECTRA_PLAN_MENU={','.join(saved)} to load it")
+    if flag != saved:
+        raise ValueError(f"{where} trained with the menu {','.join(saved)}; SPECTRA_PLAN_MENU={','.join(flag)} is "
+                         "another menu")
+    return saved
+
+
 def policy_of(blob, device="cpu"):
-    policy = PlanPolicy(blob["feature_dim"], blob.get("encoder", "transformer"))
+    kinds = check_menu(blob)
+    extra = {} if kinds is None else {"menu": len(kinds), "menu_init": float(blob.get("menu_init", MENU_INIT))}
+    policy = PlanPolicy(blob["feature_dim"], blob.get("encoder", "transformer"), **extra)
     policy.load_state_dict(blob["state_dict"])
     return policy.to(device).eval()
 
@@ -694,7 +936,7 @@ class NetInstance:
     """A catalog net's origin, read once; ``reward`` scores one plan on it."""
 
     def __init__(self, name, model, plan, state, token_rows, layout, train_loader, val_loader, device,
-                 zero=(), sens=None, input_shape=None, cost=None, create_handler=None):
+                 zero=(), sens=None, input_shape=None, cost=None, create_handler=None, curves=None):
         started = time.perf_counter()
         self.name, self.device, self.zero, self.input_shape = str(name), device, tuple(zero), input_shape
         # model -> learning handler, for the ft<E> reward (v23): the env's own ``create_learning_handler`` through
@@ -724,15 +966,20 @@ class NetInstance:
         self.origin_val = accuracy(self.model, self.val)
         self.sens = sens
         self.cost = cost  # {row: (params saved, MACs saved)} by the sensitivity half cut: the sens_cost prior (T2)
+        # v36: {"qs", "loss", "raw", "seconds"}, alloc_walk.curve_probes on the origin: the menu's sens_thresh rule
+        self.curves = curves
         self._prior = {}
         self.held = {int(row) for group, row in plan if len(group.producers) > 1}
         self.seconds = time.perf_counter() - started
 
     @classmethod
     def from_env(cls, env, net_path, net_model, net_loaders, kappa0=0.6, tokens="layer", zero=(), with_sens=True,
-                 with_cost=False):
+                 with_cost=False, with_curves=False):
         """Reset ``env`` on the net and read its origin as the D-IMIT dump does; ``with_cost`` also prices the
-        sensitivity cuts (``group_sensitivity`` ``costs=``) for the sens_cost prior."""
+        sensitivity cuts (``group_sensitivity`` ``costs=``) for the sens_cost prior. ``with_curves`` (v36, the menu's
+        sens_thresh rule) also measures the damage curves (``alloc_walk.curve_probes``) on the sensitivities'
+        calibration batches, after them, keeps the seconds that took and puts every RNG back
+        (``alloc_walk.rng_restore``), so the job draws from then on as it does without them."""
         from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
         from src import group_sensitivity, state_dump
         from src.BERTInputModeler import action_cost_slot_dim
@@ -762,9 +1009,18 @@ class NetInstance:
             batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, device)
             cost = {} if with_cost else None
             sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, env._input_shape(), costs=cost)
+        curves = None
+        if with_curves:
+            if not with_sens:
+                raise ValueError("with_curves measures on the sensitivities' calibration batches: it needs with_sens")
+            from src import alloc_walk
+            tick, rng = time.perf_counter(), alloc_walk.rng_snapshot()
+            qs, loss, raw = alloc_walk.curve_probes(model, plan, batches, env._input_shape())
+            alloc_walk.rng_restore(rng)  # its cuts build modules, which draw: the job's RNG stays the one without them
+            curves = {"qs": qs, "loss": loss, "raw": raw, "seconds": time.perf_counter() - tick}
         return cls(os.path.basename(str(net_path)), model, plan, state, rows, layout,
                    env.train_loader, env.val_loader, device, zero=zero, sens=sens, input_shape=env._input_shape(),
-                   cost=cost, create_handler=env.create_learning_handler)
+                   cost=cost, create_handler=env.create_learning_handler, curves=curves)
 
     def check(self, kappa: float = 0.6):
         """The uniform plan at ``kappa`` cut for real (``alloc_walk.cut_to``): analytic vs real kept params, masked vs
@@ -894,6 +1150,14 @@ class NetInstance:
             self._prior[key] = prior_weights(kind, self.pm.rows, self.sens, self.cost, budget, a)
         return self._prior[key]
 
+    def rules_at(self, kinds, kappa: float, budget: str = "params", a: float = 0.5, k_min: float = 0.1,
+                 min_width: int = 1):
+        """``[{row: weight}]``: the menu's rules ``kinds`` on this net at ``kappa`` priced in ``budget`` (v36,
+        ``menu_rules`` on the origin's sensitivities, costs and curves, with the decoders' ``k_min`` and
+        ``min_width``); the anchor's entry equals ``prior`` of that kind. A RuntimeError names what a rule lacks."""
+        return menu_rules(kinds, self.cost_model(budget), kappa, self.sens, self.cost, self.curves, budget, a, k_min,
+                          min_width, name=self.name)
+
     def reference(self, kind: str, kappa: float, k_min: float = 0.1, a: float = 0.5, budget: str = "params",
                   min_width: int = 1):
         """``(widths, info)`` of the uniform / sens / inner plan at ``kappa`` on the ``budget`` cost model; None for
@@ -936,7 +1200,21 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     agent is then one frozen policy, the mean of their scores mu = (1/n) sum_i mu_i, decoded once. Every member must
     agree with the first on ``ENSEMBLE_KEYS``. The global RNG is put back after the extra modules are built, so the
     recovery downstream draws as it does with one checkpoint. ``info`` then carries ``ensemble`` (n, and the members'
-    spread: the mean over groups of their scores' standard deviation). One path is decoded exactly as before."""
+    spread: the mean over groups of their scores' standard deviation). One path is decoded exactly as before.
+
+    v36 (menu, default off): a menu checkpoint (``menu`` in the blob) is loaded only under the same
+    ``SPECTRA_PLAN_MENU`` (``check_menu``; a plain checkpoint under the flag is refused too), and its anchor must be the
+    rule the residual starts from on this ``budget`` (``check_menu_anchor``). The prior's sensitivities are measured
+    where and as before (with the costs when the menu lists sens_cost), then the damage curves on the same batches when
+    it lists sens_thresh (the RNG is put back after them, so the recovery downstream draws as after the prior's
+    measurement alone); ``menu_rules`` gives every rule's weights at ``target``, ``menu_features`` their plans' costs
+    (with ``kappa``, the target the state carries, as κ), the policy's menu head the logits ψ, and the frozen mean plan
+    is ``menu_decode`` of the mean scores at the mean shares (``menu_shares`` with the checkpoint's
+    ``menu_share_floor``). ``info`` gains ``menu`` (kinds, pi, psi, x, each rule's own plan's kept budget and params
+    ratio, seconds) and the residual line ends with the shares. ``info["prior"]`` still describes the anchor's own
+    plan, except that its ``weights`` are the blend's (``info["base"]`` of the decode: what the scores multiplied), so
+    ``alloc_walk.grid_priority`` ranks the groups by what was decoded; at the anchor alone the two are the same. A
+    sampled plan (``sample``) and an ensemble are not defined for a menu policy yet and are refused."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
     from src import fortify, group_sensitivity, state_dump
     from src.BERTInputModeler import action_cost_slot_dim
@@ -955,7 +1233,13 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
             if other.get(key) != blob.get(key):
                 raise ValueError(f"plan-agent ensemble: {p} differs from {paths[0]} in {key} "
                                  f"({other.get(key)!r} against {blob.get(key)!r})")
+    kinds = check_menu(blob, f"the plan agent at {paths[0]}")  # v36; None with no menu anywhere: all below as before
+    if kinds is not None and (members or sample is not None):
+        raise ValueError(f"the plan agent at {paths[0]} is a menu policy: an ensemble and a sampled plan "
+                         "(agent_sample) are not defined for it yet; plan with one checkpoint's mean (agent)")
     residual, alpha, zmax = eval_residual(blob)
+    if kinds is not None:
+        check_menu_anchor(kinds, residual, budget, f"the plan agent at {paths[0]}")
     batches = None
     if residual != "off":
         batches = group_sensitivity.calibration_batches(env.train_loader, group_sensitivity.CALIB_BATCHES, device)
@@ -1016,24 +1300,48 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
         widths, info = decode(z, pm, target, float(blob.get("k_min", k_min)), min_width=min_width)
     else:
         kind = prior_kind(residual, budget)
-        costs = {} if kind == "sens_cost" else None
+        costs = {} if kind == "sens_cost" or (kinds is not None and "sens_cost" in kinds) else None
         sens, _base = group_sensitivity.group_sensitivity(model, plan, batches, env._input_shape(), costs=costs)
         prior = prior_weights(kind, pm.rows, sens, costs, budget, alpha)
         k_min_eff = float(blob.get("k_min", k_min))
-        widths, info = residual_decode(z, prior, pm, target, k_min_eff, min_width=min_width, zmax=zmax)
+        menu = None
+        if kinds is None:
+            widths, info = residual_decode(z, prior, pm, target, k_min_eff, min_width=min_width, zmax=zmax)
+        else:  # v36: the rules on this net, their plans' costs for the menu head, the mean shares, one decode
+            started, curves = time.perf_counter(), None
+            if "sens_thresh" in kinds:  # the RNG is put back: the recovery downstream draws as after the prior alone
+                from src import alloc_walk
+                rng = alloc_walk.rng_snapshot()
+                curves = dict(zip(("qs", "loss", "raw"),
+                                  alloc_walk.curve_probes(model, plan, batches, env._input_shape())))
+                alloc_walk.rng_restore(rng)
+            rules = menu_rules(kinds, pm, target, sens, costs, curves, budget, alpha, k_min_eff, min_width)
+            x_net, plans = menu_features(rules, pm, target, k_min_eff, min_width, kappa=float(kappa))
+            with torch.no_grad():
+                psi = policy.menu_logits(state, x_net).tolist()
+            pi = menu_shares(psi, float(blob.get("menu_share_floor", MENU_SHARE_FLOOR)))
+            widths, info = menu_decode(z, pi, rules, pm, target, k_min_eff, min_width=min_width, zmax=zmax)
+            params0 = float(pm.params(pm.widths0))
+            menu = {"kinds": list(kinds), "pi": pi, "psi": [float(v) for v in psi], "x": x_net,
+                    "kept": [float(rule_info["kept"]) for _w, rule_info in plans],
+                    "params": [pm.params(rule_widths) / params0 for rule_widths, _i in plans],
+                    "seconds": time.perf_counter() - started}
         base, base_info = scale_decode(prior, pm, target, k_min_eff, min_width=min_width)
         delta = {row: (widths[row] - base[row]) / float(pm.widths0[row]) for row in pm.rows}
         moved = sum(widths[row] != base[row] for row in pm.rows)
         extra = {"residual": residual,
                  "prior": {"kind": kind, "alpha": float(alpha), "kept": float(base_info["kept"]), "widths": base,
-                           "weights": prior, "moved": int(moved), "max_abs": max(abs(d) for d in delta.values()),
+                           "weights": prior if menu is None else info["base"], "moved": int(moved),
+                           "max_abs": max(abs(d) for d in delta.values()),
                            "dist": math.sqrt(sum(d * d for d in delta.values())),
-                           **({"zmax": float(zmax)} if zmax > 0 else {})}}
+                           **({"zmax": float(zmax)} if zmax > 0 else {})},
+                 **({"menu": menu} if menu is not None else {})}
         utils.print_flush(
             f"[alloc] plan agent residual on {kind} alpha={alpha:g}" + (f" zmax {zmax:g}" if zmax > 0 else "")
             + f": prior keeps x{base_info['kept']:.3f}, agent "
             f"x{info['kept']:.3f}; {moved}/{len(pm.rows)} groups moved, max |Δkeep| {extra['prior']['max_abs']:.2f}, "
-            f"dist {extra['prior']['dist']:.3f}")
+            f"dist {extra['prior']['dist']:.3f}"
+            + ("" if menu is None else "; menu pi " + " ".join(f"{k} {p:.3f}" for k, p in zip(kinds, menu["pi"]))))
     return widths, {"kind": "agent" if drawn is None else "agent_sample", "alpha": 0.0, "target": float(target),
                     "kept": float(info["kept"]), "budget": budget,
                     "keeps": {row: widths[row] / float(pm.widths0[row]) for row in pm.rows},
@@ -1046,7 +1354,7 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
 
 
 ENSEMBLE_KEYS = ("feature_dim", "encoder", "tokens", "zero", "k_min", "min_width", "budget", "standardizer",
-                 "residual", "residual_alpha", "residual_zmax")
+                 "residual", "residual_alpha", "residual_zmax", "menu")  # menu (v36): absent = None on both sides
 
 
 def ensemble_paths(policy_path: str):

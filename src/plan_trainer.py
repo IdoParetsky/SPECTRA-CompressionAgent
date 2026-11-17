@@ -45,7 +45,19 @@ the policy built as before, then the state is put back and the loop runs it = do
 numbering, the saves and the DONE line of one uninterrupted run, each job logging to its own run folder; refused unless
 the state's settings are this run's, every checkpoint meta key and config field but ``RESUME_FREE`` = MAX_MINUTES and
 SAVE_EVERY, a differing standardizer path warning as INIT's does; the chain's final weights are bitwise the
-uninterrupted run's on CPU, and on CUDA as alike as two uninterrupted runs are).
+uninterrupted run's on CPU, and on CUDA as alike as two uninterrupted runs are), MENU (v36, unset = off:
+``plan_agent.menu_kinds``, a comma list of rules such as ``sens,uniform,sens_cost,sens_thresh``; it needs the residual
+on, and its first rule, the anchor, must be the residual's prior on every budget the run draws, ``menu_settings``. Each
+instance then reads every rule's weights at its κ (``NetInstance.rules_at``; the damage curves behind sens_thresh are
+measured once per net) and their plans' costs (``plan_agent.menu_features``); the policy's menu head gives K logits ψ;
+each of the K plans draws u = ψ + MENU_SIGMA · ε after the scores' draw, from the same generator, so the scores' noise
+is the run's without the menu (as are the policy's starting weights and every global generator: the menu head's and
+the curves' draws are put back); its plan is ``plan_agent.menu_decode`` at π = softmax(u), and log π(action) adds u's
+Gaussian term. The mean plan decodes the mean scores at softmax(ψ) with the shares under
+``plan_agent.MENU_SHARE_FLOOR`` dropped, so the zero-init run starts on the prior's plan exactly. Each step's record
+gains ``menu_pi``, each summary a ``[plan] menu summary`` line, each net a ``[plan] menu setup`` line with the seconds
+its rules cost, and the checkpoint ``menu`` / ``menu_anchor`` / ``menu_init`` / ``menu_sigma`` /
+``menu_share_floor``), MENU_INIT (6.0, the anchor's starting logit), MENU_SIGMA (0.5, constant over the run).
 """
 
 import json
@@ -158,6 +170,30 @@ def residual_zmax() -> float:
     return fortify.plan_residual_zmax()
 
 
+def menu_settings(mode="off", budgets=("params",)):
+    """``SPECTRA_PLAN_MENU`` (v36; unset = off: None, and the run is as before): ``{"kinds", "init", "sigma"}`` of the
+    menu (``plan_agent.menu_kinds`` / ``menu_init`` / ``menu_sigma``). Refused (ValueError) without the residual, or
+    when the anchor is not the residual's prior (``mode``) on one of the ``budgets`` the run draws
+    (``plan_agent.check_menu_anchor``): ``auto`` under a mixed budget has two priors and so no anchor."""
+    kinds = plan_agent.menu_kinds()
+    if kinds is None:
+        return None
+    for budget in budgets:
+        plan_agent.check_menu_anchor(kinds, mode, budget, f"SPECTRA_PLAN_MENU={','.join(kinds)}")
+    return {"kinds": kinds, "init": plan_agent.menu_init(), "sigma": plan_agent.menu_sigma()}
+
+
+def menu_at(inst, menu, res, kappa, cfg, budget="params", floor=1):
+    """The menu on ``inst`` at ``kappa`` (v36): ``{"rules", "x", "plans"}``, every rule's weights
+    (``NetInstance.rules_at`` with the residual's alpha and the decoders' floors), the menu head's network-level inputs
+    and each rule's own plan (``plan_agent.menu_features``). None when the menu is off."""
+    if menu is None:
+        return None
+    rules = inst.rules_at(menu["kinds"], kappa, budget, res[1], cfg.k_min, floor)
+    x_net, plans = plan_agent.menu_features(rules, inst.cost_model(budget), kappa, cfg.k_min, floor)
+    return {"rules": rules, "x": x_net, "plans": plans}
+
+
 def init_path() -> str:
     """``SPECTRA_PLAN_INIT`` (v23; empty = off, as before): a plan-agent checkpoint whose policy weights the run starts
     from."""
@@ -167,9 +203,9 @@ def init_path() -> str:
 def warm_start(policy, blob, meta, path):
     """Load ``blob``'s policy weights (``SPECTRA_PLAN_INIT``, v23) into ``policy`` for a run whose checkpoint meta is
     ``meta``. Refused (ValueError) when the checkpoint trained under other settings than this run's: every
-    ``plan_agent.ENSEMBLE_KEYS`` entry (feature_dim, encoder, tokens, zero, k_min, min_width, budget and the residual
-    settings) but the standardizer path, which only warns, as ``plan_for_env`` does. No optimizer state is saved, so
-    none is loaded, and the σ schedule stays the run's own."""
+    ``plan_agent.ENSEMBLE_KEYS`` entry (feature_dim, encoder, tokens, zero, k_min, min_width, budget, the residual
+    settings and, v36, the menu's rules) but the standardizer path, which only warns, as ``plan_for_env`` does. No
+    optimizer state is saved, so none is loaded, and the σ schedule stays the run's own."""
     want = {**meta, "feature_dim": policy.feature_dim, "encoder": policy.encoder_kind}
     for key in plan_agent.ENSEMBLE_KEYS:
         if key != "standardizer" and blob.get(key) != want.get(key):
@@ -313,9 +349,12 @@ def prior_of(inst, res, budget="params"):
     return weights
 
 
-def _decode(z, cm, kappa, cfg, floor=1, prior=None, zmax=0.0):
+def _decode(z, cm, kappa, cfg, floor=1, prior=None, zmax=0.0, mix=None):
     """``plan_agent.decode`` as before, or ``residual_decode`` on ``prior`` when the residual is on, inside the trust
-    region when ``zmax`` is above 0."""
+    region when ``zmax`` is above 0. ``mix`` = (shares, rules) (v36, the menu) decodes the same scores on the blend of
+    the rules instead (``plan_agent.menu_decode``)."""
+    if mix is not None:
+        return plan_agent.menu_decode(z, mix[0], mix[1], cm, kappa, cfg.k_min, min_width=floor, zmax=zmax)
     if prior is None:
         return plan_agent.decode(z, cm, kappa, cfg.k_min, min_width=floor)
     return plan_agent.residual_decode(z, prior, cm, kappa, cfg.k_min, min_width=floor, zmax=zmax)
@@ -334,10 +373,14 @@ def references(inst, kappa, cfg, batches, budget="params", floor=1, prior=None):
     return out
 
 
-def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1, prior=None, zmax=0.0):
+def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1, prior=None, zmax=0.0, at=None):
+    """``(widths, info)`` of the mean plan. ``at`` (``menu_at``; v36) makes it the menu's: the mean scores decoded at
+    the mean shares softmax(ψ), a rule under ``plan_agent.MENU_SHARE_FLOOR`` dropped (``info["pi"]``)."""
     with torch.no_grad():
         mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
-    return _decode(mu.tolist(), inst.cost_model(budget), kappa, cfg, floor, prior, zmax)
+        psi = None if at is None else policy.menu_logits(inst.state_at(kappa, budget), at["x"])
+    mix = None if at is None else (plan_agent.menu_shares(psi.tolist(), plan_agent.MENU_SHARE_FLOOR), at["rules"])
+    return _decode(mu.tolist(), inst.cost_model(budget), kappa, cfg, floor, prior, zmax, mix)
 
 
 def _budget_tag(budget) -> str:
@@ -345,15 +388,18 @@ def _budget_tag(budget) -> str:
     return "" if budget == "params" else f" b={budget}"
 
 
-def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0):
-    """Mean plan vs references per net at each summary κ (and budget) on one fixed batch set (val-half proxy reads)."""
+def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0, menu=None):
+    """Mean plan vs references per net at each summary κ (and budget) on one fixed batch set (val-half proxy reads).
+    Under the menu (v36) each summary also prints the mean plan's shares, one ``[plan] menu summary`` line, and records
+    them as ``menu_pi``."""
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     for inst in instances:
         for kappa in cfg.summary_kappas:
             for budget in budgets:
                 batches = inst.batches(cfg.proxy, cfg.seed)
                 prior = prior_of(inst, res, budget)
-                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax)
+                at = menu_at(inst, menu, res, kappa, cfg, budget, floor)
+                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax, at)
                 r_mu = inst.reward(widths, cfg.proxy, batches)
                 refs = references(inst, kappa, cfg, batches, budget, floor, prior)
                 utils.print_flush(
@@ -361,8 +407,12 @@ def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0):
                     f"(x{info['kept']:.3f}) | "
                     + " | ".join(f"{name} {ref['r']:+.2f} (x{ref['kept']:.3f})" for name, ref in refs.items())
                     + f" | keeps min {min(info['keeps'].values()):.2f} max {max(info['keeps'].values()):.2f}")
+                if at is not None:
+                    utils.print_flush(f"[plan] menu summary {inst.name} k={kappa:.2f}{_budget_tag(budget)}: pi "
+                                      + " ".join(f"{kind} {p:.3f}" for kind, p in zip(menu["kinds"], info["pi"])))
                 log({"summary": inst.name, "kappa": kappa, "budget": budget, "mean": r_mu, "kept": info["kept"],
-                     "refs": refs, "widths": {str(r): int(w) for r, w in widths.items()}})
+                     "refs": refs, "widths": {str(r): int(w) for r, w in widths.items()},
+                     **({"menu_pi": info["pi"]} if at is not None else {})})
 
 
 def run(env, shard):
@@ -376,15 +426,29 @@ def run(env, shard):
     keep, resume = state_enabled(), resume_path()
     state = read_state(resume) if resume else None  # read now too: a wrong path or file fails before the origins
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
+    menu = menu_settings(mode, budgets)  # v36; None = off: a wrong menu fails here, before the origins are read
     with_cost = res is not None and "sens_cost" in {plan_agent.prior_kind(mode, b) for b in budgets}
+    origin_kw = {}  # what the menu's rules add to each origin's read; nothing without a menu
+    if menu is not None:
+        with_cost = with_cost or "sens_cost" in menu["kinds"]
+        if "sens_thresh" in menu["kinds"]:
+            origin_kw["with_curves"] = True
     scale = sigma0 / cfg.sigma if res is not None and cfg.sigma > 0 else 1.0
     started = time.perf_counter()
     utils.print_flush(f"[plan] trainer {json.dumps(asdict(cfg))}" + (f" min_width={floor}" if floor > 1 else "")
                       + (f" residual={mode} alpha={alpha:g} sigma={sigma0:g}" if res else "")
                       + (f" zmax={zmax:g}" if zmax > 0 else "")
+                      + (f" menu={','.join(menu['kinds'])} menu_init={menu['init']:g} menu_sigma={menu['sigma']:g}"
+                         if menu else "")
                       + (f" fs_lr={plan_agent.fs_lr():g}" if cfg.proxy.startswith("fs") else "")
                       + (f" init={init}" if init else "")
                       + (" state=1" if keep else "") + (f" resume={resume}" if resume else ""))
+    if menu is not None:
+        shares0 = plan_agent.menu_shares([menu["init"]] + [0.0] * (len(menu["kinds"]) - 1))
+        if max(shares0[1:]) >= plan_agent.MENU_SHARE_FLOOR:  # the default init is under the floor: no line
+            utils.print_flush(f"[plan] menu WARNING: SPECTRA_PLAN_MENU_INIT={menu['init']:g} starts the anchor at a "
+                              f"share of {shares0[0]:.4f}, the other rules at or above the mean plan's share floor "
+                              f"{plan_agent.MENU_SHARE_FLOOR:g}: the mean plan does not start on the prior's plan")
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
@@ -393,7 +457,7 @@ def run(env, shard):
         if cfg.nets and not any(part in name for part in cfg.nets):
             continue
         inst = plan_agent.NetInstance.from_env(env, net_path, net_model, net_loaders, tokens=cfg.tokens,
-                                               zero=cfg.zero, with_cost=with_cost)
+                                               zero=cfg.zero, with_cost=with_cost, **origin_kw)
         sens = sorted(inst.sens.values()) if inst.sens else [0.0]
         utils.print_flush(
             f"[plan] net {inst.name}: {inst.n_groups} groups, {int(inst.token_mask.sum())}/{inst.token_mask.numel()} "
@@ -418,6 +482,15 @@ def run(env, shard):
                 f"x{chk['real']:.4f} | {chk['probes']} probes in {chk['seconds']:.1f}s"
                 + (" | WARNING: the FLOPs model does not match the real cut"
                    if abs(chk["analytic"] - chk["real"]) > 1e-6 else ""))
+        if menu is not None:  # every rule's weights and plan once per budget: a missing measurement fails here
+            tick, parts = time.perf_counter(), []
+            for b in budgets:
+                at = menu_at(inst, menu, res, 0.6, cfg, b, floor)
+                parts.append(f"k=0.60{_budget_tag(b)} rule plans' params kept "
+                             + " ".join(f"x{inst.pm.kept(widths):.3f}" for widths, _info in at["plans"]))
+            seconds = float((getattr(inst, "curves", None) or {}).get("seconds", 0.0)) + time.perf_counter() - tick
+            utils.print_flush(f"[plan] menu setup {inst.name}: {','.join(menu['kinds'])} | " + " | ".join(parts)
+                              + f" | {seconds:.1f}s")
         instances.append(inst)
     if not instances:
         raise RuntimeError(f"SPECTRA_PLAN_NETS={cfg.nets}: no test network matched")
@@ -425,7 +498,8 @@ def run(env, shard):
     if len(widths) != 1:
         raise RuntimeError(f"networks disagree on the token width: {sorted(widths)}")
     device = instances[0].device
-    policy = plan_agent.PlanPolicy(widths.pop(), cfg.encoder).to(device)
+    head_kw = {"menu": len(menu["kinds"]), "menu_init": menu["init"]} if menu is not None else {}
+    policy = plan_agent.PlanPolicy(widths.pop(), cfg.encoder, **head_kw).to(device)
     optimizer = torch.optim.Adam(policy.parameters(), lr=cfg.lr)
     folder = out_dir()
     log_path = os.path.join(folder, "plan_train.jsonl")
@@ -436,6 +510,8 @@ def run(env, shard):
             **({"min_width": floor} if floor > 1 else {}),
             **({"residual": mode, "residual_alpha": alpha, "residual_sigma": sigma0} if res else {}),
             **({"residual_zmax": zmax} if zmax > 0 else {}),
+            **({"menu": list(menu["kinds"]), "menu_anchor": menu["kinds"][0], "menu_init": menu["init"],
+                "menu_sigma": menu["sigma"], "menu_share_floor": plan_agent.MENU_SHARE_FLOOR} if menu else {}),
             **({"fs_lr": plan_agent.fs_lr()} if cfg.proxy.startswith("fs") else {}),
             **({"init": init} if init else {})}
     if init_blob is not None:
@@ -478,8 +554,14 @@ def run(env, shard):
         rewards, kept = [], []
         cm = inst.cost_model(budget)
         prior = prior_of(inst, res, budget)
+        at, shares = menu_at(inst, menu, res, kappa, cfg, budget, floor), None  # None off the menu: all as before
+        if at is not None:  # v36: the menu logits, drawn after the scores so the scores' noise is the run's without it
+            psi = policy.menu_logits(inst.state_at(kappa, budget), at["x"])
+            u = plan_agent.sample_scores(psi, menu["sigma"], cfg.k, generator)
+            shares = [plan_agent.menu_shares(row) for row in u.tolist()]
         for k in range(cfg.k):
-            plan_widths, info = _decode(z[k].tolist(), cm, kappa, cfg, floor, prior, zmax)
+            plan_widths, info = _decode(z[k].tolist(), cm, kappa, cfg, floor, prior, zmax,
+                                        None if shares is None else (shares[k], at["rules"]))
             rewards.append(inst.reward(plan_widths, cfg.proxy, batches))
             kept.append(info["kept"])
         if it == 0 and getattr(inst, "recipe_line", None):  # the ft<E> reward's handler recipe, once per run
@@ -493,6 +575,8 @@ def run(env, shard):
         # a deterministic map from action to plan, so log_prob(z) is still the exact log-density of what was sampled and
         # the REINFORCE estimate stays unbiased (no tanh Jacobian: no density is taken of the squashed scores).
         loss = -(adv.detach() * plan_agent.log_prob(z, mu, sigma)).mean() / cfg.batch
+        if at is not None:  # v36: the action is (z, u), drawn independently; the softmax sits inside the decode too
+            loss = -(adv.detach() * plan_agent.menu_log_prob(z, mu, sigma, u, psi, menu["sigma"])).mean() / cfg.batch
         loss.backward()
         grad = None
         if (it + 1) % cfg.batch == 0:
@@ -505,13 +589,15 @@ def run(env, shard):
             record["residual"], record["prior"] = mode, plan_agent.prior_kind(mode, budget)
         if zmax > 0:  # groups whose mean is past the bound, where tanh's slope (< 0.42) starts to thin their signal
             record["mu_beyond_zmax"] = int((mu.detach().abs() > zmax).sum())
+        if shares is not None:  # v36: the sampled plans' mean share per rule, in the menu's order
+            record["menu_pi"] = [sum(s[j] for s in shares) / len(shares) for j in range(len(menu["kinds"]))]
         line = (f"[plan] it={it + 1}/{cfg.instances} {inst.name} k={kappa:.3f}{_budget_tag(budget)} sigma={sigma:.3f} "
                 f"| plans mean {statistics.mean(rewards):+.2f} max {max(rewards):+.2f} min {min(rewards):+.2f} kept "
                 f"x{statistics.mean(kept):.3f} | mu std {record['mu_std']:.3f}")
         if zmax > 0:
             line += f" | mu beyond zmax {record['mu_beyond_zmax']}/{inst.n_groups}"
         if (it + 1) % cfg.ref_every == 0 or it == 0:
-            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax)
+            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax, at)
             record["mean_plan"] = {"r": inst.reward(plan_widths, cfg.proxy, batches), "kept": info["kept"]}
             record["refs"] = references(inst, kappa, cfg, batches, budget, floor, prior)
             line += f" | mean plan {record['mean_plan']['r']:+.2f}" + "".join(
@@ -536,5 +622,5 @@ def run(env, shard):
         optimizer.zero_grad()
     path = save(f"it{done:05d}")
     utils.print_flush(f"[plan] saved {path} after {done} instances, {(time.perf_counter() - started) / 60.0:.1f} min")
-    summary(policy, instances, cfg, log, floor, res, zmax)
+    summary(policy, instances, cfg, log, floor, res, zmax, menu)
     utils.print_flush(f"[plan] DONE {done} instances in {(time.perf_counter() - started) / 60.0:.1f} min")
