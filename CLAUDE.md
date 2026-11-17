@@ -2,7 +2,7 @@
 
 **Claude Code is the sole SPECTRA agent (Ido, 15 Nov 2026).** It does design, development, analysis, literature, cluster operations (polling, submits of registered cells, preemption handling) and Ido's briefs (the review page and pushes). Opus 5.5 MAX does the science, Fable 5.1 MAX the hardest bounded development, and Sonnet specified implementation (table below).
 - **The Cursor ops agent (Grok) was retired on 15 Nov.** Nothing it ran is left: no cron and no cluster process. Its pre-authorised actions (`docs/OPS_HANDOFF_RUNBOOK.md` §10.3) concern finished September jobs. The runbook's never-lists still bind.
-- **Ops' unstaged edits stay in the tree until Ido decides** (`docs/PROMPT_FABLE_V6.md`, `docs/NEXT_DEV_PHASE.md`, `docs/WAY_AHEAD_NEXT_SCIENCE_SITTING.md`, lines of `docs/SITTING_GPU_QUEUE.md`, `docs/paper/GILAD_NEWS_30SEP.md`, `docs/paper/GILAD_OCT8_TRACKER.md`, `.gitignore`, `.vscode/settings.json`).
+- **Ops' edits are committed** (the handover commit a22bcd1, Ido's decision H, 17 Nov). No ops edits remain in the tree, so queue stamps are ordinary commits again.
 - **`docs/AGENT_MAIL.md` is retired** (its last stamp tells ops to stop). The record is the queue row, the ledger, the draft and the skeleton; Ido is briefed by the review page and by pushes.
 
 ## Standing instructions for every sitting (Ido, 9 Oct 2026)
@@ -41,7 +41,7 @@ Science owns `docs/paper/SPECTRA_draft.md` under a standing GO.
 
 ## Never
 - Train, or install CPU PyTorch, on this laptop. GPU work runs only on BGU Slurm (`ssh bgu-slurm`). Run remote scripts with `powershell -NoProfile -File scripts/rexec.ps1 -File <script.sh>`.
-- Run `git stash`, `git checkout -- <file>`, `git restore`, `git reset --hard` or `git clean`. Each one destroys the ops agent's unstaged edits.
+- Run `git stash`, `git checkout -- <file>`, `git restore`, `git reset --hard` or `git clean`. Each one can destroy uncommitted work in this tree (until 17 Nov, the ops agent's).
 - Stage or commit files you did not change. Commit only your own files or hunks, then push.
 - Commit `runs/`, `scripts/_tmp_*`, `NAPv2-main.zip`, Ido's personal documents (handoff §9.1) or any secret.
 - Submit a cell before it is registered in `docs/SITTING_GPU_QUEUE.md`.
