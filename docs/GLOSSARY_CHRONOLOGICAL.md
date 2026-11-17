@@ -574,3 +574,36 @@ Bars are given where the ledger or the handoff states them. [U] marks a bar that
 | **tree_v33** | tree_v32 + commit 197789b: the fast ImageNet recovery path under `SPECTRA_IMN_FT=1` (faster image decoding, epoch checkpoints with resume). It serves IMN. | queue row IMN (5 Nov) |
 | **tree_v34** | tree_v33 + commit e3bb88a: the lean walk (`SPECTRA_EVAL_LEAN_WALK=1`, TEST read only at the origin and at the landing point) and `SPECTRA_EVAL_FINAL_FT_SIZE_ONLY=1` (recover only the size point). It serves IMN and IMN-FP's reader. | queue row IMN (5 Nov) |
 | **tree_v35** | tree_v34 + commit 7c6b0b9: E1's flags `SPECTRA_EVAL_IDENTITY_MEMO`, `SPECTRA_EVAL_SKIP_STATE`, `SPECTRA_EVAL_CACHE_READS` and the read-only `SPECTRA_EVAL_E1_DIAG`. It serves E1 and E1-LOC. | queue row E1 (9 Nov) |
+
+## 8. 15 to 17 Nov: the transfer program, the rule screens, and the menu agent (added 17 Nov)
+
+The names T1 and T2 were used twice. In §6 (October) they are two early agents. From 15 Nov they are the first two steps of the transfer program, as below.
+
+### 8.1 Studies and their calls
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **T1 (15 Nov); t1f / t1p** | "Does an agent trained on a broad catalog beat the rule on held-out CIFAR-100 networks where room exists?" Two agents (t1f at equal FLOPs, t1p at equal params) are trained on 45 networks of ten families (39 for the FLOPs agent, without ShuffleNetV2) and read on 13 held-out CIFAR-100 networks at 0.45 and 0.20. The call is at 0.45 against the prior. | queue row T1 (15 Nov) |
+| **T2 (15 Nov); folds f1-f4** | "Does the gain survive withholding whole families?" T1's FLOPs line retrained with one group of families left out per fold (f1 the thin ResNets; f2 VGG-BN and DenseNet; f3 MobileNetV2 and ShuffleNetV2; f4 PreAct-ResNet and WRN), read on the left-out networks. | queue row T2 (15 Nov) |
+| **Held-out set H** | T1's 13 CIFAR-100 networks, never in any training catalog: the thin ResNet-20 x8 and x12, thin ResNet-56 x4 and x8, ShuffleNetV2 x1.5 and x2, VGG-16-BN, VGG-19-BN, MobileNetV2 x0.75 and x1, DenseNet-40, PreAct-ResNet-20, WRN-16-4. The FLOPs call set is 9 of them, and the params call set 6. | queue row T1 |
+| **RULES-ALL** | T1's amendment of 15 Nov: every agent-free rule is run beside every agent row (the cost-aware and threshold rules at equal FLOPs; plain sens and the threshold rule at equal params). | queue row T1 |
+| **B4 (best of four)** | Per network and point, the plan picked on validation among the four agent-free rules in the room screens. It is an envelope, built from each network's own validation, not a rule a user can apply blind. It is reported beside the agent and is never a prior. | queue row T1; draft §4.1b |
+| **W1 / W2 labels** | W1 is the registered call: GAIN, LOSS or LEVEL. W2 is reported beside every comparison and is never a call. A LEVEL is labelled SUGGESTIVE GAIN (mean at least +0.2, p at least 0.05), SUGGESTIVE LOSS, EQUIVALENT (the 95 % interval over networks inside plus or minus 0.3) or INCONCLUSIVE. | Ido, 17 Nov; draft §4.1b |
+| **"Best rule"** | In the paper: the strongest of the same-loop agent-free rules we ran, by mean TEST over the networks read. It never means the best rule in general, and it is never chosen on TEST. | draft §4.1b (17 Nov) |
+| **PR (the CIFAR-10 rule screen)** | "Which agent-free rule is best at equal FLOPs on CIFAR-10, and where is there room above the FLOPs prior?" Its one call, on validation, decides whether science proposes the threshold rule as the FLOPs prior for later studies (Ido decides). | queue row PR (16 Nov) |
+| **RF** | The four agent-free rules run beside every final table (registered in outline 17 Nov; its run list is fixed before any submit). | queue row RF (17 Nov) |
+| **The threshold rule (sens_thresh, sthF / sthP)** | One global threshold on the groups' measured damage curves, set so that the plan meets the budget (the single-threshold variant of Li et al. 2017). On the room screens it beats the FLOPs prior (§439). | queue row PROBE; §439 |
+| **Stage 0** | An exploratory, no-GPU read (17 Nov) of the room screens' rows (26 CIFAR-100 networks, seeds 47-48), with each family held out in turn. It asked whether a network's features predict which rule wins. Its answer: the threshold rule alone beats the prior, and the per-network best sits about +0.3 above it, but cheap features do not find it. It is never a result. | review page, part 2b |
+| **MENU; m1f; the menu agent** | Stage 1 of the road. The menu agent's plan is a learned blend of the four agent-free rules per network, plus the same small trust-region correction as today's agent, and it starts exactly at the prior. m1f is its FLOPs train on T1's line and catalog, read on T1's 13 networks against T1's own rule runs. Two calls at 0.45: against the prior and against the threshold rule. | queue row MENU (17 Nov) |
+| **Menu shares (π); σ_u** | The weights the menu agent gives each rule on a network (they sum to 1). σ_u is how widely training tries other blends: 2 in MENU, because at the code's default of 0.5 it almost never leaves the prior. | queue row MENU |
+
+### 8.2 Procedures and code
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **Resumable segments** | Long trains save their state every 500 instances and run as chained jobs of at most 2,800 minutes; a preempted segment resumes from its newest state. | queue row T1 |
+| **The T1 yield script (`s16nov_t1seg_yield.sh`)** | A login-node script that keeps T1's next train segment above every other pending job of ours by raising their nice (it never cancels, holds or releases). | queue row T1 (16 Nov) |
+| **The MENU order step** | MENU's manager keeps the registered order (T1's trains, T1's FLOPs evaluations, MENU, then T1's params evaluations, T2 and PR) by raising the later studies' nice when one outranks a MENU job. | queue row MENU |
+| **tree_v36** | tree_v35 + commit b3264ed: the menu agent under `SPECTRA_PLAN_MENU`, off by default (alloc_walk also carries e17132d's default-off LAMP and global-magnitude rules). With the flag off, every job is byte-identical to tree_v35's. It serves MENU. | queue row MENU (17 Nov) |
+| **L (decision)** | Whether LAMP and a global magnitude ranking join the same-loop rules in PR and RF. The code exists, off by default. | review page (17 Nov) |
+| **S (decision)** | Whether to build a sealed test set of about 40 never-seen networks from about 10 new families, written but read only once, by the final agent. | review page (17 Nov) |
