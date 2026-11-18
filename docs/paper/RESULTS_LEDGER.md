@@ -11720,3 +11720,83 @@ Reading:
 Not claimed: a reason for ShuffleNetV2's masked edits beyond the stage-stream note; "the threshold rule is the better prior" beyond these screens (CIFAR-100, 30 networks, two points each; CIFAR-10 not screened); a call on any rule.
 
 Records: §436, §437; queue rows ROOM-S, ROOM-P (correction stamps) and T1 (amendment); corrected readers and outputs above; the corrected all-30 intervals were computed from them by an inline script (means and a network bootstrap only); next §440.
+
+## 440. (T1, FLOPs side: queue row T1, registered 15 Nov 10:47, amended 15 Nov before any read; the first call of the transfer program) — **LEVEL. The FLOPs agent trained on the 39-network catalog, minus the FLOPs prior (floored sens_F), at FLOPs 0.45 on the 9 held-out CIFAR-100 networks of the call set: TEST 5k −0.17 [−0.73, +0.39], val −0.16, 10k −0.16, honest = raw (shared origin); exact Wilcoxon p = 0.82, 4 of 9 networks positive (W2: INCONCLUSIVE). This is the outcome stated in advance [H]. On the same evaluations the threshold rule sits above the prior on all 13 held-out networks (TEST 5k +0.64 [+0.26, +1.06], val +0.90, 10k +0.77, p = 0.006, 11 of 13), replicating §439 on fresh seeds, and the agent trails the threshold rule (TEST 5k −0.89 [−1.32, −0.48], val −1.06, 10k −0.98, p = 0.008; reported, not a call). PRELIM.**
+
+What ran. Trains: t1f, seeds 42 / 43 / 44 (jobs 24185471, 24185474, 24185476; 9.4-9.6 h each; tree_v35), 24,000 instances on the 39-network catalog (the 45 of ten families without ShuffleNetV2, §439), FLOPs budget, residual on floored sens_F at zmax 0.3, kappa 0.35-0.85. Evaluations: the 13 held-out CIFAR-100 networks of set H, never in any training catalog, at FLOPs 0.45 and 0.20, three seeds, on T1's evaluation line (G2, 100 epochs, keep-last, deterministic; width floor `walk`; E1's flags), with every arm beside the agent: the agent of record t4f (CATALOG), the prior sensF, the even cut uniF, the cost-aware rule scF, the threshold rule sthF and B4 (RULES-ALL; where B4's pick is a rule, that rule's row is the B4 cell). Manifest `s15nov_tp_manifest.tsv`. The FLOPs side completed 18 Nov about 09:14 and was read at 20:23; 455 cells read, 503 params-side cells still pending (the params call and T2 are not in this section).
+
+Reader. `scripts/_tmp_s15nov_tp_read.py`, registered blob `8127de2`, fixed before this section to `80b692f` (one line). Its side classifier listed the FLOPs-side arms as t1f, t4f, sensF, uniF and b4F, without RULES-ALL's scF and sthF, so their 114 cells were checked for the params budget and dropped as "not the registered line". With the two arms added, the call rows, the even-cut, CATALOG and B4 rows are byte-identical between the two runs (a diff of those lines), and the self-test passes (the W1 / W2 labels; the exact Wilcoxon, 0 mismatches against scipy). Outputs: `tp/_read_tp_18nov.txt` (registered blob) and `tp/_read_tp_18nov_b.txt` (fixed). Dropped cells: masked edits only, all on ShuffleNetV2 (t1f and t4f at both points, the even cut on x2 at both and on x1.5 at 0.20, the threshold rule on x1.5 at 0.20), which left both call sets on 15 Nov (§439). No stall fallback, no landing outside 0.011 of the target, no failed or preempted cell.
+
+Per network (TEST 5k unless marked; each gap is the mean over three seeds):
+
+| network | point | rule's own change, TEST 5k / val | T1 agent - rule, TEST 5k / val / 10k | - even cut | - agent of record (CATALOG) | - B4 | seeds |
+|---|---|---|---|---|---|---|---|
+| r20w8* | 0.45 | -8.11 / -7.18 | -1.57 / -0.97 / -1.27 | +0.15 | -0.46 | -2.18 | 3 |
+| r20w8* | 0.20 | -20.93 / -19.37 | -0.43 / -0.55 / -0.49 | -0.39 | +1.19 | -0.65 | 3 |
+| r20w12* | 0.45 | -9.33 / -9.03 | -0.83 / -1.53 / -1.18 | -1.52 | +0.22 | -1.52 | 3 |
+| r20w12* | 0.20 | -19.35 / -19.13 | -0.79 / -0.39 / -0.59 | -0.64 | +0.47 | -0.64 | 3 |
+| r56w4* | 0.45 | -7.92 / -7.70 | -0.84 / -0.92 / -0.88 | +7.84 | -0.76 | -1.19 | 3 |
+| r56w4* | 0.20 | -25.25 / -25.74 | -3.11 / -2.16 / -2.64 | +1.54 | -0.52 | -4.13 | 3 |
+| r56w8* | 0.45 | -8.42 / -8.11 | -0.81 / -0.63 / -0.72 | +1.88 | -0.17 | -1.11 | 3 |
+| r56w8* | 0.20 | -17.11 / -16.53 | -1.23 / -0.59 / -0.91 | +2.88 | +0.33 | -1.23 | 3 |
+| sh15 | 0.45 | -1.41 / -1.72 | - | - | - | - | 3 |
+| sh15 | 0.20 | -3.79 / -4.13 | - | - | - | - | 3 |
+| sh2 | 0.45 | -2.39 / -2.92 | - | - | - | - | 3 |
+| sh2 | 0.20 | -3.55 / -4.13 | - | - | - | - | 3 |
+| v16* | 0.45 | -3.03 / -3.94 | +1.11 / +1.53 / +1.32 | -0.53 | +0.90 | -0.53 | 3 |
+| v16* | 0.20 | -13.88 / -13.93 | -0.53 / -1.15 / -0.84 | -10.45 | -2.98 | -10.45 | 3 |
+| v19b* | 0.45 | -1.48 / -1.43 | +0.39 / +0.33 / +0.36 | +0.76 | +3.39 | +0.09 | 3 |
+| v19b* | 0.20 | -13.79 / -13.32 | +0.61 / +1.41 / +1.01 | -8.32 | +3.98 | -8.32 | 3 |
+| mb075* | 0.45 | -1.57 / -2.42 | +0.96 / +1.17 / +1.07 | +0.87 | +0.64 | -0.29 | 3 |
+| mb075* | 0.20 | -4.02 / -4.83 | -0.51 / -0.08 / -0.29 | +1.23 | -0.07 | -2.09 | 3 |
+| mb1* | 0.45 | -1.05 / -1.58 | +0.30 / +0.09 / +0.20 | -0.42 | +0.17 | -0.42 | 3 |
+| mb1* | 0.20 | -2.90 / -3.70 | +0.01 / -0.03 / -0.01 | +1.45 | +0.59 | -0.97 | 3 |
+| dn40* | 0.45 | -3.56 / -3.79 | -0.25 / -0.49 / -0.37 | -0.34 | -0.72 | -2.27 | 3 |
+| dn40* | 0.20 | -9.12 / -9.97 | -1.37 / -1.04 / -1.21 | -0.75 | -1.59 | -6.88 | 3 |
+| pr20 | 0.45 | -1.49 / -2.01 | -0.59 / +0.05 / -0.27 | +1.03 | -0.21 | -0.59 | 3 |
+| pr20 | 0.20 | -7.80 / -8.13 | +0.11 / +0.05 / +0.08 | +3.09 | +0.45 | -0.48 | 3 |
+| wrn164 | 0.45 | +0.78 / -0.35 | -0.15 / -0.42 / -0.28 | +0.18 | +0.41 | +0.18 | 3 |
+| wrn164 | 0.20 | -2.55 / -3.75 | -0.07 / -0.11 / -0.09 | +1.87 | +0.85 | -0.07 | 3 |
+
+(* = in the call set.) ShuffleNetV2's agent cells are masked edits, so its rows carry the rule's own change only.
+
+| comparison | point | mean TEST 5k [95 % bootstrap] | val | 10k | exact Wilcoxon | W1 / W2 (a call only on the first row, at 0.45) |
+|---|---|---|---|---|---|---|
+| T1 agent - rule | 0.45 | **-0.17** [-0.73, +0.39] | -0.16 | -0.16 | p = 0.8203 (n = 9; 4 of 9 positive) | LEVEL / INCONCLUSIVE |
+| T1 agent - rule | 0.20 | **-0.82** [-1.50, -0.23] | -0.51 | -0.66 | p = 0.0547 (n = 9; 2 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+
+Holm-adjusted p across the two budgets: 0.45 0.8203, 0.20 0.1094 (0.20 reported only, below both training ranges).
+
+| comparison | point | mean TEST 5k [95 % bootstrap] | val | 10k | exact Wilcoxon | W1 / W2 (a call only on the first row, at 0.45) |
+|---|---|---|---|---|---|---|
+| T1 agent - even cut | 0.45 | **+0.97** [-0.36, +2.88] | +0.89 | +0.93 | p = 0.4961 (n = 9; 5 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| T1 agent - even cut | 0.20 | **-1.50** [-4.59, +1.08] | -1.45 | -1.47 | p = 1.0000 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| CATALOG: T1 agent - agent of record | 0.45 | **+0.36** [-0.30, +1.22] | +0.24 | +0.30 | p = 0.7344 (n = 9; 5 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| CATALOG: T1 agent - agent of record | 0.20 | **+0.16** [-0.98, +1.40] | +0.21 | +0.19 | p = 0.8203 (n = 9; 5 of 9 positive) | LEVEL / INCONCLUSIVE |
+| T1 agent - cost-aware rule | 0.45 | **-0.04** [-0.91, +0.98] | -0.19 | -0.11 | p = 0.5703 (n = 9; 4 of 9 positive) | LEVEL / INCONCLUSIVE |
+| T1 agent - cost-aware rule | 0.20 | **-1.33** [-3.51, +0.78] | -0.89 | -1.11 | p = 0.3008 (n = 9; 3 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| T1 agent - threshold rule | 0.45 | **-0.89** [-1.32, -0.48] | -1.06 | -0.98 | p = 0.0078 (n = 9; 1 of 9 positive) | LOSS |
+| T1 agent - threshold rule | 0.20 | **-2.58** [-4.80, -0.62] | -2.20 | -2.39 | p = 0.0547 (n = 9; 2 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| T1 agent - best of four (B4) | 0.45 | **-1.05** [-1.57, -0.55] | -1.22 | -1.14 | p = 0.0078 (n = 9; 1 of 9 positive) | LOSS |
+| T1 agent - best of four (B4) | 0.20 | **-3.93** [-6.30, -1.77] | -3.63 | -3.78 | p = 0.0039 (n = 9; 0 of 9 positive) | LOSS |
+| no-harm: T1 agent - rule, networks outside the call set | 0.45 | INCOMPLETE (2 of 4 networks) | | | | | |
+| no-harm: T1 agent - rule, networks outside the call set | 0.20 | INCOMPLETE (2 of 4 networks) | | | | | |
+| rule ranking: cost-aware rule - prior, all 13 | 0.45 | **-0.08** [-0.94, +0.64] | +0.04 | -0.02 | p = 0.8926 (n = 13; 5 of 13 positive) | LEVEL / INCONCLUSIVE |
+| rule ranking: cost-aware rule - prior, all 13 | 0.20 | **+0.32** [-1.45, +2.06] | +0.32 | +0.32 | p = 1.0000 (n = 13; 6 of 13 positive) | LEVEL / SUGGESTIVE GAIN |
+| rule ranking: threshold rule - prior, all 13 | 0.45 | **+0.64** [+0.26, +1.06] | +0.90 | +0.77 | p = 0.0061 (n = 13; 11 of 13 positive) | GAIN |
+| rule ranking: threshold rule - prior, all 13 | 0.20 | INCOMPLETE (12 of 13 networks) | | | | | |
+| rule ranking: even cut - prior, all 13 | 0.45 | INCOMPLETE (12 of 13 networks) | | | | | |
+| rule ranking: even cut - prior, all 13 | 0.20 | INCOMPLETE (11 of 13 networks) | | | | | |
+
+Params kept at equal FLOPs (fraction kept, mean over the call set at 0.45; every arm lands within 0.445-0.450 of FLOPs): the agent 0.380, the prior 0.387, the threshold rule 0.418. The pairs differ by more than 10 % in params on VGG-16-BN (agent 0.115, prior 0.113, threshold rule 0.226) and VGG-19-BN (0.124, 0.124, 0.187), and the agent keeps fewer than the prior on thin ResNet-56 x8 (0.445 against 0.501). Per arm and network: `tp/_params_kept_18nov.txt` (the reader plus a reporting add-on, `s18nov_tp_params.py`).
+
+Reading:
+1. The registered call is LEVEL, as stated in advance: an agent trained on a broad catalog (39 networks, ten families) does not beat the FLOPs prior on held-out CIFAR-100 networks where the room screens found room. Its correction is bounded at zmax 0.3 around the prior's plan, so it cannot reach the plans (the threshold rule's, the even cut's) that are best where room exists.
+2. Below the training range (0.20) the agent leans to a loss against the prior (TEST 5k −0.82, Holm-adjusted p 0.11; reported, not a call).
+3. Against the agent of record (CATALOG) it is level at both points (+0.36 and +0.16): the broader catalog neither helped nor hurt on these networks.
+4. The threshold rule's edge over the FLOPs prior (§439, pooled over the screens' cells, TEST 5k +0.56) replicates on fresh runs and seeds (42-44; the screens ran 47-48) of the same held-out networks: +0.64 at 0.45, above the prior on 11 of 13. These are not new networks: set H and the call set were drawn from the screens. The threshold rule keeps more params on the VGG pairs (caption above).
+5. The bar for an agent on these networks is the threshold rule and B4, not the prior: the agent trails them by −0.89 and −1.05 at 0.45. MENU (registered 17 Nov, before this read) calls its menu agent against the prior and against the threshold rule on these same cells.
+
+Not claimed: a GAIN or LOSS of the agent against the prior; any call at 0.20; a call on any row but the first (the labels of the reported rows, including the threshold rule's GAIN, are reported only); "the threshold rule is the better FLOPs prior" (a prior is fixed for registered studies; PR screens CIFAR-10 and Ido decides); the no-harm row (2 of 4 networks read: ShuffleNetV2's agent cells are masked edits; PreAct-ResNet-20 −0.59 and WRN-16-4 −0.15 at 0.45) as a check.
+
+Records: queue row T1 (reader fix stamp, 18 Nov); trains 24185471 / 24185474 / 24185476; manifest `s15nov_tp_manifest.tsv`; reader `scripts/_tmp_s15nov_tp_read.py` (`8127de2` -> `80b692f`); outputs above. The params side (t1p against sens_cost) and T2 follow when their cells complete; next §441.
