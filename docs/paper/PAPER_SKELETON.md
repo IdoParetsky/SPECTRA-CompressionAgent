@@ -53,8 +53,8 @@ Every result table, the new ones included, is PRELIM until it is locked. TEST 5k
 | Tables 5.9b, 5.9b-2 | The fallback to the rule chosen on validation (pool, new architectures, harder points), and the search for its judge | §409, §410, §431, §432 | PRELIM |
 | §5.9c–§5.9f | Two-stage plans; the agent's model; the accuracy-limit mode; how many cut rates the rule measures | §411; §422, §426; §423; §424 | PRELIM |
 | §5.10, §5.11 | Which cheap rewards rank plans like the final fine-tune; the recovery recipe | §340, §349, §351, §375, §379; §329–§348 | PRELIM |
-| T1 call table (new) | Per agent at budget 0.45, on the held-out networks with room on its own axis (9 at equal FLOPs, 6 at equal params; ShuffleNetV2 reported only, §439): T1 agent − prior, a bootstrap interval over networks, the exact Wilcoxon call. Budget 0.20 is reported, with no call | queue row T1; § to come | waits on T1 |
-| T1 reported table (new) | All 13 held-out networks (a no-harm check). The T1 agent against the even cut, the agent of record (the catalog's effect), the room screen's pick and every agent-free rule | queue row T1; § to come | waits on T1 |
+| T1 call table (new) | Per agent at budget 0.45, on the held-out networks with room on its own axis (9 at equal FLOPs, 6 at equal params; ShuffleNetV2 reported only, §439): T1 agent − prior, a bootstrap interval over networks, the exact Wilcoxon call. Budget 0.20 is reported, with no call. **FLOPs side read (§440, in §5.8): LEVEL** | queue row T1; §440 (FLOPs); params § to come | FLOPs PRELIM; params waits on T1 |
+| T1 reported table (new) | All 13 held-out networks (a no-harm check). The T1 agent against the even cut, the agent of record (the catalog's effect), the room screen's pick and every agent-free rule. FLOPs side in §5.8 (§440: the threshold rule +0.64 above the prior; the agent −0.89 below it) | queue row T1; §440 (FLOPs); params § to come | FLOPs PRELIM; params waits on T1 |
 | T2 table (new) | Per fold and pooled over the folds: the gain without the family, and non-inferiority to the T1 agent. ShuffleNetV2's FLOPs rows are reported only | queue row T2; § to come | waits on T2 |
 
 **Figures**
