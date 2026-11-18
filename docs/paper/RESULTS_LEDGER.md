@@ -11800,3 +11800,76 @@ Reading:
 Not claimed: a GAIN or LOSS of the agent against the prior; any call at 0.20; a call on any row but the first (the labels of the reported rows, including the threshold rule's GAIN, are reported only); "the threshold rule is the better FLOPs prior" (a prior is fixed for registered studies; PR screens CIFAR-10 and Ido decides); the no-harm row (2 of 4 networks read: ShuffleNetV2's agent cells are masked edits; PreAct-ResNet-20 −0.59 and WRN-16-4 −0.15 at 0.45) as a check.
 
 Records: queue row T1 (reader fix stamp, 18 Nov); trains 24185471 / 24185474 / 24185476; manifest `s15nov_tp_manifest.tsv`; reader `scripts/_tmp_s15nov_tp_read.py` (`8127de2` -> `80b692f`); outputs above. The params side (t1p against sens_cost) and T2 follow when their cells complete; next §441.
+
+## 441. (MENU: queue row MENU, registered 17 Nov before any MENU or T1 read; stage 1 of the road, the menu agent at equal FLOPs) — **Both calls LEVEL. Call 1, the menu agent minus the FLOPs prior (floored sens_F) at FLOPs 0.45 on T1's 9-network call set: TEST 5k +0.73 [+0.22, +1.23], val +0.85, 10k +0.79, honest = raw (shared origin); 7 of 9 networks positive; exact Wilcoxon p = 0.039, Holm-adjusted across the two calls 0.078, so not GAIN (W2: SUGGESTIVE GAIN). Call 2, minus the threshold rule: TEST 5k +0.00 [−0.32, +0.44], val −0.06, 10k −0.03; p = 0.59 (W2: INCONCLUSIVE). The agent leans on the threshold rule (mean share 0.67–0.84), sits 0.15 below the per-network best of four (−0.15 [−0.45, +0.15]) and is +0.90 above T1's FLOPs agent (9 of 9). At equal FLOPs it keeps more params than the prior (0.436 against 0.387 over the call set; about 2× on the two VGG-BN networks, 1.3× on DenseNet-40). PRELIM.**
+
+What ran. Trains: m1f, seeds 42 / 43 / 44 (jobs 24260391, 24260394, 24260397; 7.9-8.2 h each, 18 Nov 09:15-17:31; tree_v36 = tree_v35 + commit b3264ed's menu agent behind `SPECTRA_PLAN_MENU`, default off), 24,000 instances on T1's FLOPs line and 39-network catalog. The menu: the prior (sens, the anchor), the even cut, the cost-aware rule and the threshold rule; σ_u 2, init 6, share floor 0.005, and the same residual correction as T1's agent (zmax 0.3). Gates: train gate PASS 17 Nov 13:40, eval gate PASS 13:52 (queue row MENU). Evaluations: 78 cells on tree_v36 (the 13 held-out CIFAR-100 networks of set H x FLOPs 0.45 and 0.20 x three seeds) on T1's evaluation line; every comparator is T1's own cell on tree_v35 (§440). Read 18 Nov 21:41 by the registered reader `scripts/_tmp_s17nov_menu_read.py` (blob `964b360`, unchanged since registration); output `menu/_read_menu.txt`. 499 cells read, none pending; dropped only masked edits, all on ShuffleNetV2 (the menu agent's 11 cells and T1's as in §440). No failed or preempted cell.
+
+Per network (TEST 5k unless marked; each gap is the mean over three seeds; the shares are the mean plan's weights per rule):
+
+| network | point | menu - prior, TEST 5k / val / 10k | - even cut | - cost-aware | - threshold | - B4 | - T1 agent | mean shares (sens / even / cost-aware / threshold) | seeds |
+|---|---|---|---|---|---|---|---|---|---|
+| r20w8* | 0.45 | +0.31 / +0.25 / +0.28 | +2.04 | +1.15 | -0.29 | -0.29 | +1.89 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| r20w8* | 0.20 | +0.71 / +0.16 / +0.44 | +0.75 | -0.17 | +0.49 | +0.49 | +1.14 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| r20w12* | 0.45 | -0.23 / -0.29 / -0.26 | -0.93 | -0.17 | -0.38 | -0.93 | +0.59 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| r20w12* | 0.20 | -0.59 / -0.84 / -0.71 | -0.43 | +0.33 | +0.97 | -0.43 | +0.21 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| r56w4* | 0.45 | +0.09 / -0.10 / -0.01 | +8.77 | +4.30 | -0.26 | -0.26 | +0.93 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| r56w4* | 0.20 | +1.64 / +2.50 / +2.07 | +6.29 | +8.15 | +0.63 | +0.63 | +4.75 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| r56w8* | 0.45 | -0.31 / +0.02 / -0.14 | +2.38 | +0.24 | -0.61 | -0.61 | +0.50 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| r56w8* | 0.20 | -1.97 / -1.84 / -1.91 | +2.14 | +2.07 | +0.32 | -1.97 | -0.74 | 0.33 / 0.00 / 0.00 / 0.67 | 3 |
+| sh15 | 0.45 | - | - | - | - | - | - | 0.03 / 0.02 / 0.84 / 0.11 | 1 |
+| sh15 | 0.20 | - | - | - | - | - | - | - | 0 |
+| sh2 | 0.45 | - | - | - | - | - | - | - | 0 |
+| sh2 | 0.20 | - | - | - | - | - | - | - | 0 |
+| v16* | 0.45 | +2.09 / +2.45 / +2.27 | +0.44 | +0.15 | -0.35 | +0.44 | +0.97 | 0.00 / 0.06 / 0.10 / 0.84 | 3 |
+| v16* | 0.20 | +6.57 / +5.53 / +6.05 | -3.35 | +2.65 | -1.13 | -3.35 | +7.10 | 0.00 / 0.06 / 0.10 / 0.84 | 3 |
+| v19b* | 0.45 | +0.76 / +1.17 / +0.96 | +1.13 | +1.05 | +0.46 | +0.46 | +0.37 | 0.00 / 0.06 / 0.09 / 0.84 | 3 |
+| v19b* | 0.20 | +7.93 / +7.91 / +7.92 | -1.01 | +2.19 | -0.49 | -1.01 | +7.31 | 0.00 / 0.06 / 0.09 / 0.84 | 3 |
+| mb075* | 0.45 | +1.28 / +1.55 / +1.42 | +1.19 | +0.62 | +0.03 | +0.03 | +0.32 | 0.00 / 0.02 / 0.22 / 0.75 | 3 |
+| mb075* | 0.20 | +1.30 / +0.78 / +1.04 | +3.03 | +1.35 | -0.28 | -0.28 | +1.81 | 0.00 / 0.03 / 0.20 / 0.77 | 3 |
+| mb1* | 0.45 | +1.07 / +0.79 / +0.93 | +0.35 | +0.92 | -0.03 | +0.35 | +0.77 | 0.00 / 0.03 / 0.20 / 0.77 | 3 |
+| mb1* | 0.20 | +0.23 / +0.28 / +0.25 | +1.66 | +0.09 | -0.76 | -0.76 | +0.21 | 0.00 / 0.03 / 0.19 / 0.78 | 3 |
+| dn40* | 0.45 | +1.47 / +1.77 / +1.62 | +1.37 | -0.56 | +1.46 | -0.56 | +1.71 | 0.03 / 0.00 / 0.27 / 0.69 | 3 |
+| dn40* | 0.20 | +2.85 / +3.10 / +2.98 | +3.47 | -2.65 | +3.07 | -2.65 | +4.23 | 0.03 / 0.00 / 0.27 / 0.69 | 3 |
+| pr20 | 0.45 | -0.51 / -0.15 / -0.33 | +1.11 | -0.25 | -0.15 | -0.51 | +0.09 | 0.33 / 0.00 / 0.01 / 0.66 | 3 |
+| pr20 | 0.20 | +0.51 / +0.76 / +0.64 | +3.49 | +0.55 | -0.07 | -0.07 | +0.41 | 0.33 / 0.00 / 0.01 / 0.66 | 3 |
+| wrn164 | 0.45 | -0.43 / -0.28 / -0.35 | -0.10 | -0.26 | -0.42 | -0.10 | -0.28 | 0.31 / 0.00 / 0.03 / 0.66 | 3 |
+| wrn164 | 0.20 | -1.19 / -0.80 / -0.99 | +0.75 | -0.74 | -0.03 | -1.19 | -1.12 | 0.31 / 0.00 / 0.02 / 0.67 | 3 |
+
+(* = in the call set.) ShuffleNetV2's cells are masked edits, so its rows are empty.
+
+| comparison | point | mean TEST 5k [95 % bootstrap] | val | 10k | exact Wilcoxon | W1 / W2 (a call only on the two call rows at 0.45) |
+|---|---|---|---|---|---|---|
+| call 1: menu agent - prior (floored sens_F) | 0.45 | **+0.73** [+0.22, +1.23] | +0.85 | +0.79 | p = 0.0391, Holm 0.0781 (n = 9; 7 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| call 2: menu agent - threshold rule | 0.45 | **+0.00** [-0.32, +0.44] | -0.06 | -0.03 | p = 0.5898, Holm 0.5898 (n = 9; 3 of 9 positive) | LEVEL / INCONCLUSIVE |
+| menu agent - prior (floored sens_F) | 0.20 | **+2.07** [+0.20, +4.17] | +1.95 | +2.01 | p = 0.0977, Holm 0.1953 (n = 9; 7 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent - threshold rule | 0.20 | **+0.31** [-0.37, +1.16] | +0.26 | +0.29 | p = 0.6523, Holm 0.6523 (n = 9; 5 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent - even cut | 0.45 | **+1.86** [+0.50, +3.80] | +1.90 | +1.88 | p = 0.0195 (n = 9; 8 of 9 positive) | GAIN |
+| menu agent - even cut | 0.20 | **+1.40** [-0.33, +3.12] | +1.01 | +1.20 | p = 0.2031 (n = 9; 6 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent - cost-aware rule | 0.45 | **+0.86** [+0.14, +1.83] | +0.81 | +0.83 | p = 0.0547 (n = 9; 7 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent - cost-aware rule | 0.20 | **+1.56** [-0.11, +3.52] | +1.57 | +1.56 | p = 0.1328 (n = 9; 7 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent - T1 agent (what the menu adds) | 0.45 | **+0.90** [+0.58, +1.26] | +1.00 | +0.95 | p = 0.0039 (n = 9; 9 of 9 positive) | GAIN |
+| menu agent - T1 agent (what the menu adds) | 0.20 | **+2.89** [+1.05, +4.80] | +2.46 | +2.68 | p = 0.0195 (n = 9; 8 of 9 positive) | GAIN |
+| menu agent - agent of record (T4-F) | 0.45 | **+1.25** [+0.70, +1.98] | +1.25 | +1.25 | p = 0.0039 (n = 9; 9 of 9 positive) | GAIN |
+| menu agent - agent of record (T4-F) | 0.20 | **+3.05** [+1.27, +5.40] | +2.68 | +2.86 | p = 0.0078 (n = 9; 8 of 9 positive) | GAIN |
+| menu agent - best of four (B4) | 0.45 | **-0.15** [-0.45, +0.15] | -0.22 | -0.19 | p = 0.4961 (n = 9; 4 of 9 positive) | LEVEL / INCONCLUSIVE |
+| menu agent - best of four (B4) | 0.20 | **-1.04** [-1.90, -0.24] | -1.17 | -1.10 | p = 0.0742 (n = 9; 2 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| no-harm: menu agent - prior, networks outside the call set | 0.45 | INCOMPLETE (2 of 4 networks) | | | | |
+| no-harm: menu agent - prior, networks outside the call set | 0.20 | INCOMPLETE (2 of 4 networks) | | | | |
+
+Mean plan's leading rule over the read cells: {'cost-aware at 20': 3, 'cost-aware at 45': 4, 'sens at 20': 6, 'sens at 45': 6, 'threshold at 20': 24, 'threshold at 45': 24} (the rule with the largest share in each cell's mean plan).
+
+Params kept at equal FLOPs (fraction kept, mean over three seeds; every arm lands at 0.446-0.450 FLOPs at 0.45 and 0.198-0.200 at 0.20). Call-set means: at 0.45 the menu agent 0.436, the prior 0.387, the threshold rule 0.418; at 0.20, 0.175, 0.160 and 0.157. The pairs differ by more than 10 % in params on VGG-16-BN (menu 0.221, prior 0.113, threshold 0.226), VGG-19-BN (0.204, 0.124, 0.187), DenseNet-40 (0.687, 0.517, 0.518) and MobileNetV2 x1 (0.443, 0.398, 0.445). Per network: `menu/_params_kept_menu.txt` (the registered reader plus a reporting add-on, `s18nov_menu_params.py`).
+
+Reading:
+1. Call 1 is LEVEL by the registered rule. The menu agent is the first agent above the FLOPs prior in the mean and on 7 of 9 networks, and its interval lies above zero, but the Holm adjustment over the two calls (0.078) keeps it short of GAIN. The stated expectation (a suggestive gain of about +0.5 if it learns to lean on the threshold rule) holds: it lands at +0.73.
+2. Call 2 is LEVEL, as stated: the agent matches the threshold rule (+0.00). It is not EQUIVALENT by W2 (the interval reaches +0.44).
+3. It learned mostly the threshold rule. The shares differ by family (the thin ResNets, PreAct-ResNet-20 and WRN-16-4 keep about a third on the prior; VGG-BN, MobileNetV2 and DenseNet-40 add some cost-aware) and barely within a family: it adapts per family, not per network.
+4. The four-rule envelope is nearly used up at 0.45: best of four is only +0.15 above the agent (+1.04 at 0.20). A higher ceiling needs plans outside these four rules.
+5. Part of the gain over the prior is params bought. The agent's largest gains are on VGG-16-BN (+2.09), DenseNet-40 (+1.47) and VGG-19-BN (+0.76), where it keeps 1.3-2× the prior's params, as §437 found for the equal-FLOPs room on these networks. The threshold rule buys the same params on the VGG pairs but not on DenseNet-40.
+6. Where there is no equal-FLOPs room (the two networks outside the call set, with room only at equal params) the agent is below the prior at 0.45: PreAct-ResNet-20 −0.51, WRN-16-4 −0.43 (val −0.15, −0.28). Leaning on the threshold rule costs where the prior is already best.
+7. What the menu adds (reported): +0.90 over T1's agent at 0.45 (9 of 9) and +2.89 at 0.20; +1.25 and +3.05 over the agent of record. At 0.20 (reported, not a call) it is +2.07 above the prior (Holm 0.20) and +0.31 above the threshold rule.
+
+Not claimed: a GAIN over the prior; any call at 0.20; "the agent beats the threshold rule"; per-network adaptivity (the shares move by family); a gain at equal params (the menu agent is a FLOPs agent, and part of its gain is params); results beyond these 13 networks, two points and CIFAR-100; the no-harm row as a check (2 of 4 networks read; ShuffleNetV2's cells are masked edits). Every network here is a development network from now on: set H has been watched by two reads (§440, §441).
+
+Records: queue row MENU (read stamp, 18 Nov); trains 24260391 / 24260394 / 24260397; manifest `s17nov_menu_manifest.tsv` (MENU) and `s15nov_tp_manifest.tsv` (comparators); reader `scripts/_tmp_s17nov_menu_read.py` (`964b360`); outputs above. The road's stage-2 condition (at least a suggestive gain against the prior) is met; stage 2's design is registered before any of its cells. Next §442.
