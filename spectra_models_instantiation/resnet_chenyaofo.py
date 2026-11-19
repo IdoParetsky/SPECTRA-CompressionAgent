@@ -94,3 +94,7 @@ def resnet44(num_classes, large_input):
 def resnet56(num_classes, large_input):
     return CifarResNet(BasicBlock, [9, 9, 9], num_classes=num_classes)
 
+
+def resnet110(num_classes, large_input):
+    # 19 Nov (SEAL-P): CIFAR ResNet-110 (6n + 2, n = 18; He et al. 2016) with the same block, shortcut and init as 20-56 above
+    return CifarResNet(BasicBlock, [18, 18, 18], num_classes=num_classes)
