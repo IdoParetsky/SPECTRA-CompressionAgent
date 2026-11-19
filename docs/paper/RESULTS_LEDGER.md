@@ -12022,3 +12022,75 @@ Reading:
 Not claimed: a call of any kind (PICK is a validation-only development step); "the agent learned to choose per network" (the pick is a fixed probe, not learned); the five-way pick as adopted or as a result; any pick, rule or network chosen on TEST; LAMP or the global ranking as their authors' pipelines; anything beyond these 11 networks, two points and CIFAR-100; any mixing with PR's rows. Set H's fourth read is this one. It stays a development set, and stage 2's system is called only on networks no read has seen.
 
 Records: queue row PICK (registration, the time correction, deploy, gate, cells and read stamps); cells 24311332-24311397; smokes 24311226 and 24311227; the reader `scripts/_tmp_s19nov_pick_read.py` (`79746c8`, built by `_tmp_s19nov_pick_make_reader.py`); its output `pick/_read_pick.txt`; the diagnostics `pick/_diag443.py` and `pick/_diag443.txt`. Next §444.
+
+## 444. (KD: queue row KD, registered 19 Nov 09:53 IST before any KD script existed on the cluster; stage 2's option D as a screen; validation-only rule) — **DROP by the registered rule. Distillation from the unpruned network during the 100-epoch recovery (T = 4, a = 0.7, the walk's defaults, untuned) does not raise the menu agent on T1's 9 call-set networks: the menu agent with KD minus the menu agent is +0.00 val at FLOPs 0.45 (TEST 5k −0.16 [−0.96, +0.56], 10k −0.08) and −0.50 val at 0.20 (TEST 5k −0.91 [−2.33, +0.49], 10k −0.70); honest = raw (shared origin). The rule asked for at least +0.20 val at one point (exact Wilcoxon p < 0.05) and more than −0.20 at both. The effect splits by family: KD lowers all four thin ResNets at both points, on both arms (TEST 5k below zero on 16 of 16 network-points), and raises both MobileNetV2s (8 of 8 above zero) and, for the menu agent only, both VGG-BN networks. All 126 cells kept their comparator's plan. Reported, never a call. PRELIM.**
+
+What ran. 126 evaluation cells, jobs 24312955-24313094 (manifest `s19nov_kd_manifest.tsv`; two SEAL-P probes fall inside the range), on tree_v37 as PICK ran it, plus `SPECTRA_EVAL_FINAL_FT_KD=1`. They ran 19 Nov 11:23-19:37 IST, 36.0 GPU-hours, all COMPLETED, no preemption. The final fine-tune's loss is (1 − a) CE + a T² KL(teacher/T ‖ student/T), with T = 4 and a = 0.7; the teacher is a frozen copy of the unpruned checkpoint. The CUDA-graph path refuses KD, so a KD recovery runs eager. Arms: **kdA** = the menu agent of the cell's seed (MENU's m1f policies) with KD; **kdP** = the floored prior (T1's sensF) with KD; seeds 42-44, FLOPs 0.45 and 0.20 (54 cells each); **egA** = the menu agent without KD, run eager, seed 42 (18 cells), the control for eager against graphed. The comparators are MENU's own cells (§441) and T1's (§440), unchanged. The gate (four 2-epoch smokes, read by hand 11:19 IST) passed (queue row KD).
+
+Checks (registered): 126 of 126 KD-side cells share their comparator's plan (landed params and FLOPs, the walk's val and TEST 5k, the origin, the step). No cell ends at chance (val < 0.05).
+
+The registered decision (validation only): d_n = seed-mean val of the menu agent with KD minus the menu agent, per network, over the 9.
+
+| FLOPs | mean val gap | exact Wilcoxon p (val) | networks positive (val) | W1 on val | TEST 5k [95 % CI] (reported) | 10k (reported) |
+|---|---|---|---|---|---|---|
+| 0.45 | **+0.00** | 1.0000 (n = 9) | 5 of 9 | LEVEL | −0.16 [−0.96, +0.56] | −0.08 |
+| 0.20 | **−0.50** | 0.3594 (n = 9) | 4 of 9 | LEVEL | −0.91 [−2.33, +0.49] | −0.70 |
+
+**KD: DROP.** The recovery of record stays as it is.
+
+| comparison (reported, never a call) | FLOPs | TEST 5k [95 % bootstrap] | val | 10k | exact Wilcoxon (TEST 5k) | W1 / W2 |
+|---|---|---|---|---|---|---|
+| menu agent with KD − menu agent | 0.45 | **−0.16** [−0.96, +0.56] | +0.00 | −0.08 | p = 0.8203 (n = 9; 4 of 9 positive) | LEVEL / INCONCLUSIVE |
+| prior with KD − prior | 0.45 | **−0.21** [−1.12, +0.70] | −0.10 | −0.15 | p = 0.6523 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| menu agent − prior, both with KD | 0.45 | **+0.77** [+0.17, +1.42] | +0.94 | +0.86 | p = 0.0547 (n = 9; 7 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent − prior, neither with KD (§441's call 1) | 0.45 | **+0.73** [+0.22, +1.23] | +0.85 | +0.79 | p = 0.0391 (n = 9; 7 of 9 positive) | GAIN (Holm-adjusted in §441: LEVEL) |
+| menu agent with KD − menu agent, seed 42 only | 0.45 | **−0.37** [−1.32, +0.51] | −0.18 | −0.28 | p = 0.4961 (n = 9; 5 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| eager control: menu agent eager − graphed, seed 42 | 0.45 | **−0.16** [−0.42, +0.03] | +0.12 | −0.02 | p = 0.2500 (n = 4) | LEVEL / INCONCLUSIVE |
+| menu agent with KD − menu agent | 0.20 | **−0.91** [−2.33, +0.49] | −0.50 | −0.70 | p = 0.3594 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| prior with KD − prior | 0.20 | **−1.85** [−3.21, −0.44] | −1.52 | −1.68 | p = 0.0742 (n = 9; 2 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| menu agent − prior, both with KD | 0.20 | **+3.01** [+0.64, +5.77] | +2.97 | +2.99 | p = 0.0391 (n = 9; 8 of 9 positive) | GAIN (label only; not a call) |
+| menu agent − prior, neither with KD | 0.20 | **+2.07** [+0.20, +4.17] | +1.95 | +2.01 | p = 0.0977 (n = 9; 7 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent with KD − menu agent, seed 42 only | 0.20 | **−0.86** [−2.51, +0.73] | −0.60 | −0.73 | p = 0.4258 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| eager control: menu agent eager − graphed, seed 42 | 0.20 | **+0.22** [+0.01, +0.50] | +0.13 | +0.18 | p = 0.1250 (n = 4) | LEVEL / SUGGESTIVE GAIN |
+
+Per network: the KD gain (KD run minus the same plan without KD), seed means, val / TEST 5k; the eager control on seed 42; params kept at equal FLOPs; the origin's accuracy as the eval line's TRAJ line prints it.
+
+| network | origin | FLOPs | KD gain, menu agent | KD gain, prior | eager − graphed (s42) | params kept: menu agent / prior |
+|---|---|---|---|---|---|---|
+| thin ResNet-20 ×8 | 0.595 | 0.45 | −1.02 / −1.33 | −1.63 / −1.97 | 0.00 / 0.00 | 0.546 / 0.525 |
+| | | 0.20 | −2.68 / −2.77 | −3.61 / −3.05 | 0.00 / 0.00 | 0.216 / 0.204 |
+| thin ResNet-20 ×12 | 0.683 | 0.45 | −1.52 / −1.00 | −1.68 / −2.00 | 0.00 / 0.00 | 0.463 / 0.440 |
+| | | 0.20 | −2.89 / −3.67 | −3.81 / −4.46 | 0.00 / 0.00 | 0.187 / 0.204 |
+| thin ResNet-56 ×4 | 0.528 | 0.45 | −2.46 / −2.51 | −2.25 / −1.90 | 0.00 / 0.00 | 0.395 / 0.400 |
+| | | 0.20 | −3.13 / −3.51 | −4.21 / −4.97 | 0.00 / 0.00 | 0.165 / 0.151 |
+| thin ResNet-56 ×8 | 0.702 | 0.45 | −0.31 / −0.26 | +0.05 / −0.13 | 0.00 / 0.00 | 0.479 / 0.501 |
+| | | 0.20 | −2.00 / −2.97 | −1.95 / −2.99 | 0.00 / 0.00 | 0.190 / 0.231 |
+| VGG-16-BN | 0.740 | 0.45 | +0.87 / +0.51 | −0.29 / −0.17 | +0.16 / +0.24 | 0.221 / 0.113 |
+| | | 0.20 | +1.43 / +1.53 | −1.99 / −0.96 | +1.04 / +0.84 | 0.074 / 0.042 |
+| VGG-19-BN | 0.732 | 0.45 | +0.46 / −0.03 | +1.32 / +0.27 | +0.02 / −0.30 | 0.204 / 0.124 |
+| | | 0.20 | +1.39 / +0.86 | −1.21 / −1.99 | +0.08 / +0.10 | 0.075 / 0.048 |
+| MobileNetV2 ×0.75 | 0.741 | 0.45 | +1.84 / +1.26 | +1.67 / +1.51 | −0.12 / −0.34 | 0.482 / 0.468 |
+| | | 0.20 | +1.89 / +1.36 | +2.25 / +1.21 | +0.34 / +0.04 | 0.180 / 0.165 |
+| MobileNetV2 ×1 | 0.740 | 0.45 | +2.04 / +1.01 | +1.46 / +1.85 | +1.06 / −1.04 | 0.443 / 0.398 |
+| | | 0.20 | +1.95 / +1.64 | +1.44 / +1.28 | −0.28 / +1.00 | 0.152 / 0.153 |
+| DenseNet-40 | 0.702 | 0.45 | +0.11 / +0.91 | +0.49 / +0.68 | 0.00 / 0.00 | 0.687 / 0.517 |
+| | | 0.20 | −0.49 / −0.62 | −0.58 / −0.68 | 0.00 / 0.00 | 0.332 / 0.244 |
+
+By family, network-seeds with a KD gain above zero (val / TEST 5k): thin ResNets 1 / 1 of 12 (menu agent) and 2 / 1 of 12 (prior) at 0.45, 0 / 0 of 12 on both arms at 0.20; MobileNetV2 6 / 6 of 6 on both arms at both points; VGG-BN 6 / 4 and 6 / 6 of 6 (menu agent) against 5 / 5 and 2 / 1 of 6 (prior); DenseNet-40 2 / 3 of 3 at 0.45 and 0 / 0 at 0.20 on both arms.
+
+Cost. The recovery with KD takes 1.33-1.83× the graphed recovery without it (per-network means; for example thin ResNet-56 ×8 10.1 against 6.3 minutes, VGG-16-BN 4.8 against 3.4). Running eager alone takes 0.95-1.43×; the teacher's forward pass adds the rest.
+
+The eager control. On the five residual and dense networks, eager and graphed recoveries are identical to the last digit. On VGG-BN and MobileNetV2 they differ by up to about one point on a single seed (MobileNetV2 ×1 at 0.45: val +1.06, TEST 5k −1.04), so on those two families one run's difference of about a point lies within the recovery path's own variation. The KD gains on MobileNetV2 (seed means +1.0 to +2.3 on val and TEST 5k; 24 of 24 network-seed-arm cells above zero on both) are larger and consistent.
+
+Post hoc diagnostics (science, 19 Nov, `kd/_diag444.txt` from `s19nov_kd_diag.py`, blob b6f314a, which runs the reader's loading code unchanged; reported, never a call):
+- A recovery chosen on validation per network and seed (run both, keep KD's run if its val is higher) minus the run without KD: menu agent +0.34 TEST 5k [+0.03, +0.67] at 0.45 (val +0.63, 10k +0.48; p = 0.16; KD kept on 15 of 27 network-seeds) and +0.60 [+0.17, +1.06] at 0.20 (val +0.74, 10k +0.67; p = 0.13; 12 of 27). Prior: +0.44 [+0.03, +0.93] and +0.25 [−0.05, +0.67]. This costs about 2.6 recoveries per network. [U] Part of any best-of-two gain is selection between two runs: the run without KD was not given a second seed here, so these rows do not separate KD's effect from best-of-two. The gap between val and TEST (+0.63 against +0.34 at 0.45) is the size that selection on val alone would produce.
+
+Reading:
+1. A fixed teacher recipe does not raise the menu agent on these nine networks. The decision is DROP at both points.
+2. The effect is family-shaped, not small. KD costs the four thin ResNets up to 5 points (seed means −0.13 to −4.97 TEST 5k) and gives both MobileNetV2s 1-2 points, on both arms. [H] The thin ResNets are both the narrowest students and the weakest teachers here (origins 0.53-0.70 against 0.73-0.74 for VGG-BN and MobileNetV2), so the two causes cannot be told apart on these networks. Both fit the known capacity gap: a small student can learn worse from a teacher's soft targets than from the labels alone (Cho & Hariharan, ICCV 2019; Mirzadeh et al., AAAI 2020). The VGG-BN rows point the same way: at equal FLOPs the menu agent keeps 1.6-2× the prior's params there, and KD helps the menu agent and hurts the prior at 0.20.
+3. With KD, the menu agent's lead over the prior at 0.20 widens from +2.07 to +3.01 TEST 5k, because KD costs the prior more than the agent. It is a reported row on a development set read five times, not a result.
+4. KD does not raise the ceiling as one recipe for every family. A choice of recovery per network on validation might (diagnostic above), at about 2.6× the recovery's cost and with a best-of-two effect not yet separated. [D] It is not adopted. If it is pursued, it is registered on networks no study has read, with the run without KD given the same number of runs.
+
+Not claimed: a call of any kind (KD is a validation-only screen); "distillation does not help pruning" (one recipe, untuned, nine networks, CIFAR-100); "the agent learned to distil"; any per-family KD recipe (chosen after the read); the choice of recovery on validation as adopted or as a result; any row with KD set against a literature row without saying whether that pipeline distils. Set H's fifth read is this one; it stays a development set.
+
+Records: queue row KD (registration, time correction, deploy, gate, cells and read stamps); cells 24312955-24313094; smokes 24312827-24312830; the reader `scripts/_tmp_s19nov_kd_read.py` (blob 080426c, built by `_tmp_s19nov_kd_make_reader.py`); its output `kd/_read_kd.txt`; the diagnostics `scripts/_tmp_s19nov_kd_diag.py` (b6f314a) and `kd/_diag444.txt`. Next §445.
