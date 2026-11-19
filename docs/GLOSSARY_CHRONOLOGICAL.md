@@ -607,3 +607,24 @@ The names T1 and T2 were used twice. In §6 (October) they are two early agents.
 | **tree_v36** | tree_v35 + commit b3264ed: the menu agent under `SPECTRA_PLAN_MENU`, off by default (alloc_walk also carries e17132d's default-off LAMP and global-magnitude rules). With the flag off, every job is byte-identical to tree_v35's. It serves MENU. | queue row MENU (17 Nov) |
 | **L (decision)** | Whether LAMP and a global magnitude ranking join the same-loop rules in PR and RF. The code exists, off by default. | review page (17 Nov) |
 | **S (decision)** | Whether to build a sealed test set of about 40 never-seen networks from about 10 new families, written but read only once, by the final agent. | review page (17 Nov) |
+
+## 9. 18 to 19 Nov: the first transfer calls, the wider menu screen, and the sealed set (added 19 Nov)
+
+### 9.1 Studies and results
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **LAMP** | Layer-adaptive magnitude pruning (Lee et al., ICLR 2021). In SPECTRA it is a structured, one-shot adaptation: each channel's score within its group is its magnitude over the sum of the magnitudes not smaller than it, and one threshold over all groups meets the budget. It keeps about the same number of channels in every group, so wide groups are cut hardest. | §442 |
+| **The global ranking (global magnitude)** | One threshold over every group's channel scores (each group's L1 scores over their mean), the field's common default. SPECTRA's adaptation, not any paper's pipeline. | §442 |
+| **lampF, gmF** | The two rules' cells on the FLOPs budget (`SPECTRA_ALLOC_KIND=lamp` / `global_mag`). | queue rows L, ENV |
+| **ENV** | A one-day screen (18-19 Nov) of LAMP and the global ranking on 11 of T1's held-out CIFAR-100 networks, to decide on validation alone whether stage 2 widens the menu. Result: pursued on the count, narrowly (4 of 9 networks at FLOPs 0.45, none at 0.20; the wins fall on single networks, not families). | queue row ENV; §442 |
+| **Option A / option B (stage 2)** | A: a wider menu (more rules for the agent to blend). B: features that describe each network, so the agent can choose per network rather than per family. ENV shows A pays only together with B. | review page, part "Stage 2" |
+| **Set H (development set)** | T1's 13 held-out CIFAR-100 networks. After three reads (§440, §441, §442) they are development networks: any later agent is called on networks no read has seen. | §441 |
+| **SW (Ido's question, 18 Nov)** | Swap the roles of the families: train on the less-known families and hold out the mainstream ones that published papers test on, so the held-out rows sit beside literature rows. | review page |
+
+### 9.2 Procedures and code
+
+| Term | Meaning | First appears |
+|---|---|---|
+| **The MENU keeper** | A login-node script (18 Nov) that kept MENU's jobs above T1's FLOPs evaluations by raising their nice; it ended itself when they had run. | queue row MENU |
+| **The sealed set (S)** | About 40 never-seen networks from new families (GoogLeNet, MobileNet v1, SqueezeNet, EfficientNet-B0, MobileNetV3, HarDNet, SE-ResNet, and partly DLA and ConvNeXt), written but read only once, by the final agent. The model code exists and is under review; none is trained yet. | review page (17-18 Nov) |

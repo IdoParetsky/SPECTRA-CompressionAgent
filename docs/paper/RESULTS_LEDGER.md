@@ -11873,3 +11873,71 @@ Reading:
 Not claimed: a GAIN over the prior; any call at 0.20; "the agent beats the threshold rule"; per-network adaptivity (the shares move by family); a gain at equal params (the menu agent is a FLOPs agent, and part of its gain is params); results beyond these 13 networks, two points and CIFAR-100; the no-harm row as a check (2 of 4 networks read; ShuffleNetV2's cells are masked edits). Every network here is a development network from now on: set H has been watched by two reads (§440, §441).
 
 Records: queue row MENU (read stamp, 18 Nov); trains 24260391 / 24260394 / 24260397; manifest `s17nov_menu_manifest.tsv` (MENU) and `s15nov_tp_manifest.tsv` (comparators); reader `scripts/_tmp_s17nov_menu_read.py` (`964b360`); outputs above. The road's stage-2 condition (at least a suggestive gain against the prior) is met; stage 2's design is registered before any of its cells. Next §442.
+
+## 442. (ENV: queue row ENV, registered 18 Nov 22:55 before any ENV script existed; a development screen for stage 2's option A, the wider menu; validation-only rule) — **Option A PURSUED by the registered rule, on the count alone. At FLOPs 0.45, LAMP or the global magnitude ranking is the val-best of the six plans (the four rules, LAMP, the global ranking) on 4 of T1's 9 call-set networks (rule: at least 3); the mean val-best of six minus val-best of four is +0.18 (rule: at least +0.20, not met). At 0.20 neither rule is val-best anywhere (0 of 9, +0.00). The four wins are narrow (val +0.11 to +0.80) and do not follow families. Reported (never a call; TEST 5k, val and 10k beside, honest = raw): the global ranking minus the prior +0.37 [−0.65, +1.30] at 0.45 and −4.43 [−8.41, −0.48] at 0.20; LAMP minus the prior −6.63 [−12.53, −1.13] and −7.57 [−13.04, −2.39]. LAMP collapses on the six residual networks and keeps 0.237 of params at equal FLOPs (the prior 0.387). The menu agent is above the global ranking by +0.35 at 0.45 and +6.50 at 0.20. PRELIM.**
+
+What ran. 132 evaluation cells, jobs 24308781-24308931 (manifest `s18nov_env_manifest.tsv`), on tree_v36 (the only tree with commit e17132d's `global_mag` and `lamp` alloc kinds, both default off). The eval line is T1's rule line exactly with the kind swapped: FINAL's deterministic G2, 100 epochs, keep-last, floored, grid-rounded, one cut, E1's flags on, `SPECTRA_EVAL_POLICY=alloc SPECTRA_ALLOC_KIND=lamp | global_mag` on the FLOPs budget. The cells cover 11 of the 13 networks of set H (ShuffleNetV2 ×1.5 and ×2 are left out because their cuts are masked edits), at FLOPs 0.45 and 0.20, with seeds 42-44. The gate (two 2-epoch smokes, 24308726 and 24308727) passed, read by hand on 18 Nov at about 23:15. All 132 cells were COMPLETED by 19 Nov 03:38 (IST), with none preempted. The comparators are unchanged: the cells of T1's four rules (§440) and of the menu agent (§441). The reader is `scripts/_tmp_s18nov_env_read.py` (blob `af9196a`; MENU's reader plus ENV's cells, with each kind checked in its log), registered before any cell. It read 631 FLOPs-side cells with 0 pending; the only cells dropped are ShuffleNetV2's masked edits from T1 and MENU. Output: `env/_read_env.txt` (19 Nov 03:38).
+
+Per network: val (TEST 5k), each the change in points against the network's own origin, the mean over seeds 42-44.
+
+| network | point | prior | even cut | cost-aware | threshold | LAMP | global | val-best of four | val-best of six | menu agent |
+|---|---|---|---|---|---|---|---|---|---|---|
+| r20w8* | 0.45 | -7.18 (-8.11) | -9.26 (-9.84) | -7.57 (-8.95) | -6.61 (-7.51) | -21.14 (-23.30) | -7.37 (-8.49) | threshold | threshold | -6.93 (-7.80) |
+| r20w8* | 0.20 | -19.37 (-20.93) | -19.21 (-20.97) | -18.96 (-20.05) | -19.54 (-20.71) | -34.67 (-36.16) | -21.03 (-22.55) | cost-aware | cost-aware | -19.21 (-20.22) |
+| r20w12* | 0.45 | -9.03 (-9.33) | -8.52 (-8.63) | -9.42 (-9.39) | -8.75 (-9.18) | -19.65 (-20.05) | -7.72 (-7.69) | even cut | global | -9.32 (-9.56) |
+| r20w12* | 0.20 | -19.13 (-19.35) | -18.33 (-19.50) | -19.81 (-20.27) | -20.77 (-20.90) | -32.18 (-33.10) | -19.91 (-20.59) | even cut | even cut | -19.97 (-19.93) |
+| r56w4* | 0.45 | -7.70 (-7.92) | -16.89 (-16.60) | -11.81 (-12.13) | -8.05 (-7.57) | -28.92 (-28.87) | -10.11 (-10.55) | prior | prior | -7.80 (-7.83) |
+| r56w4* | 0.20 | -25.74 (-25.25) | -29.94 (-29.91) | -31.65 (-31.77) | -24.17 (-24.24) | -39.00 (-39.67) | -30.49 (-30.62) | threshold | threshold | -23.24 (-23.61) |
+| r56w8* | 0.45 | -8.11 (-8.42) | -10.35 (-11.11) | -8.23 (-8.97) | -7.29 (-8.12) | -24.28 (-25.47) | -8.79 (-9.65) | threshold | threshold | -8.09 (-8.73) |
+| r56w8* | 0.20 | -16.53 (-17.11) | -20.55 (-21.22) | -20.22 (-21.15) | -18.50 (-19.40) | -38.65 (-38.65) | -30.59 (-31.61) | prior | prior | -18.37 (-19.08) |
+| v16* | 0.45 | -3.94 (-3.03) | -1.66 (-1.39) | -2.21 (-1.10) | -1.01 (-0.60) | -1.79 (-0.87) | -1.67 (-0.37) | threshold | threshold | -1.49 (-0.95) |
+| v16* | 0.20 | -13.93 (-13.88) | -4.54 (-3.97) | -10.38 (-9.97) | -7.39 (-6.19) | -13.33 (-12.63) | -28.00 (-27.31) | even cut | even cut | -8.41 (-7.31) |
+| v19b* | 0.45 | -1.43 (-1.48) | -1.29 (-1.85) | -0.37 (-1.77) | -0.23 (-1.18) | -0.12 (-0.69) | -0.83 (-0.90) | threshold | LAMP | -0.27 (-0.72) |
+| v19b* | 0.20 | -13.32 (-13.79) | -4.11 (-4.85) | -7.38 (-8.05) | -5.55 (-5.37) | -10.78 (-11.41) | -7.03 (-7.29) | even cut | even cut | -5.41 (-5.86) |
+| mb075* | 0.45 | -2.42 (-1.57) | -1.94 (-1.48) | -1.63 (-0.91) | -0.71 (-0.33) | -1.63 (-0.96) | -0.39 (-0.49) | threshold | global | -0.87 (-0.29) |
+| mb075* | 0.20 | -4.83 (-4.02) | -6.75 (-5.75) | -5.65 (-4.07) | -3.75 (-2.44) | -7.61 (-6.07) | -9.22 (-8.31) | threshold | threshold | -4.05 (-2.72) |
+| mb1* | 0.45 | -1.58 (-1.05) | -0.58 (-0.33) | -1.73 (-0.89) | -0.56 (+0.06) | -0.21 (+0.19) | -0.23 (+0.23) | threshold | LAMP | -0.79 (+0.03) |
+| mb1* | 0.20 | -3.70 (-2.90) | -4.72 (-4.33) | -4.05 (-2.77) | -2.46 (-1.91) | -4.62 (-4.17) | -4.97 (-4.47) | threshold | threshold | -3.42 (-2.67) |
+| dn40* | 0.45 | -3.79 (-3.56) | -4.16 (-3.47) | -1.93 (-1.53) | -3.83 (-3.55) | -4.34 (-4.13) | -3.90 (-3.21) | cost-aware | cost-aware | -2.02 (-2.09) |
+| dn40* | 0.20 | -9.97 (-9.12) | -9.92 (-9.74) | -4.97 (-3.61) | -9.17 (-9.34) | -12.51 (-12.58) | -13.67 (-13.41) | cost-aware | cost-aware | -6.87 (-6.27) |
+| pr20 | 0.45 | -2.01 (-1.49) | -3.23 (-3.11) | -2.02 (-1.74) | -1.91 (-1.85) | -10.05 (-8.75) | -2.43 (-1.53) | threshold | threshold | -2.16 (-1.99) |
+| pr20 | 0.20 | -8.13 (-7.80) | -11.69 (-10.78) | -8.27 (-7.83) | -7.69 (-7.21) | -20.09 (-20.59) | -13.39 (-13.61) | threshold | threshold | -7.37 (-7.29) |
+| wrn164 | 0.45 | -0.35 (+0.78) | -0.04 (+0.45) | -0.74 (+0.61) | -0.33 (+0.77) | -3.10 (-1.74) | -0.63 (-0.39) | even cut | even cut | -0.63 (+0.35) |
+| wrn164 | 0.20 | -3.75 (-2.55) | -5.20 (-4.48) | -3.67 (-2.99) | -4.35 (-3.71) | -9.97 (-9.74) | -4.97 (-4.75) | cost-aware | cost-aware | -4.55 (-3.73) |
+
+(* = in T1's FLOPs call set.) "prior" = floored sens_F; "even cut" = uniform; "cost-aware" = sens_cost; "threshold" = sens_thresh; "global" = the global magnitude ranking.
+
+The registered decision (validation only):
+- At 0.45, LAMP or the global ranking is the val-best of six on 4 of 9 networks, and the val-best of six minus the val-best of four is +0.18 in the mean. The rule (at least 3 networks, or at least +0.20) is met.
+- At 0.20 they are val-best on 0 of 9, and the mean is +0.00. The rule is not met.
+- **Option A: PURSUED.**
+
+| comparison (reported, never a call) | point | mean TEST 5k [95 % bootstrap] | val | 10k | exact Wilcoxon | W1 / W2 |
+|---|---|---|---|---|---|---|
+| LAMP - prior | 0.45 | **-6.63** [-12.53, -1.13] | -6.32 | -6.48 | p = 0.3594 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| LAMP - prior | 0.20 | **-7.57** [-13.04, -2.39] | -7.42 | -7.49 | p = 0.0391 (n = 9; 2 of 9 positive) | LOSS |
+| global - prior | 0.45 | **+0.37** [-0.65, +1.30] | +0.46 | +0.42 | p = 0.4258 (n = 9; 6 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| global - prior | 0.20 | **-4.43** [-8.41, -0.48] | -4.27 | -4.35 | p = 0.0742 (n = 9; 1 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| LAMP - threshold | 0.45 | **-7.35** [-13.06, -2.07] | -7.23 | -7.29 | p = 0.0273 (n = 9; 2 of 9 positive) | LOSS |
+| LAMP - threshold | 0.20 | **-9.33** [-13.36, -5.55] | -9.12 | -9.22 | p = 0.0039 (n = 9; 0 of 9 positive) | LOSS |
+| global - threshold | 0.45 | **-0.35** [-1.20, +0.40] | -0.44 | -0.39 | p = 0.9102 (n = 9; 5 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| global - threshold | 0.20 | **-6.19** [-10.71, -2.61] | -5.96 | -6.07 | p = 0.0078 (n = 9; 1 of 9 positive) | LOSS |
+| LAMP - global | 0.45 | **-7.01** [-12.12, -2.06] | -6.79 | -6.90 | p = 0.0117 (n = 9; 1 of 9 positive) | LOSS |
+| LAMP - global | 0.20 | **-3.14** [-8.25, +2.48] | -3.16 | -3.15 | p = 0.4258 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| menu agent - LAMP | 0.45 | **+7.36** [+2.31, +12.88] | +7.17 | +7.26 | p = 0.0547 (n = 9; 6 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent - LAMP | 0.20 | **+9.64** [+5.70, +13.82] | +9.38 | +9.51 | p = 0.0039 (n = 9; 9 of 9 positive) | GAIN |
+| menu agent - global | 0.45 | **+0.35** [-0.42, +1.14] | +0.38 | +0.37 | p = 0.4258 (n = 9; 6 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| menu agent - global | 0.20 | **+6.50** [+2.99, +10.73] | +6.22 | +6.36 | p = 0.0039 (n = 9; 9 of 9 positive) | GAIN |
+
+Params kept at equal FLOPs (call-set mean of the seed means; every plan lands at the same FLOPs): at 0.45, the prior 0.387, the even cut 0.472, cost-aware 0.422, threshold 0.418, LAMP 0.237, global 0.467, the menu agent 0.436; at 0.20, 0.160, 0.210, 0.187, 0.157, 0.095, 0.184 and 0.175.
+
+Reading:
+1. The rule is met at 0.45 on the count (4 of 9 networks), not on the size (+0.18 against +0.20), and not at all at 0.20. On validation, a perfect per-network chooser over the six plans would gain +0.18 at 0.45 over the same chooser over four, and nothing at 0.20. That is the most the wider menu can add on these networks, before any agent tries to find it.
+2. The four wins are narrow and do not follow families. The global ranking wins on thin ResNet-20 ×12 (val +0.80 over the even cut) but not on ×8, and on MobileNetV2 ×0.75 (+0.32 over the threshold rule). LAMP wins on MobileNetV2 ×1 (+0.35) and VGG-19-BN (+0.11), but not on VGG-16-BN. On TEST the same plan is above the val-best of four on 3 of the 4 (r20w12, v19b, mb1; mb075 is below). The menu agent of §441 chooses by family, not by network, so it cannot pick these wins. A wider menu pays only if the agent also chooses per network, which is option B.
+3. LAMP collapses on the six residual networks. At 0.45 it lands at val −21.14, −19.65, −28.92, −24.28, −10.05 and −3.10 against the origin (thin ResNet-20 ×8 and ×12, thin ResNet-56 ×4 and ×8, PreAct-ResNet-20, WRN-16-4), where the prior lands at −7.18, −9.03, −7.70, −8.11, −2.01 and −0.35. It keeps the fewest params of any plan at equal FLOPs (0.237 against the prior's 0.387). [H] In its structured form, LAMP keeps about the same number of channels in every group: a group of n equal channels scores 1/n … 1, so one global threshold keeps about 1/τ channels per group whatever its width. The widest groups, the residual streams and the late stages, are therefore cut hardest, which is the opposite of the prior's lever (keep the streams, cut the cheap groups). This is not checked in the cut logs.
+4. The global ranking is near the prior at 0.45 (+0.37, 6 of 9, reported) and well below it at 0.20 (−4.43). It is below the threshold rule at both points (−0.35, −6.19), and it keeps params like the even cut (0.467). Neither rule moves the four-rule envelope at 0.20.
+5. The menu agent stays above both (reported): +0.35 over the global ranking at 0.45 and +6.50 at 0.20 (9 of 9), and far above LAMP.
+
+Not claimed: a call of any kind (ENV is a validation-only development screen); LAMP or the global ranking as their authors' pipelines (both are SPECTRA's one-shot structured adaptations, run on SPECTRA's cut and recovery: LAMP on Lee et al.'s eq. 1 over each group's channel scores, the global ranking on the group L1 scores over their mean); any gain from a wider menu (the screen measures the plans, not an agent that picks them); anything beyond these 11 networks, two points and CIFAR-100; any mixing with PR's rows (CIFAR-10, seeds 47-48). Set H remains a development set (§441). Its third read is this screen, so stage 2's agent is called on networks no read has seen.
+
+Records: queue row ENV (registration, deploy, gate and read stamps); cells 24308781-24308931; smokes 24308726 and 24308727; the reader `scripts/_tmp_s18nov_env_read.py` (`af9196a`, built by `_tmp_s18nov_env_make_reader.py`); its output `env/_read_env.txt`. Next §443.
