@@ -619,8 +619,12 @@ The names T1 and T2 were used twice. In §6 (October) they are two early agents.
 | **lampF, gmF** | The two rules' cells on the FLOPs budget (`SPECTRA_ALLOC_KIND=lamp` / `global_mag`). | queue rows L, ENV |
 | **ENV** | A one-day screen (18-19 Nov) of LAMP and the global ranking on 11 of T1's held-out CIFAR-100 networks, to decide on validation alone whether stage 2 widens the menu. Result: pursued on the count, narrowly (4 of 9 networks at FLOPs 0.45, none at 0.20; the wins fall on single networks, not families). | queue row ENV; §442 |
 | **Option A / option B (stage 2)** | A: a wider menu (more rules for the agent to blend). B: features that describe each network, so the agent can choose per network rather than per family. ENV shows A pays only together with B. | review page, part "Stage 2" |
-| **Set H (development set)** | T1's 13 held-out CIFAR-100 networks. After three reads (§440, §441, §442) they are development networks: any later agent is called on networks no read has seen. | §441 |
+| **Set H (development set)** | T1's 13 held-out CIFAR-100 networks. After four reads (§440-§443) they are development networks: any later agent is called on networks no read has seen. | §441 |
 | **SW (Ido's question, 18 Nov)** | Swap the roles of the families: train on the less-known families and hold out the mainstream ones that published papers test on, so the held-out rows sit beside literature rows. | review page |
+| **PICK** | Stage 2's option B in its cheapest form (19 Nov): on each network, plan with the menu agent and with all six rules, fine-tune each plan for one epoch, score it on the validation half, and keep the best. It is the safety net's judge with seven options instead of two. Dropped by its validation rule. | §443 |
+| **Seven-way, five-way and two-way pick** | The same one-epoch check over different sets of plans: all seven (the menu agent, the prior, the even cut, the cost-aware rule, the threshold rule, LAMP, the global ranking); five (without LAMP and the global ranking); two (the menu agent or the prior, the safety net's original form). Each pick reproduces an existing run exactly, so every form is scored from the same runs. | §443 |
+| **The pick's regret** | How much a perfect chooser would gain over the pick if it could see each plan's validation accuracy after the full 100-epoch recovery. Small regret means the cheap check already reaches the best plan's accuracy. | §443 |
+| **A recovery that never trained** | A 100-epoch fine-tune whose training loss stays at chance (ln 100 on CIFAR-100) from the first epoch, so the network ends at chance accuracy. Seen once in about 1,950 logs: VGG-16-BN, the global ranking at FLOPs 0.20, seed 44. | §443 |
 
 ### 9.2 Procedures and code
 

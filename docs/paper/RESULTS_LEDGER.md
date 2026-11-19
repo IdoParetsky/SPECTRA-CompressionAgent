@@ -11941,3 +11941,84 @@ Reading:
 Not claimed: a call of any kind (ENV is a validation-only development screen); LAMP or the global ranking as their authors' pipelines (both are SPECTRA's one-shot structured adaptations, run on SPECTRA's cut and recovery: LAMP on Lee et al.'s eq. 1 over each group's channel scores, the global ranking on the group L1 scores over their mean); any gain from a wider menu (the screen measures the plans, not an agent that picks them); anything beyond these 11 networks, two points and CIFAR-100; any mixing with PR's rows (CIFAR-10, seeds 47-48). Set H remains a development set (§441). Its third read is this screen, so stage 2's agent is called on networks no read has seen.
 
 Records: queue row ENV (registration, deploy, gate and read stamps); cells 24308781-24308931; smokes 24308726 and 24308727; the reader `scripts/_tmp_s18nov_env_read.py` (`af9196a`, built by `_tmp_s18nov_env_make_reader.py`); its output `env/_read_env.txt`. Next §443.
+
+## 443. (PICK: queue row PICK, registered 19 Nov 03:51 IST before any PICK script or tree existed; stage 2's option B in its cheapest form, a per-network pick on validation; validation-only rule) — **DROP by the registered rule. A one-epoch validation check (ft1, the safety net's judge) chose per network among the menu agent's plan and the six rules' plans (the prior, the even cut, cost-aware, threshold, LAMP, the global ranking). Over T1's 9 call-set networks it adds +0.15 val over the menu agent at FLOPs 0.45 (TEST 5k +0.25 [+0.07, +0.43], 10k +0.20; 6 of 9 positive) and −1.94 at 0.20 (TEST −1.95). The rule asked for at least +0.20 at one point and more than −0.20 at both. Every cell reproduced its picked plan's own earlier run exactly (66 of 66). The loss at 0.20 is one network: on VGG-16-BN the check chose the global ranking on all three seeds, by one validation image over the even cut, and on seed 44 that plan's 100-epoch recovery never trained (the loss stayed at ln 100 for all 100 epochs; val 0.009). The other eight networks give +0.27 val at 0.20. Reported, never a call. PRELIM.**
+
+What ran. 66 evaluation cells, jobs 24311332-24311397 (manifest `s19nov_pick_manifest.tsv`), on tree_v37 (tree_v36 plus commit 73c748a: the fallback's prior list may also name the threshold rule, LAMP and the global ranking, default off). They ran 19 Nov 04:13-07:31 IST, 15.3 GPU-hours, all COMPLETED, no preemption. The eval line is T1's exactly (FINAL's deterministic G2, 100 epochs, keep-last, floored, grid-rounded, one cut, E1's flags on), with the policy swapped for the fallback: `SPECTRA_ALLOC_KIND=fallback`, priors `sens,uniform,sens_cost,sens_thresh,lamp,global_mag`, the menu agent of the cell's seed (MENU's m1f policies), proxies ft1, cut and bn8 (ft1 decides), margin 0. Two points (FLOPs 0.45, 0.20), seeds 42-44, 11 networks of set H (ShuffleNetV2 is excluded, its cuts are masked). The gate (two smokes, read by hand 04:10 IST) passed: each picked plan was identical, line for line, to its own row's plan. Every other arm's row comes from runs already read: the menu agent's from MENU (§441), the four rules' from T1 (§440, B4's cells where B4 ran that rule), LAMP's and the global ranking's from ENV (§442).
+
+Exactness (registered): in all 66 cells the pick recomputed from the logged scores equals the logged pick, and the cell's own row equals the picked arm's own row on val and TEST 5k within 1e-6. So a pick reproduces an existing run, and every subset of the seven plans can be scored from runs already made.
+
+Per network: val (TEST 5k), each the change in points against the network's own origin, the mean over seeds 42-44.
+
+| network | point | picks (s42 / s43 / s44) | seven-way pick | menu agent | pick − menu agent | the pick's minutes |
+|---|---|---|---|---|---|---|
+| r20w8* | 0.45 | threshold / threshold / threshold | -6.61 (-7.51) | -6.93 (-7.80) | +0.31 (+0.29) | 0.9 |
+| r20w8* | 0.20 | menu agent / threshold / menu agent | -19.64 (-20.93) | -19.21 (-20.22) | -0.43 (-0.71) | 0.8 |
+| r20w12* | 0.45 | menu agent ×3 | -9.32 (-9.56) | -9.32 (-9.56) | +0.00 (+0.00) | 0.9 |
+| r20w12* | 0.20 | threshold ×3 | -20.77 (-20.90) | -19.97 (-19.93) | -0.80 (-0.97) | 0.8 |
+| r56w4* | 0.45 | threshold ×3 | -8.05 (-7.57) | -7.80 (-7.83) | -0.25 (+0.26) | 4.6 |
+| r56w4* | 0.20 | menu agent ×3 | -23.24 (-23.61) | -23.24 (-23.61) | +0.00 (+0.00) | 4.3 |
+| r56w8* | 0.45 | threshold ×3 | -7.29 (-8.12) | -8.09 (-8.73) | +0.81 (+0.61) | 4.1 |
+| r56w8* | 0.20 | menu agent / menu agent / threshold | -18.49 (-18.93) | -18.37 (-19.08) | -0.12 (+0.15) | 3.7 |
+| v16* | 0.45 | global ×3 | -1.67 (-0.37) | -1.49 (-0.95) | -0.18 (+0.58) | 1.2 |
+| v16* | 0.20 | global ×3 | -28.00 (-27.31) | -8.41 (-7.31) | -19.59 (-20.00) | 1.2 |
+| v19b* | 0.45 | threshold / threshold / menu agent | -0.43 (-0.91) | -0.27 (-0.72) | -0.17 (-0.19) | 1.6 |
+| v19b* | 0.20 | menu agent / even cut / menu agent | -4.06 (-4.84) | -5.41 (-5.86) | +1.35 (+1.02) | 1.6 |
+| mb075* | 0.45 | threshold ×3 | -0.71 (-0.33) | -0.87 (-0.29) | +0.16 (-0.03) | 3.9 |
+| mb075* | 0.20 | menu agent ×3 | -4.05 (-2.72) | -4.05 (-2.72) | +0.00 (+0.00) | 3.9 |
+| mb1* | 0.45 | LAMP ×3 | -0.21 (+0.19) | -0.79 (+0.03) | +0.58 (+0.16) | 4.2 |
+| mb1* | 0.20 | menu agent / threshold / menu agent | -3.19 (-2.39) | -3.42 (-2.67) | +0.23 (+0.29) | 4.6 |
+| dn40* | 0.45 | cost-aware ×3 | -1.93 (-1.53) | -2.02 (-2.09) | +0.09 (+0.56) | 4.2 |
+| dn40* | 0.20 | cost-aware ×3 | -4.97 (-3.61) | -6.87 (-6.27) | +1.91 (+2.65) | 3.7 |
+| pr20 | 0.45 | prior / prior / menu agent | -2.10 (-1.31) | -2.16 (-1.99) | +0.06 (+0.69) | 0.9 |
+| pr20 | 0.20 | menu agent / threshold / threshold | -7.53 (-7.21) | -7.37 (-7.29) | -0.15 (+0.07) | 0.8 |
+| wrn164 | 0.45 | threshold / cost-aware / cost-aware | -0.53 (+0.83) | -0.63 (+0.35) | +0.11 (+0.47) | 0.9 |
+| wrn164 | 0.20 | threshold / cost-aware / prior | -4.01 (-2.96) | -4.55 (-3.73) | +0.55 (+0.77) | 0.8 |
+
+(* = in T1's FLOPs call set.) "prior" = floored sens_F; "even cut" = uniform; "cost-aware" = sens_cost; "threshold" = sens_thresh; "global" = the global magnitude ranking.
+
+The registered decision (validation only):
+- At 0.45, the seven-way pick minus the menu agent, mean val over the 9: +0.15 (TEST 5k +0.25, 10k +0.20).
+- At 0.20: −1.94 (TEST 5k −1.95, 10k −1.95).
+- The rule (at least +0.20 at 0.45 or at 0.20, and above −0.20 at both) is not met. **The pick: DROP.**
+
+| comparison (reported, never a call) | point | mean TEST 5k [95 % bootstrap] | val | 10k | exact Wilcoxon | W1 / W2 |
+|---|---|---|---|---|---|---|
+| seven-way pick - menu agent | 0.45 | **+0.25** [+0.07, +0.43] | +0.15 | +0.20 | p = 0.0547 (n = 8; 6 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| seven-way pick - menu agent | 0.20 | **-1.95** [-6.69, +0.85] | -1.94 | -1.95 | p = 1.0000 (n = 7; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| seven-way pick - prior | 0.45 | **+0.97** [+0.44, +1.56] | +1.00 | +0.98 | p = 0.0078 (n = 9; 8 of 9 positive) | GAIN |
+| seven-way pick - prior | 0.20 | **+0.12** [-3.89, +3.63] | +0.01 | +0.07 | p = 0.8438 (n = 8; 5 of 9 positive) | LEVEL / INCONCLUSIVE |
+| seven-way pick - threshold rule | 0.45 | **+0.25** [-0.06, +0.73] | +0.09 | +0.17 | p = 0.4375 (n = 5; 4 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| seven-way pick - threshold rule | 0.20 | **-1.64** [-6.96, +1.92] | -1.68 | -1.66 | p = 0.6562 (n = 8; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| five-way pick (no LAMP, no global) - menu agent | 0.45 | **+0.17** [+0.00, +0.35] | +0.22 | +0.19 | p = 0.2109 (n = 8; 5 of 9 positive) | LEVEL / INCONCLUSIVE |
+| five-way pick (no LAMP, no global) - menu agent | 0.20 | **+0.64** [-0.18, +1.59] | +0.67 | +0.65 | p = 0.2969 (n = 7; 5 of 9 positive) | LEVEL / SUGGESTIVE GAIN |
+| two-way pick (menu agent or prior) - menu agent | 0.45 | **+0.01** [+0.00, +0.02] | +0.03 | +0.02 | p = 1.0000 (n = 1; 1 of 9 positive) | LEVEL / EQUIVALENT |
+| two-way pick (menu agent or prior) - menu agent | 0.20 | **-0.06** [-0.19, +0.02] | -0.05 | -0.05 | p = 1.0000 (n = 2; 1 of 9 positive) | LEVEL / EQUIVALENT |
+| val-best of seven after the full recovery - seven-way pick (the pick's regret) | 0.45 | **+0.05** [-0.21, +0.38] | +0.51 | +0.28 | p = 1.0000 (n = 9; 5 of 9 positive) | LEVEL / INCONCLUSIVE |
+| val-best of seven after the full recovery - seven-way pick | 0.20 | **+3.21** [+0.38, +8.38] | +3.43 | +3.32 | p = 0.0117 (n = 9; 8 of 9 positive) | GAIN |
+| seven-way pick by cut - menu agent | 0.45 | **+0.04** [-0.19, +0.29] | -0.02 | +0.01 | p = 0.9375 (n = 9; 3 of 9 positive) | LEVEL / EQUIVALENT |
+| seven-way pick by cut - menu agent | 0.20 | **-2.36** [-5.01, -0.05] | -2.17 | -2.26 | p = 0.0742 (n = 9; 1 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| seven-way pick by bn8 - menu agent | 0.45 | **+0.13** [-0.06, +0.33] | -0.08 | +0.03 | p = 0.3125 (n = 8; 4 of 9 positive) | LEVEL / INCONCLUSIVE |
+| seven-way pick by bn8 - menu agent | 0.20 | **-2.43** [-7.27, +0.78] | -2.43 | -2.43 | p = 0.4961 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| seven-way pick - menu agent, the two networks outside the call set (pr20, wrn164) | 0.45 | **+0.58** [+0.47, +0.69] | +0.08 | +0.33 | p = 0.5000 (n = 2; 2 of 2 positive) | LEVEL / SUGGESTIVE GAIN |
+| the same | 0.20 | **+0.42** [+0.07, +0.77] | +0.20 | +0.31 | p = 0.5000 (n = 2; 2 of 2 positive) | LEVEL / SUGGESTIVE GAIN |
+
+Params kept at equal FLOPs (call-set mean of the seed means): at 0.45, the seven-way pick 0.446, the menu agent 0.436, the prior 0.387, the threshold rule 0.418; at 0.20, 0.207, 0.175, 0.160 and 0.157. The pick takes 2.4 min per cell on average (at most 4.7): seven plans and three proxies each.
+
+Post hoc diagnostics (science, 19 Nov, `pick/_diag443.py` on the reader's own rows; reported, never a call):
+- VGG-16-BN at 0.20. The ft1 scores were 0.2346 for the global ranking and 0.2344 for the even cut on every seed: one image of the 5,000-image validation half. Neither plan depends on the seed, and the check scored each identically on all three seeds (as it did LAMP's), so the same plan won on all three. Its full recoveries landed at val −5.64, −5.26 and −73.10 (TEST −4.40, −4.60, −72.94); the even cut's at −4.70, −4.48 and −4.44. On seed 44 the 100-epoch recovery never trained: the training loss was 4.6107 after epoch 1 and 4.6052 after epoch 100 (ln 100 = 4.6052), with no NaN, and val ended at 0.0092. ENV's own cell (24308846) is the same run and shows the same, so §442's VGG-16 row for the global ranking at 0.20 (−28.00) contains this one dead recovery. §442's decision is unchanged: without that seed the global ranking's row is −5.45, still below the even cut. A scan of every final fine-tune log in tree_v35, tree_v36 and tree_v37 (about 1,950 logs, T1, MENU, ENV and PICK) finds no other recovery that ended at chance loss.
+- Without VGG-16-BN (8 networks), the seven-way pick minus the menu agent is +0.19 val at 0.45 (TEST +0.21) and +0.27 at 0.20 (TEST +0.30). The 0.45 figure stays under the bar either way. On those eight, LAMP and the global ranking are never picked at 0.20, so the seven-way and five-way picks coincide there.
+- The pick chooses the plan that is val-best after the full recovery on 9 of 27 network-seeds at 0.45 and 7 of 27 at 0.20. Its regret on the eight networks other than VGG-16 is +0.13 TEST (val +0.46) at 0.45 and +0.69 TEST (val +0.93) at 0.20.
+- The one-epoch check misses at 0.20 in a consistent direction. On thin ResNet-20 ×12 it chooses the threshold rule on all three seeds, and the even cut is val-best after recovery by 2.0-2.6. On thin ResNet-56 ×8 it chooses the menu agent or the threshold rule, and the prior is best by 1.5-2.7.
+
+Reading:
+1. The registered pick does not pay. At 0.45 it adds +0.15 on validation (+0.25 on TEST), close to the +0.20 bar but below it with or without VGG-16. At 0.20 one recovery that never trained turns it into a loss.
+2. At 0.45 the per-network choice among these seven plans is nearly exhausted. The menu agent sits +0.73 over the prior (§441). The pick adds +0.25 on TEST. A perfect val chooser over the seven full recoveries would add only +0.05 more on TEST, even though the one-epoch check finds its plan on only 9 of 27 network-seeds. The seven plans are close at 0.45. Further gains there must come from plans outside these seven or from the recovery, not from choosing among them.
+3. At 0.20 there is room (+0.69 TEST of regret on the eight networks), but the one-epoch check does not find it. [H] At 0.20, one epoch measures how fast a plan recovers early, not where it ends after 100 epochs. A longer check might rank better, at a higher cost.
+4. A dead recovery is a hazard of the pipeline, not of the check. It is rare (1 of about 1,950 logs) and seed-dependent (the same plan recovered on seeds 42 and 43), and a judge whose fine-tune does not depend on the seed cannot see it. [H] A pruned VGG without residual paths, at learning rate 0.1 with no warm-up, can lose every unit in the first steps. Nothing in the logs checks this.
+5. The two-way form of the safety net (the menu agent or the prior) is EQUIVALENT to the menu agent at both points (+0.01, −0.06 TEST): on these networks the old safety net never changes the menu agent's plan in a way that matters.
+6. The five-way pick, which drops LAMP and the global ranking, would have met the rule (+0.22 val at 0.45, +0.67 at 0.20). It is a subset chosen after the read on a development set, so it is not adopted here. [D] It is a candidate for networks no study has read: the sealed set, registered there before any of its cells runs, beside the menu agent alone.
+
+Not claimed: a call of any kind (PICK is a validation-only development step); "the agent learned to choose per network" (the pick is a fixed probe, not learned); the five-way pick as adopted or as a result; any pick, rule or network chosen on TEST; LAMP or the global ranking as their authors' pipelines; anything beyond these 11 networks, two points and CIFAR-100; any mixing with PR's rows. Set H's fourth read is this one. It stays a development set, and stage 2's system is called only on networks no read has seen.
+
+Records: queue row PICK (registration, the time correction, deploy, gate, cells and read stamps); cells 24311332-24311397; smokes 24311226 and 24311227; the reader `scripts/_tmp_s19nov_pick_read.py` (`79746c8`, built by `_tmp_s19nov_pick_make_reader.py`); its output `pick/_read_pick.txt`; the diagnostics `pick/_diag443.py` and `pick/_diag443.txt`. Next §444.
