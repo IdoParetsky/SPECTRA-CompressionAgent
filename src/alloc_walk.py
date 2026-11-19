@@ -98,6 +98,10 @@ KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample"
          "sens_cost_at", "sens_curve", "sens_thresh", "global_mag", "lamp")
 MAGNITUDE_KINDS = ("global_mag", "lamp")
 FALLBACK_PRIORS = ("sens", "sens_cost")
+# the further rules a list of two or more priors may name: ``uniform`` (v32, FB-BENCH) and, v37 (queue row PICK, default
+# off: only names v36 refused), the threshold rule and the two magnitude rules. Each is planned exactly as its own row
+# plans it (the row's calibration draw, then ``plan_targets``), so the fallback's exactness contract is unchanged.
+FALLBACK_MORE = ("uniform", "sens_thresh", "global_mag", "lamp")
 SAMPLE_AROUND = ("sens", "uniform")
 BUDGETS = ("params", "flops")
 
@@ -271,11 +275,12 @@ def randbest_draws(n, n_groups, sigma, seed):
 def fallback_priors() -> list:
     """``SPECTRA_ALLOC_FALLBACK_PRIOR`` (no default): the hand rules ``fallback`` plans with beside the agent, a
     comma-separated list in order (blanks stripped, lower-cased, empty items dropped, no duplicates), each one of
-    ``FALLBACK_PRIORS`` (``sens``, ``sens_cost``) and, in a list of two or more (v32, FB-BENCH), ``uniform`` too. One
-    name is the v27 setting exactly (``uniform`` alone stays refused, as before)."""
+    ``FALLBACK_PRIORS`` (``sens``, ``sens_cost``) and, in a list of two or more, ``FALLBACK_MORE`` too (``uniform``, v32,
+    FB-BENCH; ``sens_thresh``, ``global_mag`` and ``lamp``, v37, PICK). One name is the v27 setting exactly (a lone
+    further rule stays refused, as ``uniform`` alone was)."""
     raw = os.environ.get("SPECTRA_ALLOC_FALLBACK_PRIOR", "")
     names = [n.strip().lower() for n in raw.split(",") if n.strip()]
-    allowed = FALLBACK_PRIORS + (("uniform",) if len(names) > 1 else ())
+    allowed = FALLBACK_PRIORS + (FALLBACK_MORE if len(names) > 1 else ())
     if not names or any(n not in allowed for n in names):
         bad = next((n for n in names if n not in allowed), raw.strip().lower())
         raise ValueError(f"SPECTRA_ALLOC_KIND=fallback needs SPECTRA_ALLOC_FALLBACK_PRIOR set to one of "
