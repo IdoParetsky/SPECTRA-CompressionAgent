@@ -12227,3 +12227,51 @@ Reading:
 Not claimed: any number here as a result (a screen; TEST beside val only by the registration); the prior's gap over the even cut as a comparison of methods (one seed, no origin control); honest; that the sealed families will recover like these.
 
 Records: queue row REC-SW (gate, train gate and read stamps, 20 Nov); manifest `s20nov_recsw_manifest.tsv`; networks `s20nov_recsw_nets.tsv`; scripts `scripts/_tmp_s20nov_recsw_submit.sh` (`077e29a`), `scripts/_tmp_s20nov_recsw_chain.sh` (`08f86b2`), reader `scripts/_tmp_s20nov_recsw_read.py` (registered `c928acc`; amendment a1 `bea75cc`); outputs `recsw/_read_recsw.txt` and `recsw/_read_recsw_a1.txt`; verdict files `s20nov_recsw_gate.txt`, `s20nov_recsw_trgate.txt`. Next §447.
+
+## 447. (LIT-SEAL: the sealed read's published points, verified at the source; science, 20 Nov; no GPU, no cell, no call) — **DepGraph publishes no parameter count.** Its Table 1 gives speed-ups only (MACs of the base over MACs of the pruned network). So the parameter values that earlier sections and the draft attributed to DepGraph (0.470 at 2.11×, 0.382 at 2.57×) were SPECTRA's own landings at DepGraph's FLOPs points; they are withdrawn as DepGraph's, and every run and number of those sections stands. **Published structured-pruning points exist for 18 of the 38 sealed networks** (16 on primary sources read this sitting). The rule that turns them into the sealed read's literature points is fixed here, before any sealed cell.
+
+What was done. Two read-only scans by the literature subagent, checked by science against the quoted tables:
+- the repo's own records (ledger, draft, queue rows BENCH, FB-BENCH, RT-VGG, RUNTIME and IMN, the literature files) for every published point on the 19 sealed architectures × CIFAR-10 and CIFAR-100;
+- the primary sources on the web (arXiv and CVF PDFs and HTML; each paper's own table, reprints marked as such), with the values quoted.
+
+Both are committed: `docs/paper/lit/LIT_SEALED_REPO_20NOV.md` and `docs/paper/lit/LIT_SEALED_WEB_20NOV.md` (URLs in the latter's §5).
+
+**Verification** (each against the paper's own table):
+
+| Item | Recorded before | At the source | Change |
+|---|---|---|---|
+| DepGraph [12], Table 1 | params kept 0.470 (2.11×) and 0.382 (2.57×), "as published" | columns "Model / Data, Method, Base, Pruned, Δ Acc., Speed Up", with Speed Up = MACs(base) / MACs(pruned); no parameter count for any CIFAR model | withdrawn as DepGraph's. Its released 2.11× model keeps 0.504 by its own pipeline's log and 0.508 on our counter (§234, §346). The params 0.47 and 0.38 points are SPECTRA's landings at DepGraph's FLOPs points |
+| DepGraph, ResNet-56 CIFAR-10 | 2.11× +0.24; 2.11× without SL −0.07; 2.57× +0.11 | the same, plus a row not recorded before: without SL, 2.51×, 93.53 → 93.36, −0.17 | row added to the literature file |
+| DepGraph, VGG-19 CIFAR-100, without SL | 8.92×, −5.90 | 8.87×, printed Δ −5.44; its accuracies (73.50 → 67.60) give −5.90 | 8.87×; Δ from the accuracies, the printed value captioned. The headline row (with SL) is 8.92×, −3.11, as recorded |
+| HRank, ResNet-56 CIFAR-10 | 93.26 → 93.17 at 50.0 % FLOPs ↓, 42.4 % params ↓ | the same. The "92.17" in the reprints of DepGraph, NPPM and ATO is a typo | none |
+| GReg, VGG-19 CIFAR-100 | GReg-1 −6.67 | GReg's Table 2 prints 6.67 and 6.47; its accuracies (74.02 → 67.55 / 67.75) give 6.47 and 6.27 | Δ from the accuracies; the printed values captioned |
+| OCSPruner, VGG-19 CIFAR-100, pretrained start | −3.64 in one document | 73.58 → 69.98, printed 3.64; the accuracies give 3.60 | −3.60, the printed value captioned |
+| FPGM, ResNet-56 CIFAR-10 | 52.6 % ↓, and DepGraph's reprint at 1.70× | FPGM's own Table 1 prints 52.6 % ↓ (kept 0.474) on every ResNet-56 row; the 1.70× has no source in FPGM | FPGM quoted at its own 0.474 |
+
+**Coverage of the 38 sealed networks.**
+- Verified published points (16): ResNet-20, -32, -56 and -110 on both datasets; VGG-16 and VGG-19 on both; MobileNetV2 ×1 on CIFAR-10; DenseNet-40 on both (every source uses the non-bottleneck DenseNet-40, while the sealed one is the bottleneck version); GoogLeNet on CIFAR-10.
+- One low-tier source only (2): ResNet-44 CIFAR-10 (GNN-RL, as recorded, not re-verified; one preprint) and WRN-16-4 CIFAR-100 (one preprint).
+- Ablation rows only (2): MobileNetV2 ×1 and GoogLeNet on CIFAR-100 (DepGraph's Table 2).
+- None (18): VGG-11 and VGG-13 on both datasets (LeGR's "VGG-13" rows imply a VGG-16-sized base [H]); MobileNetV2 ×0.5, ×0.75 and ×1.4 on both; WRN-28-2 on both; PreAct-ResNet-20 on both; GoogLeNet ×0.5 on both; WRN-16-4 CIFAR-10; ResNet-44 CIFAR-100.
+
+**Variant and counter caveats**, captioned beside every literature row:
+- **ResNet shortcuts.** HRank, CHIP, ABCPruner, SFP, FPGM and PFEC use parameter-free zero-pad shortcuts (LFPC too [H]), and TAS uses average pooling plus a 1×1 conv. Only DepGraph's ResNet-56 has 1×1-conv shortcuts like the sealed ResNets; those convs are under 1 % of MACs [H].
+- **VGG heads.** The VGG-16 of HRank, GAL and CHIP is PFEC's (two FC layers); the VGG-19 of GReg, Slimming and OCSPruner has one FC layer [H]. The sealed VGG-BN networks have three.
+- **DenseNet-40** is the non-bottleneck network in every source; the sealed one is the bottleneck version.
+- **GoogLeNet.** HRank's is the kuangliu network, as the sealed one is [H].
+- **Counters.** Theirs count the MACs of conv and linear layers; ours also count normalisations and activations, so at one cut ours reads 0.2–2 % (relative) higher (§412).
+
+**The literature-point rule** (fixed here; the sealed read's row lists the points it yields, computed from the committed web file before any sealed cell):
+1. Take each pair with verified headline rows. Leave out ablation rows, dynamic methods, rows without retraining, low-tier preprints, and reprints where the original exists.
+2. Sort the FLOPs-kept values; a new cluster starts where neighbours differ by more than 0.03.
+3. Rank the clusters by the number of distinct methods, ties to the deeper. Take the top two that hold at least two distinct methods, each at its median rounded to 0.01.
+4. A point within 0.01 of a standard point (0.45 or 0.20) is read from that point's cells, captioned with the difference; any other point gets its own cells, targeted on our counter.
+
+**Readings.**
+1. The withdrawn attribution changes no number and no call: the params 0.38 and 0.47 rows were always SPECTRA's own landings, at DepGraph's FLOPs points. What changes is the comparison "SPECTRA keeps more parameters than DepGraph at equal FLOPs" (draft §5.1): DepGraph's side of it was never published. Only OCSPruner's 0.42 at FLOPs 0.39 is published.
+2. The literature covers the sealed read's mainstream networks (ResNet-56 and -110, VGG-16 and -19) densely and its widths and variants (MobileNetV2 widths, WRN, PreAct, GoogLeNet ×0.5, VGG-11 and -13) not at all. Those networks carry the same-loop rules only, which is where the read's call lives in any case.
+3. Several of the reprints that tables commonly copy are wrong (HRank's 92.17, FPGM's 1.70×, TAS's SFP and FPGM drops, SCOP's DCP row). Published rows are quoted from the originals only.
+
+Not claimed: any published value as a same-loop comparator; any comparison with a published row as a beat (different recipes, baselines, variants and counters); the ablation rows as operating points.
+
+Records: `docs/paper/lit/LIT_SEALED_REPO_20NOV.md`, `docs/paper/lit/LIT_SEALED_WEB_20NOV.md`; draft §4.1, §4.3 and §5.1 corrected in the same commit. Next §448.
