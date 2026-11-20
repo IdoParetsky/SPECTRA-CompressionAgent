@@ -59,7 +59,7 @@ Every result table, the new ones included, is PRELIM until it is locked. TEST 5k
 | Two-more-rules row (new; in §5.8) | A validation-only screen for stage 2's wider menu: LAMP and the global ranking (SPECTRA's structured, one-shot adaptations) against the prior, the threshold rule and the menu agent at FLOPs 0.45 and 0.20, nine networks, params kept beside; reported, never a call | §442 | PRELIM |
 | Per-network-pick row (new; in §5.8, after the two-more-rules row) | A validation-only step for stage 2's option B: a one-epoch pick on validation among the menu agent and six rules, against the menu agent at FLOPs 0.45 and 0.20, nine networks; the five-way and two-way forms and a perfect chooser's regret beside; the one recovery that never trained named beside the 0.20 row; DROP by its rule; reported, never a call | §443 | PRELIM |
 | Distillation row (new; in §5.8, after the per-network-pick row) | A validation-only screen for stage 2's option D: the unpruned network as teacher during the 100-epoch recovery, the menu agent and the prior each with and without it, FLOPs 0.45 and 0.20, nine networks; the split by family (thin ResNets lose, MobileNetV2 gains) and the cost (1.3–1.8×) beside; the recovery chosen on validation as a post hoc diagnostic; DROP by its rule; reported, never a call | §444 | PRELIM |
-| T2 table (new) | Per fold and pooled over the folds: the gain without the family, and non-inferiority to the T1 agent. ShuffleNetV2's FLOPs rows are reported only | queue row T2; § to come | waits on T2 |
+| T2 table (new) | Per fold and pooled over the folds: the gain without the family, and non-inferiority to the T1 agent. ShuffleNetV2's FLOPs rows are reported only | §445 | PRELIM (FLOPs side: FAMILY-LEVEL, NOT NON-INFERIOR; the params folds did not run); in §5.8 after T1's table |
 
 **Figures**
 
@@ -126,7 +126,7 @@ Claude Code is now the sole SPECTRA agent; the separate ops agent is retired.
 
 **Next, in order.**
 1. T1's FLOPs call reads first, then its params call. Each gets a ledger section, then the draft's T1 subsection, then this map's status.
-2. T2's FLOPs folds run now; its params folds start only if T1's params call reads GAIN.
+2. T2's FLOPs folds are read (§445: FAMILY-LEVEL; NOT NON-INFERIOR, −0.35 against the T1 agent); its params folds start only if T1's params call reads GAIN.
 3. The all-rules ranking of the room screens is ledgered with TEST beside val (§439); a prior study for later studies waits on Ido.
 4. Build the final Table 2 from §405 and §406, with §413 and §416 below the training range.
 5. Draw the Pareto panels and the coverage map; refresh the map after T1–T2.

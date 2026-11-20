@@ -12094,3 +12094,48 @@ Reading:
 Not claimed: a call of any kind (KD is a validation-only screen); "distillation does not help pruning" (one recipe, untuned, nine networks, CIFAR-100); "the agent learned to distil"; any per-family KD recipe (chosen after the read); the choice of recovery on validation as adopted or as a result; any row with KD set against a literature row without saying whether that pipeline distils. Set H's fifth read is this one; it stays a development set.
 
 Records: queue row KD (registration, time correction, deploy, gate, cells and read stamps); cells 24312955-24313094; smokes 24312827-24312830; the reader `scripts/_tmp_s19nov_kd_read.py` (blob 080426c, built by `_tmp_s19nov_kd_make_reader.py`); its output `kd/_read_kd.txt`; the diagnostics `scripts/_tmp_s19nov_kd_diag.py` (b6f314a) and `kd/_diag444.txt`. Next §445.
+
+## 445. (T2, FLOPs side: queue row T2, registered 15 Nov 10:47 with T1, amended 15 Nov 11:40 before any train ran (the FLOPs folds without ShuffleNetV2); the transfer program's second study, whole families withheld) — **FAMILY-LEVEL, and NOT NON-INFERIOR to the T1 agent. Pooled over the three FLOPs folds on the 9-network call set at FLOPs 0.45, each network read by the fold that withheld its family: T2 agent − FLOPs prior (floored sens_F) TEST 5k −0.52 [−0.98, −0.10], val −0.32, 10k −0.42, honest = raw (shared origin); exact Wilcoxon p = 0.074, 2 of 9 positive (W2: SUGGESTIVE LOSS). T2 agent − T1 agent TEST 5k −0.35 [−0.55, −0.13], val −0.16, 10k −0.26 (p = 0.027, 2 of 9; reported); the bootstrap lower bound −0.55 is below the registered −0.3 margin. Withholding a family costs the FLOPs agent about a third of a point at 0.45: −0.13 on the thin ResNets, −0.52 on VGG-BN and DenseNet-40, −0.52 on MobileNetV2 (folds reported, not called). PRELIM.**
+
+What ran. Trains: t2f-f1 / f2 / f3, seeds 42 / 43 / 44 (jobs 24185483, 24185486, 24185492; 24185493, 24185495, 24185496; 24185497, 24185498, 24185504; tree_v35; one segment each; the last, f3 seed 44, done 19 Nov 14:23 IST), each on T1's FLOPs line (t1f: residual on floored sens_F at zmax 0.3, kappa 0.35-0.85, proxy cut, 24,000 instances) with only the catalog changed: T1's 39-network FLOPs catalog minus the fold's families (f1 without the thin ResNet-20 and thin ResNet-56 families, 27 networks; f2 without VGG-BN and DenseNet, 33; f3 without MobileNetV2, 34; ShuffleNetV2 is in no FLOPs catalog, §439; f4, PreAct-ResNet and WRN, has no network with room at equal FLOPs and was not trained). Evaluations: each fold's agent on its left-out networks of set H at FLOPs 0.45 and 0.20, seeds 42-44, on T1's evaluation line (G2, 100 epochs, keep-last, deterministic; width floor `walk`; E1's flags): 66 cells, all COMPLETED (19 Nov 03:22 - 20 Nov 03:51 IST), no preemption. The rule, even-cut and T1-agent rows are T1's own cells (§440): same evaluation line, origins and seeds. Manifest `s15nov_tp_manifest.tsv` (cells t2f-f1 / f2 / f3).
+
+Reader. The registered `s15nov_tp_read.py` (blob `80b692f`, §440), run 20 Nov 03:55 IST: `tp/_read_tp_20nov.txt`. It read 587 cells; dropped only masked edits, all on ShuffleNetV2 (for T2, f3's 12 cells on ShuffleNetV2 x1.5 and x2, reported only since 15 Nov). The registration also asks for each fold to be reported, which the reader does not print. `scripts/_tmp_s20nov_t2_folds.py` (blob `2d67e47`) runs the reader with its output silenced and prints per fold and per network with the reader's own `gap()`: `tp/_t2_folds.txt`. No stall fallback, no landing outside 0.011, no failed cell.
+
+Per fold and per network (seed means over three seeds; TEST 5k / val / 10k):
+
+| fold (left out) | network | T2 agent − prior, 0.45 | T2 agent − T1 agent, 0.45 | T2 agent − prior, 0.20 | T2 agent − T1 agent, 0.20 |
+|---|---|---|---|---|---|
+| f1 (thin ResNets) | r20w8 | −1.87 / −1.47 / −1.67 | −0.30 / −0.50 / −0.40 | −2.09 / −2.30 / −2.19 | −1.66 / −1.75 / −1.70 |
+| | r20w12 | −0.81 / −1.13 / −0.97 | +0.01 / +0.39 / +0.20 | −0.63 / −0.05 / −0.34 | +0.17 / +0.35 / +0.26 |
+| | r56w4 | −1.32 / −1.68 / −1.50 | −0.48 / −0.76 / −0.62 | −4.58 / −4.07 / −4.33 | −1.47 / −1.91 / −1.69 |
+| | r56w8 | −0.55 / +0.19 / −0.18 | +0.25 / +0.82 / +0.54 | −2.27 / −2.17 / −2.22 | −1.03 / −1.59 / −1.31 |
+| | **mean** | **−1.14** / −1.02 / −1.08 | **−0.13** / −0.01 / −0.07 | **−2.39** / −2.15 / −2.27 | **−1.00** / −1.23 / −1.11 |
+| f2 (VGG-BN, DenseNet) | v16 | +0.23 / +0.61 / +0.42 | −0.88 / −0.91 / −0.90 | +1.22 / +0.75 / +0.99 | +1.75 / +1.90 / +1.83 |
+| | v19b | −0.19 / +0.79 / +0.30 | −0.57 / +0.47 / −0.05 | +0.27 / +0.37 / +0.32 | −0.34 / −1.04 / −0.69 |
+| | dn40 | −0.36 / −0.73 / −0.55 | −0.11 / −0.24 / −0.18 | −0.75 / −0.79 / −0.77 | +0.62 / +0.25 / +0.44 |
+| | **mean** | **−0.10** / +0.22 / +0.06 | **−0.52** / −0.23 / −0.38 | **+0.25** / +0.11 / +0.18 | **+0.68** / +0.37 / +0.52 |
+| f3 (MobileNetV2) | mb075 | +0.35 / +0.33 / +0.34 | −0.61 / −0.84 / −0.73 | −0.41 / −0.72 / −0.56 | +0.10 / −0.64 / −0.27 |
+| | mb1 | −0.13 / +0.19 / +0.03 | −0.43 / +0.10 / −0.17 | −0.25 / −0.23 / −0.24 | −0.27 / −0.20 / −0.23 |
+| | **mean** | **+0.11** / +0.26 / +0.18 | **−0.52** / −0.37 / −0.45 | **−0.33** / −0.47 / −0.40 | **−0.08** / −0.42 / −0.25 |
+
+Pooled over the folds (the reader's rows):
+
+| comparison | point | mean TEST 5k [95 % bootstrap] | val | 10k | exact Wilcoxon | W1 / W2 |
+|---|---|---|---|---|---|---|
+| T2 agent - rule (pooled) | 0.45 | **-0.52** [-0.98, -0.10] | -0.32 | -0.42 | p = 0.0742 (n = 9; 2 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| T2 agent - T1 agent (pooled) | 0.45 | **-0.35** [-0.55, -0.13] | -0.16 | -0.26 | p = 0.0273 (n = 9; 2 of 9 positive) | LOSS (reported; the call is non-inferiority) |
+| T2 agent - rule (pooled) | 0.20 | **-1.05** [-2.17, -0.09] | -1.02 | -1.04 | p = 0.0977 (n = 9; 2 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+| T2 agent - T1 agent (pooled) | 0.20 | **-0.24** [-0.88, +0.43] | -0.51 | -0.38 | p = 0.5703 (n = 9; 4 of 9 positive) | LEVEL / SUGGESTIVE LOSS |
+
+Calls at 0.45 (registered): FAMILY-LEVEL (T1's Wilcoxon rule on T2 agent − rule); NOT NON-INFERIOR to the T1 agent (lower bound −0.55 against −0.3).
+
+Reading:
+1. Both registered calls go against transfer without cost: an agent trained without a family is level with the prior on that family's networks (−0.52, FAMILY-LEVEL) and about a third of a point below the agent that trained on it (−0.35, NOT NON-INFERIOR). T1's catalog carried some knowledge of each family that the agent used.
+2. The cost differs by fold. It is small on the thin ResNets (−0.13; val −0.01), whose relatives (ResNet, PreAct-ResNet, WRN) stay in the fold's catalog, and about half a point on VGG-BN with DenseNet-40 (−0.52) and on MobileNetV2 (−0.52), the FLOPs catalog's only inverted-residual family. [H] The cost grows as the left-out family has fewer relatives left in training. Three folds of two to four networks cannot establish this.
+3. Against the prior, the pooled −0.52 comes from the thin ResNets (f1 −1.14), where T1's agent also trails the prior (−0.81 to −1.57, §440). On f2 and f3 the agent without its family is level with the prior (−0.10, +0.11).
+4. At 0.20, below the training range (reported): T2 agent − prior −1.05, − T1 agent −0.24 (f1 −1.00, f2 +0.68, f3 −0.08).
+5. For SW: this is the residual agent (t1f's line), whose plan stays within zmax 0.3 of the prior's. Under SW the final agent trains on no family of the sealed set, so §445 is the cost to expect from the residual alone. [H] The menu agent's plan is mostly a blend of agent-free rules, whose plans need no training, so its family cost may be smaller; the sealed read measures it, and no T2-style read of the menu agent exists.
+
+Not claimed: a LOSS against the prior (the call is FAMILY-LEVEL); "transfer fails" (on two of three folds the agent without its family is level with the prior); any call at 0.20; a fold's row as a call; the menu agent's family transfer (not measured); the params side (T2's params folds start only when T1's params call reads GAIN; that call is not yet complete).
+
+Records: queue row T2 (read stamp, 20 Nov); trains above; manifest `s15nov_tp_manifest.tsv`; reader `s15nov_tp_read.py` (`80b692f`), output `tp/_read_tp_20nov.txt`; per-fold report `scripts/_tmp_s20nov_t2_folds.py` (`2d67e47`), output `tp/_t2_folds.txt`. Next §446.
