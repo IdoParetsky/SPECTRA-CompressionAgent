@@ -12139,3 +12139,91 @@ Reading:
 Not claimed: a LOSS against the prior (the call is FAMILY-LEVEL); "transfer fails" (on two of three folds the agent without its family is level with the prior); any call at 0.20; a fold's row as a call; the menu agent's family transfer (not measured); the params side (T2's params folds start only when T1's params call reads GAIN; that call is not yet complete).
 
 Records: queue row T2 (read stamp, 20 Nov); trains above; manifest `s15nov_tp_manifest.tsv`; reader `s15nov_tp_read.py` (`80b692f`), output `tp/_read_tp_20nov.txt`; per-fold report `scripts/_tmp_s20nov_t2_folds.py` (`2d67e47`), output `tp/_t2_folds.txt`. Next §446.
+
+## 446. (REC-SW: queue row REC-SW, registered 20 Nov 03:55 IST (commit `ab20368`) before any REC-SW script existed; SEAL-P's acceptance step for SW's train side, REC-W1's gate moved to the FLOPs axis; eval-only, one seed, no call) — **ENTRY 49 of 50 (48 by the reader as registered, which missed one size point; amendment a1, after the read, reads it). TRAINER-OK 50 of 50, REALIZABLE 50 of 50, RECOVERABLE 49 of 50: SqueezeNet 1.1 ×0.5 on CIFAR-100 is out (floored sens_F at FLOPs 0.35, val −13.82 after the 100-epoch recovery, TEST 5k −14.12, 10k −13.97; the even cut val −17.26). LEVER (reported, not an entry rule) on 25 of 50. Over all 50, floored sens_F minus the even cut: val +0.53, TEST 5k +0.50, 10k +0.51 (34 of 50 positive on val). The gap depends on the family: about +1.1 to +1.3 on DLA, EfficientNet and SqueezeNet, below zero on HarDNet, MobileNetV3 and ConvNeXt. A screen, never a result.**
+
+What ran. **Step 1, the trainer's checks:** train smoke 24332923 (MENU's m1f line, the menu agent's, on tree_v37, seed 42, on the 50-network catalog `configs_sw/database_sw_all.json`; 20 Nov 04:26-05:21 IST, COMPLETED, every network loaded, no Traceback, NaN, quota or out-of-memory line). Train gate 05:21:12 IST (`s20nov_recsw_trgate.txt`): **TRAINER-OK 50 of 50**. The FLOPs model equals the real cut on every network (an even cut to 0.60 keeps 0.5989-0.6014 of FLOPs, analytic and real alike), the masked reward is within 0.04 points of the real cut's (the trainer warns above 0.05), and the four-rule menu builds on every network. **Step 2, the recoverability cells:** one 2-epoch sens_F smoke per family (24332924-24332930; gate PASS 7 of 7 at 04:45:14 IST), then 100 cells: floored sens_F and the even cut on each of the 50 networks at FLOPs 0.35, on T1's eval line (deterministic G2, 100 epochs, keep-last, floored, grid-rounded, one cut, E1's flags) on tree_v37, seed 42, no origin control (registered). All 100 COMPLETED, 20 Nov 04:53-09:16 IST, 20.7 GPU-hours (registered estimate 25-40), no preemption, no resubmit.
+
+Reader. The registered `s20nov_recsw_read.py` (blob `c928acc`), run 20 Nov 09:20 IST: `recsw/_read_recsw.txt`, "REALIZABLE 49 | RECOVERABLE 48 | LEVER 25 | TRAINER-OK 50 | ENTRY IN 48 of 50 (50 fully read) | READ DONE". It printed ConvNeXt-pico CIFAR-100 OUT with "sens_F no size point". The run's log shows why: the walk's best point on val is the size point itself (step 182, FLOPs ×0.350, params ×0.385), and the run fine-tunes a point once, under its first label ("TRAJ final_ft size_flop0.35 ... same point as val_best; not fine-tuned twice"); its record holds only the val_best row, and the reader looks for the size label alone. This is the pattern recorded in the tooling rules on 19 Oct (MobileNetV2 ×1.4, VGG-16). **Amendment a1, made after the read and stamped in the queue row:** when the log carries that line, read the val_best row (`s20nov_recsw_read_a1.py`, blob `bea75cc`; its self-test passes), run 09:24 IST: `recsw/_read_recsw_a1.txt`, "REALIZABLE 50 | RECOVERABLE 49 | LEVER 25 | TRAINER-OK 50 | ENTRY IN 49 of 50 (50 fully read) | READ DONE". The two outputs differ only in that network's row, its family's mean, the notes count and the final line; it is the only one of the 100 cells whose log has the line, and that log has no fallback and no masked edit. The point, the arms, the recovery and the rules are unchanged, and the entry rule reads val only. Every origin's mean over its val and TEST halves equals the file's accuracy within 0.02 points.
+
+Per network (one seed; each Δ is after the cut and the 100-epoch recovery, against the network's own origin; honest is not measured, as no origin control ran; sens_F is floored sens_F):
+
+| network | data | origin val / TEST 5k | sens_F Δ val / 5k / 10k | even cut Δ val / 5k / 10k | sens_F − even, val | FLOPs / params kept (sens_F) | LEVER | entry |
+|---|---|---|---|---|---|---|---|---|
+| `mobilenetv1_x025` (MobileNet v1) | C10 | 87.40 / 87.50 | −2.20 / −2.60 / −2.40 | −3.68 / −3.76 / −3.72 | +1.48 | ×0.350 / ×0.104 | yes | IN |
+| `mobilenetv1_x050` (MobileNet v1) | C10 | 90.70 / 90.28 | −0.20 / −0.12 / −0.16 | −1.40 / −0.66 / −1.03 | +1.20 | ×0.350 / ×0.101 | yes | IN |
+| `mobilenetv1_x075` (MobileNet v1) | C10 | 91.46 / 91.14 | −0.18 / +0.10 / −0.04 | −1.16 / −0.76 / −0.96 | +0.98 | ×0.350 / ×0.115 | yes | IN |
+| `mobilenetv1_x100` (MobileNet v1) | C10 | 91.72 / 91.82 | +0.02 / −0.88 / −0.43 | −0.60 / −0.76 / −0.68 | +0.62 | ×0.350 / ×0.087 | yes | IN |
+| `mobilenetv1_x025` (MobileNet v1) | C100 | 59.32 / 58.20 | −3.50 / −1.72 / −2.61 | −2.06 / −1.04 / −1.55 | −1.44 | ×0.350 / ×0.256 | no | IN |
+| `mobilenetv1_x050` (MobileNet v1) | C100 | 63.30 / 63.98 | +0.84 / +0.54 / +0.69 | +0.70 / +0.50 / +0.60 | +0.14 | ×0.346 / ×0.225 | no | IN |
+| `mobilenetv1_x075` (MobileNet v1) | C100 | 66.80 / 66.86 | +0.16 / +0.58 / +0.37 | +0.24 / +1.32 / +0.78 | −0.08 | ×0.350 / ×0.191 | no | IN |
+| `mobilenetv1_x100` (MobileNet v1) | C100 | 68.00 / 68.42 | +1.30 / +1.06 / +1.18 | +0.48 / +0.50 / +0.49 | +0.82 | ×0.350 / ×0.151 | yes | IN |
+| `squeezenet1_0` (SqueezeNet) | C10 | 89.48 / 89.26; rebuild at lr 0.01, every class predicted | +0.50 / +1.14 / +0.82 | +0.50 / +1.26 / +0.88 | +0.00 | ×0.350 / ×0.250 | no | IN |
+| `squeezenet1_0_x200` (SqueezeNet) | C10 | 90.50 / 90.46; rebuild at lr 0.01, every class predicted | +2.36 / +1.68 / +2.02 | +1.86 / +1.88 / +1.87 | +0.50 | ×0.350 / ×0.224 | yes | IN |
+| `squeezenet1_1` (SqueezeNet) | C10 | 88.96 / 88.14; rebuild at lr 0.01, every class predicted | +0.40 / +1.62 / +1.01 | −0.28 / +0.92 / +0.32 | +0.68 | ×0.350 / ×0.183 | yes | IN |
+| `squeezenet1_1_x050` (SqueezeNet) | C10 | 85.52 / 85.56; rebuild at lr 0.01, every class predicted | −2.62 / −1.96 / −2.29 | −3.70 / −3.90 / −3.80 | +1.08 | ×0.350 / ×0.148 | yes | IN |
+| `squeezenet1_0` (SqueezeNet) | C100 | 67.70 / 68.32; 2 of 100 classes never predicted at load | −2.46 / −2.22 / −2.34 | −1.82 / −2.12 / −1.97 | −0.64 | ×0.350 / ×0.242 | no | IN |
+| `squeezenet1_0_x200` (SqueezeNet) | C100 | 61.22 / 62.24; 15 of 100 classes never predicted at load | +8.18 / +8.44 / +8.31 | +3.44 / +2.56 / +3.00 | +4.74 | ×0.350 / ×0.236 | yes | IN |
+| `squeezenet1_1` (SqueezeNet) | C100 | 65.80 / 67.54 | −3.44 / −4.04 / −3.74 | −2.70 / −4.80 / −3.75 | −0.74 | ×0.350 / ×0.209 | no | IN |
+| `squeezenet1_1_x050` (SqueezeNet) | C100 | 61.08 / 62.02 | −13.82 / −14.12 / −13.97 | −17.26 / −17.56 / −17.41 | +3.44 | ×0.350 / ×0.171 | yes | **OUT** (RECOVERABLE no) |
+| `efficientnet_b0` (EfficientNet) | C10 | 93.08 / 92.78 | −0.92 / −0.42 / −0.67 | −1.84 / −1.58 / −1.71 | +0.92 | ×0.350 / ×0.063 | yes | IN |
+| `efficientnet_b0_x050` (EfficientNet) | C10 | 91.10 / 91.42 | −0.64 / −1.16 / −0.90 | −3.00 / −2.58 / −2.79 | +2.36 | ×0.350 / ×0.067 | yes | IN |
+| `efficientnet_b0_x075` (EfficientNet) | C10 | 92.36 / 92.34 | −1.08 / −0.86 / −0.97 | −2.20 / −1.76 / −1.98 | +1.12 | ×0.350 / ×0.054 | yes | IN |
+| `efficientnet_b1` (EfficientNet) | C10 | 92.34 / 92.06 | −0.74 / −0.04 / −0.39 | −0.82 / −1.10 / −0.96 | +0.08 | ×0.350 / ×0.157 | no | IN |
+| `efficientnet_b0` (EfficientNet) | C100 | 71.68 / 72.14 | −0.72 / +0.44 / −0.14 | −1.16 / −1.32 / −1.24 | +0.44 | ×0.350 / ×0.155 | no | IN |
+| `efficientnet_b0_x050` (EfficientNet) | C100 | 68.38 / 68.80 | −3.00 / −2.02 / −2.51 | −5.16 / −4.96 / −5.06 | +2.16 | ×0.350 / ×0.126 | yes | IN |
+| `efficientnet_b0_x075` (EfficientNet) | C100 | 70.32 / 71.76 | −0.30 / −0.64 / −0.47 | −1.82 / −2.10 / −1.96 | +1.52 | ×0.350 / ×0.131 | yes | IN |
+| `efficientnet_b1` (EfficientNet) | C100 | 69.86 / 70.90 | +1.96 / +1.80 / +1.88 | +0.12 / +0.68 / +0.40 | +1.84 | ×0.350 / ×0.232 | yes | IN |
+| `mobilenetv3_large_x075` (MobileNetV3) | C10 | 93.96 / 93.86 | −1.56 / −1.38 / −1.47 | −1.38 / −1.36 / −1.37 | −0.18 | ×0.350 / ×0.063 | no | IN |
+| `mobilenetv3_large_x100` (MobileNetV3) | C10 | 94.36 / 94.08 | −1.14 / −0.72 / −0.93 | −1.12 / −1.22 / −1.17 | −0.02 | ×0.350 / ×0.062 | no | IN |
+| `mobilenetv3_small_x075` (MobileNetV3) | C10 | 91.54 / 91.38 | −1.54 / −1.44 / −1.49 | −2.58 / −2.08 / −2.33 | +1.04 | ×0.350 / ×0.053 | yes | IN |
+| `mobilenetv3_small_x100` (MobileNetV3) | C10 | 92.42 / 92.30 | −1.78 / −2.12 / −1.95 | −1.98 / −1.60 / −1.79 | +0.20 | ×0.350 / ×0.059 | no | IN |
+| `mobilenetv3_large_x075` (MobileNetV3) | C100 | 74.80 / 76.08 | −2.22 / −3.50 / −2.86 | −2.82 / −2.56 / −2.69 | +0.60 | ×0.350 / ×0.096 | yes | IN |
+| `mobilenetv3_large_x100` (MobileNetV3) | C100 | 75.48 / 75.92 | −2.54 / −1.34 / −1.94 | −1.28 / −1.08 / −1.18 | −1.26 | ×0.350 / ×0.107 | no | IN |
+| `mobilenetv3_small_x075` (MobileNetV3) | C100 | 70.94 / 71.98 | −6.42 / −6.94 / −6.68 | −4.46 / −4.38 / −4.42 | −1.96 | ×0.350 / ×0.072 | no | IN |
+| `mobilenetv3_small_x100` (MobileNetV3) | C100 | 72.02 / 72.90 | −3.28 / −3.56 / −3.42 | −3.30 / −2.92 / −3.11 | +0.02 | ×0.350 / ×0.085 | no | IN |
+| `hardnet39ds` (HarDNet) | C10 | 93.74 / 93.70 | −0.06 / −0.18 / −0.12 | −0.42 / −0.30 / −0.36 | +0.36 | ×0.350 / ×0.145 | no | IN |
+| `hardnet68_x050` (HarDNet) | C10 | 94.04 / 94.24 | +0.36 / +0.18 / +0.27 | +0.26 / +0.20 / +0.23 | +0.10 | ×0.350 / ×0.304 | no | IN |
+| `hardnet68_x075` (HarDNet) | C10 | 94.84 / 95.12 | −0.20 / −0.30 / −0.25 | +0.38 / −0.40 / −0.01 | −0.58 | ×0.350 / ×0.316 | no | IN |
+| `hardnet68ds` (HarDNet) | C10 | 94.32 / 94.76 | −0.64 / −1.16 / −0.90 | +0.32 / −0.16 / +0.08 | −0.96 | ×0.350 / ×0.161 | no | IN |
+| `hardnet39ds` (HarDNet) | C100 | 74.56 / 75.46 | −2.40 / −2.66 / −2.53 | −0.66 / −1.60 / −1.13 | −1.74 | ×0.350 / ×0.236 | no | IN |
+| `hardnet68_x050` (HarDNet) | C100 | 74.68 / 75.72 | −0.36 / −0.76 / −0.56 | −1.42 / −2.12 / −1.77 | +1.06 | ×0.350 / ×0.407 | yes | IN |
+| `hardnet68_x075` (HarDNet) | C100 | 77.12 / 76.68 | −1.06 / −0.30 / −0.68 | −0.44 / −0.54 / −0.49 | −0.62 | ×0.350 / ×0.482 | no | IN |
+| `hardnet68ds` (HarDNet) | C100 | 74.86 / 75.96 | −1.56 / −1.72 / −1.64 | +0.80 / +0.72 / +0.76 | −2.36 | ×0.350 / ×0.246 | no | IN |
+| `dla_x025` (DLA) | C10 | 92.48 / 92.76 | −0.10 / −0.16 / −0.13 | −1.04 / −1.16 / −1.10 | +0.94 | ×0.349 / ×0.352 | yes | IN |
+| `dla_x050` (DLA) | C10 | 93.98 / 93.88 | +0.40 / −0.08 / +0.16 | +0.18 / +0.16 / +0.17 | +0.22 | ×0.350 / ×0.381 | no | IN |
+| `simpledla_x025` (DLA) | C10 | 92.12 / 92.42 | −0.64 / −0.42 / −0.53 | −2.08 / −1.60 / −1.84 | +1.44 | ×0.350 / ×0.343 | yes | IN |
+| `simpledla_x050` (DLA) | C10 | 93.58 / 93.94 | +0.22 / +0.06 / +0.14 | −0.34 / −0.26 / −0.30 | +0.56 | ×0.350 / ×0.335 | yes | IN |
+| `dla_x025` (DLA) | C100 | 70.28 / 70.48 | −0.12 / −1.36 / −0.74 | −3.58 / −3.58 / −3.58 | +3.46 | ×0.349 / ×0.516 | yes | IN |
+| `dla_x050` (DLA) | C100 | 73.58 / 74.56 | +0.30 / −0.52 / −0.11 | −0.30 / −0.44 / −0.37 | +0.60 | ×0.350 / ×0.520 | yes | IN |
+| `simpledla_x025` (DLA) | C100 | 69.58 / 69.96 | −1.74 / −2.36 / −2.05 | −5.00 / −5.00 / −5.00 | +3.26 | ×0.350 / ×0.511 | yes | IN |
+| `simpledla_x050` (DLA) | C100 | 73.28 / 73.16 | −1.22 / −0.22 / −0.72 | −1.18 / −0.34 / −0.76 | −0.04 | ×0.349 / ×0.558 | no | IN |
+| `convnext_cifar_femto` (ConvNeXt) | C100 | 52.50 / 53.16 | +4.94 / +3.00 / +3.97 | +4.88 / +3.90 / +4.39 | +0.06 | ×0.350 / ×0.360 | no | IN |
+| `convnext_cifar_pico` (ConvNeXt) | C100 | 52.82 / 52.44 | +1.36 / +2.58 / +1.97 | +2.52 / +2.92 / +2.72 | −1.16 | ×0.350 / ×0.385 | no | IN (a1) |
+
+Per family and pooled (means of the per-network values above; val / TEST 5k / 10k; the reader's own per-family line, from unrounded values, can differ by 0.01):
+
+| group | networks | entry | sens_F Δ | even cut Δ | sens_F − even | LEVER | sens_F − even > 0 on val |
+|---|---|---|---|---|---|---|---|
+| MobileNet v1 | 8 | 8 | −0.47 / −0.38 / −0.42 | −0.94 / −0.58 / −0.76 | **+0.47** / +0.20 / +0.33 | 5 | 6 |
+| SqueezeNet | 8 | 7 | −1.36 / −1.18 / −1.27 | −2.50 / −2.72 / −2.61 | **+1.13** / +1.54 / +1.33 | 5 | 5 |
+| EfficientNet | 8 | 8 | −0.68 / −0.36 / −0.52 | −1.99 / −1.84 / −1.91 | **+1.30** / +1.48 / +1.39 | 6 | 8 |
+| MobileNetV3 | 8 | 8 | −2.56 / −2.62 / −2.59 | −2.36 / −2.15 / −2.26 | **−0.20** / −0.48 / −0.33 | 2 | 4 |
+| HarDNet | 8 | 8 | −0.74 / −0.86 / −0.80 | −0.15 / −0.53 / −0.34 | **−0.59** / −0.34 / −0.46 | 1 | 3 |
+| DLA | 8 | 8 | −0.36 / −0.63 / −0.50 | −1.67 / −1.53 / −1.60 | **+1.30** / +0.90 / +1.10 | 6 | 7 |
+| ConvNeXt | 2 | 2 | +3.15 / +2.79 / +2.97 | +3.70 / +3.41 / +3.55 | **−0.55** / −0.62 / −0.58 | 0 | 1 |
+| CIFAR-10 | 24 | 24 | −0.50 / −0.47 / −0.48 | −1.09 / −0.94 / −1.01 | **+0.59** / +0.47 / +0.53 | 14 | 19 |
+| CIFAR-100 | 26 | 25 | −1.20 / −1.21 / −1.21 | −1.66 / −1.74 / −1.70 | **+0.47** / +0.53 / +0.50 | 11 | 15 |
+| the 49 entering | 49 | 49 | −0.60 / −0.58 / −0.59 | −1.06 / −1.03 / −1.05 | **+0.47** / +0.44 / +0.45 | 24 | 33 |
+| **all 50** | 50 | 49 | −0.86 / −0.86 / −0.86 | −1.39 / −1.36 / −1.37 | **+0.53** / +0.50 / +0.51 | 25 | 34 |
+
+Reading:
+1. SW's train side is ready to be the final agent's catalog: 49 of its 50 networks enter. The trainer reads all 50 correctly, unlike ShuffleNetV2, whose FLOPs it misread at T1's FLOPs train gate (queue row T1). Both arms land at FLOPs 0.35 on every network without a fallback or a masked edit, and every entering network recovers within 10 points on val (the worst: `mobilenetv3_small_x075` C100, −6.42; median −0.64).
+2. The one exclusion is SqueezeNet 1.1 ×0.5 on CIFAR-100, the set's smallest CIFAR-100 network by parameters (0.21 M params, 6.9 M FLOPs). At 35 % of its FLOPs it changes by −13.82 on val with sens_F and −17.26 with the even cut, while its CIFAR-10 twin recovers (−2.62). [H] It is too small for 100 classes at that budget. It stays out of the catalog by the rule. No network was kept or dropped on TEST.
+3. The prior's gap over the even cut depends on the family (reported, not an entry rule; one seed, val). It is +1.30 on DLA, +1.30 on EfficientNet, +1.13 on SqueezeNet and +0.47 on MobileNet v1, and below zero on HarDNet (−0.59), MobileNetV3 (−0.20) and ConvNeXt (−0.55, two networks). On those three families the even cut does at least as well as the prior at 0.35. This is the kind of catalog in which the menu agent's per-network mix of rules has something to learn: under SW it trains on families where no single rule wins everywhere [H].
+4. Several networks end above their origin after the cut and the recovery (val: `squeezenet1_0_x200` C100 +8.18, `convnext_cifar_femto` C100 +4.94, `squeezenet1_0_x200` C10 +2.36, `efficientnet_b1` C100 +1.96, `convnext_cifar_pico` C100 +1.36, `mobilenetv1_x100` C100 +1.30). No origin control ran, so honest is not measured. [H] These origins are under-trained by SW's single recipe: the ConvNeXt CIFAR-100 networks sit at 52-53 %, and SqueezeNet 1.0 ×2 on CIFAR-100 left 15 of 100 classes never predicted at load (SqueezeNet 1.0 on CIFAR-100: 2 of 100; the registered diagnostic). The 100-epoch recovery goes on training them. These are not pruning gains, and §446 is never quoted as one.
+5. For FINAL (registered next, before it runs): the 49 entering networks, within the registered caps per family (ConvNeXt 2, SqueezeNet 7, the other five 8 each). The FLOPs range's deep end, 0.35, is screened; a deeper registered range needs a landing screen at its new deep end first.
+
+Not claimed: any number here as a result (a screen; TEST beside val only by the registration); the prior's gap over the even cut as a comparison of methods (one seed, no origin control); honest; that the sealed families will recover like these.
+
+Records: queue row REC-SW (gate, train gate and read stamps, 20 Nov); manifest `s20nov_recsw_manifest.tsv`; networks `s20nov_recsw_nets.tsv`; scripts `scripts/_tmp_s20nov_recsw_submit.sh` (`077e29a`), `scripts/_tmp_s20nov_recsw_chain.sh` (`08f86b2`), reader `scripts/_tmp_s20nov_recsw_read.py` (registered `c928acc`; amendment a1 `bea75cc`); outputs `recsw/_read_recsw.txt` and `recsw/_read_recsw_a1.txt`; verdict files `s20nov_recsw_gate.txt`, `s20nov_recsw_trgate.txt`. Next §447.

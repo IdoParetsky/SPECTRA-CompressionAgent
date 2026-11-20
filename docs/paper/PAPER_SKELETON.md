@@ -73,7 +73,7 @@ Every result table, the new ones included, is PRELIM until it is locked. TEST 5k
 **Method and protocol tables (they exist):**
 - the related-work feature table (§2.2.3; the draft also labels it Table 1);
 - the state columns (§3.3), the proxies (§3.5) and the agent lines (§3.6; add T1–T2);
-- the compared methods and the priors (§4.1), the comparators and what "best rule" means (§4.1b, 17 Nov), the held-out pool (§4.3) and the registered calls (§4.4; add T1–T2's call, with W2's reported labels);
+- the compared methods and the priors (§4.1), the comparators and what "best rule" means (§4.1b, 17 Nov), the held-out pool and SW's two sides (§4.3, §446) and the registered calls (§4.4; add T1–T2's call, with W2's reported labels);
 - NEON's building blocks, and agent vs rule vs search (§6).
 
 ## 4. What the paper can claim today
@@ -132,7 +132,7 @@ Claude Code is now the sole SPECTRA agent; the separate ops agent is retired.
 5. Draw the Pareto panels and the coverage map; refresh the map after T1–T2.
 6. Rewrite the abstract, §1's contributions, §6 and §7 to T1's outcome, under one of the two headlines.
 7. Before T1's rows enter, rename the old catalog agent "T1" (§3.6 and Tables 1, 5.2a and 5.5), and renumber one of the two tables labelled "Table 1".
-8. After the proof, the final agent trains on everything. ResNeXt and RegNet, never pretrained for T1, are its never-seen test (queue row T1; not yet registered).
+8. The final agent trains on SW's training side, families no published CIFAR table tests on (Ido's GO, 19 Nov): 49 of its 50 networks pass the catalog gate (§446). It is read once, frozen, on fresh sealed checkpoints of the literature's families (queue rows SEAL-P and REC-SW). The final agent's catalog and training line are registered next, then the sealed read.
 9. Lock the tables, then write the thesis chapters; the walk era stays a short negative-result appendix.
 
 ## 6. How to use this file
