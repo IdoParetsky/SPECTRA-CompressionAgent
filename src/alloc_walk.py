@@ -65,6 +65,14 @@ bisection as every rule.
 ``LAMPImportance`` applies it: the same magnitudes squared and rescaled within each group (sorted ascending,
 score_u = w_u / Σ_{v ≥ u} w_v, their eq. 1), then one global threshold exactly as ``global_mag``. Neither score changes
 when all of a group's filters are rescaled.
+``amc`` is AMC's per-network search (He et al., ECCV 2018) as a comparator, ported from its released code in
+``src/amc_search.py``, which is imported only under this kind (queue row AMC, part C). Once per network, on the origin,
+a DDPG agent decides one keep per planned group in plan order; AMC's budget rule bounds each keep on
+``plan_agent.FlopModel`` so the FLOPs target stays reachable (``SPECTRA_ALLOC_BUDGET=flops`` only, any other budget is
+refused); an episode's reward is its plan's val-half accuracy under ``SPECTRA_ALLOC_AMC_PROXY`` (bn8,
+``plan_proxies.PlanScorer``). The best episode's keeps (ties to the earlier) are landed by ``_land`` like every rule's
+and walked like any plan. ``SPECTRA_ALLOC_AMC_EPISODES`` / ``SPECTRA_ALLOC_AMC_WARMUP`` (unset: AMC's 800 / 100) shorten
+a smoke. The TEST half is never read, and the global RNG is put back after the search.
 ``SPECTRA_ALLOC_BUDGET=flops`` (default params) measures the plan's kept fraction, its target and the stall
 check in MACs (``utils.calc_flops``) instead of parameters, the T0-F variant.
 Each decision then plays the legal cut whose resulting width is closest to its group's
@@ -97,6 +105,9 @@ from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
 KINDS = ("uniform", "sens", "inner", "widths", "sample", "agent", "agent_sample", "sens_cost", "randbest", "fallback",
          "sens_cost_at", "sens_curve", "sens_thresh", "global_mag", "lamp")
 MAGNITUDE_KINDS = ("global_mag", "lamp")
+# ``amc`` (queue row AMC, part C; ``src/amc_search.py``) is registered beside ``KINDS``, not appended to it:
+# ``tests/test_alloc_lamp_global.py`` pins the tuple's tail to the magnitude kinds.
+AMC_KINDS = ("amc",)
 FALLBACK_PRIORS = ("sens", "sens_cost")
 # the further rules a list of two or more priors may name: ``uniform`` (v32, FB-BENCH) and, v37 (queue row PICK, default
 # off: only names v36 refused), the threshold rule and the two magnitude rules. Each is planned exactly as its own row
@@ -109,8 +120,8 @@ BUDGETS = ("params", "flops")
 def kind() -> str:
     """``SPECTRA_ALLOC_KIND`` (sens): the allocation the walk follows."""
     name = os.environ.get("SPECTRA_ALLOC_KIND", "sens").strip().lower() or "sens"
-    if name not in KINDS:
-        raise ValueError(f"SPECTRA_ALLOC_KIND={name!r}: expected one of {KINDS}")
+    if name not in KINDS and name not in AMC_KINDS:
+        raise ValueError(f"SPECTRA_ALLOC_KIND={name!r}: expected one of {KINDS + AMC_KINDS}")
     return name
 
 
@@ -981,6 +992,8 @@ def grid_priority(info, rows):
         return {row: float(info["weights"][row]) for row in rows}
     if kind_name in MAGNITUDE_KINDS:  # as sens_thresh: the decoder's weight is each group's pick at the threshold
         return {row: float(info["weights"][row]) for row in rows}
+    if kind_name == "amc":  # the landing's weight is each group's keep in the best episode
+        return {row: float(info["weights"][row]) for row in rows}
     if kind_name == "sens_cost_at":  # v30: the cost-aware weights of the last (deep) measurement
         kind_name = "sens_cost"
     sample = info.get("sample") if kind_name == "sample" else None
@@ -1465,6 +1478,9 @@ def _state(env):
             widths, info = randbest_plan(env, target, budget="flops" if flops else "params")
         elif kind() == "fallback":
             widths, info = fallback_plan(env, target, flops, agent_kw, plan_kw)
+        elif kind() == "amc":
+            from src import amc_search  # imported under this kind only
+            widths, info = amc_search.amc_plan(env, target, budget="flops" if flops else "params")
         else:
             batches = group_sensitivity.calibration_batches(
                 env.train_loader, group_sensitivity.CALIB_BATCHES, env.conf.device)
@@ -1485,6 +1501,10 @@ def _state(env):
             r = info["randbest"]
             source = (f"randbest best draw {r['pick']} of {r['n']} (val {r['score']:.4f}, proxy {r['proxy']}, "
                       f"sigma {r['sigma']:g}, seed {r['seed']})")
+        if info["kind"] == "amc":
+            r = info["amc"]
+            source = (f"amc best episode {r['pick']} of {r['episodes']} (val {r['score']:.4f}, proxy {r['proxy']}, "
+                      f"warm-up {r['warmup']}, seed {r['seed']})")
         if info["kind"] == "sample" and info.get("sample"):
             sample = info["sample"]
             source = (f"sample around {sample['around']} sigma={sample['sigma']:g} seed={sample['seed']} "
@@ -1509,6 +1529,8 @@ def _state(env):
                 kept=info["kept"], **({"sample": info["sample"]} if info.get("sample") else {}),
                 **({"randbest": {key: info["randbest"][key] for key in ("pick", "n", "score", "proxy", "sigma", "seed")}}
                    if info.get("randbest") else {}),
+                **({"amc": {key: info["amc"][key] for key in ("pick", "episodes", "warmup", "score", "proxy", "seed")}}
+                   if info.get("amc") else {}),
                 **({"budget": "flops"} if flops else {}), **({"min_width": floor} if floor > 1 else {}),
                 rows={str(r): {"origin": info["origin_widths"].get(r), "target": widths[r],
                                                   "keep": round(info["keeps"][r], 4),
