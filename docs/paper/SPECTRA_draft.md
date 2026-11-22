@@ -214,7 +214,7 @@ How much allocation matters after a full recovery is contested:
 
 SPECTRA's evaluation is built for this regime: one recovery for every arm, paired seeds, and a prior fixed in advance (§4).
 
-**Cheap proxies for post-recovery accuracy.** An allocation search needs a cheap estimate of the accuracy after recovery. AMC [79] rewards the accuracy of the cut network directly. EagleEye [117] showed that this "vanilla" evaluation is misled by stale BatchNorm statistics [118]. Re-estimating them with the weights frozen (adaptive BN) raised the rank correlation with post-fine-tune accuracy from at most 0.40 to 0.64–0.85 on MobileNetV1 / ImageNet, and a thousand images are enough to re-estimate the statistics [119]. Short fine-tunes are the other common proxy [79, 120], although at low FLOPs a few steps may not be representative [120].
+**Cheap proxies for post-recovery accuracy.** An allocation search needs a cheap estimate of the accuracy after recovery. AMC [79] rewards the accuracy of the cut network directly. EagleEye [117] showed that this "vanilla" evaluation is misled by stale BatchNorm statistics [118]. Re-estimating them with the weights frozen (adaptive BN) raised the Pearson correlation with post-fine-tune accuracy from −0.04–0.25 (the cut network) to 0.68–0.82 (adaptive BN) over four FLOPs settings of MobileNetV1 / ImageNet (its Table 1; one network, read at the source in `docs/paper/lit/LIT_DB_AVENUES_21NOV.md`), and a thousand images are enough to re-estimate the statistics [119]. Short fine-tunes are the other common proxy [79, 120], although at low FLOPs a few steps may not be representative [120].
 
 Proxy fidelity drops among near-best candidates [111, 121] and when measured at the cut [122], and reduced-training proxies differ in how well they keep the rank order [123]. SPECTRA therefore measures each proxy's rank fidelity on its own plans before training on it (§5.10). Its `bn8` reward is EagleEye's adaptive-BN evaluation used as an RL reward, as EagleEye itself did inside AMC [117].
 
@@ -900,7 +900,7 @@ The points that exist or run (no number is quoted here):
 - **The search itself is level with the cost-aware rule.** Its cheap reward alone does not recover what the agent learned.
 - **Two scope limits.** At 25 % the range includes zero: on ResNet-20 ×8 CIFAR-100 the search wins by 2.67, where the agent still collapses on two seeds. And at equal params the agent keeps 1.1–2.1× the search's FLOPs.
 
-**Does the agent's choice of channels matter?** (Blalock et al.'s random baseline at the agent's proportions; §398; T6-fs's own widths with L1 or with random channels, both on tree_v23; nine networks, seeds 42–44; PRELIM)
+**Does the agent's choice of channels matter?** (Blalock et al.'s random baseline [177] at the agent's proportions; §398; T6-fs's own widths with L1 or with random channels, both on tree_v23; nine networks, seeds 42–44; PRELIM)
 
 | Params kept | L1 − random [95 % bootstrap] | val | 10k | honest | positive | call | random − cost-aware rule |
 |---|---|---|---|---|---|---|---|
@@ -950,7 +950,7 @@ The points that exist or run (no number is quoted here):
 
 Caption: minutes on one RTX 4090. Each published method runs its own data loader, and the pipelines are CPU-bound (mean GPU use 9–42 %). CHIP's channel-independence step runs on 4 CPU cores and is counted. OCSPruner's times include training its base from scratch. SPECTRA's cost assumes the trained base exists and counts the plan, the cut and the size point's 100-epoch recovery. GNN-RL's search beyond its wall is extrapolated from its measured rate, never a measured wall. Accuracies from these runs are not quoted: most recipes keep their best test epoch. On VGG-16 (§425), HRank and CHIP start from HRank's VGG-16, OCSPruner trains its own and SPECTRA starts from chenyaofo's VGG-16-BN; SPECTRA's FLOPs agent runs at the FLOPs of the timed HRank and CHIP runs (65.3 % and 66.6 % pruned) and keeps 6 % of the params there.
 
-- **Per network, SPECTRA's decision takes minutes; the published decisions take tens of minutes to hours.** The agent plans in under 21 s and cuts in 3.0–3.6 min. The searches it replaces take 10 min (LeGR's evolutionary search), 85 (AMC's DDPG), 271 (RL-Pruner) and more than 17 h (GNN-RL). The criterion methods spend 20–62 min before their last fine-tune, and HRank's 55 stages on ResNet-56 take 338.
+- **Per network, SPECTRA's decision takes minutes; the published decisions take tens of minutes to hours.** The agent plans in under 21 s and cuts in 3.0–3.6 min. The searches it replaces take 10 min (LeGR's evolutionary search), 85 (AMC's DDPG), 271 (RL-Pruner [178]) and more than 17 h (GNN-RL). The criterion methods spend 20–62 min before their last fine-tune, and HRank's 55 stages on ResNet-56 take 338.
 - **Like for like, the fastest published pipeline takes about twice SPECTRA's time.** G2 (CUDA graphs and GPU-side augmentation, 4.4–4.8 min for 100 epochs instead of 17.6–17.8) is a recovery implementation any method could adopt, so the stock-loader rows are the like-for-like ones: their epoch (10.5–10.7 s) sits among the published methods' (9–24 s). Against them FPGM takes 2.1× SPECTRA's time and DepGraph 4.0×; against the G2 rows, 5.2–5.7× and 10.0–11.0×.
 - **On VGG-16 the gap is wider** (§425). SPECTRA takes 3.8–4.0 min with G2 and 10.0–10.3 with a stock loader: its cut walk is shorter (57–71 steps) and its epoch faster than on ResNet-56. Like for like, OCSPruner takes 4.4–4.6× SPECTRA's time, HRank 6.5–6.7× and CHIP 11.5–11.8×; the decisions alone take 0.8–1.1 min against 22, 37 and 62. The agents' training is repaid within 1.5–4.2 VGG-16 networks (FLOPs agent) and 10.5–28.8 (params agent).
 - **Fine-tune length is a recipe choice, not part of the method's decision.** CHIP fine-tunes for 300 epochs, LeGR for 400, AMC for 60, GNN-RL and SPECTRA for 100. Most of CHIP's and LeGR's time is their fine-tune; most of AMC's, RL-Pruner's and GNN-RL's is their search, and most of HRank's on ResNet-56 its 55 prune-and-retrain stages.
@@ -1957,3 +1957,7 @@ Proposal numbering **[1]–[78]** unchanged. Survey additions **[79]–[96]** (A
 [175] Cho, J. H., & Hariharan, B. (2019). On the efficacy of knowledge distillation. In *Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)*.
 
 [176] Mirzadeh, S. I., Farajtabar, M., Li, A., Levine, N., Matsukawa, A., & Ghasemzadeh, H. (2020). Improved knowledge distillation via teacher assistant. In *Proceedings of the AAAI Conference on Artificial Intelligence*, 34(04).
+
+[177] Blalock, D., Gonzalez Ortiz, J. J., Frankle, J., & Guttag, J. (2020). What is the state of neural network pruning? In *Proceedings of Machine Learning and Systems (MLSys)*, 2. arXiv:2003.03033.
+
+[178] Wang, B., & Kindratenko, V. (2024). RL-Pruner: Structured pruning using reinforcement learning for CNN compression and acceleration. arXiv:2411.06463.
