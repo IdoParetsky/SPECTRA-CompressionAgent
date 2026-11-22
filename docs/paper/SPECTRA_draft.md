@@ -659,10 +659,11 @@ The frozen FLOPs agent (T4-F) never trained on CIFAR-100 or Tiny-ImageNet: its c
 - **ResNet-18 Tiny-ImageNet** (coverage): the agent is below the rule (−0.74) and level with the even cut.
 - **With the safety net of §5.9b** (§431), ResNet-18 Tiny-ImageNet is at the rule (−0.47): validation picks the rule's plan on two of five seeds, the agent's worst among them. Given the even cut as a third candidate, validation picks it in all ten VGG-16-BN Tiny-ImageNet cells, so those rows equal the even cut's. These are product variants, not the agent's rows (Table 5.9b-2).
 
-**Inside DepGraph's own code — PRELIM (§450, three seeds, bars but no call).** We ran our threshold rule's widths in DepGraph's Torch-Pruning pipeline and recipe at its two home cells.
+**Inside DepGraph's own code — PRELIM (§450, §453, three seeds, bars but no call).** We ran our threshold rule's widths in DepGraph's Torch-Pruning pipeline and recipe at its two home cells.
 - **VGG-19 CIFAR-100 at 8.84×, without sparsity training.** The rule's allocation beats DepGraph's exact widths on every seed (10k +0.47; TEST 5k +0.72, val +0.23).
 - **The same cell, with DepGraph's sparsity training.** The rule measured on the dense network is behind DepGraph's full method (10k −0.36). Measured on the post-training network that is actually cut, it is level (10k −0.03; TEST 5k −0.01, val −0.06).
 - **ResNet-56 CIFAR-10 at 2.11×, measured the same way.** It is level again (10k +0.21, all three seeds positive; TEST 5k +0.17, val +0.25). At equal FLOPs it keeps 13 % more parameters.
+- **VGG-19 at 8.84× again, with the sparsity training aimed at the channels the rule will cut (§453).** It is level again (10k −0.13; TEST 5k −0.02, val −0.25). Aiming the penalty buys the rule's widths +0.23 over DepGraph's own penalty. No route tested so far gives the rule a lead at this cell.
 - DepGraph's own arm reproduces its paper at 8.84× (10k −3.07 against −3.11).
 
 ### 5.1c Table 1c, ImageNet ResNet-50 at published points (§427, §428, §430)

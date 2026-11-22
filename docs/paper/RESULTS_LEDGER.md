@@ -12553,3 +12553,64 @@ Draft §5.3 ("Against a stronger rule") and the further-work paragraph cite this
 - any claim beyond CIFAR-100, which holds all 21 networks.
 
 Draft §5.10 ("Selection by a short recovery") cites this section. Next §453.
+
+## 453. (P9: queue row P9 (targeted sparsity learning), registered 22 Nov 18:48 IST (commit fe07138) before any P9 code or script existed; Think Tank Track A's step after §451; inside DepGraph's own code and recipe; exploratory, bars but no call) — **P9 LEVEL. At VGG-19 CIFAR-100 8.84×, sparsity training aimed at the rule's channels, followed by the cut to the rule's widths, is level with DepGraph's full method: 10k −0.13 (TEST 5k −0.02, val −0.25; seeds −0.24, +0.38, −0.54). Aiming the penalty buys the rule's widths +0.23 over DepGraph's graded penalty. It is not the missing half of DepGraph's lead.** PRELIM.
+
+**Question.** P6 (§450) showed that sparsity training (SL) buys DepGraph's widths about +1.1 but the rule's only +0.25, because DepGraph's penalty shrinks the weights toward its own global cut. P9 aims the penalty at the channels the rule will cut instead. Does the rule's allocation then match or beat DepGraph's full method?
+
+**Code and cells.**
+- **The code.** `third_party/Torch-Pruning/reproduce_p9/main.py` (blob 8e2b9e05) is reproduce_p6's main.py (87a4c446) plus a default-off `--targeted-sl`. With the flag off, the file runs as reproduce_p6. With it on:
+  - In each group whose root convolution has a target width k below its width n, the n − k channels of lowest group norm (re-ranked at every step) get DepGraph's strongest penalty factor (16), and the other k get 1.
+  - A group with no cut gets no penalty.
+  - The hook acts only inside the penalty step, so the importance the cut uses is unchanged.
+- **Arm tSL.** `--method group_sl --reg 5e-4 --widths-json <rwSL's widths of the seed> --targeted-sl`, seeds 42–44, every other setting as P6's rwSL. After SL comes P6's per-layer cut to the same widths (400 steps, group L2 norm), then DepGraph's fine-tune.
+- **Jobs.** 24415406–08 (nice 4), all COMPLETED in 45:50–46:23. The comparators are P6's and P7's cells of the same seeds (§450).
+- **Build.** The spectra-implementer subagent built it from science's spec, and science reviewed it. The unit test passed 18 checks and the CPU check 14 on the deployed files (queue row).
+- **Read.** P6's reader (`scratch_audit/s22nov_p9.sh`, blob 85540116) read each last-epoch model on our split of the 10k test set. Output `s22nov_p9_read.txt`.
+
+**Checks.**
+- **Gate PASS,** 21:20:41 IST (smoke 24412596):
+  - widths exact in main.py's line and in the saved model;
+  - FLOPs kept 0.110;
+  - main.py's log line "Targeted SL: aimed 16, uncut 0, unlisted 0 (of 16 groups)";
+  - both models saved;
+  - the evaluator equal to main.py's own last epoch;
+  - the dense base at val 3652 / TEST 3698 of 5,000.
+- **Widths.** tSL's trained widths equal rwSL's on every seed (the same widths file): FLOPs kept 0.1101, params kept 0.0672.
+- **Amendment 1** (the chain's premature gate) is recorded in the queue row. It changed no arm, gate or bar.
+- **Selection.** Last epochs only. main.py's best-on-test file is never read.
+
+| Arm (VGG-19 CIFAR-100 8.84×, seeds 42–44) | FLOPs kept | params kept | TEST 5k raw [honest] | val | 10k (by seed) |
+|---|---|---|---|---|---|
+| tSL (aimed SL, the rule's widths) | 0.110 | 0.067 | −3.38 [−3.64] | −3.03 | −3.20 (−3.39, −3.04, −3.18) |
+| dgSL (DepGraph as published; §450) | 0.111 | 0.063 | −3.36 [−3.62] | −2.78 | −3.07 (−3.15, −3.42, −2.64) |
+| rwSL (DepGraph's SL, the rule's widths; §450) | 0.110 | 0.067 | −3.55 [−3.81] | −3.31 | −3.43 |
+| rmSL (P7: the rule re-measured after DepGraph's SL; §450) | 0.110 | 0.067 | −3.37 [−3.63] | −2.84 | −3.10 |
+| rw0 (no SL, the rule's widths; §450) | 0.110 | 0.067 | −3.79 [−4.05] | −3.58 | −3.68 |
+
+| Pair, TEST 5k / val / 10k (10k by seed) | Reading |
+|---|---|
+| tSL − dgSL: −0.02 / −0.25 / **−0.13** (−0.24, +0.38, −0.54) | P9: LEVEL by its bar |
+| tSL − rwSL: +0.17 / +0.28 / +0.23 (−0.29, +0.57, +0.40) | what aiming the penalty buys on the same widths |
+| tSL − rmSL: −0.01 / −0.19 / −0.10 (−0.27, −0.51, +0.48) | aimed SL against re-measuring after DepGraph's SL |
+| tSL − rw0: +0.41 / +0.55 / +0.48 | what aimed SL buys the rule's widths, against about 1.1 for DepGraph's (dgSL − dgW0, 10k) |
+
+- **Bars,** written before any cell (10k mean, paired by seed): EDGE +0.3 or better with all three seeds positive; LEVEL −0.3 or better; BEHIND below −0.3. −0.13 reads LEVEL.
+- **Honest** equals raw in each difference: the origin control of the same seed cancels.
+- **Caption:** the rule's widths keep params 0.067 against dgSL's 0.063 (+6.7 %), at FLOPs 0.110 against 0.111.
+- **[H] expectation,** written before the read: about +0.5. Observed: −0.13.
+
+**Reading.**
+- **By the bar: LEVEL.** The next step, set before the read: P9 is reported beside P7 and P8, with no ResNet-56 cell and no more seeds.
+- **Aiming helps a little.** It adds +0.23 over DepGraph's graded penalty (two of three seeds positive), so SL in total now buys the rule's widths +0.48, about half of what DepGraph's SL buys its own widths (+1.1).
+- **Two routes, one result.** Without SL the rule's allocation starts +0.47 ahead; after SL it ends level, by either route: re-measuring after DepGraph's SL (P7, −0.03) or aiming SL at the rule's cut (P9, −0.13). The two routes are level with each other (−0.10).
+- [H] DepGraph's sparsity training and its global cut are co-adapted: its widths are where its penalty drove the weights, while the rule's widths come from a probe of the dense network. Aiming the penalty at fixed widths prepares those channels for removal but does not reach that co-adaptation. With three seeds spreading 0.9 points at 10k, this is a level result, not a read of the mechanism.
+- **Track A at DepGraph's deep cell rests on P7 and P8:** level with DepGraph's learned allocation at two of its home cells, with an allocation that needs no training. No route tested so far gives the rule a lead there.
+
+**Not claimed:**
+- a win over DepGraph;
+- any call (a pilot with bars);
+- anything at equal parameters (+6.7 %);
+- any result of SPECTRA's agent.
+
+Draft §5.1b's paragraph "Inside DepGraph's own code" cites this section. Next §454.
