@@ -12487,3 +12487,69 @@ Draft §5.1b carries a PRELIM paragraph citing this section.
 - stacking recalibration on DepGraph's sparsity training. RAR's GO follow-up is withdrawn by science before any of its jobs existed (queue row RAR-P).
 
 Draft §5.3 ("Against a stronger rule") and the further-work paragraph cite this section. Next §452.
+
+## 452. (SIM-SELECT: queue row DB (OUTCOME-DATA), step 2 read again with amendment 2's GPU top-up; the bar registered 22 Nov 07:55 IST before any outcome was read, amendments 2 and 3 (09:00 and 09:40 IST) before any top-up job; no training, no agent train; exploratory) — **SIM-GO by the registered bar: at equal FLOPs, picking each group's plan by a gentle 2-epoch recovery beats the threshold rule by TEST 5k +0.42 [+0.06, +0.87] (val +0.49, 10k +0.45; 36 groups, 21 networks). The picked plans keep 22 % more parameters, and held to the rule's size on both axes the pick gains +0.00 [−0.18, +0.16]. By that diagnostic the gain is the choice of how many parameters to keep at the FLOPs budget, not a better plan of the same size.** PRELIM.
+
+**Question.** A small portfolio of plans, screened by a short recovery used as a simulation: does it pick better plans than the best fixed rule (sens_thresh, the threshold rule)? Step 2's first read (queue row, 22 Nov 08:32 IST) was SIM-DATA, because no group holding sens_thresh had a 1- or 2-epoch recovery. Amendment 2 added one.
+
+**Code and cells.**
+- **Groups.** Fixed by a rule that reads no outcome (amendments 2 and 3): tree_v35's groups of the recipe of record at FLOPs 0.20 and 0.45 that hold sens_thresh and at least 5 distinct plans among sens, sens_cost, sens_thresh, uniform and agent. At most 6 networks per family and 2 agent plans per group. That gives 36 groups on 21 networks, all CIFAR-100: DenseNet 1, MobileNetV2 4, ResNet-like 6, ShuffleNetV2 4, VGG 6. They hold 412 plans, 40 of them agent plans.
+- **The signal, "the 2-epoch probe."** Each plan's original job was re-run in tree_v35 from its own logged environment. Only `SPECTRA_EVAL_FINAL_FT_EPOCHS=2` and `SPECTRA_EVAL_FINAL_FT_LR=0.01` changed, besides the job name and nice. The probe is the plan's val change after that recovery. The reader labels this stratum "G2"; it is not the recovery recipe G2 of §348.
+- **The outcome.** The original 100-epoch recovery's TEST 5k change (recipe of record), averaged over the plan's rows.
+- **Jobs.** 412: smokes 24395388–90, then 24395391–24396131 (manifest `scratch_audit/s22nov_topup_manifest.tsv`, 410 rows, plus 2 jobs queued by name). All COMPLETED by 21:19 IST. Total 21.4 GPU-h, 3.1 min per plan on average (range 1.2–9.3).
+- **Read.** `scratch_audit/s22nov_simsel_read.sh` runs the audit, then the DB extract again (21:24 IST; the pre-top-up files are kept as `*_pre_topup.*`), then the ladder of `s22nov_db.py` (blob 2c64d34a, stamped in the queue row before the top-up). Output `s22nov_db2_read.txt`.
+
+**Checks.**
+- Gate PASS (queue row): the three smokes rebuilt the original plan_id and recorded epochs 2 at lr 0.01.
+- Audit of every manifest re-run (`s22nov_topup_audit.txt`): 410 of 410 rebuild the original plan_id and carry a final record of epochs 2 at lr 0.01; none was dropped. The two jobs outside the manifest join by plan_id, like every other.
+- Extract: 11,650 rows kept (11,424 before the top-up), 426 of them in the probe's stratum.
+- No TEST value chose anything. The probe picks on the val half of a separate 2-epoch run; TEST only scores the pick's 100-epoch outcome.
+
+| pick by the 2-epoch probe − sens_thresh, same groups | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| All (21 networks, FLOPs 0.20 and 0.45) | 36 | **+0.415** [+0.062, +0.865] | +0.491 [+0.158, +0.877] | +0.453 [+0.124, +0.860] |
+
+- **Bar,** set before any outcome was read: SIM-GO if regret(sens_thresh) − regret(the probe's pick) ≥ +0.30 with the interval's lower end > 0, for the shortest recovery in {1, 2 epochs} with at least 30 groups holding sens_thresh (amendment 2: the 2-epoch probe). Both conditions hold. The regret difference equals the outcome difference of the two plans.
+- **Intervals:** bootstrap over networks, 2,000 draws, seed 0.
+- **val and 10k** come from diagnostic 1 below; the 10k is the mean of the two 5k halves.
+- **Honest** is not available: these rows carry no origin control. Both plans of a pair share the network and the recovery recipe.
+- **Ranking.** The probe's within-group Kendall τ-b against the 100-epoch TEST outcome is +0.518 on its 36 groups. The noise ceiling (replicate rows of the same plans, 134 groups) is +0.545. Over all 274 groups, the cut alone gives +0.156 and the 100-epoch val +0.421.
+- **Which plans it picks** (ties split): sens_thresh 18, uniform 7, sens 5, sens_cost 4, agent 2.
+- **Mean TEST regret by kind on these groups** (hindsight, never a choice): sens_thresh 0.80, sens 1.78, sens_cost 1.80, uniform 2.20 (33 groups), agent 2.87 (20 groups); the probe's pick 0.38.
+- **Where the gain sits.** It is concentrated in a few groups:
+  - DenseNet-40, sens_cost: +5.39 at FLOPs 0.20, +1.42 at 0.45;
+  - VGG-16-BN and VGG-13-BN at 0.20, uniform: +2.43, +1.74;
+  - ResNet-56 ×8 at 0.20, sens: +2.34;
+  - ResNet-56 ×4 at 0.20, an agent plan: +1.73.
+
+**Size: the caption and three diagnostics.** Scripts `scratch_audit/s22nov_simsel_diag.py`, `_diag2.py` and `_diag3.py` (blobs 4595030a, cda213ce, c8e39f81) were written after the read. They are reported, not quoted, and make no call.
+- **The caption.** FLOPs are equal (pick / sens_thresh 1.000). Parameters are not: the pick keeps 1.22× sens_thresh's [1.08, 1.36], and 11 of 36 pairs differ by more than 10 % (10 keep more, 1 fewer). The large gains are among those 11. At FLOPs 0.20 on VGG-13/16/19-BN the threshold rule keeps 0.074–0.082 of the parameters and the uniform plan 0.19–0.22; on DenseNet-40 the two keep 0.236 and 0.466.
+- **A pick that reads no accuracy**, the plan that keeps the most parameters: −0.20 [−0.82, +0.47]. Size alone does not produce the gain; the probe tells when the larger plan is the better one.
+- **Size-adjusted.** Using the pooled within-group slope of TEST on log params kept (+4.05 points per unit log, over the 412 plans), the adjusted difference is −0.17 [−0.58, +0.21]. On the same groups the 100-epoch val pick gives +0.46 raw, keeps 1.18× the parameters and adjusts to +0.01 [−0.29, +0.34].
+- **Held to equal size on both axes.** Candidates are the plans whose free axis is at most 1.10× sens_thresh's:
+
+| selection held to equal size on both axes | groups | networks | TEST 5k | val |
+|---|---|---|---|---|
+| the 2-epoch probe, FLOPs groups | 36 | 21 | +0.003 [−0.181, +0.162] | +0.137 [−0.029, +0.326] |
+| 100-epoch val, FLOPs groups | 68 | 36 | +0.388 [+0.209, +0.588] | +0.718 [+0.572, +0.878] |
+| 100-epoch val, params groups | 77 | 38 | +0.255 [+0.136, +0.382] | +0.559 [+0.436, +0.693] |
+
+- **The 100-epoch val pick without the both-axes hold.**
+  - Params groups: +0.983 [+0.690, +1.350], keeping 1.49× the FLOPs. At equal parameters, extra FLOPs predict no accuracy (slope −0.31 per unit log), and the size-adjusted figure is +1.10.
+  - FLOPs groups: +0.598 [+0.334, +0.899], keeping 1.10× the parameters, size-adjusted +0.26 [+0.03, +0.51].
+- [H] The 100-epoch val pick is read on the same trained network as its TEST outcome (the two halves of one test set). Its advantage therefore includes that run's own luck, which a re-run would not repeat; the noise ceiling (τ +0.545) shows how large run noise is. The probe's pick is made on a separate run, so it carries none of that luck. The 100-epoch rows are an upper reference, not a selector to set beside the probe.
+
+**Reading.**
+- **By the registered bar: SIM-GO.** A portfolio of plans screened by a 2-epoch recovery at lr 0.01 picks, at a FLOPs budget, plans 0.42 points better on TEST 5k than the threshold rule's. The screening costs 3.1 GPU-minutes per candidate.
+- **The caption carries the call.** The picked plans keep 22 % more parameters, and held to the rule's size on both axes the pick is level (+0.00). As in §451, the gain at equal FLOPs is the size trade. The probe knows when spending more parameters at the FLOPs budget pays: at FLOPs 0.20 the threshold rule keeps very few parameters on VGG and DenseNet. It does not find a better plan of the same size in this portfolio.
+- **The measurement itself is strong.** A 2-epoch gentle recovery ranks plans nearly as well as a replicate of the 100-epoch run (τ +0.52 against +0.55). [H] What the portfolio lacks is candidates better than the rule at equal size. Every other kind's regret is more than twice the rule's on these groups, and the agent's plans are the worst (2.87).
+- **For Track B** (the agent proposes plans and a short simulation screens them): the screen is good enough, and the proposer is what is missing. The gate is open by the letter, but its evidence points at the proposer, not at the simulation.
+- **Not tested:** the probe at equal parameters (the top-up ran FLOPs groups only). With the 100-epoch val as selector, the params groups show the larger gain, and it survives both size checks (+0.26 when also held to equal FLOPs). That selector shares its run with the outcome, though ([H] above).
+
+**Not supported by this section:**
+- any claim that a short simulation finds better plans than the threshold rule at equal size on both axes;
+- any FLOPs-axis quote of the +0.42 without its params caption (1.22×) and the both-axes row beside it;
+- any result of SPECTRA's agent: 2 of the 36 picks are agent plans, and agent plans are the worst kind here;
+- any claim beyond CIFAR-100, which holds all 21 networks.
+
+Draft §5.10 ("Selection by a short recovery") cites this section. Next §453.

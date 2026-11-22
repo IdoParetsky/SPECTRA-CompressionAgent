@@ -1429,6 +1429,13 @@ A proxy is useful as a reward only if it orders plans the way the 100-epoch reco
 - A proxy's ranking of four fixed plans is not a sufficient test of what it teaches. The batch-norm proxy ranks ResNet-20 ×8 C100's fixed plans backwards (§375), yet training on it removed the failure (§378).
 - **Selection.** D-PROXY-4's reference ranking was the TEST-half recovery. D-PROXY-5 moved it to the validation half, so that no reward is selected on TEST (§379). The T6 rewards were chosen by Ido after D-PROXY-5's registered selection found none valid.
 
+**Selection by a short recovery (§452) — PRELIM.** A short recovery can also serve as a simulation: run a few candidate plans for two epochs and keep the one that validates best.
+- **Setting.** 36 CIFAR-100 groups (21 networks, FLOPs 0.20 and 0.45). The candidates are sens, sens_cost, sens_thresh, uniform and up to two agent plans.
+- **Ranking.** A 2-epoch recovery at lr 0.01 ranks plans nearly as well as a replicate of the 100-epoch run does (τ +0.52 against +0.55).
+- **The pick.** It beats the threshold rule by TEST 5k +0.42 [+0.06, +0.87] (val +0.49, 10k +0.45; honest not available, as these rows carry no origin control). That meets the registered bar (SIM-GO), at 3.1 GPU-minutes per candidate.
+- **Size.** The picked plans keep 22 % more parameters at the same FLOPs. Held to the rule's size on both axes, the pick gains +0.00 [−0.18, +0.16].
+- **Reading.** The screen is accurate, but the portfolio holds no plan better than the threshold rule's at equal size. The agent's plans are the weakest candidates there.
+
 ### 5.11 The recovery recipe
 
 Every row from §341 on uses one recovery, G2 (§4.2). It replaced the per-family recipes of §330 through a sequence of registered checks:
