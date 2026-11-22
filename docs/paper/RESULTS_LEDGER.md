@@ -12330,3 +12330,38 @@ A diagnostic, not a call (`s22nov_rar_params.py`):
 - the deep cut inside DepGraph's code (VGG-19 CIFAR-100 8.9×), after P8.
 
 Each is registered before it runs. The draft's further-work line on recalibrated sensitivity now cites this section. Next §449.
+
+## 449. (AGT-RAR: queue row AGT-RAR, registered 22 Nov 14:01 IST (commit 771769c) before any AGT-RAR script existed; zero GPU; the frozen menu agent of §441 against the recalibrated rule of §448) — **AGENT-BEHIND: TEST 5k −0.88 [−1.47, −0.27] on T1's 9 held-out networks; −1.58 at FLOPs 0.20, level at 0.45.** PRELIM.
+
+**Rows.** All three arms run under the recovery of record (100 epochs, cosine from lr 0.1, keep last), paired by group:
+- **menu agent:** the frozen menu agent's three seeds (m1f; trains 24260391 / 24260394 / 24260397; eval rows in tree_v36), mean over seeds per group;
+- **rarF:** RAR's recalibrated rule (§448; tree_v39; one seed);
+- **original:** the original sens_thresh row (tree_v35; one seed).
+
+Groups: every RAR FLOPs group whose network is in T1's 9-network call set (dn40, mb075, mb1, r20w12, r20w8, r56w4, r56w8, v16, v19b; CIFAR-100, held out of the agent's catalog), at FLOPs 0.20 and 0.45: 18 groups, none missing. Reader `scratch_audit/s22nov_agtrar_read.py` (blob b24c793b), run 14:02 IST; output `s22nov_agtrar_read.txt`.
+
+| Paired by group (bootstrap over networks, 2,000 draws, seed 0) | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| **menu agent − rarF**, all (the call) | 18 | **−0.877** [−1.471, −0.274] | −1.223 | −1.050 |
+| menu agent − rarF, FLOPs 0.20 | 9 | −1.580 [−2.283, −0.848] | −1.931 | −1.756 |
+| menu agent − rarF, FLOPs 0.45 | 9 | −0.174 [−0.754, +0.325] | −0.515 | −0.344 |
+| menu agent − original sens_thresh, all (beside) | 18 | +0.167 [−0.195, +0.737] | +0.180 | +0.174 |
+| menu agent − original sens_thresh, FLOPs 0.20 | 9 | +0.313 [−0.273, +1.047] | +0.331 | +0.322 |
+| menu agent − original sens_thresh, FLOPs 0.45 | 9 | +0.021 [−0.447, +0.576] | +0.030 | +0.026 |
+
+- Raw equals honest: all arms share each group's origin and recovery.
+- Call, set before the read: AGENT-AHEAD at +0.30 or more with the interval's lower end above 0; AGENT-BEHIND at −0.30 or less, or with the upper end below 0.
+- **Caption.** FLOPs are equal within 0.003 in every pair. rarF keeps more parameters than the agent in 16 of 18 pairs (more than 10 % in 15). Examples: at FLOPs 0.20, ResNet-56-w8 0.247 against 0.190, VGG-19 0.102 against 0.075.
+
+**Readings.**
+1. The agent's standing against the old rule is reproduced: level at 0.45 (+0.02, against §441's call-set reading of about +0.00). At 0.20 it reads +0.31, inside its interval.
+2. Against the recalibrated rule, the frozen agent is behind by the registered call. The gap sits at the deep cut (−1.58 at 0.20, negative on all 9 networks) and is level at the mild one.
+3. The rule's measurement fix moved it further than eleven agent generations moved the agent. That is the candid frame for the agent from here (Ido 21 Nov: judge the agent against the strongest rule).
+4. As in §448, part of the rule's lead could be the parameters it keeps at equal FLOPs. RAR-P (registered) reads the rule at equal parameters; this comparison has no equal-parameters counterpart until the agent's params rows are paired with it.
+
+**Not claimed:**
+- that the agent cannot learn the recalibrated signal (it was never given it);
+- anything at equal parameters;
+- more than one seed for the rule's arms.
+
+Next §450.

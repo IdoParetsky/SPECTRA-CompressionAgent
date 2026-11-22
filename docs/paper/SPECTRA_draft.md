@@ -794,6 +794,8 @@ Every pair is matched within 1 % of FLOPs.
 - The FLOPs agent holds up below its range better than the params agent does (§413). [H] It is a residual held within a trust region around its rule.
 - At 10 % FLOPs the even cut is ahead of the FLOPs rule on six of eight networks. [H] The width floors bind there, so a rule has little left to allocate.
 
+**Against a stronger rule — PRELIM (§448, §449).** Measuring the threshold rule's sensitivities after batch-norm recalibration of every probe improves its plans at equal FLOPs: TEST +0.46 [+0.02, +0.90] over the original rule on 36 groups of 21 networks (+1.12 at FLOPs 0.20, −0.13 at 0.45; one seed per group). It keeps 17–32 % more parameters (§448). Against that recalibrated rule, on T1's 9 held-out CIFAR-100 networks, the frozen menu agent is behind: TEST −0.88 [−1.47, −0.27] (val −1.22, 10k −1.05). The gap is −1.58 at FLOPs 0.20 (negative on all 9 networks) and −0.17 at 0.45 (§449). The equal-parameters reading is registered (RAR-P).
+
 ### 5.4 Trade-off curves — PRELIM (DEEP has read, §413; the figure is still to draw)
 
 **Figure 5.4 (to draw).** TEST 5k accuracy after recovery against the kept fraction of parameters, one panel per network, with the frozen agent, the cost-aware rule and the even cut, and the published points of Table 1 beside them; a second panel set does the same in FLOPs. It is the view of NEON's Figure 5: one frozen policy covering the whole budget range, where Table 2 reads fixed points.
