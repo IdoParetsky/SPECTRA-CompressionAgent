@@ -12275,3 +12275,58 @@ Both are committed: `docs/paper/lit/LIT_SEALED_REPO_20NOV.md` and `docs/paper/li
 Not claimed: any published value as a same-loop comparator; any comparison with a published row as a beat (different recipes, baselines, variants and counters); the ablation rows as operating points.
 
 Records: `docs/paper/lit/LIT_SEALED_REPO_20NOV.md`, `docs/paper/lit/LIT_SEALED_WEB_20NOV.md`; draft §4.1, §4.3 and §5.1 corrected in the same commit. Next §448.
+
+## 448. (RAR: queue row RAR, registered 22 Nov 10:20 IST before any RAR job; Think Tank I4, Track A's direction #1; the threshold rule's measurement only, no agent; exploratory, one seed per group) — **RAR-GO by the letter: TEST 5k +0.46 [+0.02, +0.90] at equal FLOPs, with 17–32 % more parameters kept.** PRELIM.
+
+**Question.** Does the threshold rule pick better plans when each channel group's sensitivity is read after a batch-norm recalibration of the probe, instead of right after the cut?
+
+**Code and cells.**
+- Flag `SPECTRA_SENS_BN_RECAL=8` (default off): the base model and every probe's cut copy re-estimate their batch-norm statistics on the 8 calibration batches before the calibration loss is read. Commit eef95bf, `src/group_sensitivity.py` blob eacccc9f; 19 tests passed in `tree_v39`; not a policy contract key.
+- 36 groups: tree_v35's FLOPs groups at 0.20 and 0.45, on 21 networks (groups: ResNet-like 11, VGG 10, MobileNetV2 8, ShuffleNetV2 5, DenseNet 2), chosen by DB amendment 3's rule.
+- Each group's original sens_thresh job was re-run from its logged environment in `tree_v39`, under the recovery of record (100 epochs, cosine from lr 0.1, batch 256, keep last), seed as logged.
+- Arm **rarF** (flag on) on all 36 groups; arm **sthF** (flag off) on the first 6, a reproduction check.
+- Jobs 24396073–24397112 (42; manifest `scratch_audit/s22nov_rar_manifest.tsv`), all COMPLETED by 13:10 IST.
+- Read by `scratch_audit/s22nov_rar_read.py` (blob debb74c2) over the DB extract re-run at 13:13 (11,241 rows; the pre-RAR files kept as `s22nov_db_*_pre_rar.*`).
+
+**Checks.**
+- Reproduction PASS: sthF's plan equals the original on 6 of 6 groups, TEST +0.00 on each.
+- Realizable: every new row and its original lands within 0.01 of its FLOPs target, and no log has a fallback or masked-edit line (`s22nov_rar_land.py`, `s22nov_rar_land.tsv`).
+
+| rarF − original sens_thresh, paired by group | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| All (21 networks) | 36 | **+0.457** [+0.021, +0.898] | +0.729 [+0.310, +1.161] | +0.593 [+0.181, +1.013] |
+| FLOPs 0.20 | 17 | +1.115 | +1.334 | +1.22 |
+| FLOPs 0.45 | 19 | −0.133 | +0.187 | +0.03 |
+
+- Intervals: bootstrap over networks, 2,000 draws, seed 0.
+- Raw and honest differences are equal, because each pair shares one origin and one recovery.
+- Bar, set before any job: RAR-GO if the TEST 5k mean is +0.30 or more and the interval's lower end is above 0.
+- Plans changed in 36 of 36 groups.
+- By family (TEST 5k): ResNet-like +1.05 (11 groups), VGG +0.41 (10), DenseNet +2.15 (2), MobileNetV2 −0.07 (8), ShuffleNetV2 −0.58 (5; val −0.70).
+
+**Parameters (caption).** At equal FLOPs, rarF keeps more parameters than the original rule:
+- at FLOPs 0.20: 0.224 against 0.170 of the dense network (+32 %; more than 10 % in 13 of 17 pairs);
+- at FLOPs 0.45: 0.520 against 0.444 (+17 %; 14 of 19).
+
+A diagnostic, not a call (`s22nov_rar_params.py`):
+- Among each group's existing tree_v35 plans, TEST rises with the parameters kept. That slope, times rarF's extra parameters, predicts +0.48 at 0.20 (observed +1.12) and +0.40 at 0.45 (observed −0.13).
+- corr(Δparams, ΔTEST) is +0.39 at 0.20 and +0.10 at 0.45.
+
+**Regret (a diagnostic; the oracle is each group's best existing tree_v35 plan by mean TEST, never a selection):** 0.886 → 0.430 overall; 1.486 → 0.371 at 0.20; 0.350 → 0.482 at 0.45.
+
+**Readings.**
+1. Measured on recalibrated probes, the rule's plans are better at the deep FLOPs point and level at the mild one. This matches the saturation of allocation at mild cuts and its weight at deep cuts.
+2. The gain comes with a different plan shape. At equal FLOPs more parameters are kept: the recalibrated probes appear to rate the FLOP-heavy early layers as less sensitive [H]. On the FLOPs axis this is a legitimate allocation. Up to about half of the 0.20 gain could be the extra parameters; whether recalibration helps at equal parameters is open, and the params points decide it.
+3. Compact networks with depthwise or grouped convolutions do not gain (MobileNetV2 level, ShuffleNetV2 behind).
+
+**Not claimed:**
+- anything about the frozen agent;
+- any comparison with a published method;
+- a gain at equal parameters;
+- more than one seed per group.
+
+**Next, set before the read:**
+- the same at size_param points;
+- the deep cut inside DepGraph's code (VGG-19 CIFAR-100 8.9×), after P8.
+
+Each is registered before it runs. The draft's further-work line on recalibrated sensitivity now cites this section. Next §449.
