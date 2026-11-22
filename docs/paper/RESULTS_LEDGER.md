@@ -12365,3 +12365,71 @@ Groups: every RAR FLOPs group whose network is in T1's 9-network call set (dn40,
 - more than one seed for the rule's arms.
 
 Next §450.
+
+## 450. (P6, P7, P8: queue rows P6, P7, P8, each registered before its first job (21 Nov, 22 Nov 06:55 and 10:45 IST); Think Tank I2, our threshold rule's widths inside DepGraph's own code and recipe; exploratory, bars but no call) — **P6 BEHIND, P7 LEVEL, P8 LEVEL: measured after DepGraph's sparsity training, the training-free rule matches DepGraph's learned allocation at two of its home cells (VGG-19 CIFAR-100 8.84×, 10k −0.03; ResNet-56 CIFAR-10 2.11×, 10k +0.21).** PRELIM.
+
+**What ran.**
+- DepGraph's Torch-Pruning v1.6.1, `reproduce_p6/main.py` unchanged (blob 87a4c446), at its two home cells; seeds 42, 43, 44.
+- Every arm keeps its last epoch. main.py's best-on-test file is never read.
+- Each arm is scored on our split of the 10k test set, as a change from the dense base. Honest = raw TEST 5k minus the origin control's change on the same seed.
+- **Arms:**
+  - dgSL: DepGraph as published, sparsity training (SL) then its global cut;
+  - rwSL: SL, then the rule's widths measured on the dense network;
+  - rmSL: SL, then the rule re-measured on each seed's post-SL network (P7, P8);
+  - rw0: no SL, the rule's widths;
+  - dg0: no SL, DepGraph's global cut;
+  - dgW0: no SL, DepGraph's exact widths cut per layer;
+  - org: the dense base under the same fine-tune.
+- **Jobs.**
+  - P6 (VGG-19 C100): dgSL 24387484/489/494, rwSL 24387485/490/495 (smoke 24386339), rw0 24387486/491/496, dg0 24387487/492/497, org 24387488/493/498, dgW0 24387514–516.
+  - P7: rmSL 24393719–721.
+  - P8 (ResNet-56 C10): dgSL and org 24395859–864, rmSL 24400292–294.
+- **Reads.** `scratch_audit/s21nov_p6_read.txt` holds P6 and P7, by reader blob cfe062bb (amendment 2, arm rmSL); `s22nov_p8_read.txt` holds P8, by `s22nov_p8.sh` chain 42871d14.
+- **Bars, set before each read (10k mean, paired by seed):** LEVEL −0.3 or better; EDGE +0.3 or better with all three seeds positive; BEHIND below −0.3.
+
+**VGG-19 CIFAR-100 at 8.84× (P6, P7), from the dense base (val 73.04, TEST 5k 73.96, 10k 73.50).**
+
+| Arm | FLOPs kept | params kept | TEST 5k raw [honest] | val | 10k (by seed) |
+|---|---|---|---|---|---|
+| dgSL (DepGraph as published) | 0.111 | 0.063 | −3.36 [−3.62] | −2.78 | −3.07 (−3.15, −3.42, −2.64) |
+| rwSL | 0.110 | 0.067 | −3.55 [−3.81] | −3.31 | −3.43 (−3.10, −3.61, −3.58) |
+| rmSL | 0.110 | 0.067 | −3.37 [−3.63] | −2.84 | −3.10 (−3.12, −2.53, −3.66) |
+| rw0 | 0.110 | 0.067 | −3.79 [−4.05] | −3.58 | −3.68 |
+| dgW0 | 0.111 | 0.061 | −4.51 [−4.77] | −3.81 | −4.16 |
+| dg0 | 0.112 | 0.069 | −28.15 [−28.41] | −27.15 | −27.65 |
+| org | 1.000 | 1.000 | +0.26 | +0.17 | +0.21 |
+
+| Pair, TEST 5k / val / 10k (10k by seed) | Reading |
+|---|---|
+| rwSL − dgSL: −0.19 / −0.53 / **−0.36** (+0.05, −0.19, −0.94) | P6: BEHIND by its bar, by 0.06 |
+| rmSL − dgSL: −0.01 / −0.06 / **−0.03** (+0.03, +0.89, −1.02) | P7: LEVEL |
+| rmSL − rwSL: +0.19 / +0.47 / +0.33 | what re-measuring on the post-SL network buys the rule |
+| rw0 − dgW0: +0.72 / +0.23 / +0.47 (+0.42, +0.25, +0.75) | allocation only, without SL: the rule's widths ahead on every seed |
+| rwSL − rw0: +0.23 / +0.27 / +0.25 | what SL buys the rule's widths, against about 1.1 for DepGraph's (dgSL − dgW0, 10k) |
+
+DepGraph's own arm reproduces its paper: −3.07 at 10k against the published −3.11 at 8.92×.
+
+**ResNet-56 CIFAR-10 at 2.11× (P8), from the dense base (val 93.38, TEST 5k 93.68, 10k 93.53).**
+
+| Arm | FLOPs kept | params kept | TEST 5k raw [honest] | val | 10k (by seed) |
+|---|---|---|---|---|---|
+| dgSL | 0.471 | 0.501 | −0.05 [−0.38] | +0.06 | +0.00 (−0.03, +0.05, −0.01) |
+| rmSL | 0.473 | 0.564 | +0.11 [−0.21] | +0.31 | +0.21 (+0.01, +0.44, +0.18) |
+| org | 1.000 | 1.000 | +0.33 | +0.49 | +0.41 |
+
+- rmSL − dgSL: TEST 5k +0.17 (by seed −0.10, +0.06, +0.54), val +0.25, **10k +0.21** (+0.04, +0.39, +0.19, all positive): **LEVEL**, not EDGE, because the mean is below +0.30.
+- DepGraph's arm reads 10k +0.00, against its published +0.24 at 2.11×.
+- **Caption:** at equal FLOPs, rmSL keeps 13 % more parameters (0.564 against 0.501). The rule keeps the residual streams nearly whole (layer 3: 64 of 64 on every seed) and cuts the inner convolutions harder; 54–56 of 57 convolutions differ between the arms.
+
+**Readings.**
+1. Without sparsity training, our rule's allocation beats DepGraph's own at its deep cell on every seed (+0.47 at 10k). The rest of DepGraph's lead is its sparsity training, which helps its own widths about 1.1 and the rule's measured-on-dense widths only 0.25.
+2. Measured on the network that is actually cut (after SL), the rule draws level with DepGraph's full method at both home cells, P7 at 8.84× and P8 at 2.11×. At 2.11× all seeds are positive, with a params caption.
+3. Three seeds give wide intervals (P7's seeds span −1.02 to +0.89). These are level results, not wins.
+
+**Not claimed:**
+- a win over DepGraph;
+- any call (these are pilots with bars);
+- anything at equal parameters (P8's pair differs by 13 % in parameters);
+- the recalibrated probes of §448 (not used in any arm here; stacking both is the registered follow-up).
+
+Draft §5.1b carries a PRELIM paragraph citing this section. Next §451.
