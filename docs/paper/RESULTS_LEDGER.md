@@ -12432,4 +12432,58 @@ DepGraph's own arm reproduces its paper: −3.07 at 10k against the published �
 - anything at equal parameters (P8's pair differs by 13 % in parameters);
 - the recalibrated probes of §448 (not used in any arm here; stacking both is the registered follow-up).
 
-Draft §5.1b carries a PRELIM paragraph citing this section. Next §451.
+Draft §5.1b carries a PRELIM paragraph citing this section.
+
+## 451. (RAR-P: queue row RAR-P, registered 22 Nov 13:57 IST (commit cc0021f) before any RAR-P script existed; RAR's GO follow-up, set before RAR's read; the threshold rule's measurement only, no agent; exploratory, one seed per group) — **RARP-BEHIND: at equal parameters the recalibrated rule is TEST 5k −0.93 [−1.33, −0.54] below the original rule (val −0.87, 10k −0.90), and keeps 16 % fewer FLOPs. By the registered reading, §448's gain at equal FLOPs is a params-for-FLOPs trade, and the recalibrated measurement does not help on params.** PRELIM.
+
+**Question.** §448's recalibrated rule gained +0.46 at equal FLOPs while keeping 17–32 % more parameters. On a params budget, which removes that freedom, does it still beat the original rule?
+
+**Code and cells.**
+- The flag of §448 (`SPECTRA_SENS_BN_RECAL=8`, `tree_v39`, commit eef95bf).
+- 42 groups: tree_v35's params groups at 0.20 and 0.45 on §448's 21 networks that have a sens_thresh row of the recipe of record, the earliest job per group (ResNet-like 12, VGG 12, MobileNetV2 8, ShuffleNetV2 8, DenseNet 2).
+- Each original job re-run from its logged environment in `tree_v39`, changed only in the repo directory, the job name and nice 4, under the recovery of record (100 epochs, cosine from lr 0.1, batch 256, keep last), seed as logged.
+- Arm **rarF** (flag on) on all 42 groups; arm **sthF** (flag off) on the first 2, a reproduction check on the params path.
+- Jobs 24402128–24403184 (44; manifest `scratch_audit/s22nov_rarp_manifest.tsv`), all COMPLETED by 18:19 IST.
+- Read by `scratch_audit/s22nov_rarp_read.py` (blob 785ab277, stamped in the queue row before it ran, commit f9a7ba7) over the DB extract re-run at 18:24 (the pre-RAR-P files kept as `s22nov_db_*_pre_rarp.*`); output `s22nov_rarp_read.txt`.
+
+**Checks.**
+- Gate PASS 14:24 IST (queue row).
+- Reproduction PASS: sthF's plan equals the original on 2 of 2 groups, TEST within 0.15 (+0.00 on both).
+- Realizable: all 43 extracted pairs land within 0.01 of their params target, and no log of theirs has a fallback or masked-edit line.
+- One rarF cell has no row and is left out: ShuffleNetV2 ×2 CIFAR-100 at params 0.20 (job 24403174) masked layer 156 ("structural prune broke dummy forward; masked instead"), so it is not realizable. 41 groups enter the read.
+
+| rarF − original sens_thresh, paired by group | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| All (21 networks) | 41 | **−0.925** [−1.331, −0.536] | −0.873 [−1.363, −0.390] | −0.899 [−1.317, −0.487] |
+| params 0.20 | 20 | −1.271 | −1.149 | −1.21 |
+| params 0.45 | 21 | −0.595 | −0.610 | −0.60 |
+
+- Intervals: bootstrap over networks, 2,000 draws, seed 0. Raw and honest differences are equal (each pair shares one origin and one recovery).
+- Bar, set before any job: RARP-BEHIND if the TEST 5k mean is −0.30 or lower, or the interval's upper end is below 0. Both hold.
+- Plans changed in 41 of 41 groups.
+- By family (TEST 5k): DenseNet +1.00 (one network, 2 groups), VGG −0.53 (12), ResNet-like −0.60 (12), MobileNetV2 −1.31 (8), ShuffleNetV2 −2.28 (7).
+- Regret (a diagnostic; the oracle is each group's best existing tree_v35 plan by mean TEST, never a selection): 1.078 → 2.003.
+
+**FLOPs (caption).** At equal parameters rarF keeps fewer FLOPs than the original rule: 0.206 against 0.248 of the dense network at params 0.20 (−17 %), 0.409 against 0.484 at 0.45 (−15 %). 31 of 41 pairs differ by more than 10 %: 30 keep fewer FLOPs, one more (ResNet-56 ×4 at 0.20, +11.9 %). On both budgets, then, recalibration moves the plan the same way: toward layers that are heavy in parameters and light in FLOPs (more parameters at equal FLOPs in §448, fewer FLOPs at equal parameters here). DenseNet-40 is the exception that gains on both: +1.00 at equal parameters with 23–31 % fewer FLOPs.
+
+**Beside, a diagnostic (no call; `scratch_audit/s22nov_rarp_flops.py`, output `s22nov_rarp_flops.txt`).** Over the 1,524 existing tree_v35 rows of the recipe of record on these 21 networks, TEST was fitted on a network effect plus per-family slopes on log params and log FLOPs kept (residual sd 1.92 points). Each pair's difference was then read as new residual minus original residual:
+
+| | pairs | raw | size-adjusted [95 %] | predicted by the size shift alone |
+|---|---|---|---|---|
+| §448, equal FLOPs | 36 | +0.457 | −0.640 [−0.952, −0.352] | +1.10 |
+| §451, equal params | 41 | −0.925 | −0.545 [−0.838, −0.248] | −0.38 |
+
+[H] The slopes are fitted across plans of different allocators, so they mix size with allocation quality; the table is reported, not quoted. Read with that caveat, it says recalibration does not beat the original rule on either axis once the size shift is counted.
+
+**Reading.**
+- By the registered reading: §448's gain at equal FLOPs is a params-for-FLOPs trade, and the recalibrated measurement does not help on params.
+- This retracts science's reading of §448 in the 22 Nov chat and review pages ("the rule's weakness was its measurement; fixing it buys about a point at deep cuts"). Recalibration changed what the rule keeps, not how well it measures.
+- §449 (the frozen menu agent −0.88 behind the recalibrated rule at equal FLOPs, with the rule keeping more parameters in 16 of 18 pairs) keeps its call by the letter. Its interpretation changes: the gap carries the same trade, and at equal FLOPs the agent stays level with the original threshold rule (§441, +0.00).
+- §450's measurement gain is not affected. P7's rmSL and rwSL arms keep the same FLOPs (0.110) and parameters (0.067), so measuring after sparsity training is the one measurement change with a clean gain so far.
+
+**Not supported by this section:**
+- any claim that recalibrated probes measure sensitivity better;
+- any FLOPs-axis use of §448 without its params caption and this section beside it;
+- stacking recalibration on DepGraph's sparsity training. RAR's GO follow-up is withdrawn by science before any of its jobs existed (queue row RAR-P).
+
+Draft §5.3 ("Against a stronger rule") and the further-work paragraph cite this section. Next §452.
