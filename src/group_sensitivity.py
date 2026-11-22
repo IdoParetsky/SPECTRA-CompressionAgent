@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import copy
 import math
+import os
 import statistics
 import time
 
@@ -222,6 +223,22 @@ def _probe_input(model, batch=2):
     return None
 
 
+def sens_bn_recal() -> int:
+    """``SPECTRA_SENS_BN_RECAL`` (v39, default 0 = off): the number of calibration batches over which every probe's
+    BatchNorm running statistics are re-estimated before its loss is read, so the rule scores a cut on the network the
+    cut leaves after recalibration (cut-only scores rank plans poorly; EagleEye, ECCV 2020). Not a policy contract key."""
+    raw = os.environ.get("SPECTRA_SENS_BN_RECAL", "").strip()
+    if not raw:
+        return 0
+    try:
+        n = int(raw)
+    except ValueError:
+        raise ValueError(f"SPECTRA_SENS_BN_RECAL must be a non-negative integer, got {raw!r}") from None
+    if n < 0:
+        raise ValueError(f"SPECTRA_SENS_BN_RECAL must be a non-negative integer, got {raw!r}")
+    return n
+
+
 def group_sensitivity(model, plan, batches, input_shape, keep=SENS_KEEP, costs=None):
     """``({row: loss rise}, base loss)``: each planned group cut alone to ``keep`` (L1 survivors).
 
@@ -230,9 +247,23 @@ def group_sensitivity(model, plan, batches, input_shape, keep=SENS_KEEP, costs=N
 
     With a dict ``costs`` it is also filled with ``{row: (params saved, MACs saved)}`` measured on that same cut
     (``sens_cost``, v16); with ``None`` no cost is measured.
+
+    ``SPECTRA_SENS_BN_RECAL=N`` (v39, default off): the base loss is read on a copy of ``model`` and each cut's loss on
+    the cut after its BatchNorm statistics are re-estimated over ``N`` of ``batches``; ``model`` itself is untouched.
     """
     from src.NetworkEnv import prune_current_model
-    base = calib_loss(model, batches)
+    recal = sens_bn_recal()
+    if recal > 0:
+        import src.recovery_edits as recovery_edits
+        import src.utils as utils
+        device = next((p.device for p in model.parameters()), torch.device("cpu"))
+        utils.print_flush(f"[sens] bn recal {recal} batches on every probe")
+        base_model = copy.deepcopy(model)
+        recovery_edits.recalibrate_batchnorm(base_model, batches, device, n_batches=recal)
+        base = calib_loss(base_model, batches)
+        del base_model
+    else:
+        base = calib_loss(model, batches)
     if costs is not None:
         import src.utils as utils
         p0 = utils.calc_num_parameters(model)
@@ -242,6 +273,8 @@ def group_sensitivity(model, plan, batches, input_shape, keep=SENS_KEEP, costs=N
         row_keep = keep[row] if isinstance(keep, dict) else keep
         cut = prune_current_model(ModelWithRows(copy.deepcopy(model)), row_keep, row, quiet=True, record=False,
                                   input_shape=input_shape, importance="l1")
+        if recal > 0:
+            recovery_edits.recalibrate_batchnorm(cut.model, batches, device, n_batches=recal)
         out[row] = calib_loss(cut.model, batches) - base
         if costs is not None:
             costs[row] = (float(p0 - utils.calc_num_parameters(cut.model)),
