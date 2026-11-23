@@ -1,6 +1,6 @@
 # Paper cards for Gilad: what SPECTRA is compared with, what it is closest to, and how pruning is judged (22 Nov 2026)
 
-Compiled 22 Nov 2026 (IST) by the literature subagent from `docs/paper/lit/*.md`, `docs/paper/SPECTRA_draft.md`, `PAPER_SKELETON.md` and `GILAD_DIRECTIVES_18AUG.md`. The web was used only for links, venues and titles, marked (web). Read-only except this file.
+Compiled 22 Nov 2026 (IST) by the literature subagent from `docs/paper/lit/*.md`, `docs/paper/SPECTRA_draft.md`, `PAPER_SKELETON.md` and `GILAD_DIRECTIVES_18AUG.md`. The web was used only for links, venues and titles, marked (web). Read-only except this file. Updated 23 Nov 2026 (IST) by science: the DepGraph and EagleEye cards add §450, §452 and §453.
 
 ## How to read
 1. One card per paper: what it does, what it reports (WIN / TIE / LOSS against its own or others' comparators), its limits, and where SPECTRA stands. Group 1: published methods in the draft's tables. Group 2: work closest to SPECTRA's approach. Group 3: evaluation practice.
@@ -18,7 +18,7 @@ Compiled 22 Nov 2026 (IST) by the literature subagent from `docs/paper/lit/*.md`
 
 | # | Paper | Venue, year | Kind | Verdict against SPECTRA (one line) |
 |---|---|---|---|---|
-| 1 | DepGraph | CVPR 2023 | comparator | Same ResNet-56: our agent is level with our rule, beside its +0.11 at 2.57×; at 8.9× it loses 3.1, our one-cut arms about 7 (§408, §418) |
+| 1 | DepGraph | CVPR 2023 | comparator | Same ResNet-56: our agent is level with our rule, beside its +0.11 at 2.57×; at 8.9× it loses 3.1, our one-cut arms about 7 (§408, §418); inside its own code our rule's widths are level with it at both home cells (§450, §453) |
 | 2 | OCSPruner | WACV 2026 | comparator | Beside us at 2.57× (its −0.51 on its own base); cheaper than us only when no trained base exists (§408, §419) |
 | 3 | HRank | CVPR 2020 | comparator | Level-with-rule row beside its VGG-16 point; our ImageNet arms sit above its row; its pipeline takes 344 min (§408, §430, §419) |
 | 4 | CHIP | NeurIPS 2021 | comparator | Highest published ImageNet rows; our arms 0.4–0.9 below at 2.08×, likely recovery, untested (§430) |
@@ -52,7 +52,7 @@ Compiled 22 Nov 2026 (IST) by the literature subagent from `docs/paper/lit/*.md`
 | 32 | APQ | CVPR 2020 | approach | No shared cell |
 | 33 | Blending criteria | ICANN 2021 | approach | No shared cell |
 | 34 | LAASP | Image Vis. Comput. 2023 | approach | No shared cell |
-| 35 | EagleEye | ECCV 2020 | approach | Its adaptive BN is our batch-norm reward, weak at deep budgets (§375) |
+| 35 | EagleEye | ECCV 2020 | approach | Its adaptive BN is our batch-norm reward, weak at deep budgets (§375); a 2-epoch screen used its way picks larger plans, not better ones (§452) |
 | 36 | RL-MCTS | WACV 2022 | approach | No shared cell |
 | 37 | NetAdapt | ECCV 2018 | approach | No shared cell |
 | 38 | DPM | arXiv 2024 | approach (deep cuts) | Not in our tables (the same 8.9× cell as DepGraph) |
@@ -87,7 +87,7 @@ AMC, GNN-RL and RL-Pruner are also in the draft's tables (the cost table; GNN-RL
 - What it does: Builds a dependency graph so that coupled layers (residual sums, concatenations) are cut together as groups, and ranks groups by a norm after a sparse-learning stage, on CNNs, RNNs, GNNs and Transformers. It solves one given model at a time; there is no transferred policy (draft §2.2.4).
 - Results: WIN at the top of its own Table 1: ResNet-56 C10 93.53 → 93.77 (+0.24) at 2.11× and → 93.64 (+0.11) at 2.57×; VGG-19 C100 73.50 → 70.39 (−3.11) at 8.92×, against GReg-2 (−6.27) and EigenDamage (−8.16) [V]. TIE without its sparse learning at 2.11× (93.46, −0.07) [V]. LOSS without sparse learning at 8.87× (67.60: −5.90 by its accuracies, printed −5.44), so +2.79 of its deep cut is the training procedure [V; c]; ResNet-50 ImageNet 76.15 → 75.83 at FLOPs 0.482 [V].
 - Limits: It prints no params column for any CIFAR model, so no parameter count can be attributed to it (§447) [V], and its official script keeps the best test-set epoch [V: LIT_ALTERNATIVES §1.4]. Its pipeline adds sparse learning (30 epochs on ImageNet) before a 90-epoch fine-tune (draft §5.1c), so grouping, allocation and training are mixed in its rows [H].
-- Against SPECTRA: On DepGraph's own ResNet-56 at 2.57× (FLOPs 0.39), our frozen FLOPs agent ends at 93.38 ± 0.23 TEST 5k from an origin of 93.36, level with our rule at 93.24 (+0.15; val +0.11, 10k +0.13, honest +0.21; Table 1, §408), beside DepGraph's published 93.53 → 93.64. On its VGG-19 C100 at 8.9× our arms lose about 7 points (agent 66.62 ± 1.45 TEST 5k from 73.96; 10k −7.26) where its pipeline loses 3.11 (Table 1b, §418), and that pipeline takes 85 min per ResNet-56 against our 7.7–8.5 (§419).
+- Against SPECTRA: On DepGraph's own ResNet-56 at 2.57× (FLOPs 0.39), our frozen FLOPs agent ends at 93.38 ± 0.23 TEST 5k from an origin of 93.36, level with our rule at 93.24 (+0.15; val +0.11, 10k +0.13, honest +0.21; Table 1, §408), beside DepGraph's published 93.53 → 93.64. On its VGG-19 C100 at 8.9× our arms lose about 7 points (agent 66.62 ± 1.45 TEST 5k from 73.96; 10k −7.26) where its pipeline loses 3.11 (Table 1b, §418), and that pipeline takes 85 min per ResNet-56 against our 7.7–8.5 (§419). **Inside DepGraph's own code and recipe** (three seeds each), our threshold rule's widths are level with its full method at both home cells. At VGG-19 C100 8.84×, measured after its sparse learning: TEST 5k −0.01, val −0.06, 10k −0.03; with the sparse learning aimed at the rule's channels: −0.02, −0.25, −0.13 (§450, §453). At ResNet-56 C10 2.11×: +0.17, +0.25, +0.21, keeping 13 % more params (§450). With no sparse learning on either side, the rule's widths beat DepGraph's own on every seed (10k +0.47; §450).
 
 ### OCSPruner (WACV 2026): One-Cycle Structured Pruning via Stability-Driven Subnetwork Search
 - Link: https://arxiv.org/abs/2501.13439 (WACV 2026 confirmed on the conference's poster page, web)
@@ -361,7 +361,7 @@ AMC, GNN-RL and RL-Pruner are also in the draft's tables (the cost table; GNN-RL
 - What it does: Samples random per-layer width plans (L1 filters inside each layer), scores each by its accuracy after re-estimating batch-norm statistics with frozen weights ("adaptive BN"), and fine-tunes the best, per network [V full, LIT_DB_AVENUES §2].
 - Results: WIN as a proxy: correlation with fine-tuned accuracy 0.68–0.82 against −0.04 to 0.25 for the cut alone (MobileNetV1 ImageNet) [V], and +0.31 over L1-uniform at 26.5 M FLOPs [R]. ResNet-56 C10 93.26 → 94.66 at FLOPs 0.496 [V]; ResNet-50 ImageNet 76.4 at 2.0 G [V]; 25 GPU-h for 1,000 candidates against 864 for NetAdapt [V].
 - Limits: Its correlation study covers one network [V]. It is a per-network search.
-- Against SPECTRA: Not in the draft's accuracy tables. Its adaptive-BN score is our batch-norm reward (§2.2.6), which ranks our plans only weakly at params 0.35 (+0.45, and backwards on ResNet-20 ×8 C100) where one fine-tune epoch is valid (§375).
+- Against SPECTRA: Not in the draft's accuracy tables. Its adaptive-BN score is our batch-norm reward (§2.2.6), which ranks our plans only weakly at params 0.35 (+0.45, and backwards on ResNet-20 ×8 C100) where one fine-tune epoch is valid (§375). Used its way, to choose among whole candidate plans, a gentle 2-epoch fine-tune ranks our plans almost as well as a repeat of the full 100-epoch run (τ 0.52 against 0.55). It beats the threshold rule at equal FLOPs by TEST 5k +0.42 (val +0.49, 10k +0.45), but only by picking plans with 1.22× the params; held to the rule's size on both axes it gains +0.00 (§452).
 
 ### RL-MCTS (WACV 2022): Channel Pruning via Lookahead Search Guided Reinforcement Learning
 - Link: https://openaccess.thecvf.com/content/WACV2022/html/Wang_Channel_Pruning_via_Lookahead_Search_Guided_Reinforcement_Learning_WACV_2022_paper.html (no arXiv or DOI found; this URL comes from a search result and returned HTTP 403 to our fetch)
