@@ -183,7 +183,7 @@ class ClassificationHandler(BasicHandler):
         return accuracy
 
     def train_model(self, train_loader, allow_reinit_retry=True, max_epochs=None, patience=None,
-                    val_loader=None, lr_mult=1.0, tag="", keep_last=False, cuda_graph=False):
+                    val_loader=None, lr_mult=1.0, tag="", keep_last=False, cuda_graph=False, step_hook=None):
         """
          Fine-tunes the model after a compression step, keeping the best-loss weights.
 
@@ -209,6 +209,9 @@ class ClassificationHandler(BasicHandler):
              cuda_graph (bool): Replay the forward and backward as CUDA graphs (:class:`TrainGraph`;
                  the final fine-tune's ``SPECTRA_EVAL_FINAL_FT_CUDA_GRAPH``). Eager, logged, where
                  :func:`cuda_graph_blocker` says it cannot apply.
+             step_hook (optional): TRACE (``SPECTRA_EVAL_FT_TRACE``): an object with ``on_start(model)``,
+                 ``on_step(step, loss, grad_norm, lr)`` (after every optimizer step; skipped batches are not
+                 counted) and ``on_end(step)`` (after the last epoch). Default None changes nothing.
          """
         conf = StaticConf.get_instance().conf_values
         device = conf.device
@@ -346,6 +349,10 @@ class ClassificationHandler(BasicHandler):
             f"select={select_name} trainable={n_trainable}"
             + (f" graph={int(graph is not None)}" if cuda_graph else ""))
 
+        global_step = 0
+        if step_hook is not None:
+            step_hook.on_start(self.model)
+
         for epoch in range(num_epochs):  # 100 in NEON -> 40
             epoch_losses = []
             for curr_x, curr_y in train_loader:
@@ -383,17 +390,21 @@ class ClassificationHandler(BasicHandler):
                 if use_amp:
                     scaler.scale(loss).backward()
                     scaler.unscale_(self.optimizer)
-                    torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
+                    grad_norm = torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
                     scaler.step(self.optimizer)
                     scaler.update()
                 else:
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
+                    grad_norm = torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=1.0)
                     self.optimizer.step()
                 if use_warmcos:
                     scheduler.step()
 
                 epoch_losses.append(loss.detach())
+                if step_hook is not None:
+                    global_step += 1
+                    step_hook.on_step(global_step, loss.detach(), grad_norm.detach(),
+                                      self.optimizer.param_groups[0]["lr"])
 
             if not epoch_losses:
                 utils.print_flush("Training loader yielded no usable batches; aborting fine-tuning.")
@@ -451,6 +462,9 @@ class ClassificationHandler(BasicHandler):
                     f"{log_tag}Early stopping at epoch {epoch + 1}/{num_epochs} "
                     f"(no improvement for {MAX_EPOCHS_PATIENCE} epochs; {best_note})")
                 break
+
+        if step_hook is not None:
+            step_hook.on_end(global_step)
 
         if graph is not None:
             graph.release()

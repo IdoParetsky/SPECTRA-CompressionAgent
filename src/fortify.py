@@ -602,6 +602,15 @@ def eval_final_ft_epochs() -> int:
     return max(0, _env_int_or("SPECTRA_EVAL_FINAL_FT_EPOCHS", 0))
 
 
+def eval_ft_trace() -> int:
+    """``SPECTRA_EVAL_FT_TRACE=<K>`` (TRACE, default 0 = off): during the final fine-tune, read val accuracy and
+    loss at step 0, after every K-th optimizer step and at the last step, with the train loss and gradient norm
+    since the previous read and each convolution's relative weight movement; one ``eval_ft_trace`` record and one
+    ``[eval] FT_TRACE`` line per read (:mod:`src.ft_trace`). Reads save and restore every random state and each
+    module's train/eval flag, so training is unchanged. Val only, never TEST."""
+    return max(0, _env_int_or("SPECTRA_EVAL_FT_TRACE", 0))
+
+
 def eval_final_ft_lr() -> float:
     return max(1e-6, _env_float_or("SPECTRA_EVAL_FINAL_FT_LR", 0.01))
 

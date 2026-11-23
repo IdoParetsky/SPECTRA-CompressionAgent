@@ -249,6 +249,8 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
             param.requires_grad = False
         env.kd_teacher = teacher
     if imagenet_fast.enabled():  # v33: the ImageNet recovery path (SPECTRA_IMN_FT=1); off, everything below is as before
+        if fortify_mod.eval_ft_trace() > 0:
+            utils.print_flush(f"[eval] FT_TRACE {label} {name}: not supported on the ImageNet path; ignored")
         return _final_ft_imagenet(env, net_path, label, candidate, model, epochs, lr, save_dir, scratch, final_stem)
     loader, aug = utils.final_ft_train_loader(env.train_loader, fortify_mod.eval_final_ft_batch())
     schedule, warmup = fortify_mod.eval_final_ft_schedule(), fortify_mod.eval_final_ft_warmup()
@@ -260,13 +262,19 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
         recipe["SPECTRA_FT_WARMUP_EPOCHS"] = f"{warmup:g}"
     shape = f"warmcos w{warmup:g}" if schedule else "cos"
     saved = {k: os.environ.get(k) for k in recipe}
+    trace = None
+    trace_every = fortify_mod.eval_ft_trace()
+    if trace_every > 0:  # TRACE (SPECTRA_EVAL_FT_TRACE=K, default off): val reads along the fine-tune, src/ft_trace.py
+        from src.ft_trace import FtTrace
+        trace = FtTrace(trace_every, env.val_loader, StaticConf.get_instance().conf_values.device, label, name,
+                        net_path, recorder=run_recorder, printer=utils.print_flush)
     t0 = time.perf_counter()
     try:
         os.environ.update(recipe)
         env.create_learning_handler(model).train_model(
             loader, allow_reinit_retry=False, max_epochs=epochs, patience=epochs + 1,
             tag=f"final FT {label}", **({"keep_last": True} if select == "last" else {}),
-            **({"cuda_graph": True} if graph else {}))
+            **({"cuda_graph": True} if graph else {}), **({"step_hook": trace} if trace is not None else {}))
     finally:
         for k, v in saved.items():
             if v is None:
