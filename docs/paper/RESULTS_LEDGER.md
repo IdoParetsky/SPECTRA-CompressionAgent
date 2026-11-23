@@ -12614,3 +12614,87 @@ Draft §5.10 ("Selection by a short recovery") cites this section. Next §453.
 - any result of SPECTRA's agent.
 
 Draft §5.1b's paragraph "Inside DepGraph's own code" cites this section. Next §454.
+
+## 454. (PRED-REC: queue row PRED-REC, registered 23 Nov 23:52 IST (commit 6781196, made at 23:49:31 IST) before any PRED-REC script existed; Gilad's NAP2 idea, predicting a network's final result from early signals, applied to pruning plans; zero GPU, read-only; exploratory, one call) — **PREDICT-NO. A boosted-tree predictor fitted on cut-time information only (sizes, the cut's val change, the plan's width profile, network facts) and scored on network families it never saw ranks plans of the same network and size at Kendall τ +0.081 [+0.034, +0.132] against the 100-epoch TEST 5k outcome (269 groups, 52 networks). That is below the free axis alone (+0.225) and the cut alone (+0.156); a 2-epoch recovery reaches +0.518 and a replicate run +0.545 (§452). Nothing measured before recovery stands in for recovery.** PRELIM.
+
+**Question.** Can information available right after the cut rank plans the way the 100-epoch recovery ranks them, on families the predictor never saw? If so, the agent could be trained on a reward aligned with recovery with no recovery in the loop.
+
+**Code and data.** `scripts/_tmp_s23nov_predrec.py` (blob b0c04e8a; deployed as `scratch_audit/s23nov_predrec.py`, blob checked) on `scratch_audit/s22nov_db_rows.tsv` (the DB extract of 22 Nov 21:26 IST). Recipe of record only (stratum `e100 lr0.1 b256 augloader kd0 cos last`, scratch 0), size labels only. 7,938 rows give 5,791 plans (a plan = network, label, plan_id; outcomes and features averaged over its rows), 0 dropped. 274 groups (same network and label) hold at least 3 plans: 5,636 plans on 52 networks. Output `scratch_audit/s23nov_predrec_read.txt`, run 23 Nov 23:53 IST on the login node.
+- **Features (34):** log params kept, log FLOPs kept, cut_val, the extract's 11 width-profile columns, the axis, the size target, log dense params, layers, classes, val_origin, and each plan-level feature minus its group mean.
+- **Model, fixed at registration:** HistGradientBoostingRegressor (300 iterations, lr 0.05, 15 leaves, at least 20 samples per leaf, l2 1.0, seed 0) on y_val minus its group mean. Leave one family out (resnetlike 3,425 plans, vgg 1,079, mobilenet 478, densenet 493, shufflenet 161; the pooled other families hold no group).
+- **Score:** within-group τ-b against y_test (TEST 5k), mean over groups, bootstrap over networks (2,000, seed 0). TEST fits, chooses and tunes nothing.
+
+| signal (269 groups, 52 networks) | τ against TEST 5k [95 % CI] |
+|---|---|
+| **the predictor (primary)** | **+0.081** [+0.034, +0.132] |
+| cut_val alone | +0.156 [+0.116, +0.202] |
+| the free axis alone (params kept in FLOPs groups, FLOPs kept in params groups) | +0.225 [+0.181, +0.281] |
+| 100-epoch val (shares the outcome's run; upper reference) | +0.420 [+0.354, +0.497] |
+| ridge, same features (reported) | +0.033 [−0.022, +0.090] |
+| boosted trees on the raw y_val (reported) | +0.121 [+0.073, +0.178] |
+
+- **Bar,** written before the read: PREDICT-GO needs τ ≥ 0.40 with the lower end of (τ − τ_B) above +0.05; PARTIAL needs τ ≥ 0.25 with that lower end above 0. Here τ_B is the free axis (+0.225), and τ − τ_B = −0.144 [−0.187, −0.105]. **PREDICT-NO.**
+- **The cut was undefined** (constant within the group) in 5 groups; they are counted and left out.
+
+**Reported beside (no call).**
+- On §452's 36 groups, on the plans that hold a 2-epoch probe: the predictor +0.227 [+0.094, +0.364], the probe +0.518 [+0.423, +0.608].
+- At equal size (free axis within 1.10× of the group median, 241 groups): the predictor +0.017 [−0.035, +0.070], the free axis +0.139 [+0.101, +0.176].
+- The predictor's pick minus the threshold rule's plan (27 groups on 15 networks holding one rule plan; tree_v39's recalibrated rows are not the rule): TEST 5k −0.36 [−0.93, +0.08], val −0.38, 10k −0.37. Honest is not computed: both plans of a pair share the network and the recipe. The pick is the rule's own plan in 5 groups, and keeps 1.03× its params and 1.14× its FLOPs.
+- Mean TEST regret of the pick over all groups (hindsight, never a choice): the predictor 1.44, the cut 0.98, a random plan 1.25, the 100-epoch val 0.36.
+- By held-out family (predictor / cut / free axis): resnetlike +0.05 / +0.15 / +0.20 (151 groups); vgg +0.15 / +0.12 / +0.35 (56); mobilenet +0.14 / +0.26 / +0.17 (28); densenet −0.03 / +0.09 / +0.07 (16); shufflenet +0.09 / +0.22 / +0.27 (18). FLOPs groups +0.16 / +0.11 / +0.28 (119); params groups +0.02 / +0.20 / +0.19 (150).
+- Permutation importance on val (base τ +0.083): the plan's params relative to its group carries most of what the model uses (+0.072); every other feature carries +0.015 or less.
+
+**Reading.**
+- **By the registered bar: PREDICT-NO.** The learned predictor falls below its own strongest input. [H] What differs between plans of one network, beyond their size, is not learned on one family in a form that holds on another, and network-level structure fitted on the other families misleads the ranking.
+- Cut-time information ranks plans mostly through size: at equal size the predictor is at +0.02 and the cut-time features carry nearly nothing.
+- **Consequence, set before the read:** the reward for any retrained agent needs a read aligned with recovery. The trajectory-logging judge test (how short a recovery still ranks plans, with NAP2-style signals along it) is registered next, and any retrain against a predictor waits for it.
+
+**Not supported by this section:**
+- any claim that nothing at cut time predicts recovery (one feature set and one model, both fixed in advance);
+- any claim about signals read during a recovery (untested here);
+- any result of SPECTRA's agent;
+- any claim beyond the recipe of record.
+
+Draft §5.10's paragraph "Prediction before recovery, and an equilibrium reward" cites this section. Next §455.
+
+## 455. (EQUIL: queue row EQUIL, registered with PRED-REC (commit 6781196) before any EQUIL script existed; Gilad's equilibrium between accuracy and pruning ratio, meeting of 23 Nov, on recorded recovered curves; zero GPU, read-only; exploratory, one call) — **EQ-SMALL. With the threshold rule recovered at FLOPs 0.20 and 0.45 on 29 networks, choosing the size per network on val beats one size for all by +0.01 [−0.03, +0.04] utility points on TEST at the middle trade-offs (one point of accuracy worth 20 % or 10 % of FLOPs removed): at those weights nearly every network prefers 0.45. A choice made from the cut's accuracy, before recovery, lands elsewhere on 9 and 21 of the 29 networks and loses 2.64 and 3.45 points of utility on TEST; on the rule's curves it loses 2.3–3.5 at every weight. Gilad's reward must be read after recovery.** PRELIM.
+
+**Question.** With a reward that pays a fixed amount of accuracy for each 10 % of size removed, does the best size differ between networks enough that choosing it per network beats one size for all? Would a choice read right after the cut land in the wrong place?
+
+**Code and data.** `scripts/_tmp_s23nov_equil.py` (blob e590df21; deployed as `scratch_audit/s23nov_equil.py`, blob checked) on the same extract and recipe of record as §454. 85 threshold-rule rows of tree_v39 (the recalibrated rule of §448 and §451) are excluded from the rule's identity. A curve point is the mean of the kind's rows at that label (the rule's plans can differ by seed), and s is the mean landed kept fraction. Output `scratch_audit/s23nov_equil_read.txt`, run 23 Nov 23:53 IST.
+- **Utility:** U(s) = change in points + λ × 10 × (1 − s), with λ in points per 10 % removed, λ ∈ {0.25, 0.5, 1, 2}.
+- **Choices:** per network by val, and by the cut's val change, each scored on TEST 5k. The common size is the label with the best mean val utility. The TEST oracle is a ceiling, never a choice. Bootstrap over networks (2,000, seed 0); 10k beside.
+
+**Primary: the threshold rule on FLOPs, labels 0.20 and 0.45 (29 networks: 15 ResNet-like, 7 VGG, 4 MobileNet, 2 ShuffleNet, 1 DenseNet; landed s 0.199 and 0.449).**
+
+| λ | common size | val choice ≠ common | ΔU TEST: val choice − common | ΔU 10k | cut choice ≠ val choice | U TEST: cut choice − val choice | oracle − val choice |
+|---|---|---|---|---|---|---|---|
+| 0.25 | 0.45 | 0 of 29 | +0.00 | +0.00 | 6 of 29 | −2.32 [−4.33, −0.67] | +0.00 |
+| 0.5 | 0.45 | 0 of 29 | +0.00 | +0.00 | 9 of 29 | −2.64 [−4.58, −1.02] | +0.00 |
+| 1 | 0.45 | 3 of 29 | +0.01 [−0.05, +0.07] | +0.03 | 21 of 29 | −3.45 [−5.16, −1.97] | +0.04 |
+| 2 | 0.45 | 14 of 29 | +0.79 [+0.41, +1.20] | +0.81 | 22 of 29 | −2.93 [−4.37, −1.72] | +0.03 |
+
+- **Bar,** written before the read: the mean ΔU over λ = 0.5 and 1 is +0.01 [−0.03, +0.04]. EQ-ROOM needs at least +0.30 with the lower end above 0. **EQ-SMALL.**
+- **Run-luck check** (28 networks; choose on the earliest job's val, score on the other jobs' TEST): +0.00 at λ 0.5, +0.03 [−0.00, +0.08] at λ 1.
+
+**Reported beside (no call).**
+- **The rule on params, labels 0.20 and 0.45** (30 networks): ΔU +0.13 [+0.06, +0.23] over λ 0.5 and 1. By λ (0.25 to 2): −0.02, +0.01, +0.26 [+0.11, +0.44], +1.36 [+0.84, +1.88]. By family: VGG +0.41, MobileNet +0.29, ResNet-like +0.00. The run-luck check gives −0.04 and +0.17 [+0.01, +0.35]. The cut choice loses −3.05, −3.30, −2.85, −2.52.
+- **With three or more sizes:**
+  - sens_cost on params, 17 networks (13 ResNet-like), common size among the shared labels 0.15, 0.25 and 0.45: the per-network val choice gains +0.08, +0.22 [+0.05, +0.45], +0.95 [+0.54, +1.43] and +1.07 [+0.57, +1.71] at λ 0.25 to 2; the cut choice loses −0.09, −0.34, −1.95, −4.69.
+  - sens on FLOPs, 10 networks (no label shared by all): the cut choice loses −2.95 to −5.89. By the cut, 6 of the 10 networks choose 0.60 at every λ. By val they spread from 0.10 to 0.60.
+- **The val choice is near hindsight:** oracle − val choice is +0.12 or less on every curve set and weight.
+
+**Reading.**
+- **By the registered bar: EQ-SMALL.** On the rule's two recorded FLOPs sizes, between 0.45 and 0.20 almost every network loses more than 2.5λ points at λ ≤ 1, so one size suits all. A per-network choice pays only when size is valued highly (λ = 2: +0.79).
+- [H] The two-size grid hides most of what a per-network choice can gain. On the params side's three shared sizes it gains +0.22 to +1.07 (reported, mostly thin ResNets). Finer size grids are where the equilibrium has room.
+- **The firm reading is the cut's.** A utility read before recovery keeps far more than the recovered curves warrant: deep cuts look catastrophic at the cut and mostly recover. It costs 2.3 to 3.5 utility points on the rule's curves at every weight, and up to 5.9 on the FLOPs prior's.
+- **With §454:** an agent rewarded on Gilad's equilibrium needs a read aligned with recovery, and nothing at cut time supplies one.
+- **Consequence, set before the read:** EQ-SMALL keeps the equilibrium reward as a training device, and the curves go to Gilad.
+
+**Not supported by this section:**
+- any claim that a per-network size choice has no room (the primary grid has two sizes);
+- any claim at weights outside 0.25–2 points per 10 % removed;
+- any FLOPs-axis claim from the params rows;
+- any result of SPECTRA's agent.
+
+Draft §5.10's paragraph "Prediction before recovery, and an equilibrium reward" cites this section. Next §456.

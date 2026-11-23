@@ -1437,6 +1437,14 @@ A proxy is useful as a reward only if it orders plans the way the 100-epoch reco
 - **Size.** The picked plans keep 22 % more parameters at the same FLOPs. Held to the rule's size on both axes, the pick gains +0.00 [−0.18, +0.16].
 - **Reading.** The screen is accurate, but the portfolio holds no plan better than the threshold rule's at equal size. The agent's plans are the weakest candidates there.
 
+**Prediction before recovery, and an equilibrium reward (§454, §455) — PRELIM.** Two proposals for a reward closer to recovery were tested on the recorded outcomes, with no new runs.
+- **Prediction (§454).** A boosted-tree model fitted on cut-time information (the sizes, the cut's accuracy, the plan's width profile, the network's facts) and scored on families it never saw ranks plans of one network and size at τ +0.08 (269 groups, 52 networks). That is below the plan's size alone (+0.23) and the cut alone (+0.16); a 2-epoch recovery reaches +0.52. By its registered bar, PREDICT-NO.
+- **Equilibrium (§455).** A reward that pays a fixed amount of accuracy for each 10 % of FLOPs removed lets each network choose its own size.
+  - With the threshold rule at two recorded sizes (FLOPs 0.20 and 0.45, 29 networks), the choice read after recovery gains +0.01 over one size for all at the middle trade-offs (EQ-SMALL).
+  - With three or more sizes on the params side it gains +0.22 to +1.07 (reported).
+  - Read from the cut instead, the choice lands elsewhere on most networks and loses 2.3 to 3.5 points of utility on TEST.
+- **Reading.** Both proposals need a signal aligned with recovery, and the cut cannot supply one. How short a recovery can still supply it is the next registered question.
+
 ### 5.11 The recovery recipe
 
 Every row from §341 on uses one recovery, G2 (§4.2). It replaced the per-family recipes of §330 through a sequence of registered checks:
