@@ -13075,3 +13075,46 @@ A, B and C lie within 0.05 of the best (0.89), and the tie goes to B: **RECOMMEN
 - **Not supported by this section:** any claim for the agent; any claim that the room is real (the 100-epoch val pick is not an independent read); any TEST-based choice.
 
 **Next.** C3 stops. A signal that could find equal-size room at deep cuts would need to track the final run more closely than a 2-epoch probe does. A longer probe (TRACE reads along the 2-epoch run only) or a replicate run would be its own registration. None is registered. Next §461.
+
+## 461. (TRACE: queue row TRACE, registered 24 Nov 00:00:24 IST (commit 108d333) before any TRACE code or script existed; how early along §452's 2-epoch recovery the val read ranks plans as well as the full probe, and whether training-trajectory signals in the spirit of Gilad's NAP2-v2 rank them better; 412 plans re-run in tree_v40 with val reads every 25 steps; no training of the agent; two calls) — **SHORT-GO and TRAJ-NOT by the registered rules. The val read after 125 of the probe's 392 steps (0.32 of it) ranks plans at τ +0.483 against TEST 5k, 0.036 below the full probe's +0.518 [paired interval −0.086, +0.013]. A predictor built on the trajectory up to that step (val and train loss, gradient norm, weight movement) ranks them worse than the val read alone: −0.120 [−0.180, −0.060].** PRELIM.
+
+**Question.** A 2-epoch gentle recovery ranks plans of one size at τ +0.518 against the replicate ceiling +0.545 (§452), and nothing read at the cut stands in for it (§454). A reward for training the agent needs that ranking at a fraction of its cost. How early along the probe does its val read rank as well? Do trajectory signals add to the val read at that step?
+
+**Code, runs and gate.**
+- tree_v40 = tree_v39 plus a trace hook behind `SPECTRA_EVAL_FT_TRACE` (default off): `src/ft_trace.py` 12f746e0, `src/ModelHandlers/ClassificationHandler.py` ca48f720, `a2c_agent_reinforce_runner.py` 01e7342b, `src/fortify.py` 4c2ae060, tests `tests/test_ft_trace.py` 2a47ee5d (10 passed; with the hook, training equals training without it, state_dict and random state).
+- During the final fine-tune the hook reads val accuracy and loss (the 5k val half; never TEST) at step 0, every 25 steps and the last. It also logs the train loss, the gradient norm and each convolution's relative weight movement.
+- Each of §452's 412 plans was re-run from its original job's logged settings, changed only as §452's top-up (2 epochs at lr 0.01), with the trace on.
+- Gate PASS (24 Nov 07:50 IST, read by hand): on three smoke plans the traced run equals its untraced twin exactly (TEST and val), with 17 reads and the last equal to the final val. 409 cells and the three smokes, all COMPLETED by 15:53 IST. Reader `scripts/_tmp_s24nov_trace_read.py` blob 1550566a, output `scratch_audit/s24nov_trace_read.txt` (15:54 IST).
+- **Reproducibility (reported):** every plan that §452 also ran gives the same TEST and val here (410 of 410), so the full-probe read is §452's own (τ +0.514 on the 34 groups both hold).
+
+**Call 1: the val read along the probe** (within-group Kendall τ-b against each plan's 100-epoch TEST 5k, mean over 36 groups on 21 CIFAR-100 networks at FLOPs 0.20 and 0.45; bootstrap over networks, 2,000 draws, seed 0).
+
+| step (share of the probe) | τ(k) vs TEST 5k | τ(k) − τ_full |
+|---|---|---|
+| 0 (0.00, the cut) | +0.199 [+0.077, +0.326] | −0.319 [−0.467, −0.178] |
+| 25 (0.06) | +0.404 [+0.296, +0.506] | −0.114 [−0.196, −0.039] |
+| 75 (0.19) | +0.468 [+0.368, +0.560] | −0.050 [−0.103, −0.003] |
+| 100 (0.26) | +0.446 [+0.352, +0.533] | −0.072 [−0.127, −0.017] |
+| **125 (0.32)** | **+0.483 [+0.382, +0.574]** | **−0.036 [−0.086, +0.013]** |
+| 150 (0.38) | +0.466 [+0.370, +0.556] | −0.052 [−0.099, −0.003] |
+| 200 (0.51) | +0.490 [+0.394, +0.581] | −0.028 [−0.062, +0.002] |
+| 300 (0.77) | +0.514 [+0.419, +0.601] | −0.004 [−0.033, +0.021] |
+| 392 (1.00, τ_full) | +0.518 [+0.423, +0.608] | 0 |
+
+k* (the earliest read within 0.05 of τ_full whose paired interval's lower end is above −0.15) = step 125, 0.32 of the probe: **SHORT-GO** (GO at no more than a third).
+
+**Call 2: trajectory signals at step 125.** Boosted trees with PRED-REC's fixed settings, fitted leave-family-out on the val outcome (never TEST), on the six reads up to step 125 (48 features and their group-demeaned forms): τ +0.363 [+0.270, +0.451], against the val read's +0.483. The difference is −0.120 [−0.180, −0.060]: **TRAJ-NOT**.
+
+**Reported beside (no call).**
+- τ at step 125 by family: VGG +0.675 (10 groups), DenseNet +0.579 (2), MobileNetV2 +0.468 (8), ResNet-like +0.390 (11), ShuffleNetV2 +0.287 (5). By FLOPs point: 0.20 +0.511, 0.45 +0.457.
+- Pick by the step-125 read against the threshold rule's plan, on the 9 groups holding one: TEST 5k −0.11 [−0.59, +0.32], val −0.03, 10k −0.07. The pick keeps 1.11× the rule's parameters (the groups are at equal FLOPs).
+- Cost: a plan's 2-epoch recovery with its final reads takes a median 12 s (mean 18 s) on an RTX 4090 for these networks. A job's median of about 4 minutes is mostly loading and the cut. One trace read takes 0.34 s. The 412 cells used 32.4 GPU-h (registered estimate: about 23).
+
+**Reading.**
+- **The first third of a gentle 2-epoch recovery ranks plans almost as well as all of it.** The read at the cut ranks at +0.20, after 25 steps at +0.40, and from step 75 on within 0.02-0.07 of the full read.
+- **[H] k* = 125 is not a sharp point.** Adjacent reads move by 0.02-0.04 (step 100 −0.072, step 150 −0.052, both outside the 0.05 bar), the same size as the margin. What is firm: from about a fifth of the probe on, the val read sits within 0.07 of the full read.
+- **The validated object is 125 SGD steps at a constant learning rate of 0.01, then a val read.** The fine-tune's cosine steps once per epoch (`ClassificationHandler.train_model`, `CosineAnnealingLR` with T_max = 2 epochs), so the whole first epoch (196 steps) runs at 0.01. A short run with its own decay to zero is not what was measured; the retrain's reward uses the measured object.
+- **The trajectory, as measured here, does not add to the val read.** This is one test of Gilad's NAP2-v2 idea in our setting: the recovery of a pruned network, six reads, 412 plans, leave-family-out. It is not a test of NAP2-v2 in its own setting (early training from scratch) or with its code.
+- **Not supported by this section:** any agent result (these are §452's agent and rule plans); any claim that a probe pick beats the threshold rule (it reads −0.11 here, as in §452 and §460); any claim for a separate short schedule; any TEST-based choice.
+
+**Next, as set before the read.** SHORT-GO: register the agent retrain with a recovery-aligned reward: the val read after 125 steps at lr 0.01 (the first 125 steps of the 2-epoch gentle recovery), in the per-halving equilibrium form (§459, λ 1.02 / 1.28 / 2.33), with the trade-off as an input; cost estimated from these timings. TRAJ-NOT: trajectory features do not enter that reward. Next §462.
