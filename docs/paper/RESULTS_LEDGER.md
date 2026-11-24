@@ -12817,3 +12817,78 @@ Draft §5.10's paragraph "Prediction before recovery, and an equilibrium reward"
 - any claim from seeds 43–44 at the CIFAR-10 points (dropped).
 
 The head-to-head and long tables (`docs/paper/tables/`) cite this section for these rows, and draft §5.1b's paragraph "The published methods' own widths in our pipeline" cites it. Part B's AMC transplant on akamaster's ResNet-56 (B READ, 21 Nov 15:05 IST) stays on the queue row and is not part of this section. Next §457.
+
+## 457. (EQUIL-2: queue row EQUIL-2, registered 24 Nov (commit e591277, 08:13:09 IST; the row's "08:20" was an estimate) before any EQUIL-2 script existed; Ido 24 Nov: the meeting's linear form was an example; zero GPU, read-only; exploratory, one decision rule, no call on the agent) — **By the registered rule, RECOMMEND A (the linear form), on six networks. The rule's outcome reflects the preference grids as much as the forms: A's grid sat inside the curves' marginal rates, the per-halving form's below them. Firm for every form: a size chosen from the cut lands elsewhere and loses 4.7–7.8 utility points on TEST, and with six sizes a per-network choice has room (+1.0 to +1.5 at the middle-high preferences), unlike §455's two sizes.** PRELIM.
+
+**Question.** Which form of the accuracy–size equilibrium gives each network a best size that is inside the range, stable under run-to-run noise and close on TEST to the validation choice? How far would a read at the cut misplace it?
+
+**Code and data.** `scripts/_tmp_s24nov_equil2.py` (blob 95e80132, deployed as `scratch_audit/s24nov_equil2.py`, blob checked). It was run as soon as it was deployed, with no separate code stamp; the registration preceded the script.
+- **Data.** The outcome extract of §454 (`s22nov_db_rows.tsv`), recipe of record, parameter labels 0.60, 0.45, 0.35, 0.25, 0.15 and 0.10.
+- **Primary curves.** The cost-aware rule (sens_cost) on the 6 networks holding all six labels: 4 on CIFAR-10 and 2 on CIFAR-100, with 1–22 replicate runs per label.
+- **Reported curves.** The even cut on 8 networks (6 and 2), with 5–13 replicates per label.
+- **Landed sizes and mean TEST changes on the primary curves.** s 0.599 / 0.449 / 0.349 / 0.249 / 0.150 / 0.100; TEST change −2.01 / −3.48 / −4.58 / −6.55 / −10.25 / −13.78.
+
+**Forms, with the preference grids fixed at registration.**
+- A, linear: U = Δ + λ·10·(1 − s).
+- B, per halving: U = Δ + λ·log2(1/s).
+- C, relative error: U = log2(e0/e) + α·log2(1/s).
+- D′, soft tolerance: U = log2(1/s) − 4·max(0, −Δ − τ)².
+- E, two axes: reported.
+- F, no preference: reported.
+
+**Primary read** (sens_cost, 6 networks). Columns:
+- M1: the share of networks whose val choice is inside the range.
+- M2: stability under 200 resamples of the replicates.
+- M3: regret on TEST; the TEST-best label is a ceiling, never a choice.
+- M4: the room, per-network val choice minus the best common label, on TEST with its 95 % CI over networks; 10k beside.
+- M5: how often the cut-time choice differs from the val choice, and what that costs on TEST.
+
+| form | pref. | M1 | M2 | M3 | M4 TEST [CI] (common) | M4 10k | M5 differs | M5 loss |
+|---|---|---|---|---|---|---|---|---|
+| A | 0.25 | 0.33 | 0.85 | +0.00 | +0.11 [+0.00, +0.24] (0.60) | +0.16 | 0.33 | −0.11 |
+| A | 0.5 | 0.50 | 0.91 | +0.04 | +0.38 [+0.07, +0.74] (0.60) | +0.48 | 0.67 | −4.97 |
+| A | 1 | 0.67 | 0.95 | +0.00 | +1.46 [+0.60, +2.49] (0.45) | +1.46 | 0.83 | −5.67 |
+| A | 2 | 0.83 | 0.88 | +0.03 | +1.98 [+0.56, +4.21] (0.25) | +1.97 | 1.00 | −7.77 |
+| B | 0.25 | 0.17 | 0.93 | +0.02 | −0.02 [−0.07, +0.00] (0.60) | +0.05 | 0.17 | +0.02 |
+| B | 0.5 | 0.17 | 0.90 | +0.08 | −0.04 [−0.13, +0.00] (0.60) | +0.06 | 0.17 | +0.04 |
+| B | 1 | 0.50 | 0.89 | +0.02 | +0.18 [−0.03, +0.44] (0.60) | +0.28 | 0.67 | −4.75 |
+| B | 2 | 0.50 | 0.79 | +0.09 | +1.00 [+0.23, +1.86] (0.60) | +1.12 | 0.83 | −5.13 |
+| B | 4 | 0.33 | 0.89 | +0.00 | +3.54 [+2.02, +5.02] (0.35) | +3.44 | 1.00 | −7.36 |
+| C | 0.025–0.2 | 0.17 | 0.86–1.00 | +0.00 | +0.00 to +0.08 (0.60) | ≤ +0.08 | 0.33–0.83 | −0.10 to −0.39 |
+| D′ | 0.25–2 | 0.33 | 0.88–1.00 | +0.00 to +0.27 | +0.33 to +0.60 (0.60) | +0.44 to +0.79 | 0.33–0.50 | −0.33 to −0.60 |
+
+- **E** (reported) follows B: M1 is 0.50 at λ 1 and 2.
+- **F:** 4 of the 6 networks lose more than one replicate SD already at 0.60.
+- **The even cut** (reported, 8 networks) ranks the same way. A's M1 is 0.50–0.62 at every λ. B's M1 is 0.50 at λ 0.5 and 1. The cut-time choice differs on 75–100 % of networks at every A preference and at B's λ ≥ 0.5.
+- **Units.** M3–M5 are in each form's own utility units. Only A, B and E are in points. D′'s cut losses are inflated by its squared penalty (−151 to −173 on the even cut), so they are not comparable with the others.
+
+**The registered decision.** A preference value is usable when M1 ≥ 0.5.
+
+| form | usable values | median M2 |
+|---|---|---|
+| A | λ 0.5, 1, 2 | 0.91 |
+| B | λ 1, 2 | 0.84 |
+| C | none | — |
+| D′ | none | — |
+
+A is above B by 0.07, outside the 0.05 tie band: **RECOMMEND A**.
+
+**Reading.**
+- **By the registered rule, A.**
+- **[H] The rule's outcome follows from how the fixed grids meet the curves' marginal rates.**
+  - On the primary mean TEST curve (descriptive, never a choice), each further 10 % of parameters removed costs 0.98, 1.10, 1.97, 3.74 and 7.06 points between successive labels. Each halving costs 3.53, 3.03, 4.05, 5.06 and 6.03.
+  - A's grid (0.25–2 points per 10 %) lies inside the first range, so its choices fall inside the six sizes.
+  - B's grid (0.25–4 points per halving) lies at or below the second range, so most of its choices sit at the 0.60 edge, and M1 marks them unusable.
+  - C's grid is low in the same way, and D′'s tolerances (0.25–2 points) are below the losses already present at 0.60 on most networks.
+  - Both A and B are stable wherever their choices are interior (M2 0.79–0.95). A comparison of forms on equal footing needs each form's grid set from the val curves' own marginal rates.
+- **Firm for every form: the cut misplaces the size.** Wherever a form's choice is interior, the cut-time choice differs on 67–100 % of the six networks and loses 4.7–7.8 utility points on TEST (A and B). This repeats §455 on six sizes.
+- **With six sizes, a per-network choice has room.** At A's λ 1 it is +1.46 [+0.60, +2.49], and at B's λ 2 +1.00 [+0.23, +1.86]. On §455's two FLOPs sizes it was +0.01 at the middle weights. The equilibrium's room grows with the number of sizes the agent may choose from [H, six networks].
+- **No free compression at these sizes.** By F, four of six networks already lose beyond replicate noise at 0.60.
+
+**Not supported by this section:**
+- any ranking of forms beyond these fixed grids;
+- any claim on more than these six networks, or for the FLOPs axis;
+- any result of SPECTRA's agent (the curves are the rule's and the even cut's);
+- any TEST-based choice.
+
+**Next.** As registered, the recommended form (A) enters the agent-retrain registration that waits on TRACE. Science proposes first a calibrated comparison: each form's preference grid set from the val curves' marginal rates, never TEST, on the same data. It is not registered. Draft §5.10's equilibrium paragraph cites this section. Next §458.

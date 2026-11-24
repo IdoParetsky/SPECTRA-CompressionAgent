@@ -1462,6 +1462,10 @@ A proxy is useful as a reward only if it orders plans the way the 100-epoch reco
   - With the threshold rule at two recorded sizes (FLOPs 0.20 and 0.45, 29 networks), the choice read after recovery gains +0.01 over one size for all at the middle trade-offs (EQ-SMALL).
   - With three or more sizes on the params side it gains +0.22 to +1.07 (reported).
   - Read from the cut instead, the choice lands elsewhere on most networks and loses 2.3 to 3.5 points of utility on TEST.
+- **Which form of the equilibrium (§457).** The linear form above was the meeting's example, so four forms were compared on the cost-aware rule's recovered curves at six parameter sizes (6 networks): linear in the size removed, per halving of size, relative error, and a soft tolerance in NEON's manner.
+  - The registered rule recommends the linear form. Its choices fall inside the range on most networks and are stable under resampling of the replicates (0.91).
+  - The comparison reflects where each form's fixed preference grid met the curves' marginal rates. Each halving costs 3–6 points on these curves, above most of the per-halving grid.
+  - For every form, a size chosen from the cut lands elsewhere and loses 4.7 to 7.8 utility points on TEST. With six sizes, a per-network choice gains +1.0 to +1.5 over one size for all, unlike the two sizes of §455.
 - **Reading.** Both proposals need a signal aligned with recovery, and the cut cannot supply one. How short a recovery can still supply it is the next registered question.
 
 ### 5.11 The recovery recipe
