@@ -41,7 +41,7 @@ Every result table, the new ones included, is PRELIM until it is locked. TEST 5k
 | Table (draft label) | What it shows | Ledger § | Status |
 |---|---|---|---|
 | Table 1 (§5.1) | The agents of record against their prior and the even cut at ten published CIFAR-10 points (DepGraph's ResNet-56, VGG-16, ResNet-110); published rows beside them under a different-recipe caption | §408; earlier §362, §382, §391, §392, §399 | PRELIM |
-| Table 1b (§5.1b) | The same at six published points on CIFAR-100 and Tiny-ImageNet, for a FLOPs agent that trained on neither | §418; safety net §431 | PRELIM |
+| Table 1b (§5.1b) | The same at six published points on CIFAR-100 and Tiny-ImageNet, for a FLOPs agent that trained on neither; the published methods' own widths in our pipeline at nine points, and the rules inside DepGraph's own code | §418; safety net §431; §456; §450, §453 | PRELIM |
 | Table 1c (§5.1c) | ImageNet ResNet-50 at two published points: frozen transfer, one seed, no call | §427, §428, §430 | PRELIM |
 | Table 2, final (§5.2–§5.3) | Each agent of record against its prior at fixed budgets on the nine held-out networks, five seeds, pooled and per network, with intervals; the even cut and the per-network search beside; below the training range | §405, §406; §413, §416; §396 | **to build**: Tables 5.2a, 5.2b and 5.3 hold mostly the three-seed development reads (§366–§390) |
 | Tables 5.5, 5.5b, 5.5c (§5.5) | Transfer: family folds; new architectures and an unseen dataset; agents trained with no CIFAR-10, no plain ResNet and no VGG | §353–§363; §407, §410; §420, §429 | PRELIM |

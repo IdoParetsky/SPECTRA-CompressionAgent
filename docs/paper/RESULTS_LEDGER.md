@@ -12698,3 +12698,122 @@ Draft §5.10's paragraph "Prediction before recovery, and an equilibrium reward"
 - any result of SPECTRA's agent.
 
 Draft §5.10's paragraph "Prediction before recovery, and an equilibrium reward" cites this section. Next §456.
+
+## 456. (TP and TP0: queue row AMC, part B's transplants (amendment 3, registered 21 Nov 11:51 IST) and the four VGG points with the first convolution unlocked (amendment 4, 12:54 IST), each before any of its cells; `tree_v37`; reported, no call; ledgered 24 Nov from the reads stamped on the row on 21 Nov at 17:39, 18:25 and 20:20 IST and the correction of 22:00 IST) — **At five ResNet points between 2.1× and 3× fewer FLOPs, the current agent and both rules land within 0.32 TEST 5k of the published methods' own widths run through our cut and recovery (one seed). At about 9× on VGG-19 CIFAR-100, with the first convolution unlocked, the current threshold rule sits above the published plan as our walk realises it (+0.67 and +0.75 TEST 5k, three seeds), and the current agent sits below it (−1.02 and −1.47), keeping about 0.55× the rule's parameters.** PRELIM.
+
+**Question.** At the points of published pruned networks we hold, does their allocation (their widths) do better than ours when the cut and the recovery are ours for every arm? What does the first-convolution lock cost the rules at those points?
+
+**What ran.**
+- **Points.** OCSPruner's released models: ResNet-56 CIFAR-10 at FLOPs 0.385 and 0.468, ResNet-110 at 0.331 and 0.464, VGG-16-BN at 0.324 and 0.251, VGG-19 CIFAR-100 at 0.112. DepGraph's ResNet-56 at 2.11× (FLOPs 0.474; the widths of §249) and VGG-19 CIFAR-100 at 8.84× (0.110).
+- **Arms, each cut once by SPECTRA's walk and recovered by G2:**
+  - the published widths (`SPECTRA_ALLOC_KIND=widths`);
+  - the current agent (§441's frozen menu agent);
+  - the current threshold rule;
+  - the floored FLOPs rule fixed in advance (sens_F);
+  - the even cut.
+- **The four VGG points (amendment 4).** Every arm runs with the first convolution unlocked (`SPECTRA_STEM_ROWS=0`, an existing switch), and the threshold rule runs a second time with it locked.
+- **Scripts and controls.** `s21nov_tp.sh` (blob c5d783f) and `s21nov_tp0.sh` (blob e7c431a), each with a read mode. Every job ran its own origin control under the same recovery.
+
+**Checks.**
+- **Gates.** The transplants' gate (read 12:54 IST) passed the five ResNet points: origin val 0.930–0.938, landed within 0.005 of each target, and the grid round moved 10–21 groups by at most 3 channels. TP0's gate (read 14:00 IST) passed its 4 of 4 points. A pattern fault in the gates (the size label matched to three decimals) was fixed at 12:43 IST, before any cell was submitted.
+- **Correction carried from the row (21 Nov 22:00 IST, `scratch_audit/s21nov_p6_floorcheck.txt`).** At the four VGG points the published-widths arm does not realise the published networks.
+  - The grid round (`src/alloc_walk.py:1014-1015`) moves 6–21 groups to widths the walk can land on, and the walk stops at the FLOPs point (`src/NetworkEnv.py:1141-1142`) with 6–7 of the deepest cuts unfinished.
+  - Deep layers therefore sit 14–58 channels wider than published. FLOPs kept agree within 0.001, and params kept are higher by 0.003–0.019.
+  - The same realisation applies to every arm. At the five ResNet points the realised widths are within 6 channels of the plans (FLOPs within 0.0005).
+  - So at the VGG points "published widths" reads "the published plan as our walk realises it". The contrast against DepGraph's exact network is §450's (P6, inside DepGraph's own code).
+- **Seeds.**
+  - Seed 42 at the seven CIFAR-10 points. Seeds 43–44 were dropped there by Ido's decision of 21 Nov (about 22:30 IST): no point met the exception, every arm being within 0.41 of the published allocation at 10k. The threshold rule has a second seed at DepGraph's ResNet-56 point.
+  - Seeds 42–44 at the two VGG-19 points.
+
+**Reads.** Change from the origin in points: TEST 5k (mean ± SD over seeds where n > 1), val, 10k and honest. Honest is raw minus the origin's change under the same recovery, which is +0.4 to +1.0 here. Kept fractions are the means over seeds. Rows in DepGraph's own code are §450's and §453's.
+
+| point | arm | n | TEST 5k | val | 10k | honest | params kept | FLOPs kept |
+|---|---|---|---|---|---|---|---|---|
+| DepGraph ResNet-56 C10, FLOPs 0.474 (2.11×) | current agent | 1 | +0.50 | +0.62 | +0.56 | −0.54 | 0.475 | 0.474 |
+|  | current threshold rule | 2 | +0.18 ± 0.23 | +0.37 | +0.28 | −0.70 | 0.553 | 0.473 |
+|  | floored FLOPs rule (fixed in advance) | 1 | +0.04 | +0.40 | +0.22 | −1.00 | 0.527 | 0.473 |
+|  | even cut | 1 | −0.36 | +0.06 | −0.15 | −1.40 | 0.504 | 0.474 |
+|  | published widths | 1 | +0.36 | +0.50 | +0.43 | −0.68 | 0.518 | 0.474 |
+| OCSPruner ResNet-56 C10, FLOPs 0.385 | current agent | 1 | 0.00 | −1.00 | −0.50 | −0.96 | 0.456 | 0.384 |
+|  | current threshold rule | 1 | +0.10 | −0.72 | −0.31 | −0.86 | 0.499 | 0.384 |
+|  | floored FLOPs rule (fixed in advance) | 1 | −0.06 | −0.56 | −0.31 | −1.02 | 0.503 | 0.384 |
+|  | even cut | 1 | −0.04 | −0.98 | −0.51 | −1.00 | 0.366 | 0.385 |
+|  | published widths | 1 | +0.06 | −0.54 | −0.24 | −0.90 | 0.443 | 0.385 |
+| OCSPruner ResNet-56 C10, FLOPs 0.468 | current agent | 1 | +0.10 | −0.20 | −0.05 | −0.70 | 0.528 | 0.468 |
+|  | current threshold rule | 1 | +0.16 | −0.34 | −0.09 | −0.64 | 0.585 | 0.467 |
+|  | floored FLOPs rule (fixed in advance) | 1 | −0.08 | −0.26 | −0.17 | −0.88 | 0.602 | 0.468 |
+|  | even cut | 1 | −0.32 | −0.74 | −0.53 | −1.12 | 0.492 | 0.468 |
+|  | published widths | 1 | +0.04 | −0.50 | −0.23 | −0.76 | 0.473 | 0.468 |
+| ResNet-110 C10 (OCSPruner), FLOPs 0.464 | current agent | 1 | +0.22 | +0.94 | +0.58 | −0.70 | 0.513 | 0.464 |
+|  | current threshold rule | 1 | −0.24 | +0.36 | +0.06 | −1.16 | 0.572 | 0.463 |
+|  | floored FLOPs rule (fixed in advance) | 1 | +0.08 | +0.54 | +0.31 | −0.84 | 0.604 | 0.464 |
+|  | even cut | 1 | +0.26 | +0.84 | +0.55 | −0.66 | 0.489 | 0.464 |
+|  | published widths | 1 | +0.08 | +0.62 | +0.35 | −0.84 | 0.510 | 0.464 |
+| ResNet-110 C10 (OCSPruner), FLOPs 0.331 | current agent | 1 | −0.32 | +0.10 | −0.11 | −0.58 | 0.378 | 0.331 |
+|  | current threshold rule | 1 | −0.32 | +0.14 | −0.09 | −0.58 | 0.429 | 0.331 |
+|  | floored FLOPs rule (fixed in advance) | 1 | −0.50 | +0.24 | −0.13 | −0.76 | 0.439 | 0.331 |
+|  | even cut | 1 | −0.86 | −0.06 | −0.46 | −1.12 | 0.327 | 0.331 |
+|  | published widths | 1 | −0.62 | +0.22 | −0.20 | −0.88 | 0.373 | 0.331 |
+| VGG-16-BN C10 (OCSPruner), FLOPs 0.324 | current agent | 1 | −0.38 | +0.06 | −0.16 | −0.76 | 0.097 | 0.324 |
+|  | current threshold rule | 1 | −0.16 | +0.16 | 0.00 | −0.54 | 0.141 | 0.324 |
+|  | current threshold rule, first convolution locked | 1 | −0.28 | −0.28 | −0.28 | −0.66 | 0.132 | 0.324 |
+|  | floored FLOPs rule (fixed in advance) | 1 | −0.10 | −0.06 | −0.08 | −0.48 | 0.099 | 0.324 |
+|  | even cut | 1 | −0.04 | −0.18 | −0.11 | −0.42 | 0.341 | 0.324 |
+|  | published widths | 1 | −0.28 | −0.10 | −0.19 | −0.66 | 0.130 | 0.324 |
+| VGG-16-BN C10 (OCSPruner), FLOPs 0.251 | current agent | 1 | −0.18 | +0.26 | +0.04 | −0.82 | 0.082 | 0.251 |
+|  | current threshold rule | 1 | +0.08 | −0.18 | −0.05 | −0.56 | 0.132 | 0.251 |
+|  | current threshold rule, first convolution locked | 1 | −0.74 | −0.34 | −0.54 | −1.38 | 0.106 | 0.251 |
+|  | floored FLOPs rule (fixed in advance) | 1 | −0.56 | −0.50 | −0.53 | −1.20 | 0.078 | 0.251 |
+|  | even cut | 1 | −0.54 | −0.58 | −0.56 | −1.18 | 0.284 | 0.251 |
+|  | published widths | 1 | −0.90 | +0.16 | −0.37 | −1.54 | 0.107 | 0.251 |
+| VGG-19 C100 (DepGraph), FLOPs 0.112 (8.9×, OCSPruner's point) | current agent | 3 | −5.50 ± 1.02 | −4.97 | −5.24 | −6.17 | 0.040 | 0.112 |
+|  | current threshold rule | 3 | −3.81 ± 0.32 | −4.01 | −3.91 | −4.48 | 0.070 | 0.112 |
+|  | current threshold rule, first convolution locked | 3 | −5.23 ± 0.37 | −5.00 | −5.11 | −5.90 | 0.047 | 0.112 |
+|  | floored FLOPs rule (fixed in advance) | 3 | −4.91 ± 0.42 | −5.03 | −4.97 | −5.58 | 0.045 | 0.112 |
+|  | even cut | 3 | −5.76 ± 0.05 | −5.85 | −5.81 | −6.43 | 0.120 | 0.112 |
+|  | published widths | 3 | −4.48 ± 0.26 | −4.41 | −4.44 | −5.15 | 0.061 | 0.112 |
+| VGG-19 C100 (DepGraph), FLOPs 0.110 (8.84×, DepGraph's point) | current agent | 3 | −5.63 ± 0.58 | −5.81 | −5.72 | −6.13 | 0.037 | 0.110 |
+|  | current threshold rule | 3 | −3.40 ± 0.75 | −3.77 | −3.58 | −3.90 | 0.067 | 0.110 |
+|  | current threshold rule, first convolution locked | 3 | −5.22 ± 0.21 | −5.04 | −5.13 | −5.72 | 0.044 | 0.110 |
+|  | floored FLOPs rule (fixed in advance) | 3 | −4.60 ± 0.42 | −4.33 | −4.46 | −5.10 | 0.044 | 0.110 |
+|  | even cut | 3 | −6.41 ± 1.01 | −5.79 | −6.10 | −6.91 | 0.116 | 0.110 |
+|  | published widths | 3 | −4.15 ± 0.85 | −4.34 | −4.25 | −4.65 | 0.064 | 0.110 |
+
+**Contrasts.**
+- **The five ResNet points (one seed).** Arm minus the published widths, TEST 5k, in the order DepGraph 0.474; OCSPruner ResNet-56 0.385, 0.468; ResNet-110 0.464, 0.331:
+  - current agent: +0.14 / −0.06 / +0.06 / +0.14 / +0.30;
+  - current threshold rule: −0.18 / +0.04 / +0.12 / −0.32 / +0.30 (at DepGraph's point the rule's mean is over two seeds);
+  - floored FLOPs rule: −0.32 / −0.12 / −0.12 / 0.00 / +0.12;
+  - even cut: −0.72 / −0.10 / −0.36 / +0.18 / −0.24.
+
+  At 10k, rule minus published is −0.07 / +0.14 / +0.11 / −0.29 at the four OCSPruner points (the row's read of 17:39 IST). At equal FLOPs the threshold rule keeps 1.07–1.24× the published widths' parameters, and the agent keeps 0.92–1.12×.
+- **The two VGG-16 points (one seed; walk-realised published widths).** At 0.324 and 0.251:
+  - current threshold rule minus published: +0.12 and +0.98;
+  - current agent minus published: −0.10 and +0.72;
+  - the lock's cost (rule unlocked minus locked): +0.12 and +0.82 (10k +0.28 and +0.49).
+
+  On the published arm at 0.251, val (+0.16) and TEST 5k (−0.90) disagree.
+- **The two VGG-19 CIFAR-100 points (three seeds, paired; TEST 5k / val / 10k, honest equal to raw).** At OCSPruner's 0.112, then DepGraph's 0.110:
+  - current threshold rule minus published: +0.67 / +0.39 / +0.53, then +0.75 / +0.57 / +0.66;
+  - current agent minus published: −1.02 / −0.57 / −0.79, then −1.47 / −1.47 / −1.47;
+  - current agent minus current threshold rule: −1.69 / −0.96 / −1.33, then −2.23 / −2.04 / −2.13;
+  - the lock's cost: +1.42 / +0.99 / +1.20, then +1.82 / +1.27 / +1.55.
+
+  **FLOPs caption.** At equal FLOPs the agent keeps 0.040 and 0.037 of the parameters, against the rule's 0.070 and 0.067 (0.57× and 0.55×) and the published widths' 0.061 and 0.064.
+
+**Reading.**
+- **At 2–3× on ResNets, allocation is not the published methods' edge (one seed).** The current agent and both rules land within 0.32 TEST 5k of the published widths, run through our cut and recovery, and the even cut lands within 0.72. Where the published methods report better numbers on these networks, the difference lies in the recipe, and for DepGraph in its sparsity training before the cut (§450).
+- **At about 9× on VGG-19 CIFAR-100, the first-convolution lock was the rules' largest handicap.** Unlocking it is worth +1.4 to +1.8 TEST 5k to the threshold rule. Unlocked, the rule sits +0.67 and +0.75 above the published plans as our walk realises them.
+- **Beside it, each on its own recipe** (not a contrast):
+  - OCSPruner publishes −3.60 at 0.112 (§447);
+  - DepGraph publishes −3.11 at 8.92×;
+  - DepGraph's full method, run in its own code on our split, reads −3.36 TEST 5k (§450).
+- **The current agent trails the rule by 1.7–2.2 points there, keeping about 0.55× its parameters.** FLOPs 0.11 is far below the agent's training range (κ 0.35–0.85). It is the deep-budget weakness of §449, where the agent trails the recalibrated rule by −1.58 at FLOPs 0.20.
+
+**Not supported by this section:**
+- any "beats" against a published method (different recipes; one seed at the CIFAR-10 points);
+- any contrast at the VGG points against the published networks themselves (the widths are walk-realised; §450 is that contrast);
+- any call (none was registered);
+- any claim from seeds 43–44 at the CIFAR-10 points (dropped).
+
+The head-to-head and long tables (`docs/paper/tables/`) cite this section for these rows, and draft §5.1b's paragraph "The published methods' own widths in our pipeline" cites it. Part B's AMC transplant on akamaster's ResNet-56 (B READ, 21 Nov 15:05 IST) stays on the queue row and is not part of this section. Next §457.
