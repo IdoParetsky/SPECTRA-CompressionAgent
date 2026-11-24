@@ -12964,3 +12964,82 @@ The readers take the 90-epoch values from the logs at three decimals. The rule a
 - any TEST-chosen epoch or point (last epoch only).
 
 **Next.** None registered. The draft's §5.1c carries the map as one paragraph. A shorter ImageNet recovery returns only as its own registration, with the literature scan's recipe as a separate arm (`docs/paper/lit/LIT_SHORT_RECOVERY_23NOV.md`). Next §459.
+
+## 459. (EQUIL-3: queue row EQUIL-3, registered 24 Nov 12:58:33 IST (commit 1731c31) before any EQUIL-3 script existed; code stamped 13:00:04 IST (commit f239cba, reader blob 14117794) before the read; EQUIL-2 again with each form's preference grid calibrated from the val curves' own marginal rates; zero GPU, read-only; exploratory, one decision rule, no call on the agent) — **By the registered rule, RECOMMEND B (per halving), on a tie: with the grids calibrated, the linear, per-halving and relative-error forms are equally stable (median 0.86, 0.89, 0.85, all within 0.05), and the tie rule set in advance gives B. §457's recommendation of A came from its fixed grids. Reported beside: the linear form stays interior over its whole calibrated range, the per-halving form only over its lower three values. Firm, as in §457: a size chosen from the cut loses on TEST under every form.** PRELIM.
+
+**Question.** Once each form's preference values sit where the curves' own trade-offs are, which form of the accuracy–size equilibrium gives each network a best size that is inside the range and stable under run-to-run noise?
+
+**Code and data.**
+- Reader `scripts/_tmp_s24nov_equil3.py`, blob 14117794, deployed as `scratch_audit/s24nov_equil3.py` (blob checked). Output `s24nov_equil3_read.txt`.
+- It is EQUIL-2's reader (§457, blob 95e80132) with only the grids changed. The data, the curves (the cost-aware rule primary on 6 networks: 4 CIFAR-10, 2 CIFAR-100; the even cut reported on 8), the forms, the measures M1–M6, the bootstrap counts, the seed and the decision rule are §457's.
+
+**Calibration (val only, the primary curves).**
+- For each form, the marginal rates were taken between adjacent labels in that form's own units, pooled over the 6 networks (30 rates; 36 losses for D′).
+- The grid is their 20th, 35th, 50th, 65th and 80th percentiles. The same grids were applied to the even-cut curves.
+
+| form | units | range of the rates | grid (p20 / p35 / p50 / p65 / p80) |
+|---|---|---|---|
+| A, linear | points per 10 % of parameters removed | −0.38 to 17.41 | 0.33 / 0.60 / 1.34 / 2.76 / 3.81 |
+| B, per halving | points per halving | −1.37 to 14.79 | 1.02 / 1.28 / 2.33 / 3.79 / 9.29 |
+| C, relative error | log2 of relative error per halving | −0.08 to 0.68 | 0.13 / 0.24 / 0.30 / 0.36 / 0.42 |
+| D′, soft tolerance | points lost (tolerance) | −0.97 to 35.06 | 0.28 / 1.46 / 3.19 / 5.14 / 10.55 |
+| E, two axes (reported) | points per unit of ½ log2(1/s) + ½ log2(1/f) | −1.87 to 20.66 | 1.09 / 1.40 / 2.70 / 4.76 / 9.83 |
+
+**Primary read** (cost-aware rule, 6 networks). The columns are §457's:
+- M1, interior share;
+- M2, stability;
+- M3, regret;
+- M4, room on TEST with its 95 % CI over networks;
+- M5, the cut-time choice;
+- M6, halvings chosen on CIFAR-10 / CIFAR-100.
+
+| form | pref. (pct) | M1 | M2 | M3 | M4 TEST [CI] (common) | M4 10k | M5 differs | M5 loss | M6 C10 / C100 |
+|---|---|---|---|---|---|---|---|---|---|
+| A | 0.33 (p20) | 0.50 | 0.86 | +0.00 | +0.19 [−0.01, +0.43] (0.60) | +0.25 | 0.67 | −2.37 | 1.13 / 1.37 |
+| A | 0.60 (p35) | 0.50 | 0.74 | +0.06 | +0.51 [+0.09, +1.00] (0.60) | +0.63 | 0.67 | −5.01 | 1.37 / 1.74 |
+| A | 1.34 (p50) | 0.83 | 0.93 | +0.01 | +1.64 [+0.55, +3.13] (0.35) | +1.63 | 1.00 | −6.31 | 1.98 / 1.74 |
+| A | 2.76 (p65) | 0.50 | 0.82 | +0.07 | +1.86 [+0.69, +3.18] (0.25) | +1.83 | 1.00 | −11.30 | 2.40 / 2.03 |
+| A | 3.81 (p80) | 0.50 | 0.98 | +0.00 | +2.31 [+0.55, +4.61] (0.15) | +2.15 | 1.00 | −13.77 | 2.85 / 2.43 |
+| B | 1.02 (p20) | 0.50 | 0.89 | +0.01 | +0.19 [−0.02, +0.47] (0.60) | +0.30 | 0.67 | −4.75 | 1.13 / 1.74 |
+| B | 1.28 (p35) | 0.50 | 0.91 | +0.01 | +0.38 [+0.07, +0.79] (0.60) | +0.48 | 0.67 | −4.83 | 1.56 / 1.74 |
+| B | 2.33 (p50) | 0.50 | 0.88 | +0.13 | +1.41 [+0.40, +2.47] (0.60) | +1.53 | 0.83 | −5.40 | 2.08 / 1.74 |
+| B | 3.79 (p65) | 0.17 | 0.81 | +0.01 | +3.33 [+1.79, +4.79] (0.35) | +3.24 | 0.83 | −7.08 | 2.53 / 2.03 |
+| B | 9.29 (p80) | 0.17 | 0.94 | +0.12 | +1.58 [+0.00, +3.55] (0.10) | +1.45 | 0.67 | −8.69 | 3.18 / 2.03 |
+| C | 0.13–0.36 (p20–p65) | 0.00–0.33 | 0.83–0.95 | +0.00 | +0.04 to +0.13 | ≤ +0.13 | 0.50–1.00 | −0.29 to −0.35 | 0.74–1.90 / 2.03–3.33 |
+| C | 0.42 (p80) | 0.50 | 0.85 | +0.01 | +0.06 [−0.02, +0.21] (0.10) | +0.06 | 0.83 | −0.29 | 2.31 / 3.33 |
+| D′ | 0.28–10.55 | 0.33 | 0.94–1.00 | +0.00 to +2.26 | +0.35 to +1.58 | +0.44 to +1.59 | 0.33–1.00 | −1.35 to +0.33 | 0.93–2.99 / 1.74–2.24 |
+
+- **E** (reported) follows B: M1 is 0.50 at p20–p50 and 0.00–0.17 above.
+- **F** is unchanged from §457: 4 of 6 networks lose beyond replicate noise already at 0.60.
+- **The even cut** (reported, 8 networks, the primary grids) shows the same pattern. A is interior at all five values (M1 0.50–0.62, M2 0.85–0.94). B is interior at p20–p35 (0.50), C at p20–p35, and D′ at p35 only.
+- **Units.** M3–M5 are in each form's own utility units. Only A, B and E are in points, and D′'s cut losses are inflated by its squared penalty.
+
+**The registered decision.** A preference value is usable when M1 ≥ 0.5.
+
+| form | usable values | median M2 |
+|---|---|---|
+| A | all five (p20–p80) | 0.86 |
+| B | p20, p35, p50 (λ 1.02, 1.28, 2.33 points per halving) | 0.89 |
+| C | p80 (α 0.42) | 0.85 |
+| D′ | none | — |
+
+A, B and C lie within 0.05 of the best (0.89), and the tie goes to B: **RECOMMEND B**.
+
+**Reading.**
+- **On equal footing, stability does not separate the forms.** The median stabilities 0.85–0.89 lie within one tie band, and §457's A over B by 0.07 came from where the fixed grids sat, as its [H] said. B is the registered choice by the tie rule written before either read: one exchange rate in points per halving, the same at every depth.
+- **What the rule does not weigh, reported:**
+  - A keeps its best sizes inside the range over the whole calibrated span of preferences: five of five values, and five of five on the even cut.
+  - B does so over its lower three, up to 2.33 points per halving. Above that its choices sit at an edge of the range on five of six networks (M1 0.17).
+  - [H] The per-halving form rewards each further halving equally, while the linear form's reward per step shrinks as the network shrinks. So the linear form's best size moves more gradually with its preference. For an agent this matters only through the preference value chosen; not tested.
+- **The relative-error form treats harder datasets as more compressible.** At its median preference it chooses 3.33 halvings on CIFAR-100 against 1.56 on CIFAR-10, since the same point lost is a smaller share of a larger error. A, B and E choose 1.7–2.1 on both. [H, two CIFAR-100 networks] That is a property to avoid in a reward meant to transfer across datasets.
+- **Firm, as in §457: the cut misplaces the size.** Under A, B and E, the cut-time choice differs on 67–100 % of networks and loses 2.4–13.8 points of TEST utility.
+- **Room for a per-network choice:** +1.4 to +1.6 at the median preferences (A +1.64 [+0.55, +3.13], B +1.41 [+0.40, +2.47]).
+
+**Not supported by this section:**
+- a ranking of A against B by stability (a tie);
+- any claim beyond six networks, the parameters axis or these six sizes;
+- any agent result;
+- any TEST-based choice.
+- The grids are in-sample on val, as registered.
+
+**Next, as set before the read.** B (per halving) supersedes §457's A for the agent-retrain registration that waits on TRACE, with its usable values λ 1.02, 1.28 and 2.33 points per halving carried there. Which value or values to train is set in that registration. The draft's §5.10 equilibrium bullet cites this section beside §457. Next §460.
