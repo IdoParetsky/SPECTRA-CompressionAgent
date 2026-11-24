@@ -13043,3 +13043,35 @@ A, B and C lie within 0.05 of the best (0.89), and the tie goes to B: **RECOMMEN
 - The grids are in-sample on val, as registered.
 
 **Next, as set before the read.** B (per halving) supersedes §457's A for the agent-retrain registration that waits on TRACE, with its usable values λ 1.02, 1.28 and 2.33 points per halving carried there. Which value or values to train is set in that registration. The draft's §5.10 equilibrium bullet cites this section beside §457. Next §460.
+
+## 460. (C3-SPLIT: queue row C3-SPLIT, registered 24 Nov 13:56:08 IST (commit d467afa) before the split was computed; the zero-GPU gate of the agent program's C3, a probe pick among the agent's samples at equal size at deep cuts (`docs/paper/lit/LIT_AGENT_UP_24NOV.md` §8); §452's diagnostic 3 split by depth; zero GPU, read-only; one decision) — **C3-STOP by the registered rule: held to the threshold rule's size on both axes, the 2-epoch probe's pick in the deep FLOPs groups gains TEST 5k +0.06 [−0.29, +0.40] on 17 groups (bar: +0.30 on at least 8). Reported: in the same deep groups the 100-epoch val pick, which shares its run with TEST, gains +0.78 [+0.43, +1.12]. There may be room at equal size at deep cuts, but a 2-epoch probe does not find it.** PRELIM.
+
+**Question.** §452's pick by a 2-epoch probe, held to the rule's size on both axes, gained +0.00 pooled over FLOPs 0.20 and 0.45. Does it gain at deep cuts, where a test-time probe pick among the agent's samples would be used?
+
+**Code and data.**
+- `scripts/_tmp_s24nov_c3split.py`, blob 7d44fbcd, deployed as `scratch_audit/s24nov_c3split.py` (blob checked); output `s24nov_c3split.txt`.
+- It is §452's diagnostic 3 (`scripts/_tmp_s22nov_simsel_diag3.py`) unchanged in method, with the groups split by the label's target: deep (at most 0.25) and mild (above 0.25).
+- Groups are (network, label, budget) holding at least 3 plans with the signal and a sens_thresh plan. The candidates are the plans whose free axis is at most 1.10 × sens_thresh's. Each value is the pick minus sens_thresh, bootstrapped over networks (2,000 draws, seed 0).
+
+| signal | budget | depth | groups | networks | pick − rule TEST 5k | val | free-axis ratio |
+|---|---|---|---|---|---|---|---|
+| 2-epoch probe | FLOPs | deep | 17 | 17 | **+0.06 [−0.29, +0.40]** | +0.18 | 1.01 |
+| 2-epoch probe | FLOPs | mild | 19 | 19 | −0.05 [−0.20, +0.11] | +0.10 | 0.99 |
+| 2-epoch probe | FLOPs | all (§452) | 36 | 21 | +0.00 [−0.18, +0.16] | +0.14 | 1.00 |
+| 100-epoch val (reported) | FLOPs | deep | 31 | 31 | +0.78 [+0.43, +1.12] | +0.97 | 1.09 |
+| 100-epoch val (reported) | FLOPs | mild | 37 | 35 | +0.06 [−0.08, +0.22] | +0.51 | 0.99 |
+| 100-epoch val (reported) | params | deep | 47 | 38 | +0.33 [+0.18, +0.51] | +0.64 | 1.02 |
+| 100-epoch val (reported) | params | mild | 30 | 30 | +0.15 [−0.01, +0.31] | +0.44 | 1.02 |
+
+**The registered decision.** The deep FLOPs groups read +0.06 on 17 groups, below +0.30: **C3-STOP**. C3 (a test-time probe pick among the agent's samples at equal size) is not built. The program keeps C1 (a size head, gated on SIZE-PROBE) and C2 (the recalibrated rule as the agent's base at deep cuts).
+
+**Reading.**
+- **The 2-epoch probe cannot find a better plan of the same size, at either depth.** Its picks at deep cuts sit +0.18 on val and +0.06 on TEST above the rule's.
+- **[H] The deep groups may still hold room at equal size.**
+  - The 100-epoch val pick gains +0.78 at deep FLOPs and +0.33 at deep params. It gains little at mild depths (+0.06, +0.15).
+  - That pick is read on the same trained network as its TEST outcome, so it includes the run's own luck (§452's noise ceiling, τ +0.55).
+  - Its free axis is also 9 % above the rule's at deep FLOPs, inside the 10 % hold. The +0.78 is therefore an upper bound on what a signal aligned with the final run could find, not a result.
+  - It is consistent with the literature: learned allocators have shown headroom at deep cuts (`LIT_AGENT_VS_RULE_22NOV.md` §7.2).
+- **Not supported by this section:** any claim for the agent; any claim that the room is real (the 100-epoch val pick is not an independent read); any TEST-based choice.
+
+**Next.** C3 stops. A signal that could find equal-size room at deep cuts would need to track the final run more closely than a 2-epoch probe does. A longer probe (TRACE reads along the 2-epoch run only) or a replicate run would be its own registration. None is registered. Next §461.
