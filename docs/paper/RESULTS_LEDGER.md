@@ -13118,3 +13118,44 @@ k* (the earliest read within 0.05 of τ_full whose paired interval's lower end i
 - **Not supported by this section:** any agent result (these are §452's agent and rule plans); any claim that a probe pick beats the threshold rule (it reads −0.11 here, as in §452 and §460); any claim for a separate short schedule; any TEST-based choice.
 
 **Next, as set before the read.** SHORT-GO: register the agent retrain with a recovery-aligned reward: the val read after 125 steps at lr 0.01 (the first 125 steps of the 2-epoch gentle recovery), in the per-halving equilibrium form (§459, λ 1.02 / 1.28 / 2.33), with the trade-off as an input; cost estimated from these timings. TRAJ-NOT: trajectory features do not enter that reward. Next §462.
+
+## 462. (SIZE-PROBE: queue row SIZE-PROBE, registered 24 Nov 13:49 IST (commit 9d1f0b8) before any script, amendment 2 at 16:06 IST (ed00528) before any cell; can a short recovery, corrected by a per-size offset fitted on the other networks, choose each network's parameter size under the per-halving trade-off nearly as well as the 100-epoch val curve; the cost-aware rule's 178 plans on six networks at six sizes, re-run in tree_v40; no training; two decisions) — **NO-GO on both, by the registered rule. Averaged over λ 1.02 / 1.28 / 2.33, the val choice's room is +0.68 TEST utility; the 2-epoch probe's choice reaches −0.72 (share −1.06) and the 125-step read's −3.72 (share −5.46). The probe keeps the room at λ 1.02 and 1.28 (shares 1.10 and 1.00), where most networks choose the largest size anyway, and loses it at λ 2.33, where the room is (+1.52 against −2.71).** PRELIM.
+
+**Question.** The only room above the rules measured so far is the size: +1.0 to +1.5 TEST utility for a per-network size on recovered curves (§457, §459). A frozen agent can learn the size only from cheap labels. A 2-epoch gentle recovery ranks plans of one size near the noise ceiling (§452), and its first 125 steps nearly as well (§461). Can either choose the size across six parameter points, once a per-size offset learned on other networks corrects for the short recovery's deeper losses (§458)?
+
+**Runs and gate.**
+- Plans: every recipe-of-record (`e100 lr0.1 b256 augloader kd0 cos last`, scratch 0, size_param) row of the cost-aware rule (sens_cost) on the six networks holding all six labels (DenseNet-100 C10, ResNet-20 ×8 C100, ResNet-56 ×4 C10, ResNet-56 ×8 C10, ResNet-56 C10, VGG-19 C100) at 0.60, 0.45, 0.35, 0.25, 0.15, 0.10: 178 plans, five or six per network and label (amendment 1: VGG-19 C100 at 0.60 has one, from tree_v20).
+- Each plan's original job re-run from its own logged settings, changed only as §452's top-up (2 epochs at lr 0.01), in tree_v40 with §461's trace reads on (amendment 2), so each plan gives both its 2-epoch val change and its val change after 125 steps.
+- Gate PASS (24 Nov 16:23 IST, read by hand): both smokes equal to their tree_v24 twins exactly (DenseNet-100 C10 TEST 0.937 / val 0.9278; ResNet-20 ×8 C100 0.3048 / 0.3018), 17 trace reads each, the last equal to the final val. 176 cells 24471303–24471659 plus the smokes 24470551/52: all 178 COMPLETED by 22:04 IST.
+- Reader `scripts/_tmp_s24nov_sizeprobe_v40_read.py` blob 90860fdf (checked on the cluster before the run), output `scratch_audit/s24nov_sizeprobe_v40_read.txt` (22:09 IST): 178 of 178 plans read, none missing; 6 of 6 networks at all six labels.
+
+**The calls** (room of a choice = mean over the six networks of TEST 5k utility U = Δ + λ·log2(1/s) at the choice minus at the best common label; bootstrap over networks, 95 %; val chooses, TEST scores; 10k beside; per-halving form, §459's usable λ).
+
+| λ | common label | val choice | 2-epoch probe choice (share) | 125-step read choice (share) | 10k: val / 2-epoch / 125-step | agreement with val: 2-epoch / 125-step |
+|---|---|---|---|---|---|---|
+| 1.02 | 0.60 | +0.15 [−0.05, +0.41] | +0.17 [−0.02, +0.41] (1.10) | −4.36 [−13.54, +0.39] (−28.7) | +0.27 / +0.26 / −4.19 | 5 of 6 / 4 of 6 |
+| 1.28 | 0.60 | +0.38 [+0.07, +0.77] | +0.37 [+0.07, +0.77] (1.00) | −4.04 [−13.08, +0.71] (−10.8) | +0.48 / +0.47 / −3.87 | 5 of 6 / 4 of 6 |
+| 2.33 | 0.60 | +1.52 [+0.43, +2.73] | −2.71 [−11.33, +2.28] (−1.79) | −2.75 [−11.42, +2.19] (−1.81) | +1.58 / −2.52 / −2.58 | 1 of 6 / 1 of 6 |
+| mean | | +0.68 | −0.72 (−1.06): **NO-GO** | −3.72 (−5.46): **NO-GO** | | |
+
+Decision (registered): GO if the probe choice's room, averaged over the three λ, is at least half the val choice's and positive at each λ. Neither holds for either probe.
+
+**Reported beside (no call).**
+- Without the offset, the raw 2-epoch probe picks 0.60 on five networks at every λ (0.25 on VGG-19): room +0.11, +0.16, +0.38. A labeller with one probe plan per size (the k-th plan, mean over k) reads +0.15, +0.36, −2.68 (2-epoch) and −4.39, −4.06, −2.74 (125-step).
+- Linear form (§459's calibrated grid λ 0.33 / 0.60 / 1.34 / 2.76 / 3.81): val choice +0.14, +0.50, +1.58, +1.90, +1.98; 2-epoch probe choice −0.01, +0.50, −2.38, −1.95, −1.83 [−3.57, −0.29]; 125-step read −4.71, −3.97, −2.80, −2.30, −2.58 [−4.13, −1.02].
+- Within a network, each probe's curve over the six sizes follows the 100-epoch val curve: Pearson r 0.86–1.00 for the 2-epoch probe and 0.82–0.99 for the 125-step read.
+- Cost: 178 jobs, 27.4 GPU-h (registered estimate 9–15 GPU-h); median job 7 min, the DenseNet-100 jobs about 22 min.
+
+**Where it fails (a diagnostic read after the call from the reader's own rows, `scratch_audit/_szp_diag.txt`; reported, never a call).**
+- **The probe's scale differs by network, and the per-size offset cannot carry it.** At size 0.10, the 2-epoch probe loses 1.6× (ResNet-20 ×8 C100), 2.5× (ResNet-56 ×4), 4.3× (ResNet-56), 4.6× (ResNet-56 ×8), 7.2× (DenseNet-100) and 10.3× (VGG-19 C100) what the 100-epoch recovery loses. The offset learned on the other five networks therefore misplaces a network's curve by −28 to +21 points (2-epoch) and −28 to +27 (125-step), against 100-epoch differences between sizes of 1 to 29 points.
+- **One network carries the loss.** On ResNet-20 ×8 C100, the 2-epoch probe drops 29.5 points at 0.60 and flattens near the floor from 0.25 down (−52.5, −56.9, −56.3), while the 100-epoch curve keeps falling (−20.2, −28.5, −35.1). The probe sees no further cost in cutting deeper, the per-halving term keeps rewarding it, and the choice goes to 0.10 where val chooses 0.60. The 125-step read flattens sooner, so it makes this error at every λ.
+- So the short recovery orders sizes correctly within a network but does not say how much each size costs, and the per-halving choice depends on the amount.
+
+**Reading.**
+- **A short recovery cannot label each network's size.** The 2-epoch probe matches val where the choice is easy (λ 1.02 and 1.28, mostly the largest size) and fails where the room is (λ 2.33). The 125-step read fails everywhere.
+- **The size room (§457, §459) stays real but out of cheap reach.** Labelling it needs 100-epoch curves on the training networks. This section does not cost or register that.
+- **For the retrain's reward:** §461's 125-step read ranks plans at one size. This section shows it must not be used to compare sizes. A reward built on it compares plans at a fixed size, with the size given as an input.
+- **Not supported by this section:** any agent result (these are the rule's plans); any claim on the FLOPs axis; any claim that the probe fails to rank plans of one size (§452 and §461 stand); any TEST-based choice; the diagnostic as evidence for a particular fix.
+- [H] A calibration that carries each network's scale (for example, from one 100-epoch point on that network) might rescue the probe's size choice. That is untested, needs its own registration, and on a target network it would cost the 100-epoch run the size head was meant to avoid.
+
+**Next, as set before the read.** Both NO-GO: no size head on probe labels; the program moves to C2, the recalibrated rule as the agent's base. AGT-RAR2 (queue row AGT-RAR2, registered 7fc0c1a) is running: the frozen agent with the recalibrated measurement against RAR. Its outcome decides the retrain on RAR's line, with §461's 125-step reward at a fixed size. C3 stays stopped (§460). Next §463.
