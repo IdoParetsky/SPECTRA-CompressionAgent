@@ -12892,3 +12892,75 @@ A is above B by 0.07, outside the 0.05 tie band: **RECOMMEND A**.
 - any TEST-based choice.
 
 **Next.** As registered, the recommended form (A) enters the agent-retrain registration that waits on TRACE. Science proposes first a calibrated comparison: each form's preference grid set from the val curves' marginal rates, never TEST, on the same data. It is not registered. Draft §5.10's equilibrium paragraph cites this section. Next §458.
+
+## 458. (SHORT-IMN: queue row SHORT-IMN, registered 23 Nov 18:23 IST (commit 3360d95) on Ido's GO before any SHORT-IMN script or submit; ImageNet ResNet-50, §427–§430's six saved decisions recovered again for 3, 9 and 27 epochs; seed 42, one run each; no agent training; dropped at Ido's word on 24 Nov 07:03 IST with two 27-epoch cells unstarted) — **FAR at 3 and at 9 epochs, by the registered calls: the six pruned networks land 4.06 and 2.41 points of TEST below their 90-epoch results (honest −2.45, −1.21), so the time saving is not available with this recipe at 9 epochs or fewer. At 27 epochs, four of the six cells ran: 1.05 below (honest −0.68; reported, not called) at about a third of the GPU time. Reported: the three plans spread more when recovery is short (0.80, 0.38, 0.29 at FLOPs 0.48 against 0.18 after 90 epochs), and the agent trails the rule at every short length.** PRELIM.
+
+**Question.** How close do 3-, 9- and 27-epoch recoveries come to the 90-epoch recovery on ImageNet ResNet-50? Does the per-layer plan matter more when recovery is short? Does a short run predict the 90-epoch result?
+
+**Design (as registered).**
+- The six saved decisions of §427–§428 (agent T4-F, floored sens_F and the even cut at FLOPs 0.48 and 0.56) were recovered again for N = 3, 9 and 27 epochs, plus the unpruned control for the same N.
+- The recipe is IMN's with only its length scaled: SGD with momentum 0.9 and lr 0.01, divided by 10 at N/3 and 2N/3; wd 1e-4; batch 256; the last epoch kept; tree_v34; RTX 4090 nodes only.
+- TEST = the official 50,000-image val. Val = 10,000 held-out train images.
+- The 90-epoch endpoints are §427–§430's.
+- Start check: smoke 24443769, gate PASS 23 Nov 18:47 IST.
+- Cells: 24443778–24443806. The two 27-epoch cells at 0.56 (rule and even cut; 24443805, 24443806) were cancelled before they started, at Ido's word.
+
+**Readers.**
+- N = 3 and 9: `scripts/_tmp_s23nov_shortimn_read.py`, blob 788b6306 (queue row, interim reads 23 Nov 21:47 and 24 Nov 05:48 IST).
+- N = 27: `scripts/_tmp_s24nov_shortimn_read27.py`, blob 5d04b4d6, deployed as `scratch_audit/s24nov_shortimn_read27.py` (blob checked) and read 24 Nov 12:55 IST. It is a copy of the first reader that changes only how it treats a length with fewer than seven cells. It reports on the cells that ran and prints the same four cells' gaps at N = 3 and 9 beside them.
+- Each value is the cell's last-epoch read as logged. The per-image re-read planned in the row was not run (study dropped).
+
+**The control.** TEST after 3, 9, 27 and 90 epochs: 75.29, 75.70, 76.53, 76.90. The changes from our read of the original are −0.82, −0.42, +0.41 and +0.78.
+- Its val change falls with length: −3.93, −4.61 and −5.52 at 3, 9 and 27 epochs. torchvision trained the original on these held-out images (§430), so val carries the original's memorisation as it fades.
+- The pruned cells' val gaps, read against their own 90-epoch val, cancel part of that.
+
+**Per cell.** The gap is TEST(N) − TEST(90), with val and honest beside. Honest is each cell's change net of the control's change at the same N, against the same at 90.
+
+| arm | FLOPs | params kept | TEST 3 / 9 / 27 / 90 | gap TEST 3 / 9 / 27 | gap val 3 / 9 / 27 | honest gap 3 / 9 / 27 |
+|---|---|---|---|---|---|---|
+| agent | 0.48 | 0.555 | 70.45 / 72.44 / 74.06 / 75.24 | −4.79 / −2.80 / −1.18 | −3.20 / −1.66 / −0.84 | −3.18 / −1.60 / −0.81 |
+| rule | 0.48 | 0.604 | 71.25 / 72.81 / 74.22 / 75.33 | −4.08 / −2.52 / −1.11 | −1.32 / −0.50 / +0.29 | −2.47 / −1.32 / −0.73 |
+| even cut | 0.48 | 0.508 | 70.84 / 72.77 / 74.36 / 75.42 | −4.58 / −2.65 / −1.06 | −2.51 / −1.39 / −0.71 | −2.97 / −1.45 / −0.69 |
+| agent | 0.56 | 0.655 | 72.20 / 73.56 / 74.87 / 75.73 | −3.53 / −2.17 / −0.86 | −1.01 / −0.41 / +0.29 | −1.92 / −0.97 / −0.49 |
+| rule | 0.56 | 0.728 | 72.58 / 74.00 / — / 75.88 | −3.30 / −1.89 / — | −0.17 / +0.30 / — | −1.69 / −0.69 / — |
+| even cut | 0.56 | 0.555 | 71.60 / 73.21 / — / 75.66 | −4.06 / −2.45 / — | −1.96 / −1.01 / — | −2.45 / −1.25 / — |
+
+The readers take the 90-epoch values from the logs at three decimals. The rule at 0.56 reads 75.88 there, against 75.89 in §430's full-precision re-read (within §430's tolerance).
+
+**The calls (registered on the six pruned cells).**
+
+| N | Q1 mean gap TEST (val; honest) | Q1 call | Q3 range of the six gaps | Q3 call | GPU-h per pruned cell |
+|---|---|---|---|---|---|
+| 3 | −4.06 (−1.69; −2.45) | **FAR** | 1.49 | **NOT** | 1.35 |
+| 9 | −2.41 (−0.78; −1.21) | **FAR** | 0.92 | **NOT** | 3.14 |
+| 27 (4 of 6 cells; reported) | −1.05 (−0.24; −0.68) | not called (the mean would read FAR, by 0.05) | 0.32 | not called (would read PREDICTIVE on four cells) | 7.64 |
+
+- Like for like, on the four cells that ran at 27: the mean TEST gap is −4.24, −2.54 and −1.05 at 3, 9 and 27 epochs. The honest gap is −2.64, −1.34 and −0.68, and the range 1.26, 0.64 and 0.32.
+- Cost: each job's elapsed time on one RTX 4090, staging and reads included. The same four cells' 90-epoch last jobs took 21.72 GPU-h, their earlier stop jobs not counted.
+
+**Q2, the plan (reported, one seed, no call).**
+- At 0.48, the TEST spread of the three arms is 0.80, 0.38 and 0.29 at 3, 9 and 27 epochs, against 0.18 after 90.
+  - Agent − rule: −0.80, −0.38, −0.16 (90: −0.09).
+  - Agent − even cut: −0.39, −0.33, −0.29 (90: −0.18).
+  - Rule − even cut: +0.41, +0.05, −0.13 (90: −0.09).
+- At 0.56 (3 and 9 epochs only), the spread is 0.98 and 0.79, against 0.22.
+  - Agent − rule: −0.38, −0.44 (90: −0.15).
+  - Rule − even cut: +0.98, +0.79 (90: +0.22).
+
+**Reading.**
+- **By the registered calls, FAR at 3 and 9 epochs, so the branch set for CLOSE or NEAR at 9 or fewer cannot fire.** The deeper point, the agent-where-the-plan-may-matter arm and the literature's short recipe are not started. The study ends as the recovery-budget map, as set before the read.
+- **The gap closes slowly.** Each tripling of the recovery length closes about 1.5–1.7 points between 3 and 27 epochs, and the last 63 epochs close 1.05. About a third of the raw gap at 27 is the unpruned control's own gain from the longer run (+0.41 to +0.78), so the honest gap is −0.68.
+  - [H] By interpolation on these four one-seed cells, about 50 epochs would reach −0.5. Not tested, and no such cell is registered.
+- **A short run ranks these cells increasingly well as it lengthens** (range 1.26, 0.64, 0.32 on the same four cells). At 27 epochs one constant offset would predict each 90-epoch result within about 0.16 on four cells. No call: Q3 was registered on six.
+- **The plan matters more when recovery is short** (the spread falls from 0.80 to 0.18 at 0.48 as recovery lengthens), as the [H] expectation in the row said. One seed, and a paired interval measures only TEST sampling, so this is reported, not called.
+- **The agent does not gain from a short recovery here.** It trails the rule at every short length at both points, by −0.16 to −0.80. It trails the even cut at 0.48 at every length, and is above it at 0.56.
+  - Parameters kept do not explain the order alone: at 0.48 the even cut keeps the fewest (0.508) and sits above the agent (0.555).
+  - CIFAR's one hint that the agent gains after a short recovery came at a deep cut (Think Tank P3, validation only). These are moderate cuts.
+
+**Not supported by this section:**
+- any call at 27 epochs;
+- any claim about a deeper ImageNet point, a different short recipe (batch-norm recalibration, linear decay, distillation), or a second seed;
+- any beat against a published row;
+- any TEST-chosen epoch or point (last epoch only).
+
+**Next.** None registered. The draft's §5.1c carries the map as one paragraph. A shorter ImageNet recovery returns only as its own registration, with the literature scan's recipe as a separate arm (`docs/paper/lit/LIT_SHORT_RECOVERY_23NOV.md`). Next §459.
