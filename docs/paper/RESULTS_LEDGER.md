@@ -13283,3 +13283,76 @@ Call (registered, §449's thresholds): FIN-AHEAD if the mean is ≥ +0.30 with t
   - No C2 cell has been submitted.
 
 Next §465.
+
+## 465. (SHORT-ROOM: queue row SHORT-ROOM, registered 25 Nov 13:14 IST (commit 9d2b261) before any SHORT-ROOM reader existed; reader stamped 13:16 IST (commit 51d40fe, blob 00836d0c) before the read; rank 2 of science's 25 Nov ranking after §464 (approaches that could exceed the strongest rule); zero GPU, read-only, existing rows; one call; exploratory) — **SHORT-PICK by the registered rule.**
+- **Plans spread far more after a short recovery.** After a 2-epoch gentle recovery, plans of one FLOPs size spread about five times wider than after 100 epochs (within-group SD of TEST 6.20 against 1.25 points).
+- **A pick by the short recovery's own val finds room.** It beats the threshold rule by TEST 5k +3.97 [+2.04, +6.48] (val, the picking half, +4.18; 10k +4.08), at 1.22× its parameters. Adjusted for size, the gain is +1.60 [+0.03, +3.38].
+- **No fixed rule beats the threshold rule there.** The leave-family-out best kind is the threshold rule for all five families (M2 +0.00).
+- **The room is per network and per plan, not per rule.**
+
+PRELIM.
+
+**Question.** After a 100-epoch recovery, plans of one size end within noise of the threshold rule (§452, §460). The literature finds points of headroom for learned allocators only in a few regimes, one of them no or short recovery (`docs/paper/lit/LIT_AGENT_VS_RULE_22NOV.md` §7.2). Do plans of one FLOPs size differ more after a short recovery, and does anything stand above the threshold rule there?
+
+**Data and reader.**
+- `scratch_audit/s22nov_db_rows.tsv`: the outcome extract of 22 Nov 21:26 IST, the same file §452 and §461 read (md5 37f856f7).
+- Stratum G2 = 2 epochs at lr 0.01, §452's gentle recovery. Its runs record TEST and val, and §461 reproduced 410 of 410 of them.
+- Groups: (network, size label) with at least 3 distinct plans having finite G2 TEST and val, and holding the threshold rule. That gives 36 groups on 21 CIFAR-100 networks at FLOPs 0.20 and 0.45, with agent plans in 20; all 36 are also in the recipe of record (e100). A coverage count, made before registration, read no accuracy value.
+- Reader `scripts/_tmp_s25nov_shortroom_read.py` (blob 00836d0c, self-tested on synthetic rows), output `scratch_audit/s25nov_shortroom_read.txt` (13:17 IST).
+
+**The call** (paired by group; bootstrap over networks, 2,000 draws, seed 0; 10k = the mean of the TEST and val changes; honest = raw, since every plan of a group shares its origin).
+
+| | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| **M1: the plan with the highest G2 val − the threshold rule, on G2 (val is the picking half, biased up)** | 36 | **+3.97 [+2.04, +6.48]** | +4.18 | +4.08 |
+| **M2: the leave-family-out best kind (G2 val) − the threshold rule, on G2** | 36 | **+0.00 [+0.00, +0.00]** | +0.00 | +0.00 |
+| M1 size-adjusted (pooled within-group slope +16.28 TEST points per unit log params kept) | 36 | +1.60 [+0.03, +3.38] | | |
+| hindsight best G2 plan − the threshold rule (never a choice) | 36 | +4.17 [+2.23, +6.65] | | |
+| e100, same groups: the in-run e100 val pick − the threshold rule (shares its run) | 36 | +0.73 [+0.29, +1.23] | +1.17 | +0.95 |
+| e100, same groups: the same best kind − the threshold rule | 36 | +0.00 [+0.00, +0.00] | +0.00 | +0.00 |
+| e100, same groups: hindsight best − the threshold rule | 36 | +1.09 [+0.67, +1.61] | | |
+
+Call (registered): SHORT-ROOM if M1 ≥ +0.50 with the lower end > 0 and M2 ≥ +0.20 with the lower end > 0; **SHORT-PICK** if M1 meets its bar and M2 does not; SHORT-NONE otherwise. M1 +3.97 [+2.04, +6.48] meets its bar; M2 +0.00 does not.
+
+**Reported beside (no call).**
+- Spread: the within-group SD of TEST across the same plans is 6.20 after G2 and 1.25 after e100 (ratio of means 4.98; median per-group ratio 5.84; 36 groups).
+- The threshold rule is the single best plan in 2 of 36 groups after G2, and in 0 of 36 after e100.
+- Mean TEST regret by kind (hindsight best − kind; lower is better):
+
+| kind | G2 regret | e100 regret | groups (G2 / e100) |
+|---|---|---|---|
+| threshold rule | 4.17 | 1.09 | 36 / 36 |
+| cost-aware rule (sens_cost) | 7.60 | 2.23 | 36 / 36 |
+| prior (sens) | 8.69 | 2.20 | 36 / 36 |
+| agent plans (the menu and earlier agents) | 10.18 | 3.01 | 20 / 21 |
+| even cut | 12.97 | 2.66 | 33 / 33 |
+
+- M1's pick keeps 1.22× the threshold rule's parameters at equal FLOPs. In the short regime a kept parameter is worth far more: the within-group slope is +16.28 TEST points per unit log params, against §452's +4.05 after 100 epochs.
+- e1 stratum (1 epoch at lr 0.1; no threshold rule; reported):
+  - 74 groups;
+  - the in-run e1 val pick beats the leave-family-out best kind by +5.34 [+3.44, +7.40] on 59 groups;
+  - the within-group SD is 3.62 against 0.38 after e100 (70 groups).
+- Cost of a 2-epoch recovery for these networks (§461): median 12 s on an RTX 4090; a job's median of about 4 minutes is mostly loading and the cut.
+
+**Reading.**
+- **Allocation matters again when the recovery is short.** Plans of one FLOPs size spread about 5× wider after 2 gentle epochs, and about 10× after 1 epoch, than after 100. The literature's "short recovery" condition for headroom holds in our pipeline.
+- **A short screen finds that room; a fixed rule does not.**
+  - Picking among the rules' and agents' plans by their own 2-epoch val captures +3.97 of the +4.17 hindsight room.
+  - No rule chosen per family beats the threshold rule: it is the best kind in every held-out family and has the lowest regret of any kind.
+  - The winner varies by network and plan, not by rule.
+- **Part of the room is parameters at equal FLOPs.** The pick keeps 1.22× the parameters, and size-adjusted the gain is +1.60, its interval just above zero.
+- **The current agents' plans recover worst under a short recovery** (regret 10.18, against 3.01 after 100 epochs). They were trained on the cut, and [H] their plans are fragile when recovery is short.
+- **What this does not test.** M2 asks only whether a fixed rule per family wins. Whether network- and plan-level features can predict the 2-epoch winner, which a learned short-regime policy would need, is untested here.
+- **G2 was a probe** (2 epochs at lr 0.01), not a tuned short recipe. Its absolute losses are large; a tuned short recipe could narrow or widen the spread [H].
+- **Not supported by this section:**
+  - any frozen-agent claim;
+  - any claim after a 100-epoch recovery;
+  - parameter budgets or any dataset but CIFAR-100;
+  - any sealed-set result;
+  - any TEST-based choice (every pick reads val).
+
+**Next, as set before the read.**
+- SHORT-PICK: the room is in a per-network screen of K plans, not in a frozen policy. A reported "fast mode" is drafted, not the agent: screen K rule plans, give each a short recovery, keep the val best.
+- Science also proposes a zero-GPU learnability check as its own registration before any script. Can network- and plan-level features, fitted leave-family-out, predict which plan wins at 2 epochs? Only a positive answer would reopen a short-regime agent.
+
+Next §466.
