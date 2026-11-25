@@ -13198,3 +13198,69 @@ Call (registered, §449's thresholds): AGENT-AHEAD if the mean is ≥ +0.30 with
 - **Not supported by this section:** any claim that the agent beats RAR; any claim about the final agent (FINAL-SW, which this section does not run); any sealed-set result; any TEST-based choice.
 
 **Next, as set before the read.** AGENT-LEVEL: register C2's retrain on RAR's line (the recalibrated measurement in the agent's inputs and menu), with §461's 125-step val read at a fixed size as the reward (§462: never across sizes). Any promotion of the flag to the agent of record is its own registration. The size head on 100-epoch labels (drafted, not registered) takes the agent with the flag as its plan generator, as its draft (written at 22:50 IST, before this read) set. Next §464.
+
+## 464. (FIN-RAR: queue row FIN-RAR, registered 25 Nov 02:35 IST (commit b15ff5e) before any FIN-RAR script existed; the final agent (FINAL-SW's three policies, trained on SW's 49 networks and frozen 20 Nov) with and without the recalibrated measurement (SPECTRA_SENS_BN_RECAL=8) against the recalibrated rule (rarF, §448) on T1's 9 held-out CIFAR-100 networks at FLOPs 0.20 and 0.45; none of these networks is sealed or in FINAL-SW's catalog, and the final agent has run on none of their families; no training; one call) — **FIN-BEHIND by the registered rule: TEST 5k −0.52 [−1.08, +0.18] (val −0.85, 10k −0.68), all of it at FLOPs 0.20 (−1.14 [−2.03, −0.09]; FLOPs 0.45 +0.11). The measurement moves the final agent by +2.15 [+1.12, +3.21], but with it the final agent stays below m1f with the same measurement (§463) by 0.53 [−0.94, −0.12]. It plays the threshold rule (RAR's own rule under the flag) in 7 % of its plans; m1f plays it in 72 %.** PRELIM.
+
+**Question.** §463 found the frozen menu agent m1f, given RAR's measurement, level with RAR (+0.02) on T1's 9 held-out CIFAR-100 networks. The sealed read (row SEALED, held under D7-3) runs the final agent (FINAL-SW), not m1f, and the final agent has never run on these families. Does the final agent also reach RAR when it is given the measurement? The answer decides whether a sealed amendment should carry the flag.
+
+**Runs and gate.**
+- tree_v40, no new code. §449's 54 m1f plans (9 networks × FLOPs 0.20 / 0.45 × seeds 42 / 43 / 44) were re-run from their own logged settings, changed only by:
+  - the plan agent: the final agent's policy of the same seed (tree_v37 job24337054 / 55 / 56, byte-identical to the sealed read's frozen copies);
+  - the job name, nice 6 and the tree;
+  - on arm fon, the flag (arm foff runs without it).
+- 108 jobs in total.
+- Gate: the detached driver died with no output (a long-lived Python process; the lesson is in `.claude/rules/spectra-tooling.md`). The registered gate was then run by hand: **FIN-RAR GATE PASS** (05:18:37 IST). Both smoke logs were read by hand. They name the final agent's seed-42 policy, log the recalibration line on fon only, ran 100 epochs and end with no Traceback or ERROR line.
+- A second, concurrent submit queued 66 cells twice. The later copies were cancelled while still pending (05:25:34 IST) and their rows removed from the manifest, which then held 108 rows, one per plan × arm. The incident is recorded in the queue row.
+- All 108 jobs COMPLETED, 02:38–11:42 IST on 25 Nov, 30.8 GPU-h (registered about 34). No preemption and no resubmit. The cluster-side guard (blob 44b7a7e8) saw every job terminal at 11:46:41 IST and ran the reader.
+- Reader `scripts/_tmp_s25nov_finrar_read.py`, blob b1421be0, stamped 02:45 IST before any cell completed; the deployed copy's blob was checked again at the read. Output `scratch_audit/s25nov_finrar_read.txt` (11:46 IST). It read 54 of 54 rows per arm and 54 m1f-with-the-flag rows (§463), none missing, 18 of 18 groups.
+
+**The call** (paired by group (network, FLOPs point); the final agent is the mean of three seeds; bootstrap over networks, 2,000 draws, seed 0; honest = raw, since every arm shares its group's origin and recovery).
+
+| | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| **final agent with the flag − rarF, all (the call)** | 18 | **−0.52 [−1.08, +0.18]** | −0.85 | −0.68 |
+| final agent with the flag − rarF, FLOPs 0.20 | 9 | −1.14 [−2.03, −0.09] | −1.23 | −1.19 |
+| final agent with the flag − rarF, FLOPs 0.45 | 9 | +0.11 [−0.53, +0.74] | −0.46 | −0.18 |
+| final agent without the flag − rarF, all | 18 | −2.67 [−3.84, −1.41] | −2.99 | −2.83 |
+| final agent without the flag − rarF, FLOPs 0.20 | 9 | −4.39 [−6.24, −2.41] | −4.49 | −4.44 |
+| final agent without the flag − rarF, FLOPs 0.45 | 9 | −0.94 [−1.83, −0.19] | −1.49 | −1.21 |
+| final agent with the flag − without it, all | 18 | +2.15 [+1.12, +3.21] | +2.14 | +2.15 |
+| the same, FLOPs 0.20 | 9 | +3.25 [+1.79, +4.82] | +3.26 | +3.26 |
+| the same, FLOPs 0.45 | 9 | +1.05 [+0.22, +1.89] | +1.03 | +1.04 |
+| final agent with the flag − m1f with the flag (§463), all | 18 | −0.53 [−0.94, −0.12] | −0.60 | −0.57 |
+| the same, FLOPs 0.20 | 9 | −0.99 [−1.87, −0.15] | −0.88 | −0.93 |
+| the same, FLOPs 0.45 | 9 | −0.08 [−0.60, +0.42] | −0.33 | −0.20 |
+
+Call (registered, §449's thresholds): FIN-AHEAD if the mean is ≥ +0.30 with the interval's lower end > 0; **FIN-BEHIND** if ≤ −0.30 or the upper end < 0; FIN-LEVEL otherwise. The mean is −0.52, so FIN-BEHIND. Val (−0.85) and 10k (−0.68) give the same side.
+
+**Reported beside (no call).**
+- FLOPs: final agent with the flag − rarF, max |Δ| 0.0032. Params kept, final agent with the flag / rarF: mean 0.95; rarF keeps more than 10 % more parameters on 10 of 18 pairs. With the flag / without it: 1.36× the parameters, the same direction as for m1f (1.25×, §463) and for the rule (§448).
+- Menu shares (mean over 27 jobs per point):
+  - with the flag: the cost-aware rule (sens_cost) 0.61 / 0.60 (FLOPs 0.20 / 0.45), sens 0.31 / 0.31, the threshold rule 0.07 / 0.08, uniform 0.01 / 0.01;
+  - without the flag: sens_cost 0.57 / 0.58, sens 0.31 / 0.31, the threshold rule 0.10 / 0.10, uniform 0.01 / 0.01;
+  - m1f with the flag (§463): the threshold rule 0.72, sens 0.15, sens_cost 0.11.
+  - The final agent's menu barely moves with the flag. It keeps playing the cost-aware rule, which it learned on SW's networks without the measurement.
+- Per group (TEST 5k, final agent with the flag − rarF, FLOPs 0.20 / 0.45; all CIFAR-100): DenseNet-40 +2.11 / +1.13; VGG-16-BN −0.03 / +0.43; VGG-19-BN −0.53 / +0.43; ResNet-56 ×8 −1.51 / +0.31; ResNet-56 ×4 −2.53 / +1.65; ResNet-20 ×8 −3.16 / +0.35; ResNet-20 ×12 −2.23 / −1.11; MobileNetV2 ×1 −0.85 / −1.37; MobileNetV2 ×0.75 −1.53 / −0.85. At FLOPs 0.20 eight of the 9 networks fall below rarF; ResNet-20 ×8, ResNet-56 ×4 and ResNet-20 ×12 fall furthest (−2.2 to −3.2).
+- §449 (m1f without the flag − rarF, the same 18 groups): −0.88. The final agent without the flag is at −2.67 here. On these families, without the measurement, the final agent trails the agent trained on T1's catalog by more than it does with it.
+- The final agent's value is a three-seed mean and rarF's a single run; the interval resamples networks, not runs.
+- Cost: 108 jobs, 30.8 GPU-h.
+
+**Reading.**
+- **The final agent does not reach RAR on these networks, even with RAR's measurement.** The gap sits at the deep point (FLOPs 0.20, −1.14, with the interval below zero); at FLOPs 0.45 it is level (+0.11).
+- **The measurement is most of the story, but not all of it.** The flag recovers +2.15 of the final agent's −2.67. What remains (−0.52) matches its gap to m1f under the same measurement (−0.53, interval below zero).
+- **Why the final agent stays behind [H].**
+  - Under the flag, the threshold rule is RAR's own rule, and m1f reaches RAR by playing it in 72 % of plans with a bounded residual (§463).
+  - The final agent was trained on SW's networks without the measurement. There it learned to prefer the cost-aware rule (about 60 % of its plans), and it keeps that preference when given the measurement (threshold rule 7 %).
+  - Its policy reads the measurement through its inputs, but it never saw recalibrated values during training, so its choice among the rules did not adapt.
+  - This is a hypothesis from the menu shares, not a tested cause.
+- **Transfer reading, candidly.** On 9 networks of families it never saw, the frozen final agent is level with the strongest same-loop rule at FLOPs 0.45 and behind it at FLOPs 0.20. That is weaker than m1f's level result (§463), which comes from an agent trained on T1's catalog.
+- **Not supported by this section:** any claim that the final agent reaches or beats RAR; any sealed-set result; any TEST-based choice (the call's side is the same on val); any claim about a retrained agent.
+
+**Next, as set before the read.**
+- FIN-BEHIND: this row changes nothing in the sealed read's agent arm (the final agent, as SEALED registered it). The C2 retrain on RAR's line becomes the candidate.
+- C2: the recalibrated measurement in the agent's training inputs and menu, with §461's 125-step val read at a fixed size as the reward (§462: never across sizes). It is registered as its own row before any script.
+- SZH-1 (stage 1 of the size head) is already running with the final agent with the flag as its plan generator. Its question is the room for choosing each network's FLOPs size from val. That room rests mostly on each network's accuracy-vs-size curve, so SZH-1 runs on unchanged (no change after a cell has started). It is read as registered, for that plan generator.
+- If SZH-1 reads STAGE2-GO, stage 2's plan generator is re-chosen in its own registration (the final agent, m1f with the flag or C2's agent) before any stage-2 job.
+- The sealed read's direction (D7-3) stays Ido's: run the final agent as registered, or wait for C2.
+
+Next §465.
