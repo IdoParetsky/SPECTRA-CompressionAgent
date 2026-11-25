@@ -13356,3 +13356,68 @@ Call (registered): SHORT-ROOM if M1 ≥ +0.50 with the lower end > 0 and M2 ≥ 
 - Science also proposes a zero-GPU learnability check as its own registration before any script. Can network- and plan-level features, fitted leave-family-out, predict which plan wins at 2 epochs? Only a positive answer would reopen a short-regime agent.
 
 Next §466.
+
+## 466. (SZH-1: queue row SZH-1, registered 25 Nov 05:53 IST (commit 7399e1e) before any SZH-1 script existed; stage 1 of the size head; the final agent with the recalibrated measurement (seed-42 policy job24337054, SPECTRA_SENS_BN_RECAL=8, tree_v40) at FLOPs sizes 0.70, 0.55, 0.35, 0.25 and 0.15 on T1's 9 held-out CIFAR-100 networks, with FIN-RAR's 0.45 and 0.20 runs (§464): seven sizes per network; one seed; no training; one decision) — **STAGE2-GO by the registered rule: choosing each network's FLOPs size on its own val curve beats the best common size by +1.85 [+1.10, +3.09] TEST 5k utility points, averaged over the four usable prices per halving (3.11, 4.94, 8.83, 9.88). The room is positive on all 9 networks (+0.77 to +6.55). It is in-sample on val, one seed, 9 networks: a ceiling for a size head, not a head.** PRELIM.
+
+**Question.** After a full recovery, is there room in choosing each network's own FLOPs size? The comparison is with the best single size for all, under the per-halving trade-off (§459), for the plans of the agent of record. The answer was to decide whether stage 2 (labels on the training networks, about 65 GPU-h) is worth its cost.
+
+**Runs, gate and read.**
+- 45 jobs (9 networks × 5 sizes): FIN-RAR's FLOPs 0.20 seed-42 plan of each network, re-run as FIN-RAR's arm fon builds it, changed only in the two size keys. The smoke (DenseNet-40 at 0.70) passed the registered gate (06:39 IST, read by hand). The 44 cells ran under a cluster-side driver, which also resubmits preempted jobs (none was).
+- All 45 jobs COMPLETED by 13:36 IST: 9.3 GPU-h, against about 14 registered.
+- Reader `scripts/_tmp_s25nov_szh1_read.py`, stamped before any cell completed (blob 0819ba71).
+  - Its first run (13:36:44 IST, by the driver) was NOT READ: 62 of 63 points. No outcome was printed.
+  - MobileNetV2 ×1 at FLOPs 0.70 (job 24482284) had its only 100-epoch record labelled val_best, at FLOPs 0.7000. The walk's best val point was the size point itself, and such a point is recorded once.
+  - Amendment a1 (13:47 IST, before any outcome was read; queue stamp 7b278bf) takes a job's val_best record when its size label has none and it landed within 0.0051 of the size (blob 122b3907).
+  - Read at 13:47:58 IST: 63 of 63 points (one by a1); every point landed within 0.01 of its FLOPs size; each network's origin TEST and val are equal across its seven sizes.
+- Output: `scratch_audit/s25nov_szh1_read.txt`; the first output is kept as `s25nov_szh1_read_pre_a1.txt`.
+
+**The curves** (change against the origin, TEST 5k / val; params kept at FLOPs 0.70 → 0.15):
+
+| network | 0.70 | 0.45 | 0.20 | 0.15 | params kept |
+|---|---|---|---|---|---|
+| DenseNet-40 | −0.46 / −2.32 | −1.62 / −2.88 | −4.28 / −3.80 | −6.08 / −5.64 | 0.88 → 0.43 |
+| MobileNetV2 ×0.75 | −0.28 / −0.92 | −2.12 / −3.36 | −3.86 / −5.06 | −6.76 / −7.28 | 0.66 → 0.18 |
+| MobileNetV2 ×1 | +0.40 / +0.20 | −0.90 / −2.04 | −3.92 / −3.94 | −5.00 / −5.46 | 0.61 → 0.14 |
+| ResNet-20 ×12 | −3.92 / −3.72 | −10.18 / −9.90 | −21.34 / −20.36 | −25.36 / −24.82 | 0.78 → 0.13 |
+| ResNet-20 ×8 | −2.18 / −1.86 | −7.26 / −6.14 | −20.40 / −18.32 | −24.08 / −22.30 | 0.90 → 0.19 |
+| ResNet-56 ×4 | −1.20 / −0.74 | −6.74 / −6.16 | −27.70 / −27.96 | −34.48 / −34.18 | 0.79 → 0.10 |
+| ResNet-56 ×8 | −3.94 / −3.86 | −7.10 / −6.34 | −18.46 / −18.18 | −24.08 / −23.14 | 0.88 → 0.18 |
+| VGG-16-BN | +0.20 / −0.54 | −0.82 / −0.98 | −6.30 / −6.38 | −9.04 / −8.68 | 0.44 → 0.06 |
+| VGG-19-BN | −0.38 / +1.18 | −0.82 / +0.02 | −3.78 / −2.80 | −7.92 / −7.98 | 0.30 → 0.06 |
+
+The sizes 0.55, 0.35 and 0.25 are in the read's file. The four narrow ResNets lose 18–28 points at FLOPs 0.20; DenseNet-40, the MobileNetV2s and the VGG-BNs lose 3.8–6.3.
+
+**The grid and the decision** (per-halving utility U = Δ + λ·log2(1/s), with s the size label; the λ grid is the 20th–80th percentiles of the val marginal rates per halving between adjacent sizes, pooled over the 9 networks, 54 rates from −1.06 to 26.53; usable when M1 ≥ 0.5, the share of networks whose val choice is interior; room = mean over networks of TEST U at the network's val choice minus at the best common size; bootstrap over networks, 2,000 draws, seed 0):
+
+| λ (points per halving) | source | M1 | usable | common size | room, TEST 5k | 10k | val (in-sample) |
+|---|---|---|---|---|---|---|---|
+| 1.58 | p20 | 0.33 | no | 0.70 | −0.01 [−0.28, +0.21] | +0.11 | +0.23 |
+| 3.11 | p35 | 0.56 | yes | 0.70 | +1.02 [+0.38, +1.70] | +1.10 | +1.19 |
+| 4.94 | p50 | 0.56 | yes | 0.55 | +2.26 [+1.03, +3.53] | +2.43 | +2.59 |
+| 8.83 | p65 | 0.56 | yes | 0.15 | +2.49 [+0.42, +5.65] | +2.48 | +2.48 |
+| 9.88 | p80 | 0.56 | yes | 0.15 | +1.62 [+0.00, +4.43] | +1.67 | +1.72 |
+| **mean over the usable λ (the decision)** | | | | | **+1.85 [+1.10, +3.09]** | | |
+| 1.02 / 1.28 / 2.33 | §459's params values (reported) | 0.22 / 0.22 / 0.56 | | 0.70 | +0.04 / −0.12 / +0.34 | | |
+
+Decision (registered): STAGE2-GO if the room averaged over the usable λ is ≥ +0.50 TEST points with the bootstrap lower end > 0; otherwise STAGE2-NO. **STAGE2-GO.**
+
+**Reported beside.**
+- Val choices at λ 4.94 (in the order DenseNet-40, MobileNetV2 ×0.75, MobileNetV2 ×1, ResNet-20 ×12, ResNet-20 ×8, ResNet-56 ×4, ResNet-56 ×8, VGG-16-BN, VGG-19-BN): 0.15, 0.20, 0.15, 0.70, 0.55, 0.70, 0.45, 0.25, 0.20.
+- Room per network, averaged over the usable λ: ResNet-56 ×4 +6.55, VGG-19-BN +1.85, MobileNetV2 ×0.75 +1.47, MobileNetV2 ×1 +1.46, DenseNet-40 +1.44, ResNet-20 ×8 +1.18, ResNet-56 ×8 +0.97, VGG-16-BN +0.93, ResNet-20 ×12 +0.77.
+- Cost: 45 jobs, 9.3 GPU-h (0.21 GPU-h a job).
+
+**Reading.**
+- **Networks differ in how much they can lose, and choosing the size per network pays.** The robust networks choose deep sizes (0.15–0.25) and the fragile narrow ResNets shallow ones (0.45–0.70). At every usable price one common size gives up 1.0–2.5 utility points against the per-network choice.
+- **The room depends on the price.**
+  - At §459's parameter-calibrated prices (1.02–2.33), nearly every network chooses 0.70, and the room is near zero.
+  - The FLOPs-calibrated grid is higher, because the narrow ResNets lose up to 26 points per halving between adjacent sizes. Where the price of size sits decides whether the choice matters.
+- **A ceiling, not a head.** The choice is read in-sample on each network's own val curve; one seed; 9 networks. A frozen head must predict the choice from the network alone, with no recovery on the target (a short recovery cannot, §462).
+- **[H] Much of the room may be easy.** "Do not cut narrow ResNets deeply" would capture a large part of it. Stage 2 must therefore compare the learned head with a simple size rule from static features (parameters, depth and width, origin accuracy, classes), not only with one common size.
+- **Not supported by this section:** a learned size head; a sealed-set result; any claim at other datasets or on parameters; any TEST-based choice (val chooses; TEST only scores).
+
+**Next, as set before the read.**
+- STAGE2-GO: science registers stage 2 before any label is read: the head, its features and its call. The λ grid is recomputed on the training networks by the same procedure.
+- Its plan generator is chosen again in that registration (§464), and so is its catalog: the registered 49 SW training networks, or the biggest family-diverse set with families held out (science's recommendation of 25 Nov, pending Ido's word).
+- Stage 2 runs only on Ido's word (about 65 GPU-h for the 49 networks, about 130 for the biggest set).
+
+Next §467.
