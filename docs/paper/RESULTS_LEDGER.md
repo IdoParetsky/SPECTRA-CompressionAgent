@@ -13250,9 +13250,24 @@ Call (registered, §449's thresholds): FIN-AHEAD if the mean is ≥ +0.30 with t
 - **The measurement is most of the story, but not all of it.** The flag recovers +2.15 of the final agent's −2.67. What remains (−0.52) matches its gap to m1f under the same measurement (−0.53, interval below zero).
 - **Why the final agent stays behind [H].**
   - Under the flag, the threshold rule is RAR's own rule, and m1f reaches RAR by playing it in 72 % of plans with a bounded residual (§463).
-  - The final agent was trained on SW's networks without the measurement. There it learned to prefer the cost-aware rule (about 60 % of its plans), and it keeps that preference when given the measurement (threshold rule 7 %).
-  - Its policy reads the measurement through its inputs, but it never saw recalibrated values during training, so its choice among the rules did not adapt.
-  - This is a hypothesis from the menu shares, not a tested cause.
+  - The final agent learned to prefer the cost-aware rule (about 60 % of its plans), and it keeps that preference with or without the measurement (threshold rule 7 % with it, 10 % without).
+  - The preference was learned from the training families, not from the measurement. Without the flag, m1f (trained on T1's catalog) already played the threshold rule in 67–84 % of its plans on these same networks (§441, per network: the four narrow ResNets 0.67, VGG-16-BN and VGG-19-BN 0.84, MobileNetV2 0.75–0.77). The final agent, trained only on the SW families, played it in 10 %. The menu head conditions its shares on the network's features, so a preference learned on one group of families carries over to families it never saw.
+  - Added at the same sitting, before any further registration: a first explanation, that the final agent "never saw recalibrated values during training", is set aside. The two agents' rule preferences already differ without the flag.
+  - A retrain with the flag alone, on the same SW catalog, would change the preference only if the threshold rule under the flag beats the cost-aware rule on SW's networks in the training reward; nothing measured so far shows that.
+  - These are readings of the menu shares, not a tested cause.
+- **Per-network menu shares (zero GPU, read 25 Nov after the call; reported, no call).** Script `scripts/_tmp_s25nov_c2_shares.py`, blob 32110458; output `scratch_audit/_c2_shares.txt`. Mean over three seeds; shares are sens / uniform / sens_cost / threshold rule.
+  - In FIN-RAR's evaluations the menu head's choice follows the network, and the flag barely moves it:
+    - the four narrow ResNets: 0.56–0.65 / 0.01–0.03 / 0.33–0.39 / 0.01–0.03, both arms;
+    - DenseNet-40 and the two MobileNetV2s: sens_cost 0.81–0.94 and the threshold rule 0.04–0.18, both arms;
+    - VGG-16-BN and VGG-19-BN: sens_cost 0.57–0.61 without the flag, 0.65–0.72 with it, and the threshold rule 0.19–0.31 without it, 0.15–0.19 with it.
+  - On its own training side (FINAL-SW's end-of-training summary, FLOPs 0.40, three seeds pooled, 147 network × seed rows), the final agent plays sens_cost 0.74 and the threshold rule 0.17 overall. By family:
+    - DLA 0.93 / 0.07 (sens_cost / threshold rule);
+    - HarDNet 0.82 / 0.12;
+    - SqueezeNet 0.75 / 0.07;
+    - EfficientNet and MobileNetV3 0.66 / 0.29;
+    - MobileNet v1 0.65 / 0.21;
+    - ConvNeXt 0.58 / 0.05.
+  - So the final agent learned the cost-aware rule on the SW families and carries it to families it never saw. It never learned the threshold rule's lead on the ResNets, where m1f gives the threshold rule 0.67.
 - **Transfer reading, candidly.** On 9 networks of families it never saw, the frozen final agent is level with the strongest same-loop rule at FLOPs 0.45 and behind it at FLOPs 0.20. That is weaker than m1f's level result (§463), which comes from an agent trained on T1's catalog.
 - **Not supported by this section:** any claim that the final agent reaches or beats RAR; any sealed-set result; any TEST-based choice (the call's side is the same on val); any claim about a retrained agent.
 
@@ -13262,5 +13277,9 @@ Call (registered, §449's thresholds): FIN-AHEAD if the mean is ≥ +0.30 with t
 - SZH-1 (stage 1 of the size head) is already running with the final agent with the flag as its plan generator. Its question is the room for choosing each network's FLOPs size from val. That room rests mostly on each network's accuracy-vs-size curve, so SZH-1 runs on unchanged (no change after a cell has started). It is read as registered, for that plan generator.
 - If SZH-1 reads STAGE2-GO, stage 2's plan generator is re-chosen in its own registration (the final agent, m1f with the flag or C2's agent) before any stage-2 job.
 - The sealed read's direction (D7-3) stays Ido's: run the final agent as registered, or wait for C2.
+- Added after the per-network read, at the same sitting, before any C2 registration:
+  - A retrain with the flag alone, on the same SW catalog, is unlikely to change the rule preference, because the preference comes from the training families.
+  - So C2's design goes to Ido with options before any registration or GPU spend. The options are a residual on the strongest rule, a wider set of training families, or the flag alone.
+  - No C2 cell has been submitted.
 
 Next §465.

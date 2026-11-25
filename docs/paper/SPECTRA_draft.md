@@ -839,7 +839,8 @@ Against the recalibrated rule at equal FLOPs, on T1's 9 held-out CIFAR-100 netwo
 - With the measurement it is behind the recalibrated rule: TEST −0.52 [−1.08, +0.18] (val −0.85, 10k −0.68). The gap is −1.14 [−2.03, −0.09] at FLOPs 0.20 and +0.11 at 0.45, at 0.95× the rule's parameters.
 - Without the measurement it is −2.67 [−3.84, −1.41]. The measurement moves it by +2.15 [+1.12, +3.21].
 - It still trails the agent trained on T1's catalog under the same measurement: −0.53 [−0.94, −0.12].
-- Its menu plays the cost-aware rule in about 60 % of its plans and the threshold rule in 7 %, against 72 % for the T1 agent. [H] It does not adapt its choice of rule to a measurement it never saw in training.
+- Its menu plays the cost-aware rule in about 60 % of its plans and the threshold rule in 7 %, against 72 % for the T1 agent.
+- The choice was learned from the training families, not from the measurement. Without the measurement the T1 agent already played the threshold rule in 67–84 % of its plans on these networks (§441), and the final agent in 10 %. On its own SW training networks the final agent plays the cost-aware rule in 74 % of plans, and it carries that choice to the ResNets, where the T1 agent leans on the threshold rule. [H] A frozen agent's choice among rules transfers only as far as its training families resemble the target.
 
 ### 5.4 Trade-off curves — PRELIM (DEEP has read, §413; the figure is still to draw)
 
