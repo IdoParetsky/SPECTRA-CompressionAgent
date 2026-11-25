@@ -13159,3 +13159,42 @@ Decision (registered): GO if the probe choice's room, averaged over the three λ
 - [H] A calibration that carries each network's scale (for example, from one 100-epoch point on that network) might rescue the probe's size choice. That is untested, needs its own registration, and on a target network it would cost the 100-epoch run the size head was meant to avoid.
 
 **Next, as set before the read.** Both NO-GO: no size head on probe labels; the program moves to C2, the recalibrated rule as the agent's base. AGT-RAR2 (queue row AGT-RAR2, registered 7fc0c1a) is running: the frozen agent with the recalibrated measurement against RAR. Its outcome decides the retrain on RAR's line, with §461's 125-step reward at a fixed size. C3 stays stopped (§460). Next §463.
+
+## 463. (AGT-RAR2: queue row AGT-RAR2, registered 24 Nov 16:33 IST (commit 7fc0c1a) before any AGT-RAR2 script existed; the frozen menu agent of §441 (m1f, three seeds) re-evaluated with the recalibrated rule's sensitivity measurement (SPECTRA_SENS_BN_RECAL=8) against the recalibrated rule (rarF, §448) on T1's 9 held-out CIFAR-100 networks at FLOPs 0.20 and 0.45; no training; one call) — **AGENT-LEVEL by the registered rule: TEST 5k +0.02 [−0.32, +0.40] (val −0.24, 10k −0.11). With the same measurement as the rule, the agent closes §449's gap (−0.88): the flag alone moves the agent by +0.89 [+0.31, +1.43], +1.43 at FLOPs 0.20.** PRELIM.
+
+**Question.** §449 found the frozen menu agent behind the recalibrated rule RAR by 0.88, all of it at FLOPs 0.20. RAR differs from the plain threshold rule only in how it measures each group's sensitivity: BatchNorm statistics re-estimated on 8 batches before every probe (§448). The agent's menu and inputs call the same measurement but were run without it. Is the gap the measurement, or the agent?
+
+**Runs and gate.**
+- tree_v40, no new code: the flag acts inside `group_sensitivity.group_sensitivity`, which the menu's rule priors and the agent's own inputs both call. It is not a policy contract key, so the walk actor's snapshot does not undo it.
+- §449's 54 agent jobs (9 networks × FLOPs 0.20 / 0.45 × seeds 42 / 43 / 44, one m1f policy per seed) re-run from their own logged settings, changed only by the job name, nice 6, the tree and, on the 'on' arm, the flag.
+- Gate PASS (24 Nov 22:37 IST, read by hand): on DenseNet-40 C100 at FLOPs 0.20, the flag-off twin equals its tree_v36 original exactly (plan, TEST 0.6274, val 0.6178, params 0.2914, FLOPs 0.19999). The flag-on run logs the recalibration line, lands at FLOPs 0.1995 and makes a different plan. 53 cells 24476621–24476702 plus the smokes 24471865/67: all COMPLETED by 02:25 IST on 25 Nov.
+- Reader `scripts/_tmp_s24nov_agtrar2_read.py` blob 0c77d972 (checked on the cluster before the run), output `scratch_audit/s24nov_agtrar2_read.txt` (02:28 IST): 54 of 54 flag-on rows read, none missing; 18 of 18 groups. rarF rows are §448's (one seed per group).
+
+**The call** (paired by group (network, FLOPs point); agent rows the mean of three seeds; bootstrap over networks, 2,000 draws, seed 0; honest = raw, every arm shares its group's origin and recovery).
+
+| | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| **agent with the flag − rarF, all (the call)** | 18 | **+0.02 [−0.32, +0.40]** | −0.24 | −0.11 |
+| agent with the flag − rarF, FLOPs 0.20 | 9 | −0.15 [−0.62, +0.32] | −0.35 | −0.25 |
+| agent with the flag − rarF, FLOPs 0.45 | 9 | +0.19 [−0.08, +0.52] | −0.13 | +0.03 |
+| agent with the flag − agent without it (§449's rows), all | 18 | +0.89 [+0.31, +1.43] | +0.98 | +0.94 |
+| the same, FLOPs 0.20 | 9 | +1.43 [+0.64, +2.13] | +1.58 | +1.50 |
+| the same, FLOPs 0.45 | 9 | +0.36 [−0.11, +0.85] | +0.38 | +0.37 |
+
+Call (registered, §449's thresholds): AGENT-AHEAD if the mean is ≥ +0.30 with the interval's lower end > 0; AGENT-BEHIND if ≤ −0.30 or the upper end < 0; **AGENT-LEVEL** otherwise.
+
+**Reported beside (no call).**
+- FLOPs: agent with the flag − rarF, max |Δ| 0.0021. Params kept, agent with the flag / rarF: mean 1.04; rarF keeps more than 10 % more on 2 of 18 pairs. Agent with the flag / without it: 1.25× the parameters, so the recalibrated measurement keeps more parameters at the same FLOPs, as it does for the rule (§448).
+- Menu shares with the flag (mean over 27 jobs per point): the threshold rule 0.72, sens 0.15, sens_cost 0.11, uniform 0.01, the same at both points. The agent mostly plays a residual on the threshold rule, which is RAR's own rule under the flag.
+- Per group (TEST 5k, agent with the flag − rarF; all CIFAR-100): DenseNet-40 +1.10 / +1.21 (FLOPs 0.20 / 0.45); ResNet-56 ×4 +0.25 / +0.75; VGG-16-BN +0.62 / +0.24; ResNet-20 ×12 +0.06 / −0.20; VGG-19-BN −0.29 / −0.08; ResNet-20 ×8 −0.23 / −0.37; MobileNetV2 ×0.75 −0.86 / +0.19; MobileNetV2 ×1 −0.75 / −0.08; ResNet-56 ×8 −1.28 / +0.01.
+- The agent's value is a three-seed mean and rarF's a single run, so rarF's side carries more run-to-run noise. The interval resamples networks, not runs.
+- Cost: 55 jobs, 17.3 GPU-h (registered about 13).
+
+**Reading.**
+- **§449's gap was the measurement, not the agent.** Given the recalibrated sensitivities, the frozen agent reaches RAR at equal FLOPs, at both points and on all 9 held-out networks together.
+- **Level, not ahead.** The point estimate is +0.02 on TEST, and val and 10k sit slightly below (−0.24, −0.11). Nothing here shows the agent adding to RAR.
+- **Why level is expected.** With the flag, the agent's menu chooses the threshold rule 72 % of the time and adds a bounded residual. The measured room above the rule at equal size is about zero (§452, §460).
+- **For the paper:** the frozen agent, given the rule's measurement, is level with the strongest same-loop rule at equal FLOPs on held-out networks. That is a transfer result, not a beat.
+- **Not supported by this section:** any claim that the agent beats RAR; any claim about the final agent (FINAL-SW, which this section does not run); any sealed-set result; any TEST-based choice.
+
+**Next, as set before the read.** AGENT-LEVEL: register C2's retrain on RAR's line (the recalibrated measurement in the agent's inputs and menu), with §461's 125-step val read at a fixed size as the reward (§462: never across sizes). Any promotion of the flag to the agent of record is its own registration. The size head on 100-epoch labels (drafted, not registered) takes the agent with the flag as its plan generator, as its draft (written at 22:50 IST, before this read) set. Next §464.
