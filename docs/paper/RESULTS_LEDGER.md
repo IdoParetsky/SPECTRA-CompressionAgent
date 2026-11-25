@@ -13421,3 +13421,47 @@ Decision (registered): STAGE2-GO if the room averaged over the usable λ is ≥ 
 - Stage 2 runs only on Ido's word (about 65 GPU-h for the 49 networks, about 130 for the biggest set).
 
 Next §467.
+
+## 467. (SHORT-LEARN: queue row SHORT-LEARN, registered 25 Nov 13:58 IST (commit 015f44c) before any reader existed; reader stamped before the read (commit fc5fd07, blob dec000d9); the learnability check §465 proposed; zero GPU, read-only; one call; exploratory) — **LEARN-NO by the registered rule. Plan and network features, fitted leave-family-out on the 2-epoch val change, do not pick the plan that wins under a 2-epoch recovery: the pick is TEST 5k −5.63 [−8.61, −3.03] against the threshold rule (val −5.69, 10k −5.66) and −2.08 [−6.53, +2.77] against the plan that keeps the most parameters; its predictions rank plans at τ −0.01 [−0.14, +0.14]. The short-regime room of §465 is not learnable from these features across families.** PRELIM.
+
+**Question.** Under a 2-epoch recovery, the plan picked by its own val beats the threshold rule by +3.97 TEST, but no fixed rule does (§465). Can features of the plan and the network, read with no recovery, predict the winner on families the model never saw? A frozen short-regime policy would need exactly that.
+
+**Data, model and reader.**
+- Rows: SHORT-ROOM's 36 G2 groups (21 CIFAR-100 networks, FLOPs 0.20 and 0.45; `s22nov_db_rows.tsv`, md5 37f856f7); 412 plans. Families: ResNet-like 11 groups, VGG 10, MobileNet 8, ShuffleNet 5, DenseNet 2.
+- Features (19, each also group-demeaned; none missing):
+  - plan: params and FLOPs kept, the keep profile (mean, min, max, SD, first, last, slope, share below 0.5 and 0.25, uncut, depthwise), coupled_max, and the val change at the cut;
+  - network: n_layers, dense_params, origin val, classes.
+  - The plan's kind is not a feature.
+- Model: TRACE's boosted trees (fixed settings), on the group-demeaned 2-epoch val change (never TEST), fitted leave-family-out. In each group the plan with the highest prediction is the pick.
+- Reader `scripts/_tmp_s25nov_shortlearn_read.py` (blob dec000d9; self-test on synthetic data recovers a planted signal at τ +0.89); output `scratch_audit/s25nov_shortlearn_read.txt` (13:59 IST).
+
+**The call** (on G2; paired by group; bootstrap over networks, 2,000 draws, seed 0).
+
+| | groups | TEST 5k | val | 10k |
+|---|---|---|---|---|
+| **L1: the feature pick − the threshold rule** | 36 | **−5.63 [−8.61, −3.03]** | −5.69 | −5.66 |
+| **L2: the feature pick − the most-parameters plan** | 36 | **−2.08 [−6.53, +2.77]** | −2.40 | −2.24 |
+| the most-parameters plan − the threshold rule (reads no accuracy) | 36 | −3.56 [−9.26, +1.77] | −3.30 | −3.43 |
+
+Call (registered): LEARN-GO if L1 ≥ +1.00 with the lower end > 0 and L2 ≥ +0.50 with the lower end > 0; LEARN-PARAMS if only L1; **LEARN-NO** otherwise.
+
+**Reported beside.**
+- Within-group Kendall τ-b against G2 TEST:
+  - the predictions: −0.01 [−0.14, +0.14];
+  - the val change at the cut alone: +0.25 [+0.12, +0.39];
+  - params kept alone: +0.27 [+0.10, +0.44].
+- L1 by held-out family (mean over its groups): DenseNet +3.68 (2 groups), ShuffleNet −1.83 (5), ResNet-like −5.07 (11), VGG −6.65 (10), MobileNet −9.83 (8).
+
+**Reading.**
+- **What wins under a short recovery does not transfer across families through these features.** A model fitted on four families ranks the fifth family's plans at chance (τ −0.01), and its pick falls far below the threshold rule.
+- **The single signals carry some order, but not enough to pick.**
+  - The cut and the parameters kept each rank plans at τ about +0.25.
+  - Keeping the most parameters is still −3.56 below the threshold rule, with a wide interval: the largest plan is often not the one that recovers fastest.
+- **The pattern matches §464.** Learned choices (there, among rules; here, among plans) carry over only within families that resemble the training side.
+- **For the thesis.** The short-regime room (§465) is real for a screen that recovers a few plans briefly and keeps the val best. Nothing here supports a frozen policy capturing it.
+- **Scope.** One model with fixed settings, 412 plans and five families; a larger catalog or a different learner might change this [H]. CIFAR-100 and FLOPs only.
+- **Not supported by this section:** any claim that the room is unlearnable in general; any claim after a 100-epoch recovery; any TEST-based choice.
+
+**Next, as set before the read.** LEARN-NO: the short regime stays a screen, the "fast mode" of §465, drafted as a reported procedure and not as the agent. Rank 2 of the 25 Nov ranking closes as an agent direction. The size head (SZH-2, running) and the latency budget remain.
+
+Next §468.
