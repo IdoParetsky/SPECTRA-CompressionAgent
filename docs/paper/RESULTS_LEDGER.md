@@ -13715,3 +13715,62 @@ SOME-ROOM (+0.15 to +0.30): thin ResNet-56 ×4, ResNet-44, WRN-28-2 and WRN-16-4
 **Next, as set before the read.** LEVEL on CIFAR-10: floored sens_F stays the FLOPs prior, and no amendment follows. Whether to close the never-run LAMP amendment or run its 208 cells is Ido's decision. Science recommends closing it: on CIFAR-100, LAMP is 7.35 to 9.33 below the threshold rule (§442).
 
 Next §471.
+
+## 471. (STEP0: queue row STEP0, registered 26 Nov 12:59 IST (commit 39805e1) before the computation; step 0 of the 26 Nov literature scan on deep-RL CNN pruning (`docs/paper/lit/LIT_DRL_PRUNING_FIELD_26NOV.md` §4), before any same-network agent work; zero GPU; script `scratch_audit/s26nov_step0_room.py` (blob 779d1317: PR-R2's definitions, blob 5273c3b, plus the step-0 tables), run 26 Nov 13:00 IST; one decision) — **The room above the threshold rule itself is about a third of the room above the FLOPs prior: the best of the four agent-free plans, picked on the other seed's val, beats the threshold rule by TEST 5k +0.19 [+0.06, +0.35] over both datasets and both budgets (val +0.25, 10k +0.22; 104 network × budget cells). It concentrates at FLOPs 0.20 on CIFAR-100: +0.60 [+0.16, +1.11] (val +0.64, 10k +0.62), mostly on DenseNet-40 and the VGG-BNs, where the better plan keeps about twice the threshold rule's parameters at equal FLOPs. On CIFAR-10 it is +0.07; on MobileNetV2 there is none. Decision (registered, on val): ROOM.** PRELIM.
+
+**Question.** The room screens measured room above the FLOPs prior (§436, §439, §470). The threshold rule is one of their four plans and sits above the prior (§439, §470). How much room is there above the threshold rule itself, the rule every agent is now judged against? The 26 Nov literature scan put it at roughly +0.25 from pooled means and asked for it per network before any same-network agent is built.
+
+**Method.** PR-R2's reader, with its row checks and the same-point fix (§470), read ROOM-S's CIFAR-100 cells and PR's CIFAR-10 cells: the same 26 networks each (no ShuffleNetV2), FLOPs 0.45 and 0.20, seeds 47-48. 416 of 416 cells were read on each dataset. For each network and budget, with the threshold rule as reference:
+- (a) the best of the four plans, picked on the other seed's val (ties go to the threshold rule), minus the threshold rule, on the scored seed; the mean of the two directions;
+- (b) the same with the threshold rule excluded from the pick (a forced switch).
+
+Means are over network × budget cells, with a 95 % bootstrap (20,000 draws, seed 0). Seeds 47-48 are screen seeds.
+
+**The rows** (variant a; TEST 5k [95 %]; val and 10k beside; cells with at least +0.30 val; the picked plan's params over the threshold rule's).
+
+| set | cells | TEST 5k | val | 10k | with room | params |
+|---|---|---|---|---|---|---|
+| **both datasets, both budgets** | 104 | **+0.19 [+0.06, +0.35]** | +0.25 | +0.22 | 32 | 1.14x |
+| both, FLOPs 0.45 | 52 | +0.05 [−0.06, +0.19] | +0.15 | +0.10 | 14 | 1.08x |
+| both, FLOPs 0.20 | 52 | +0.34 [+0.10, +0.62] | +0.34 | +0.34 | 18 | 1.21x |
+| CIFAR-10, both budgets | 52 | +0.07 [−0.03, +0.18] | +0.10 | +0.08 | 14 | 1.10x |
+| CIFAR-100, FLOPs 0.45 | 26 | +0.04 [−0.16, +0.29] | +0.16 | +0.10 | 5 | 1.10x |
+| **CIFAR-100, FLOPs 0.20** | 26 | **+0.60 [+0.16, +1.11]** | +0.64 | +0.62 | 13 | 1.27x |
+
+Variant (b), the forced switch: +0.05 [−0.13, +0.24] over all cells (val +0.13), and +0.40 at FLOPs 0.20 on CIFAR-100 (val +0.51). On MobileNetV2 the switch loses: −0.78 [−1.14, −0.38] at 0.20 (val −0.92). The threshold rule is the best plan there.
+
+**By network, CIFAR-100, FLOPs 0.20** (variant a; TEST 5k; params over the threshold rule's):
+
+| network | room | picked plan | params |
+|---|---|---|---|
+| DenseNet-40 | +4.40 | cost-aware rule | 1.93x |
+| VGG-16-BN | +3.35 | even cut | 2.55x |
+| thin ResNet-56 ×8 | +2.82 | prior | 1.32x |
+| VGG-13-BN | +1.74 | even cut | 2.79x |
+| VGG-19-BN | +1.06 | even cut | 2.66x |
+| RepVGG-A2 | +1.02 | even cut / cost-aware | 0.99x |
+| thin ResNet-56 ×12 | +0.99 | prior | 1.17x |
+| RepVGG-A1 | +0.60 | cost-aware rule | 0.83x |
+| VGG-11-BN | −0.38 | mixed | 1.32x |
+
+**Decision (registered, on val).** At FLOPs 0.20 on the room families (VGG-BN, DenseNet-40, thin ResNet-20, MobileNetV2), pooled over both datasets: val +0.51 [+0.07, +1.02] (TEST 5k +0.45, 10k +0.48) on 24 cells, above the +0.30 bar. **ROOM: the scan's Design 2 keeps four networks.** Two caveats:
+- The registered room families were set from the room above the prior. Above the threshold rule, MobileNetV2 has none.
+- The room sits instead on thin ResNet-56 ×8 and ×12 and on RepVGG-A1 and A2 (both datasets pooled: thin ResNet-56 +0.67 TEST 5k (val +0.44), RepVGG +0.30 (val +0.28) at 0.20).
+
+**Reading.**
+- **Room above the threshold rule is real only at the deep cut on CIFAR-100.** There it is +0.60 TEST 5k, in line with §460's +0.78 at equal size and §465's +0.73 at equal FLOPs, both from in-run 100-epoch val picks. At FLOPs 0.45, and on CIFAR-10, it is tenths at most. This agrees with the literature scan: a tuned rule leaves tenths after a full recovery, except at deep cuts.
+- **Much of it is parameters bought at equal FLOPs.** On DenseNet-40 and the VGG-BNs the better plan keeps 1.9-2.8x the threshold rule's parameters. A same-network agent that wins there is choosing size as much as allocation; the fair comparators are a size-aware rule and an equal-params row (§448, §452).
+- **Two families hold room at about equal parameters:** thin ResNet-56 ×8 and ×12 (1.17-1.32x) and RepVGG-A1 and A2 (0.83-0.99x). These are the cleanest targets for an allocation agent.
+- **What this does not say.** These picks use 100-epoch val reads of four plans, an expensive model selection that no agent replaces for free. Whether an affordable reward sees this room is the scan's Design 1, the gate.
+
+**Scope.** 26 networks per dataset (no ShuffleNetV2), FLOPs 0.45 and 0.20, two screen seeds, four agent-free plans; equal FLOPs only.
+
+**Not supported by this section:**
+- any agent result;
+- room above the threshold rule beyond these four plans;
+- seeds 47-48 in a proof row;
+- any TEST-based choice.
+
+**Next, as set before the read.** ROOM: Design 2 keeps four networks, if Design 1 passes. Design 1 (the equal-size reward-fidelity ladder at deep cuts) is not gated by this step and is registered next.
+
+Next §472.
