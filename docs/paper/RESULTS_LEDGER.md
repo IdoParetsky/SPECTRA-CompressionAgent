@@ -13965,3 +13965,47 @@ Along the 20-epoch schedule (equal-size candidates), τ rises from +0.30 at epoc
 **Next, as set before the read.** LADDER20-GO: register Design 2 on the networks with equal-size room (§471), with the rule-best-of-K comparator above.
 
 Next §475.
+
+## 475. (AGENT-V2-LONG: queue row AGENT-V2-LONG, registered 26 Nov 19:05 IST before any run; zero GPU, 12 jobs on partition cpu (24526875-24526886, all COMPLETED by 20:52 IST); benchmark `scripts/_tmp_s26nov_av2_plant.py` 006647ad unchanged, driver `scripts/_tmp_s26nov_av2long.sh` b0b0d504, tree `_av2_stage` = tree_v41 + commit 997adbd; outputs `scratch_audit/av2_diag/plant/*__i24000.json`) — **The agent's learner at its real training length, on the planted reward of §473. No TEST and no result: every number is a synthetic-reward value. LONG-SHORT by the registered rule. With the upgrades of §473, the learner captures 72-76 % of the planted room on the FLOPs-residual line (d/d0 0.504, 0.533, 0.490 on seeds 42-44) and 64-72 % on the rule-blending line (0.597, 0.595, 0.532). The bar was 75 % on every seed, so one residual seed clears it and no blending seed does. The current settings capture 52-72 % (residual) and, on the blending line, 59 %, 35 % and none (seed 44 ends further from the plan than the untrained agent). The upgrades are closer on all six (line, seed) pairs. At FLOPs 0.20, outside the trained budget range, the residual line does not move at all (d/d0 1.00).** Diagnostic.
+
+**Question.** §473's benchmark ran 2,000 instances per run; the lines of record train on 24,000. Does the learner find a known optimum at that length? If it does, the reward binds alone; if it does not, the learner binds too.
+
+**Method.** As §473: the real policy, trainer and decoders on real states of six catalog networks, with the reward replaced by r = −S Σ_g c_g (log w_g − log w*_g)² + noise at the measured noise (0.78 points residual, 1.58 blending), no flat instances. Each run is 24,000 instances × 8 plans = 192,000 reward evaluations. Seeds 42, 43, 44. Residual line: current settings and EMA + cosine. Blending line: current settings and the four head flags + EMA + cosine. The measure (registered) is d/d0 at the end of the run, averaged over budgets 0.40-0.80, read on the averaged weights where EMA is on. Room captured = 1 − (d/d0)². Runs took a median 47 min (residual) and 98 min (blending) on 2 CPUs.
+
+**The call (registered).** LONG-OK if each line's bundle reaches d/d0 at most 0.50 (at least 75 % of the planted room) on all three seeds; else LONG-SHORT. **LONG-SHORT.**
+
+| line | settings | weights read | d/d0, seeds 42 / 43 / 44 | room captured | ≤ 0.50 |
+|---|---|---|---|---|---|
+| residual | current | last | 0.530 / 0.558 / 0.690 | 72 / 69 / 52 % | 0 of 3 |
+| residual | EMA + cosine | averaged | 0.504 / 0.533 / 0.490 | 75 / 72 / 76 % | 1 of 3 |
+| blending | current | last | 0.640 / 0.804 / 1.158 | 59 / 35 / none | 0 of 3 |
+| blending | head flags + EMA + cosine | averaged | 0.597 / 0.595 / 0.532 | 64 / 65 / 72 % | 0 of 3 |
+
+**Reported beside, no call** (mean over 3 seeds (SD); "paired" = mean ratio to the current settings by seed at equal evaluations).
+
+| line | settings | d/d0 at 25 % | at 50 % | at 100 % | paired | closer | κ 0.45 | κ 0.20 | share gap | top share |
+|---|---|---|---|---|---|---|---|---|---|---|
+| residual | current | 0.750 (0.073) | 0.600 (0.103) | 0.593 (0.085) | 1.000 | | 0.596 | 0.988 | | |
+| residual | EMA + cosine, averaged | 0.817 (0.051) | 0.649 (0.092) | 0.509 (0.022) | 0.872 | 3 of 3 | 0.539 | 1.000 | | |
+| blending | current | 1.006 (0.165) | 0.922 (0.260) | 0.867 (0.265) | 1.000 | | 0.659 | 0.794 | 0.49 | 0.73 |
+| blending | head + EMA + cosine, averaged | 0.772 (0.062) | 0.732 (0.154) | 0.575 (0.037) | 0.711 | 3 of 3 | 0.401 | 0.510 | 0.18 | 0.89 |
+
+Every update was still clipped on all 12 runs (pre-clip gradient norm median 5.4-14.3 against a clip of 1.0).
+
+**Reading.**
+- **The learner is not hopeless, and it is not enough.** At its real length and the measured noise, the current residual settings close about two thirds of a planted gap (0.593, 65 %), but they plateau: from half the run to the end they move 0.600 → 0.593. The bundle keeps descending to the end (0.649 → 0.509), and cosine decay ends there by construction, so a longer run of the same schedule is not the remedy.
+- **The blending line of record is erratic by seed.** Its current settings end at 0.64, 0.80 and 1.16 from the planted plan on the three seeds. The head flags remove most of the spread (SD 0.265 → 0.037) and halve the gap between the mean plan's blend and the planted blend (0.49 → 0.18). This is the planted-reward counterpart of §473's finding that the blend's rule is set by the seed.
+- **The deep cut is outside what the residual line learns.** At FLOPs 0.20, the budget where LADDER and Design 2 find equal-size room (§471, §474), the residual line's mean plan does not move toward the planted plan at all (0.99-1.00). The lines train on budgets 0.35-0.85, and the residual decoder at 0.20 is extrapolated. The blending line's head, conditioned on the budget, does move there (0.51). A retrain aimed at deep cuts must train on them, and §473's in-range measure would not show it [D].
+- **What this means for the lines of record.** A learner that closes 65-75 % of a planted room one plan away from the rule would leave a visible departure from the rule if the real reward held such a room. The §464 agent's level with the rule is then more the reward's lack of room than the learner's failure to find it. §474 agrees: the equal-size room it found at deep cuts is mostly the rule measured in another run. The learner still binds, at about a quarter to a third of a planted room, and at deep budgets it binds completely on the residual line.
+
+**Scope.** As §473: six small residual-family networks, a quadratic planted reward with Gaussian noise, 3 seeds. A planted reward tests the optimizer, not the real reward.
+
+**Not supported by this section:**
+- any TEST or agent result;
+- "the learner cannot learn": it closes most of a planted gap;
+- any claim that a flag improves pruning;
+- any claim about networks outside the six or budgets outside 0.40-0.80 beyond the κ columns above.
+
+**Next, as set before the read.** LONG-SHORT: the learner binds as well. A learner that searches each instance and distils its best plans (expert iteration, item 4 of the 26 Nov scan) is built behind a default-off flag, registered separately and benchmarked on this planted reward against the bundles, at equal evaluations. The next registered retrain still carries the §473 bundles and guards. If it is aimed at FLOPs 0.20, its budget range must include 0.20.
+
+Next §476.
