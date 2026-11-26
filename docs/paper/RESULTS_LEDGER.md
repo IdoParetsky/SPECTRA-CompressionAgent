@@ -13906,3 +13906,62 @@ On the blending line the gap between the mean plan's shares and the planted blen
 - The next retrain is registered after LADDER-20's and NAPJ's reads, with the bundles and guards above.
 
 Next §474.
+
+## 474. (LADDER-20: queue row LADDER-20, registered 26 Nov before any script; code stamped before any job (commit 9928ad0: LADDER's reviewed scripts with constant changes, `ladder20.sh` 541ec163, `ladder20_read.py` fc6d3cbc); §472's 185 plans of the 17 deep FLOPs groups re-run with a 20-epoch recovery (cosine from lr 0.1 to zero, batch 256, keep-last; val read every 2 epochs) in tree_v40; 2 smokes and 183 cells, all COMPLETED; gate PASS; reader run 26 Nov 19:20 IST; one call) — **LADDER20-GO by the registered rule. At equal size in the deep FLOPs groups (CIFAR-100, FLOPs 0.20), the plan with the best 20-epoch val beats the threshold rule by TEST 5k +0.320 [+0.113, +0.550] (val +0.395, 10k +0.357; 17 groups; params 1.017× the rule's). The gain is narrow. In 11 of the 17 groups the pick is one of the group's threshold-rule plans (the same rule, measured more than once), and those groups carry +0.29 of the +0.32. Leaving out any one of VGG-16-BN, thin ResNet-56 ×4 or VGG-13-BN takes the mean below the +0.30 bar. A 20-epoch recovery ranks equal-size plans at τ +0.521, against +0.449 for the 2-epoch probe (paired +0.072 [−0.007, +0.153]) and a replicate ceiling of +0.636.** PRELIM.
+
+**Question.** §472's 10-epoch recovery did not find the equal-size room at deep cuts (−0.035). The rule set before that read registered a 20-epoch rung, since the 10-epoch τ had risen at least 0.05 above the probe's. Does a 20-epoch recovery find the room?
+
+**Method.** As §472, with `SPECTRA_EVAL_FINAL_FT_EPOCHS=20` and no other change.
+- **Plans.** The same 185 plans of the same 17 groups: 17 CIFAR-100 networks at FLOPs 0.20, 138 equal-size candidates (params at most 1.10× the threshold rule's, plus the rule's own plans). All 185 rows passed the checks: complete, plan_id equal to the original's, 20 epochs at lr 0.1, trace present. Two message strings of the reader still say "10 epochs", a copy slip in the text; its check compares against 20.
+- **Labels.** Each plan's 100-epoch outcome from §452's rows (the recipe of record, mean over replicates).
+- **Signal.** The 20-epoch val only; the run's own TEST is never read.
+- **Reference.** The mean over the group's threshold-rule plans, as in C3-SPLIT (§460) and §472. A group can hold more than one threshold-rule plan: the rule measured in different runs (for example under another screen seed, or with and without BN recalibration) gives different plans at the same budget.
+
+**The call.**
+
+| quantity (mean over 17 groups) | TEST 5k [95 %] | val | 10k | params, pick / rule |
+|---|---|---|---|---|
+| **20-epoch val pick at equal size − the threshold rule (the call)** | **+0.320 [+0.113, +0.550]** | +0.395 | +0.357 | 1.017 |
+| 10-epoch val pick, same groups (§472) | −0.035 [−0.376, +0.306] | +0.199 | +0.082 | 1.018 |
+| 2-epoch probe pick (C3-SPLIT's check; §460 reproduced) | +0.057 [−0.291, +0.397] | | | |
+| 20-epoch val pick, size free − the rule (reported) | +0.897 [+0.313, +1.654] | +0.934 | +0.915 | 1.405 |
+
+Call (registered): LADDER20-GO if the equal-size pick − the rule is at least +0.30 TEST 5k, with the lower end above 0, on at least 8 groups; else LADDER20-NO. +0.320 with the lower end at +0.113 on 17 groups. **LADDER20-GO.**
+
+**Where the gain comes from** (TEST 5k, pick − rule, by group).
+- **Pick is a threshold-rule plan (11 groups; +0.292 of the mean):** VGG-16-BN +1.52, thin ResNet-56 ×4 +0.95, VGG-13-BN +0.86, VGG-19-BN +0.58, thin ResNet-20 ×8 +0.54, MobileNetV2 ×0.75 +0.19, ×1 +0.16, ×1.4 +0.12, thin ResNet-56 ×8 +0.08, VGG-11-BN 0.00, DenseNet-40 −0.05.
+- **Pick is another plan (6 groups; +0.028 of the mean):** RepVGG-A2 +0.63 (uniform), thin ResNet-20 ×12 +0.35 (agent), RepVGG-A0 +0.15 (uniform), PreAct-ResNet-20 +0.07 (agent), MobileNetV2 ×0.5 −0.28 (sens_cost), ShuffleNetV2 ×2 −0.44 (sens_cost).
+- **Against the 10-epoch pick, two groups carry two thirds of the change:**
+  - On thin ResNet-56 ×4 the pick moves from one threshold-rule plan to the other: −0.95 becomes +0.95.
+  - On VGG-19-BN it moves from a cost-aware plan to a threshold-rule plan: −1.56 becomes +0.58.
+- **Leave one network out:** the mean falls to +0.245 without VGG-16-BN, +0.280 without thin ResNet-56 ×4 and +0.286 without VGG-13-BN.
+
+**Ranking** (within-group Kendall τ-b against the 100-epoch TEST 5k; mean over 17 groups).
+
+| signal | equal-size candidates | all plans |
+|---|---|---|
+| 20-epoch val | +0.521 [+0.354, +0.673] | +0.597 [+0.495, +0.695] |
+| 10-epoch val (§472) | +0.508 [+0.368, +0.646] | +0.575 [+0.484, +0.666] |
+| 2-epoch probe (G2) | +0.449 [+0.256, +0.633] | +0.551 [+0.439, +0.667] |
+| paired difference, 20-epoch − probe | +0.072 [−0.007, +0.153] | +0.047 [−0.019, +0.115] |
+| replicate ceiling (13 groups) | +0.636 [+0.287, +0.923] | |
+
+Along the 20-epoch schedule (equal-size candidates), τ rises from +0.30 at epoch 2 to +0.45 at epoch 10 and +0.52 at epoch 20, with dips at epochs 4 and 12.
+
+**Reading.**
+- **A 20-epoch recovery finds equal-size room at deep cuts, and nearly all of it lies inside the threshold rule.** The rule, measured in different runs, gives plans whose 100-epoch outcomes differ by up to about 2 points on one network (thin ResNet-56 ×4). A 20-epoch val chooses among them well enough to gain +0.29 over their mean. Choosing a plan that is not the rule's adds +0.03. So the procedure that passes is "measure the rule several times, keep the plan with the best 20-epoch val". It is a selection among the rule's own plans, and an agent is not needed for it.
+- **The ranking improves little with length.** τ goes from +0.449 (2 epochs) to +0.508 (10) and +0.521 (20), not resolved against the probe. The pick's gain moved by +0.36 between 10 and 20 epochs while τ moved by +0.013. The pick statistic is an argmax over about 8 plans per group, and two groups carry most of the change, so its gain is fragile at this sample size. The +0.32 is a GO by the letter, at a thin margin.
+- **Cost.** Choosing among a group's 8.1 candidates (mean) at 20 epochs each costs about 162 epochs of recovery per network, about 1.6× one 100-epoch recovery.
+- **For the same-network side idea (Ido, 26 Nov).** The registered next step applies: register Design 2, a same-network agent with the 20-epoch reward, against random and evolutionary search at equal evaluations. This section adds one comparator, fixed before Design 2 is registered: the threshold rule measured K times, best by 20-epoch val, at the same number of 20-epoch evaluations. Every same-network method must beat it, because that procedure already takes the room seen here.
+- **For the transfer agent.** A 20-epoch reward is far too expensive to train on (24,000 instances × 8 plans). It can serve as a test-time selector over a few proposals: the proposer-and-judge pattern of the 26 Nov upgrade plan, item 3.
+
+**Scope.** 17 CIFAR-100 networks at FLOPs 0.20; one 20-epoch run per plan; §452's plan portfolio (sens, sens_cost, sens_thresh, uniform and up to two agent plans per group); labels from the recorded 100-epoch outcomes.
+
+**Not supported by this section:**
+- "a 20-epoch reward lets an agent beat the rule": no agent was trained on it;
+- any statement about other budgets or datasets;
+- any TEST-based choice.
+
+**Next, as set before the read.** LADDER20-GO: register Design 2 on the networks with equal-size room (§471), with the rule-best-of-K comparator above.
+
+Next §475.
