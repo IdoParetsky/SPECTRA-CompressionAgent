@@ -13774,3 +13774,57 @@ Variant (b), the forced switch: +0.05 [−0.13, +0.24] over all cells (val +0.13
 **Next, as set before the read.** ROOM: Design 2 keeps four networks, if Design 1 passes. Design 1 (the equal-size reward-fidelity ladder at deep cuts) is not gated by this step and is registered next.
 
 Next §472.
+
+## 472. (LADDER: queue row LADDER, registered 26 Nov 13:05 IST (commit 7816bfc) before any LADDER script; amended and code-stamped before any job (commit b5a12fc); Design 1 of the 26 Nov literature scan, the gate for the same-network side idea; §452's plans of the 17 deep FLOPs groups (C3-SPLIT's, §460) re-run with a 10-epoch recovery (G2's recipe compressed: cosine from lr 0.1 to zero, batch 256, keep-last; val read once per epoch) in tree_v40; 185 plans (138 equal-size candidates), 2 smokes and 183 cells, all COMPLETED; gate PASS 13:23 IST; reader blob 07317f67 run 26 Nov 15:59 IST; one call) — **LADDER-NO by the registered rule. At equal size in the deep FLOPs groups (CIFAR-100, FLOPs 0.20), the plan with the best 10-epoch val beats the threshold rule by TEST 5k −0.035 [−0.376, +0.306] (val +0.199, 10k +0.082; 17 groups). A 10-epoch recovery ranks equal-size plans at τ +0.508, against +0.449 for the 2-epoch probe on the same groups (paired +0.058 [−0.055, +0.179]) and a replicate ceiling of +0.636. Size free, the same pick gains +0.781 [+0.157, +1.555] (val +0.961, 10k +0.871), by keeping 1.41× the rule's params.** PRELIM.
+
+**Question.** At deep cuts, the 2-epoch probe cannot see the equal-size room that an in-run 100-epoch val pick suggests (§460: +0.06 against +0.78). Does a 10-epoch recovery, with its own cosine schedule, see it? Without an affordable reward that does, neither a same-network agent (the 26 Nov side idea) nor a transfer agent can find that room.
+
+**Method.**
+- **Plans.** Every plan of C3-SPLIT's 17 deep FLOPs groups that carries the 2-epoch signal (185 plans, 17 CIFAR-100 networks, FLOPs 0.20). Each was re-run once from its original job's env line with `SPECTRA_EVAL_FINAL_FT_EPOCHS=10` and the original lr 0.1, in tree_v40, with no code change. All 185 passed the row checks: complete, plan_id equal to the original, 10 epochs at lr 0.1, 11 val reads.
+- **Equal-size candidates.** Params at most 1.10× the threshold rule's, plus the rule's own plans: 138 plans, at least one other than the rule in every group.
+- **Labels.** Each plan's 100-epoch outcome from §452's rows (recipe of record, mean over replicates).
+- **Signal.** The 10-epoch val only. The run's own TEST after 10 epochs is never read.
+- **Statistics.** The bootstrap over networks is C3-SPLIT's (2,000 draws, seed 0). τ-b is within group.
+
+**The call.**
+
+| quantity (mean over 17 groups) | TEST 5k [95 %] | val | 10k | params, pick / rule |
+|---|---|---|---|---|
+| **10-epoch val pick at equal size − the threshold rule (the call)** | **−0.035 [−0.376, +0.306]** | +0.199 | +0.082 | 1.018 |
+| 2-epoch probe pick at equal size − the rule (C3-SPLIT's check; §460 reproduced) | +0.057 [−0.291, +0.397] | | | |
+| 10-epoch val pick, size free − the rule (reported) | +0.781 [+0.157, +1.555] | +0.961 | +0.871 | 1.410 |
+
+Call (registered): LADDER-GO if the equal-size pick − the rule is at least +0.30 TEST 5k, with the lower end above 0, on at least 8 groups; else LADDER-NO. −0.035 misses the bar. **LADDER-NO.**
+
+**Ranking** (within-group Kendall τ-b against the 100-epoch TEST 5k; mean over 17 groups, bootstrap over networks).
+
+| signal | equal-size candidates | all plans |
+|---|---|---|
+| 10-epoch val | +0.508 [+0.368, +0.646] | +0.575 [+0.484, +0.666] |
+| 2-epoch probe (G2) | +0.449 [+0.256, +0.633] | +0.551 [+0.439, +0.667] |
+| paired difference | +0.058 [−0.055, +0.179] | +0.024 [−0.046, +0.103] |
+| replicate ceiling (13 groups with replicate pairs) | +0.636 [+0.287, +0.923] | |
+
+**Along the 10-epoch schedule** (equal-size candidates), τ rises from +0.40 after epoch 1 to +0.28-0.39 at epochs 2-6, then to +0.51 at epochs 7 and 10, with drops at 8 and 9. The reads are noisy, and the end of the schedule ranks best. Mid-schedule reads are taken at a high learning rate, so they are not shorter rungs.
+
+**By network** (equal size; TEST 5k pick − rule): VGG-16-BN +1.52, VGG-13-BN +0.86, RepVGG-A2 +0.63, thin ResNet-20 ×8 +0.54 and ×12 +0.35; VGG-19-BN −1.56, MobileNetV2 ×0.5 −1.16, thin ResNet-56 ×4 −0.95, PreAct-ResNet-20 −0.37. The pick is a threshold-rule plan in 11 of 17 groups. A group can hold more than one threshold-rule variant (for example, measured with and without BN recalibration), and the reference is their mean, as in C3-SPLIT; so a pick of one variant can differ from the reference.
+
+**Reading.**
+- **A 10-epoch recovery does not find the equal-size room at deep cuts.**
+  - Its ranking is better than the 2-epoch probe's by a twentieth in τ, which is not resolved. Its pick is level with the rule.
+  - The +0.78 that §460's in-run 100-epoch val pick read at equal size is therefore not reachable by a recovery of up to 10 epochs. How much of it is that read's own luck (it shares its run with TEST) is not separated here [H].
+- **The room the short reads do see is size.** Size free, the 10-epoch pick gains +0.78 at 1.41× the rule's params, as the 2-epoch pick gained +0.42 at 1.22× (§452). That is the trade of parameters at equal FLOPs, which a rule can also make (§448: the recalibrated rule, +0.46 at 1.17-1.32×).
+- **For the same-network side idea.** At equal size at deep cuts, no affordable reward up to 10 epochs sees the room that §471 found by model selection among 100-epoch recoveries. The registered next step applies by its letter: the 10-epoch τ rose at least 0.05 above the probe's (+0.058), so a 20-epoch rung is registered. If it also fails, the side idea stops as posed.
+- **For the transfer agent.** A 10-epoch reward is no better selector at equal size than the 2-epoch probe. It improves ranking by a small, unresolved amount at about 5× the cost.
+
+**Scope.** 17 CIFAR-100 networks at FLOPs 0.20; one 10-epoch run per plan; §452's plan portfolio (sens, sens_cost, sens_thresh, uniform and up to two agent plans per group); labels from the recorded 100-epoch outcomes.
+
+**Not supported by this section:**
+- "no reward can see the room";
+- any statement about other budgets or datasets;
+- any agent result;
+- any TEST-based choice.
+
+**Next, as set before the read.** LADDER-NO with the 10-epoch τ at least 0.05 above the probe's: register the 20-epoch rung (queue row LADDER-20).
+
+Next §473.
