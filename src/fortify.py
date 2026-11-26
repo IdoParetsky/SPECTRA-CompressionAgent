@@ -1450,6 +1450,312 @@ def plan_structural_only() -> bool:
     return _flag("SPECTRA_PLAN_STRUCTURAL_ONLY")
 
 
+# ---------------------------------------------------------------- AGENT-V2 (26 Nov 2026): the plan trainer's upgrades
+#
+# ``docs/paper/AGENT_AUDIT_26NOV.md`` (findings F1-F16, the fixes table of its section 2); queue row AGENT-V2. Every
+# flag below is new and default off, and each is read by ``plan_trainer.run`` (or ``plan_agent``) only: with all of
+# them unset the trainer's draws, plans, updates, records, log lines and checkpoints are tree_v41's, to the bit
+# (``tests/test_agent_v2.py``). A flag that is on is named in the trainer's opening line (after ``| av2:``) and written
+# to every checkpoint, so a chained job under other flags is refused (``plan_trainer.check_resume``).
+#
+#   rank  flag                                   what it changes
+#   1b    SPECTRA_PLAN_PROXY=cutce | bnce<N>     the reward is the change in val cross-entropy (plan_agent.parse_proxy)
+#   2     SPECTRA_PLAN_ADV=rank|global|floor:s   how the K rewards of an instance become advantages
+#   3     SPECTRA_PLAN_MIRROR=1                  K / 2 draws and their mirror images
+#   4     SPECTRA_PLAN_MENU_BOUND=B              the menu logits are B tanh(psi / B)
+#         SPECTRA_PLAN_MENU_ENT=beta             an annealed entropy bonus on the mean shares
+#         SPECTRA_PLAN_MENU_KAPPA=bins|film      the menu head reads the budget through a per-bin embedding
+#         SPECTRA_PLAN_MENU_LOG=1                psi, its range and the per-plan shares in every record
+#         SPECTRA_PLAN_MENU_SHARE_FLOOR=p|auto   the mean plan's share floor (auto under the bound)
+#         SPECTRA_PLAN_MENU_SIGMA_ANNEAL=1       sigma_u follows the scores' sigma schedule
+#   5     SPECTRA_PLAN_SPLIT=1                   half the plans draw the scores, half the menu logits; two advantages
+#   6     SPECTRA_PLAN_EMA=d                     an averaged copy of the weights, saved beside the last iterate
+#         SPECTRA_PLAN_LR_SCHEDULE=cosine        the lr falls to 0 over the run
+#   8     SPECTRA_PLAN_GNORM=sqrt|linear         the scores' log-density over sqrt(G) (or G)
+#   9     SPECTRA_PLAN_KAPPA_POINTS=k1,k2[:p[:w]] part of the budgets are drawn near the registered points
+#   12    SPECTRA_PLAN_SAMPLE=family[:t]         networks drawn by family
+#   14    SPECTRA_PLAN_FS_GUARD=x                a diverged fs<S> fine-tune is flagged; its plan takes the median
+#   16    SPECTRA_PLAN_CHECK=1|refuse            three plans per network cut for real against the masked cut
+#   17    SPECTRA_PLAN_CONTRACT=1|warn           the state contract in the checkpoint, refused on a mismatch
+
+
+def _plan_number(name: str, default: float, low: float, high: float, low_open: bool = False):
+    """A float flag within [low, high) ((low, high) when ``low_open``); ``default`` when unset. Refuses anything else
+    (nan and inf too) with the flag's name."""
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return float(default)
+    try:
+        value = float(raw)
+    except ValueError:
+        raise ValueError(f"{name}={raw!r}: expected a number") from None
+    if not (low <= value < high) or (low_open and value == low):
+        bounds = f"{'above' if low_open else 'at least'} {low:g}" + ("" if high == float("inf") else f" and below {high:g}")
+        raise ValueError(f"{name}={raw!r}: expected a finite number {bounds}")
+    return value
+
+
+def plan_adv() -> Tuple[str, Optional[float]]:
+    """
+    ``SPECTRA_PLAN_ADV`` (default off = ``("off", None)``: r - mean, over the K-plan SD + 1e-6 under NORM_ADV, as
+    before). Audit F4 / F7: the per-instance SD has no floor, so an instance whose plans differ by one val image, or
+    all sit at chance, is scaled up to a full-size gradient.
+
+    * ``rank``: centred ranks of the K rewards (``plan_agent.rank_utilities``; ES fitness shaping, Salimans et al.
+      2017): invariant to any increasing map of the rewards, ties share a rank (a flat instance gives no gradient).
+    * ``global`` / ``global:<decay>``: r - mean over a running mean of the per-instance SD (decay 0.99), one scale for
+      every instance, so an instance weighs by its own spread.
+    * ``floor:<s0>``: r - mean over max(SD, s0), s0 in reward units (points).
+
+    Any of the three replaces the NORM_ADV division.
+    """
+    raw = os.environ.get("SPECTRA_PLAN_ADV", "").strip().lower()
+    if not raw or raw in ("off", "0"):
+        return "off", None
+    name, _sep, arg = raw.partition(":")
+    try:
+        if name == "rank" and not arg:
+            return "rank", None
+        if name == "global":
+            decay = float(arg) if arg else 0.99
+            if 0.0 < decay < 1.0:
+                return "global", decay
+        if name == "floor" and arg:
+            s0 = float(arg)
+            if 0.0 < s0 < float("inf"):
+                return "floor", s0
+    except ValueError:
+        pass
+    raise ValueError(f"SPECTRA_PLAN_ADV={raw!r}: expected rank, global, global:<decay in (0, 1)> or floor:<s0 above 0>")
+
+
+def plan_mirror() -> bool:
+    """``SPECTRA_PLAN_MIRROR=1`` (default off): mirrored sampling (audit F7). The trainer draws K / 2 noise vectors and
+    plays each with both signs (the scores' and, under the menu, the logits'), so the K plans are K / 2 pairs
+    mu +- sigma eps: a pair cancels the even-order part of the reward around mu at no extra reward read. K must be
+    even."""
+    return _flag("SPECTRA_PLAN_MIRROR")
+
+
+def plan_menu_bound() -> float:
+    """``SPECTRA_PLAN_MENU_BOUND`` (default 0 = off): B, the bound on the menu's mean logits, psi = B tanh(raw / B)
+    (audit F2: unbounded, a logit gap of about 10 is never flipped by sigma_u = 2 and exploration stops). Stored in the
+    checkpoint (``menu_bound``) and applied by the frozen policy too. The bounded init, B tanh(MENU_INIT / B), leaves
+    the other rules more than the default share floor, so the mean plan's floor follows it (``plan_menu_share_floor``)."""
+    return _plan_number("SPECTRA_PLAN_MENU_BOUND", 0.0, 0.0, float("inf"))
+
+
+def plan_menu_entropy() -> float:
+    """``SPECTRA_PLAN_MENU_ENT`` (default 0 = off): beta, the weight of an entropy bonus on the mean shares,
+    loss -= beta_t H(softmax psi), with beta_t falling linearly from beta to 0 over the scores' sigma decay span
+    (SIGMA_DECAY of the instances), so the last part of the run trains without it."""
+    return _plan_number("SPECTRA_PLAN_MENU_ENT", 0.0, 0.0, float("inf"))
+
+
+PLAN_MENU_KAPPA_KINDS = ("bins", "film")
+
+
+def plan_menu_kappa() -> Optional[Tuple[str, int]]:
+    """
+    ``SPECTRA_PLAN_MENU_KAPPA`` (default off = None): how the menu head reads the budget (audit F2: kappa is one of 260
+    inputs, and under Adam one input moves a logit a few hundred times slower than the 256 encoder outputs do).
+    ``bins`` / ``bins:<n>`` adds a learned 256-wide embedding of kappa's bin (n equal bins over the trainer's kappa
+    range, 5 by default; a kappa outside the range takes the nearest bin) to the pooled token output; ``film`` /
+    ``film:<n>`` also scales the pooled output by 1 + a second, zero-started embedding. Returns ``(kind, n)``.
+    """
+    raw = os.environ.get("SPECTRA_PLAN_MENU_KAPPA", "").strip().lower()
+    if not raw or raw in ("off", "0"):
+        return None
+    name, sep, arg = raw.partition(":")
+    if name in PLAN_MENU_KAPPA_KINDS and ((not sep) or (arg.isdigit() and int(arg) >= 2)):
+        return name, int(arg) if arg else 5
+    raise ValueError(f"SPECTRA_PLAN_MENU_KAPPA={raw!r}: expected bins, film, bins:<n> or film:<n> with n >= 2")
+
+
+def plan_menu_log() -> bool:
+    """``SPECTRA_PLAN_MENU_LOG=1`` (default off): every instance's record also carries the mean logits (``menu_psi``),
+    their range max - min (``menu_psi_range``) and each sampled plan's shares (``menu_shares``); only the mean share
+    is logged otherwise."""
+    return _flag("SPECTRA_PLAN_MENU_LOG")
+
+
+def plan_menu_share_floor():
+    """``SPECTRA_PLAN_MENU_SHARE_FLOOR`` (unset = None: ``plan_agent.MENU_SHARE_FLOOR``, or ``auto`` under
+    ``SPECTRA_PLAN_MENU_BOUND``): the share under which the mean plan drops a rule. ``auto`` is the smallest floor that
+    keeps the untrained agent's mean plan on the anchor's plan (``plan_agent.menu_floor``). Returns None, ``"auto"`` or
+    a float in (0, 0.5)."""
+    raw = os.environ.get("SPECTRA_PLAN_MENU_SHARE_FLOOR", "").strip().lower()
+    if not raw:
+        return None
+    if raw == "auto":
+        return "auto"
+    return _plan_number("SPECTRA_PLAN_MENU_SHARE_FLOOR", 0.0, 0.0, 0.5, low_open=True)
+
+
+def plan_menu_sigma_anneal() -> bool:
+    """``SPECTRA_PLAN_MENU_SIGMA_ANNEAL=1`` (default off): the menu logits' sigma_u follows the scores' sigma schedule
+    (MENU_SIGMA times sigma(it) / sigma(0)) instead of staying constant."""
+    return _flag("SPECTRA_PLAN_MENU_SIGMA_ANNEAL")
+
+
+def plan_split() -> bool:
+    """``SPECTRA_PLAN_SPLIT=1`` (default off; menu only): split credit (audit F3). The first K / 2 plans of an instance
+    draw the scores and play the mean plan's shares; the other K / 2 play the mean scores and draw the menu logits.
+    Each half has its own advantages and scores only its own part's log-density, so the per-group correction is
+    trained at the blend the frozen agent plays and is not multiplied by the rule switches' reward swings."""
+    return _flag("SPECTRA_PLAN_SPLIT")
+
+
+def plan_ema() -> float:
+    """``SPECTRA_PLAN_EMA`` (default 0 = off): d, the decay of an exponential moving average of the policy's weights
+    (audit F6; Polyak averaging), updated after every optimizer step with decay min(d, (1 + t) / (10 + t)). The
+    averaged policy is saved beside the last iterate as ``policy_ema_latest.pt`` at every save and as
+    ``policy_ema_it<N>.pt`` at the end; both are fixed before any read."""
+    return _plan_number("SPECTRA_PLAN_EMA", 0.0, 0.0, 1.0)
+
+
+def plan_lr_schedule() -> str:
+    """``SPECTRA_PLAN_LR_SCHEDULE`` (default ``constant``): ``cosine`` decays the lr to 0 over the run's updates,
+    lr_t = LR (1 + cos(pi t / T)) / 2 (audit F6)."""
+    raw = os.environ.get("SPECTRA_PLAN_LR_SCHEDULE", "").strip().lower() or "constant"
+    if raw not in ("constant", "cosine"):
+        raise ValueError(f"SPECTRA_PLAN_LR_SCHEDULE={raw!r}: expected constant or cosine")
+    return raw
+
+
+def plan_gnorm() -> str:
+    """``SPECTRA_PLAN_GNORM`` (default off): ``sqrt`` divides the scores' log-density of an instance by sqrt(G), G its
+    group count, ``linear`` by G (audit F9: the score's noise grows as sqrt(G), so the networks with many groups set
+    the direction of each update). The menu logits' term, K wide on every network, is left as it is."""
+    raw = os.environ.get("SPECTRA_PLAN_GNORM", "").strip().lower()
+    if not raw or raw in ("off", "0"):
+        return "off"
+    if raw not in ("sqrt", "linear"):
+        raise ValueError(f"SPECTRA_PLAN_GNORM={raw!r}: expected sqrt or linear")
+    return raw
+
+
+def plan_kappa_points():
+    """
+    ``SPECTRA_PLAN_KAPPA_POINTS`` (default off = None): ``k1,k2,...[:p[:w]]``, a mixture for the trainer's budget
+    draw (audit F5: an evaluation point outside the training range). With probability p (0.5) kappa is uniform within
+    +-w (0.05) of one of the listed points, else uniform over SPECTRA_PLAN_KAPPA as before. The uniform range itself
+    is SPECTRA_PLAN_KAPPA, which needs no new flag. Returns ``(points, p, w)``.
+    """
+    raw = os.environ.get("SPECTRA_PLAN_KAPPA_POINTS", "").strip()
+    if not raw:
+        return None
+    parts = raw.split(":")
+    try:
+        points = tuple(float(v) for v in parts[0].split(",") if v.strip())
+        prob = float(parts[1]) if len(parts) > 1 and parts[1].strip() else 0.5
+        width = float(parts[2]) if len(parts) > 2 and parts[2].strip() else 0.05
+    except ValueError:
+        points, prob, width = (), -1.0, -1.0
+    if not points or len(parts) > 3 or not all(0.0 < v < 1.0 for v in points) or not 0.0 < prob <= 1.0 \
+            or not 0.0 <= width < 0.5:
+        raise ValueError(f"SPECTRA_PLAN_KAPPA_POINTS={raw!r}: expected k1,k2,...[:p[:w]] with each k in (0, 1), "
+                         "p in (0, 1] and w in [0, 0.5)")
+    return points, prob, width
+
+
+def plan_sample() -> Tuple[str, float]:
+    """
+    ``SPECTRA_PLAN_SAMPLE`` (default ``net`` = ``("net", 0.0)``: every catalog network equally likely, as before).
+    ``family`` / ``family:<t>`` draws a network with probability proportional to (its family's size)^-t (audit F13):
+    t = 1 (the default) is a uniform draw over families, then over the family's networks; t = 0 is the network draw.
+    Families are ``plan_family`` of the checkpoint names.
+    """
+    raw = os.environ.get("SPECTRA_PLAN_SAMPLE", "").strip().lower()
+    if not raw or raw == "net":
+        return "net", 0.0
+    name, _sep, arg = raw.partition(":")
+    try:
+        t = float(arg) if arg else 1.0
+    except ValueError:
+        t = -1.0
+    if name != "family" or not 0.0 <= t <= 1.0:
+        raise ValueError(f"SPECTRA_PLAN_SAMPLE={raw!r}: expected net, family or family:<t in [0, 1]>")
+    return "family", t
+
+
+def plan_family(name: str) -> str:
+    """The architecture family of a catalog checkpoint, from its file name ``<arch>_<dataset>_<source>_...``: the
+    thin ResNets by depth (``resnet20-width10`` -> ``thin-resnet20``), a width multiplier dropped
+    (``mobilenet-v2x0.5`` -> ``mobilenet-v2``), else the architecture without its trailing digits (``resnet56`` ->
+    ``resnet``, ``wrn-28-2`` -> ``wrn``, ``vgg11`` -> ``vgg``, ``repvgga0`` -> ``repvgga``)."""
+    import re
+    arch = os.path.basename(str(name)).split("_")[0].lower()
+    if "-width" in arch:
+        return "thin-" + arch.split("-width")[0]
+    cut = re.sub(r"x[0-9.]+$", "", arch)
+    if cut != arch:
+        return cut
+    return re.sub(r"[-0-9.]+$", "", arch) or arch
+
+
+def plan_fs_guard() -> float:
+    """``SPECTRA_PLAN_FS_GUARD`` (default 0 = off): the ``fs<S>`` proxy's divergence guard (audit F11). At 1 a
+    fine-tune whose loss or weights go non-finite is flagged; above 1 so is a step whose loss exceeds that many times
+    the first step's. The fine-tune stops there, and the trainer gives the flagged plan the median reward of its
+    instance's other plans and counts it (``diverged`` in the record)."""
+    value = _plan_number("SPECTRA_PLAN_FS_GUARD", 0.0, 0.0, float("inf"))
+    if 0.0 < value < 1.0:
+        raise ValueError(f"SPECTRA_PLAN_FS_GUARD={value:g}: expected 0 (off), 1 (non-finite only) or a loss ratio above 1")
+    return value
+
+
+def plan_check() -> str:
+    """``SPECTRA_PLAN_CHECK`` (default off): the masked-vs-real gate (audit F14). ``1`` / ``warn`` checks three plans
+    per catalog network at the start (the even cut and the prior's or sens plan at 0.6, and one deep sampled plan at
+    kappa 0.35), each cut for real against the analytic size and the masked cut's accuracy, prints the dead filters
+    per group and closes with one ``[plan] check gate: PASS | FAIL`` line; ``refuse`` also stops the run on a FAIL.
+    The job's generators are put back after the extra cuts, so the run that follows is the run without the flag."""
+    raw = os.environ.get("SPECTRA_PLAN_CHECK", "").strip().lower()
+    if not raw or raw in ("0", "off"):
+        return "off"
+    if raw in ("1", "warn", "on"):
+        return "warn"
+    if raw == "refuse":
+        return "refuse"
+    raise ValueError(f"SPECTRA_PLAN_CHECK={raw!r}: expected 1, warn or refuse")
+
+
+def plan_contract() -> str:
+    """``SPECTRA_PLAN_CONTRACT`` (default off): the state contract (audit F15). ``1`` makes the trainer write the
+    contract its states were built under into every checkpoint (``state_contract``: the token layout and
+    ``plan_state_contract``). A frozen agent whose checkpoint carries one is refused on a job whose contract differs
+    (``plan_agent.check_contract``), whatever this flag says, unless it is ``warn``, which prints the differences
+    instead."""
+    raw = os.environ.get("SPECTRA_PLAN_CONTRACT", "").strip().lower()
+    if not raw or raw in ("0", "off"):
+        return "off"
+    if raw in ("1", "on"):
+        return "on"
+    if raw == "warn":
+        return "warn"
+    raise ValueError(f"SPECTRA_PLAN_CONTRACT={raw!r}: expected 1 or warn")
+
+
+def plan_state_contract() -> dict:
+    """The settings, as this job reads them, that shape the state the plan agent is given and the cut its reward
+    scores: the channels of a token (``state_dump.layout`` follows the first six), the stem and narrow-width marks,
+    which row the reset marks, the activation probe, the sensitivity measurement and the cut's filter ranking. The walk
+    actor's ``policy_config.json`` pins most of them whenever ``SPECTRA_ACTOR_CHECKPOINT_PATH`` is set; a job without
+    that actor, or under another one, reads other values."""
+    import src.group_sensitivity as group_sensitivity
+    return {
+        "fortify": int(fortify_enabled()), "budget_in_state": int(budget_in_state()),
+        "state_slack": int(state_slack()), "state_groupcost": int(state_groupcost()),
+        "fixed_target": int(fixed_target()), "state_sens": int(state_sens()), "state_tokens": state_tokens(),
+        "state_align": "next" if state_align_next() else "prev", "stem_rows": int(stem_rows()),
+        "min_width_for_prune": int(min_width_for_prune()), "refresh_all_features": int(refresh_all_features()),
+        "probe_batches": max(1, _env_int_or("SPECTRA_PROBE_BATCHES", 2)),
+        "sens_bn_recal": int(group_sensitivity.sens_bn_recal()), "structural_only": int(plan_structural_only()),
+        "filter_importance": os.environ.get("SPECTRA_FILTER_IMPORTANCE", "").strip().lower() or "default",
+    }
+
+
 def entropy_anneal_horizon() -> int:
     return max(1, int(os.environ.get("SPECTRA_ENTROPY_ANNEAL_HORIZON", "100")))
 

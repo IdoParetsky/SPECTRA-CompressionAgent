@@ -56,6 +56,11 @@ MENU_SHARE_FLOOR = 0.005  # the mean plan drops a rule under this share (at the 
 Z_CLIP = 30.0  # |z| beyond this is clipped in residual_decode: exp stays finite, the plan is already saturated
 FS_MOMENTUM = 0.9  # the fs<S> proxy's short fine-tune: SGD momentum and weight decay, shared by the trainer and
 FS_WD = 5e-4  # the eval-side proxy (plan_proxies); the lr is fs_lr()
+# AGENT-V2 (26 Nov 2026, docs/paper/AGENT_AUDIT_26NOV.md; every piece default off, see the block in src/fortify.py)
+CE_KINDS = ("cutce", "bnce")  # SPECTRA_PLAN_PROXY=cutce / bnce<N>: the reward is the val cross-entropy change
+CE_SCALE = 100.0  # ... in hundredths of a nat, so the two-decimal log lines keep their resolution
+MENU_KAPPA_BINS = 5  # SPECTRA_PLAN_MENU_KAPPA: the default number of budget bins of the menu head's embedding
+MENU_FLOOR_MARGIN = 1.25  # the automatic share floor is this many times the untrained head's largest off-anchor share
 
 
 def fs_lr() -> float:
@@ -476,6 +481,32 @@ def menu_shares(u, floor: float = 0.0):
     return pi
 
 
+def menu_bounded(psi, bound: float):
+    """B · tanh(psi / B) per logit, as floats (AGENT-V2, ``SPECTRA_PLAN_MENU_BOUND``); ``psi`` itself at bound 0. The
+    policy applies the same map to its own logits (``PlanPolicy.menu_logits``)."""
+    return [float(bound) * math.tanh(float(v) / float(bound)) if bound > 0 else float(v) for v in psi]
+
+
+def menu_floor(init: float, k: int, bound: float = 0.0, flag=None) -> float:
+    """The share under which the mean plan drops a rule (AGENT-V2). ``flag`` is ``fortify.plan_menu_share_floor()``:
+    None is ``MENU_SHARE_FLOOR`` without a bound and ``auto`` under one; a number is that floor; ``auto`` is
+    ``MENU_FLOOR_MARGIN`` times the largest off-anchor share of the untrained head, softmax of the bounded
+    (``init``, 0, …, 0), rounded up to four decimals and at least ``MENU_SHARE_FLOOR``, so the untrained agent's mean
+    plan stays the anchor's plan exactly under a bound too (B = 4 and the default init leave 2.5 % on each other rule:
+    floor 0.031). An init that leaves the other rules more than 8 % each has no such floor, and ``auto`` is then
+    ``MENU_SHARE_FLOOR`` (the trainer's WARNING line says the mean plan does not start on the prior's)."""
+    if flag is None:
+        flag = "auto" if bound > 0 else None
+    if flag is None:
+        return MENU_SHARE_FLOOR
+    if flag != "auto":
+        return float(flag)
+    off = max(menu_shares(menu_bounded([float(init)] + [0.0] * (int(k) - 1), bound))[1:])
+    if off > 0.08:
+        return MENU_SHARE_FLOOR
+    return max(MENU_SHARE_FLOOR, math.ceil(MENU_FLOOR_MARGIN * off * 1e4) / 1e4)
+
+
 def menu_mix(pi, rules, rows):
     """``{row: weight}``: the blend of ``rules`` (``[{row: weight}]``, ``menu_rules``) at shares ``pi``, the weights the
     residual's scores then multiply: exp(Σ_k π_k log ŵ_k,g), with ŵ_k = w_k over its geometric mean over ``rows`` (a
@@ -667,9 +698,19 @@ class PlanPolicy(nn.Module):
     weights start at zero and its bias at (``menu_init``, 0, …, 0), so the agent starts on the anchor whatever the
     encoder reads. Its constructor's random draw is put back, so the encoder and the score head get the weights, and
     the global RNG the state, of a policy without a menu.
+
+    AGENT-V2 (26 Nov, audit F2; both default off, the module then as before). ``menu_bound`` = B > 0
+    (``SPECTRA_PLAN_MENU_BOUND``) makes the logits B · tanh(raw / B). ``menu_kappa`` = ``{"kind", "n", "lo", "hi"}``
+    (``SPECTRA_PLAN_MENU_KAPPA``) lets the head read the budget: κ, the last of the network-level inputs, picks one of
+    ``n`` equal bins over [``lo``, ``hi``] (the nearest bin outside it), and that bin's learned row of ``kappa_shift``
+    (as wide as the encoder's output, started at N(0, 1)) is added to the pooled token output before the head; under
+    kind ``film`` the pooled output is first scaled by 1 + the bin's row of ``kappa_scale`` (started at 0). The head's
+    weights still start at zero, so the untrained logits are the bias whatever the bin, and the new rows' draws are
+    put back with the menu head's.
     """
 
-    def __init__(self, feature_dim: int, encoder: str = "transformer", menu: int = 0, menu_init: float = MENU_INIT):
+    def __init__(self, feature_dim: int, encoder: str = "transformer", menu: int = 0, menu_init: float = MENU_INIT,
+                 menu_bound: float = 0.0, menu_kappa=None):
         super().__init__()
         from src.Model.StateEncoder import build_state_encoder
         self.feature_dim, self.encoder_kind = int(feature_dim), encoder
@@ -680,9 +721,17 @@ class PlanPolicy(nn.Module):
         nn.init.zeros_(self.head.weight)
         nn.init.zeros_(self.head.bias)
         self.menu = int(menu)
+        self.menu_bound = float(menu_bound) if self.menu else 0.0
+        self.menu_kappa = None
         if self.menu:
             rng = torch.get_rng_state()
             self.menu_head = nn.Linear(self.encoder.output_dim + self.menu, self.menu)
+            if menu_kappa:
+                self.menu_kappa = check_menu_kappa(menu_kappa)
+                self.kappa_shift = nn.Embedding(self.menu_kappa["n"], self.encoder.output_dim)
+                if self.menu_kappa["kind"] == "film":
+                    self.kappa_scale = nn.Embedding(self.menu_kappa["n"], self.encoder.output_dim)
+                    nn.init.zeros_(self.kappa_scale.weight)
             torch.set_rng_state(rng)
             with torch.no_grad():
                 self.menu_head.weight.zero_()
@@ -705,12 +754,71 @@ class PlanPolicy(nn.Module):
         x_net = torch.as_tensor(x_net, dtype=encoded.dtype, device=encoded.device)
         if x_net.numel() != self.menu:
             raise ValueError(f"menu_logits: {x_net.numel()} network-level inputs for a menu of {self.menu} rules")
-        return self.menu_head(torch.cat([encoded.mean(dim=0), x_net]))
+        pooled = encoded.mean(dim=0)
+        if self.menu_kappa is not None:  # AGENT-V2: the budget's bin shifts (film: scales and shifts) the pooled output
+            index = kappa_bin(float(x_net[-1]), self.menu_kappa)
+            if self.menu_kappa["kind"] == "film":
+                pooled = pooled * (1.0 + self.kappa_scale.weight[index])
+            pooled = pooled + self.kappa_shift.weight[index]
+        psi = self.menu_head(torch.cat([pooled, x_net]))
+        if self.menu_bound > 0:  # AGENT-V2: within ±B, so sigma_u keeps flipping the leading rule
+            psi = self.menu_bound * torch.tanh(psi / self.menu_bound)
+        return psi
 
 
-def sample_scores(mu, sigma: float, k: int, generator=None):
+def check_menu_kappa(spec):
+    """``{"kind", "n", "lo", "hi"}`` of a menu head's budget bins (AGENT-V2, ``PlanPolicy``), or a ValueError."""
+    try:
+        out = {"kind": str(spec["kind"]), "n": int(spec["n"]), "lo": float(spec["lo"]), "hi": float(spec["hi"])}
+    except (KeyError, TypeError, ValueError):
+        raise ValueError(f"menu_kappa={spec!r}: expected kind, n, lo and hi") from None
+    if out["kind"] not in ("bins", "film") or out["n"] < 2 or not 0.0 < out["lo"] <= out["hi"] < 1.0:
+        raise ValueError(f"menu_kappa={spec!r}: expected kind bins or film, n >= 2 and 0 < lo <= hi < 1")
+    return out
+
+
+def kappa_bin(kappa: float, spec) -> int:
+    """The bin of ``kappa`` among ``spec["n"]`` equal bins over [``lo``, ``hi``]; a κ outside the range takes the
+    nearest bin (so a frozen agent asked for a budget it never trained at reads the closest one it did)."""
+    lo, hi, n = float(spec["lo"]), float(spec["hi"]), int(spec["n"])
+    if hi <= lo:
+        return 0
+    return min(n - 1, max(0, int((float(kappa) - lo) / (hi - lo) * n)))
+
+
+def menu_entropy(psi):
+    """H(softmax(psi)) in nats, differentiable (AGENT-V2, ``SPECTRA_PLAN_MENU_ENT``): the entropy of the mean shares."""
+    logp = torch.log_softmax(psi, dim=-1)
+    return -(logp.exp() * logp).sum()
+
+
+def sample_scores(mu, sigma: float, k: int, generator=None, mirror: bool = False):
+    """``k`` draws mu + sigma · eps. ``mirror`` (AGENT-V2, ``SPECTRA_PLAN_MIRROR``; default off, the draw as before):
+    k / 2 noise vectors, each played with both signs, row i + k / 2 being the mirror image of row i, so the k rows
+    average to mu and every pair is a central difference of the reward around it."""
+    if mirror:
+        if int(k) % 2:
+            raise ValueError(f"mirrored sampling needs an even number of plans, not {k}")
+        half = torch.randn((int(k) // 2, mu.numel()), generator=generator, device=mu.device, dtype=mu.dtype)
+        eps = torch.cat([half, -half], dim=0)
+        return mu.detach().unsqueeze(0) + float(sigma) * eps
     eps = torch.randn((k, mu.numel()), generator=generator, device=mu.device, dtype=mu.dtype)
     return mu.detach().unsqueeze(0) + float(sigma) * eps
+
+
+def rank_utilities(r):
+    """Centred ranks of the rewards ``r`` (AGENT-V2, ``SPECTRA_PLAN_ADV=rank``; ES fitness shaping): rank / (K − 1) −
+    0.5 with tied rewards sharing their mean rank, times (K − 1) · sqrt(12 / (K (K + 1))), which gives the K values
+    unit sample SD when no two tie, the scale of the SD-normalised advantage they replace (the lr and the clip then
+    mean what they mean on the lines of record). They sum to zero, depend only on the order of the rewards (any
+    increasing map of r leaves them unchanged) and are all zero when every reward ties."""
+    k = int(r.numel())
+    if k < 2:
+        return torch.zeros_like(r)
+    below = (r.unsqueeze(0) < r.unsqueeze(1)).sum(dim=1).to(r.dtype)
+    ties = (r.unsqueeze(0) == r.unsqueeze(1)).sum(dim=1).to(r.dtype)
+    rank = below + 0.5 * (ties - 1.0)
+    return (rank / (k - 1) - 0.5) * ((k - 1) * math.sqrt(12.0 / (k * (k + 1))))
 
 
 def log_prob(z, mu, sigma: float):
@@ -733,6 +841,21 @@ def save_policy(policy: PlanPolicy, path: str, **meta):
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     torch.save({"state_dict": policy.state_dict(), "feature_dim": policy.feature_dim,
                 "encoder": policy.encoder_kind, **meta}, path)
+
+
+def save_weights(policy: PlanPolicy, state_dict, path: str, **meta):
+    """``save_policy`` with another set of weights for the same module (AGENT-V2, ``SPECTRA_PLAN_EMA``: the averaged
+    weights, saved beside the last iterate with ``weights="ema"`` in the blob). Written to a temp file and renamed, as
+    the trainer overwrites ``policy_ema_latest.pt`` at every save."""
+    if len(meta.get("menu") or ()) != int(getattr(policy, "menu", 0)):
+        raise ValueError(f"save_weights: the policy has a menu head for {getattr(policy, 'menu', 0)} rules, the "
+                         f"checkpoint meta lists menu={meta.get('menu')!r}")
+    if set(state_dict) != set(policy.state_dict()):
+        raise ValueError("save_weights: the weights are not this policy's (their names differ)")
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    torch.save({"state_dict": dict(state_dict), "feature_dim": policy.feature_dim,
+                "encoder": policy.encoder_kind, **meta}, path + ".tmp")
+    os.replace(path + ".tmp", path)
 
 
 def read_blob(path: str):
@@ -759,9 +882,57 @@ def check_menu(blob, where="the plan-agent checkpoint"):
     return saved
 
 
+def state_contract(spans):
+    """The contract a plan agent's states are built under (AGENT-V2, ``SPECTRA_PLAN_CONTRACT``, audit F15):
+    ``{"layout": [[channel, start, end], …], **fortify.plan_state_contract()}``, the token's channels in order (from
+    ``spans``, ``spans_of(state_dump.layout(…))``) and the settings that shape their content and the scored cut."""
+    from src import fortify
+    return {"layout": contract_layout(spans), **fortify.plan_state_contract()}
+
+
+def contract_layout(spans):
+    """``[[channel, start, end], …]`` in token order: ``spans`` as a checkpoint stores it."""
+    return [[str(name), int(start), int(end)] for name, (start, end) in sorted(spans.items(), key=lambda kv: kv[1])]
+
+
+def check_contract(blob, spans=None, where="the plan-agent checkpoint"):
+    """Refuse (ValueError) a checkpoint whose ``state_contract`` (written by a trainer under
+    ``SPECTRA_PLAN_CONTRACT=1``) differs from this job's, naming every difference, as ``check_menu`` refuses another
+    menu; ``SPECTRA_PLAN_CONTRACT=warn`` prints them as one WARNING line instead. A checkpoint without a contract
+    (every one before AGENT-V2) is not checked. It runs in two steps, as ``plan_for_env`` learns the job's side:
+    without ``spans`` the settings (``fortify.plan_state_contract``), before anything is measured; with ``spans``
+    (``spans_of(state_dump.layout(…))`` of the state just built) the token layout alone. Returns the differences."""
+    saved = blob.get("state_contract")
+    if not saved:
+        return []
+    from src import fortify
+    import src.utils as utils
+    if spans is None:
+        here = fortify.plan_state_contract()
+        saved = {key: value for key, value in saved.items() if key != "layout"}
+    else:
+        here = {"layout": contract_layout(spans)}
+        saved = {"layout": saved.get("layout")}
+    bad = [f"{key}={saved.get(key)!r} (here {here.get(key)!r})" for key in sorted(set(saved) | set(here))
+           if saved.get(key) != here.get(key)]
+    if not bad:
+        return []
+    message = (f"{where} was trained under another state contract: " + "; ".join(bad)
+               + ". Pin the walk actor it trained with (SPECTRA_ACTOR_CHECKPOINT_PATH"
+               + (f"={blob['actor']}" if blob.get("actor") else "") + "), or set SPECTRA_PLAN_CONTRACT=warn to plan anyway")
+    if fortify.plan_contract() == "warn":
+        utils.print_flush(f"[alloc] WARNING: {message}")
+        return bad
+    raise ValueError(message)
+
+
 def policy_of(blob, device="cpu"):
     kinds = check_menu(blob)
     extra = {} if kinds is None else {"menu": len(kinds), "menu_init": float(blob.get("menu_init", MENU_INIT))}
+    if kinds is not None and blob.get("menu_bound"):  # AGENT-V2: the head the trainer built, from the checkpoint alone
+        extra["menu_bound"] = float(blob["menu_bound"])
+    if kinds is not None and blob.get("menu_kappa"):
+        extra["menu_kappa"] = blob["menu_kappa"]
     policy = PlanPolicy(blob["feature_dim"], blob.get("encoder", "transformer"), **extra)
     policy.load_state_dict(blob["state_dict"])
     return policy.to(device).eval()
@@ -806,10 +977,16 @@ def ft_batches(loader, n, seed, device):
     return out
 
 
-def short_finetune(model, batches, lr, after_step=None):
+def short_finetune(model, batches, lr, after_step=None, guard: float = 0.0):
     """SGD (momentum ``FS_MOMENTUM``, weight decay ``FS_WD``) at ``lr``, one step per ``(x, y)`` in ``batches``, in
     train mode with every parameter trainable (the flags are put back); ``after_step`` runs without grad after each
-    step (``MaskedCut.remask``). The model is left in eval mode."""
+    step (``MaskedCut.remask``). The model is left in eval mode.
+
+    ``guard`` > 0 (AGENT-V2, ``SPECTRA_PLAN_FS_GUARD``, audit F11; 0 = off, every step as before and None returned)
+    watches for divergence and returns True when it finds one, False otherwise: a step whose loss is not finite, or,
+    for ``guard`` above 1, more than ``guard`` times the first step's, stops the fine-tune before its update; weights
+    that are not finite after the last step count too."""
+    diverged, first = False, None
     with torch.enable_grad():
         flags = [p.requires_grad for p in model.parameters()]
         for p in model.parameters():
@@ -818,7 +995,16 @@ def short_finetune(model, batches, lr, after_step=None):
         opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=FS_MOMENTUM, weight_decay=FS_WD)
         for x, y in batches:
             opt.zero_grad(set_to_none=True)
-            torch.nn.functional.cross_entropy(model(x), y).backward()
+            if not guard:
+                torch.nn.functional.cross_entropy(model(x), y).backward()
+            else:
+                loss = torch.nn.functional.cross_entropy(model(x), y)
+                value = float(loss.detach())
+                first = value if first is None else first
+                if not math.isfinite(value) or (guard > 1.0 and value > guard * max(first, 1e-12)):
+                    diverged = True
+                    break
+                loss.backward()
             opt.step()
             if after_step is not None:
                 with torch.no_grad():
@@ -826,6 +1012,23 @@ def short_finetune(model, batches, lr, after_step=None):
         for p, flag in zip(model.parameters(), flags):
             p.requires_grad = flag
         model.eval()
+    if not guard:
+        return None
+    return diverged or any(not bool(torch.isfinite(p).all()) for p in model.parameters())
+
+
+@torch.no_grad()
+def val_loss(model, batches) -> float:
+    """Mean cross-entropy (nats) of ``model`` over ``batches`` in eval mode, the mode put back (AGENT-V2: what the
+    ``cutce`` / ``bnce<N>`` rewards read; ``accuracy``'s twin)."""
+    was_training = model.training
+    model.eval()
+    total, count = 0.0, 0
+    for x, y in batches:
+        total += float(torch.nn.functional.cross_entropy(model(x), y, reduction="sum"))
+        count += int(y.numel())
+    model.train(was_training)
+    return total / max(1, count)
 
 
 @torch.no_grad()
@@ -865,18 +1068,27 @@ def _digits(text: str) -> bool:
     return text.isascii() and text.isdigit()
 
 
-def parse_proxy(name: str, judge: bool = False):
+def parse_proxy(name: str, judge: bool = False, ce: bool = False):
     """``("cut", 0)``, ``("bn", N)``, ``("fs", S)`` or ``("ft", E)`` (v23: E ≥ 1 epochs of the handler's fine-tune).
 
     ``judge=True`` (v32, default off; the safety net's judge grammar, read by ``plan_proxies.PlanScorer`` and
     ``alloc_walk.fallback_proxies``) returns a triple ``(kind, n, k)`` instead: the same names, plus ``rc<E>`` (kind
     ``"rc"``, E ≥ 1 epochs of the final recovery recipe, cosine compressed to E epochs) and the repeat suffix ``x<k>``
     (k ≥ 2, on ``ft<E>`` and ``rc<E>`` only: the mean of k draws), ``k`` being 1 without a suffix. The plan trainer's
-    grammar (``judge=False``, its two-tuple) is untouched: ``rc<E>`` and ``x<k>`` are refused there."""
+    grammar (``judge=False``, its two-tuple) is untouched: ``rc<E>`` and ``x<k>`` are refused there.
+
+    ``ce=True`` (AGENT-V2, 26 Nov, audit F1 rank 1b; passed by the plan trainer and ``NetInstance`` only, so every
+    other reader of this grammar refuses the names as before) also takes ``cutce`` -> ``("cutce", 0)`` and ``bnce<N>``
+    -> ``("bnce", N)``: the raw cut, or the cut after N recalibration batches, read as the change in val cross-entropy
+    instead of accuracy (``CE_KINDS``, ``NetInstance.reward``)."""
     name = (name or "").strip().lower()
     if not judge:
         if name == "cut":
             return "cut", 0
+        if ce and name == "cutce":
+            return "cutce", 0
+        if ce and name.startswith("bnce") and _digits(name[4:]) and int(name[4:]) > 0:
+            return "bnce", int(name[4:])
         for kind in ("bn", "fs", "ft"):
             if name.startswith(kind) and name[2:].isdigit() and int(name[2:]) > 0:
                 return kind, int(name[2:])
@@ -970,6 +1182,10 @@ class NetInstance:
         self.curves = curves
         self._prior = {}
         self.held = {int(row) for group, row in plan if len(group.producers) > 1}
+        # AGENT-V2 (both unread unless their flag is on): the origin's val cross-entropy, measured the first time a
+        # cutce / bnce<N> reward asks for it, and whether the last fs<S> reward's fine-tune diverged (FS_GUARD)
+        self._origin_ce = None
+        self.diverged = False
         self.seconds = time.perf_counter() - started
 
     @classmethod
@@ -1057,6 +1273,39 @@ class NetInstance:
         del real
         return out
 
+    def check_widths(self, widths, budget: str = "params"):
+        """One plan cut for real (AGENT-V2, ``SPECTRA_PLAN_CHECK``, audit F14): ``{"analytic", "real", "masked_r",
+        "real_r"}``, the kept ``budget`` the cost model predicts for ``widths`` against the real cut's
+        (``alloc_walk.cut_to``; parameters counted, FLOPs by ``calc_flops``), and the masked cut's Δ val (the ``cut``
+        reward) against the real cut's. ``check`` is this for the even cut on params, with the dead-channel count."""
+        from src import alloc_walk
+        import src.utils as utils
+        cm = self.cost_model(budget)
+        real = alloc_walk.cut_to(self.model, self.plan, rates_of(widths, self.pm.widths0), self.input_shape)
+        real = real.to(self.device)
+        if budget == "flops":
+            kept = float(utils.calc_flops(real, self.input_shape, self.device)) / cm.total0
+        else:
+            kept = sum(p.numel() for p in real.parameters()) / float(self.pm.total0)
+        out = {"analytic": float(cm.kept(widths)), "real": kept,
+               "real_r": 100.0 * (accuracy(real, self.val) - self.origin_val)}
+        del real
+        out["masked_r"] = self.reward(widths, "cut", [])
+        return out
+
+    def dead_by_group(self):
+        """``{row: dead filters}`` of the planned groups that have any (AGENT-V2): all-zero L1 filters of the origin,
+        which both cuts count out of the survivors, so such a group lands below its planned width."""
+        from src import pruning
+        self.cutter.work.load_state_dict(self.cutter.origin)
+        out = {}
+        for group, row in self.cutter.plan:
+            importance = pruning.group_importance(group, "l1")
+            dead = int((importance <= 0).sum()) if importance is not None else 0
+            if dead:
+                out[int(row)] = dead
+        return out
+
     def cost_model(self, budget: str = "params"):
         """``ParamModel`` for ``params``; for ``flops`` the net's ``FlopModel``, built on first use."""
         if budget not in BUDGETS:
@@ -1075,30 +1324,52 @@ class NetInstance:
         (common random numbers): the fixed ``(x, y)`` batches of ``fs<S>``, the recalibration batches of ``bn<N>``,
         nothing for ``cut``, and for ``ft<E>`` the seed itself (its fine-tune draws its epochs from the loader under
         it)."""
-        kind, n = parse_proxy(proxy)
+        kind, n = parse_proxy(proxy, ce=True)
         if kind == "ft":
             return int(seed)
         if kind == "fs":
             return ft_batches(self.train_loader, n, seed, self.device)
-        return recal_batches(self.train_loader, n, seed, self.device) if kind == "bn" else []
+        return recal_batches(self.train_loader, n, seed, self.device) if kind in ("bn", "bnce") else []
+
+    def origin_ce(self) -> float:
+        """The origin's val cross-entropy (nats), measured once (AGENT-V2: the ``cutce`` / ``bnce<N>`` rewards)."""
+        if self._origin_ce is None:
+            self._origin_ce = val_loss(self.model, self.val)
+        return self._origin_ce
 
     def reward(self, widths, proxy: str, batches) -> float:
         """Δ val accuracy (pp) of one cut to ``widths``, after ``proxy`` (BatchNorm re-estimated on ``batches``, or the
         masked copy fine-tuned a step per ``(x, y)`` in ``batches``, re-masked after every step). ``ft<E>`` (v23)
         instead cuts the net for real and fine-tunes that copy E epochs with the handler's own recipe
-        (``finetune_reward``); ``batches`` is then the seed ``batches`` returned for it."""
+        (``finetune_reward``); ``batches`` is then the seed ``batches`` returned for it.
+
+        AGENT-V2 (default off). ``cutce`` / ``bnce<N>`` (audit F1): the same cut, as it is or after N recalibration
+        batches, read as −``CE_SCALE`` · (its val cross-entropy − the origin's): hundredths of a nat, higher is
+        better, and unlike accuracy it does not stop at chance or move in steps of one image. Under
+        ``SPECTRA_PLAN_FS_GUARD`` the ``fs<S>`` fine-tune is watched (``short_finetune``'s ``guard``) and ``diverged``
+        says whether this call's did; the value returned is the diverged copy's reading, for the trainer to replace."""
         from src import recovery_edits
-        kind, n = parse_proxy(proxy)
+        kind, n = parse_proxy(proxy, ce=True)
         if kind == "ft":
             if isinstance(batches, bool) or not isinstance(batches, int):
                 raise ValueError(f"the {proxy} reward takes the seed batches() returns for it, "
                                  f"not {type(batches).__name__}")
             return self.finetune_reward(widths, n, batches)
         work = self.cutter.cut(rates_of(widths, self.pm.widths0))
+        if kind in CE_KINDS:
+            if kind == "bnce":
+                recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
+            return -CE_SCALE * (val_loss(work, self.val) - self.origin_ce())
         if kind == "bn":
             recovery_edits.recalibrate_batchnorm(work, batches, self.device, len(batches))
         elif kind == "fs":
-            short_finetune(work, batches, fs_lr(), after_step=self.cutter.remask)
+            from src import fortify
+            guard = fortify.plan_fs_guard()
+            if guard > 0:
+                self.diverged = bool(short_finetune(work, batches, fs_lr(), after_step=self.cutter.remask,
+                                                    guard=guard))
+            else:
+                short_finetune(work, batches, fs_lr(), after_step=self.cutter.remask)
         return 100.0 * (accuracy(work, self.val) - self.origin_val)
 
     def finetune_reward(self, widths, epochs: int, seed: int) -> float:
@@ -1234,6 +1505,8 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
                 raise ValueError(f"plan-agent ensemble: {p} differs from {paths[0]} in {key} "
                                  f"({other.get(key)!r} against {blob.get(key)!r})")
     kinds = check_menu(blob, f"the plan agent at {paths[0]}")  # v36; None with no menu anywhere: all below as before
+    for p, saved in zip(paths, [blob] + members):  # AGENT-V2 (F15): the settings a checkpoint's contract records, if any
+        check_contract(saved, None, f"the plan agent at {p}")
     if kinds is not None and (members or sample is not None):
         raise ValueError(f"the plan agent at {paths[0]} is a menu policy: an ensemble and a sampled plan "
                          "(agent_sample) are not defined for it yet; plan with one checkpoint's mean (agent)")
@@ -1270,6 +1543,8 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
         rows, _conflicts = state_dump.group_token_rows(state["token_members"], rows)
         extra = GROUP_TOKEN_EXTRA_DIM
     spans = spans_of(state_dump.layout(int(state["layer_features"].size(1)), num_actions, extra))
+    for p, saved in zip(paths, [blob] + members):  # AGENT-V2 (F15): only a checkpoint that carries a contract is checked
+        check_contract(saved, spans, f"the plan agent at {p}")
     state = {k: (v.to(device) if torch.is_tensor(v) else v) for k, v in state.items() if k != "token_members"}
     if kappa is None:
         kappa = env.target_keep if env.target_keep is not None else target
@@ -1354,7 +1629,8 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
 
 
 ENSEMBLE_KEYS = ("feature_dim", "encoder", "tokens", "zero", "k_min", "min_width", "budget", "standardizer",
-                 "residual", "residual_alpha", "residual_zmax", "menu")  # menu (v36): absent = None on both sides
+                 "residual", "residual_alpha", "residual_zmax", "menu",  # menu (v36): absent = None on both sides
+                 "menu_bound", "menu_kappa")  # AGENT-V2: the menu head's bound and budget bins, absent = None too
 
 
 def ensemble_paths(policy_path: str):

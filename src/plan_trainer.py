@@ -58,9 +58,29 @@ Gaussian term. The mean plan decodes the mean scores at softmax(ψ) with the sha
 gains ``menu_pi``, each summary a ``[plan] menu summary`` line, each net a ``[plan] menu setup`` line with the seconds
 its rules cost, and the checkpoint ``menu`` / ``menu_anchor`` / ``menu_init`` / ``menu_sigma`` /
 ``menu_share_floor``), MENU_INIT (6.0, the anchor's starting logit), MENU_SIGMA (0.5, constant over the run).
+
+AGENT-V2 (26 Nov 2026, ``docs/paper/AGENT_AUDIT_26NOV.md``; queue row AGENT-V2). Every knob below is new and default
+off; with all of them unset the loop, its draws, records, log lines and checkpoints are tree_v41's
+(``tests/test_agent_v2.py``). Each is read through its ``fortify.plan_*`` function, which documents it; the ones that
+are on are listed after ``| av2:`` in the opening line and written to the checkpoints (``av2_meta``), so a chained job
+under other flags is refused. PROXY also takes ``cutce`` / ``bnce<N>`` (the reward is the val cross-entropy change);
+ADV (``rank`` | ``global[:decay]`` | ``floor:<s0>``: the advantages, in place of NORM_ADV's division); MIRROR (K / 2
+draws and their mirror images); MENU_BOUND (the mean logits are B tanh(psi / B)), MENU_ENT (an annealed entropy bonus
+on the mean shares), MENU_KAPPA (``bins`` | ``film``: the menu head reads the budget's bin), MENU_LOG (psi, its range
+and the per-plan shares in each record), MENU_SHARE_FLOOR (the mean plan's share floor; ``auto`` under MENU_BOUND),
+MENU_SIGMA_ANNEAL (sigma_u follows the scores' schedule); SPLIT (half the plans draw the scores at the mean shares,
+half the menu logits at the mean scores, each half with its own advantages); EMA (an averaged copy of the weights,
+saved as ``policy_ema_latest.pt`` at every save and ``policy_ema_it<N>.pt`` at the end) and LR_SCHEDULE=cosine;
+GNORM (``sqrt`` | ``linear``: the scores' log-density over sqrt(G) or G); KAPPA_POINTS (part of the budgets drawn near
+the registered points); SAMPLE=family[:t] (networks drawn by family); FS_GUARD (a diverged ``fs<S>`` fine-tune's plan
+takes the median reward of its instance); CHECK (``1`` | ``refuse``: three plans per network cut for real against the
+masked cut, one ``[plan] check gate`` verdict line); CONTRACT (the state contract in the checkpoint, which
+``plan_agent.plan_for_env`` then refuses on a mismatch). With STATE on, the averaged weights and ADV=global's running
+scale travel in ``trainer_state.pt`` under ``av2``.
 """
 
 import json
+import math
 import os
 import random
 import statistics
@@ -124,7 +144,7 @@ def config() -> Config:
         max_minutes=float(_env("MAX_MINUTES", "0")),
         summary_kappas=tuple(float(v) for v in _env("SUMMARY_KAPPAS", "0.4,0.6,0.8").split(",") if v.strip()),
         budget=_env("BUDGET", "params").lower())
-    plan_agent.parse_proxy(cfg.proxy)
+    plan_agent.parse_proxy(cfg.proxy, ce=True)  # AGENT-V2: cutce / bnce<N> too; every other name as before
     if cfg.tokens not in plan_agent.TOKEN_KINDS:
         raise ValueError(f"SPECTRA_PLAN_TOKENS={cfg.tokens!r}; expected one of {plan_agent.TOKEN_KINDS}")
     if cfg.budget not in plan_agent.BUDGETS + ("mixed",):
@@ -215,6 +235,12 @@ def warm_start(policy, blob, meta, path):
     if trained and os.path.abspath(trained) != os.path.abspath(here):
         utils.print_flush(f"[plan] WARNING: SPECTRA_PLAN_INIT trained under standardizer {trained}; "
                           f"this run reads {here}")
+    # AGENT-V2 (F15): two recorded state contracts must agree; a checkpoint or a run without one is not checked
+    if blob.get("state_contract") and meta.get("state_contract") and blob["state_contract"] != meta["state_contract"]:
+        old, new = blob["state_contract"], meta["state_contract"]
+        bad = [f"{key}={old.get(key)!r} (here {new.get(key)!r})" for key in sorted(set(old) | set(new))
+               if old.get(key) != new.get(key)]
+        raise ValueError(f"SPECTRA_PLAN_INIT={path}: trained under another state contract: " + "; ".join(bad))
     policy.load_state_dict(blob["state_dict"])
     utils.print_flush(f"[plan] init {path}: policy weights loaded (trained with proxy={blob.get('proxy')!r} "
                       f"budget={blob.get('budget')!r} on {len(blob.get('nets') or [])} nets)")
@@ -264,15 +290,19 @@ def set_rng_states(states, rng):
                           f"this run has {devices} CUDA devices; the CUDA generators are not restored")
 
 
-def trainer_state(policy, optimizer, rng, done, meta, chain):
+def trainer_state(policy, optimizer, rng, done, meta, chain, extra=None):
     """The resumable state after ``done`` instances (``STATE_KEYS``): the policy and optimizer state dicts, the partial
     batch's accumulated gradient per policy parameter (None at a batch boundary, and for a parameter the forward
     never uses), ``rng_states``, the checkpoint meta (``config`` included), the states this run resumed from (oldest
-    first), the format and the wall-clock time."""
-    return {"format": STATE_FORMAT, "done": int(done), "policy": policy.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "grads": [None if p.grad is None else p.grad.detach() for p in policy.parameters()],
-            "rng": rng_states(rng), "meta": dict(meta), "chain": list(chain), "saved": time.time()}
+    first), the format and the wall-clock time. ``extra`` (AGENT-V2; None with no stateful flag on, and the state is
+    then as before) is kept under ``av2``: the averaged weights and the running advantage scale (``av2_state``)."""
+    out = {"format": STATE_FORMAT, "done": int(done), "policy": policy.state_dict(),
+           "optimizer": optimizer.state_dict(),
+           "grads": [None if p.grad is None else p.grad.detach() for p in policy.parameters()],
+           "rng": rng_states(rng), "meta": dict(meta), "chain": list(chain), "saved": time.time()}
+    if extra:
+        out["av2"] = extra
+    return out
 
 
 def write_state(path: str, state):
@@ -373,13 +403,15 @@ def references(inst, kappa, cfg, batches, budget="params", floor=1, prior=None):
     return out
 
 
-def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1, prior=None, zmax=0.0, at=None):
+def mean_plan(policy, inst, kappa, cfg, budget="params", floor=1, prior=None, zmax=0.0, at=None, share_floor=None):
     """``(widths, info)`` of the mean plan. ``at`` (``menu_at``; v36) makes it the menu's: the mean scores decoded at
-    the mean shares softmax(ψ), a rule under ``plan_agent.MENU_SHARE_FLOOR`` dropped (``info["pi"]``)."""
+    the mean shares softmax(ψ), a rule under ``plan_agent.MENU_SHARE_FLOOR`` dropped (``info["pi"]``).
+    ``share_floor`` (AGENT-V2; None = that constant, as before) is the run's own floor (``plan_agent.menu_floor``)."""
     with torch.no_grad():
         mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
         psi = None if at is None else policy.menu_logits(inst.state_at(kappa, budget), at["x"])
-    mix = None if at is None else (plan_agent.menu_shares(psi.tolist(), plan_agent.MENU_SHARE_FLOOR), at["rules"])
+    drop = plan_agent.MENU_SHARE_FLOOR if share_floor is None else float(share_floor)
+    mix = None if at is None else (plan_agent.menu_shares(psi.tolist(), drop), at["rules"])
     return _decode(mu.tolist(), inst.cost_model(budget), kappa, cfg, floor, prior, zmax, mix)
 
 
@@ -388,10 +420,10 @@ def _budget_tag(budget) -> str:
     return "" if budget == "params" else f" b={budget}"
 
 
-def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0, menu=None):
+def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0, menu=None, share_floor=None):
     """Mean plan vs references per net at each summary κ (and budget) on one fixed batch set (val-half proxy reads).
     Under the menu (v36) each summary also prints the mean plan's shares, one ``[plan] menu summary`` line, and records
-    them as ``menu_pi``."""
+    them as ``menu_pi``. ``share_floor`` as ``mean_plan``'s."""
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     for inst in instances:
         for kappa in cfg.summary_kappas:
@@ -399,7 +431,7 @@ def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0, menu=None)
                 batches = inst.batches(cfg.proxy, cfg.seed)
                 prior = prior_of(inst, res, budget)
                 at = menu_at(inst, menu, res, kappa, cfg, budget, floor)
-                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax, at)
+                widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax, at, share_floor)
                 r_mu = inst.reward(widths, cfg.proxy, batches)
                 refs = references(inst, kappa, cfg, batches, budget, floor, prior)
                 utils.print_flush(
@@ -415,6 +447,283 @@ def summary(policy, instances, cfg, log, floor=1, res=None, zmax=0.0, menu=None)
                      **({"menu_pi": info["pi"]} if at is not None else {})})
 
 
+# ------------------------------------------------------------------ AGENT-V2 (26 Nov 2026; every piece default off)
+
+AV2_ORDER = ("adv", "mirror", "split", "gnorm", "ema", "lr_schedule", "menu_bound", "menu_entropy", "menu_kappa",
+             "menu_sigma_anneal", "menu_share_floor", "menu_log", "kappa_points", "sample", "fs_guard", "check",
+             "contract")
+AV2_MENU_ONLY = ("menu_bound", "menu_entropy", "menu_kappa", "menu_log", "menu_share_floor", "menu_sigma_anneal",
+                 "split")
+
+
+def av2_settings(cfg, res=None, menu=None):
+    """The AGENT-V2 flags that are on, ``{name: value}`` in ``AV2_ORDER``'s names; ``{}`` with every one unset, and the
+    run is then tree_v41's. Refused (ValueError) before any origin is read: a menu flag or SPLIT without the menu, an
+    odd K under MIRROR or SPLIT (a K not divisible by 4 under both, or under 4 with SPLIT), and FS_GUARD without an
+    ``fs<S>`` proxy."""
+    from src import fortify
+    out = {}
+    mode, value = fortify.plan_adv()
+    if mode != "off":
+        out["adv"] = (mode, value)
+    if fortify.plan_mirror():
+        out["mirror"] = True
+    if fortify.plan_split():
+        out["split"] = True
+    if fortify.plan_gnorm() != "off":
+        out["gnorm"] = fortify.plan_gnorm()
+    if fortify.plan_ema() > 0:
+        out["ema"] = fortify.plan_ema()
+    if fortify.plan_lr_schedule() != "constant":
+        out["lr_schedule"] = fortify.plan_lr_schedule()
+    if fortify.plan_menu_bound() > 0:
+        out["menu_bound"] = fortify.plan_menu_bound()
+    if fortify.plan_menu_entropy() > 0:
+        out["menu_entropy"] = fortify.plan_menu_entropy()
+    points = fortify.plan_kappa_points()
+    kappa = fortify.plan_menu_kappa()
+    if kappa is not None:  # the bins span every budget the run draws
+        lo, hi = cfg.kappa_lo, cfg.kappa_hi
+        if points is not None:
+            lo, hi = min(lo, max(0.02, min(points[0]) - points[2])), max(hi, min(0.98, max(points[0]) + points[2]))
+        out["menu_kappa"] = {"kind": kappa[0], "n": int(kappa[1]), "lo": float(lo), "hi": float(hi)}
+    if fortify.plan_menu_sigma_anneal():
+        out["menu_sigma_anneal"] = True
+    if fortify.plan_menu_share_floor() is not None:
+        out["menu_share_floor"] = fortify.plan_menu_share_floor()
+    if fortify.plan_menu_log():
+        out["menu_log"] = True
+    if points is not None:
+        out["kappa_points"] = points
+    kind, t = fortify.plan_sample()
+    if kind != "net":
+        out["sample"] = float(t)
+    if fortify.plan_fs_guard() > 0:
+        out["fs_guard"] = fortify.plan_fs_guard()
+    if fortify.plan_check() != "off":
+        out["check"] = fortify.plan_check()
+    if fortify.plan_contract() == "on":
+        out["contract"] = True
+    need_menu = [key for key in AV2_MENU_ONLY if key in out]
+    if menu is None and need_menu:
+        flag = {"menu_entropy": "MENU_ENT"}.get(need_menu[0], need_menu[0].upper())
+        raise ValueError(f"SPECTRA_PLAN_{flag} needs the menu (SPECTRA_PLAN_MENU is unset)")
+    if out.get("mirror") and cfg.k % 2:
+        raise ValueError(f"SPECTRA_PLAN_MIRROR needs an even SPECTRA_PLAN_K, not {cfg.k}")
+    if out.get("split") and (cfg.k % 2 or cfg.k < 4 or (out.get("mirror") and cfg.k % 4)):
+        raise ValueError(f"SPECTRA_PLAN_SPLIT needs an even SPECTRA_PLAN_K of at least 4 (divisible by 4 under "
+                         f"SPECTRA_PLAN_MIRROR), not {cfg.k}")
+    if "fs_guard" in out and plan_agent.parse_proxy(cfg.proxy, ce=True)[0] != "fs":
+        raise ValueError(f"SPECTRA_PLAN_FS_GUARD watches the fs<S> proxy's fine-tune; SPECTRA_PLAN_PROXY={cfg.proxy}")
+    return out
+
+
+def _av2_show(key, value):
+    if key == "adv":
+        return value[0] if value[1] is None else f"{value[0]}:{value[1]:g}"
+    if key == "menu_kappa":
+        return f"{value['kind']}:{value['n']}@{value['lo']:g}-{value['hi']:g}"
+    if key == "kappa_points":
+        return ",".join(f"{p:g}" for p in value[0]) + f":{value[1]:g}:{value[2]:g}"
+    if key == "sample":
+        return f"family:{value:g}"
+    if value is True:
+        return "1"
+    return f"{value:g}" if isinstance(value, float) else str(value)
+
+
+def av2_line(av2):
+    """`` | av2: adv=rank mirror=1 …``: the flags that are on, for the trainer's opening line; empty with none on."""
+    if not av2:
+        return ""
+    return " | av2: " + " ".join(f"{key}={_av2_show(key, av2[key])}" for key in AV2_ORDER if key in av2)
+
+
+def av2_meta(av2):
+    """What the flags that are on add to the checkpoint meta (nothing with none on): one key per flag, with values a
+    chained job's ``check_resume`` can compare. ``menu_share_floor`` (the run's resolved floor, an older key) and
+    ``state_contract`` are written by ``run``."""
+    out = {}
+    for key in AV2_ORDER:
+        if key not in av2 or key in ("menu_share_floor", "contract"):
+            continue
+        value = av2[key]
+        if key == "menu_entropy":
+            out["menu_entropy"] = float(value)
+        elif key in ("adv", "sample"):
+            out[key] = _av2_show(key, value)
+        elif key == "kappa_points":
+            out[key] = [list(value[0]), float(value[1]), float(value[2])]
+        elif key == "menu_kappa":
+            out[key] = dict(value)
+        else:
+            out[key] = value
+    return out
+
+
+def advantages(r, cfg, adv=None, scale=None):
+    """The advantages of an instance's rewards ``r``. ``adv`` None is the trainer's own: r − mean, over the SD + 1e-6
+    under NORM_ADV. ``adv`` = ``fortify.plan_adv()`` (AGENT-V2) replaces it: ``rank`` is
+    ``plan_agent.rank_utilities``; ``floor`` is r − mean over max(SD, s0); ``global`` is r − mean over ``scale``'s
+    running mean of the instances' SDs, this instance's included (``RunningScale``)."""
+    if adv is None:
+        out = r - r.mean()
+        if cfg.norm_adv:
+            out = out / (r.std() + 1e-6)
+        return out
+    mode, value = adv
+    if mode == "rank":
+        return plan_agent.rank_utilities(r)
+    centred = r - r.mean()
+    if mode == "floor":
+        return centred / torch.clamp(r.std(), min=float(value))
+    return centred / max(scale.update(float(r.std())), 1e-6)
+
+
+class RunningScale:
+    """The running mean of the per-instance reward SD (``SPECTRA_PLAN_ADV=global``): an exponential moving average with
+    Adam's bias correction, so the first instance divides by its own SD and later ones by the run's."""
+
+    def __init__(self, decay: float):
+        self.decay, self.value, self.steps = float(decay), 0.0, 0
+
+    def update(self, sd: float) -> float:
+        if math.isfinite(sd):
+            self.steps += 1
+            self.value = self.decay * self.value + (1.0 - self.decay) * float(sd)
+        return self.read()
+
+    def read(self) -> float:
+        return self.value / (1.0 - self.decay ** self.steps) if self.steps else 0.0
+
+    def state(self):
+        return {"decay": self.decay, "value": self.value, "steps": self.steps}
+
+    def load(self, state):
+        self.value, self.steps = float(state["value"]), int(state["steps"])
+
+
+class PolicyEma:
+    """An exponential moving average of a policy's weights (``SPECTRA_PLAN_EMA``; audit F6, Polyak averaging), started
+    at the policy's weights and updated after every optimizer step with decay min(d, (1 + t) / (10 + t)), t the update
+    count: early on it tracks the policy, and over a run shorter than about 9 / (1 − d) updates it averages roughly the
+    last ninth of the trajectory. Integer buffers, if any, are copied."""
+
+    def __init__(self, policy, decay: float):
+        self.decay, self.updates = float(decay), 0
+        self.shadow = {name: value.detach().clone() for name, value in policy.state_dict().items()}
+
+    @torch.no_grad()
+    def update(self, policy):
+        self.updates += 1
+        d = min(self.decay, (1.0 + self.updates) / (10.0 + self.updates))
+        for name, value in policy.state_dict().items():
+            if value.dtype.is_floating_point:
+                self.shadow[name].mul_(d).add_(value.detach(), alpha=1.0 - d)
+            else:
+                self.shadow[name].copy_(value)
+
+    def state(self):
+        return {"decay": self.decay, "updates": self.updates,
+                "shadow": {name: value.clone() for name, value in self.shadow.items()}}
+
+    def load(self, state):
+        if set(state["shadow"]) != set(self.shadow):
+            raise ValueError("the state's averaged weights are not this policy's (their names differ)")
+        self.updates = int(state["updates"])
+        for name, value in state["shadow"].items():
+            self.shadow[name].copy_(value.to(device=self.shadow[name].device, dtype=self.shadow[name].dtype))
+
+
+def av2_state(ema=None, adv_scale=None):
+    """What ``trainer_state`` keeps under ``av2``: the averaged weights and the running advantage scale; None when
+    neither flag is on."""
+    if ema is None and adv_scale is None:
+        return None
+    return {"ema": None if ema is None else ema.state(), "adv_scale": None if adv_scale is None else adv_scale.state()}
+
+
+def restore_av2(state, path, ema=None, adv_scale=None):
+    """Put ``av2_state`` back from a resumed ``state``; a state that lacks what a flag needs is refused."""
+    saved = state.get("av2") or {}
+    for name, target in (("ema", ema), ("adv_scale", adv_scale)):
+        if target is None:
+            continue
+        if not saved.get(name):
+            raise ValueError(f"SPECTRA_PLAN_RESUME={path}: the state carries no {name} (it was written without the flag)")
+        target.load(saved[name])
+
+
+def lr_at(cfg, it: int) -> float:
+    """``SPECTRA_PLAN_LR_SCHEDULE=cosine``: the lr of the update that closes instance ``it`` (0-based), LR · (1 +
+    cos(π t / T)) / 2 with t = it // BATCH of the run's T = ceil(INSTANCES / BATCH) updates."""
+    total = max(1, -(-cfg.instances // cfg.batch))
+    return cfg.lr * 0.5 * (1.0 + math.cos(math.pi * (it // cfg.batch) / total))
+
+
+def family_weights(instances, t: float = 1.0):
+    """``(families, weights)`` of ``SPECTRA_PLAN_SAMPLE=family:<t>``: each instance's family (``fortify.plan_family``
+    of its name) and its draw probability, proportional to (the family's size)^−t (t = 1: families equally likely)."""
+    from src import fortify
+    families = [fortify.plan_family(inst.name) for inst in instances]
+    raw = [families.count(family) ** (-float(t)) for family in families]
+    total = sum(raw)
+    return families, [value / total for value in raw]
+
+
+def draw_kappa(rng, cfg, points):
+    """``SPECTRA_PLAN_KAPPA_POINTS``: with probability p a budget within ±w of one of the listed points (kept inside
+    [0.02, 0.98]), else the trainer's uniform draw over KAPPA."""
+    centres, prob, width = points
+    if rng.random() < prob:
+        centre = rng.choice(list(centres))
+        return min(0.98, max(0.02, rng.uniform(centre - width, centre + width)))
+    return rng.uniform(cfg.kappa_lo, cfg.kappa_hi)
+
+
+def check_gate(inst, index, cfg, res, budgets, floor=1, zmax=0.0, sigma=0.25):
+    """``SPECTRA_PLAN_CHECK`` (audit F14): three plans of ``inst`` cut for real on each budget of the run: the even cut
+    and the prior's plan (the sens plan without a residual) at 0.6, and one deep sampled plan at κ 0.35 (scores
+    ``sigma`` · ε from a generator seeded by SEED and ``index``, decoded as the untrained agent's sample is). A plan
+    fails when its analytic kept size is off the real cut's by more than 1e-6 or the masked cut's Δ val by more than
+    0.05 point, the thresholds of the trainer's own check. One line per network and budget, with the dead filters per
+    group; returns the failures as ``["<net> <plan> <budget>"]``. Every global generator is put back, so the extra
+    cuts leave the run that follows as it is without the flag."""
+    from src import alloc_walk
+    snapshot = alloc_walk.rng_snapshot()
+    failed = []
+    try:
+        dead = inst.dead_by_group()
+        for budget in budgets:
+            cm, prior = inst.cost_model(budget), prior_of(inst, res, budget)
+            plans = [("even k=0.60", inst.reference("uniform", 0.6, cfg.k_min, budget=budget, min_width=floor)[0])]
+            if prior is not None:
+                plans.append(("prior k=0.60",
+                              plan_agent.scale_decode(prior, cm, 0.6, cfg.k_min, min_width=floor)[0]))
+            elif inst.sens is not None:
+                plans.append(("sens k=0.60", inst.reference("sens", 0.6, cfg.k_min, budget=budget, min_width=floor)[0]))
+            generator = torch.Generator().manual_seed(cfg.seed * 7919 + int(index))
+            z = (float(sigma) * torch.randn(inst.n_groups, generator=generator)).tolist()
+            plans.append(("deep sample k=0.35", _decode(z, cm, 0.35, cfg, floor, prior, zmax)[0]))
+            parts, bad = [], []
+            for name, widths in plans:
+                chk = inst.check_widths(widths, budget)
+                gap_k, gap_r = abs(chk["analytic"] - chk["real"]), abs(chk["masked_r"] - chk["real_r"])
+                if gap_k > 1e-6 or gap_r > 0.05:
+                    bad.append(name)
+                    failed.append(f"{inst.name} {name} {budget}")
+                parts.append(f"{name} kept analytic x{chk['analytic']:.4f} real x{chk['real']:.4f} cut val Δ masked "
+                             f"{chk['masked_r']:+.2f} real {chk['real_r']:+.2f}")
+            utils.print_flush(
+                f"[plan] check3 {inst.name}{_budget_tag(budget)}: " + " | ".join(parts) + " | dead filters by group "
+                + (" ".join(f"{row}:{n}" for row, n in sorted(dead.items())) or "none")
+                + (" | WARNING: the masked reward or the analytic size does not match the real cut (" + ", ".join(bad)
+                   + ")" if bad else " | ok"))
+    finally:
+        alloc_walk.rng_restore(snapshot)
+    return failed
+
+
 def run(env, shard):
     cfg = config()
     floor = min_width()
@@ -427,6 +736,12 @@ def run(env, shard):
     state = read_state(resume) if resume else None  # read now too: a wrong path or file fails before the origins
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     menu = menu_settings(mode, budgets)  # v36; None = off: a wrong menu fails here, before the origins are read
+    av2 = av2_settings(cfg, res, menu)  # AGENT-V2; {} = every flag unset: a wrong flag fails here too
+    share_floor = plan_agent.MENU_SHARE_FLOOR  # what the mean plan drops; the run's own under MENU_BOUND / SHARE_FLOOR
+    if menu is not None and ("menu_bound" in av2 or "menu_share_floor" in av2):
+        share_floor = plan_agent.menu_floor(menu["init"], len(menu["kinds"]), av2.get("menu_bound", 0.0),
+                                            av2.get("menu_share_floor"))
+        av2["menu_share_floor"] = share_floor
     with_cost = res is not None and "sens_cost" in {plan_agent.prior_kind(mode, b) for b in budgets}
     origin_kw = {}  # what the menu's rules add to each origin's read; nothing without a menu
     if menu is not None:
@@ -442,16 +757,21 @@ def run(env, shard):
                          if menu else "")
                       + (f" fs_lr={plan_agent.fs_lr():g}" if cfg.proxy.startswith("fs") else "")
                       + (f" init={init}" if init else "")
-                      + (" state=1" if keep else "") + (f" resume={resume}" if resume else ""))
+                      + (" state=1" if keep else "") + (f" resume={resume}" if resume else "")
+                      + av2_line(av2))
     if menu is not None:
-        shares0 = plan_agent.menu_shares([menu["init"]] + [0.0] * (len(menu["kinds"]) - 1))
-        if max(shares0[1:]) >= plan_agent.MENU_SHARE_FLOOR:  # the default init is under the floor: no line
+        psi0 = [menu["init"]] + [0.0] * (len(menu["kinds"]) - 1)
+        if "menu_bound" in av2:  # AGENT-V2: the untrained head's logits under the bound
+            psi0 = plan_agent.menu_bounded(psi0, av2["menu_bound"])
+        shares0 = plan_agent.menu_shares(psi0)
+        if max(shares0[1:]) >= share_floor:  # the default init is under the floor: no line
             utils.print_flush(f"[plan] menu WARNING: SPECTRA_PLAN_MENU_INIT={menu['init']:g} starts the anchor at a "
                               f"share of {shares0[0]:.4f}, the other rules at or above the mean plan's share floor "
-                              f"{plan_agent.MENU_SHARE_FLOOR:g}: the mean plan does not start on the prior's plan")
+                              f"{share_floor:g}: the mean plan does not start on the prior's plan")
     rng = random.Random(cfg.seed)
     torch.manual_seed(cfg.seed)
     instances = []
+    gate_failed = []  # AGENT-V2 (CHECK): the plans whose real cut does not match, over every network
     for net_path, (net_model, net_loaders) in shard:
         name = os.path.basename(str(net_path))
         if cfg.nets and not any(part in name for part in cfg.nets):
@@ -482,6 +802,8 @@ def run(env, shard):
                 f"x{chk['real']:.4f} | {chk['probes']} probes in {chk['seconds']:.1f}s"
                 + (" | WARNING: the FLOPs model does not match the real cut"
                    if abs(chk["analytic"] - chk["real"]) > 1e-6 else ""))
+        if "check" in av2:  # AGENT-V2 (F14): three plans cut for real; the job's generators are put back after them
+            gate_failed += check_gate(inst, len(instances), cfg, res, budgets, floor, zmax, sigma_at(cfg, 0, scale))
         if menu is not None:  # every rule's weights and plan once per budget: a missing measurement fails here
             tick, parts = time.perf_counter(), []
             for b in budgets:
@@ -494,11 +816,20 @@ def run(env, shard):
         instances.append(inst)
     if not instances:
         raise RuntimeError(f"SPECTRA_PLAN_NETS={cfg.nets}: no test network matched")
+    if "check" in av2:  # AGENT-V2: one verdict line for the gates to read; refuse stops the run on a failure
+        utils.print_flush(f"[plan] check gate: {'FAIL' if gate_failed else 'PASS'} ({len(instances)} networks, "
+                          f"three plans each" + (": " + "; ".join(gate_failed) if gate_failed else "") + ")")
+        if gate_failed and av2["check"] == "refuse":
+            raise RuntimeError(f"SPECTRA_PLAN_CHECK=refuse: the masked cut or the analytic size does not match the "
+                               f"real cut for {len(gate_failed)} plans: " + "; ".join(gate_failed))
     widths = {inst.feature_dim for inst in instances}
     if len(widths) != 1:
         raise RuntimeError(f"networks disagree on the token width: {sorted(widths)}")
     device = instances[0].device
     head_kw = {"menu": len(menu["kinds"]), "menu_init": menu["init"]} if menu is not None else {}
+    for key in ("menu_bound", "menu_kappa"):  # AGENT-V2: the bounded logits and the budget bins, when on
+        if key in av2:
+            head_kw[key] = av2[key]
     policy = plan_agent.PlanPolicy(widths.pop(), cfg.encoder, **head_kw).to(device)
     optimizer = torch.optim.Adam(policy.parameters(), lr=cfg.lr)
     folder = out_dir()
@@ -511,9 +842,12 @@ def run(env, shard):
             **({"residual": mode, "residual_alpha": alpha, "residual_sigma": sigma0} if res else {}),
             **({"residual_zmax": zmax} if zmax > 0 else {}),
             **({"menu": list(menu["kinds"]), "menu_anchor": menu["kinds"][0], "menu_init": menu["init"],
-                "menu_sigma": menu["sigma"], "menu_share_floor": plan_agent.MENU_SHARE_FLOOR} if menu else {}),
+                "menu_sigma": menu["sigma"], "menu_share_floor": share_floor} if menu else {}),
             **({"fs_lr": plan_agent.fs_lr()} if cfg.proxy.startswith("fs") else {}),
-            **({"init": init} if init else {})}
+            **({"init": init} if init else {}),
+            **av2_meta(av2)}  # AGENT-V2: one key per flag that is on; nothing with none on
+    if av2.get("contract"):  # AGENT-V2 (F15): the contract the states above were built under
+        meta["state_contract"] = plan_agent.state_contract(instances[0].spans)
     if init_blob is not None:
         warm_start(policy, init_blob, meta, init)
 
@@ -521,10 +855,15 @@ def run(env, shard):
         with open(log_path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(record) + "\n")
 
-    def save(tag):
+    def save(tag, final=False):
         path = os.path.join(folder, f"policy_{tag}.pt")
         plan_agent.save_policy(policy, path, **meta)
         plan_agent.save_policy(policy, os.path.join(folder, "policy_latest.pt"), **meta)
+        if ema is not None:  # AGENT-V2: the averaged weights beside the last iterate (the tagged copy at the end only)
+            averaged = {**meta, "weights": "ema", "ema_updates": ema.updates}
+            if final:
+                plan_agent.save_weights(policy, ema.shadow, os.path.join(folder, f"policy_ema_{tag}.pt"), **averaged)
+            plan_agent.save_weights(policy, ema.shadow, os.path.join(folder, "policy_ema_latest.pt"), **averaged)
         return path
 
     state_path = os.path.join(folder, "trainer_state.pt")
@@ -532,7 +871,7 @@ def run(env, shard):
     last_state = [None]  # the count trainer_state.pt was last written at
 
     def save_state(count):
-        write_state(state_path, trainer_state(policy, optimizer, rng, count, meta, chain))
+        write_state(state_path, trainer_state(policy, optimizer, rng, count, meta, chain, av2_state(ema, adv_scale)))
         last_state[0] = count
         into = count % cfg.batch
         utils.print_flush(f"[plan] state {state_path} at {count} instances"
@@ -540,48 +879,114 @@ def run(env, shard):
 
     optimizer.zero_grad()
     done = start = restore(state, resume, cfg, meta, policy, optimizer, rng) if state is not None else 0
+    # AGENT-V2: what the flags that are on need in the loop; with none on every name below is None / False / off and
+    # the loop runs the statements it ran before
+    adv_mode = av2.get("adv")  # None, or fortify.plan_adv()'s (mode, value)
+    adv_scale = RunningScale(adv_mode[1]) if adv_mode and adv_mode[0] == "global" else None
+    ema = PolicyEma(policy, av2["ema"]) if "ema" in av2 else None
+    if state is not None and (ema is not None or adv_scale is not None):
+        restore_av2(state, resume, ema, adv_scale)
+    mirror, split, gnorm = bool(av2.get("mirror")), bool(av2.get("split")), av2.get("gnorm")
+    beta, anneal, menu_log = av2.get("menu_entropy", 0.0), bool(av2.get("menu_sigma_anneal")), bool(av2.get("menu_log"))
+    guard, cosine, points = "fs_guard" in av2, av2.get("lr_schedule") == "cosine", av2.get("kappa_points")
+    own_loss = split or gnorm is not None or beta > 0 or anneal  # the loss is built part by part below
+    pick = None
+    if "sample" in av2:
+        families, pick = family_weights(instances, av2["sample"])
+        sizes = {family: families.count(family) for family in sorted(set(families))}
+        utils.print_flush(f"[plan] sample family t={av2['sample']:g}: " + ", ".join(
+            f"{family} {n} nets, {sum(w for f, w in zip(families, pick) if f == family):.3f}"
+            for family, n in sizes.items()))
     for it in range(start, cfg.instances):
         t0 = time.perf_counter()
-        inst = rng.choice(instances)
-        kappa = rng.uniform(cfg.kappa_lo, cfg.kappa_hi)
+        inst = rng.choice(instances) if pick is None else rng.choices(instances, weights=pick)[0]
+        kappa = rng.uniform(cfg.kappa_lo, cfg.kappa_hi) if points is None else draw_kappa(rng, cfg, points)
         budget = cfg.budget if cfg.budget != "mixed" else rng.choice(plan_agent.BUDGETS)
         sigma = sigma_at(cfg, it, scale)
         seed = cfg.seed * 100003 + it
         batches = inst.batches(cfg.proxy, seed)
         mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
         generator = torch.Generator(device=mu.device).manual_seed(seed)
-        z = plan_agent.sample_scores(mu, sigma, cfg.k, generator)
+        kz = cfg.k // 2 if split else cfg.k  # the plans that draw the scores (SPLIT: the first half)
+        if not mirror:
+            z = plan_agent.sample_scores(mu, sigma, kz, generator)
+        else:
+            z = plan_agent.sample_scores(mu, sigma, kz, generator, mirror=True)
         rewards, kept = [], []
         cm = inst.cost_model(budget)
         prior = prior_of(inst, res, budget)
         at, shares = menu_at(inst, menu, res, kappa, cfg, budget, floor), None  # None off the menu: all as before
+        sigma_u = menu["sigma"] if menu is not None else None
         if at is not None:  # v36: the menu logits, drawn after the scores so the scores' noise is the run's without it
             psi = policy.menu_logits(inst.state_at(kappa, budget), at["x"])
-            u = plan_agent.sample_scores(psi, menu["sigma"], cfg.k, generator)
-            shares = [plan_agent.menu_shares(row) for row in u.tolist()]
+            if anneal:  # AGENT-V2: sigma_u follows the scores' schedule
+                sigma_u = menu["sigma"] * sigma / sigma_at(cfg, 0, scale)
+            if not (mirror or split or anneal):
+                u = plan_agent.sample_scores(psi, menu["sigma"], cfg.k, generator)
+                shares = [plan_agent.menu_shares(row) for row in u.tolist()]
+            else:
+                u = plan_agent.sample_scores(psi, sigma_u, cfg.k - kz if split else cfg.k, generator, mirror=mirror)
+                shares = [plan_agent.menu_shares(row) for row in u.tolist()]
+                if split:  # the score half plays the shares the frozen agent plays: the mean plan's
+                    shares = [plan_agent.menu_shares(psi.tolist(), share_floor)] * kz + shares
+        mean_scores = mu.detach().tolist() if split else None  # SPLIT: what the logit half decodes
+        flagged = []  # FS_GUARD: the plans whose fine-tune diverged
         for k in range(cfg.k):
-            plan_widths, info = _decode(z[k].tolist(), cm, kappa, cfg, floor, prior, zmax,
+            plan_widths, info = _decode(z[k].tolist() if k < kz else mean_scores, cm, kappa, cfg, floor, prior, zmax,
                                         None if shares is None else (shares[k], at["rules"]))
             rewards.append(inst.reward(plan_widths, cfg.proxy, batches))
             kept.append(info["kept"])
+            if guard and getattr(inst, "diverged", False):
+                flagged.append(k)
         if it == 0 and getattr(inst, "recipe_line", None):  # the ft<E> reward's handler recipe, once per run
             utils.print_flush(f"[plan] ft recipe {inst.name}: {inst.recipe_line}")
             meta["recipe_line"] = inst.recipe_line
+        if flagged:  # AGENT-V2 (F11): a diverged plan takes the median of its instance's other plans (0 gradient
+            sound = sorted(rewards[k] for k in range(cfg.k) if k not in flagged)  # weight under a mean baseline)
+            fill = statistics.median(sound) if sound else 0.0
+            rewards = [fill if k in flagged else value for k, value in enumerate(rewards)]
         r = torch.tensor(rewards, device=mu.device, dtype=mu.dtype)
-        adv = r - r.mean()
-        if cfg.norm_adv:
-            adv = adv / (r.std() + 1e-6)
+        if adv_mode is None and not split:
+            adv = r - r.mean()
+            if cfg.norm_adv:
+                adv = adv / (r.std() + 1e-6)
+        elif not split:  # AGENT-V2: SPECTRA_PLAN_ADV's shaping in place of the division
+            adv = advantages(r, cfg, adv_mode, adv_scale)
+        else:  # AGENT-V2 (F3): each half is scored against its own siblings only
+            adv = torch.cat([advantages(r[:kz], cfg, adv_mode, adv_scale), advantages(r[kz:], cfg, adv_mode, adv_scale)])
         # The action is the raw z ~ N(mu, sigma²), under the trust region too: zmax squashes it only inside the decode,
         # a deterministic map from action to plan, so log_prob(z) is still the exact log-density of what was sampled and
         # the REINFORCE estimate stays unbiased (no tanh Jacobian: no density is taken of the squashed scores).
-        loss = -(adv.detach() * plan_agent.log_prob(z, mu, sigma)).mean() / cfg.batch
-        if at is not None:  # v36: the action is (z, u), drawn independently; the softmax sits inside the decode too
-            loss = -(adv.detach() * plan_agent.menu_log_prob(z, mu, sigma, u, psi, menu["sigma"])).mean() / cfg.batch
+        if not own_loss:
+            loss = -(adv.detach() * plan_agent.log_prob(z, mu, sigma)).mean() / cfg.batch
+            if at is not None:  # v36: the action is (z, u), drawn independently; the softmax sits inside the decode too
+                loss = -(adv.detach() * plan_agent.menu_log_prob(z, mu, sigma, u, psi, menu["sigma"])).mean() / cfg.batch
+        else:  # AGENT-V2: the same estimator with the scores' term over sqrt(G) or G (GNORM), the two halves scored
+            # apart (SPLIT), the logits' term at the annealed sigma_u, and the entropy bonus on the mean shares
+            lp_z = plan_agent.log_prob(z, mu, sigma)
+            if gnorm is not None:
+                lp_z = lp_z / (math.sqrt(inst.n_groups) if gnorm == "sqrt" else float(inst.n_groups))
+            adv = adv.detach()
+            if at is None:
+                loss = -(adv * lp_z).mean() / cfg.batch
+            elif not split:
+                loss = -(adv * (lp_z + plan_agent.log_prob(u, psi, sigma_u))).mean() / cfg.batch
+            else:
+                loss = (-(adv[:kz] * lp_z).mean() - (adv[kz:] * plan_agent.log_prob(u, psi, sigma_u)).mean()) / cfg.batch
+            if beta > 0 and at is not None:
+                beta_t = beta * max(0.0, 1.0 - it / max(1.0, cfg.sigma_decay * cfg.instances))
+                entropy = plan_agent.menu_entropy(psi)
+                loss = loss - beta_t * entropy / cfg.batch
         loss.backward()
         grad = None
         if (it + 1) % cfg.batch == 0:
             grad = float(torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0))
+            if cosine:  # AGENT-V2: the lr falls to 0 over the run's updates
+                for group in optimizer.param_groups:
+                    group["lr"] = lr_at(cfg, it)
             optimizer.step()
+            if ema is not None:
+                ema.update(policy)
             optimizer.zero_grad()
         record = {"it": it, "net": inst.name, "kappa": kappa, "budget": budget, "sigma": sigma, "rewards": rewards,
                   "kept": kept, "mu_std": float(mu.detach().std()), "loss": float(loss) * cfg.batch, "grad": grad}
@@ -596,8 +1001,27 @@ def run(env, shard):
                 f"x{statistics.mean(kept):.3f} | mu std {record['mu_std']:.3f}")
         if zmax > 0:
             line += f" | mu beyond zmax {record['mu_beyond_zmax']}/{inst.n_groups}"
+        if av2:  # AGENT-V2: what the flags that are on add to the record and the line (nothing with none on)
+            if split:
+                record["split"] = kz
+            if guard:
+                record["diverged"] = len(flagged)
+                line += f" | diverged {len(flagged)}" if flagged else ""
+            if adv_scale is not None:
+                record["adv_scale"] = adv_scale.read()
+            if cosine and grad is not None:
+                record["lr"] = optimizer.param_groups[0]["lr"]
+            if at is not None and (anneal or beta > 0):
+                record["menu_sigma"] = sigma_u
+            if at is not None and beta > 0:
+                record["menu_entropy"] = float(entropy)
+            if at is not None and menu_log:  # F2: the mean logits, their range and every sampled plan's shares
+                logits = [float(v) for v in psi.detach().tolist()]
+                record["menu_psi"], record["menu_psi_range"] = logits, max(logits) - min(logits)
+                record["menu_shares"] = [[round(float(p), 4) for p in row] for row in shares]
+                line += f" | psi range {record['menu_psi_range']:.2f}"
         if (it + 1) % cfg.ref_every == 0 or it == 0:
-            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax, at)
+            plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax, at, share_floor)
             record["mean_plan"] = {"r": inst.reward(plan_widths, cfg.proxy, batches), "kept": info["kept"]}
             record["refs"] = references(inst, kappa, cfg, batches, budget, floor, prior)
             line += f" | mean plan {record['mean_plan']['r']:+.2f}" + "".join(
@@ -618,9 +1042,14 @@ def run(env, shard):
         save_state(done)
     if done % cfg.batch:
         torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
+        if cosine and done:
+            for group in optimizer.param_groups:
+                group["lr"] = lr_at(cfg, done - 1)
         optimizer.step()
+        if ema is not None:
+            ema.update(policy)
         optimizer.zero_grad()
-    path = save(f"it{done:05d}")
+    path = save(f"it{done:05d}", final=True)
     utils.print_flush(f"[plan] saved {path} after {done} instances, {(time.perf_counter() - started) / 60.0:.1f} min")
-    summary(policy, instances, cfg, log, floor, res, zmax, menu)
+    summary(policy, instances, cfg, log, floor, res, zmax, menu, share_floor)
     utils.print_flush(f"[plan] DONE {done} instances in {(time.perf_counter() - started) / 60.0:.1f} min")
