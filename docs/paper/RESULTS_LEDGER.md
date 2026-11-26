@@ -13551,3 +13551,71 @@ The ceiling is each network's val choice, so a head can exceed it on TEST (DLA).
 **Next, as set before the read.** HEAD-NO: the per-network size stays a measured ceiling, and rank 1 of the 25 Nov ranking closes. No sealed amendment is drafted.
 
 Next §469.
+
+## 469. (AMC-C2: queue row AMC, part C's held-out cells, registered 21 Nov 15:07 IST before any submit; AMC's own search (SPECTRA_ALLOC_KIND=amc: DDPG, the paper's eleven-feature state, 800 episodes with 100 warm-up, reward = the cut network's accuracy after BN recalibration on 8 batches) inside SPECTRA's loop, on T1's 9 held-out CIFAR-100 networks at FLOPs 0.45 and 0.20, seeds 42–44, on MENU's eval line (tree_v38; 54 cells, 24377117–24377189, all COMPLETED); kept by Ido on 21 Nov; reader stamped 26 Nov 05:36 IST before any C2 cell was read (commit 8773aec, blob 5d1b0f02); reported, no call) — **On unseen networks, the frozen agents are above AMC's per-network search: the final agent by +0.97 [−0.02, +2.03] TEST 5k at FLOPs 0.45 (val +0.73, 10k +0.85) and +6.60 [+3.11, +10.74] at 0.20 (val +6.45, 10k +6.52); the menu agent by +0.69 [+0.07, +1.45] and +6.16 [+2.42, +10.37]. The threshold rule is above AMC by about as much (+0.69 [−0.28, +1.65]; +5.84 [+1.96, +10.08]). AMC is level with the prior at 0.45 (+0.03) and below even the even cut at 0.20 (−4.76 [−8.29, −1.63]).** PRELIM.
+
+**Question.** AMC (He et al., ECCV 2018) is the field's reference for reinforcement-learning channel allocation, and it searches per network. Run inside our loop, with the same cut, recovery and measurement as every other arm, where does it sit beside the frozen agent and the rules, on networks none of them trained on?
+
+**Method and reader.**
+- **AMC's search** (queue row AMC, part C). It is our re-implementation of AMC's resource-constrained DDPG search: the paper's eleven-feature layer state, warm-up and actor-critic, 800 episodes with 100 of warm-up, scored by the cut network's val accuracy after BN statistics are recalibrated on 8 batches.
+  - **Fidelity (row AMC, 21 Nov).** On akamaster's ResNet-56 CIFAR-10 at FLOPs 0.47, the in-loop search lands at TEST 5k +0.36, against +0.39 for the widths that AMC's own run (LeGR's implementation) found, run through the same loop: 0.03 apart, within the registered ±0.5.
+- **Cells.** 54 = 9 networks × 2 points × 3 seeds, on MENU's line: deterministic G2, 100 epochs, keep-last, the width floor, the grid round and E1's flags. All landed within 0.011 of the target, with no stall or masked edit.
+- **Comparators** on the same line, same networks and seeds:
+  - MENU's menu agent (m1f);
+  - T1's threshold rule (its B4 cells where T1's RULES-ALL substitutes them), the prior (floored sens_F) and the even cut.
+  - Beside: the final agent (FIN-RAR's arm fon, tree_v40), the same groups and seeds with the rule's measurement recalibrated.
+  - All 54 of every arm were read. The origins agree in 27 of 27 network × seed groups, so honest = raw.
+- **Statistics.** The unit is the network: the seed-mean TEST 5k gap. MENU's bootstrap over networks (20,000 draws, seed 0) and T1's exact two-sided Wilcoxon. Reader output `scratch_audit/s26nov_amcc2_read.txt` (05:35 IST).
+
+**The rows** (mean over the 9 networks; reported, no call).
+
+| comparison | FLOPs | TEST 5k [95 % bootstrap] | val | 10k | Wilcoxon p (positive of 9) |
+|---|---|---|---|---|---|
+| **the final agent − AMC** (beside) | 0.45 | **+0.97 [−0.02, +2.03]** | +0.73 | +0.85 | 0.16 (6) |
+| | 0.20 | **+6.60 [+3.11, +10.74]** | +6.45 | +6.52 | 0.008 (8) |
+| the menu agent − AMC (registered) | 0.45 | +0.69 [+0.07, +1.45] | +0.68 | +0.69 | 0.055 (8) |
+| | 0.20 | +6.16 [+2.42, +10.37] | +5.75 | +5.96 | 0.012 (8) |
+| the threshold rule − AMC (registered) | 0.45 | +0.69 [−0.28, +1.65] | +0.74 | +0.72 | 0.098 (8) |
+| | 0.20 | +5.84 [+1.96, +10.08] | +5.49 | +5.67 | 0.027 (7) |
+| AMC − the prior (registered) | 0.45 | +0.03 [−1.11, +1.05] | +0.16 | +0.10 | 1.00 (4) |
+| | 0.20 | −4.08 [−9.57, +1.02] | −3.80 | −3.94 | 0.25 (3) |
+| AMC − the even cut (beside) | 0.45 | +1.17 [−0.74, +3.44] | +1.22 | +1.19 | 0.25 (6) |
+| | 0.20 | −4.76 [−8.29, −1.63] | −4.74 | −4.75 | 0.027 (1) |
+
+**By network** (AMC minus the arm, seed-mean TEST 5k).
+
+| network | FLOPs | AMC's change | − threshold rule | − final agent | − even cut | params kept: AMC / rule / final agent |
+|---|---|---|---|---|---|---|
+| ResNet-20 ×8 | 0.45 / 0.20 | −8.26 / −29.88 | −0.75 / −9.17 | −1.39 / −9.48 | +1.58 / −8.91 | 0.54 / 0.57 / 0.60; 0.18 / 0.19 / 0.24 |
+| ResNet-20 ×12 | 0.45 / 0.20 | −12.75 / −21.31 | −3.57 / −0.41 | −3.98 / −2.09 | −4.12 / −1.81 | 0.45 / 0.43 / 0.51; 0.28 / 0.17 / 0.21 |
+| ResNet-56 ×4 | 0.45 / 0.20 | −7.93 / −37.89 | −0.35 / −13.65 | −1.65 / −12.99 | +8.67 / −7.98 | 0.57 / 0.42 / 0.49; 0.10 / 0.16 / 0.18 |
+| ResNet-56 ×8 | 0.45 / 0.20 | −9.81 / −36.77 | −1.69 / −17.37 | −2.49 / −19.17 | +1.30 / −15.55 | 0.47 / 0.54 / 0.60; 0.12 / 0.17 / 0.25 |
+| VGG-16-BN | 0.45 / 0.20 | −1.07 / −6.09 | −0.47 / +0.10 | −0.34 / +0.20 | +0.31 / −2.12 | 0.52 / 0.23 / 0.23; 0.21 / 0.08 / 0.07 |
+| VGG-19-BN | 0.45 / 0.20 | −1.91 / −9.21 | −0.73 / −3.83 | −1.15 / −4.90 | −0.05 / −4.35 | 0.54 / 0.19 / 0.17; 0.22 / 0.07 / 0.08 |
+| MobileNetV2 ×0.75 | 0.45 / 0.20 | −0.46 / −9.71 | −0.13 / −7.27 | +1.53 / −5.71 | +1.02 / −3.96 | 0.46 / 0.43 / 0.45; 0.17 / 0.17 / 0.23 |
+| MobileNetV2 ×1 | 0.45 / 0.20 | −0.77 / −5.39 | −0.83 / −3.48 | +0.54 / −2.30 | −0.45 / −1.06 | 0.38 / 0.45 / 0.40; 0.15 / 0.17 / 0.20 |
+| DenseNet-40 | 0.45 / 0.20 | −1.22 / −6.85 | +2.33 / +2.49 | +0.19 / −2.92 | +2.25 / +2.89 | 0.77 / 0.52 / 0.77; 0.38 / 0.24 / 0.50 |
+
+**Reported beside.**
+- **Parameters kept at equal FLOPs** (mean fraction): at 0.45, AMC 0.523, the final agent 0.468, the menu agent 0.436, the threshold rule 0.406, the prior 0.387, the even cut 0.472; at 0.20, AMC 0.200, the final agent 0.216, the menu agent 0.175, the rule 0.146, the prior 0.160, the even cut 0.210. FLOPs are equal by construction.
+- **AMC's search time** per network and point (its record's seconds, RTX 4090): 109–706 s, median 315 s over 54 searches. It is shortest on the ResNet-20s (109–200 s) and longest on DenseNet-40 (448–706 s). The recovery is the same for every arm.
+
+**Reading.**
+- **On unseen networks, the frozen agent is at least level with AMC's per-network search at a mild cut, and far above it at a deep one.**
+  - At 0.45 the final agent is +0.97, but its interval touches zero; it is ahead on 6 of the 9 networks.
+  - At 0.20 it is +6.60, ahead on 8 of 9.
+  - The agent runs no search on the target. This is NEON's comparison (a generic agent against per-target search), on held-out families, with every arm on one loop and one recovery.
+- **The rule is above AMC by about as much.** The threshold rule is +0.69 and +5.84. AMC is level with the prior at 0.45 (+0.03) and below even the even cut at 0.20 (−4.76, below it on 8 of 9 networks).
+  - So the per-network RL search is the weak way to allocate here. This row does not show that the agent learned more than the rule; §464 still has the final agent behind the recalibrated rule.
+- **Where AMC loses: the deep cut on the thin ResNets.** It is 9–20 points below every arm there.
+  - Its reward is the accuracy of the cut network before any recovery. At FLOPs 0.20 these networks are near chance after the cut, so the reward barely separates plans [H] (proxy fidelity falls at the cut, [122]).
+  - The rules measure each group's sensitivity at a small cut, where the signal survives.
+  - AMC also keeps more parameters at 0.45 (0.523 against the rule's 0.406, at equal FLOPs) without gaining from them.
+- **Cost.** In our loop AMC's search is cheap: a median 5.3 min per network and point, because our per-plan scoring takes 0.12–0.45 s. The agent's decision took 3.3–3.7 min on ResNet-56 in §419 (a different network; the same order). AMC in LeGR's implementation took 85 min (§419). In this loop the agent's advantage over AMC is accuracy, not time.
+- **For the thesis.** A reviewer's first comparator now has a same-loop answer: on 9 unseen networks, the frozen agent is above the field's reference RL allocator run per network, by +6.60 TEST 5k at FLOPs 0.20. The claim is relative to per-network RL search, not to the tuned rule.
+- **Scope.** 9 networks, 2 points, 3 seeds; CIFAR-100; FLOPs. AMC is our re-implementation in our loop and recovery: faithful on ResNet-56 CIFAR-10 (within 0.03), with an 800-episode budget, BN recalibration in its reward, and the width floor and grid round that every arm has.
+- **Not supported by this section:** "SPECTRA beats AMC" beyond these networks, points and this loop; any statement about AMC's published pipeline or ImageNet numbers; any TEST-based choice.
+
+**Next.** No call and no follow-up were set before the read. The row enters the draft (§5.1b, beside the published widths, and §6's agent-or-rule table) and the summary for Gilad.
+
+Next §470.
