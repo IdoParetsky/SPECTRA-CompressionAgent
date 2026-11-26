@@ -16,6 +16,10 @@ argmax of one-hot targets) and prints nothing per batch. Val only, never TEST.
 
     [eval] FT_TRACE <label> <net> step=<s> | val <acc> loss <l> | train loss <l> | gnorm <g> | lr <lr> |
         wmove mean <m> max <M> | <s> s
+
+NAP (``SPECTRA_EVAL_FT_NAP=1``, :mod:`src.ft_nap`) rides this hook through the keyword ``nap``: ``on_start`` calls it
+after the step-0 read, ``on_step`` before the read logic and ``on_end`` after the last read. With ``nap=None`` (the
+default) nothing changes.
 """
 
 import random
@@ -32,7 +36,7 @@ def _fmt(value, spec):
 
 
 class FtTrace:
-    def __init__(self, every, val_loader, device, label, name, network, recorder=None, printer=None):
+    def __init__(self, every, val_loader, device, label, name, network, recorder=None, printer=None, nap=None):
         self.every = max(1, int(every))
         self.val_loader = val_loader
         self.device = device
@@ -41,6 +45,7 @@ class FtTrace:
         self.network = network
         self.recorder = recorder
         self.printer = printer
+        self.nap = nap  # NAP (SPECTRA_EVAL_FT_NAP, src/ft_nap.py) rides this hook; None (the default) changes nothing
         self.records = []
         self.model = None
         self.convs = []
@@ -62,8 +67,12 @@ class FtTrace:
         self._reset_accumulators()
         self._lr = None
         self._read(0)
+        if self.nap is not None:
+            self.nap.on_start(model)
 
     def on_step(self, step, loss, grad_norm, lr):
+        if self.nap is not None:
+            self.nap.on_step(step, loss, grad_norm, lr)
         loss = loss.detach().float()
         grad_norm = grad_norm.detach().float()
         self._loss_sum = loss if self._loss_sum is None else self._loss_sum + loss
@@ -77,6 +86,8 @@ class FtTrace:
         if self._last_read_step != step:
             self._read(step)
         self.final_done = True
+        if self.nap is not None:
+            self.nap.on_end(step)
 
     # --- the read -------------------------------------------------------------------------------------
 

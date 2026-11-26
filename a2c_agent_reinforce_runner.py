@@ -223,6 +223,31 @@ def _e1_restore_eval_loaders(env, held):
     held.clear()  # restored: a second call (the finally) is a no-op
 
 
+def _final_ft_nap(env, net_path, label, loader):
+    """
+    NAP (``SPECTRA_EVAL_FT_NAP=1``, queue row NAPJ): the NAP2-v2 logger that TRACE's hook drives along one candidate's
+    final fine-tune (:mod:`src.ft_nap`), or None, with one line, when it cannot be built; the fine-tune then runs
+    without it. The origin is the pristine network of ``env.data_dict`` (``reset`` works on a deep copy of it, and
+    the logger reads only a deep copy); the probe comes from the val and train loaders' datasets; the array file goes
+    under the run directory's ``nap/``. Momentum 0.9 and weight decay 5e-4 are ``_final_ft``'s fixed recipe.
+    """
+    name = os.path.basename(net_path)
+    try:
+        from src.ft_nap import NapLogger
+        try:
+            classes = utils.infer_num_classes(env.val_loader.dataset)
+        except ValueError:
+            classes = None  # the logger reads it off the model's outputs
+        return NapLogger(
+            env.data_dict[env.selected_net_path][0], env.val_loader.dataset, env.train_loader.dataset, classes,
+            StaticConf.get_instance().conf_values.device, label, net_path, recorder=run_recorder,
+            printer=utils.print_flush, out_dir=lambda: os.path.join(run_recorder.recorder().run_dir, "nap"),
+            batch_size=loader.batch_size, momentum=0.9, weight_decay=5e-4)
+    except Exception as error:  # noqa: BLE001 - the logger must not cost the fine-tune
+        utils.print_flush(f"[eval] FT_NAP {label} {name}: not built ({type(error).__name__}: {error}); ignored")
+        return None
+
+
 def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=False, final_stem=None):
     """
     Fine-tune a copy of one candidate with the fixed final recipe; print and record TEST/val.
@@ -251,6 +276,8 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     if imagenet_fast.enabled():  # v33: the ImageNet recovery path (SPECTRA_IMN_FT=1); off, everything below is as before
         if fortify_mod.eval_ft_trace() > 0:
             utils.print_flush(f"[eval] FT_TRACE {label} {name}: not supported on the ImageNet path; ignored")
+        if fortify_mod.eval_ft_nap():
+            utils.print_flush(f"[eval] FT_NAP {label} {name}: not supported on the ImageNet path; ignored")
         return _final_ft_imagenet(env, net_path, label, candidate, model, epochs, lr, save_dir, scratch, final_stem)
     loader, aug = utils.final_ft_train_loader(env.train_loader, fortify_mod.eval_final_ft_batch())
     schedule, warmup = fortify_mod.eval_final_ft_schedule(), fortify_mod.eval_final_ft_warmup()
@@ -264,10 +291,15 @@ def _final_ft(env, net_path, label, candidate, epochs, save_dir=None, scratch=Fa
     saved = {k: os.environ.get(k) for k in recipe}
     trace = None
     trace_every = fortify_mod.eval_ft_trace()
+    nap_on = fortify_mod.eval_ft_nap()  # NAP (SPECTRA_EVAL_FT_NAP=1, default off): rides TRACE's hook, src/ft_nap.py
     if trace_every > 0:  # TRACE (SPECTRA_EVAL_FT_TRACE=K, default off): val reads along the fine-tune, src/ft_trace.py
         from src.ft_trace import FtTrace
+        nap = _final_ft_nap(env, net_path, label, loader) if nap_on else None
         trace = FtTrace(trace_every, env.val_loader, StaticConf.get_instance().conf_values.device, label, name,
-                        net_path, recorder=run_recorder, printer=utils.print_flush)
+                        net_path, recorder=run_recorder, printer=utils.print_flush,
+                        **({"nap": nap} if nap is not None else {}))
+    elif nap_on:
+        utils.print_flush(f"[eval] FT_NAP {label} {name}: SPECTRA_EVAL_FT_NAP needs SPECTRA_EVAL_FT_TRACE > 0; ignored")
     t0 = time.perf_counter()
     try:
         os.environ.update(recipe)

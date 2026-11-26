@@ -611,6 +611,16 @@ def eval_ft_trace() -> int:
     return max(0, _env_int_or("SPECTRA_EVAL_FT_TRACE", 0))
 
 
+def eval_ft_nap() -> bool:
+    """``SPECTRA_EVAL_FT_NAP=1`` (NAP, queue row NAPJ; default off, and only the value ``1`` turns it on): the
+    NAP2-v2 logger rides TRACE's hook along the final fine-tune, so it needs ``SPECTRA_EVAL_FT_TRACE`` > 0 (without
+    it the flag is ignored with one line). One ``eval_ft_nap0`` record at the cut, one ``eval_ft_nap`` record and one
+    ``[eval] FT_NAP`` line per scheduled read, and one array file per run (:mod:`src.ft_nap`). Its reads save and
+    restore every random state and each module's train/eval flag, and its step-0 work runs on copies, so training
+    is unchanged. Val and train images only, never TEST."""
+    return os.environ.get("SPECTRA_EVAL_FT_NAP", "").strip() == "1"
+
+
 def eval_final_ft_lr() -> float:
     return max(1e-6, _env_float_or("SPECTRA_EVAL_FINAL_FT_LR", 0.01))
 
