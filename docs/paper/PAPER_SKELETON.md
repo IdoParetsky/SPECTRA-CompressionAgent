@@ -48,7 +48,7 @@ Every result table, the new ones included, is PRELIM until it is locked. TEST 5k
 | Cost table (§5.6) | Time to a pruned, recovered network against the published pipelines, timed on the same GPU, with the split between decision and fine-tune and the stock-loader rows; VGG-16; the faster cut walk | §419, §425, §433, §435, §438 | PRELIM |
 | Controls (§5.6) | Scratch training; a per-network random search; random vs L1 channels; measured speed; run-to-run noise | §394, §396, §398, §395, §393, §397, §401 | PRELIM |
 | The agent learns (§5.7) | Against mild and the even cut on held-out networks | §341, §346, §347, §363 | PRELIM |
-| Room screens (§5.8) | No headroom at moderate budgets; room across every plan run; four agent-free plans on 30 CIFAR-100 networks at equal FLOPs and at equal params, never pooled together | §367, §368, §372; §434; §436; §437; §439 (correction, rule ranking) | PRELIM, no call |
+| Room screens (§5.8) | No headroom at moderate budgets; room across every plan run; four agent-free plans on 30 CIFAR-100 networks at equal FLOPs and at equal params, never pooled together; the same four on 26 CIFAR-10 networks at equal FLOPs (the prior stays) | §367, §368, §372; §434; §436; §437; §439 (correction, rule ranking); §470 (CIFAR-10: PR-PRIOR LEVEL, 9 of 26 networks with room) | PRELIM, no call |
 | Deep budgets and the reward (§5.9) | Single-change retrains; recovery-aware rewards; CIFAR-100 in the catalog; both levers together; below the training range; the one-epoch reward; a deeper range from scratch | §376–§390, §400, §413, §414, §417, §421 | PRELIM |
 | Tables 5.9b, 5.9b-2 | The fallback to the rule chosen on validation (pool, new architectures, harder points), and the search for its judge | §409, §410, §431, §432 | PRELIM |
 | §5.9c–§5.9f | Two-stage plans; the agent's model; the accuracy-limit mode; how many cut rates the rule measures | §411; §422, §426; §423; §424 | PRELIM |
@@ -91,7 +91,7 @@ Each line holds only with the scope its sections state.
    - New architectures are at the rule on CIFAR-10, and below it at one budget when the dataset is new too (§407); with the fallback they are at parity (§410).
    - The held-out FLOPs agent holds, though its design keeps it near its rule; the held-out params agent is weaker (§420, §429).
 9. **Preference as a limit.** Given an accuracy limit, the agent stops at the same size as the rule (§423).
-10. **Where an agent could gain.** Room above the rule is network-specific. There is little on CIFAR-10. On CIFAR-100 it depends on the network and the axis, and at equal params it is mostly on the thin ResNets (§434, §436, §437). These screens fixed T1's held-out set.
+10. **Where an agent could gain.** Room above the rule is network-specific. There is less on CIFAR-10: 9 of 26 networks at equal FLOPs, mean val +0.31, mostly MobileNetV2, thin ResNet-20 and DenseNet-40 (§470). On CIFAR-100 it depends on the network and the axis, and at equal params it is mostly on the thin ResNets (§434, §436, §437). These screens fixed T1's held-out set.
 
 **Claims guard (short form; the full guard heads the draft).**
 - Never "beats" a rule, DepGraph or the state of the art unless a registered BEATS call fired, and then only with its scope (§382, §396). No pooled beat of a prior holds at five seeds (§405, §406); §390's three-seed beat did not hold.

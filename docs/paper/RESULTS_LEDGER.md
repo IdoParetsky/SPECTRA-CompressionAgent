@@ -13619,3 +13619,99 @@ Next §469.
 **Next.** No call and no follow-up were set before the read. The row enters the draft (§5.1b, beside the published widths, and §6's agent-or-rule table) and the summary for Gilad.
 
 Next §470.
+
+## 470. (PR: queue row PR, registered 16 Nov 16:30 IST before any of its scripts ran on the cluster; Ido's GO, 16 Nov; evaluation only, no training, at our lowest priority; 26 CIFAR-10 networks × FLOPs 0.45 and 0.20 × seeds 47–48 × four agent-free plans = 416 cells, plus 26 smokes, all COMPLETED with no resubmit, 113.5 GPU-h; reader stamped 16 Nov (blob b612c7e) and run by the driver on 26 Nov at 10:45 IST; PR-R2, a one-rule reader fix stamped after that read and before it ran (commit ad792af, 11:35:27 IST; blob 5273c3b; run 11:35:53); one call) — **PR-PRIOR: LEVEL on CIFAR-10 by the registered rule. The threshold rule is above the FLOPs prior (floored sens_F) by val +0.24 [+0.04, +0.47], exact Wilcoxon p 0.085 (TEST 5k +0.22 [+0.05, +0.41], 10k +0.23). With five mislabelled rows recovered (PR-R2) it is val +0.20 [+0.03, +0.39], p 0.085 (TEST 5k +0.21, 10k +0.21): still LEVEL. Pooled with CIFAR-100 on the same 26 networks it is ABOVE (val +0.40, p 0.011; PR-R2 +0.38). Floored sens_F stays the FLOPs prior. Room above the prior on CIFAR-10 is about a third of CIFAR-100's: 9 of 26 networks, mean val +0.31 (TEST 5k +0.29, 10k +0.30), mostly MobileNetV2, thin ResNet-20 and DenseNet-40.** PRELIM.
+
+**Question.** On CIFAR-100 the threshold rule sits above the FLOPs prior (§436, §439). A prior is fixed from pooled evidence, never per network and never on TEST, and CIFAR-100 is only half of that evidence. Does CIFAR-10 agree? And where on CIFAR-10 is there room above the prior?
+
+**Method and reader.**
+- **Design.** ROOM-S's design (§436) on CIFAR-10. The 26 networks are ROOM-S's 30 without ShuffleNetV2, whose FLOPs estimate is wrong (§439):
+  - chenyaofo's ResNet-20 / 32 / 44 / 56, VGG-11 / 13 / 16 / 19-BN, MobileNetV2 ×0.5 / 0.75 / 1 / 1.4 and RepVGG-A0 / A1 / A2;
+  - thin ResNet-20 and ResNet-56 at widths 4, 8 and 12;
+  - PreAct-ResNet-20 / 56, WRN-16-4, WRN-28-2 and DenseNet-40.
+- **Plans** (four, no agent):
+  - the FLOPs prior (floored sens_F, §357);
+  - the even cut;
+  - the cost-aware rule at FLOPs;
+  - the threshold rule at FLOPs (Li et al. 2017).
+- **Line.** FINAL's FLOPs eval line on tree_v35: deterministic G2, 100 epochs, keep-last, the width floor, the grid round, E1's flags off. FLOPs 0.45 and 0.20; seeds 47 and 48 are screen seeds, never in a proof row. Every plan of a network and seed shares its origin, so honest = raw.
+- **Run.** A driver on the login node used only GPUs that no other job of ours was waiting for, with at most 4 PR cells at a time (16–26 Nov). The gate passed 26 of 26 (22 Nov 05:13). No cell was preempted or resubmitted.
+- **Reader** (registered).
+  - Row checks are those of ROOM-S's corrected reader: completed; FINAL's line; no stall fallback and no masked edit; a size point within 0.0051 by label; landing within 0.011.
+  - Per network: the plan minus the prior, as a seed mean, then a budget mean. Over networks: the mean with a 95 % bootstrap (20,000 draws, seed 0) and the exact two-sided Wilcoxon signed-rank p.
+  - Room bands are ROOM-S's: the plan picked on one seed's val, scored on the other seed; ROOM ≥ +0.30 val, LITTLE-ROOM < +0.15.
+  - Output: `scratch_audit/pr/_read_pr.txt`.
+- **PR-R2: why the reader was fixed.**
+  - The registered read dropped 5 cells as "no size point": the threshold rule at FLOPs 0.45 on MobileNetV2 ×0.75 (one seed), ×1 (two) and ×1.4 (two).
+  - They are not failed cells. In each, the rule's plan at the target was also the best-val point of the walk. So the eval fine-tuned it once ("same point as val_best; not fine-tuned twice") and saved it only under the val_best label, which the label match missed. This is the lesson of 19 Nov, which came after this reader was fixed.
+  - PR-R2 takes the val_best row for exactly such a cell, and keeps the landing check: all five pass it. Nothing else changes, and its output counts the recovered rows (5).
+  - Output: `scratch_audit/pr/_read_pr2.txt`. The registered call stays as read; PR-R2 is reported beside it and gives the same label.
+
+**The call** (PR-PRIOR, on val; the threshold rule minus the FLOPs prior; mean over networks).
+
+| set | networks | **val** [95 %], p | TEST 5k [95 %], p | 10k, p | label |
+|---|---|---|---|---|---|
+| **CIFAR-10, the registered read (the call)** | 26 | **+0.24** [+0.04, +0.47], 0.085 | +0.22 [+0.05, +0.41], 0.074 | +0.23, 0.083 | **LEVEL** |
+| CIFAR-10, PR-R2 | 26 | +0.20 [+0.03, +0.39], 0.085 | +0.21 [+0.04, +0.39], 0.074 | +0.21, 0.083 | LEVEL |
+| CIFAR-100 (ROOM-S, corrected, the same 26 networks) | 26 | +0.56 [+0.18, +0.96], 0.041 | +0.55 [+0.18, +0.94], 0.012 | +0.56, 0.034 | ABOVE |
+| both pooled, registered | 52 | +0.40 [+0.18, +0.64], 0.011 | +0.39 [+0.18, +0.61], 0.002 | +0.39, 0.009 | ABOVE |
+| both pooled, PR-R2 | 52 | +0.38 [+0.17, +0.61], 0.011 | +0.38 [+0.17, +0.60], 0.002 | +0.38, 0.009 | ABOVE |
+
+Call (registered): ABOVE if the mean is ≥ +0.2 and p < 0.05; BELOW if the mean is ≤ −0.2 and p < 0.05; LEVEL otherwise. On CIFAR-10 the mean meets the bar and p does not. Use (registered): ABOVE on CIFAR-10 and ABOVE pooled would make science propose the threshold rule as the FLOPs prior for later studies; otherwise floored sens_F stays the prior and the threshold rule is reported beside it.
+
+**The rule ranking on CIFAR-10** (each plan minus the prior; 26 networks; PR-R2, which changes only the threshold rule's rows at 0.45; reported).
+
+| plan − prior | both budgets: val [95 %], p | TEST 5k [95 %] | 10k | at 0.45: val / TEST 5k | at 0.20: val / TEST 5k | above on val |
+|---|---|---|---|---|---|---|
+| the even cut | −0.39 [−0.71, −0.10], 0.012 | −0.30 [−0.60, −0.03] | −0.35 | −0.23 / −0.17 | −0.56 / −0.43 | 7 of 26 |
+| the cost-aware rule | +0.05 [−0.09, +0.19], 0.44 | +0.06 [−0.05, +0.16] | +0.05 | +0.14 / +0.22 | −0.05 / −0.10 | 14 of 26 |
+| the threshold rule | +0.20 [+0.03, +0.39], 0.085 | +0.21 [+0.04, +0.39] | +0.21 | +0.15 / +0.24 | +0.26 / +0.17 | 17 of 26 |
+
+At 0.45 the threshold rule is val +0.15 [−0.00, +0.30], p 0.052 (registered read, with 23 networks: +0.06, p 0.21). The val p values across the two budgets, Holm-adjusted, are 0.10 and 0.25 (reported only).
+
+**Room above the prior, by family** (PR-R2; the plan picked on val, mean over the two budgets; CIFAR-100's figure from §436 beside).
+
+| family (networks) | picked plan − prior, val | TEST 5k / 10k | networks with room (≥ +0.30 val) | CIFAR-100, val (§436) |
+|---|---|---|---|---|
+| MobileNetV2 (4) | +0.98 | +0.99 / +0.99 | 4 | +1.16 |
+| DenseNet-40 (1) | +0.90 | +0.58 / +0.74 | 1 | +3.09 |
+| thin ResNet-20 (3) | +0.64 | +0.29 / +0.46 | 3 | +1.19 |
+| VGG-BN (4) | +0.21 | +0.16 / +0.19 | 1 (VGG-13) | +2.91 |
+| Wide-ResNet (2) | +0.18 | +0.22 / +0.21 | 0 | −0.28 |
+| thin ResNet-56 (3) | +0.02 | +0.12 / +0.07 | 0 | +0.56 |
+| ResNet, chenyaofo (4) | +0.01 | −0.06 / −0.03 | 0 | +0.20 |
+| RepVGG (3) | +0.01 | +0.23 / +0.12 | 0 | +0.08 |
+| PreAct-ResNet (2) | −0.05 | +0.04 / −0.01 | 0 | −0.14 |
+| **all 26** | **+0.31** | +0.29 / +0.30 | **9** | +0.93 (all 30, with ShuffleNetV2) |
+
+SOME-ROOM (+0.15 to +0.30): thin ResNet-56 ×4, ResNet-44, WRN-28-2 and WRN-16-4. The registered read's figures differ only on MobileNetV2 ×0.75 and ×1 (its all-26 TEST 5k is +0.28).
+
+**Reported beside.**
+- **Parameters at equal FLOPs.** The picked plan's params relative to the prior's are 5.3× and 7.4× on VGG-13 (the even cut), 1.30× and 1.82× on DenseNet-40, and 0.94–1.72× on MobileNetV2.
+  - So part of this equal-FLOPs room may be params bought, as on CIFAR-100 (§437).
+  - No equal-params screen was run on CIFAR-10.
+- **The prior's own change on CIFAR-10 is small outside the thin and compact networks.** At 0.45 it is TEST 5k −0.92 to −1.31 on MobileNetV2 and +0.59 to −0.44 on VGG-BN. At 0.20 it is −5.9 to −20.6 on the thin ResNets.
+
+**Reading.**
+- **The prior stays floored sens_F, by the registered use.**
+  - On CIFAR-10 the threshold rule is above the prior in the mean (val +0.20 to +0.24, on 17 of 26 networks), but not by the registered test (p 0.085). Pooled with CIFAR-100, it is above (+0.38 to +0.40, p 0.011).
+  - The threshold rule stays the strongest same-loop rule, reported beside every agent row. The agent studies since §441 already judge the agent against it.
+- **The stated hypothesis was half right.**
+  - As stated, the rule's lead is smaller on CIFAR-10: +0.20 against +0.56 on the same 26 networks.
+  - Room does not sit on VGG-BN, though: only VGG-13 has it. CIFAR-10's VGG-BNs lose little under the prior. The room sits on MobileNetV2, thin ResNet-20 and DenseNet-40.
+- **There is less room on CIFAR-10.** The mean is +0.31 val over 26 networks, against +0.93 over 30 on CIFAR-100 (§436), and 9 networks have room against 20.
+  - This agrees with §434's "little room" on CIFAR-10 from existing rows.
+  - It also shows why CIFAR-10 rows can show little gain for any allocator: a gain needs a better plan to exist [R §434].
+- **The even cut is below the prior on CIFAR-10** (val −0.39, p 0.012), mostly at the deep cut (−0.56 at 0.20). The cost-aware rule is level (+0.05).
+- **For the thesis.** This completes the CIFAR-10 half of the agent-free comparators at equal FLOPs: four rules, 26 networks, two points. The prior is backed by both datasets read together, with CIFAR-10 alone LEVEL.
+- **Scope.** 26 CIFAR-10 networks, 2 FLOPs points, 2 screen seeds and four agent-free plans; no agent; equal FLOPs only. The 18 Nov amendment, LAMP and the global ranking on CIFAR-10 (208 cells), never ran: the driver submitted the four registered plans only.
+- **Not supported by this section:**
+  - "the threshold rule is above the prior on CIFAR-10";
+  - seeds 47–48 in any proof row;
+  - a call on any agent;
+  - "the prior is beaten" beyond these four plans, 26 networks and two FLOPs points;
+  - any TEST-based choice.
+
+**Next, as set before the read.** LEVEL on CIFAR-10: floored sens_F stays the FLOPs prior, and no amendment follows. Whether to close the never-run LAMP amendment or run its 208 cells is Ido's decision. Science recommends closing it: on CIFAR-100, LAMP is 7.35 to 9.33 below the threshold rule (§442).
+
+Next §471.
