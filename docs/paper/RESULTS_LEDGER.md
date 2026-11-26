@@ -13465,3 +13465,89 @@ Call (registered): LEARN-GO if L1 ≥ +1.00 with the lower end > 0 and L2 ≥ +0
 **Next, as set before the read.** LEARN-NO: the short regime stays a screen, the "fast mode" of §465, drafted as a reported procedure and not as the agent. Rank 2 of the 25 Nov ranking closes as an agent direction. The size head (SZH-2, running) and the latency budget remain.
 
 Next §468.
+
+## 468. (SZH-2: queue row SZH-2, registered 25 Nov 13:53 IST before any SZH-2 script existed; code stamped 13:56 IST (blobs d6e9ba27, 5ac40ce5); reader stamped before any label was read (commit 97b5530, blob d942c78a); stage 2 of the size head, set by §466; labels by evaluation only: the final agent's seed-42 policy (tree_v37 job24337054, SPECTRA_SENS_BN_RECAL=8, tree_v40) at FLOPs 0.70, 0.55, 0.45, 0.35, 0.25, 0.20 and 0.15 on FINAL-SW's 49 SW training networks, 343 jobs (smoke 24487158 and 342 cells), 75.6 GPU-h; no training; one call) — **HEAD-NO by the registered rule. On §466's 9 held-out CIFAR-100 networks, a ridge head on eight static features chooses sizes worth +2.21 [−1.13, +5.65] TEST 5k utility over the best common size (val +2.06, 10k +2.13), and −0.59 [−1.16, −0.03] against copying the size that the nearest training network chose (val −0.58, 10k −0.59). The size choice has room on unseen networks (ceiling +3.52 [+0.96, +6.21]), but the learned head adds nothing to the nearest-network rule; it loses where it extrapolates (both VGG-BNs).** PRELIM.
+
+**Question.** §466 found room in choosing each network's own size, as a ceiling. Can a head fitted on other families' labels choose that size for a network it has never seen, from features read with no recovery on it? And does it beat a simple rule that copies the choice of the most similar training network?
+
+**Labels, head and reader.**
+- **Labels.** All 343 jobs COMPLETED, with no preemption. One job was adopted into the manifest after the submit incident of 25 Nov 14:09 (queue row SZH-2).
+  - 340 of 343 points pass the row checks. The 3 failures are all at FLOPs 0.15, where the width floor stops the cut:
+    - ConvNeXt-femto and ConvNeXt-pico CIFAR-100: the stall fallback ("FLOPs ×0.197 above the target ×0.150");
+    - SqueezeNet 1.1 ×0.5 CIFAR-10: lands at FLOPs ×0.236, with no size record.
+  - By the registered rule a training network counts only with all seven sizes, so 46 of 49 count (DLA 8, EfficientNet 8, HarDNet 8, MobileNet v1 8, MobileNet v3 8, SqueezeNet 6). Both ConvNeXts drop out, so the family report has six folds, not seven.
+- **Held-out.** SZH-1's 9 networks and curves (§466), 63 of 63 points.
+- **Prices.** The training networks' val marginal rates per halving (276 rates): p20–p80 = 0.35, 1.06, 1.74, 2.49, 3.53. The usable ones (M1 ≥ 0.5 on the training networks) are 1.06, 1.74 and 2.49. They are lower than §466's prices, which were calibrated on the held-out curves (3.11–9.88): the SW networks lose less per halving.
+- **Head.** For each size, a ridge regression of the val change on the eight standardized features, with α chosen by leave-family-out CV (10 at 0.70, 0.20 and 0.15; 100 at 0.55–0.25). The head chooses the argmax over sizes of the predicted val change + λ·log2(1/s).
+- **Comparators.** C0 is the best common size, chosen on the training networks' val. C1 is the size that the nearest training network (in standardized log10 parameters and classes) chose on its own val.
+- **Reader.** The driver ran it on the cluster at 26 Nov 05:22 IST, after every job had ended. Its blob was checked against the stamp. Output: `scratch_audit/s25nov_szh2_read.txt`.
+
+**The call** (on the 9 held-out networks; averaged over the usable prices; bootstrap over networks, 2,000 draws, seed 0).
+
+| | TEST 5k utility | val | 10k |
+|---|---|---|---|
+| **head − C0 (the best common size)** | **+2.21 [−1.13, +5.65]** | +2.06 | +2.13 |
+| **head − C1 (the nearest network's own choice)** | **−0.59 [−1.16, −0.03]** | −0.58 | −0.59 |
+| ceiling (each network's own val choice) − C0 | +3.52 [+0.96, +6.21] | +3.61 | +3.57 |
+
+Call (registered): HEAD-GO if head − C0 ≥ +0.50 with the lower end > 0 and head − C1 ≥ 0; HEAD-PARTIAL if head − C0 meets its bar and head − C1 < 0; **HEAD-NO** otherwise. The lower end of head − C0 is below 0. Even if it were not, head − C1 < 0 would make the call PARTIAL at best.
+
+**By price** (TEST 5k utility; the first and last prices are reported only).
+
+| price per halving | usable | C0 | head − C0 | head − C1 | ceiling − C0 |
+|---|---|---|---|---|---|
+| 0.35 | no | 0.70 | −1.69 [−3.95, +0.00] | −1.69 [−3.95, +0.00] | −0.01 [−0.07, +0.03] |
+| 1.06 | yes | 0.70 | −1.34 [−3.07, +0.00] | −1.34 [−3.07, +0.00] | +0.04 [+0.00, +0.12] |
+| 1.74 | yes | 0.35 | +2.58 [−0.93, +6.21] | +0.00 [+0.00, +0.00] | +3.68 [+1.02, +6.74] |
+| 2.49 | yes | 0.20 | +5.39 [+0.02, +11.34] | −0.42 [−1.21, +0.01] | +6.85 [+1.86, +12.00] |
+| 3.53 | no | 0.20 | +4.25 [−0.06, +9.32] | −0.72 [−2.33, +0.51] | +5.93 [+1.51, +10.60] |
+
+**By network** (mean over the usable prices, TEST 5k utility).
+
+| held-out network | head − C0 | head − C1 |
+|---|---|---|
+| DenseNet-40 | −0.34 | +0.00 |
+| MobileNetV2 ×0.75 | −0.05 | −0.08 |
+| MobileNetV2 ×1 | +0.20 | +0.01 |
+| ResNet-20 width 12 | +6.92 | +0.00 |
+| ResNet-20 width 8 | +6.85 | +0.00 |
+| ResNet-56 width 4 | +11.53 | +0.00 |
+| ResNet-56 width 8 | +3.59 | −1.18 |
+| VGG-16-BN | −4.67 | −2.29 |
+| VGG-19-BN | −4.15 | −1.73 |
+
+**Reported beside: leave-family-out on the 46 training networks** (each family held out, the head, C0 and C1 refitted without it; mean over networks, averaged over the usable prices).
+
+| held-out family | networks | head − C0, TEST (val) | head − C1, TEST | ceiling − C0, TEST |
+|---|---|---|---|---|
+| DLA | 8 | +0.33 (+0.35) | +0.19 | +0.16 |
+| EfficientNet | 8 | +0.35 (+0.42) | +0.21 | +0.51 |
+| HarDNet | 8 | +0.76 (+0.71) | +0.06 | +0.78 |
+| MobileNet v1 | 8 | +0.79 (+0.62) | +0.24 | +1.07 |
+| MobileNet v3 | 8 | +0.27 (+0.56) | +0.13 | +0.41 |
+| SqueezeNet | 6 | +0.35 (+0.38) | −0.22 | +1.03 |
+| **all 46** | 46 | **+0.48 [+0.29, +0.69]** (val +0.51) | **+0.12 [+0.00, +0.24]** | +0.64 [+0.37, +0.97] |
+
+The ceiling is each network's val choice, so a head can exceed it on TEST (DLA).
+
+**Reading.**
+- **On unseen families the size choice transfers as a rule, not as a learned head.**
+  - Nearly all of the room above one common size goes to copying the nearest training network's choice: C1 − C0 = +2.80 (the difference of the two call rows, with no interval of its own), against a ceiling of +3.52.
+  - The head matches C1 on 6 of the 9 networks and loses on the other three.
+- **Where the head loses, it extrapolates.**
+  - Both VGG-BNs are larger than any SW network, and the ridges at 0.15 and 0.20 weight log10 parameters and MACs heavily (+1.01 to +1.17 standardized).
+  - So the head chooses 0.15 for both VGGs at every price, including where their own val curves choose 0.25–0.70.
+  - C1 also chooses 0.15 for them at the two higher usable prices, so it loses there too, but less.
+- **Inside the SW catalog the head is level with the rule.** Family-out, it is +0.48 above the common size but only +0.12 [+0.00, +0.24] above the nearest-network rule, against a ceiling of +0.64. The part that a learned head adds above that rule is about a tenth of a utility point.
+- **Most of the held-out room comes from a poor common size.**
+  - The large gains come at the two higher usable prices. There the common size chosen on the SW networks is 0.35 or 0.20, which costs the thin ResNets 18–28 points (§466), so any choice that keeps those networks large wins.
+  - At the lowest usable price the common size is 0.70, and the head is −1.34 below it.
+- **For the thesis.** This is the third learned choice that does not beat a simple rule on unseen families: the rule choice (§464), the plan choice under a short recovery (§467) and now the size.
+  - The per-network size stays a measured ceiling (§466: +1.85 at the held-out prices; here +3.52 against the common size chosen on the SW networks).
+  - The nearest-network size rule is reported beside as the cheapest way to take most of that ceiling [R], not as a call.
+- **Scope.** One seed; 9 held-out networks; a ridge on eight static features; a catalog of SW networks only (the biggest-catalog amendment adding T1's 39 networks was not run); the held-out curves are SZH-1's; CIFAR and FLOPs only.
+- **Not supported by this section:** any claim that a learned size head cannot work with a larger catalog or richer features [H]; any claim at a price outside 1.06–2.49; any TEST-based choice.
+
+**Next, as set before the read.** HEAD-NO: the per-network size stays a measured ceiling, and rank 1 of the 25 Nov ranking closes. No sealed amendment is drafted.
+
+Next §469.
