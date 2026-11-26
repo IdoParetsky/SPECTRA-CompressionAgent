@@ -13828,3 +13828,81 @@ Call (registered): LADDER-GO if the equal-size pick − the rule is at least +0.
 **Next, as set before the read.** LADDER-NO with the 10-epoch τ at least 0.05 above the probe's: register the 20-epoch rung (queue row LADDER-20).
 
 Next §473.
+
+## 473. (AGENT-V2: queue row AGENT-V2, registered 26 Nov 15:06 IST before any AGENT-V2 code (commit 41eb9d7); zero GPU; code by the spectra-hard-dev subagent from science's brief, reviewed by science, committed 997adbd (`src/fortify.py` 20e33e49, `src/plan_agent.py` 3d36c300, `src/plan_trainer.py` eaaf874e, `tests/test_agent_v2.py` cd8f0482); diagnostics `scripts/_tmp_s26nov_av2_diag.py` 33700686 and benchmark `scripts/_tmp_s26nov_av2_plant.py` 006647ad, run on the login node 26 Nov; outputs `scratch_audit/av2_diag/`) — **The agent's training machinery, read on CPU. No TEST and no result: every number is a CPU diagnostic of the three lines of record (rule blending, FLOPs residual and direct parameters; seeds 42-44) or a synthetic-reward value. On a planted reward whose best plan is known and one plan away from the rule, with the measured reward noise, the current settings come only 11 % closer to that plan in 16,000 reward evaluations on the residual line (d/d0 0.893), and none closer on the rule-blending line (1.043). The best measured settings come 26 % closer (0.744: cosine learning-rate decay with averaged weights) and 30-33 % closer (0.705 and 0.669 with the blend's new head flags). Every update is clipped. The rule-blending agent's choice of rule is set by the seed, not learned per network. The direct-parameter line scored 13.4 % of its training instances on a cut whose masked accuracy did not match the real cut.** Diagnostic.
+
+**Question.** Three reports (`docs/paper/AGENT_AUDIT_26NOV.md`, the two literature scans of 26 Nov) agree that the evaluator binds. Does the training machinery also blunt the agent? Which of the audit's fixes move a plan toward a known optimum faster than the current settings?
+
+**Method.**
+- **Code.** Each fix is a new `SPECTRA_PLAN_*` flag, off by default: the reward proxies `cutce` and `bnce<N>` (the change in val cross-entropy); `ADV` (centred ranks, a running global scale, or a floor on the per-instance SD); `MIRROR` (antithetic draws); `SPLIT` (one half of the plans varies the scores, the other the blend, each scored against its own half); the blend's `MENU_BOUND`, `MENU_ENT`, `MENU_KAPPA` (bins or a FiLM shift by budget), `MENU_SIGMA_ANNEAL` and `MENU_LOG`; `EMA` (averaged weights); `LR_SCHEDULE=cosine`; `GNORM` (score term over √G); `KAPPA_POINTS`; `SAMPLE=family`; and the guards `FS_GUARD`, `CHECK` (cuts plans for real and counts dead filters before training) and `CONTRACT` (the state layout stored in the checkpoint).
+- **Acceptance (registered).** Met. With every flag off, the trainer is byte-identical to tree_v41. It was tested against a frozen copy of tree_v41's `run()` (three lines: logs, records, checkpoints and trainer state), and in a subprocess against the untouched tree on nine trainer jobs. The new test file passes (29). The 24 existing test files give 524 passed and 2 failed, the same two that fail on untouched tree_v41.
+- **Diagnostics 1-9.** The audit's §4 log readers, run on the three lines' train and eval logs (78 eval cells: 13 networks, 2 budgets, 3 seeds).
+- **Planted-optimum benchmark.** The real policy, trainer and decoders run on real states of six catalog networks (thin ResNet-20 ×4 and ×10 on CIFAR-10, ×6 on CIFAR-100; thin ResNet-56 ×6 on CIFAR-10 and CIFAR-100; PreAct-ResNet-20 on CIFAR-10). Only the reward is replaced: r = −S Σ_g c_g (log w_g − log w*_g)² + noise, with c_g the group's MAC share. The planted plan w* comes from the line's own decoder at the same budget, so the agent can reach it; on the blending line it is a budget-dependent blend of the four rules. S and the noise SD equal the within-instance reward SD measured on the line (item 2: 0.78 points residual, 1.58 blending). Each run is 2,000 instances × 8 plans = 16,000 reward evaluations, seeds 42-44. The measure is d/d0: the mean plan's cost-weighted distance to w* over the untrained agent's, averaged over budgets 0.40-0.80. Since the reward is quadratic in that distance, 1 − (d/d0)² is the share of the planted room the mean plan captures.
+
+**Diagnostics** (triples are blending / residual / direct parameters).
+
+| item | reading |
+|---|---|
+| 1. blend shares in the 78 eval cells | one rule at ≥ 0.99 in 62. Seeds 42 and 44 put 1.00 on the threshold rule on all 13 networks; seed 43 puts ≥ 0.93 on the anchor on the six residual-family networks and blends elsewhere. The seeds disagree on the top rule on 22 of 26 (network, budget) pairs; each seed's top rule is the same at both budgets on 13 of 13 networks. |
+| 2. spread of the 8 rewards within an instance | median SD 1.58 / 0.78 / 0.61 points; flat (SD < 0.1) 4.4 / 17.6 / 10.6 %; all 8 plans at chance 5.7 / 13.0 / 0 % of instances, and at κ 0.35-0.40 22 % (blending) and 42 % (residual) |
+| 3. when the sampled blend commits | a top share ≥ 0.95 in 20 of 27 (seed, family) pairs, at a median 13,000 of 24,000 instances; the seeds end on the same leading rule on 0 of 39 catalog networks |
+| 4. gradient clipping | pre-clip norm median 19.1 / 24.6 / 36.4 against a clip of 1.0; clipped in 100 / 99.6 / 100 % of updates, so the learning rate alone sets every step |
+| 5. trust region | 44 % (blending) and 75 % (residual) of groups past the bound zmax 0.3 in the last 4,000 instances |
+| 6. encoder | weights moved 0.31-0.34 of their norm from the seeded start: the encoder is trained |
+| 7. masked against real cut | 0 warnings on the blending and residual lines. The direct-parameter line has 36 in 6 train logs, all on six ShuffleNetV2 networks: analytic kept 0.60 against real 0.70-0.78, and masked accuracy up to 75.6 points from the real cut's. 9,648 of its 72,000 training instances (13.4 %) were scored on a mismatching cut; nothing gated it. |
+| 8. is the correction inert? | no. In the eval logs the log-weight change is 0.211 RMS (bound 0.30), with 49 % of groups past zmax; a CPU replay on 5 held-out networks shows the correction changes a median 57 % of groups and 12.1 % of kept channels |
+| 9. state against prior | the state's sensitivity draw ranks groups like the prior's (Spearman median 0.994, range 0.965-1.000, 6 networks) |
+
+**Planted-optimum benchmark** (d/d0 at 16,000 evaluations, mean over 3 seeds (SD); "paired" = the mean ratio to the current settings by seed; "closer" = seeds closer than the current settings).
+
+| line | settings | d/d0 | paired | closer | at κ 0.20 | rule |
+|---|---|---|---|---|---|---|
+| residual | current | 0.893 (0.042) | 1.000 | | 1.055 | |
+| residual | ADV=rank / global / floor | 0.898 / 0.977 / 0.894 | 1.007 / 1.092 / 1.001 | 1 / 1 / 1 | | out |
+| residual | MIRROR; rank + mirror | 0.925; 0.998 | 1.039; 1.126 | 2; 2 | | out |
+| residual | GNORM=sqrt | 0.949 (0.179) | 1.063 | 1 | | out |
+| residual | KAPPA_POINTS 0.45, 0.20; κ range 0.15-0.65 | 0.898; 0.923 | 1.006; 1.032 | 1; 1 | 0.925; 0.931 | out |
+| residual | SAMPLE=family | 0.835 (0.036) | 0.938 | 2 | | eligible |
+| residual | EMA 0.999 (averaged weights) | 0.835 (0.029) | 0.936 | 3 | | eligible |
+| residual | LR_SCHEDULE=cosine | 0.754 (0.073) | 0.848 | 3 | | eligible |
+| residual | EMA + cosine (averaged weights) | **0.744 (0.040)** | 0.836 | 3 | | bundle |
+| residual | reference: lr 1e-4; 1e-3; 1e-3 + cosine | 0.868; 1.106; 0.774 | 0.971; 1.247; 0.868 | 2; 0; 3 | | |
+| blending | current | 1.043 (0.246) | 1.000 | | 0.826 | |
+| blending | MENU_BOUND=4 / MENU_ENT=0.05 | 0.838 / 0.872 | 0.814 / 0.862 | 3 / 2 | | eligible |
+| blending | MENU_KAPPA bins / film | 0.789 / 0.724 | 0.785 / 0.714 | 3 / 3 | 0.422 / 0.417 | eligible |
+| blending | MENU_SIGMA_ANNEAL / SPLIT | 0.887 / 0.858 | 0.858 / 0.858 | 3 / 2 | | eligible |
+| blending | the four head flags (bound, entropy, κ bins, split) | 0.761 (0.116) | 0.746 | 3 | 0.466 | |
+| blending | head flags + EMA + cosine | **0.705 (0.006)** | 0.705 | 3 | 0.432 | bundle |
+| blending | every flag (head + rank, mirror, EMA, cosine, √G) | 0.669 (0.009) | 0.671 | 3 | 0.405 | |
+
+On the blending line the gap between the mean plan's shares and the planted blend falls from 0.49 (current) to 0.16-0.25 with the head flags.
+
+**The decision rule (registered).** A flag whose benchmark moves the plan toward the planted optimum no faster than the current settings at equal evaluations does not enter the next registered retrain. Read here as the paired ratio at 16,000 evaluations, at or above 1.
+- **Out:** ADV (all three forms), MIRROR, GNORM=sqrt, KAPPA_POINTS and the κ-range shift. KAPPA_POINTS is closer at κ 0.20 (0.925 against 1.055), outside the range the measure averages. It may return only beside a reward that reads that budget.
+- **Eligible:** EMA, LR_SCHEDULE=cosine, SAMPLE=family, and the blending line's MENU_BOUND, MENU_ENT, MENU_KAPPA, MENU_SIGMA_ANNEAL and SPLIT. The next retrain carries the two benchmarked bundles: EMA + cosine on the residual line, and the four head flags + EMA + cosine on the blending line. Its evaluated checkpoint, the averaged weights, is fixed now.
+- **Not judgeable on a planted reward:** the reward proxies, FS_GUARD, CHECK, CONTRACT and MENU_LOG.
+  - The three guards (CHECK=refuse, CONTRACT=1, MENU_LOG=1) enter every train. They change no plan unless a check fails.
+  - The proxies enter only as their own registered reward arm.
+
+**Reading.**
+- **The learner is slow even when an optimum exists.** At the measured noise, the residual line's settings capture 20 % of a planted room in 16,000 evaluations (1 − 0.893²), and the blending line's none. The best bundles capture 45 % (residual, 0.744) and 50-55 % (blending, 0.705 and 0.669).
+  - The lines of record trained 12× longer (24,000 instances). Where they would end on this reward is not measured here [U]; queue row AGENT-V2-LONG measures it.
+  - Item 4 explains most of the cosine gain: every update is clipped, so the learning rate is the step size, and decaying it is the only annealing the optimizer has.
+- **The blending agent's rule is chosen by its seed** (items 1 and 3). Two seeds put everything on the threshold rule on every network, and a third chooses differently. The seeds share the leading rule on none of 39 networks. So the blending line's level with the threshold rule (§464, §466) is the rule itself, reached through a seed-dependent collapse. It is not a per-network choice the agent learned. This matches the 26 Nov reading that 67-84 % of the agent's plans are rule selection.
+- **Much of the reward carries no signal.** In 13 % of the residual line's instances all eight plans read at chance, and in 42 % at κ 0.35-0.40. Those instances give zero advantage.
+- **The state adds little to the prior.** The state's sensitivity column orders groups as the prior does (0.994). Any per-network departure must come from the other channels.
+- **A defect in a line of record.** The direct-parameter line (tree_v35) learned ShuffleNetV2 partly from rewards measured on the wrong cut (item 7). Its evaluations cut for real, so no evaluation row is wrong. But its ShuffleNetV2 plans came from a policy trained on corrupted rewards, and nothing in its gates caught it. CHECK=refuse now does.
+
+**Scope.** Six small residual-family networks in the benchmark; 2,000 instances per run; 3 seeds, so differences under about 0.1 lie inside the seed spread unless the SDs are small; a quadratic planted reward with Gaussian noise. A planted reward tests the optimizer, not the real reward: a flag that helps here is necessary-side evidence only.
+
+**Not supported by this section:**
+- any TEST or agent result;
+- "the agent cannot learn" (the full-length run is not measured);
+- any claim that a flag improves pruning;
+- any claim about networks outside the six.
+
+**Next.**
+- **AGENT-V2-LONG** (registered with this section): the same benchmark at the lines' own length on partition cpu.
+- The next retrain is registered after LADDER-20's and NAPJ's reads, with the bundles and guards above.
+
+Next §474.
