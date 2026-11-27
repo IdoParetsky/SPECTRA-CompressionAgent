@@ -14117,3 +14117,53 @@ Beside: against the 100-epoch val, extended minus base −0.038 [−0.089, +0.01
 **Next.** The NAP2-v2 judge direction is closed for the agent (§476). The per-family tables of §476 and §477 go to Gilad with the change list, as the rule set before the read says.
 
 Next §478.
+
+## 478. (EXIT: queue row EXIT, registered 26 Nov 21:25 IST before any EXIT code; zero GPU, 19 jobs on partition cpu (24537272-24537296) plus 6 bundle re-runs (24542308-24542314), all COMPLETED by 13:47 IST; `src/plan_trainer.py` 878dc847 (flag `SPECTRA_PLAN_EXIT`, default off), plant script `scripts/_tmp_s26nov_exit_plant.py` 928cd759, driver `scripts/_tmp_s26nov_exit.sh` 047fa0a8; outputs `scratch_audit/av2_diag/plant_exit/`) — **Does search-then-copy (expert iteration) learn a planted optimum faster than the policy gradient, at equal reward evaluations? No. EXIT-NO on both lines by the registered rule. The primary config (3 search rounds per instance, replay) ends further from the planted plan than §475's bundle on the residual line (paired ratio 1.092, closer on 0 of 3 seeds) and level on the blending line (0.994, 1 of 3). Beside, with no call: copying the best of each instance's 8 plans without search is closer on all 3 seeds on both lines (ratios 0.929 and 0.910), short of the 0.85 bar. On the blending line at FLOPs 0.20, outside the trained range, the expert-iteration configs come much closer than the bundle (0.34-0.45 against 0.51).** No TEST and no result: every number is a synthetic-reward value. Diagnostic.
+
+**Question.** §475 found that the learner captures 64-76 % of a planted room at its real length (LONG-SHORT). Expert iteration spends each instance's evaluations on a short search around the policy's mean (the cross-entropy method) and then trains the policy to output the search's result, with replay of past targets. Every reward evaluation is a cut and a recovery in the real loop, so the comparison is at equal evaluations (192,000 per run).
+
+**Method.** §473's and §475's planted benchmark (real policy, trainer and decoders on real states of six networks; quadratic planted reward at the measured noise), seeds 42-44.
+- **Primary config.** cem:3:2:0.6:2048:4: 8,000 instances of 3 rounds × 8 plans, each later round around the mean of the previous round's 2 best with sigmas × 0.6; 4 replay minibatches from the last 2,048 targets. EMA 0.999 and cosine. On the blending line it adds the head flags of §473; the SPLIT flag is off.
+- **Ablations, beside.** No replay (cem:3:2:0.6:2048:0); copying without search (cem:1:2:0.6:2048:4, 24,000 instances of 8 plans, the 2 best imitated).
+- **Measure.** d/d0 at the end, over budgets 0.40-0.80, on the averaged weights.
+- **Comparator.** §475's bundles re-run on the new blob. The repro of §475's residual seed-42 run differed (d_in 0.0406 against 0.0434). The rule then re-ran all six; the seed-42 re-run reused the repro's own file (same blob, configuration and seed).
+- **Reproducibility.** The re-runs equal §475's files to the digit wherever they ran on the same CPU type: residual seeds 43-44 on cs-cpu-05, and all three blending seeds on ise-cpu-intl nodes. The one difference is a cs-cpu-06 run repeated on an ise-cpu-intl node. With the flag-off identity test passing on five lines, this places the difference in the hardware's arithmetic, not the code [R].
+
+**The call (registered).** EXIT-GO on a line if the primary config is closer than the bundle on all three seeds and the paired mean ratio is at most 0.85; else EXIT-NO. **EXIT-NO on both lines.**
+
+| line | config | d/d0 at 100 %, seeds mean (SD) | ratio to the bundle (paired) | closer | at 25 % | at FLOPs 0.20 | minutes per run |
+|---|---|---|---|---|---|---|---|
+| residual | bundle (EMA + cosine) | 0.498 (0.032) | | | 0.799 | 0.931 | 48 |
+| residual | **EXIT, 3 rounds, replay (primary)** | 0.543 (0.028) | **1.092** | **0 of 3** | 0.720 | 0.931 | 53 |
+| residual | EXIT, no replay | 0.632 (0.082) | 1.275 | 0 of 3 | 0.827 | 1.078 | 29 |
+| residual | copy without search | 0.462 (0.011) | 0.929 | 3 of 3 | 0.614 | 0.924 | 162 |
+| blending | bundle (head flags + EMA + cosine) | 0.575 (0.037) | | | 0.772 | 0.510 | 114 |
+| blending | **EXIT, 3 rounds, replay (primary)** | 0.570 (0.029) | **0.994** | **1 of 3** | 0.679 | 0.379 | 126 |
+| blending | EXIT, no replay | 0.601 (0.048) | 1.052 | 1 of 3 | 0.763 | 0.450 | 45 |
+| blending | copy without search | 0.523 (0.024) | 0.910 | 3 of 3 | 0.611 | 0.337 | 327 |
+
+All values are on the averaged weights. §475's bar of d/d0 at most 0.50 on every seed is not reached by the primary on either line (residual 0.519, 0.536 and 0.574; blending 0.604, 0.556 and 0.551).
+
+**Reported beside.**
+- **The search improves the plan within an instance; copying it does not carry over.** Over the last quarter of the run, the third round's best reward beats the first round's by +0.15 (residual) and +0.25 (blending) of the target's gap. The policy trained on those targets ends no closer than the bundle.
+- **Faster early, not further.** At a quarter of the evaluations every expert-iteration config is closer than the bundle, except no-replay on the residual line (residual 0.72 against 0.80; blending 0.68 against 0.77). By the end the bundle has caught up or passed it.
+- **Replay matters.** Without it, both lines end further away (ratios 1.28 and 1.05).
+- **Copying without search is the best of the four on both lines.** It imitates the 2 best of each instance's 8 plans, a reward-weighted regression. On the blending line its share gap (the mean plan's blend against the planted blend) is wider than the bundle's (0.217 against 0.179). Its runs take 2.9-3.4 times the bundle's wall time for the same evaluations, on 2 CPUs, because each of its 24,000 updates adds 4 replay minibatches. In the real loop each evaluation is a GPU cut and recovery, so the update cost is small beside it [H].
+- **Deep budgets on the blending line.** At FLOPs 0.20, outside the trained range, the bundle sits at 0.51, the primary and copy-without-search at 0.34-0.38, and no-replay at 0.45. The residual line still does not move there (0.92-1.08), as in §475.
+
+**Reading.**
+- **Search-then-copy as registered is not the remedy for LONG-SHORT.** At equal evaluations, the 3-round search spends them on fewer instances (8,000 against 24,000), and the policy sees fewer states. What the search gains within an instance does not offset that.
+- **Imitating each instance's best plans beats the policy gradient modestly and on every seed.** The gain is 7-9 % closer, below the registered bar. This was an ablation with no call, so it is a candidate for a registered test, not a finding [H].
+- **On the blending line, the target-imitation family reaches deep budgets that the policy-gradient bundle does not.** Its budget-conditioned head learns there from imitation targets. A retrain aimed at FLOPs 0.20 should still train on 0.20 (§475); this suggests imitation helps the head extrapolate [H].
+
+**Scope.** As §473 and §475: six small residual-family networks, a quadratic planted reward with Gaussian noise, 3 seeds, one search setting (3 rounds, the 2 best, shrink 0.6) and one replay setting. A planted reward tests the optimizer, not the real reward.
+
+**Not supported by this section:**
+- any TEST or agent result;
+- "expert iteration does not work": one setting was tested at one evaluation budget;
+- any claim from the copy-without-search ablation beyond "closer on 3 of 3 at ratios 0.91-0.93";
+- any wall-time claim for the real loop.
+
+**Next, as set before the read.** EXIT-NO on both lines: the next registered retrain carries §475's bundle (EMA + cosine; the head flags on the blending line), with §473's guards, and a budget range that includes FLOPs 0.20 if it is aimed there. Copying without search, as a registered test against the bundle, is a candidate before that retrain [D pending].
+
+Next §479.
