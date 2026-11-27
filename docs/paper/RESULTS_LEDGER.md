@@ -14167,3 +14167,64 @@ All values are on the averaged weights. §475's bar of d/d0 at most 0.50 on ever
 **Next, as set before the read.** EXIT-NO on both lines: the next registered retrain carries §475's bundle (EMA + cosine; the head flags on the blending line), with §473's guards, and a budget range that includes FLOPs 0.20 if it is aimed there. Copying without search, as a registered test against the bundle, is a candidate before that retrain [D pending].
 
 Next §479.
+
+## 479. (DEEP-IMIT: queue row DEEP-IMIT, registered 27 Nov 11:55 IST before any DEEP-IMIT code; zero GPU, 8 jobs on partition cpu (24544494-24544501), all COMPLETED by 19:54 IST, read 20:03 IST; trainer `src/plan_trainer.py` 878dc847 unchanged; plant script `scripts/_tmp_s27nov_deep_plant.py` 909fcd64 (§478's plant script 928cd759 with four configs added), reader `scripts/_tmp_s27nov_deep_read.py` 8a17a4a5, driver `scripts/_tmp_s27nov_deep.sh` 1c01f31e; outputs `scratch_audit/av2_diag/plant_deep/`, read `scratch_audit/s27nov_deep_read.txt`) — **When the agent also trains on deep budgets, does copying each instance's best plans without search reach the planted plan at FLOPs 0.20 more closely than the policy-gradient bundle? IMIT-NO by the registered rule, which fails on one clause. On the blending line, copying without search is closer at 0.20 on 4 of 5 seeds, at a paired ratio of 0.774 (the bar was 0.85). It is closer in range on all 5 seeds (0.798; the bar was 1.00). The rule asked for all five seeds at 0.20: on seed 45 the bundle's best run (0.209) beats it (0.221). With training budgets drawn near 0.45 and 0.20, both lines reach 0.20 at full length. The residual bundle ends at 0.524, where §478's bundle, which did not train there, ended at 0.931; the blending bundle ends at 0.340, against 0.510.** No TEST and no result: every number is a synthetic-reward value. Diagnostic.
+
+**Question.** In §478, copying each instance's 2 best of 8 plans without search came 7-9 % closer to the planted plan than the policy gradient, below the bar, and on the blending line it reached FLOPs 0.20 much more closely without training there (0.34 against 0.51). §475 sets that a retrain aimed at 0.20 must train there. This section asks the retrain's question directly: with half the training budgets drawn near 0.45 and 0.20, which learner ends closer to the planted plan at 0.20?
+
+**Method.** §478's planted benchmark at 192,000 reward evaluations and the measured noise. Every config adds SPECTRA_PLAN_KAPPA_POINTS=0.45,0.2:0.5:0.05: half of the training budgets are drawn within ±0.05 of 0.45 or 0.20, the rest uniformly over the usual range.
+- **Configs.** Blending line, the call: hec_kp, which is §475's bundle of record (the head flags, averaged weights, cosine decay), against hexit_cem1_kp, §478's copy without search (cem:1:2:0.6:2048:4, the head flags less SPLIT). Residual line, beside: ema_cosine_kp against exit_cem1_kp.
+- **Seeds.** Blending 42-46, residual 42-44.
+- **Pairing.** Both configs of a (line, seed) ran in one job, one after the other, so a pair shares its node's arithmetic (§478: the CPU type moves d by about 3 %).
+- **Measure.** d/d0 at FLOPs 0.20 at the end, on the averaged weights.
+- **Reader check.** Before the read, the reader reproduced §478's numbers to the digit on §478's files.
+
+**The call (registered).** IMIT-GO if hexit_cem1_kp is closer at 0.20 than hec_kp on all five seeds, the paired mean ratio at 0.20 is at most 0.85, and its paired mean ratio in range (budgets 0.40-0.80) is at most 1.00; else IMIT-NO. **IMIT-NO** (closer on 4 of 5; ratio 0.774; in range 0.798).
+
+| line | seed | bundle at 0.20 | copy at 0.20 | ratio at 0.20 | bundle in range | copy in range | ratio in range |
+|---|---|---|---|---|---|---|---|
+| blending | 42 | 0.332 | 0.234 | 0.705 | 0.610 | 0.498 | 0.815 |
+| blending | 43 | 0.489 | 0.259 | 0.530 | 0.731 | 0.544 | 0.744 |
+| blending | 44 | 0.364 | 0.245 | 0.672 | 0.656 | 0.506 | 0.771 |
+| blending | 45 | **0.209** | **0.221** | **1.061** | 0.640 | 0.525 | 0.820 |
+| blending | 46 | 0.309 | 0.278 | 0.900 | 0.636 | 0.534 | 0.840 |
+| blending | paired mean | | | **0.774** (closer 4 of 5) | | | **0.798** (closer 5 of 5) |
+| residual, beside | 42 | 0.487 | 0.555 | 1.140 | 0.600 | 0.505 | 0.841 |
+| residual, beside | 43 | 0.574 | 0.520 | 0.907 | 0.598 | 0.477 | 0.798 |
+| residual, beside | 44 | 0.512 | 0.348 | 0.679 | 0.621 | 0.422 | 0.679 |
+| residual, beside | paired mean | | | 0.908 (closer 2 of 3) | | | 0.773 (closer 3 of 3) |
+
+**Every config, mean over seeds (SD), averaged weights.**
+
+| line | config | d/d0 at 0.20 at 25 % / 50 % / 100 % | in range at 100 % | at 0.45 at 100 % | share gap | minutes per run |
+|---|---|---|---|---|---|---|
+| blending | bundle (hec_kp) | 0.458 / 0.404 / 0.340 (0.101) | 0.655 (0.046) | 0.329 (0.093) | 0.222 | 96 (69-122) |
+| blending | copy without search (hexit_cem1_kp) | 0.364 / 0.301 / 0.247 (0.022) | 0.521 (0.019) | 0.321 (0.020) | 0.204 | 255 (172-352) |
+| residual | bundle (ema_cosine_kp) | 0.979 / 0.737 / 0.524 (0.045) | 0.606 (0.013) | 0.228 (0.023) | - | 48 (41-52) |
+| residual | copy without search (exit_cem1_kp) | 0.575 / 0.486 / 0.474 (0.111) | 0.468 (0.042) | 0.284 (0.054) | - | 104 (98-112) |
+
+The last weights tell the same story (blending at 0.20: bundle 0.326, copy 0.238).
+
+**Reported beside.**
+- **Training at 0.20 moves both lines there at full length.** §478's bundle and copy learner, which never trained there, ended at 0.931 and 0.924 on the residual line and at 0.510 and 0.337 on the blending line (seeds 42-44). With deep budgets, the residual bundle ends at 0.524 and the copy learner at 0.474. The row's premise came from §473, where the residual line "barely moves at 0.20 even when trained there" (0.925); that holds only for short runs. §473 ran 16,000 evaluations; here the residual bundle is still at 0.979 after 48,000 and reaches 0.524 only by 192,000. Both residual configs pass the 0.90 line of "what follows".
+- **The bundle is 4.6 times as variable at 0.20.** Its seeds span 0.209-0.489 (SD 0.101), the copy learner's 0.221-0.278 (0.022). The failed clause is the bundle's best seed.
+- **At 0.45 the two blending learners are level** (0.329 and 0.321). On the residual line the bundle is closer at 0.45 (0.228 against 0.284).
+- **Against §478, read loosely (different jobs and nodes; seeds 42-44 only).** The deep budgets cost the policy-gradient bundle in range: blending 0.575 to 0.666 (+16 %), residual 0.498 to 0.606 (+22 %). They do not cost the copy learner: blending 0.523 to 0.516, residual 0.462 to 0.468. This is the main reason the in-range ratio is 0.77-0.80 here against 0.91-0.93 in §478. At 0.20 on those seeds, the bundle goes from 0.510 to 0.395 and the copy learner from 0.337 to 0.246. The share gap (the mean plan's blend against the planted blend) widens for the bundle (0.179 to 0.222) and narrows for the copy learner (0.217 to 0.204).
+- **Wall time.** Within a pair, the copy learner takes 2.4-2.9 times the bundle's wall time on the blending line and 2.0-2.4 times on the residual line, for the same evaluations, because each update adds 4 replay minibatches. In the real loop each evaluation is a GPU cut and recovery, so the update cost is small beside it [H].
+
+**Reading.**
+- **By the registered rule the next blending retrain aimed at 0.20 carries the policy-gradient bundle with the deep budgets (hec_kp).** The rule fails on its all-seeds clause only; both margin clauses pass. A rule set in advance still binds, so this section does not make copying without search the learner of record.
+- **Training at 0.20 is what moves the agent there, given the full training length.** This holds on both lines, so a residual-line retrain may be aimed at 0.20, which §473's short runs had argued against.
+- **The deep budgets cost the policy-gradient bundle in range on the planted reward, and do not cost the copy learner [H].** Whether the real reward shows the same cost is untested. A retrain that carries hec_kp should report its in-range points beside §475's [H].
+
+**Scope.** As §473, §475 and §478: six small residual-family networks, a quadratic planted reward with Gaussian noise, one KAPPA_POINTS setting (half the budgets within ±0.05 of 0.45 or 0.20), 5 seeds on the blending line and 3 on the residual line. A planted reward tests the optimiser, not the real reward.
+
+**Not supported by this section:**
+- any TEST or agent result;
+- "copying without search is the better learner": the registered call is IMIT-NO;
+- any in-range cost of the deep budgets beyond "read loosely across jobs and nodes, on seeds 42-44";
+- any wall-time claim for the real loop.
+
+**Next, as set before the read.** IMIT-NO: the next blending-line retrain aimed at 0.20 carries hec_kp. Both residual configs reach d/d0 0.90 at 0.20, so a residual-line retrain may be aimed at 0.20. The retrain is registered after SAMENET's read, which measures the room at 0.20 on the same network. Whether that retrain also runs the copy learner as an arm beside the bundle is decided when it is registered [D pending].
+
+Next §480.
