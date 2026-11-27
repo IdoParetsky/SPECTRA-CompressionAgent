@@ -446,6 +446,57 @@ def menu_sigma() -> float:
     return _menu_number("SPECTRA_PLAN_MENU_SIGMA", MENU_SIGMA, positive=True)
 
 
+MENU_SAMPLE_SIGMA_Z = 0.10  # SPECTRA_PLAN_MENU_SAMPLE_SIGMA_Z: the scores' std of a menu policy's sampled plan
+MENU_SAMPLE_SIGMA_U = 2.0  # SPECTRA_PLAN_MENU_SAMPLE_SIGMA_U: the menu logits' std of the same plan
+
+
+def menu_sample() -> bool:
+    """``SPECTRA_PLAN_MENU_SAMPLE=1`` (queue row SAMENET, default off): ``plan_for_env`` takes ``sample`` for a menu
+    policy too, the eval's ``SPECTRA_ALLOC_KIND=agent_sample``. Off, a sampled plan of a menu policy is refused, as
+    before. The draw is the trainer's own for a menu policy (``plan_trainer.run``): the scores first, z = μ + σ_z ε,
+    then the menu logits from the same generator, u = ψ + σ_u ε', both float64 on a CPU generator seeded by
+    ``sample``'s seed (``SPECTRA_ALLOC_SAMPLE_SEED``); the shares are the plain softmax of u (``menu_shares(u)``, the
+    trainer's call for a sampled plan: the mean plan's share floor is not applied), and the plan is ``menu_decode`` of
+    z at those shares. σ_z and σ_u are ``menu_sample_sigmas``; ``sample``'s own σ (``SPECTRA_ALLOC_SAMPLE_SIGMA``) is
+    not read for a menu policy. An ensemble of menu policies stays refused."""
+    return os.environ.get("SPECTRA_PLAN_MENU_SAMPLE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def menu_sample_sigmas():
+    """``(σ_z, σ_u)`` of a menu policy's sampled plan (``menu_sample``): ``SPECTRA_PLAN_MENU_SAMPLE_SIGMA_Z`` (0.10)
+    and ``SPECTRA_PLAN_MENU_SAMPLE_SIGMA_U`` (2.0), each a finite number of at least 0. The defaults are where the
+    final agent's trainer ended (ledger §464's policies: scores' σ 0.25 falling to 0.10, menu σ 2.0 throughout); 0 and
+    0 give the mean scores at the plain softmax of the mean logits."""
+    out = []
+    for name, default in (("SPECTRA_PLAN_MENU_SAMPLE_SIGMA_Z", MENU_SAMPLE_SIGMA_Z),
+                          ("SPECTRA_PLAN_MENU_SAMPLE_SIGMA_U", MENU_SAMPLE_SIGMA_U)):
+        value = _menu_number(name, default)
+        if value < 0.0:
+            raise ValueError(f"{name}={value:g}: expected a finite number of at least 0")
+        out.append(value)
+    return tuple(out)
+
+
+def trained_sigmas(blob):
+    """``(σ_z, σ_u)`` a checkpoint's trainer ended on, None for either it does not record: the scores' σ at the end of
+    its schedule (``config``'s ``sigma_floor``, times ``residual_sigma`` / ``sigma`` under the residual, as
+    ``plan_trainer.sigma_at`` scales it) and its constant ``menu_sigma``."""
+    sigma_z, sigma_u = None, None
+    try:
+        config = blob.get("config") or {}
+        if "sigma_floor" in config:
+            scale = 1.0
+            if str(blob.get("residual", "off")) != "off" and float(config.get("sigma", 0.0)) > 0 \
+                    and blob.get("residual_sigma") is not None:
+                scale = float(blob["residual_sigma"]) / float(config["sigma"])
+            sigma_z = float(config["sigma_floor"]) * scale
+        if blob.get("menu_sigma") is not None:
+            sigma_u = float(blob["menu_sigma"])
+    except (TypeError, ValueError, AttributeError):
+        pass
+    return sigma_z, sigma_u
+
+
 def check_menu_anchor(kinds, mode, budget, where="the menu"):
     """Refuse (ValueError) a menu whose anchor, its first rule, is not the rule the residual already starts from on a
     ``budget`` instance (``prior_kind`` of the ``SPECTRA_PLAN_RESIDUAL`` mode ``mode``), or a menu without the
@@ -1485,7 +1536,14 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     ratio, seconds) and the residual line ends with the shares. ``info["prior"]`` still describes the anchor's own
     plan, except that its ``weights`` are the blend's (``info["base"]`` of the decode: what the scores multiplied), so
     ``alloc_walk.grid_priority`` ranks the groups by what was decoded; at the anchor alone the two are the same. A
-    sampled plan (``sample``) and an ensemble are not defined for a menu policy yet and are refused."""
+    sampled plan (``sample``) and an ensemble are not defined for a menu policy yet and are refused.
+
+    SAMENET (``SPECTRA_PLAN_MENU_SAMPLE=1``, ``menu_sample``; default off, the refusal above then stands): one menu
+    policy's sampled plan is taken. Its draw is the trainer's: the scores z = μ + σ_z ε, then the logits
+    u = ψ + σ_u ε' from the same generator (seeded by ``sample``'s seed; σ_z, σ_u from ``menu_sample_sigmas``, not
+    from ``sample``), the shares the plain softmax of u, the plan ``menu_decode`` of z at those shares. ``info["menu"]``
+    then adds ``u``, ``pi_mean`` (the mean plan's shares) and ``sigma_u``, ``info["sample"]`` adds ``sigma_u``, and one
+    ``[alloc] plan agent menu sample`` line carries both σ, the seed and the shares."""
     from NetworkFeatureExtraction.src.ModelWithRows import ModelWithRows
     from src import fortify, group_sensitivity, state_dump
     from src.BERTInputModeler import action_cost_slot_dim
@@ -1507,7 +1565,8 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
     kinds = check_menu(blob, f"the plan agent at {paths[0]}")  # v36; None with no menu anywhere: all below as before
     for p, saved in zip(paths, [blob] + members):  # AGENT-V2 (F15): the settings a checkpoint's contract records, if any
         check_contract(saved, None, f"the plan agent at {p}")
-    if kinds is not None and (members or sample is not None):
+    if kinds is not None and (members or sample is not None) and not (
+            menu_sample() and sample is not None and not members):  # SAMENET: the flag lets one policy's sample through
         raise ValueError(f"the plan agent at {paths[0]} is a menu policy: an ensemble and a sampled plan "
                          "(agent_sample) are not defined for it yet; plan with one checkpoint's mean (agent)")
     residual, alpha, zmax = eval_residual(blob)
@@ -1561,7 +1620,17 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
             utils.print_flush(f"[alloc] plan agent ensemble of {len(each)} policies (mean score), member spread "
                               f"{spread:.3f}: " + ", ".join(_run_label(p) for p in paths))
     z, drawn = mu, None
-    if sample is not None:
+    sigma_u, eps_u = None, None  # SAMENET: set only for a menu policy's sampled plan (SPECTRA_PLAN_MENU_SAMPLE=1)
+    if sample is not None and kinds is not None:
+        # the trainer's draw for a menu policy: the scores, then the menu logits, from one generator
+        (sigma, sigma_u), seed = menu_sample_sigmas(), int(sample[1])
+        generator = torch.Generator().manual_seed(seed)
+        eps = torch.randn(len(mu), generator=generator, dtype=torch.float64).tolist()
+        eps_u = torch.randn(len(kinds), generator=generator, dtype=torch.float64).tolist()
+        z = [m + sigma * e for m, e in zip(mu, eps)]
+        drawn = {"around": "agent", "sigma": sigma, "seed": seed,
+                 "dist": math.sqrt(sum((a - m) ** 2 for a, m in zip(z, mu))), "sigma_u": sigma_u}
+    elif sample is not None:
         sigma, seed = float(sample[0]), int(sample[1])
         eps = torch.randn(len(mu), generator=torch.Generator().manual_seed(seed), dtype=torch.float64).tolist()
         z = [m + sigma * e for m, e in zip(mu, eps)]
@@ -1595,12 +1664,28 @@ def plan_for_env(env, target: float, policy_path: str, k_min: float = 0.1, sampl
             with torch.no_grad():
                 psi = policy.menu_logits(state, x_net).tolist()
             pi = menu_shares(psi, float(blob.get("menu_share_floor", MENU_SHARE_FLOOR)))
+            sampled = None
+            if eps_u is not None:  # SAMENET: a sampled plan's shares are the plain softmax of its drawn logits
+                u = [float(p) + sigma_u * e for p, e in zip(psi, eps_u)]
+                sampled = {"u": u, "pi_mean": pi, "sigma_u": float(sigma_u)}
+                pi = menu_shares(u)
             widths, info = menu_decode(z, pi, rules, pm, target, k_min_eff, min_width=min_width, zmax=zmax)
             params0 = float(pm.params(pm.widths0))
             menu = {"kinds": list(kinds), "pi": pi, "psi": [float(v) for v in psi], "x": x_net,
                     "kept": [float(rule_info["kept"]) for _w, rule_info in plans],
                     "params": [pm.params(rule_widths) / params0 for rule_widths, _i in plans],
                     "seconds": time.perf_counter() - started}
+            if sampled is not None:
+                menu.update(sampled)
+                trained_z, trained_u = trained_sigmas(blob)
+                off = [f"{name} {here:g} (trained {there:g})" for name, here, there in
+                       (("sigma_z", drawn["sigma"], trained_z), ("sigma_u", sigma_u, trained_u))
+                       if there is not None and abs(here - there) > 1e-12]
+                utils.print_flush(
+                    f"[alloc] plan agent menu sample: sigma_z={drawn['sigma']:g} sigma_u={sigma_u:g} "
+                    f"seed={drawn['seed']}; shares drawn " + " ".join(f"{k} {p:.3f}" for k, p in zip(kinds, pi))
+                    + "; mean shares " + " ".join(f"{k} {p:.3f}" for k, p in zip(kinds, sampled["pi_mean"]))
+                    + ("; WARNING: not the sigma the agent trained at: " + ", ".join(off) if off else ""))
         base, base_info = scale_decode(prior, pm, target, k_min_eff, min_width=min_width)
         delta = {row: (widths[row] - base[row]) / float(pm.widths0[row]) for row in pm.rows}
         moved = sum(widths[row] != base[row] for row in pm.rows)

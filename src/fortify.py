@@ -695,6 +695,16 @@ def eval_final_ft_size_only() -> bool:
     return _flag("SPECTRA_EVAL_FINAL_FT_SIZE_ONLY")
 
 
+def eval_save_widths() -> bool:
+    """``SPECTRA_EVAL_SAVE_WIDTHS=1`` (queue row SAMENET, default off): before the final fine-tune, the widths of
+    every size-point candidate are written under ``<run_dir>/alloc_widths/`` as JSON ``{module name: out channels}``
+    tables (``alloc_walk.save_widths``): ``…__plan.json`` holds the widths the alloc walk aimed at, the table that
+    ``SPECTRA_ALLOC_KIND=widths`` and ``SPECTRA_ALLOC_TILT_BASE`` read to make the same cut again; ``…__cut.json`` the
+    pruned net's own; ``…__meta.json`` the groups, the landed ratios and the digests. The candidates and the fine-tune
+    are untouched, and the global RNG is put back after the save."""
+    return _flag("SPECTRA_EVAL_SAVE_WIDTHS")
+
+
 def eval_save_traj_models() -> bool:
     """``SPECTRA_EVAL_SAVE_TRAJ_MODELS=1``: save the final-FT candidates (before and after the final
     fine-tune) under ``<run_dir>/traj_models/`` as ``state_dict`` + arch/recipe JSON

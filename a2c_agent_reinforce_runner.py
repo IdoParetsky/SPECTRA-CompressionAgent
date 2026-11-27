@@ -684,6 +684,13 @@ def _run_final_ft(env, net_path, picked, candidates, epochs):
             f"[eval] TRAJ final_ft {name}: kept val_best copy is step {held['point']['step']}, "
             f"selection says {best['step'] if best else None}; dropping the copy")
         candidates.pop("val_best")
+    if fortify_mod.eval_save_widths():  # SAMENET (default off): the size points' planned and cut widths, as tables
+        from src import alloc_walk
+        size_labels = {fortify_mod.size_point_label(k, t) for k, t in fortify_mod.eval_size_points()}
+        widths_dir = os.path.join(run_recorder.recorder().run_dir, "alloc_widths")
+        for label, cand in candidates.items():
+            if label in size_labels:
+                alloc_walk.save_widths(env, net_path, label, cand, widths_dir)
     if fortify_mod.eval_final_ft_origin() and picked.get("origin") is not None:
         origin_model = env.data_dict[env.selected_net_path][0]
         candidates["origin"] = {"point": dict(picked["origin"]),
