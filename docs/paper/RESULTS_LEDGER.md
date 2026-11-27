@@ -14009,3 +14009,66 @@ Every update was still clipped on all 12 runs (pre-clip gradient norm median 5.4
 **Next, as set before the read.** LONG-SHORT: the learner binds as well. A learner that searches each instance and distils its best plans (expert iteration, item 4 of the 26 Nov scan) is built behind a default-off flag, registered separately and benchmarked on this planted reward against the bundles, at equal evaluations. The next registered retrain still carries the §473 bundles and guards. If it is aimed at FLOPs 0.20, its budget range must include 0.20.
 
 Next §476.
+
+## 476. (NAPJ: queue row NAPJ, registered 26 Nov 12:14 IST before any NAPJ code existed; 1,050 GPU cells on tree_v41 (24520709-24522680, all COMPLETED by 27 Nov 08:39 IST) plus 6 smoke runs; the read on partition cpu (table 24540898, 16 fit parts 24540899-24540914, report 24540915), reader `scripts/_tmp_s26nov_napj_read.py` b1e5dcfc and fit driver `scripts/_tmp_s26nov_napj_fit.sh` 841b338b as stamped; output `scratch_audit/s26nov_napj_read.txt`) — **Can NAP2-v2's early-training features, read during a plan's 2-epoch recovery, predict which plan of one size wins after the full 100-epoch recovery? Not in our setting. NAP-NOT and PICK-NO by the registered rules. The judge (gradient-boosted trees over 11,668 NAP2-v2 features, raw and group-demeaned) ranks the 412 call-set plans at τ +0.490 against the 100-epoch TEST 5k, against +0.518 for the probe's own last val read; the paired difference is −0.028 [−0.085, +0.024]. Its pick among equal-size candidates beats the threshold rule by +0.027 TEST 5k [−0.324, +0.367] (val +0.081, 10k +0.054) on 17 groups; the bar was +0.30. No feature family adds to the base and family X. The room was there: a replicate run ranks the same plans at τ +0.605 against the first, while the base reaches +0.478 against a single replicate, and the registered bound for a judge of the expected outcome is about 0.67. The NAP2-v2 features do not take that room.** Diagnostic; no agent result.
+
+**Question.** After the full recovery, the choice among plans of one size is the one place left where a learned component could beat the rule (§460, §465). The 2-epoch probe's val read finds little there (+0.06, §460), and TRACE's thin trajectory predictor ranked worse than that read (−0.120, §461). NAP2-v2 (Gilad, 23 Nov) offers the inputs not yet tested: loss-curve estimators (X), confidence, margins and churn on a fixed probe set (P, E), per-layer weight and gradient statistics (family 0), gradient signal-to-noise and coherence (K), movement and rotation from the cut (S, R, Y, V), and, at the cut, a kernel-regression forecast (H5), signal propagation (Z3, Z4) and dormant channels (F7). Do they predict the 100-epoch winner better than the probe's own read?
+
+**Method.**
+- **Plans.** The call set is §452's 412 plans: 36 groups of equal FLOPs on 21 CIFAR-100 networks, at FLOPs 0.20 and 0.45. Training rows only: 225 ROOM-S cells (§436; another 191 were already in the call set and were not run twice) and PR's 416 CIFAR-10 cells (§470).
+- **Runs.** Each plan was re-run exactly as TRACE ran it (its own env line, 2 epochs at lr 0.01, a trace read every 25 steps) with the NAP hook on, in tree_v41. The hook leaves training unchanged: all 412 call-set plans reproduce TRACE's final val and TEST exactly.
+- **Features.** Our own implementation of the NAP2-v2 catalogue's families, through its trajectory operators: 11,668 raw features, each also group-demeaned (23,336 columns), all finite.
+- **The judge (fixed before any cell).** The score is the base (the probe's last val read) plus a correction: HistGradientBoosting with PRED-REC's fixed settings, fitted on the residual of the group-demeaned 100-epoch val change after the base. Folds leave one family out (DenseNet, MobileNet, ResNet-like, ShuffleNet, VGG). Labels are val only; TEST 5k only scores.
+
+**Call 1, NAPJ-RANK (registered).** NAP-ADDS if τ(judge) − τ(base) ≥ +0.03 with the paired interval's lower end above 0; else NAP-NOT. Within-group Kendall τ-b against the 100-epoch TEST 5k, mean over 36 groups, bootstrap over 21 networks. **NAP-NOT.**
+
+| score | τ-b [95 % CI] |
+|---|---|
+| the judge (out of fold) | +0.490 [+0.391, +0.583] |
+| the base (the probe's last val read) | +0.518 [+0.423, +0.608] |
+| **judge − base, paired** | **−0.028 [−0.085, +0.024]** |
+
+Beside: against the 100-epoch val (the label the judge was fitted on), −0.045 [−0.109, +0.023]. By family (judge / base): DenseNet +0.54 / +0.51, MobileNet +0.53 / +0.50, ResNet-like +0.38 / +0.50, ShuffleNet +0.27 / +0.23, VGG +0.68 / +0.70. By point: FLOPs 0.20 +0.49 / +0.55, FLOPs 0.45 +0.49 / +0.49.
+
+**Call 2, NAPJ-PICK (registered).** In each deep group (FLOPs 0.20), the judge's pick among the equal-size candidates minus the threshold rule. PICK-GO if at least +0.30 TEST 5k with the lower end above 0 on at least 8 groups; else PICK-NO. **PICK-NO.**
+
+| quantity (17 groups, mean; bootstrap over networks) | value [95 % CI] |
+|---|---|
+| **judge's pick − rule, TEST 5k** | **+0.027 [−0.324, +0.367]** |
+| val | +0.081 [−0.196, +0.390] |
+| 10k | +0.054 [−0.245, +0.374] |
+| params, pick / rule | 1.011 [0.981, 1.043] |
+| beside: the base's own pick − rule, TEST 5k / val | +0.057 [−0.291, +0.397] / +0.177 [−0.137, +0.507] |
+
+A group holds several threshold-rule plans (its seeds and replicates), and the reference is their mean. The judge picked one of the rule's own plans in 11 of 17 groups, where the effect is that plan's luck against the rule's mean, and another plan in 6. The per-group effects range from −1.56 (VGG-19-BN, another plan at 0.90 of the rule's params) to +1.52 (VGG-16-BN, a rule plan at 1.16).
+
+**Reported beside, no call.**
+- **(a) Size-free pick (all plans of a call group, equal FLOPs).** The judge's pick − rule +0.366 TEST 5k [+0.009, +0.829] at 1.19× the rule's params; the base's own pick +0.415 [+0.062, +0.865] at 1.22×. At equal FLOPs, both picks favour plans with more params, and the judge does no better than the base.
+- **(b) Conditional gains per family, G(F | B0) = τ(B0 + F) − τ(B0 judge).** None is informative (BH at 10 %, gain ≥ 0.02, lower band > 0). The largest is F2 (the effective rank of each layer's output at the cut), +0.030 [−0.019, +0.081]. Y (rotation) hurts, −0.105 [−0.220, −0.006]. The judge on B0 alone (the base plus family X, 278 columns) already ranks below the base read (−0.052 [−0.146, +0.035]). Adding any family's columns to the trees costs, against the raw base read, between −0.02 (F2) and −0.16 (Y).
+- **(c) The replicate ceiling.** On the 23 groups with at least 3 plans that hold 2 replicate rows (102 plans): replicate 1 against replicate 2 τ +0.605 [+0.363, +0.802]. Against replicate 2 alone, the base reaches +0.478 [+0.278, +0.639] and the judge +0.507 [+0.343, +0.668]. Against the replicate mean (a less noisy target), the base reaches +0.608 [+0.488, +0.731] and the judge +0.570 [+0.339, +0.756]. 22 of the pairs hold two identical values, which raises the replicate τ, and the intervals are wide.
+- **(d) Judge fitted on the call set only:** −0.060 [−0.126, −0.001] against the base. The two training-only sets help a little (+0.031 [−0.017, +0.079]), not enough.
+- **(e) At the cut, before any recovery step.** The H5 kernel-regression forecast ranks at +0.284 [+0.158, +0.404] (stale BN) and +0.278 (recalibrated BN), against +0.199 [+0.077, +0.326] for the cut's own val read. Both are far below the base after 2 epochs (+0.518).
+- **Label check.** Of the 222 ROOM-S cells read from their original jobs, 214 have val, TEST 5k and params equal to the DB extract within 1e-9. The other 8 are training rows only and enter no call.
+
+**Reading.**
+- **The early signals do not add to the probe's own read, although there is room.** Against a single replicate, the base ranks at +0.48 where a second run of the same plans reaches +0.61. The registered bound for a judge of the expected outcome is about 0.67. So ranking room of about 0.1-0.2 in τ exists, and the NAP2-v2 judge does not take it. This is a negative for these features under this judge, not a lack of room.
+- **Why, as hypotheses [H].**
+  - The trees' variance costs more than the features give: the judge on B0 alone (the base plus family X, 278 columns) already loses 0.05 to the raw base read. Every family's columns, added to B0, lower it further against the base.
+  - 2 epochs at lr 0.01 may be too short for the signals that separate plans after 100 epochs.
+  - One judge spans five families and two datasets.
+  - The R1 amendment tests part of the first: a size base and a corrected family map.
+- **The pick result agrees with §474.** There, the equal-size room at deep cuts was mostly the rule measured in another run. Here the judge's pick, mostly one of the rule's own plans, is level with the rule's mean (+0.03).
+- **The step-0 forecast is better than the cut's own read and far below 2 epochs of recovery.** H5 ranks plans at +0.28 before any step, against +0.20 for the cut's val read; that is the one place in this study where a NAP2-v2 signal beats a read we had. It costs one forward pass on the probe set, so it could rank candidates where a 2-epoch probe is too expensive. That use is not tested here [H].
+- **What closes.** Per the rule set before the read, this direction closes in our setting: no judge reward, no NAP2-v2 picker. The conditional-gain map goes to Gilad. The R1 amendment (the corrected family map, a size base, the P4 temperature fix, 273 more catalogue columns and an extended judge) is reported beside in a later section, under no call.
+
+**Scope.** CIFAR-100 (call set) and CIFAR-10 (training rows), 21 call networks of five families, FLOPs 0.20 and 0.45, one 2-epoch probe recipe (lr 0.01), one judge family (gradient-boosted trees at fixed settings), our own implementation of the catalogue. The per-layer unit in family 0 is the pre-BN convolution (a recorded deviation). The P4 temperature in these cells has the bracket-midpoint bug found by the cross-check of 27 Nov; R2 corrects it in the amendment's read only.
+
+**Not supported by this section:**
+- "NAP2-v2's features are uninformative" in general: they are measured here for one task (ranking same-size plans after a 2-epoch recovery), under one judge;
+- any claim about another judge family, another probe length or a larger training set;
+- any agent result;
+- any claim from the size-free pick (a): it is a pick at more params, and the base does as well.
+
+**Next, as set before the read.** NAP-NOT: NAP2-v2's early signals do not add to the probe's own read in our setting; the conditional-gain map goes to Gilad and this direction closes. The R1/R2 amendment read is running (partition cpu) and is reported beside with no call.
+
+Next §477.
