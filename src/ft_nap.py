@@ -200,11 +200,12 @@ def fixed_form(values):
         return None, bad
     d, x = depth[ok], v[ok]
     interp = np.interp(_DEPTHS, d, x)
-    slope = 0.0
+    slope = argmax_depth = float("nan")  # missing below two finite layers: a slope and a depth of the maximum need two depths
     if x.size >= 2 and float(np.ptp(d)) > 0:
         dc = d - d.mean()
         slope = float((dc * (x - x.mean())).sum() / (dc * dc).sum())
-    out = list(interp) + [x.mean(), x.std(), x.min(), x.max(), x[0], x[-1], slope, d[int(np.argmax(x))]]
+        argmax_depth = d[int(np.argmax(x))]
+    out = list(interp) + [x.mean(), x.std(), x.min(), x.max(), x[0], x[-1], slope, argmax_depth]
     return [float(o) for o in out], bad
 
 
@@ -337,16 +338,18 @@ def temperature(logits, labels, iters=60):
     b = 1.0
     for _ in range(iters):
         g, h = slope(b)
+        if abs(g) < 1e-13:
+            break
         if g < 0.0:
             lo = b
         else:
             hi = b
         nb = b - g / h if h > 0.0 else 0.0
-        if not lo < nb < hi:
-            nb = math.sqrt(lo * hi)
-        if abs(nb - b) <= 1e-12 * b or abs(g) < 1e-13:
+        if math.isfinite(nb) and abs(nb - b) <= 1e-12 * b:
             b = nb
             break
+        if not lo < nb < hi:  # a NaN step trips this too
+            nb = math.sqrt(lo * hi)
         b = nb
     return 1.0 / b
 

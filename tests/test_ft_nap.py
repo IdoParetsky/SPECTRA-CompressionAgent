@@ -1135,7 +1135,15 @@ def test_fixed_form():
     form, bad = ft_nap.fixed_form([1.0, float("nan"), 3.0, float("inf")])
     assert bad == 2 and all(math.isfinite(v) for v in form) and form[12:14] == [1.0, 3.0]
     assert ft_nap.fixed_form([]) == (None, 0) and ft_nap.fixed_form([float("nan")]) == (None, 1)
-    assert ft_nap.fixed_form([5.0])[0] == [5.0] * 8 + [5.0, 0.0, 5.0, 5.0, 5.0, 5.0, 0.0, 0.0]
+    one = ft_nap.fixed_form([5.0])[0]  # one finite layer: the slope and the depth of the maximum are missing, not 0.0
+    assert one[:14] == [5.0] * 8 + [5.0, 0.0, 5.0, 5.0, 5.0, 5.0] and math.isnan(one[14]) and math.isnan(one[15])
+    two = ft_nap.fixed_form([float("nan"), 4.0, float("nan")])[0]
+    assert math.isnan(two[14]) and math.isnan(two[15])
+    fam1 = ft_nap._Fam()
+    fam1.form("one_L", [7.0])
+    assert fam1["one_L"][14] is None and fam1["one_L"][15] is None and fam1["one_L"][8] == 7.0
+    pair = ft_nap.fixed_form([1.0, 3.0])[0]
+    assert pair[14] == pytest.approx(2.0) and pair[15] == 1.0
     fam = ft_nap._Fam()
     fam.put("a", 1.23456789)
     fam.put("b", float("nan"))
@@ -1175,6 +1183,67 @@ def test_cka_unbiased():
     batch = ft_nap.cka_unbiased(padded, torch.stack([y, y]))
     assert float(batch[0]) == pytest.approx(direct, rel=1e-9) and float(batch[1]) == pytest.approx(1.0, abs=1e-12)
     assert math.isnan(float(ft_nap.cka_unbiased(x[:3], y[:3])))
+
+
+def _nll_temperature(logits, labels):
+    """The reference: the minimiser of the NLL over u = log(1 / T) by Brent's method (scipy), T = exp(-u), inside [0.01, 100]."""
+    from scipy.optimize import minimize_scalar
+    z = np.asarray(logits, dtype=np.float64)
+    zc = z - z.max(axis=1, keepdims=True)
+    zy = zc[np.arange(z.shape[0]), np.asarray(labels)]
+
+    def nll(u):
+        a = math.exp(u) * zc
+        return float((np.log(np.exp(a).sum(axis=1)) - math.exp(u) * zy).mean())
+
+    from scipy.optimize import bracket
+    xa, xb, xc = bracket(nll, xa=-0.5, xb=0.5)[:3]  # the NLL is convex in u: a bracket by downhill expansion
+    r = minimize_scalar(nll, bracket=(xa, xb, xc), method="brent", tol=1e-12)
+    return math.exp(-r.x)
+
+
+def test_temperature_minimal_failing_input():
+    """Newton had converged and the bracket safeguard then replaced the step by the bracket's midpoint (T 1.309 for 1.714)."""
+    logits = np.array([[2.0, -1.2], [2.0, 2.9], [-0.5, -0.2]])
+    labels = np.array([0, 0, 1])
+    t = ft_nap.temperature(logits, labels)
+    assert t == pytest.approx(_nll_temperature(logits, labels), rel=1e-6)
+    assert t == pytest.approx(1.714, abs=1e-3)
+
+
+def test_temperature_planted():
+    """Logits 3 z of a predictor calibrated at z: T = 3 (200,000 labels drawn from softmax(z), C = 20)."""
+    g = np.random.default_rng(8)  # this draw sent the old solver to its bracket midpoint (T 1.73)
+    z = 0.5 * g.standard_normal((200_000, 20))
+    p = np.exp(z - z.max(axis=1, keepdims=True))
+    p /= p.sum(axis=1, keepdims=True)
+    labels = (np.cumsum(p, axis=1) < g.random((z.shape[0], 1))).sum(axis=1).clip(max=19)
+    t = ft_nap.temperature(3.0 * z, labels)
+    assert abs(t - 3.0) / 3.0 < 0.01
+
+
+def test_temperature_random_calibrated_problems():
+    """300 calibrated problems (500 inputs, 100 classes, scale 0.3-8) against a Brent minimiser of the NLL, to 1e-5 relative."""
+    g = np.random.default_rng(11)
+    worst = 0.0
+    for _ in range(300):
+        scale = float(np.exp(g.uniform(math.log(0.3), math.log(8.0))))
+        z = g.standard_normal((500, 100))
+        p = np.exp(z - z.max(axis=1, keepdims=True))
+        p /= p.sum(axis=1, keepdims=True)
+        labels = (np.cumsum(p, axis=1) < g.random((500, 1))).sum(axis=1).clip(max=99)
+        logits = scale * z
+        ours, ref = ft_nap.temperature(logits, labels), _nll_temperature(logits, labels)
+        worst = max(worst, abs(ours - ref) / ref)
+    assert worst < 1e-5, worst
+
+
+def test_temperature_exits_on_convergence_and_nan():
+    """A converged Newton step is kept (the exit test comes before the bracket safeguard); a NaN logit returns NaN."""
+    logits = np.array([[2.0, -1.2], [2.0, 2.9], [-0.5, -0.2]])
+    t = ft_nap.temperature(logits, np.array([0, 0, 1]))
+    assert ft_nap.temperature(logits / t, np.array([0, 0, 1])) == pytest.approx(1.0, rel=1e-9)  # the optimum is a fixed point
+    assert math.isnan(ft_nap.temperature(np.array([[float("nan"), 1.0]]), np.array([0])))
 
 
 def test_probe_estimators():
