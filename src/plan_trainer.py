@@ -77,6 +77,19 @@ takes the median reward of its instance); CHECK (``1`` | ``refuse``: three plans
 masked cut, one ``[plan] check gate`` verdict line); CONTRACT (the state contract in the checkpoint, which
 ``plan_agent.plan_for_env`` then refuses on a mismatch). With STATE on, the averaged weights and ADV=global's running
 scale travel in ``trainer_state.pt`` under ``av2``.
+
+EXIT (26 Nov 2026, queue row EXIT; default off, ``SPECTRA_PLAN_EXIT=cem:R:m:shrink:B:n``, ``exit_settings``): expert
+iteration in place of the policy gradient. Each instance spends R rounds of K plans on a cross-entropy search: round 1
+draws around the policy's mean exactly as without the flag, round j draws around the mean of round j - 1's m best
+(by reward) with both sigmas (the scores', and the menu logits' on the blending line) times ``shrink``. The target is
+the mean of the last round's m best; the loss is minus the policy's log-density of the target (the scores' term, plus
+the logits' term on the menu line, and the entropy bonus where MENU_ENT is on), with no policy-gradient term, so an
+instance costs R x K reward evaluations. Each target joins a FIFO buffer of the last B; every optimizer step adds n
+replay minibatches of BATCH buffered targets, scored by the current policy, drawn by the buffer's own generator
+(seeded from SEED, so the trainer's ``rng`` and the global generators are not touched). With the buffer on, STATE keeps
+it and its generator under ``av2["exit"]``. Refused (ValueError, before any origin is read): a malformed spec, and EXIT
+with SPLIT, MIRROR, ADV, GNORM, MENU_SIGMA_ANNEAL or FS_GUARD. With it unset the loop is the loop of the blob
+eaaf874e (``tests/test_exit.py``).
 """
 
 import json
@@ -635,18 +648,21 @@ class PolicyEma:
             self.shadow[name].copy_(value.to(device=self.shadow[name].device, dtype=self.shadow[name].dtype))
 
 
-def av2_state(ema=None, adv_scale=None):
-    """What ``trainer_state`` keeps under ``av2``: the averaged weights and the running advantage scale; None when
-    neither flag is on."""
-    if ema is None and adv_scale is None:
+def av2_state(ema=None, adv_scale=None, exit=None):
+    """What ``trainer_state`` keeps under ``av2``: the averaged weights and the running advantage scale, and under
+    EXIT (``exit`` = its ``ExitBuffer``) the replay buffer and its generator under ``exit``; None when none is on."""
+    if ema is None and adv_scale is None and exit is None:
         return None
-    return {"ema": None if ema is None else ema.state(), "adv_scale": None if adv_scale is None else adv_scale.state()}
+    out = {"ema": None if ema is None else ema.state(), "adv_scale": None if adv_scale is None else adv_scale.state()}
+    if exit is not None:
+        out["exit"] = exit.state()
+    return out
 
 
-def restore_av2(state, path, ema=None, adv_scale=None):
+def restore_av2(state, path, ema=None, adv_scale=None, exit=None):
     """Put ``av2_state`` back from a resumed ``state``; a state that lacks what a flag needs is refused."""
     saved = state.get("av2") or {}
-    for name, target in (("ema", ema), ("adv_scale", adv_scale)):
+    for name, target in (("ema", ema), ("adv_scale", adv_scale), ("exit", exit)):
         if target is None:
             continue
         if not saved.get(name):
@@ -724,6 +740,147 @@ def check_gate(inst, index, cfg, res, budgets, floor=1, zmax=0.0, sigma=0.25):
     return failed
 
 
+# ------------------------------------------------------------------ EXIT (26 Nov 2026; default off)
+
+EXIT_BLOCKED = (("mirror", "MIRROR"), ("split", "SPLIT"), ("adv", "ADV"), ("gnorm", "GNORM"),
+                ("menu_sigma_anneal", "MENU_SIGMA_ANNEAL"), ("fs_guard", "FS_GUARD"))
+
+
+def exit_settings(cfg, menu=None, av2=None):
+    """``SPECTRA_PLAN_EXIT`` (queue row EXIT; unset = off: None, and the run is as before):
+    ``cem:R:m:shrink:B:n`` -> ``{"spec", "rounds", "elite", "shrink", "buffer", "replay"}``. R (rounds per instance) is
+    an integer of at least 1; m (the elite) an integer with 1 <= m <= K; shrink (the sigmas' factor per round) a float in
+    (0, 1]; B (the buffer's size) an integer of at least 1; n (replay minibatches per optimizer step) an integer of
+    at least 0. ``spec`` is the canonical string (the checkpoint meta's ``exit``). Refused (ValueError): a malformed
+    spec, and EXIT together with SPLIT, MIRROR, ADV, GNORM, MENU_SIGMA_ANNEAL or FS_GUARD (``av2``'s keys); the
+    caller reads this beside ``av2_settings``, before any origin is read. ``menu`` is accepted for the caller's
+    symmetry: the menu line searches the shares too, under the same fields."""
+    raw = _env("EXIT", "")
+    if not raw:
+        return None
+    parts = raw.split(":")
+
+    def refuse(why):
+        raise ValueError(f"SPECTRA_PLAN_EXIT={raw!r}: {why}; expected cem:R:m:shrink:B:n (R rounds >= 1, m elite with "
+                         f"1 <= m <= K, shrink in (0, 1], B buffer >= 1, n replay minibatches >= 0)")
+
+    if len(parts) != 6 or parts[0].strip().lower() != "cem":
+        refuse("not six fields starting with cem")
+    ints = []
+    for text in (parts[1], parts[2], parts[4], parts[5]):
+        if not text.strip().isdecimal():
+            refuse(f"{text.strip()!r} is not a non-negative integer")
+        ints.append(int(text))
+    rounds, elite, buffer, replay = ints
+    try:
+        shrink = float(parts[3])
+    except ValueError:
+        refuse(f"shrink {parts[3].strip()!r} is not a number")
+    if rounds < 1:
+        refuse(f"R={rounds} is below 1")
+    if not 1 <= elite <= cfg.k:
+        refuse(f"m={elite} is outside 1..K ({cfg.k})")
+    if not 0.0 < shrink <= 1.0:
+        refuse(f"shrink={shrink:g} is outside (0, 1]")
+    if buffer < 1:
+        refuse(f"B={buffer} is below 1")
+    for key, flag in EXIT_BLOCKED:
+        if key in (av2 or {}):
+            raise ValueError(f"SPECTRA_PLAN_EXIT={raw!r} cannot be combined with SPECTRA_PLAN_{flag}")
+    return {"spec": f"cem:{rounds}:{elite}:{shrink:g}:{buffer}:{replay}", "rounds": rounds, "elite": elite,
+            "shrink": shrink, "buffer": buffer, "replay": replay}
+
+
+class ExitBuffer:
+    """EXIT's replay buffer: the last ``limit`` targets, oldest first, each ``(instance index, kappa, budget, z*, u*)``
+    (z* and u* detached on the CPU; u* None off the menu line), and its own generator, ``random.Random(SEED * 7919 + 13)``,
+    from which ``draw`` picks entries uniformly with replacement. ``state`` / ``load`` are what ``trainer_state`` keeps
+    under ``av2["exit"]``. ``x`` caches the menu head's network-level inputs per entry (a pure function of the entry,
+    recomputed on demand, never saved)."""
+
+    def __init__(self, limit: int, seed: int):
+        self.limit, self.entries, self.rng, self.x = int(limit), [], random.Random(int(seed) * 7919 + 13), {}
+
+    def add(self, index, kappa, budget, z, u=None):
+        self.entries.append((int(index), float(kappa), str(budget), z.detach().cpu().clone(),
+                             None if u is None else u.detach().cpu().clone()))
+        while len(self.entries) > self.limit:
+            old = self.entries.pop(0)
+            self.x.pop(old[:3], None)
+
+    def draw(self, count: int):
+        return [self.entries[self.rng.randrange(len(self.entries))] for _ in range(int(count))]
+
+    def state(self):
+        return {"limit": self.limit, "entries": list(self.entries), "rng": self.rng.getstate()}
+
+    def load(self, state):
+        if int(state["limit"]) != self.limit:
+            raise ValueError(f"the state's replay buffer holds {state['limit']} targets, this run's {self.limit}")
+        self.entries, self.x = list(state["entries"]), {}
+        self.rng.setstate(state["rng"])
+
+
+def exit_elite(rewards, m: int):
+    """The indices of the ``m`` largest ``rewards``, best first; a tie goes to the lower index (a stable sort on the
+    negated reward), and a NaN reward ranks last."""
+    return sorted(range(len(rewards)), key=lambda k: -rewards[k] if rewards[k] == rewards[k] else math.inf)[:int(m)]
+
+
+def exit_search(ex, z, u, rewards, sigma, sigma_u, generator, play):
+    """Rounds 2..R of one instance's search. ``z`` (K x G) and ``u`` (K x menu or None) are round 1's draws, ``rewards``
+    its K rewards, ``sigma`` / ``sigma_u`` its sigmas; ``play(z_row, shares_row_or_None)`` decodes and rewards one plan
+    -> ``(reward, kept)``. Round j draws the scores around the mean of round j - 1's elite at sigma x shrink^(j - 1),
+    then, on the menu line, the logits likewise, from the instance's ``generator`` after the earlier rounds' draws.
+    Returns ``{"rewards", "kept"}`` (rounds 2..R, round-major lists), ``"round_rewards"`` (every round's K rewards),
+    ``"z"`` / ``"u"`` (the target: the mean of the last round's elite), ``"elite"`` and the last round's sigmas."""
+    k, m = int(z.shape[0]), ex["elite"]
+    rounds, elite = [list(rewards)], exit_elite(rewards, m)
+    extra_r, extra_k = [], []
+    for _ in range(2, ex["rounds"] + 1):
+        pick = torch.tensor(elite, dtype=torch.long, device=z.device)
+        sigma *= ex["shrink"]
+        z = plan_agent.sample_scores(z.index_select(0, pick).mean(dim=0), sigma, k, generator)
+        shares = None
+        if u is not None:
+            sigma_u *= ex["shrink"]
+            u = plan_agent.sample_scores(u.index_select(0, pick).mean(dim=0), sigma_u, k, generator)
+            shares = [plan_agent.menu_shares(row) for row in u.tolist()]
+        values = []
+        for j in range(k):
+            value, kept = play(z[j], None if shares is None else shares[j])
+            values.append(value)
+            extra_k.append(kept)
+        extra_r.extend(values)
+        rounds.append(values)
+        elite = exit_elite(values, m)
+    pick = torch.tensor(elite, dtype=torch.long, device=z.device)
+    return {"rewards": extra_r, "kept": extra_k, "round_rewards": rounds, "elite": elite, "sigma": sigma,
+            "sigma_u": sigma_u, "z": z.index_select(0, pick).mean(dim=0),
+            "u": None if u is None else u.index_select(0, pick).mean(dim=0)}
+
+
+def exit_replay(policy, instances, buffer, ex, cfg, sigma, menu=None, res=None, floor=1):
+    """EXIT's replay: ``ex["replay"]`` minibatches, each ``cfg.batch`` buffered targets drawn by the buffer's own
+    generator and scored by the current policy at this step's ``sigma``: -sum_e log N(z*_e; mu_e, sigma) / BATCH (and,
+    on the menu line, the logits' term at ``menu["sigma"]``), one backward per minibatch. The optimizer step is the
+    caller's."""
+    for _ in range(ex["replay"]):
+        loss = 0.0
+        for index, kappa, budget, z, u in buffer.draw(cfg.batch):
+            inst = instances[index]
+            mu = policy(inst.state_at(kappa, budget), inst.token_mask, inst.token_k, inst.n_groups)
+            lp = plan_agent.log_prob(z.to(mu.device).unsqueeze(0), mu, sigma).sum()
+            if u is not None:
+                x = buffer.x.get((index, kappa, budget))
+                if x is None:
+                    x = buffer.x[(index, kappa, budget)] = menu_at(inst, menu, res, kappa, cfg, budget, floor)["x"]
+                psi = policy.menu_logits(inst.state_at(kappa, budget), x)
+                lp = lp + plan_agent.log_prob(u.to(psi.device).unsqueeze(0), psi, menu["sigma"]).sum()
+            loss = loss - lp / cfg.batch
+        loss.backward()
+
+
 def run(env, shard):
     cfg = config()
     floor = min_width()
@@ -737,6 +894,7 @@ def run(env, shard):
     budgets = plan_agent.BUDGETS if cfg.budget == "mixed" else (cfg.budget,)
     menu = menu_settings(mode, budgets)  # v36; None = off: a wrong menu fails here, before the origins are read
     av2 = av2_settings(cfg, res, menu)  # AGENT-V2; {} = every flag unset: a wrong flag fails here too
+    ex = exit_settings(cfg, menu, av2)  # EXIT; None = unset: a wrong spec, or one beside an incompatible flag, fails here too
     share_floor = plan_agent.MENU_SHARE_FLOOR  # what the mean plan drops; the run's own under MENU_BOUND / SHARE_FLOOR
     if menu is not None and ("menu_bound" in av2 or "menu_share_floor" in av2):
         share_floor = plan_agent.menu_floor(menu["init"], len(menu["kinds"]), av2.get("menu_bound", 0.0),
@@ -758,7 +916,8 @@ def run(env, shard):
                       + (f" fs_lr={plan_agent.fs_lr():g}" if cfg.proxy.startswith("fs") else "")
                       + (f" init={init}" if init else "")
                       + (" state=1" if keep else "") + (f" resume={resume}" if resume else "")
-                      + av2_line(av2))
+                      + av2_line(av2)
+                      + (f" exit={ex['spec']} ({ex['rounds'] * cfg.k} evaluations per instance)" if ex else ""))
     if menu is not None:
         psi0 = [menu["init"]] + [0.0] * (len(menu["kinds"]) - 1)
         if "menu_bound" in av2:  # AGENT-V2: the untrained head's logits under the bound
@@ -845,7 +1004,8 @@ def run(env, shard):
                 "menu_sigma": menu["sigma"], "menu_share_floor": share_floor} if menu else {}),
             **({"fs_lr": plan_agent.fs_lr()} if cfg.proxy.startswith("fs") else {}),
             **({"init": init} if init else {}),
-            **av2_meta(av2)}  # AGENT-V2: one key per flag that is on; nothing with none on
+            **av2_meta(av2),  # AGENT-V2: one key per flag that is on; nothing with none on
+            **({"exit": ex["spec"]} if ex else {})}  # EXIT: the canonical spec, which check_resume compares
     if av2.get("contract"):  # AGENT-V2 (F15): the contract the states above were built under
         meta["state_contract"] = plan_agent.state_contract(instances[0].spans)
     if init_blob is not None:
@@ -871,7 +1031,8 @@ def run(env, shard):
     last_state = [None]  # the count trainer_state.pt was last written at
 
     def save_state(count):
-        write_state(state_path, trainer_state(policy, optimizer, rng, count, meta, chain, av2_state(ema, adv_scale)))
+        write_state(state_path, trainer_state(policy, optimizer, rng, count, meta, chain,
+                                                         av2_state(ema, adv_scale, exitbuf)))
         last_state[0] = count
         into = count % cfg.batch
         utils.print_flush(f"[plan] state {state_path} at {count} instances"
@@ -884,8 +1045,9 @@ def run(env, shard):
     adv_mode = av2.get("adv")  # None, or fortify.plan_adv()'s (mode, value)
     adv_scale = RunningScale(adv_mode[1]) if adv_mode and adv_mode[0] == "global" else None
     ema = PolicyEma(policy, av2["ema"]) if "ema" in av2 else None
-    if state is not None and (ema is not None or adv_scale is not None):
-        restore_av2(state, resume, ema, adv_scale)
+    exitbuf = ExitBuffer(ex["buffer"], cfg.seed) if ex else None  # EXIT: the replay buffer and its own generator
+    if state is not None and (ema is not None or adv_scale is not None or exitbuf is not None):
+        restore_av2(state, resume, ema, adv_scale, exitbuf)
     mirror, split, gnorm = bool(av2.get("mirror")), bool(av2.get("split")), av2.get("gnorm")
     beta, anneal, menu_log = av2.get("menu_entropy", 0.0), bool(av2.get("menu_sigma_anneal")), bool(av2.get("menu_log"))
     guard, cosine, points = "fs_guard" in av2, av2.get("lr_schedule") == "cosine", av2.get("kappa_points")
@@ -938,6 +1100,14 @@ def run(env, shard):
             kept.append(info["kept"])
             if guard and getattr(inst, "diverged", False):
                 flagged.append(k)
+        if ex is not None:  # EXIT: rounds 2..R, each around the previous round's m best; rewards / kept hold R x K values
+            def play(z_row, share_row):
+                widths_j, info_j = _decode(z_row.tolist(), cm, kappa, cfg, floor, prior, zmax,
+                                           None if share_row is None else (share_row, at["rules"]))
+                return inst.reward(widths_j, cfg.proxy, batches), info_j["kept"]
+
+            search = exit_search(ex, z, u if at is not None else None, rewards, sigma, sigma_u, generator, play)
+            rewards, kept = rewards + search["rewards"], kept + search["kept"]
         if it == 0 and getattr(inst, "recipe_line", None):  # the ft<E> reward's handler recipe, once per run
             utils.print_flush(f"[plan] ft recipe {inst.name}: {inst.recipe_line}")
             meta["recipe_line"] = inst.recipe_line
@@ -946,7 +1116,9 @@ def run(env, shard):
             fill = statistics.median(sound) if sound else 0.0
             rewards = [fill if k in flagged else value for k, value in enumerate(rewards)]
         r = torch.tensor(rewards, device=mu.device, dtype=mu.dtype)
-        if adv_mode is None and not split:
+        if ex is not None:  # EXIT: no advantages; the search's target below replaces the estimator
+            adv = None
+        elif adv_mode is None and not split:
             adv = r - r.mean()
             if cfg.norm_adv:
                 adv = adv / (r.std() + 1e-6)
@@ -957,7 +1129,16 @@ def run(env, shard):
         # The action is the raw z ~ N(mu, sigma²), under the trust region too: zmax squashes it only inside the decode,
         # a deterministic map from action to plan, so log_prob(z) is still the exact log-density of what was sampled and
         # the REINFORCE estimate stays unbiased (no tanh Jacobian: no density is taken of the squashed scores).
-        if not own_loss:
+        if ex is not None:  # EXIT: minus the policy's log-density of the search's target (no policy-gradient term)
+            lp = plan_agent.log_prob(search["z"].unsqueeze(0), mu, sigma).sum()
+            if at is not None:  # the menu logits' target too, at the logits' own sigma
+                lp = lp + plan_agent.log_prob(search["u"].unsqueeze(0), psi, menu["sigma"]).sum()
+            loss = -lp / cfg.batch
+            if beta > 0 and at is not None:  # the entropy bonus on the mean shares, as AGENT-V2's
+                beta_t = beta * max(0.0, 1.0 - it / max(1.0, cfg.sigma_decay * cfg.instances))
+                entropy = plan_agent.menu_entropy(psi)
+                loss = loss - beta_t * entropy / cfg.batch
+        elif not own_loss:
             loss = -(adv.detach() * plan_agent.log_prob(z, mu, sigma)).mean() / cfg.batch
             if at is not None:  # v36: the action is (z, u), drawn independently; the softmax sits inside the decode too
                 loss = -(adv.detach() * plan_agent.menu_log_prob(z, mu, sigma, u, psi, menu["sigma"])).mean() / cfg.batch
@@ -978,8 +1159,12 @@ def run(env, shard):
                 entropy = plan_agent.menu_entropy(psi)
                 loss = loss - beta_t * entropy / cfg.batch
         loss.backward()
+        if ex is not None:  # EXIT: the target joins the buffer after its own live gradient
+            exitbuf.add(instances.index(inst), kappa, budget, search["z"], search["u"])
         grad = None
         if (it + 1) % cfg.batch == 0:
+            if ex is not None:  # EXIT: the replay minibatches' gradients join the live ones before the clip
+                exit_replay(policy, instances, exitbuf, ex, cfg, sigma, menu, res, floor)
             grad = float(torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0))
             if cosine:  # AGENT-V2: the lr falls to 0 over the run's updates
                 for group in optimizer.param_groups:
@@ -1020,6 +1205,12 @@ def run(env, shard):
                 record["menu_psi"], record["menu_psi_range"] = logits, max(logits) - min(logits)
                 record["menu_shares"] = [[round(float(p), 4) for p in row] for row in shares]
                 line += f" | psi range {record['menu_psi_range']:.2f}"
+        if ex is not None:  # EXIT: each round's best and mean reward, the target's mean reward and the last sigma
+            rounds = search["round_rewards"]
+            target_r = statistics.mean(rounds[-1][e] for e in search["elite"])
+            record["exit"] = {"round_max": [max(v) for v in rounds], "round_mean": [statistics.mean(v) for v in rounds],
+                              "target_r": target_r, "sigma_last": search["sigma"]}
+            line += f" | exit r1 max {max(rounds[0]):+.2f} r{ex['rounds']} max {max(rounds[-1]):+.2f} target {target_r:+.2f}"
         if (it + 1) % cfg.ref_every == 0 or it == 0:
             plan_widths, info = mean_plan(policy, inst, kappa, cfg, budget, floor, prior, zmax, at, share_floor)
             record["mean_plan"] = {"r": inst.reward(plan_widths, cfg.proxy, batches), "kept": info["kept"]}
@@ -1041,6 +1232,8 @@ def run(env, shard):
     if keep and last_state[0] != done:  # the trajectory state before the closing partial step: a resume re-finishes it
         save_state(done)
     if done % cfg.batch:
+        if ex is not None:  # EXIT: the closing step's replay, at the last instance's sigma
+            exit_replay(policy, instances, exitbuf, ex, cfg, sigma_at(cfg, done - 1, scale), menu, res, floor)
         torch.nn.utils.clip_grad_norm_(policy.parameters(), 1.0)
         if cosine and done:
             for group in optimizer.param_groups:
