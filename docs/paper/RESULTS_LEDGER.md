@@ -14072,3 +14072,48 @@ A group holds several threshold-rule plans (its seeds and replicates), and the r
 **Next, as set before the read.** NAP-NOT: NAP2-v2's early signals do not add to the probe's own read in our setting; the conditional-gain map goes to Gilad and this direction closes. The R1/R2 amendment read is running (partition cpu) and is reported beside with no call.
 
 Next §477.
+
+## 477. (NAPJ reader amendments R1 and R2: queue row NAPJ, stamps "Reader amendment R1" and "Reader amendment R2", both registered before any NAPJ cell was read; reported beside §476, no call. R1 `scripts/_tmp_s27nov_napj_r1.py` 837eef87 and driver `scripts/_tmp_s27nov_napj_r1.sh` ee668f8a; on partition cpu, table 24541893, 16 parts 24541894-24541909, report 24541910, all ended by 10:55 IST; 210 fold fits, 22,296 s; output `scratch_audit/s27nov_napj_r1.txt`) — **§476's negative holds under every amendment. The corrected family map, a size base, the fixed P4 temperature and 306 more catalogue columns change none of it. The extended judge ranks at τ +0.470, −0.048 [−0.097, +0.002] against the probe's val read and −0.019 [−0.055, +0.017] against the registered judge. Under the registered rules it reads NAP-NOT and PICK-NO, as reported beside, not as calls. No family is informative given the curve base or the size base.** Diagnostic.
+
+**Why the amendments.** Three faults in §476's design were found before any cell was read:
+- the registered family map credited counters and widths (sizes) to families, and the probe's own accuracy and loss curves to family P;
+- the gradient block J4emp is the mean squared minibatch gradient norm, not a Fisher trace;
+- a cross-implementation check against Gilad's code (27 Nov) found that our P4 temperature solver returned the bracket's midpoint after Newton had converged. That made the temperature columns wrong in about a quarter of the reads (42 of 192 smoke reads).
+
+R1 corrects the map, adds a size base and computes 306 catalogue columns the hook did not log, from the cells' saved arrays and trace events. R2 recomputes P4 from the saved probe logits with a fixed solver.
+
+**Results (TEST 5k, 36 call groups, bootstrap over networks; labels val only).**
+
+| score | τ-b [95 % CI] | against the base | against the registered judge |
+|---|---|---|---|
+| the base (the probe's last val read) | +0.518 [+0.423, +0.608] | | |
+| the registered judge (§476) | +0.490 [+0.391, +0.583] | −0.028 [−0.085, +0.024] | |
+| the registered judge, P4 fixed (R2) | +0.473 [+0.374, +0.565] | −0.045 [−0.097, +0.002] | −0.017 [−0.037, +0.002] |
+| the extended judge (23,924 columns) | +0.470 [+0.389, +0.544] | −0.048 [−0.097, +0.002] | −0.019 [−0.055, +0.017] |
+| the curve-base judge alone (B0r: the base, family X, the probe's curves) | +0.464 [+0.356, +0.569] | −0.054 [−0.124, +0.010] | |
+| B1 = B0r + the size base | +0.460 [+0.338, +0.563] | | |
+
+Beside: against the 100-epoch val, extended minus base −0.038 [−0.089, +0.012]; against the 10k, −0.035 [−0.086, +0.017].
+
+**The registered rules on the extended judge (reported beside, not calls).** Ranking: NAP-NOT. Picking: PICK-NO. The pick is +0.027 TEST 5k [−0.324, +0.367] (val +0.081, 10k +0.054) over 17 groups. The extended judge picks the same plan as the registered judge in all 17 groups. Its score is the base plus a small correction, and R1 applies the rule to the extended scores (checked in the code).
+
+**Conditional gains with the corrected map.**
+- **Given the curve base B0r**, no family is informative (BH at 10 %, gain ≥ 0.02, lower band > 0). The largest are H at +0.028 [−0.002, +0.063] and F2 at +0.020. Y lowers it, at −0.104 [−0.184, −0.040].
+- **Given the size base B1**, none is informative either. The largest are F2 at +0.037 [−0.011, +0.092], H1 at +0.028 and Z3 at +0.023.
+- **The size base's own gain** is −0.004 [−0.045, +0.042].
+- **X4**, the catalogue's power-law and exponential extrapolation of the val curve, gives G(X4 | B0r) −0.018 [−0.060, +0.023].
+- **SIZE** holds 90 raw columns over 25 leaves (listed in the output).
+
+**Reading.**
+- **The negative is not an artefact of the map, the bug or the missing columns.** Each amendment leaves the judge at or below the registered one, and every judge is at or below the raw val read.
+- **The temperature fix lowers τ slightly (−0.017, within noise).** So the bug was not hiding a signal.
+- **A curve-base judge with no NAP2-v2 family already loses 0.05 to the read it corrects.** With about a thousand training plans, the trees cost more than the 2-epoch features give, in this setting. The room of §476 (about 0.1-0.2 in τ against a single replicate) stays untaken.
+- **Families nearest to a gain are worth naming to Gilad as candidates, not findings:** F2 (the effective rank of each layer's output at the cut), H/H1 and Z3. All are at the cut or step 0, none is significant, and §476's step-0 H5 forecast (+0.28 against the cut's own +0.20) belongs to the same group.
+
+**Scope.** As §476. The extra columns are computed offline from the logged arrays; T3 is its first half and V6 is approximate, as the R1 stamp states. One judge family at fixed settings.
+
+**Not supported by this section:** any call (none was registered for R1/R2); any claim that a family carries signal; any claim about Gilad's implementation (the cross-check compared definitions on the same arrays; it did not rank his code's features).
+
+**Next.** The NAP2-v2 judge direction is closed for the agent (§476). The per-family tables of §476 and §477 go to Gilad with the change list, as the rule set before the read says.
+
+Next §478.
