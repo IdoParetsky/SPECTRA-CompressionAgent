@@ -14228,3 +14228,77 @@ The last weights tell the same story (blending at 0.20: bundle 0.326, copy 0.238
 **Next, as set before the read.** IMIT-NO: the next blending-line retrain aimed at 0.20 carries hec_kp. Both residual configs reach d/d0 0.90 at 0.20, so a residual-line retrain may be aimed at 0.20. The retrain is registered after SAMENET's read, which measures the room at 0.20 on the same network. Whether that retrain also runs the copy learner as an arm beside the bundle is decided when it is registered [D pending].
 
 Next §480.
+
+## 480. (SAMENET: queue row SAMENET (Design 2 of the 26 Nov literature scan), registered 26 Nov 19:50 IST before any SAMENET code (commit f57ab37), amendments A1 and A2 before any cell; code commit 4b79489, tree_v42 = tree_v41 + commit 997adbd + SAMENET (`src/alloc_walk.py` 102bc1f6, `src/fortify.py` 273d57f5, `src/plan_agent.py` 7311d881, `a2c_agent_reinforce_runner.py` 187b1ec8, `tests/test_samenet.py` 18e772b4); driver `scripts/_tmp_s26nov_samenet.sh` 89de6d09, step `scripts/_tmp_s26nov_samenet_step.py` 10efdfd3, reader `scripts/_tmp_s26nov_samenet_read.py` 8a3e0662; gate PASS 27 Nov 08:47 IST; 7 smokes, 960 evaluations and 88 finals (24539930-24560921), all COMPLETED by 28 Nov 13:04 IST, 105.8 GPU-h; read 28 Nov 13:10 IST; output `scratch_audit/s28nov_samenet_read.txt`) — **On one network at a time, does a DRL agent's search beat the rule, and does it add anything above choosing among the rule's own runs? It beats one run of the rule, and it adds nothing above choosing. On 8 CIFAR-100 networks at FLOPs 0.20, with 24 twenty-epoch evaluations per method and network, the same-network agent's pick beats the rule's single plan by TEST 5k +0.469 [+0.031, +0.895] (val +0.640, 10k +0.554): PG-BEATS-RULE. That agent is the plan agent's policy-gradient estimator over tilts of the rule's plan. Picking the best of 24 runs of the rule itself, by the same 20-epoch val, gains as much (+0.464 [+0.175, +0.749]). The agent's pick minus that one is +0.005 [−0.443, +0.444] (val +0.221, 10k +0.113): PG-IS-SELECTION. Random tilts, an evolutionary search and the frozen agent's samples all land within 0.16 of the rule's best of 24. The room a same-network search finds at deep cuts is selection among measured plans.** PRELIM.
+
+**Question.** Ido's side idea (26 Nov): with no transfer, does an agent that searches on the target network itself beat the rule at equal size? §474 found the equal-size room at deep cuts mostly inside the rule. The threshold rule's plan changes with the run's seed, and a 20-epoch val chooses among such plans. So every method here is read against that selection (RULE-K) as well as against one rule run (the base plan).
+
+**Method.**
+- **Networks.** 8 CIFAR-100 networks at FLOPs 0.20, chosen on val only: the two largest equal-size 100-epoch val rooms per family among §474's 17 deep groups. They are VGG-16-BN (v16), VGG-13-BN (v13), thin ResNet-20 ×12 (r20w12), thin ResNet-56 ×4 (r56w4), ShuffleNetV2 ×2 (sh2), MobileNetV2 ×1.4 (mb14), MobileNetV2 ×0.5 (mb05) and DenseNet-40 (dn40).
+- **One evaluation.** One plan, cut to FLOPs 0.20 and recovered for 20 epochs (cosine from lr 0.1, batch 256, keep-last), as §474, fine-tuning the size point only. Each evaluation has its own seed.
+- **Arms.** Each gets 24 evaluations per network and picks the best 20-epoch val among its 24 plans and the base plan. Only eligible plans count (params at most 1.10× the base plan's), and a tie goes to the base plan.
+  - RULE-K: the threshold rule under 24 seeds; its first seed is the base plan.
+  - RAND: 24 random tilts of the base plan, z ~ N(0, 0.3²) on each group's log-width.
+  - EVO: 3 generations of 8 tilts around the best eligible plan so far, sigma 0.3, then 0.2, then 0.15.
+  - PG, the same-network DRL agent: a Gaussian policy over the same tilts (mean 0 at the start, sigma 0.3), 3 rounds of 8 plans (4 mirrored pairs). After rounds 1 and 2 the mean moves by the REINFORCE estimate with a mean baseline and a standardized advantage, the plan agent's own estimator.
+  - AGENT-S: 24 samples of the frozen final agent of §464 (FINAL-SW), drawn at its training sigma.
+- **Size (amendments A1 and A2, before any cell).** Every tilt is rescaled to FLOPs 0.20 and held at the base plan's params within 1 %. The hold is on the landing that a cost-model copy of the walk predicts; that copy reproduced every real walk checked. When 1 % is not reachable along the hold's direction, the closest is taken and logged. RULE-K and AGENT-S keep the 1.10× allowance, which favours them over PG.
+- **Finals.** Each arm's pick and the base plan get the 100-epoch recovery of record twice, with two seeds outside the search's, through the widths kind, so every final cuts the same widths. A plan's score is the mean of its two finals; shared picks share runs.
+- **Calls (registered; TEST 5k, mean over the 8 networks, bootstrap over networks, 2,000 draws, seed 0).** (1) SAMENET-RULE: PG-BEATS-RULE if PG's pick minus the base plan is at least +0.30 with the lower end above 0; else PG-NOT. (2) SAMENET-K: PG-ABOVE-SELECTION if PG's pick minus RULE-K's pick is at least +0.30 with the lower end above 0; else PG-IS-SELECTION.
+
+**The calls. PG-BEATS-RULE; PG-IS-SELECTION.**
+
+| quantity (mean over 8 networks) | TEST 5k [95 % CI] | val | 10k |
+|---|---|---|---|
+| RULE-K's pick − the base plan | +0.464 [+0.175, +0.749] | +0.419 | +0.441 |
+| RAND's pick − the base plan | +0.307 [−0.151, +0.814] | +0.435 | +0.371 |
+| EVO's pick − the base plan | +0.415 [−0.043, +0.979] | +0.799 | +0.607 |
+| **PG's pick − the base plan (call 1)** | **+0.469 [+0.031, +0.895]** | +0.640 | +0.554 |
+| AGENT-S's pick − the base plan | +0.422 [+0.052, +0.859] | +0.535 | +0.479 |
+| RAND's pick − RULE-K's pick | −0.156 [−0.674, +0.362] | +0.016 | −0.070 |
+| EVO's pick − RULE-K's pick | −0.049 [−0.632, +0.596] | +0.380 | +0.166 |
+| **PG's pick − RULE-K's pick (call 2)** | **+0.005 [−0.443, +0.444]** | +0.221 | +0.113 |
+| AGENT-S's pick − RULE-K's pick | −0.041 [−0.438, +0.446] | +0.116 | +0.037 |
+
+Per network, each pick minus the base plan, TEST 5k (the base plan's TEST 5k in brackets):
+
+| network | RULE-K | RAND | EVO | PG | AGENT-S |
+|---|---|---|---|---|---|
+| v16 (66.74) | +0.03 | +1.12 | +1.13 | −0.28 | +1.44 |
+| v13 (68.48) | +0.94 | +0.05 | −0.05 | +0.93 | +0.40 |
+| r20w12 (48.15) | +1.05 | −0.37 | −0.25 | −0.09 | +0.21 |
+| r56w4 (28.40) | +0.99 | +1.52 | +1.37 | +1.01 | +1.33 |
+| sh2 (72.67) | +0.00 (the base's widths, another run) | −0.41 | −0.29 | +0.60 | +0.00 (the base plan) |
+| mb14 (74.64) | −0.04 | −0.39 | −0.30 | −0.61 | +0.00 (the base plan) |
+| mb05 (66.95) | +0.25 | +0.89 | +1.70 | +1.26 | +0.00 |
+| dn40 (60.91) | +0.49 | +0.05 | +0.01 | +0.93 | +0.00 (the base plan) |
+
+All picks sit at FLOPs 0.198-0.200. Against the base plan, the picks keep params of ×1.033 on average for RULE-K (the largest ×1.076), ×1.005 for RAND, ×1.010 for EVO, ×1.006 for PG and ×1.036 for AGENT-S (×1.098).
+
+**Reported beside.**
+- **PG's gain is the best of its draws, not a moved policy.** The mean 20-epoch val of PG's rounds stayed below the base plan's in all three rounds (−1.34, −1.73 and −1.06 points). EVO, which re-centres on its best plan so far, rose from −1.23 to −0.46 to −0.07. In 3 rounds of 8 the policy gradient did not move the mean toward better plans; what PG's pick gains is selection over its 24 draws.
+- **Best-of-K (20-epoch val minus the base plan's, points; a diagnostic, not a result).** The best eligible plan's gain at 8, 16 and 24 draws, averaged over every choice of draws: RULE-K +1.00, +1.22, +1.34; RAND +1.10, +1.53, +1.77; AGENT-S +1.23, +1.49, +1.60. After 24 evaluations, EVO reaches +1.81 and PG +1.49. Gains of 1.3-1.8 points at 20 epochs come to 0.3-0.5 points of TEST 5k at 100 epochs.
+- **The 20-epoch val orders the picks weakly.** Within networks, over the plans with finals (the base plan and the picks), τ-b against the 100-epoch TEST 5k is +0.279 [−0.088, +0.590], and against the 100-epoch val +0.408 [+0.217, +0.583]. These plans are each arm's best, a narrow range; §474's +0.52 was over all equal-size plans.
+- **Who picked what.** The pick beats the base plan on TEST 5k on 6 of 8 networks for RULE-K, 5 for RAND and PG, and 4 for EVO and AGENT-S. RULE-K's 24 runs gave between 2 (r56w4) and 24 (dn40) distinct plans per network. On sh2 its pick is the base plan's widths measured in another run.
+- **The frozen agent at FLOPs 0.20.** 110 of AGENT-S's 192 samples exceed the 1.10× params cap (median ×1.126 the base plan's params, range ×0.76-×2.36): 24 of 24 on dn40, 22 on mb14 and v13, 16 on r20w12, 13 on r56w4, 9 on mb05, 4 on v16 and none on sh2. Its pick is the base plan on 3 of 8 networks: dn40 and mb14, where nearly every sample was over the cap, and sh2, where none of its samples validated above the base. Selected by the 20-epoch val, its best sample is level with RULE-K (−0.041). At this budget the same agent trails the rule as a single proposer (§464, −1.14 at FLOPs 0.20).
+- **Masked edits.** On sh2, 37 of the 120 evaluations logged a masked edit (structural edit rejected, shape preserved): all 24 of AGENT-S's, 6 of RAND's, 4 of EVO's and 3 of PG's. No pick and no final is one (checked by `scratch_audit/s28nov_samenet_maskcheck.py`), so every quoted plan is a real cut [V].
+- **The base plan against the record, read loosely.** As a change from the origin's accuracy, the base plan's final sits between −1.19 and +0.72 points of §452's rule mean per network (mean −0.38; below it on 5 of 8). The rule mean is the threshold rule's plans of the same group at 100 epochs, run in other jobs. Part of every arm's gain over the base plan may be the base run's own draw. Read against §452's rule mean, PG's pick and RULE-K's pick would sit near +0.09 [H].
+- **Size held.** The tilt arms' plans met the 1 % hold on 104-108 of 192 per arm, with the rest logged at the closest landing, and 0-1 plans per arm over the cap. Every evaluated plan carries its hold record, and 3-6 per arm landed more than 0.005 from the hold's prediction.
+- **Cost.** 105.8 GPU-h (evaluations 94.4, finals 11.1, smokes 0.3), against about 100 registered.
+
+**Reading.**
+- **On one network, a DRL agent's search beats one run of the rule at deep cuts by about half a point, and so does choosing the best of the rule's own runs.** The two are level (+0.005). The same-network agent adds nothing measurable above selection here, and its policy did not improve over its rounds.
+- **The same-network side idea closes as posed (registered).** The equal-size room at deep cuts is selection among the rule's own measurements. The paper reports the rule's best of K, chosen by a 20-epoch val, as the strongest same-loop rule where per-network search is allowed (K short recoveries per network). Agent work goes to the transfer proposer (the AGENT-V2 retrain) and the judge.
+- **For the retrain aimed at FLOPs 0.20 [H].** The frozen agent of §464 overshoots the size cap at 0.20 on most of these networks, and §475 and §479 found that training at 0.20 is what moves the learner there. The room above one rule run at 0.20 is about half a point, and selection already reaches it. A frozen proposer that does not search would have to find it in one plan.
+
+**Scope.** 8 CIFAR-100 networks at one budget (FLOPs 0.20), chosen for their equal-size room on val; 24 evaluations per arm; one search scale for PG (3 rounds of 8, sigma 0.3) and EVO.
+
+**Not supported by this section:**
+- "a policy gradient cannot learn on one network": 3 rounds of 8 plans is a small budget;
+- "search does not beat the rule": it beats one rule run, by selection;
+- any claim at other budgets, datasets or networks;
+- any transfer claim for AGENT-S: most of its samples were over the size cap, and its pick was chosen per network by val.
+
+**Next, as set before the read.** PG-IS-SELECTION: the same-network side idea closes as posed. The paper reports the rule's best of K as the strongest same-loop rule where per-network search is allowed. Agent work goes to the transfer proposer: the AGENT-V2 retrain, carrying hec_kp on the blending line (§479), and the judge.
+
+Next §481.
